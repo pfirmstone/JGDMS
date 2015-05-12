@@ -132,10 +132,10 @@ public class DownloadSecurityManager
 		new File(RMID.getDefaultGroupLocation()).toURI().toString();
 	    Class cl = RMIClassLoader.loadClass(
 				cb,
-				"com.sun.jini.phoenix.ActivationGroupData");
+				"org.apache.river.phoenix.ActivationGroupData");
 	    Constructor cons = cl.getConstructor(new Class[]{String[].class});
 	    ActivationGroupDesc groupDesc1 = new ActivationGroupDesc(
-		"com.sun.jini.phoenix.ActivationGroupImpl",
+		"org.apache.river.phoenix.ActivationGroupImpl",
 		cb,
 		new MarshalledObject(cons.newInstance(
 			new Object[]{new String[]{TestParams.testSrc +

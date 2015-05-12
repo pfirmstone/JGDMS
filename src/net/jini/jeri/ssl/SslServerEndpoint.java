@@ -18,7 +18,7 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -196,7 +196,7 @@ import net.jini.security.SecurityContext;
  * @see ConfidentialityStrength
  * @since 2.0
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This implementation uses the <a
  * href="http://java.sun.com/j2se/1.4/docs/guide/security/jsse/JSSERefGuide.html"
@@ -260,7 +260,7 @@ import net.jini.security.SecurityContext;
  *
  * <ul>
  * <li> {@link SSLContext}, with the protocol specified by the
- *	<code>com.sun.jini.jeri.ssl.sslProtocol</code> system property, or
+ *	<code>org.apache.river.jeri.ssl.sslProtocol</code> system property, or
  *	<code>"TLS"</code> if that property is not defined, to provide the
  *	TLS/SSL implementation. The {@link SSLContext#init SSLContext.init}
  *	method is called with <code>null</code> for the <code>random</code>
@@ -268,7 +268,7 @@ import net.jini.security.SecurityContext;
  * <li> {@link CertificateFactory}, with type <code>"X.509"</code>, to generate
  *	<code>CertPath</code> instances from X.509 certificate chains
  * <li> {@link TrustManagerFactory}, with the algorithm specified by the
- *	<code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code> system
+ *	<code>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</code> system
  *	property, or the default algorithm if that property is not defined, to
  *	implement trust management for the TLS/SSL implementation. The factory
  *	must return trust managers that implement {@link X509TrustManager}.
@@ -291,20 +291,20 @@ import net.jini.security.SecurityContext;
  * This implementation recognizes the following system properties: <p>
  * 
  * <ul>
- * <li> <code>com.sun.jini.jeri.ssl.maxServerSessionDuration</code> - The
+ * <li> <code>org.apache.river.jeri.ssl.maxServerSessionDuration</code> - The
  *	maximum number of milliseconds a server-side TLS/SSL session should be
  *	used before expiring. The default is 24 hours. The value used should be
  *	larger than the maximum client session duration to allow the client to
  *	negotiate a new session before the server timeout occurs.
- * <li> <code>com.sun.jini.jeri.ssl.sslProtocol</code> - The secure socket
+ * <li> <code>org.apache.river.jeri.ssl.sslProtocol</code> - The secure socket
  *	protocol used when obtaining {@link SSLContext} instances. The default
  *	is <code>"TLS"</code>.
- * <li> <code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code> - The
+ * <li> <code>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</code> - The
  *	algorithm used when obtaining {@link TrustManagerFactory}
  *	instances. The default is the value returned by {@link
  *	TrustManagerFactory#getDefaultAlgorithm
  *	TrustManagerFactory.getDefaultAlgorithm}.
- * <li> <code>com.sun.jini.jeri.ssl.cipherSuites</code> - The TLS/SSL cipher
+ * <li> <code>org.apache.river.jeri.ssl.cipherSuites</code> - The TLS/SSL cipher
  *	suites that should be used for communication. The default is the list
  *	of suites supported by the JSSE implementation. The value should
  *	specify the suite names, separated by commas. The value will be ignored

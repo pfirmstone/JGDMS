@@ -1,3 +1,0 @@
-testClass=SimpleSetLookupLocators
-testCategories=lookupservice,lookupservice_spec,test_set03
-include0=../lookupservice.properties

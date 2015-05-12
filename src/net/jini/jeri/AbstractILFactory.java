@@ -18,7 +18,7 @@
 
 package net.jini.jeri;
 
-import com.sun.jini.jeri.internal.runtime.Util;
+import org.apache.river.jeri.internal.runtime.Util;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

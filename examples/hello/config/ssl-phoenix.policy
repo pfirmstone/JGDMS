@@ -32,41 +32,41 @@ grant codeBase "file:lib${/}*" {
 
 /* Grant permission to the "server" principal */
 grant principal "server" {
-    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.SystemPermission "registerGroup";
-    permission com.sun.jini.phoenix.SystemPermission "registerObject";
+    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "registerGroup";
+    permission org.apache.river.phoenix.SystemPermission "registerObject";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.manager=";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.policy=config${/}activatable-ssl-server.policy";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-Djava.security.properties=config${/}dynamic-policy.security-properties";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.auth.login.config=config${/}ssl-phoenix.login";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djavax.net.ssl.trustStore=prebuiltkeys${/}truststore";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.protocol.handler.pkgs=net.jini.url";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
 	"-Djava.rmi.server.codebase=*";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-classpath";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "lib${/}server-act.jar${path.separator}lib${/}mdprefld.jar";
 };
 
 /* Grant the principal "phoenix" the permissions to start a group */
 grant principal "phoenix" {
-    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.MonitorPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.SystemPermission "activeGroup";
+    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.MonitorPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "activeGroup";
 };

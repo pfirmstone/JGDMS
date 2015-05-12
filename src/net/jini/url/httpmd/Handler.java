@@ -18,8 +18,8 @@
 
 package net.jini.url.httpmd;
 
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogManager;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogManager;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
@@ -100,7 +100,7 @@ import java.util.logging.Logger;
  * @see HttpmdUtil
  * @since 2.0
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This implementation of HTTPMD URLs uses the {@link Logger} named
  * <code>net.jini.url.httpmd</code> to log information at the following logging

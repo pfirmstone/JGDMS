@@ -18,9 +18,9 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.action.GetLongAction;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
+import org.apache.river.action.GetLongAction;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -66,7 +66,7 @@ class SslConnection extends Utilities implements Connection {
      */
     private final long maxClientSessionDuration =
 	((Long) Security.doPrivileged(
-	    new GetLongAction("com.sun.jini.jeri.ssl.maxClientSessionDuration",
+	    new GetLongAction("org.apache.river.jeri.ssl.maxClientSessionDuration",
 			      (long) (23.5 * 60 * 60 * 1000)))).longValue();
 
     /** Client logger */

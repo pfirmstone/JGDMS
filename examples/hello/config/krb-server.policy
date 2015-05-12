@@ -32,12 +32,12 @@ grant principal
 	javax.security.auth.kerberos.KerberosPrincipal "${clientPrincipal}" 
 {
     /* Call sayHello method */
-    permission com.sun.jini.example.hello.ServerPermission "sayHello";
+    permission org.apache.river.example.hello.ServerPermission "sayHello";
 };
 
 /* Grant permissions to all principals */
 grant {
     /* Call getProxyVerifier method */
-    permission com.sun.jini.example.hello.ServerPermission "getProxyVerifier";
+    permission org.apache.river.example.hello.ServerPermission "getProxyVerifier";
 };
 

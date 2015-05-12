@@ -232,7 +232,7 @@ requests to socket connections.
 @since 2.0
 @version 2.0
 
-@com.sun.jini.impl <!-- Implementation Specifics -->
+@org.apache.river.impl <!-- Implementation Specifics -->
 
 This implementation uses the <a
 href="http://java.sun.com/j2se/1.4/docs/guide/security/jsse/JSSERefGuide.html"
@@ -284,10 +284,10 @@ discovery providers
 
 <tr> <th scope="col"> Level <th scope="col"> Description
 
-<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED} <td>
+<tr> <td> {@link org.apache.river.logging.Levels#FAILED FAILED} <td>
 problems with outbound requests
 
-<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED} <td>
+<tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED} <td>
 exceptions caught involving authentication
 
 <tr> <td> {@link java.util.logging.Level#FINE FINE} <td> authentication
@@ -313,11 +313,11 @@ operation tracing
 accepting or handling server connections, or with handling inbound
 requests
 
-<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED} <td>
+<tr> <td> {@link org.apache.river.logging.Levels#FAILED FAILED} <td>
 problems with checking constraints or permissions, with enumerating
 listen endpoints, or with security issues for inbound requests
 
-<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED} <td>
+<tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED} <td>
 exceptions caught involving authentication
 
 <tr> <td> {@link java.util.logging.Level#FINE FINE} <td> creating
@@ -330,7 +330,7 @@ operation tracing
 
 </table> <p>
 
-See the {@link com.sun.jini.logging.LogManager} class for one way to use
+See the {@link org.apache.river.logging.LogManager} class for one way to use
 the <code>FAILED</code> and <code>HANDLED</code> logging levels in
 standard logging configuration files. <p>
 
@@ -342,7 +342,7 @@ This implementation uses the following security providers: <p>
 
 <ul>
 <li> {@link javax.net.ssl.SSLContext}, with the protocol specified by
-     the <code>com.sun.jini.jeri.ssl.sslProtocol</code> system property,
+     the <code>org.apache.river.jeri.ssl.sslProtocol</code> system property,
      or <code>"TLS"</code> if that property is not defined, to provide
      the TLS/SSL implementation. The {@link
      javax.net.ssl.SSLContext#init SSLContext.init} method is called
@@ -353,7 +353,7 @@ This implementation uses the following security providers: <p>
      from X.509 certificate chains
 <li> {@link javax.net.ssl.TrustManagerFactory}, with the algorithm
      specified by the
-     <code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code>
+     <code>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</code>
      system property, or the default algorithm if that property is not
      defined, to implement trust management for the TLS/SSL
      implementation. The factory must return trust managers that
@@ -378,27 +378,27 @@ Both the TLS/SSL and HTTPS implementations recognize the following
 system properties: <p>
 
 <ul>
-<li> <code>com.sun.jini.jeri.ssl.maxServerSessionDuration</code> - The
+<li> <code>org.apache.river.jeri.ssl.maxServerSessionDuration</code> - The
      maximum number of milliseconds a server-side TLS/SSL session should
      be used before expiring. The default is 24 hours. The value used
      should be larger than the maximum client session duration to allow
      the client to negotiate a new session before the server timeout
      occurs.
-<li> <code>com.sun.jini.jeri.ssl.maxClientSessionDuration</code> - The
+<li> <code>org.apache.river.jeri.ssl.maxClientSessionDuration</code> - The
      maximum number of milliseconds a client-side TLS/SSL session should
      be used. The default is 23.5 hours. The value should be smaller
      than the maximum server session duration to allow the client to
      negotiate a new session before the server timeout occurs.
-<li> <code>com.sun.jini.jeri.ssl.sslProtocol</code> - The secure socket
+<li> <code>org.apache.river.jeri.ssl.sslProtocol</code> - The secure socket
      protocol used when obtaining {@link javax.net.ssl.SSLContext}
      instances. The default is <code>"TLS"</code>.
-<li> <code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code> -
+<li> <code>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</code> -
      The algorithm used when obtaining {@link
      javax.net.ssl.TrustManagerFactory} instances. The default is the
      value returned by {@link
      javax.net.ssl.TrustManagerFactory#getDefaultAlgorithm
      TrustManagerFactory.getDefaultAlgorithm}.
-<li> <code>com.sun.jini.jeri.ssl.cipherSuites</code> - The TLS/SSL
+<li> <code>org.apache.river.jeri.ssl.cipherSuites</code> - The TLS/SSL
      cipher suites that should be used for communication. The default is
      the list of suites supported by the JSSE implementation. The value
      should specify the suite names, separated by commas. The value will
@@ -412,21 +412,21 @@ The following system properties are recognized by HTTPS implementation
 only: <p>
 
 <ul>
-<li> <code>com.sun.jini.jeri.https.idleConnectionTimeout</code> - The
+<li> <code>org.apache.river.jeri.https.idleConnectionTimeout</code> - The
      number of milliseconds to retain idle client-side HTTPS connections
      before closing them. The default is <code>15000</code>.
-<li> <code>com.sun.jini.jeri.https.idleServerConnectionTimeout</code> -
+<li> <code>org.apache.river.jeri.https.idleServerConnectionTimeout</code> -
      The number of milliseconds to retain idle server-side HTTPS
      connections before closing them.  The default is the idle
      client-side connection timeout (as specified by the
-     <code>com.sun.jini.jeri.https.idleConnectionTimeout</code> system
+     <code>org.apache.river.jeri.https.idleConnectionTimeout</code> system
      property) plus <code>30000</code>.
-<li> <code>com.sun.jini.jeri.https.responseAckTimeout</code> - The
+<li> <code>org.apache.river.jeri.https.responseAckTimeout</code> - The
      number of milliseconds to wait for acknowledgments from {@link
      net.jini.io.context.AcknowledgmentSource} instances, or to keep
      track of acknowledgements that have not yet been sent. The default
      is <code>15000</code>.
-<li><code>com.sun.jini.jeri.https.pingProxyConnections</code> - If
+<li><code>org.apache.river.jeri.https.pingProxyConnections</code> - If
     the value is case-insensitive equal to <code>true</code>, then if an
     HTTP proxy is being used, ping the server endpoint to verify whether
     it is alive and reachable. The ping occurs before the first request
@@ -439,7 +439,7 @@ only: <p>
     UnmarshalException). The ping increases the likelihood that the
     inability to reach the server endpoint can be explicitly identified.
     The default value is <code>false</code>, and no pings are done.
-<li><code>com.sun.jini.jeri.https.pingProxyConnectionTimeout</code> - The
+<li><code>org.apache.river.jeri.https.pingProxyConnectionTimeout</code> - The
     number of milliseconds from the time a server endpoint was last
     pinged before a ping will precede the next request. The default is
     <code>Long.MAX_VALUE</code> (essentially meaning, ping only before

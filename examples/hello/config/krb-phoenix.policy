@@ -32,11 +32,11 @@ grant principal
     javax.security.auth.kerberos.KerberosPrincipal "${phoenixPrincipal}" 
 {
     /* Call getProxyVerifier */
-    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.MonitorPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.MonitorPermission "getProxyVerifier";
 
     /* Call activeGroup */
-    permission com.sun.jini.phoenix.SystemPermission "activeGroup";
+    permission org.apache.river.phoenix.SystemPermission "activeGroup";
 };
 
 /* Grant permission to server principal */
@@ -44,53 +44,53 @@ grant principal
     javax.security.auth.kerberos.KerberosPrincipal "${serverPrincipal}" 
 {
     /* Call getProxyVerifier */
-    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
 
     /* Call registerGroup */
-    permission com.sun.jini.phoenix.SystemPermission "registerGroup";    
+    permission org.apache.river.phoenix.SystemPermission "registerGroup";    
 
     /* Call registerObject */
-    permission com.sun.jini.phoenix.SystemPermission "registerObject";
+    permission org.apache.river.phoenix.SystemPermission "registerObject";
 
     /* Permit group options */
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.manager=";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.policy=config${/}activatable-krb-server.policy";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-Djava.security.properties=config${/}dynamic-policy.security-properties";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.auth.login.config=config${/}krb-phoenix.login";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.protocol.handler.pkgs=net.jini.url";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
 	"-Djava.rmi.server.codebase=*";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-DclientPrincipal=${clientPrincipal}";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-DserverPrincipal=${serverPrincipal}";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-DphoenixPrincipal=${phoenixPrincipal}";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-DreggiePrincipal=${reggiePrincipal}";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.krb5.realm=${java.security.krb5.realm}";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "-Djava.security.krb5.kdc=${java.security.krb5.kdc}";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission "-classpath";
+    permission org.apache.river.phoenix.ExecOptionPermission "-classpath";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
         "lib${/}server-act.jar${path.separator}lib${/}mdprefld.jar";
 };

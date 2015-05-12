@@ -18,7 +18,7 @@
 <html>
 <body>
 
-The <code>com.sun.jini.qa.harness</code> package provides a specialized testing
+The <code>org.apache.river.qa.harness</code> package provides a specialized testing
 infrastructure designed to support testing of Jini(TM) technology-enabled
 components and services. This overview provides information of general interest
 both to test developers and to deployers. A partial list of features provided by
@@ -57,11 +57,11 @@ and user-supplied properties that control harness execution are
 provided in a <code>deployment properties file</code>
  which is named on the command line used to run the
 harness. The directory containing the starter kit is identified in this file by
-the property <code>com.sun.jini.jsk.home</code>. The directory containing the
+the property <code>org.apache.river.jsk.home</code>. The directory containing the
 test harness kit is identified in this file by the property
-<code>com.sun.jini.qa.home</code>. In property files, and frequently in this
+<code>org.apache.river.qa.home</code>. In property files, and frequently in this
 document, these directories will be referred to symbolically as
-<code>${com.sun.jini.jsk.home}</code> and <code>${com.sun.jini.qa.home}</code>.
+<code>${org.apache.river.jsk.home}</code> and <code>${org.apache.river.qa.home}</code>.
 The test suite to be executed by the harness is installed separately and
 may require additional properties to define the installation environment
 of the test suite.
@@ -78,7 +78,7 @@ and the command line must include a system property that names
 the participants. For example, the definition:
 
 <pre>
-  -Dcom.sun.jini.qa.harness.testhosts=foo,bar
+  -Dorg.apache.river.qa.harness.testhosts=foo,bar
 </pre>
 
 would indicate that two hosts, named foo and bar, are participants.  The first
@@ -96,7 +96,7 @@ characteristics.
 
 When a test starts a service, the master selects the service host based on the
 current host selection policy. The policy to use is defined by the value of the
-test property <code>com.sun.jini.harness.servicehostpolicy</code>. This property
+test property <code>org.apache.river.harness.servicehostpolicy</code>. This property
 may have one of the following values:
 
 <dl>
@@ -190,7 +190,7 @@ Otherwise, a <code>TestException</code> is thrown.
 When the harness processes the &lt;url:filename&gt; or &lt;file:filename&gt; tokens, it searches 
 for <code>filename</code> along a search path defined by the <code>searchPath</code>
 test property. Regardless of the value of this property, the search path will
-always include ${com.sun.jini.qa.home}. In general, <code>searchPath</code> should
+always include ${org.apache.river.qa.home}. In general, <code>searchPath</code> should
 be defined self-referentially. For instance, it can be convenient for 
 debugging purposes to modify the search path on the command line as follows:
 <pre>
@@ -227,11 +227,11 @@ tags include:
 The set
 of tags to use in a test run is specified either on the command line via the option:
 <pre>
-  -com.sun.jini.qa.harness.configs tag1[,tag2,...]
+  -org.apache.river.qa.harness.configs tag1[,tag2,...]
 </pre>
 or in the deployment property file via the following definition:
 <pre>
-  com.sun.jini.qa.harness.configs=tag1[,tag2,...]
+  org.apache.river.qa.harness.configs=tag1[,tag2,...]
 </pre>
 If multiple tags are specified, the same test is run successively with each configuration.
 The default value is <code>none</code>. The tag is used by the harness to 
@@ -349,7 +349,7 @@ available to a test via the <code>getConfiguration()</code> method of the
 In a distributed test, it may be necessary for the slave to use a local
 property value in place of the value supplied by the master. These overrides
 may be defined in the slave deployment properties files through the
-property <code>com.sun.jini.qa.harness.slaveTestOverrides</code>. The value
+property <code>org.apache.river.qa.harness.slaveTestOverrides</code>. The value
 of this property is always obtained locally, and is a comma or space
 separated list of property names who's values should also be obtained
 locally.
@@ -431,7 +431,7 @@ be defaulted in a more global property file:
   <dt><code>testMaxRetries</code>
   <dd>an integer defining the number of times a test should be rerun on
       failure. The default value is 1. Test reruns are not performed unless the
-      test property <code>com.sun.jini.qa.harness.rerunFailedTests</code> is
+      test property <code>org.apache.river.qa.harness.rerunFailedTests</code> is
       also defined and has the value <code>true</code>. The default value of
       this property is <code>false</code>.
 </dl>
@@ -492,7 +492,7 @@ configurations.
 When the harness is invoked from the command line, the name of a deployment
 properties file must be provided. The example prototype for this file is located
 in
-<code>${com.sun.jini.qa.home}/src/com/sun/jini/resources/basicDeployment.prop.</code>
+<code>${org.apache.river.qa.home}/src/org/apache/river/resources/basicDeployment.prop.</code>
 in the source distribution kit.
 
 Typically, a test suite would define additional properties which must be
@@ -502,7 +502,7 @@ added to this prototype.
 
 A default properties file is the last properties file searched to resolve a test
 properties key. It is referenced via the token
-<code>&lt;url:com/sun/jini/qa/resources/qaDefaults.properties&gt;.</code>
+<code>&lt;url:org/apache/river/qa/resources/qaDefaults.properties&gt;.</code>
 
 <h3>Defaults in the Code</h3>
 
@@ -541,7 +541,7 @@ for the following tokens:
 
 <ul>
 <li>&lt;gethost&gt;, which if found is replaced with the name of the current host, or
-the IP address of the current host of the property <code>com.sun.jini.qa.harness.useAddress</code>
+the IP address of the current host of the property <code>org.apache.river.qa.harness.useAddress</code>
 is defined and has the value <code>true</code>.
 <li>&lt;harnessJar&gt;, which if found is replaced by the fully qualified path to
 the harness JAR file
@@ -557,7 +557,7 @@ ordering allows the tokens in the previous list to be embedded in these file bas
 <p>
 
 For additional details on the string substitution mechanism, see <a
-href=com/sun/jini/harness/Resolver.html><code>com.sun.jini.qa.harness.Resolver</code></a>.
+href=org/apache/river/harness/Resolver.html><code>org.apache.river.qa.harness.Resolver</code></a>.
 
 <h2>Custom Security Policy Provider</h2>
 
@@ -571,7 +571,7 @@ but is considered adequate for testing purposes. For example, if policy file A
 granted read access to foo and policy file B granted write access to foo, then
 an access check for read,write access  to foo would still fail.
 <p>
-The policy provider is <code>${com.sun.jini.qa.home}/lib/mergedpolicyprovider.jar</code>
+The policy provider is <code>${org.apache.river.qa.home}/lib/mergedpolicyprovider.jar</code>
 (in both the source and binary distributions) and must be installed in the extensions 
 directory of the JDK used to run the test harness. On startup, the harness will
 verify that the provider is loaded by the extension class loader and will exit
@@ -581,7 +581,7 @@ When the harness starts a test or service, it specifies the default policy file 
 via the normal <code>java.security.policy</code> property. If additional grants
 are required, additional policies can be specified by supplying a list of
 policy files (using &lt;url:&gt; or &lt;file:&gt; tokens) through the
-system property <code>com.sun.jini.qa.harness.policies</code> for the VM
+system property <code>org.apache.river.qa.harness.policies</code> for the VM
 containing the test or service. This list may be separated by commas or white space.
 <p>
 <b>Note:</b> due to a known bug, the grants supplied by the <code>MergedPolicyProvider</code>
@@ -594,7 +594,7 @@ These resources include JAAS login
 configuration files, keystores, truststores, etc. Because the value of the
 <code>javax.net.ssl.trustStore</code> property must refer to a file, the
 trust store supplied by the harness is packaged as a separate file in
-<code>${com.sun.jini.qa.home}/harness/trust/truststore</code> in both the
+<code>${org.apache.river.qa.home}/harness/trust/truststore</code> in both the
 source and binary distributions.
 
 <h2>Starting Jini Services</h2>
@@ -615,7 +615,7 @@ the test description file, for instance) to affect the behavior of the
 service. The most common overrides are defined to specify the groups and
 locators used by the service.  Default property values for all of the
 contributed Jini services are defined in the default property file,
-<code>&lt;url:com/sun/jini/qa/resources/qaDefaults.properties&gt;.</code>
+<code>&lt;url:org/apache/river/qa/resources/qaDefaults.properties&gt;.</code>
 By convention, the <code>serviceName</code> for a service is the name of the
 public interface that the service implements. Therefore, the contributed Jini
 services have the following <code>serviceNames</code>:
@@ -652,7 +652,7 @@ during startup:
 
 A test may also supply additional overrides to a service. The test may register
 one or more instances of the
-<code>com.sun.jini.qa.harness.OverrideProvider</code> interface with
+<code>org.apache.river.qa.harness.OverrideProvider</code> interface with
 <code>QAConfig</code> by calling its <code>addOverrideProvider</code>
 method. The <code>testOverrideProviders</code> property may also be defined to
 identify a list of providers to be registered automatically before starting the
@@ -686,24 +686,24 @@ to:
 
 The properties that control these auxiliary services are defined in the example
 deployment properties file,
-<code>${com.sun.jini.qa.home}/src/com/sun/jini/qa/resources/basicDeployment.prop.</code>
+<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop.</code>
 supplied in the harness source distribution.
 
 <h3>The Starter Kit Class Server</h3>
 
 By default, the harness will automatically start a class server on port 8080 to
-serve JAR files from <code>${com.sun.jini.jsk.home}/lib-dl.</code> This can be inhibited by
+serve JAR files from <code>${org.apache.river.jsk.home}/lib-dl.</code> This can be inhibited by
 defining
 
 <pre>
-   com.sun.jini.qa.harness.runjiniserver=false
+   org.apache.river.qa.harness.runjiniserver=false
 </pre>
 
 To change the port (for example, to 9000), define the following:
 
 <pre>
-   com.sun.jini.jsk.port=9000
-   com.sun.jini.qa.harness.dldir.9000=${com.sun.jini.jsk.jars}
+   org.apache.river.jsk.port=9000
+   org.apache.river.qa.harness.dldir.9000=${org.apache.river.jsk.jars}
 </pre>
 
 The second line is needed to support generating httpmd URLs.
@@ -711,18 +711,18 @@ The second line is needed to support generating httpmd URLs.
 <h3>The QA Class Server</h3>
 
 By default, the harness will automatically start a class server on port 8081 to
-serve JAR files from <code>${com.sun.jini.qa.home}/lib.</code> This can be inhibited by
+serve JAR files from <code>${org.apache.river.qa.home}/lib.</code> This can be inhibited by
 defining
 
 <pre>
-   com.sun.jini.qa.harness.runkitserver=false
+   org.apache.river.qa.harness.runkitserver=false
 </pre>
 
 To change the port (for example, to 9001), define
 
 <pre>
-   com.sun.jini.qa.port=9001
-   com.sun.jini.qa.harness.dldir.9001=${com.sun.jini.qa.jars}
+   org.apache.river.qa.port=9001
+   org.apache.river.qa.harness.dldir.9001=${org.apache.river.qa.jars}
 </pre>
 
 The second line is needed to support generating httpmd URLs.
@@ -737,7 +737,7 @@ phoenix. For more information, see the JavaDoc for
 system must be disabled, the following may be defined:
 
 <pre>
-   com.sun.jini.qa.harness.runactivation=false
+   org.apache.river.qa.harness.runactivation=false
 </pre>
 
 This would be done only in unusual debugging situations.
@@ -752,7 +752,7 @@ that is used for all other activatable service started by the same
 <code>AdminManager</code>.  This can be inhibited by defining
 
 <pre>
-   com.sun.jini.qa.harness.shared=false
+   org.apache.river.qa.harness.shared=false
 </pre>
 
 which will cause each service to run in a private activation group.
@@ -765,7 +765,7 @@ generated from slave tests into the logging output stream of the master test
 unless the following is defined:
 
 <pre>
-  com.sun.jini.qa.harness.slavepipe=false
+  org.apache.river.qa.harness.slavepipe=false
 </pre>
 
 This typically is only done for debug/demo purposes.
@@ -781,13 +781,13 @@ and service VMs started by the master or slave harness.
 <p>
 
 Test output is generated by calls to the Java logging API to a logger named
-<code>com.sun.jini.qa.harness.</code> A custom <code>ReportHandler</code>
+<code>org.apache.river.qa.harness.</code> A custom <code>ReportHandler</code>
 forwards all log records to <code>System.out</code>.  A custom formatter will
 optionally prepend the record with the abbreviated source (last class name
 token and method name) and level indicator.  If the test is running distributed,
 then the name of the host on which the output was generated will also be
 prepended. Timestamps are generated at intervals, specified by the logging
-property <code>com.sun.jini.qa.harness.HarnessFormatter.timeinterval</code>.
+property <code>org.apache.river.qa.harness.HarnessFormatter.timeinterval</code>.
 If a log message is generated and the number of seconds specified by this
 property have elapsed since the last timestamp, a new timestamp is generated
 on a separate line. The default value is ten seconds. If this property
@@ -800,10 +800,10 @@ There are four boolean logging properties that can be defined to control the
 display of the source, level, timestamp, and host info:
 
 <pre>
-   com.sun.jini.qa.harness.HarnessFormatter.showtime
-   com.sun.jini.qa.harness.HarnessFormatter.showsource
-   com.sun.jini.qa.harness.HarnessFormatter.showlevel
-   com.sun.jini.qa.harness.HarnessFormatter.showhost
+   org.apache.river.qa.harness.HarnessFormatter.showtime
+   org.apache.river.qa.harness.HarnessFormatter.showsource
+   org.apache.river.qa.harness.HarnessFormatter.showlevel
+   org.apache.river.qa.harness.HarnessFormatter.showhost
 </pre>
 
 These must be defined in the logging properties file rather than in the harness
@@ -811,7 +811,7 @@ configuration files. If undefined these properties default to <code>true</code>.
 
 <p>
 
-A reference to the <code>com.sun.jini.qa.harness</code> logger is provided
+A reference to the <code>org.apache.river.qa.harness</code> logger is provided
 by <code>QATest</code> via the static protected field <code>logger</code>.
 
 <h2>Test Timeouts</h2>
@@ -820,7 +820,7 @@ The test harness can be configured to timeout a test after a fixed period
 of time. The definition:
 
 <pre>
-   com.sun.jini.qa.harness.timeout=&lt;val&gt;
+   org.apache.river.qa.harness.timeout=&lt;val&gt;
 </pre>
 
 where <code>&lt;val&gt;</code> is an integer, will cause the test VM process
@@ -831,7 +831,7 @@ The default value of <code>val</code> is zero, which disables timeouts.
 
 When a test is configured for security, test and service codebases will
 automatically be converted to httpmd URLs. This behavior is globally controlled
-by the test property <code>com.sun.jini.qa.harness.integrityhash</code>.  If
+by the test property <code>org.apache.river.qa.harness.integrityhash</code>.  If
 this value is defined and has any value other than "none", then any http URL in
 a test or service codebase will automatically be converted to an httpmd URL,
 using the value of the <code>integrityhash</code> property as the name of the
@@ -848,7 +848,7 @@ service property named <code>integrityhash</code>.
 
 In order to perform the conversion, it is necessary to know the document
 directory associated with the http URL. To obtain this, a test property
-<code>com.sun.jini.qa.harness.dldir.&lt;port&gt;</code> must be defined where
+<code>org.apache.river.qa.harness.dldir.&lt;port&gt;</code> must be defined where
 &lt;port&gt; is the port number associated with the URL.
 
 <h2>API Overview</h2>
@@ -856,10 +856,10 @@ directory associated with the http URL. To obtain this, a test property
 This section summarizes the classes and methods most often referenced by test
 implementation code:
 
-<h4>com.sun.jini.qa.harness.Test</h4>
+<h4>org.apache.river.qa.harness.Test</h4>
 
 All tests must implement the <a
-href=com/sun/jini/harness/Test.html><code>com.sun.jini.qa.harness.Test</code></a>
+href=org/apache/river/harness/Test.html><code>org.apache.river.qa.harness.Test</code></a>
 interface:
 
 <pre>
@@ -872,13 +872,13 @@ interface:
 
 All three of these methods are called by the harness in the order listed, unless
 <code>setup</code> throws an exception. See
-<code>com.sun.jini.qa.harness.QATest</code> for additional details on how the
+<code>org.apache.river.qa.harness.QATest</code> for additional details on how the
 harness interacts with implementations of this interface.  A test which does not
 require the features provided by <code>QATest</code> could implement this
 interface directly. This document is written with the assumption that test
 implementations will extend <code>QATest</code>.
 
-<h4>com.sun.jini.qa.harness.Admin</h4>
+<h4>org.apache.river.qa.harness.Admin</h4>
 
 The <code>Admin</code> interface is implemented by objects that are used to
 control services. Several implementations of this interface are included with
@@ -895,7 +895,7 @@ the <code>getProxy</code> method may be called to obtain its proxy.
 Also, <code>start</code> and <code>stop</code> should only be called
 once; the behavior of additional calls is undefined.
 
-<h4>com.sun.jini.qa.harness.AdminManager</h4>
+<h4>org.apache.river.qa.harness.AdminManager</h4>
 
 <code>AdminManager</code> acts as a factory for service admins, and supports
 orderly startup/shutdown of services used by a test. Methods are provided for
@@ -934,7 +934,7 @@ activity. However, occasionally it may be necessary to obtain a service admin in
 order to obtain information about the parameters that were used to start the
 service.
 
-<h4>com.sun.jini.qa.harness.QAConfig</h4>
+<h4>org.apache.river.qa.harness.QAConfig</h4>
 
 <code>QAConfig</code> exposes a rather large number of methods. However, test
 writers typically call only a small subset of them, specifically accessors of
@@ -967,7 +967,7 @@ test behavior. The set consists of:
 </code>
 <p>
 
-<h4> com.sun.jini.qa.harness.QATest</h4>
+<h4> org.apache.river.qa.harness.QATest</h4>
 
 This base class is inherited by most tests. It is declared to implement the
 <code>Test</code> interface, and provides concrete implementations of the
@@ -1031,7 +1031,7 @@ time, so exceptions are always treated as failures. See the JavaDoc for
 the <code>FailureAnalyzer</code> interface for more details.
 
 
-<h4>com.sun.jini.qa.harness.TestException</h4>
+<h4>org.apache.river.qa.harness.TestException</h4>
 
 <code>TestException</code> is thrown by a test to signal a failure. In most
 cases, unexpected exceptions (both checked and unchecked) are not caught by
@@ -1044,13 +1044,13 @@ result from correct behavior of the item under test.
 To run the harness, at least two JAR files must be included in the classpath:
 
 <pre>
-        ${com.sun.jini.qa.home}/lib/jiniharness.jar
+        ${org.apache.river.qa.home}/lib/jiniharness.jar
 </pre>
 
 is the JAR file containing the harness code and resources, and
 
 <pre>
-        ${com.sun.jini.jsk.home}/lib/jsk-platform.jar
+        ${org.apache.river.jsk.home}/lib/jsk-platform.jar
 </pre>
 
 is the starter kit platform that is typically included in the classpath of 
@@ -1060,8 +1060,8 @@ Jini clients and services.
 
 The user must also specify the name of a deployment properties file on the command line
 that defines installation values, such as the value of
-<code>${com.sun.jini.qa.home}.</code> A prototype of this file is available at
-<code>${com.sun.jini.qa.home}/src/com/sun/jini/qa/resources/basicDeployment.prop</code> 
+<code>${org.apache.river.qa.home}.</code> A prototype of this file is available at
+<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop</code> 
 in the source distribution. 
 The user must also specify the name of the primary test suite JAR file via the
 command-line option <code>-testJar foo.jar</code>. In this example, <code>foo.jar</code> contains the
@@ -1080,7 +1080,7 @@ option, for example:
 
 <pre>
   java -cp /files/jiniqa2_1_harness/lib/jiniharness.jar:/files/jini2_1/lib/jsk-platform.jar \
-       com.sun.jini.qa.harness.QARunner \
+       org.apache.river.qa.harness.QARunner \
        /tmp/myharness.prop \
        -testJar /files/testsuite/lib/tests.jar \
        -categories joinmanager,javaspace
@@ -1089,7 +1089,7 @@ option, for example:
 This would limit test execution to those tests whose test descriptions included
 either <code>joinmanager</code> or <code>javaspace</code> in their definitions
 of <code>testCategories</code>. The configuration used would be
-<code>none</code> unless the value of <code>com.sun.jini.harness.configs</code>
+<code>none</code> unless the value of <code>org.apache.river.harness.configs</code>
 had been modified in /tmp/myharness.prop.
 
 <p>
@@ -1099,10 +1099,10 @@ the <code>-tests</code> option. For example,
 
 <pre>
   java -cp /files/jiniqa2_1_harness/lib/jiniharness.jar:/files/jini2_1/lib/jsk-platform.jar \
-       com.sun.jini.qa.harness.QARunner \
+       org.apache.river.qa.harness.QARunner \
        /tmp/myHarness.prop \
        -testJar /files/testsuite/lib/tests.jar \
-       -tests com/sun/jini/test/spec/joinmanager/EqualsTest
+       -tests org/apache/river/test/spec/joinmanager/EqualsTest
 </pre>
 
 This would execute only the hypothetical joinmanger <code>EqualsTest</code> test. The
@@ -1111,11 +1111,11 @@ run this test using the jeri ConfigurationFileSet:
 
 <pre>
   java -cp /files/jiniqa2_1_harness/lib/jiniharness.jar:/files/jini2_1/lib/jsk-platform.jar \
-       com.sun.jini.qa.harness.QARunner \
+       org.apache.river.qa.harness.QARunner \
        /tmp/myHarness.prop \
        -testJar /files/testsuite/lib/tests.jar \
-       -tests com/sun/jini/test/spec/joinmanager/EqualsTest \
-       -com.sun.jini.qa.harness.configs jeri
+       -tests org/apache/river/test/spec/joinmanager/EqualsTest \
+       -org.apache.river.qa.harness.configs jeri
 </pre>
 
 The <code>-tests</code> argument is optional, and if present must be followed by
@@ -1142,34 +1142,34 @@ admins provided with the harness.  They are:
 
 <table summary="supported Admin implementations">
 <tr>
-  <td><a href=com/sun/jini/qa/harness/ActivatableServiceStarterAdmin.html>
+  <td><a href=org/apache/river/qa/harness/ActivatableServiceStarterAdmin.html>
       <code>ActivatableServiceStarterAdmin</code></a>
   <td>manages any activatable service compatible with 
-      <code>com.sun.jini.start.ServiceDescriptor</code>.
+      <code>org.apache.river.start.ServiceDescriptor</code>.
 <tr>
-  <td><a href=com/sun/jini/qa/harness/NonActivatableServiceStarterAdmin.html>
+  <td><a href=org/apache/river/qa/harness/NonActivatableServiceStarterAdmin.html>
       <code>NonActivatableServiceStarterAdmin</code></a>
   <td>manages any non-activatable service compatible with 
-      <code>com.sun.jini.start.ServiceDescriptor</code>.
+      <code>org.apache.river.start.ServiceDescriptor</code>.
 <tr>
-  <td><a href=com/sun/jini/qa/harness/RunningServiceAdmin.html>
+  <td><a href=org/apache/river/qa/harness/RunningServiceAdmin.html>
       <code>RunningServiceAdmin</code></a> 
   <td>manages any service which is already running and registered in 
       a lookup service.
 <tr>
-  <td><a href=com/sun/jini/qa/harness/SharedGroupAdmin.html>
+  <td><a href=org/apache/river/qa/harness/SharedGroupAdmin.html>
       <code>SharedGroupAdmin</code></a>
   <td>manages a shared activation group
 <tr>
-  <td><a href=com/sun/jini/qa/harness/ActivationSystemAdmin.html>
+  <td><a href=org/apache/river/qa/harness/ActivationSystemAdmin.html>
       <code>ActivationSystemAdmin</code></a>
   <td> manages an activation system
 <tr>
-  <td><a href=com/sun/jini/qa/harness/ClassServerAdmin.html>
+  <td><a href=org/apache/river/qa/harness/ClassServerAdmin.html>
       <code>ClassServerAdmin</code></a>
   <td>manages an in-process class server
 <tr>
-  <td><a href=com/sun/jini/qa/harness/RemoteServiceAdmin.html>
+  <td><a href=org/apache/river/qa/harness/RemoteServiceAdmin.html>
       <code>RemoteServiceAdmin</code></a>
   <td>manages a remote service - used internally when running distributed
 </table>
@@ -1270,7 +1270,7 @@ type, are:
   <td><code>component</code>
   <td>the component name to use when constructing entry names for entries
       in the service <code>Configuration</code>. For example, reggie has a
-      value of <code>"com.sun.jini.reggie"</code> for this property. This
+      value of <code>"org.apache.river.reggie"</code> for this property. This
       property must be defined if the 
       tojoin or membergroups properties are defined, or if log property has any
       value other than "none".
@@ -1339,7 +1339,7 @@ type, are:
       codebases are automatically converted to httpmd URLs using the
       hashing algorithm named by this property. This value overrides
        the value defined by the global property 
-      <code>com.sun.jini.qa.harness.integrityhash</code> and has the
+      <code>org.apache.river.qa.harness.integrityhash</code> and has the
       same semantics for supporting multiple values.
 <tr valign=top>
   <td>
@@ -1387,7 +1387,7 @@ be merged with those for the private shared group VM.
   <td><code>component</code>
   <td>the component name to use when constructing entry names for entries
       in the service <code>Configuration</code>. For example, reggie has a
-      value of <code>"com.sun.jini.reggie"</code> for this property. This
+      value of <code>"org.apache.river.reggie"</code> for this property. This
       property must be defined if the 
       tojoin or membergroups properties are defined, or if log property has any
       value other than "none".
@@ -1442,7 +1442,7 @@ be merged with those for the private shared group VM.
       codebases are automatically converted to httpmd URLs using the
       hashing algorithm named by this property. This value overrides
        the value defined by the global property 
-      <code>com.sun.jini.qa.harness.integrityhash</code> and has the
+      <code>org.apache.river.qa.harness.integrityhash</code> and has the
       same semantics for supporting multiple values.
 <tr valign=top><td><td><td>
 </table>
@@ -1617,23 +1617,23 @@ appending the type value. For instance, for the hypothetical Jini service
 <code>net.jini.FooInterface</code>, consider the following definitions:
 
 <pre>
-   net.jini.FooInterface.impl.activatable=com.sun.jini.foo.FooActImpl
-   net.jini.FooInterface.impl.transient=com.sun.jini.foo.FooNonActImpl
-   net.jini.FooInterface.impl.persistent=com.sun.jini.foo.FooNonActImpl
-   net.jini.FooInterface.codebase=${com.sun.jini.jsk.home}/lib-dl/foo-dl.jar
+   net.jini.FooInterface.impl.activatable=org.apache.river.foo.FooActImpl
+   net.jini.FooInterface.impl.transient=org.apache.river.foo.FooNonActImpl
+   net.jini.FooInterface.impl.persistent=org.apache.river.foo.FooNonActImpl
+   net.jini.FooInterface.codebase=${org.apache.river.jsk.home}/lib-dl/foo-dl.jar
 </pre>
 
 If the value of <code>net.jini.FooInterface.type</code> is "activatable" then
 all attempts to resolve any service property value for net.jini.FooInterface
 will first search for the ".activatable" variant. If not found, then the
 unqualified variant will be searched for. For the example above, the search for
-<code>impl</code> would return <code>com.sun.jini.foo.FooActImpl</code>, and the
+<code>impl</code> would return <code>org.apache.river.foo.FooActImpl</code>, and the
 search for <code>codebase</code> would return
-<code>${com.sun.jini.jsk.home}/lib-dl/foo-dl.jar</code>. However, if
+<code>${org.apache.river.jsk.home}/lib-dl/foo-dl.jar</code>. However, if
 <code>net.jini.FooInterface.type</code> is "persistent", then the search for
-<code>impl</code> would return <code>com.sun.jini.foo.FooNonActImpl</code>, and
+<code>impl</code> would return <code>org.apache.river.foo.FooNonActImpl</code>, and
 the search for <code>codebase</code> would return
-<code>${com.sun.jini.jsk.home}/lib-dl/foo-dl.jar</code>. When overriding the
+<code>${org.apache.river.jsk.home}/lib-dl/foo-dl.jar</code>. When overriding the
 definition of a service property, it is therefore important to override all
 variants for that property. Overriding only the unqualified definition will
 result in incorrect behavior if any variants are defined elsewhere.
@@ -1762,14 +1762,14 @@ should contain the following set of well-known entries:
 An example ConfigurationFile for norm (imports omitted)  might look like:
 <pre>
   exporter {
-        name = "com.sun.jini.norm.exporter";
+        name = "org.apache.river.norm.exporter";
         activatableExporter = new JrmpExporter((ActivationID) $data, 0);
         transientExorter = new JrmpExporter();
         persistentExporter = new JrmpExporter();
   }
 
-  com.sun.jini.norm {
-   [standard norm entries, see the javadoc for com.sun.jini.norm]
+  org.apache.river.norm {
+   [standard norm entries, see the javadoc for org.apache.river.norm]
   }
 </pre>
 In order to identify the exporter to use, the harness obtains the 
@@ -1777,9 +1777,9 @@ In order to identify the exporter to use, the harness obtains the
 indirectly points to the exporter to use. For the activatable variant, 
 the resulting override would be
 <pre>
-   "com.sun.jini.norm.exporter=exporter.activatableExporter"
+   "org.apache.river.norm.exporter=exporter.activatableExporter"
 </pre>
-When norm obtains the entry for <code>com.sun.jini.norm.exporter</code>,
+When norm obtains the entry for <code>org.apache.river.norm.exporter</code>,
 it will access <code>exporter.activatableExporter</code> which returns the
 activatable exporter variant.
 
@@ -1789,54 +1789,54 @@ The user must specify a deployment properties file on the command line used to r
 harness. This file defines installation specific values and a small number of
 configurable parameters, such as timeouts. The prototype for this file is
 included with the harness at
-<code>${com.sun.jini.qa.home}/src/com/sun/jini/qa/resources/basicDeployment.prop.</code>
+<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop.</code>
 Properties defined in this file include:
 
 <table summary="mandatory and optional user supplied properties">
 <tr valign=top>
-  <td><code>com.sun.jini.jsk.home</code> 
+  <td><code>org.apache.river.jsk.home</code> 
   <td>
 
       the installation directory of the starter kit. This value is
       mandatory, and must be specified as an absolute path.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.home</code> 
+  <td><code>org.apache.river.qa.home</code> 
   <td>
 
       the installation directory of the QA 'kit'. This value is
       mandatory, and must be specified as an absolute path.
 
 <tr valign=top>
-  <td><code>com.sun.jini.jsk.port</code> 
+  <td><code>org.apache.river.jsk.port</code> 
   <td>
 
       the HTTP port for downloading starter kit classes. This parameter
       is optional, and has the default value 8080.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.dldir.8080</code> 
+  <td><code>org.apache.river.qa.harness.dldir.8080</code> 
   <td>
 
       The download directory for the class server at port 8080.
       This is needed to support generating httpmd URLs.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.port</code> 
+  <td><code>org.apache.river.qa.port</code> 
   <td>
 
       the HTTP port for downloading QA classes. This parameter is optional,
       and has the default value 8081.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.dldir.8081</code> 
+  <td><code>org.apache.river.qa.harness.dldir.8081</code> 
   <td>
 
       The download directory for the class server at port 8081.
       This is needed to support generating httpmd URLs.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.shared</code>
+  <td><code>org.apache.river.qa.harness.shared</code>
   <td>
 
       if <code>true</code> (the default), all services are configured to run in
@@ -1844,7 +1844,7 @@ Properties defined in this file include:
       group.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.runactivation</code>
+  <td><code>org.apache.river.qa.harness.runactivation</code>
   <td>
 
       if <code>true</code> (the default), the activation system identified by
@@ -1852,7 +1852,7 @@ Properties defined in this file include:
       activatable service is started, and stopped during test teardown.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.runjiniserver</code>
+  <td><code>org.apache.river.qa.harness.runjiniserver</code>
   <td>
 
       if <code>true</code> (the default), the class server identified
@@ -1860,7 +1860,7 @@ Properties defined in this file include:
       automatically in test setup, and stopped in test teardown.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.runkitserver</code>
+  <td><code>org.apache.river.qa.harness.runkitserver</code>
   <td>
 
       if <code>true</code> (the default) the class server identified
@@ -1868,7 +1868,7 @@ Properties defined in this file include:
       automatically during test setup, and stopped during test teardown.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.timeout</code>
+  <td><code>org.apache.river.qa.harness.timeout</code>
   <td>
 
       the number of seconds to elapse before a test timeout interrupt
@@ -1876,14 +1876,14 @@ Properties defined in this file include:
       timeouts are not enabled. The default value is zero.
 
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.discardOKOutput</code>
+  <td><code>org.apache.river.qa.harness.discardOKOutput</code>
   <td>
 
       if <code>true</code>, most output generated by a passing test
       is discarded. If <code>false,</code> all output is written to
       the test log. The default value is <code>false.</code>
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.rerunFailedTests</code>
+  <td><code>org.apache.river.qa.harness.rerunFailedTests</code>
   <td>
 
       if <code>true,</code> a failing test may be automatically rerun
@@ -1891,7 +1891,7 @@ Properties defined in this file include:
       The default value is <code>false.</code>
   
 <tr valign=top>
-  <td><code>com.sun.jini.qa.harness.configs</code>
+  <td><code>org.apache.river.qa.harness.configs</code>
   <td>
   
       a comma separated list of configurations to use when running tests.
@@ -1933,7 +1933,7 @@ password files for your KDC.
 
 4. Edit the following section in the test suite deployment properties file which
 was derived from
-<code>${com.sun.jini.qa.home}/src/com/sun/jini/qa/resources/basicDeployment.prop</code>
+<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop</code>
 supplied in the harness source distribution:
 
 <pre>
@@ -1941,22 +1941,22 @@ supplied in the harness source distribution:
 # The following properties are used to specify the kerberos
 # environment for tests that need to access a kdc and kerberos principals
 #
-com.sun.jini.qa.harness.kerberos.realm=[add the realm that your KDC is serving]
-com.sun.jini.qa.harness.kerberos.kdc=[add the name of your KDC host]
-com.sun.jini.qa.harness.kerberos.clientPasswordFile=[add the location for the password file created in step 3]
-com.sun.jini.qa.harness.kerberos.serverPasswordFile=[add the location for the password file created in step 3]
-com.sun.jini.qa.harness.kerberos.aggregatePasswordFile=[add the location for the password file created in step 3]
-com.sun.jini.qa.harness.kerberos.clientPrincipal=[add the name of the client principal created in step 2]
-com.sun.jini.qa.harness.kerberos.serverPrincipal=[add the name of the client principal created in step 2]
-com.sun.jini.qa.harness.kerberos.reggiePrincipal=[add the name of the reggie principal created in step 2]
-com.sun.jini.qa.harness.kerberos.mahaloPrincipal=[add the name of the mahalo principal created in step 2]
-com.sun.jini.qa.harness.kerberos.outriggerPrincipal=[add the name of the outrigger principal created in step 2]
-com.sun.jini.qa.harness.kerberos.mercuryPrincipal=[add the name of the mercury principal created in step 2]
-com.sun.jini.qa.harness.kerberos.normPrincipal=[add the name of the norm principal created in step 2]
-com.sun.jini.qa.harness.kerberos.phoenixPrincipal=[add the name of the phoenix principal created in step 2]
-com.sun.jini.qa.harness.kerberos.testPrincipal=[add the name of the test principal created in step 2]
-com.sun.jini.qa.harness.kerberos.fiddlerPrincipal=[add the name of the fiddler principal created in step 2]
-com.sun.jini.qa.harness.kerberos.groupPrincipal=[add the name of the group principal created in step 2]
+org.apache.river.qa.harness.kerberos.realm=[add the realm that your KDC is serving]
+org.apache.river.qa.harness.kerberos.kdc=[add the name of your KDC host]
+org.apache.river.qa.harness.kerberos.clientPasswordFile=[add the location for the password file created in step 3]
+org.apache.river.qa.harness.kerberos.serverPasswordFile=[add the location for the password file created in step 3]
+org.apache.river.qa.harness.kerberos.aggregatePasswordFile=[add the location for the password file created in step 3]
+org.apache.river.qa.harness.kerberos.clientPrincipal=[add the name of the client principal created in step 2]
+org.apache.river.qa.harness.kerberos.serverPrincipal=[add the name of the client principal created in step 2]
+org.apache.river.qa.harness.kerberos.reggiePrincipal=[add the name of the reggie principal created in step 2]
+org.apache.river.qa.harness.kerberos.mahaloPrincipal=[add the name of the mahalo principal created in step 2]
+org.apache.river.qa.harness.kerberos.outriggerPrincipal=[add the name of the outrigger principal created in step 2]
+org.apache.river.qa.harness.kerberos.mercuryPrincipal=[add the name of the mercury principal created in step 2]
+org.apache.river.qa.harness.kerberos.normPrincipal=[add the name of the norm principal created in step 2]
+org.apache.river.qa.harness.kerberos.phoenixPrincipal=[add the name of the phoenix principal created in step 2]
+org.apache.river.qa.harness.kerberos.testPrincipal=[add the name of the test principal created in step 2]
+org.apache.river.qa.harness.kerberos.fiddlerPrincipal=[add the name of the fiddler principal created in step 2]
+org.apache.river.qa.harness.kerberos.groupPrincipal=[add the name of the group principal created in step 2]
 </pre>
 </body>
 </html>

@@ -46,7 +46,7 @@ import java.util.TreeSet;
  * preferred class loader.
  * 
  * PreferredResouces is thread safe.  
- * Originally from package com.sun.jini.loader.pref.internal.
+ * Originally from package org.apache.river.loader.pref.internal.
  *
  * @author Sun Microsystems, Inc.
  * @since 2.0

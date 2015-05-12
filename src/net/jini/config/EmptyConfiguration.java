@@ -18,7 +18,7 @@
 
 package net.jini.config;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,7 +31,7 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.config</code> to log information at the following logging

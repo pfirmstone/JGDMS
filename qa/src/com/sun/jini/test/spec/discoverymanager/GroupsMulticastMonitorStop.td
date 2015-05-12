@@ -1,4 +1,0 @@
-testClass=GroupsMulticastMonitorStop
-testCategories=discoverymanager,discoverymanager_spec
-include0=discoverymanager.properties
-com/sun/jini/test/share/simReg3_0.properties

@@ -17,16 +17,16 @@
  */
 package net.jini.jeri.kerberos;
 
-import com.sun.jini.action.GetIntegerAction;
-import com.sun.jini.discovery.internal.EndpointInternals;
-import com.sun.jini.discovery.internal.KerberosEndpointInternalsAccess;
-import com.sun.jini.jeri.internal.connection.BasicConnManagerFactory;
-import com.sun.jini.jeri.internal.connection.ConnManager;
-import com.sun.jini.jeri.internal.connection.ConnManagerFactory;
-import com.sun.jini.jeri.internal.connection.ServerConnManager;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
+import org.apache.river.action.GetIntegerAction;
+import org.apache.river.discovery.internal.EndpointInternals;
+import org.apache.river.discovery.internal.KerberosEndpointInternalsAccess;
+import org.apache.river.jeri.internal.connection.BasicConnManagerFactory;
+import org.apache.river.jeri.internal.connection.ConnManager;
+import org.apache.river.jeri.internal.connection.ConnManagerFactory;
+import org.apache.river.jeri.internal.connection.ServerConnManager;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
@@ -189,7 +189,7 @@ import org.ietf.jgss.GSSName;
  * (DGC); if DGC is enabled using {@link net.jini.jeri.BasicJeriExporter},
  * all DGC remote calls through this provider will silently fail.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This Kerberos provider implementation uses the <a
  * href="http://www.ietf.org/rfc/rfc2853.txt"> Java(TM) GSS-API</a> to
@@ -220,12 +220,12 @@ import org.ietf.jgss.GSSName;
  * 
  *     <tr> <td> {@link java.util.logging.Level#WARNING WARNING}
  *          <td> failure to register with discovery provider
- *     <tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+ *     <tr> <td> {@link org.apache.river.logging.Levels#FAILED FAILED}
  *          <td> problem to support constraint requirements, connect to
  *               server through socket, establish {@link
  *               org.ietf.jgss.GSSContext} to server over established
  *               connections, or wrap/unwrap GSS tokens
- *     <tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+ *     <tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED}
  *          <td> exceptions caught attempting to set TCP no delay or keep
  *               alive properties on sockets, connect a socket, or reuse
  *               a connection
@@ -245,12 +245,12 @@ import org.ietf.jgss.GSSName;
  * <p>
  * 
  * <ul>
- * <li>com.sun.jini.jeri.kerberos.KerberosEndpoint.minGssContextLifetime -
+ * <li>org.apache.river.jeri.kerberos.KerberosEndpoint.minGssContextLifetime -
  *     Minimum number of seconds of remaining lifetime a {@link
  *     GSSContext} of an existing connection has to have before it can
  *     be considered as a candidate connection to be chosen for a new
  *     request. The default is 30.
- * <li>com.sun.jini.jeri.kerberos.KerberosEndpoint.maxGssContextRetries -
+ * <li>org.apache.river.jeri.kerberos.KerberosEndpoint.maxGssContextRetries -
  *     <a href="http://www.ietf.org/rfc/rfc1510.txt">RFC 1510</a>
  *     specifies that if a KDC or server receives two authenticators
  *     with the same client and server pair and timestamps of the
@@ -324,7 +324,7 @@ public final class KerberosEndpoint
     private static final int maxCacheSize =
 	((Integer) AccessController.doPrivileged(
 	    new GetIntegerAction(
-		"com.sun.jini.jeri.kerberos.KerberosEndpoint.maxCacheSize",
+		"org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize",
 		64))).intValue();
 
     /**
@@ -336,14 +336,14 @@ public final class KerberosEndpoint
     private static final int minGssContextLifetime =
 	((Integer) AccessController.doPrivileged(
 	    new GetIntegerAction(
-		"com.sun.jini.jeri.kerberos.KerberosEndpoint." +
+		"org.apache.river.jeri.kerberos.KerberosEndpoint." +
 		"minGssContextLifetime", 30))).intValue();
 
     /** Maximum retries for initial {@link GSSContext} handshake. */
     private static final int maxGssContextRetries =
 	((Integer) AccessController.doPrivileged(
 	    new GetIntegerAction(
-		"com.sun.jini.jeri.kerberos.KerberosEndpoint." +
+		"org.apache.river.jeri.kerberos.KerberosEndpoint." +
 		"maxGssContextRetries", 3))).intValue();
 
     /**

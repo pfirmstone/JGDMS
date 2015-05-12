@@ -110,7 +110,7 @@ are not supported.)
 @since 2.0
 @version 2.0
 
-@com.sun.jini.impl
+@org.apache.river.impl
 
 This implementation uses {@link
 net.jini.jeri.connection.ConnectionManager} and {@link
@@ -128,10 +128,10 @@ various logging levels" border=1 cellpadding=5>
 
 <tr> <th> Level <th> Description
 
-<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+<tr> <td> {@link org.apache.river.logging.Levels#FAILED FAILED}
      <td> exceptions thrown attempting to initiate a request
 
-<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+<tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED}
      <td> exceptions caught attempting to connect a socket, set
 	  options on a client-side socket, or reuse a connection
 
@@ -153,7 +153,7 @@ various logging levels" border=1 cellpadding=5>
 <tr> <td> {@link java.util.logging.Level#WARNING WARNING}
      <td> exceptions accepting on a server socket
 
-<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+<tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED}
      <td> exceptions caught setting options on a server-side socket
 
 <tr> <td> {@link java.util.logging.Level#FINE FINE}
@@ -167,7 +167,7 @@ This implementation recognizes the following system properties:
 
 <p><ul>
 
-<li><code>com.sun.jini.jeri.tcp.useNIO</code> - This property is
+<li><code>org.apache.river.jeri.tcp.useNIO</code> - This property is
 interpreted as a <code>boolean</code> value (see {@link
 java.lang.Boolean#getBoolean Boolean.getBoolean}).  If
 <code>true</code>, then when not using a socket factory, the

@@ -1,1 +1,1 @@
-com.sun.jini.test.impl.outrigger.matching.InstrLeaseVerifier
+org.apache.river.qa.test.impl.outrigger.matching.InstrLeaseVerifier

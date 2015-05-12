@@ -18,10 +18,10 @@
 
 package net.jini.jeri;
 
-import com.sun.jini.action.GetBooleanAction;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.jeri.internal.runtime.WeakKey;
-import com.sun.jini.logging.Levels;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.jeri.internal.runtime.WeakKey;
+import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -118,11 +118,11 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * @see		BasicInvocationHandler
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This implementation uses the following system property:
  * <dl>
- * <dt><code>com.sun.jini.jeri.server.suppressStackTrace</code>
+ * <dt><code>org.apache.river.jeri.server.suppressStackTrace</code>
  * <dd>If <code>true</code>, removes server-side stack traces before
  * marshalling an exception thrown as a result of a remote call.  The
  * default value is <code>false</code>.
@@ -203,7 +203,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      */
     private static final boolean suppressStackTraces =
 	((Boolean) AccessController.doPrivileged(new GetBooleanAction(
-	    "com.sun.jini.jeri.server.suppressStackTraces")))
+	    "org.apache.river.jeri.server.suppressStackTraces")))
 	    .booleanValue();
 
     /** Empty codesource. */

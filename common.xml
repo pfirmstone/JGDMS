@@ -87,16 +87,16 @@
         ## platform and not public (have generated javadoc).
         ## The -skip for logging classes is because LogManager is in
         ## jsk-platform.jar and Levels is in jsk-lib.jar.
-        ## The -in com.sun.jini.outrigger is there in order to catch
+        ## The -in org.apache.river.outrigger is there in order to catch
         ## any use of the following deprecated APIs:
-        ##       com.sun.jini.outrigger.AdminIterator
-        ##       com.sun.jini.outrigger.ConstrainableJavaSpaceAdmin
-        ##       com.sun.jini.outrigger.JavaSpaceAdmin
+        ##       org.apache.river.outrigger.AdminIterator
+        ##       org.apache.river.outrigger.ConstrainableJavaSpaceAdmin
+        ##       org.apache.river.outrigger.JavaSpaceAdmin
         ## Once these APIs have been removed, the outrigger include
         ## can be removed -->
-    <property name="jskprivate.include" value="-in com.sun.jini.action -in com.sun.jini.collection -in com.sun.jini.constants -in com.sun.jini.system -in com.sun.jini.logging -skip com.sun.jini.logging.LogManager -skip com.sun.jini.logging.Levels -in com.sun.jini.outrigger"/>
+    <property name="jskprivate.include" value="-in org.apache.river.action -in org.apache.river.collection -in org.apache.river.constants -in org.apache.river.system -in org.apache.river.logging -skip org.apache.river.logging.LogManager -skip org.apache.river.logging.Levels -in org.apache.river.outrigger"/>
     <!-- Common packages to exclude within ClassDep -->
-    <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
+    <property name="jskplatform.exclude" value="-out org.apache.river.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip org.apache.river.config.ConfigUtil -skip org.apache.river.config.KeyStores -skip org.apache.river.logging.LogManager"/>
 
     <property name="river.home" location="${root}"/>
     <property name="river.lib.dir" location="${river.home}/${lib}"/>
@@ -250,7 +250,7 @@
     <macrodef name="preferredlistgen" description="Run PreferredListGen">
         <element name="plg-elements" implicit="true"/>
         <sequential>
-            <java classname="com.sun.jini.tool.PreferredListGen"
+            <java classname="org.apache.river.tool.PreferredListGen"
                     fork="true" failonerror="true" >
                 <plg-elements/>
             </java>
@@ -262,7 +262,7 @@
         <attribute name="classpathref" default="classdep.classpath" />
         <element name="cd-elements" implicit="yes" />
         <sequential>
-            <java classname="com.sun.jini.tool.ClassDep" 
+            <java classname="org.apache.river.tool.ClassDep" 
                   fork="true" failonerror="true"
                   logError="true" output="@{output}">
                 <classpath refid="@{classpathref}"/>
@@ -275,7 +275,7 @@
         <attribute name="classpathref" default="jarwrapper.classpath" />
         <element name="jw-elements" implicit="yes" />
         <sequential>
-            <java classname="com.sun.jini.tool.JarWrapper"
+            <java classname="org.apache.river.tool.JarWrapper"
                     fork="true" failonerror="true">
                 <classpath refid="@{classpathref}"/>
                 <jw-elements />

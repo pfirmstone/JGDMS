@@ -1,0 +1,263 @@
+############################################################
+# Common Logging Configuration File that can be used 
+# for logging in the ServiceStarter as well as any and
+# all services started by the ServiceStarter.
+#
+# To turn on logging, specify the name of this file as the
+# following system property of the associated VM:
+#
+# -Djava.util.logging.config.file=<appHome>/example/common/jini.logging
+# -Djava.util.logging.config.file=Drive:\\<appHome>\\example\\common\\jini.logging
+#
+# In order to specify the symbolic names for the
+# custom-defined levels (FAILED and HANDLED), the
+# following system property should be set:
+#
+# -Djava.util.logging.manager=org.apache.river.logging.LogManager
+#
+############################################################
+
+############################################################
+#  	Global properties
+############################################################
+
+# "handlers" specifies a comma separated list of log Handler 
+# classes.  These handlers will be installed during VM
+# startup. Note that these classes must be on the system 
+# classpath. By default we only configure a ConsoleHandler,
+# which will show messages at the given level as well as
+# higher levels.
+
+handlers = java.util.logging.ConsoleHandler
+#handlers = java.util.logging.FileHandler, java.util.logging.ConsoleHandler
+
+# Default global logging level.
+# This specifies which kinds of events are logged across
+# ALL loggers.  For any given facility, this global level
+# can be overriden by a facility-specific level.
+# Note that below, the ConsoleHandler also has a separate
+# level setting (set below) to limit messages printed to
+# the console.
+
+.level = FINE
+
+############################################################
+# Handler specific properties: formatters and logger levels
+############################################################
+
+# For messages printed to the console, use a standard
+# formatter, and limit the messages that are printed 
+# to the given level and above.
+
+java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter
+java.util.logging.ConsoleHandler.level = INFO
+
+# For messages printed to a file, do the following:
+# - use either a standard or XML formatter
+# - limit the number of bytes to write to any one file to
+#   the given number of bytes (limit)
+# - limit the number of files to cycle through to the
+#   given number of files (count)
+# - generate the name of the file to write to using
+#   the given pattern 
+# - limit the messages that are written to the file 
+#   to the given level and above (if the level is not
+#   specifically set for the file handler, it will
+#   default to Level.ALL),
+
+java.util.logging.FileHandler.formatter = java.util.logging.SimpleFormatter
+#java.util.logging.FileHandler.formatter = java.util.logging.XMLFormatter
+java.util.logging.FileHandler.limit = 100000
+java.util.logging.FileHandler.count = 1
+#java.util.logging.FileHandler.pattern = %h/java%u.log
+java.util.logging.FileHandler.pattern = %t/jini-service%u.log.%g
+java.util.logging.FileHandler.level = INFO
+
+############################################################
+# Facility specific properties: logger levels
+############################################################
+
+# Default all loggers to a high level, and then 
+# turn the individual loggers 'on/off' by setting their
+# levels to a lower (finer) value. For example, if a
+# logger's level is set to INFO, then only  those log
+# records that are at the levels INFO, WARNING, or SEVERE 
+# will be written. Whereas, if that logger's level is
+# set to FINE, then all log records that are at the levels
+# FINE, CONFIG, INFO, WARNING, or SEVERE will be written.
+# 
+# Note that in order to use the custom-defined levels
+# FAILED (600) and HANDLED (550), do the following:
+# 1. import org.apache.river.logging.levels in your application
+# 2. set the following system property on the VM of your
+#    application:
+# -Djava.util.logging.manager=org.apache.river.logging.LogManager
+#
+#  SEVERE (highest value) 
+#  WARNING 
+#  INFO 
+#  CONFIG 
+#  600 (= FAILED  custom-defined)
+#  550 (= HANDLED custom-defined)
+#  FINE 
+#  FINER 
+#  FINEST (lowest value) 
+
+# For Everything
+sun.rmi.level = SEVERE
+net.jini.level = SEVERE
+org.apache.river.level = SEVERE
+org.apache.river.level = SEVERE
+
+# For the LogManager
+org.apache.river.logging.LogManager.level = SEVERE
+
+# For Configuration
+net.jini.config.level = SEVERE
+
+# For activation
+net.jini.activation.ActivatableInvocationHandler.level = SEVERE
+
+# For JRMP
+net.jini.jrmp.JrmpExporter.level = SEVERE
+
+# For Jini ERI
+net.jini.jeri.level = SEVERE
+net.jini.jeri.BasicInvocationDispatcher.level = SEVERE
+net.jini.jeri.BasicInvocationHandler.level = SEVERE
+#net.jini.jeri.BasicJeriExporter.level = SEVERE
+#net.jini.jeri.BasicObjectEndpoint.level = SEVERE
+
+# For Jini ERI connection 
+#net.jini.jeri.connection.level = SEVERE
+#net.jini.jeri.connection.ConnectionManager.level = SEVERE
+#net.jini.jeri.connection.ServerConnectionManager.level = SEVERE
+#net.jini.jeri.connection.mux.level = SEVERE
+
+# For HttpEndpoint and HttpServerEndpoint
+#net.jini.jeri.http.level = SEVERE
+#net.jini.jeri.http.client.level = SEVERE
+#net.jini.jeri.http.server.level = SEVERE
+
+# For TcpEndpoint and TcpServerEndpoint
+#net.jini.jeri.tcp.level = SEVERE
+#net.jini.jeri.tcp.client.level = SEVERE
+#net.jini.jeri.tcp.server.level = SEVERE
+
+# For SSL 
+#net.jini.jeri.ssl.level = SEVERE
+#net.jini.jeri.ssl.client.level = SEVERE
+#net.jini.jeri.ssl.server.level = SEVERE
+#net.jini.jeri.ssl.init.level = SEVERE
+
+# For Kerberos 
+#net.jini.jeri.kerberos.level = SEVERE
+#net.jini.jeri.kerberos.client.level = SEVERE
+#net.jini.jeri.kerberos.server.level = SEVERE
+
+# For IIOP 
+net.jini.iiop.IiopExporter.level = SEVERE
+
+# For Preferred Classes
+net.jini.loader.level = SEVERE
+net.jini.loader.pref.PreferredClassLoader.level = SEVERE
+net.jini.loader.pref.PreferredClassLoader.preferred.level = SEVERE
+net.jini.loader.pref.PreferredClassLoader.exception.level = SEVERE
+net.jini.loader.pref.PreferredClassProvider.level = SEVERE
+
+# For Security: trust, integrity, policy and permission granting,
+#               proxy trust verification
+net.jini.security.level = SEVERE
+#net.jini.security.trust.level = SEVERE
+#net.jini.security.integrity.level = SEVERE
+net.jini.security.policy.level = SEVERE
+
+# For HTTPMD
+net.jini.url.httpmd.level = SEVERE
+
+# For Discovery
+org.apache.river.discovery.level = SEVERE
+#org.apache.river.discovery.DiscoveryV1.level = SEVERE
+#org.apache.river.discovery.DiscoveryV2.level = SEVERE
+#org.apache.river.discovery.x500.level = SEVERE
+
+# For the Helper Utilities
+net.jini.discovery.LookupDiscovery.level = SEVERE
+net.jini.discovery.LookupLocatorDiscovery.level = SEVERE
+net.jini.lookup.JoinManager.level = SEVERE
+net.jini.lookup.ServiceDiscoveryManager.level = SEVERE
+net.jini.lease.LeaseRenewalManager.level = SEVERE
+
+# For Thread Pool Utilities
+org.apache.river.thread.RetryTask.level = SEVERE
+org.apache.river.thread.WakeupManager.level = SEVERE
+org.apache.river.thread.ThreadPool.level = SEVERE
+
+# For Starting the Services
+org.apache.river.start.level = SEVERE
+#org.apache.river.start.ClassLoaderUtil.level = SEVERE
+#org.apache.river.start.proxy.level = SEVERE
+#org.apache.river.start.resources.service.level = SEVERE
+#org.apache.river.start.service.starter.level = SEVERE
+#org.apache.river.start.sharedGroup.level = SEVERE
+#org.apache.river.start.wrapper.level = SEVERE
+
+# For Reggie
+org.apache.river.reggie.level = SEVERE
+
+# For Mahalo
+org.apache.river.mahalo.destroy.level = SEVERE
+org.apache.river.mahalo.init.level = SEVERE
+org.apache.river.mahalo.operations.level = SEVERE
+org.apache.river.mahalo.participant.level = SEVERE
+org.apache.river.mahalo.persistence.level = SEVERE
+org.apache.river.mahalo.startup.level = SEVERE
+org.apache.river.mahalo.transactions.level = SEVERE
+
+# For Fiddler
+org.apache.river.fiddler.discard.level = SEVERE
+org.apache.river.fiddler.events.level = SEVERE
+org.apache.river.fiddler.groups.level = SEVERE
+org.apache.river.fiddler.lease.level = SEVERE
+org.apache.river.fiddler.locators.level = SEVERE
+org.apache.river.fiddler.persist.level = SEVERE
+org.apache.river.fiddler.problem.level = SEVERE
+org.apache.river.fiddler.registration.level = SEVERE
+org.apache.river.fiddler.startup.level = SEVERE
+org.apache.river.fiddler.tasks.level = SEVERE
+
+# For Mercury
+org.apache.river.mercury.admin.level = SEVERE
+org.apache.river.mercury.delivery.level = SEVERE
+org.apache.river.mercury.expiration.level = SEVERE
+org.apache.river.mercury.init.level = SEVERE
+org.apache.river.mercury.lease.level = SEVERE
+org.apache.river.mercury.operations.level = SEVERE
+org.apache.river.mercury.persistence.level = SEVERE
+org.apache.river.mercury.receive.level = SEVERE
+org.apache.river.mercury.recovery.level = SEVERE
+org.apache.river.mercury.startup.level = SEVERE
+
+# For Norm
+org.apache.river.norm.level = SEVERE
+
+# For Outrigger
+org.apache.river.outrigger.entryMatching.level = SEVERE
+org.apache.river.outrigger.event.level = SEVERE
+org.apache.river.outrigger.iterator.level = SEVERE
+org.apache.river.outrigger.join.level = SEVERE
+org.apache.river.outrigger.leases.level = SEVERE
+org.apache.river.outrigger.lifecycle.level = SEVERE
+org.apache.river.outrigger.operations.level = SEVERE
+org.apache.river.outrigger.store.level = SEVERE
+org.apache.river.outrigger.transactions.level = SEVERE
+
+# For the Browser Client
+org.apache.river.example.browser.level = SEVERE
+
+# For the test harness, tests, and infrastructure.
+org.apache.river.qa.harness.level = CONFIG
+org.apache.river.qa.harness.test.level = CONFIG
+org.apache.river.qa.harness.service.level = CONFIG
+org.apache.river.qa.harness.config.level = CONFIG
+org.apache.river.test.spec.jeri.mux.level = SEVERE

@@ -42,7 +42,7 @@ and to use its configurable alternative <code>phoenix</code>
 instead.  The <code>phoenix</code> activation daemon supports
 configurable exporters for the remote objects that are part of the
 activation system and also supports flexible access control policies
-for the activation system.  See the <code>com.sun.jini.phoenix</code>
+for the activation system.  See the <code>org.apache.river.phoenix</code>
 package documentation for details on configuring and starting
 <code>phoenix</code>.
 
@@ -68,7 +68,7 @@ Introduction and Rationale
    <code>registerGroup</code> method.  Alternatively, an activation
    group can be registered via the service starter API, by invoking
    the <code>create</code> method on a
-   <code>com.sun.jini.start.SharedActivationGroupDescriptor</code>
+   <code>org.apache.river.start.SharedActivationGroupDescriptor</code>
    instance.   As a side effect of this invocation, an
    <code>ActivationGroupDesc</code> is created and registered with the
    <code>ActivationSystem</code> as above.
@@ -120,11 +120,11 @@ registering and updating an activation group descriptor with the
 <code>ActivationSystem</code>, the <code>phoenix</code> implementation
 includes a special <code>net.jini.export.Exporter</code>
 implementation for the <code>ActivationSystem</code>,
-<code>com.sun.jini.phoenix.SystemAccessExporter</code>, that allows
+<code>org.apache.river.phoenix.SystemAccessExporter</code>, that allows
 the <code>ActivationSystem</code>'s access control policy to be
 configured.  The <code>phoenix</code> implementation also includes a
 <code>net.jini.jeri.InvocationLayerFactory</code> implementation,
-<code>com.sun.jini.phoenix.SystemAccessILFactory</code>, to use with
+<code>org.apache.river.phoenix.SystemAccessILFactory</code>, to use with
 <code>net.jini.jeri.BasicJeriExporter</code>.  This
 <code>InvocationLayerFactory</code> implementation supports the same
 configurable access control policy for the
@@ -137,7 +137,7 @@ exported via <code>BasicJeriExporter</code> with a
 policy on calls to the <code>registerGroup</code> and
 <code>setActivationGroupDesc</code> methods.  The default access
 control policy is specified by the
-<code>com.sun.jini.phoenix.DefaultGroupPolicy.checkGroup</code>
+<code>org.apache.river.phoenix.DefaultGroupPolicy.checkGroup</code>
 method.
 
 <p>This default group policy requires the following when an
@@ -148,17 +148,17 @@ method:
 <ul>
 <li>The group class name in the descriptor is either
 <code>null</code> (indicating the default) or specifically
-<code>com.sun.jini.phoenix.ActivationGroupImpl</code>.
+<code>org.apache.river.phoenix.ActivationGroupImpl</code>.
 
 <li>For each property in the descriptor's property overrides, the
 calling context is granted the permission
-<code>com.sun.jini.phoenix.ExecOptionPermission</code> with a target
+<code>org.apache.river.phoenix.ExecOptionPermission</code> with a target
 of the form "-D<i>name</i>=<i>value</i>" (where <i>name</i> is the
 name of the property and <i>value</i> is the value of the property).
 
 <li>If the descriptor contains a non-<code>null</code> command
 environment, the calling context is granted the permission
-<code>com.sun.jini.phoenix.ExecPermission</code> with the command path
+<code>org.apache.river.phoenix.ExecPermission</code> with the command path
 as the target.  Also, for each command option, the calling context is
 granted <code>ExecOptionPermission</code> with the option as a target.
 </ul>
@@ -206,11 +206,11 @@ subjects.
 <p>Note that the permission class names <code>ExecPermission</code>
 and <code>ExecOptionPermission</code> are the same as those used for
 <code>rmid</code>'s access control policy except for the package name,
-which, for <code>phoenix</code>, is <code>com.sun.jini.phoenix</code>.
+which, for <code>phoenix</code>, is <code>org.apache.river.phoenix</code>.
 The <a href="#examples"> examples given for <code>rmid</code></a>
 below are the same as for <code>phoenix</code> except that the package
 name for the permissions needs to be changed to
-<code>com.sun.jini.phoenix</code>.
+<code>org.apache.river.phoenix</code>.
 
 <p>
 <hr>

@@ -59,8 +59,8 @@ Additional classes and packages:
   <ul>
     <li> <a href="../api/net/jini/discovery/ConstrainableLookupLocator.html">
     <code>net.jini.discovery.ConstrainableLookupLocator</code></a>
-    <li> <a href="../api/com/sun/jini/discovery/package-summary.html">
-    <code>com.sun.jini.discovery</code></a>
+    <li> <a href="../api/org/apache/river/discovery/package-summary.html">
+    <code>org.apache.river.discovery</code></a>
   </ul>
 <p>
 The <i>Jini Discovery Utilities Specification</i> is available in
@@ -120,20 +120,20 @@ Unicast discovery should close socket in case of connection exception.
        recommendations in RFC 1123.
        </ul>
        <p>
-       Changes to the <a href="../api/com/sun/jini/discovery/package-summary.html">
-       <code>com.sun.jini.discovery</code></a> package.
+       Changes to the <a href="../api/org/apache/river/discovery/package-summary.html">
+       <code>org.apache.river.discovery</code></a> package.
        <ul>
        <li>
-       The <a href="../api/com/sun/jini/discovery/Discovery.html">
+       The <a href="../api/org/apache/river/discovery/Discovery.html">
        <code>Discovery</code></a> class now enables constraint checking to be optionally
        delayed. With this change, constraint checks need not be performed as part of multicast
        announcement or request decoding.
        Discovery providers that support delayed constraint checking must implement the new
-       <a href="../api/com/sun/jini/discovery/MulticastAnnouncementDecoder.html">
+       <a href="../api/org/apache/river/discovery/MulticastAnnouncementDecoder.html">
        <code>MulticastAnnouncementDecoder</code></a>
-       and <a href="../api/com/sun/jini/discovery/MulticastRequestDecoder.html">       <code>MulticastRequestDecoder</code></a> interfaces.
+       and <a href="../api/org/apache/river/discovery/MulticastRequestDecoder.html">       <code>MulticastRequestDecoder</code></a> interfaces.
        <li>
-       The <a href="../api/com/sun/jini/discovery/DiscoveryConstraints.html">
+       The <a href="../api/org/apache/river/discovery/DiscoveryConstraints.html">
        <code>DiscoveryConstraints</code></a> class supports processing of
        <code>ConnectionRelativeTime</code> and <code>ConnectionAbsoluteTime</code>
        constraints. Note that the processed constraints will no longer return

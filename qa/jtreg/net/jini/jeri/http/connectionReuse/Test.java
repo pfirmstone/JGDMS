@@ -19,7 +19,7 @@
  * @summary Test HTTP connection reuse.
  * @build Echo Test CountedSocketFactory
  * @run main/othervm Test
- * @run main/othervm -Dcom.sun.jini.jeri.http.idleConnectionTimeout=0 Test
+ * @run main/othervm -Dorg.apache.river.jeri.http.idleConnectionTimeout=0 Test
  */
 
 import net.jini.export.Exporter;
@@ -33,7 +33,7 @@ public class Test {
 
     public static void main(String[] args) throws Exception {
 	long connTimeout =
-	    Long.getLong("com.sun.jini.jeri.http.idleConnectionTimeout",
+	    Long.getLong("org.apache.river.jeri.http.idleConnectionTimeout",
 			 DEFAULT_IDLE_CONNECTION_TIMEOUT).longValue();
 
 	CountedSocketFactory csf = new CountedSocketFactory();

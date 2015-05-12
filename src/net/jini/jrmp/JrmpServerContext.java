@@ -18,7 +18,7 @@
 
 package net.jini.jrmp;
 
-import com.sun.jini.jeri.internal.runtime.Util;
+import org.apache.river.jeri.internal.runtime.Util;
 import java.net.InetAddress;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;

@@ -18,12 +18,12 @@
 
 package net.jini.jeri.tcp;
 
-import com.sun.jini.action.GetBooleanAction;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -128,7 +128,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
     /** whether or not to use NIO-based sockets if possible */
     private static final boolean useNIO =		// default false
 	((Boolean) AccessController.doPrivileged(new GetBooleanAction(
-	    "com.sun.jini.jeri.tcp.useNIO"))).booleanValue();
+	    "org.apache.river.jeri.tcp.useNIO"))).booleanValue();
     
     private static final InetAddress localAdd;
     private static final UnknownHostException exception;

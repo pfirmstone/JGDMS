@@ -1,0 +1,4 @@
+testClass=MulticastMonitorTerminate
+testCategories=discoverymanager,discoverymanager_spec
+include0=discoverymanager.properties
+org/apache/river/test/share/simReg6_0.properties

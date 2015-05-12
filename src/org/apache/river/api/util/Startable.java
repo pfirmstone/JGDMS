@@ -23,7 +23,7 @@ package org.apache.river.api.util;
  * export or any other activity after construction is complete, required to put
  * the object into an operational state.
  * 
- * @see com.sun.jini.start.ServiceDescriptor
+ * @see org.apache.river.start.ServiceDescriptor
  * @see net.jini.export.Exporter
  * @since 3.0.0
  */

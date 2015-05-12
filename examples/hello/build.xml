@@ -90,7 +90,7 @@
             <sourcepath>
                 <pathelement path="${src.dir}"/>
             </sourcepath>
-            <package name="com.sun.jini.example.hello.*"/>
+            <package name="org.apache.river.example.hello.*"/>
         </javadoc>
 
         <mkdir dir="${doc.api.dir}/doc-files"/>
@@ -114,8 +114,8 @@
             <arg value="-files"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.Client"/>
+            <arg line="-in org.apache.river"/>
+            <arg value="org.apache.river.example.hello.Client"/>
         </classdep>
         <delete file="${lib.dir}/client.jar" quiet="true"/>
         <jar destfile="${lib.dir}/client.jar"
@@ -130,7 +130,7 @@
         <jar destfile="${lib.dir}/mdprefld.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"
-				 includes="com/sun/jini/example/hello/MdClassAnnotationProvider.class"/>
+				 includes="org/apache/river/example/hello/MdClassAnnotationProvider.class"/>
         </jar>
     </target>
 
@@ -142,12 +142,12 @@
             <arg value="-files"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.Server"/>
-            <arg value="com.sun.jini.example.hello.Server_Stub"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingILFactory"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
-            <arg value="com.sun.jini.example.hello.ServerPermission"/>
+            <arg line="-in org.apache.river"/>
+            <arg value="org.apache.river.example.hello.Server"/>
+            <arg value="org.apache.river.example.hello.Server_Stub"/>
+            <arg value="org.apache.river.example.hello.ConfirmingILFactory"/>
+            <arg value="org.apache.river.example.hello.ConfirmingInvocationHandler"/>
+            <arg value="org.apache.river.example.hello.ServerPermission"/>
         </classdep>
         <delete file="${lib.dir}/server.jar" quiet="true"/>
         <jar destfile="${lib.dir}/server.jar"
@@ -165,13 +165,13 @@
             <arg value="-files"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.ActivatableServer"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingILFactory"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
-            <arg value="com.sun.jini.example.hello.Server"/>
-            <arg value="com.sun.jini.example.hello.Server_Stub"/>
-            <arg value="com.sun.jini.example.hello.ServerPermission"/>
+            <arg line="-in org.apache.river"/>
+            <arg value="org.apache.river.example.hello.ActivatableServer"/>
+            <arg value="org.apache.river.example.hello.ConfirmingILFactory"/>
+            <arg value="org.apache.river.example.hello.ConfirmingInvocationHandler"/>
+            <arg value="org.apache.river.example.hello.Server"/>
+            <arg value="org.apache.river.example.hello.Server_Stub"/>
+            <arg value="org.apache.river.example.hello.ServerPermission"/>
         </classdep>
         <delete file="${lib.dir}/server-act.jar" quiet="true"/>
         <jar destfile="${lib.dir}/server-act.jar"
@@ -189,12 +189,12 @@
             <arg value="-files"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
-            <arg value="com.sun.jini.example.hello.Hello"/>
-            <arg value="com.sun.jini.example.hello.Proxy"/>
-            <arg value="com.sun.jini.example.hello.Server_Stub"/>
-            <arg value="com.sun.jini.example.hello.ServerPermission"/>
+            <arg line="-in org.apache.river"/>
+            <arg value="org.apache.river.example.hello.ConfirmingInvocationHandler"/>
+            <arg value="org.apache.river.example.hello.Hello"/>
+            <arg value="org.apache.river.example.hello.Proxy"/>
+            <arg value="org.apache.river.example.hello.Server_Stub"/>
+            <arg value="org.apache.river.example.hello.ServerPermission"/>
         </classdep>
         <delete file="${lib.dir}/server-dl.jar" quiet="true"/>
         <jar destfile="${lib.dir}/server-dl.jar"
@@ -207,7 +207,7 @@
     <target name="stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars"/>
-            <include name="com/sun/jini/example/hello/Server.class"/>
+            <include name="org/apache/river/example/hello/Server.class"/>
         </rmic>
     </target>
 

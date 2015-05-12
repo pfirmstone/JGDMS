@@ -18,13 +18,13 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.jeri.internal.http.HttpClientConnection;
-import com.sun.jini.jeri.internal.http.HttpClientManager;
-import com.sun.jini.jeri.internal.http.HttpClientSocketFactory;
-import com.sun.jini.jeri.internal.http.HttpSettings;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.jeri.internal.http.HttpClientConnection;
+import org.apache.river.jeri.internal.http.HttpClientManager;
+import org.apache.river.jeri.internal.http.HttpClientSocketFactory;
+import org.apache.river.jeri.internal.http.HttpSettings;
+import org.apache.river.logging.Levels;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
@@ -200,7 +200,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @see SslTrustVerifier
  * @since 2.0
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This implementation uses the <a
  * href="http://java.sun.com/j2se/1.4/docs/guide/security/jsse/JSSERefGuide.html"
@@ -258,7 +258,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *
  * <ul>
  * <li> {@link SSLContext}, with the protocol specified by the
- *	<code>com.sun.jini.jeri.ssl.sslProtocol</code> system property, or
+ *	<code>org.apache.river.jeri.ssl.sslProtocol</code> system property, or
  *	<code>"TLS"</code> if that property is not defined, to provide the
  *	TLS/SSL implementation. The {@link SSLContext#init SSLContext.init}
  *	method is called with <code>null</code> for the <code>random</code>
@@ -266,7 +266,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * <li> {@link CertificateFactory}, with type <code>"X.509"</code>, to generate
  *	<code>CertPath</code> instances from X.509 certificate chains
  * <li> {@link TrustManagerFactory}, with the algorithm specified by the
- *	<code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code> system
+ *	<code>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</code> system
  *	property, or the default algorithm if that property is not defined, to
  *	implement trust management for the TLS/SSL implementation. The factory
  *	must return trust managers that implement {@link X509TrustManager}.
@@ -289,20 +289,20 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * This implementation recognizes the following system properties: <p>
  * 
  * <ul>
- * <li> <code>com.sun.jini.jeri.ssl.maxClientSessionDuration</code> - The
+ * <li> <code>org.apache.river.jeri.ssl.maxClientSessionDuration</code> - The
  *	maximum number of milliseconds a client-side TLS/SSL session should be
  *	used. The default is 23.5 hours. The value should be smaller than the
  *	maximum server session duration to allow the client to negotiate a new
  *	session before the server timeout occurs.
- * <li> <code>com.sun.jini.jeri.ssl.sslProtocol</code> - The secure socket
+ * <li> <code>org.apache.river.jeri.ssl.sslProtocol</code> - The secure socket
  *	protocol used when obtaining {@link SSLContext} instances. The default
  *	is <code>"TLS"</code>.
- * <li> <code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code> - The
+ * <li> <code>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</code> - The
  *	algorithm used when obtaining {@link TrustManagerFactory}
  *	instances. The default is the value returned by {@link
  *	TrustManagerFactory#getDefaultAlgorithm
  *	TrustManagerFactory.getDefaultAlgorithm}.
- * <li> <code>com.sun.jini.jeri.ssl.cipherSuites</code> - The TLS/SSL cipher
+ * <li> <code>org.apache.river.jeri.ssl.cipherSuites</code> - The TLS/SSL cipher
  *	suites that should be used for communication. The default is the list
  *	of suites supported by the JSSE implementation. The value should
  *	specify the suite names, separated by commas. The value will be ignored
@@ -310,14 +310,14 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *	the JSSE implementation. Suites appearing earlier in the list will be
  *	preferred to ones appearing later for suites that support the same
  *	requirements and preferences.
- * <li> <code>com.sun.jini.jeri.https.idleConnectionTimeout</code> - The number
+ * <li> <code>org.apache.river.jeri.https.idleConnectionTimeout</code> - The number
  *	of milliseconds to retain idle client-side HTTPS connections before
  *	closing them. The default is <code>15000</code>.
- * <li> <code>com.sun.jini.jeri.https.responseAckTimeout</code> - The number of
+ * <li> <code>org.apache.river.jeri.https.responseAckTimeout</code> - The number of
  *	milliseconds to keep track of acknowledgments that have not yet been
  *	sent for {@link AcknowledgmentSource} instances. The default is
  *	<code>15000</code>.
- * <li> <code>com.sun.jini.jeri.https.pingProxyConnections</code> - If
+ * <li> <code>org.apache.river.jeri.https.pingProxyConnections</code> - If
  *      the value is case-insensitive equal to <code>true</code>, then if an
  *      HTTP proxy is being used, ping the server endpoint to verify whether
  *      it is alive and reachable. The ping occurs before the first request
@@ -330,7 +330,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *      UnmarshalException). The ping increases the likelihood that the
  *      inability to reach the server endpoint can be explicitly identified.
  *	The default value is <code>false</code>, and no pings are done.
- * <li> <code>com.sun.jini.jeri.https.pingProxyConnectionTimeout</code> - The
+ * <li> <code>org.apache.river.jeri.https.pingProxyConnectionTimeout</code> - The
  *      number of milliseconds from the time a server endpoint was last
  *      pinged before a ping will precede the next request. The default is
  *      <code>Long.MAX_VALUE</code> (essentially meaning, ping only before

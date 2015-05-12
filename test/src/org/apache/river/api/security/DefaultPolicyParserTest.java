@@ -22,7 +22,7 @@
 
 package org.apache.river.api.security;
 
-import com.sun.jini.start.SharedActivationPolicyPermission;
+import org.apache.river.start.SharedActivationPolicyPermission;
 import java.net.URISyntaxException;
 import java.security.KeyStore;
 import java.util.Properties;
@@ -72,37 +72,37 @@ public class DefaultPolicyParserTest extends TestCase {
     @Before
     public void setUp(){
        system = new Properties();
-       system.setProperty("com.sun.jini.jsk.home", "/opt/src/river/trunk");
+       system.setProperty("org.apache.river.jsk.home", "/opt/src/river/trunk");
        system.setProperty("/", "/");
-       system.setProperty("com.sun.jini.qa.harness.harnessJar", "/opt/src/river/trunk/qa/lib/harness.jar");
-       pe0 = new PermissionEntry("permission com.sun.jini.start.SharedActivationPolicyPermission", 
-               "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy",
+       system.setProperty("org.apache.river.qa.harness.harnessJar", "/opt/src/river/trunk/qa/lib/harness.jar");
+       pe0 = new PermissionEntry("permission org.apache.river.start.SharedActivationPolicyPermission", 
+               "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy",
                null, null );
-       pe1 = new PermissionEntry("permission com.sun.jini.start.SharedActivationPolicyPermission", 
-               "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy",
+       pe1 = new PermissionEntry("permission org.apache.river.start.SharedActivationPolicyPermission", 
+               "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy",
                null, null );
-       pe2 = new PermissionEntry("permission com.sun.jini.start.SharedActivationPolicyPermission", 
-               "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all",
+       pe2 = new PermissionEntry("permission org.apache.river.start.SharedActivationPolicyPermission", 
+               "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all",
                null, null );
-       pe3 = new PermissionEntry("permission com.sun.jini.start.SharedActivationPolicyPermission", 
-               "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultgroup.policy",
+       pe3 = new PermissionEntry("permission org.apache.river.start.SharedActivationPolicyPermission", 
+               "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultgroup.policy",
                null, null );
        List<PermissionEntry> pec = new ArrayList<PermissionEntry>(4);
        pec.add(0, pe0);
        pec.add(1, pe1);
        pec.add(2, pe2);
        pec.add(3, pe3);
-       ge = new GrantEntry( null, "file:${com.sun.jini.jsk.home}${/}lib${/}group.jar", null, pec );
-       perm0 = new UnresolvedPermission("permission com.sun.jini.start.SharedActivationPolicyPermission",
+       ge = new GrantEntry( null, "file:${org.apache.river.jsk.home}${/}lib${/}group.jar", null, pec );
+       perm0 = new UnresolvedPermission("permission org.apache.river.start.SharedActivationPolicyPermission",
                "jar:file:/opt/src/river/trunk/qa/lib/harness.jar!/harness/policy/sec-jeri-group.policy",
                "", null);
-       perm1 = new UnresolvedPermission("permission com.sun.jini.start.SharedActivationPolicyPermission",
+       perm1 = new UnresolvedPermission("permission org.apache.river.start.SharedActivationPolicyPermission",
                "jar:file:/opt/src/river/trunk/qa/lib/harness.jar!/harness/policy/all.policy",
                "", null);
-       perm2 = new UnresolvedPermission("permission com.sun.jini.start.SharedActivationPolicyPermission",
+       perm2 = new UnresolvedPermission("permission org.apache.river.start.SharedActivationPolicyPermission",
                "jar:file:/opt/src/river/trunk/qa/lib/harness.jar!/harness/policy/policy.all",
                "", null);
-       perm3 = new UnresolvedPermission("permission com.sun.jini.start.SharedActivationPolicyPermission",
+       perm3 = new UnresolvedPermission("permission org.apache.river.start.SharedActivationPolicyPermission",
                "jar:file:/opt/src/river/trunk/qa/lib/harness.jar!/harness/policy/defaultgroup.policy",
                "", null);
        permissions = new ArrayList<Permission>(4);

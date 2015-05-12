@@ -17,9 +17,9 @@
 #*/
 
 # non-activatable persistent outrigger configuration entries
-com.sun.jini.outrigger.maxOps: int
-com.sun.jini.outrigger.persistenceDirectory: String
-com.sun.jini.outrigger.recoveredListenerPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.outrigger.recoveredLookupLocatorPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.outrigger.recoveredTransactionManagerPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.outrigger.store: com.sun.jini.outrigger.Store
+org.apache.river.outrigger.maxOps: int
+org.apache.river.outrigger.persistenceDirectory: String
+org.apache.river.outrigger.recoveredListenerPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.recoveredLookupLocatorPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.recoveredTransactionManagerPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.store: org.apache.river.outrigger.Store

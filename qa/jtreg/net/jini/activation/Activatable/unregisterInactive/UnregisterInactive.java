@@ -95,10 +95,10 @@ public class UnregisterInactive
 		new File(RMID.getDefaultGroupLocation()).toURI().toString();
 	    Class cl = RMIClassLoader.loadClass(
 				cb,
-				"com.sun.jini.phoenix.ActivationGroupData");
+				"org.apache.river.phoenix.ActivationGroupData");
 	    Constructor cons = cl.getConstructor(new Class[]{String[].class});
 	    groupDesc = new ActivationGroupDesc(
-		"com.sun.jini.phoenix.ActivationGroupImpl",
+		"org.apache.river.phoenix.ActivationGroupImpl",
 		 cb,
 		 new MarshalledObject(cons.newInstance(
 			new Object[]{new String[]{TestParams.testSrc +
@@ -106,7 +106,7 @@ public class UnregisterInactive
 		null, null);
 	    cl = RMIClassLoader.loadClass(
 				 cb,
-				 "com.sun.jini.phoenix.ActivationGroupImpl");
+				 "org.apache.river.phoenix.ActivationGroupImpl");
 	    Method m = cl.getMethod("createGroup",
 				    new Class[]{ActivationGroupID.class,
 						ActivationGroupDesc.class,

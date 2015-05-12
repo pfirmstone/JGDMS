@@ -1,0 +1,3 @@
+testClass=UnexportTest_InProgressForceFalse
+testCategories=jeri,jeri_spec
+org.apache.river.test.spec.jeri.basicjeriexporter.UnexportTest.listenPort=9090

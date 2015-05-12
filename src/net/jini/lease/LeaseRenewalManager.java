@@ -18,11 +18,11 @@
 
 package net.jini.lease;
 
-import com.sun.jini.config.Config;
-import com.sun.jini.constants.ThrowableConstants;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogManager;
-import com.sun.jini.proxy.ConstrainableProxyUtil;
+import org.apache.river.config.Config;
+import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogManager;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -128,7 +128,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  * @see LeaseException
  * @see LeaseRenewalEvent 
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul>

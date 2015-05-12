@@ -17,24 +17,24 @@
 #*/
 
 # transient outrigger configuration entries
-com.sun.jini.outrigger.contentsLeasePeriodPolicy: com.sun.jini.landlord.LeasePeriodPolicy
-com.sun.jini.outrigger.discoveryManager: net.jini.discovery.DiscoveryManagement
-com.sun.jini.outrigger.entryLeasePeriodPolicy: com.sun.jini.landlord.LeasePeriodPolicy
-com.sun.jini.outrigger.eventLeasePolicy: com.sun.jini.landlord.LeasePeriodPolicy
-com.sun.jini.outrigger.initialLookupAttributes: net.jini.core.entry.Entry[]
-com.sun.jini.outrigger.initialLookupGroups: String[]
-com.sun.jini.outrigger.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
-com.sun.jini.outrigger.iteratorBatchSize: int
-com.sun.jini.outrigger.listenerPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.outrigger.loginContext: javax.security.auth.login.LoginContext
-com.sun.jini.outrigger.lookupLocatorPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.outrigger.maxServerQueryTimeout: long
-com.sun.jini.outrigger.maxUnexportDelay: long
-com.sun.jini.outrigger.notificationsTaskManager: com.sun.jini.thread.TaskManager
-com.sun.jini.outrigger.reapingInterval: long
-com.sun.jini.outrigger.reapingPriority: int
-com.sun.jini.outrigger.serverExporter: net.jini.export.Exporter
-com.sun.jini.outrigger.takeMultipleLimit: int
-com.sun.jini.outrigger.transactionManagerPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.outrigger.txnMonitorTaskManager: com.sun.jini.thread.TaskManager
-com.sun.jini.outrigger.unexportRetryDelay: long
+org.apache.river.outrigger.contentsLeasePeriodPolicy: org.apache.river.landlord.LeasePeriodPolicy
+org.apache.river.outrigger.discoveryManager: net.jini.discovery.DiscoveryManagement
+org.apache.river.outrigger.entryLeasePeriodPolicy: org.apache.river.landlord.LeasePeriodPolicy
+org.apache.river.outrigger.eventLeasePolicy: org.apache.river.landlord.LeasePeriodPolicy
+org.apache.river.outrigger.initialLookupAttributes: net.jini.core.entry.Entry[]
+org.apache.river.outrigger.initialLookupGroups: String[]
+org.apache.river.outrigger.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
+org.apache.river.outrigger.iteratorBatchSize: int
+org.apache.river.outrigger.listenerPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.outrigger.lookupLocatorPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.maxServerQueryTimeout: long
+org.apache.river.outrigger.maxUnexportDelay: long
+org.apache.river.outrigger.notificationsTaskManager: org.apache.river.thread.TaskManager
+org.apache.river.outrigger.reapingInterval: long
+org.apache.river.outrigger.reapingPriority: int
+org.apache.river.outrigger.serverExporter: net.jini.export.Exporter
+org.apache.river.outrigger.takeMultipleLimit: int
+org.apache.river.outrigger.transactionManagerPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.txnMonitorTaskManager: org.apache.river.thread.TaskManager
+org.apache.river.outrigger.unexportRetryDelay: long

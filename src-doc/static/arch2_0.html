@@ -70,7 +70,7 @@ architecture.  The component additions can be summarized as follows:
 remote invocation (Jini ERI)</a>
 <li><a href="api/net/jini/security/policy/package-summary.html">Dynamic Policy</a>
 <li><a href="api/net/jini/loader/pref/package-summary.html">Preferred Class Loading</a>
-<li><a href="api/com/sun/jini/discovery/package-summary.html">Discovery Protocol v2</a>
+<li><a href="api/org/apache/river/discovery/package-summary.html">Discovery Protocol v2</a>
 </ul>
 
 <p><i>Configuring Services</i>
@@ -301,14 +301,14 @@ proxies.
 <p>A <code>ProxyPreparer</code> can be used together with a
 <code>Configuration</code> to allow configurable proxy preparation.
 The following is a code snippet from the <a
-href="../source/src/com/sun/jini/example/hello/index.html"><i>hello</i>
+href="../source/src/org/apache/river/example/hello/index.html"><i>hello</i>
 example</a> client, which is part of a comprehensive example included
 in the Apache River release:
 
 <p>
 <pre>
     ProxyPreparer preparer = (ProxyPreparer) config.getEntry(
-        "com.sun.jini.example.hello.Client",
+        "org.apache.river.example.hello.Client",
 	"preparer", ProxyPreparer.class, new BasicProxyPreparer());
     server = (Hello) preparer.prepareProxy(server);
     System.out.println("Server says: " + server.sayHello());
@@ -581,7 +581,7 @@ loader is trusted, and the proxy's server constraints and
      <td valign="top"> proxy that can be verified by obtaining a trust verifier from the proxy's server
 <tr> <td valign="top"> <code>net.jini.discovery.<br>ConstrainableLookupLocatorTrustVerifier</code>
      <td valign="top"> <code>ConstraintableLookupLocator</code> instances
-<tr> <td valign="top"> <code>com.sun.jini.discovery.<br>DiscoveryConstraintTrustVerifier</code>
+<tr> <td valign="top"> <code>org.apache.river.discovery.<br>DiscoveryConstraintTrustVerifier</code>
      <td valign="top"> discovery constraints
 </table>
 </blockquote>
@@ -911,9 +911,9 @@ equivalence.
 <p>An implementation of a basic proxy trust verifier, which could be
 returned by an implementation of the
 <code>ServerProxyTrust.getProxyVerifier</code> method, is the <a
-href="api/com/sun/jini/proxy/BasicProxyTrustVerifier.html"><code>com.sun.jini.proxy.BasicProxyTrustVerifier</code></a>
+href="api/org/apache/river/proxy/BasicProxyTrustVerifier.html"><code>org.apache.river.proxy.BasicProxyTrustVerifier</code></a>
 (see the source code <a
-href="../source/src/com/sun/jini/proxy/BasicProxyTrustVerifier.java"><code>BasicProxyTrustVerifier.java</code></a>
+href="../source/src/org/apache/river/proxy/BasicProxyTrustVerifier.java"><code>BasicProxyTrustVerifier.java</code></a>
 for implementation details).
 
 
@@ -1055,7 +1055,7 @@ application, the "java.protocol.handler.pkgs" system property should
 be set to "net.jini.url".
 
 <p>For convenience, the tool <a
-href="api/com/sun/jini/tool/ComputeHttpmdCodebase.html"><code>ComputeHttpmdCodebase</code></a>
+href="api/org/apache/river/tool/ComputeHttpmdCodebase.html"><code>ComputeHttpmdCodebase</code></a>
 can be used to compute message digests for a codebase with HTTPMD
 URLs.
 
@@ -1128,7 +1128,7 @@ and to reference a <code>Configuration</code>.
 <li>	<code>net.jini.jeri.kerberos.KerberosTrustVerifier</code>
 <li>	<code>net.jini.security.proxytrust.ProxyTrustVerifier</code>
 <li>	<code>net.jini.discovery.ConstrainableLookupLocatorTrustVerifier</code>
-<li>	<code>com.sun.jini.discovery.DiscoveryConstraintTrustVerifier</code>
+<li>	<code>org.apache.river.discovery.DiscoveryConstraintTrustVerifier</code>
 </ul>
 
 <p> <a href="api/net/jini/security/IntegrityVerifier.html"><code>net.jini.security.IntegrityVerifier</code></a>

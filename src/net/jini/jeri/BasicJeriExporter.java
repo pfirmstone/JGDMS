@@ -18,8 +18,8 @@
 
 package net.jini.jeri;
 
-import com.sun.jini.jeri.internal.runtime.BasicExportTable;
-import com.sun.jini.logging.Levels;
+import org.apache.river.jeri.internal.runtime.BasicExportTable;
+import org.apache.river.logging.Levels;
 import java.lang.ref.WeakReference;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -305,7 +305,7 @@ import net.jini.security.SecurityContext;
  * @author	Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.BasicJeriExporter</code> to log

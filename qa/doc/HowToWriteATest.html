@@ -32,7 +32,7 @@
   <P>
   This document explains in step by step fashion how to write a Jini QA
   test. A Jini QA test is a class that implements the
-  com.sun.jini.tck.harness.Test interface and is thus able to run inside of
+  org.apache.river.tck.harness.Test interface and is thus able to run inside of
   the TCK (Technology Compatibility Kit) test harness. In general, a Jini
   QA test will test either a service (such as Lookup Discovery Service) or
   a utility (such as Client Lookup Manager or Join Manager).
@@ -51,11 +51,11 @@
   <LI><H3>QA Test directory structure</H3></LI>
   <P>
   All QA Test directories reside under
-  <CODE>/vob/qa/src/com/sun/jini/qa</CODE>. A pictorial view of this
+  <CODE>/vob/qa/src/org/apache/river/qa</CODE>. A pictorial view of this
   structure follows:
   <PRE>
 
-                        /vob/com/sun/jini/qa                                
+                        /vob/org/apache/river/qa                                
                                  |
   -------------------------------------------------------------------------
   |      |         |         |      |                   |
@@ -85,8 +85,8 @@ docs  resource  examples  harness  spec                impl
   related assertions based on requirements as laid out in a technical
   specification and those that test behavior based upon some aspect of the
   implementation. The former reside in the subdirectory 
-  <CODE>/vob/com/sun/jini/qa/spec</CODE> directory and the latter reside in
-  the subdirectory <CODE>/vob/com/sun/jini/qa/impl</CODE>. There is a
+  <CODE>/vob/org/apache/river/qa/spec</CODE> directory and the latter reside in
+  the subdirectory <CODE>/vob/org/apache/river/qa/impl</CODE>. There is a
   one-to-one correspondence between the specification subdirectories and
   the implementation subdirectories. That is the pair (lookupservice,
   reggie) represents the subdirectories that contain code that tests
@@ -135,7 +135,7 @@ docs  resource  examples  harness  spec                impl
   <LI><H3>Writing a Test Step by Step</H3></LI>
 
   <OL>
-  <LI>Copy the /vob/qa/src/com/sun/jini/qa/resource/QATestTemplate.txt
+  <LI>Copy the /vob/qa/src/org/apache/river/qa/resource/QATestTemplate.txt
   file into the package directory of the test you are writing.</LI>
   <LI>Rename QATestTemplate.txt to the name of the test class you are
   writing.</LI> 
@@ -180,10 +180,10 @@ docs  resource  examples  harness  spec                impl
   <LI><H3>The <CODE>QATestUtil</CODE> class</H3></LI>
   <P>
   All tests are derived from the
-  <CODE>com.sun.jini.qa.harness.QATest</CODE> class. This parent class
+  <CODE>org.apache.river.qa.harness.QATest</CODE> class. This parent class
   provides a protected instance member named <CODE>util</CODE> which is an
   instance of the class
-  <CODE>com.sun.jini.qa.harness.QATestUtil</CODE>. <CODE>QATestUtil</CODE>
+  <CODE>org.apache.river.qa.harness.QATestUtil</CODE>. <CODE>QATestUtil</CODE>
   provides common methods which all Jini QA tests should use as needed to
   achieve their objectives.
   </P>

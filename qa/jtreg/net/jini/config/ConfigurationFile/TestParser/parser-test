@@ -1534,14 +1534,14 @@ $
 ################
 # Reference to prohibited method
 import java.security.AccessController;
-import com.sun.jini.action.GetPropertyAction;
+import org.apache.river.action.GetPropertyAction;
 comp { x = AccessController.doPrivileged(new GetPropertyAction("cant.read")); }
 $
 ConfigurationException: Line 3: call to method prohibited: AccessController.doPrivileged
 $
 ################
 # Reference to prohibited method
-import com.sun.jini.action.GetPropertyAction;
+import org.apache.river.action.GetPropertyAction;
 import net.jini.security.Security;
 comp { x = Security.doPrivileged(new GetPropertyAction("cant.read")); }
 $
@@ -2475,7 +2475,7 @@ $
 # Keystore tests
 ######################################################################
 # Missing keystore file
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp { 
     static keystore = 
 	KeyStores.getKeyStore("file:/Not a file", null); 
@@ -2486,20 +2486,20 @@ ConfigurationException: Line 4: problem invoking method KeyStores.getKeyStore; c
 $
 ################
 # Undefined property for location
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp { static keystore = KeyStores.getKeyStore("${hello}", null); }
 $
 ConfigurationException: Line 2: problem expanding system property 'hello'
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp { static keystore = KeyStores.getKeyStore(null, null); }
 $
 ConfigurationException: Line 2: problem invoking method KeyStores.getKeyStore; caused by:
 	java.lang.NullPointerException: location cannot be null
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp {
     static keystore = KeyStores.getKeyStore("file:${keystore}", null);
 }
@@ -2509,7 +2509,7 @@ comp {
 }
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp {
     static keystore = KeyStores.getKeyStore("file:${keystore}", "baz");
 }
@@ -2518,7 +2518,7 @@ ConfigurationException: Line 3: problem invoking method KeyStores.getKeyStore; c
 	java.security.KeyStoreException: baz not found
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp { 
     static keystore = KeyStores.getKeyStore(
 	"file:${test.src}${/}TestParser.java", null);
@@ -2528,7 +2528,7 @@ ConfigurationException: Line 3: problem invoking method KeyStores.getKeyStore; c
 	java.io.IOException: Invalid keystore format
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp {
     static keystore = KeyStores.getKeyStore("file:${keystore}", null);
     static x = KeyStores.getX500Principal(null, comp.keystore);
@@ -2538,14 +2538,14 @@ ConfigurationException: Line 4: problem invoking method KeyStores.getX500Princip
 	java.lang.NullPointerException: alias is null
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp { static x = KeyStores.getX500Principal("a", null); }
 $
 ConfigurationException: Line 2: problem invoking method KeyStores.getX500Principal; caused by:
 	java.lang.NullPointerException: keystore is null
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp {
     private static keystore =
 	KeyStores.getKeyStore("file:${keystore}", null);
@@ -2557,7 +2557,7 @@ comp {
 }
 $
 ################
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 comp {
     private static keystore =
 	KeyStores.getKeyStore("file:${keystore}", null);
@@ -2572,7 +2572,7 @@ $
 # InvocationConstraints
 ######################################################################
 # Constraint using keystore
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 import net.jini.core.constraint.*;
 
 comp {
@@ -2884,7 +2884,7 @@ ConfigurationException: Line 3: problem invoking constructor for BasicILFactory;
 $
 ################
 # Secure Exporter with misc method constraints
-import com.sun.jini.config.KeyStores;
+import org.apache.river.config.KeyStores;
 import net.jini.constraint.*;
 import net.jini.core.constraint.*;
 import net.jini.jeri.*;

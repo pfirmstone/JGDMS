@@ -1,1 +1,1 @@
-com.sun.jini.test.spec.io.util.FakeIntegrityVerifier
+org.apache.river.qa.test.spec.io.util.FakeIntegrityVerifier

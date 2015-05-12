@@ -1,4 +1,0 @@
-testClass=DiscardUnreachable
-testCategories=locatordiscovery,locatordiscovery_spec,speclocatordiscovery
-include0=locatordiscovery.properties
-include1=com/sun/jini/test/share/simReg3_0.properties

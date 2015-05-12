@@ -18,11 +18,11 @@
 
 package net.jini.discovery;
 
-import com.sun.jini.discovery.Discovery;
-import com.sun.jini.discovery.DiscoveryConstraints;
-import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.UnicastSocketTimeout;
-import com.sun.jini.discovery.internal.MultiIPDiscovery;
+import org.apache.river.discovery.Discovery;
+import org.apache.river.discovery.DiscoveryConstraints;
+import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.UnicastSocketTimeout;
+import org.apache.river.discovery.internal.MultiIPDiscovery;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -51,15 +51,15 @@ import net.jini.core.lookup.ServiceRegistrar;
  * @author	Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This class supports use of the following constraint types to control unicast
  * discovery behavior:
  * <ul>
- *   <li> {@link com.sun.jini.discovery.DiscoveryProtocolVersion}: this
+ *   <li> {@link org.apache.river.discovery.DiscoveryProtocolVersion}: this
  *        constraint can be used to control which version of the unicast
  *        discovery protocol is used.
- *   <li> {@link com.sun.jini.discovery.UnicastSocketTimeout}: this constraint
+ *   <li> {@link org.apache.river.discovery.UnicastSocketTimeout}: this constraint
  *        can be used to control the read timeout set on sockets over which
  *        unicast discovery is performed.
  *   <li> {@link net.jini.core.constraint.ConnectionRelativeTime}:
@@ -70,8 +70,8 @@ import net.jini.core.lookup.ServiceRegistrar;
  *        set on sockets over which unicast discovery is performed.
  * </ul>
  * <p>
- * In addition, the {@link com.sun.jini.discovery.MulticastMaxPacketSize} and
- * {@link com.sun.jini.discovery.MulticastTimeToLive} constraint types are
+ * In addition, the {@link org.apache.river.discovery.MulticastMaxPacketSize} and
+ * {@link org.apache.river.discovery.MulticastTimeToLive} constraint types are
  * trivially supported, but do not have any effect on unicast discovery
  * operations.  Constraints other than those mentioned above are passed on to
  * the underlying implementations of versions 1 and 2 of the discovery

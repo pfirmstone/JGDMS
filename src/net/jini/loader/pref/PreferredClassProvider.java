@@ -21,9 +21,9 @@ package net.jini.loader.pref;
 import au.net.zeus.collection.RC;
 import au.net.zeus.collection.Ref;
 import au.net.zeus.collection.Referrer;
-import com.sun.jini.action.GetPropertyAction;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
+import org.apache.river.action.GetPropertyAction;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.lang.ref.ReferenceQueue;
@@ -224,7 +224,7 @@ import org.apache.river.api.net.Uri;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.loader.pref.PreferredClassProvider</code> to log

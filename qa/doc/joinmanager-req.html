@@ -377,7 +377,7 @@ ul
   parameters as input:</span><b style='mso-bidi-font-weight:normal'><span
   style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>An array containing the service’s attributes<o:p></o:p></span></p>
+  line'>An array containing the serviceï¿½s attributes<o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
   border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
@@ -416,7 +416,7 @@ ul
   style='font-family:Courier;layout-grid-mode:line'>ServiceIDListener </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
   line'>interface (belonging to the package </span><span style='font-family:
-  Courier;layout-grid-mode:line'>com.sun.jini.lookup</span><span
+  Courier;layout-grid-mode:line'>org.apache.river.lookup</span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
   line'>)<o:p></o:p></span></p>
   </td>
@@ -872,7 +872,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>getJoinSet </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Each
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ Each
   time this method is invoked, a new array is returned.<o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
@@ -942,7 +942,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>getAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … will
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ will
   return a new array upon each invocation.<o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
@@ -978,7 +978,7 @@ ul
   layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
   mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method
   associates a new set of attributes with the service, in addition to the
-  service’s current set of attributes. The association of this new set of
+  serviceï¿½s current set of attributes. The association of this new set of
   attributes with the service will be propagated to each lookup service with
   which the service is registered. This propagation must be performed
   asynchronously. Because of this, there is no guarantee that the propagation
@@ -1049,7 +1049,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Both
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ Both
   forms of this method take as input an argument representing the set of
   attributes to associate with the service. This set is represented as an array
   of </span><span style='font-family:Courier;layout-grid-mode:line'>Entry </span><span
@@ -1089,7 +1089,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … An
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ An
   invocation of this method with this array containing duplicate elements is
   equivalent to performing the invocation with the duplicates removed from the
   array. <o:p></o:p></span></p>
@@ -1125,7 +1125,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If </span><span
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ If </span><span
   style='font-family:Courier;layout-grid-mode:line'>null </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
   line'>is passed in as the value of this parameter, a </span><span
@@ -1164,13 +1164,13 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ The
   second form of this method also takes as input a flag indicating whether or
   not this method should determine if the attributes in the input set are
   instances of the </span><span style='font-family:Courier;layout-grid-mode:
   line'>ServiceControlled </span><span style='font-family:Arial;mso-bidi-font-family:
   "Times New Roman";layout-grid-mode:line'>interface, which is a marker
-  interface that is used to control which entities may modify a service’s
+  interface that is used to control which entities may modify a serviceï¿½s
   attribute set. If the value of this flag is </span><span style='font-family:
   Courier;layout-grid-mode:line'>true </span><span style='font-family:Arial;
   mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>and at least
@@ -1213,8 +1213,8 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …<span
-  style="mso-spacerun: yes">  </span>It is for this reason that the effects of
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½<span
+  style="mso-spacerun: yes">ï¿½ </span>It is for this reason that the effects of
   modifying the contents of the input array, after this method is invoked, are
   undefined.<o:p></o:p></span></p>
   </td>
@@ -1250,7 +1250,7 @@ ul
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
   mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method replaces
-  the service’s current set of attributes with the given new set of attributes.
+  the serviceï¿½s current set of attributes with the given new set of attributes.
   <o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
@@ -1284,7 +1284,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … This
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ This
   method takes a single argument as input: an array of </span><span
   style='font-family:Courier;layout-grid-mode:line'>Entry </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
@@ -1325,8 +1325,8 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  replacement of the service’s current set of attributes with the new set of
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ The
+  replacement of the serviceï¿½s current set of attributes with the new set of
   attributes will be propagated to each lookup service with which the service
   is registered. This propagation must be performed asynchronously. Because of
   this, there is no guarantee that the propagation of the attributes to all
@@ -1364,8 +1364,8 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  service’s new set of attributes will be associated with the service in all
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ The
+  serviceï¿½s new set of attributes will be associated with the service in all
   future join processing. <o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
@@ -1399,7 +1399,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½
   Invoking this method with an input array that contains duplicate elements is
   equivalent to performing the invocation with the duplicates removed from the
   array. <o:p></o:p></span></p>
@@ -1435,7 +1435,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If </span><span
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ If </span><span
   style='font-family:Courier;layout-grid-mode:line'>null </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
   line'>is input to </span><span style='font-family:Courier;layout-grid-mode:
@@ -1476,7 +1476,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … the
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ the
   effects of modifying the contents of the input array, after </span><span
   style='font-family:Courier;layout-grid-mode:line'>setAttributes </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
@@ -1514,12 +1514,12 @@ ul
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
   mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method changes
-  the service’s current set of attributes using the same semantics as the </span><span
+  the serviceï¿½s current set of attributes using the same semantics as the </span><span
   style='font-family:Courier;layout-grid-mode:line'>modifyAttributes </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
   line'>method of the </span><span style='font-family:Courier;layout-grid-mode:
   line'>ServiceRegistration </span><span style='font-family:Arial;mso-bidi-font-family:
-  "Times New Roman";layout-grid-mode:line'>class (see the Jini™ Lookup Service
+  "Times New Roman";layout-grid-mode:line'>class (see the Jiniï¿½ Lookup Service
   Specification). <o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
@@ -1553,10 +1553,10 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Both
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ Both
   forms will take an array of templates in the first argument, and an array of
   attributes in the second argument. The templates are used to identify which
-  elements to modify from the service’s current set of attributes. The
+  elements to modify from the serviceï¿½s current set of attributes. The
   attribute array contains the actual modifications to be made.<o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
@@ -1590,7 +1590,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ The
   additional argument in the signature of the second form of </span><span
   style='font-family:Courier;layout-grid-mode:line'>modifyAttributes </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
@@ -1599,7 +1599,7 @@ ul
   style='font-family:Courier;layout-grid-mode:line'>ServiceControlled </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
   line'>interface, which is a marker interface used to control which entities
-  may modify a service’s attribute set (see section 4.1 of the Jini™ Lookup
+  may modify a serviceï¿½s attribute set (see section 4.1 of the Jiniï¿½ Lookup
   Attribute Schema Specification). If the value of this flag is </span><span
   style='font-family:Courier;layout-grid-mode:line'>true </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
@@ -1642,7 +1642,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ The
   association of the new set of attributes with the service will be propagated
   to each lookup service with which the service is registered. This propagation
   must be performed asynchronously. Because of this asynchronous behavior,
@@ -1681,7 +1681,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ The
   set of attributes that results after the modifications have been applied will
   be associated with the service in all future join processing.<o:p></o:p></span></p>
   </td>
@@ -1716,7 +1716,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If the
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ If the
   length of the array containing the templates does not equal the length of the
   array containing the attributes, an </span><span style='font-family:Courier;
   layout-grid-mode:line'>IllegalArgumentException </span><span
@@ -1754,7 +1754,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … the
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ the
   effects of modifying the contents of the input array, after </span><span
   style='font-family:Courier;layout-grid-mode:line'>modifyAttributes </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
@@ -1791,7 +1791,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … will
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ will
   cancel all leases managed on behalf of the service, and will<o:p></o:p></span></p>
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>terminate all threads that have been created.
@@ -1838,7 +1838,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … will
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ will
   terminate all threads that have been created. <o:p></o:p></span></p>
   </td>
   <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
@@ -1872,7 +1872,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½
   Additionally, if the discovery manager employed by the </span><span
   style='font-family:Courier;layout-grid-mode:line'>JoinManager </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
@@ -1913,7 +1913,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The </span><span
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ The </span><span
   style='font-family:Courier;layout-grid-mode:line'>JoinManager </span><span
   style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
   line'>makes certain concurrency guarantees with respect to an invocation of
@@ -1957,7 +1957,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½
   Furthermore, once the termination process has begun, no remote method
   invocations will be made by the </span><span style='font-family:Courier;
   layout-grid-mode:line'>JoinManager</span><span style='font-family:Arial;
@@ -2002,8 +2002,8 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
-  Furthermore, once the termination process has begun, … all other method
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½
+  Furthermore, once the termination process has begun, ï¿½ all other method
   invocations on the </span><span style='font-family:Courier;layout-grid-mode:
   line'>JoinManager </span><span style='font-family:Arial;mso-bidi-font-family:
   "Times New Roman";layout-grid-mode:line'>will not return until the
@@ -2040,7 +2040,7 @@ ul
   <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
   layout-grid-mode:line'>The </span><span style='font-family:Courier;
   layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Upon
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ï¿½ Upon
   completion of the termination process, the semantics of all current and
   future method invocations on the current instance of the </span><span
   style='font-family:Courier;layout-grid-mode:line'>JoinManager </span><span

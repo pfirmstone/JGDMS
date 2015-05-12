@@ -22,4 +22,4 @@ net.jini.jeri.ssl.SslTrustVerifier
 net.jini.jeri.kerberos.KerberosTrustVerifier
 net.jini.security.proxytrust.ProxyTrustVerifier
 net.jini.discovery.ConstrainableLookupLocatorTrustVerifier
-com.sun.jini.discovery.DiscoveryConstraintTrustVerifier
+org.apache.river.discovery.DiscoveryConstraintTrustVerifier

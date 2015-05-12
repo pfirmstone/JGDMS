@@ -20,9 +20,9 @@ package net.jini.lookup;
 import au.net.zeus.collection.RC;
 import au.net.zeus.collection.Ref;
 import au.net.zeus.collection.Referrer;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.lookup.entry.LookupAttributes;
-import com.sun.jini.proxy.BasicProxyTrustVerifier;
+import org.apache.river.logging.Levels;
+import org.apache.river.lookup.entry.LookupAttributes;
+import org.apache.river.proxy.BasicProxyTrustVerifier;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
@@ -203,7 +203,7 @@ import org.apache.river.impl.thread.ObservableFutureTask;
  * space to manage the state of discovered services and their associated lookup
  * services locally.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#sdmConfigEntries">Configuring ServiceDiscoveryManager</a>
@@ -527,14 +527,14 @@ import org.apache.river.impl.thread.ObservableFutureTask;
  * <td>upon failure of the lease renewal process</td>
  * </tr>
  * <tr>
- * <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ * <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  * <td>
  * when an exception occurs because a remote call to a lookup service has been
  * interrupted as a result of the termination of a cache
  * </td>
  * </tr>
  * <tr>
- * <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ * <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  * <td>
  * when a "gap" is encountered in an event sequence from a lookup service
  * </td>
@@ -573,8 +573,8 @@ import org.apache.river.impl.thread.ObservableFutureTask;
  * </tr>
  * </table>
  * <p>
- * See the {@link com.sun.jini.logging.LogManager} class for one way to use the
- * logging level {@link com.sun.jini.logging.Levels#HANDLED HANDLED} in standard
+ * See the {@link org.apache.river.logging.LogManager} class for one way to use the
+ * logging level {@link org.apache.river.logging.Levels#HANDLED HANDLED} in standard
  * logging configuration files.
  * <p>
  *

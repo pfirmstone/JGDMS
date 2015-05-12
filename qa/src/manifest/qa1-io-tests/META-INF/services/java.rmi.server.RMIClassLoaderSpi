@@ -1,1 +1,1 @@
-com.sun.jini.test.spec.io.util.FakeRMIClassLoaderSpi
+org.apache.river.test.spec.io.util.FakeRMIClassLoaderSpi

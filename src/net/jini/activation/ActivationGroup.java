@@ -40,10 +40,10 @@ import net.jini.security.Security;
  * #createGroup createGroup} method of this class to be called.  The
  * standard <code>rmid</code> does not do this.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * Unlike <code>rmid</code>, <a
- * href="../../../com/sun/jini/phoenix/package-summary.html#package_description">phoenix</a>
+ * href="../../../org/apache/river/phoenix/package-summary.html#package_description">phoenix</a>
  * is a configurable Java(TM) Remote Method Invocation (Java RMI)
  * activation system daemon implementation that uses
  * the {@link #createGroup createGroup} method of this class.

@@ -79,10 +79,10 @@
     </path>
 
     <property name="ext.dirs" refid="ext.dirs.path" />
-    <property name="log.config" value="${src.dir}/com/sun/jini/test/resources/qa1.logging" />
+    <property name="log.config" value="${src.dir}/org/apache/river/test/resources/qa1.logging" />
     <property name="log.config.file" location="${log.config}" />
     <property name="security.policy" location="harness/policy/qa.policy" />
-    <property name="harness.props" location="${src.dir}/com/sun/jini/test/resources/qaHarness.prop"/>
+    <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
     <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
         default: none -->
     <property name="harness.configs" value="none"/>
@@ -285,48 +285,48 @@
     <macrodef name="testrun">
         <element name="tr-elements" optional="true" implicit="true"/>
         <sequential>
-            <java classname="com.sun.jini.qa.harness.QARunner" fork="yes" failOnError="false" resultproperty="testrunresult">
+            <java classname="org.apache.river.qa.harness.QARunner" fork="yes" failOnError="false" resultproperty="testrunresult">
                 <!--Note these arguments only apply to the qa harness, they aren't
                 propagated to client test jvm's to do that you must set the
                 global or client vm args in the file:
-                src/com/sun/jini/qa/resources/qaDefaults.properties-->
+                src/org/apache/river/qa/resources/qaDefaults.properties-->
                 <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
                 <!--<jvmarg value="-Xbootclasspath/a:${river-ext.lib-dir}"/>-->
                 <jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>
                 <!--Use the following security manager if you need to discover which jar
                 file requires a particular permission, note this only works for the harness here -->
-                <!--<jvmarg value="-Djava.security.manager=com.sun.jini.tool.ProfilingSecurityManager"/>-->
+                <!--<jvmarg value="-Djava.security.manager=org.apache.river.tool.ProfilingSecurityManager"/>-->
                 <!--<jvmarg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
                 <!--Enable the following if you don't want to use any other policy's note == -->
                 <!--<jvmarg value="-Djava.security.policy==${security.policy}" />-->
                 <jvmarg value="-Djava.security.policy=${security.policy}" />
                 <!--<jvmarg value="-Djava.security.debug=access" />-->
                 <jvmarg value="-Djava.util.logging.config.file=${log.config.file}" />
-                <jvmarg value="-Djava.util.logging.manager=com.sun.jini.logging.LogManager"/>
-                <jvmarg value="-Dcom.sun.jini.jsk.home=${river.home}" />
-                <jvmarg value="-Dcom.sun.jini.qa.home=${basedir}" />
+                <jvmarg value="-Djava.util.logging.manager=org.apache.river.logging.LogManager"/>
+                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}" />
+                <jvmarg value="-Dorg.apache.river.qa.home=${basedir}" />
                 <!--We have a problem with path to properties and the src directory
                 it appears that the src directory was added later, however links
                 to property files aren't reflective of this and conflict with 
                 the path to those property files in jar archives needs looking into
                 this is now solved by setting the -->
-                <jvmarg value="-Dcom.sun.jini.test.home=${basedir}" />
-                <jvmarg value="-Dcom.sun.jini.qa.harness.harnessJar=${basedir}/lib/jiniharness.jar"/>
-                <jvmarg value="-Dcom.sun.jini.qa.harness.configs=${harness.configs}" />
-                <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml=${harness.generateHtml}" />
-                <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
+                <jvmarg value="-Dorg.apache.river.test.home=${basedir}" />
+                <jvmarg value="-Dorg.apache.river.qa.harness.harnessJar=${basedir}/lib/jiniharness.jar"/>
+                <jvmarg value="-Dorg.apache.river.qa.harness.configs=${harness.configs}" />
+                <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml=${harness.generateHtml}" />
+                <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
 
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />
                 
                 <!-- VM args for each test run: include our JDK extension directories
-                $${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
-                <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
-                <jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs}"/>
+                $${org.apache.river.qa.harness.globalvmargs},-Dorg.apache.river.test.home=$${org.apache.river.test.home},-Dorg.apache.river.test.port=$${org.apache.river.test.port},-Dorg.apache.river.qa.harness.policies=&lt;url: org/apache/river/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
+                <!--<jvmarg value="-Dorg.apache.river.qa.harness.globalvmargs=$${org.apache.river.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
+                <jvmarg value="-Dorg.apache.river.qa.harness.globalvmargs=$${org.apache.river.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs}"/>
                 <arg path="${harness.props}" />
                 <arg value="-testJar"/>
                 <arg path="${lib.dir}/jinitests.jar" />
                 <!-- Run harness in activatable (default), transient or persistent mode -->
-                <arg value="-com.sun.jini.qa.harness.serviceMode"/>
+                <arg value="-org.apache.river.qa.harness.serviceMode"/>
                 <arg value="${harness.servicemode}" />
                 <tr-elements/>
                 <classpath>
@@ -347,7 +347,7 @@
     </macrodef>
 
     <target name="run-tests" depends="james-brown" description="Execute specific QA test(s)">
-	<fail message="use 'ant -Drun.tests=com/sun/jini/test/impl/yourowntest.td run-tests'" unless="run.tests" />
+	<fail message="use 'ant -Drun.tests=org/apache/river/test/impl/yourowntest.td run-tests'" unless="run.tests" />
         <testrun>
             <!-- Run specific test(s) -->
             <arg value="-tests"/>
@@ -366,7 +366,7 @@
     <target name="run-all" depends="run, jtreg" description="Execute QA and Jtreg tests" />
 
     <target name="run-categories" depends="james-brown" description="Execute QA test categories">
-        <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->
+        <!-- categories can be found under packages org.apache.river.test.impl and org.apache.river.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,lookupservice,
         eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
@@ -440,9 +440,9 @@
                 <pathelement path="${src.dir}/../../src/"/>
                 <pathelement path="${src.dir}"/>
             </sourcepath>
-            <package name="com.sun.jini.qa.*"/>
-            <package name="com.sun.jini.test.*"/>
-            <package name="com.sun.jini.tool.*"/>
+            <package name="org.apache.river.qa.*"/>
+            <package name="org.apache.river.test.*"/>
+            <package name="org.apache.river.tool.*"/>
         </javadoc>
 
         <mkdir dir="${doc.api.dir}/doc-files"/>
@@ -600,7 +600,7 @@
 
     <target name="harness-killer.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/qa/harness/KillerImpl.class" />
+            <include name="org/apache/river/qa/harness/KillerImpl.class" />
         </rmic>
     </target>
 
@@ -610,11 +610,11 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg value="com.sun.jini.qa.harness.KillerImpl"/>
-            <arg value="com.sun.jini.qa.harness.KillerImpl_Stub"/>
+            <arg value="org.apache.river.qa.harness.KillerImpl"/>
+            <arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>
         </classdep>
         <jar destfile="${lib.dir}/harness-killer.jar" index="false">
             <fileset dir="${river.classes.dir}" includesfile="${harness-killer.deps}" />
@@ -628,9 +628,9 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
              <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.qa.harness.VMKiller"/>
-            <arg value="com.sun.jini.qa.harness.KillerImpl_Stub"/>
+            <arg line="-in org.apache.river"/>
+            <arg value="org.apache.river.qa.harness.VMKiller"/>
+            <arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>
         </classdep>
         <jar destfile="${lib.dir}/harness-killer-dl.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${harness-killer-dl.deps}" />
@@ -640,7 +640,7 @@
 
     <target name="nonactivatablegroup.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/qa/harness/NonActivatableGroupImpl$$GroupImpl.class" />
+            <include name="org/apache/river/qa/harness/NonActivatableGroupImpl$$GroupImpl.class" />
         </rmic>
     </target>
 
@@ -650,11 +650,11 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="-out com.sun.jini.start"	/>
-            <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl"/>
-            <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
+            <arg line="-out org.apache.river.start"	/>
+            <arg value="org.apache.river.qa.harness.NonActivatableGroupImpl"/>
+            <arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
         </classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />
@@ -668,8 +668,8 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
+            <arg line="-in org.apache.river"/>
+            <arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
         </classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup-dl.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup-dl.deps}" />
@@ -683,8 +683,8 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.qa"/>
-            <arg value="com.sun.jini.qa.harness.MergedPolicyProvider"/>
+            <arg line="-in org.apache.river.qa"/>
+            <arg value="org.apache.river.qa.harness.MergedPolicyProvider"/>
         </classdep>
         <jar destfile="${lib-ext.dir}/mergedpolicyprovider.jar" index="false" >
             <fileset dir="${river.classes.dir}" includesfile="${mergedpolicyprovider.deps}"/>
@@ -695,26 +695,26 @@
     <target name="qa1-end2end.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-end2end.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/end2end/e2etest/**/*" />
+                <include name="org/apache/river/test/impl/end2end/e2etest/**/*" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-wrapper.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-wrapper.jar" index="false">
-            <metainf dir="${src.dir}/com/sun/jini/test/impl/end2end/META-INF/">
+            <metainf dir="${src.dir}/org/apache/river/test/impl/end2end/META-INF/">
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/end2end/jssewrapper/**/*" />
+                <include name="org/apache/river/test/impl/end2end/jssewrapper/**/*" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-fiddler.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
-            <include name="com/sun/jini/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class" />
+            <include name="org/apache/river/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
+            <include name="org/apache/river/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class" />
         </rmic>
     </target>
 
@@ -727,24 +727,24 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.share.AttributesUtil$$TestAttr00"/>
-            <arg value="com.sun.jini.test.share.AttributesUtil$$TestAttrSC00"/>
-            <arg value="com.sun.jini.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
-            <arg value="com.sun.jini.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
+            <arg value="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
+            <arg value="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-fiddler-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-fiddler-dl.deps}" />
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/proxy/BasicProxyTrustVerifier.class" />
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-joinmanager.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE$$RemoteTestServiceImpl.class" />
+            <include name="org/apache/river/test/impl/joinmanager/LeaseRenewDurRFE$$RemoteTestServiceImpl.class" />
         </rmic>
     </target>
 
@@ -757,18 +757,18 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.spec.joinmanager.AbstractBaseTest$$TestService"/>
-            <arg value="com.sun.jini.test.impl.joinmanager.LeaseRenewDurRFE$$TestServiceProxy$$ConstrainableTestServiceProxy"/>
-            <arg value="com.sun.jini.test.share.AttributesUtil$$TestAttr00"/>
-            <arg value="com.sun.jini.test.share.AttributesUtil$$TestAttrSC00"/>
-            <arg value="com.sun.jini.test.impl.joinmanager.LeaseRenewDurRFE$$RemoteTestServiceImpl_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.spec.joinmanager.AbstractBaseTest$$TestService"/>
+            <arg value="org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE$$TestServiceProxy$$ConstrainableTestServiceProxy"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
+            <arg value="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
+            <arg value="org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE$$RemoteTestServiceImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-joinmanager-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-joinmanager-dl.deps}" />
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/proxy/BasicProxyTrustVerifier.class" />
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
             </fileset>
         </jar>
     </target>
@@ -783,11 +783,11 @@
 
     <target name="qa1-mercury.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/impl/mercury/TestListenerImpl.class" />
-            <include name="com/sun/jini/test/impl/mercury/TestPullListenerImpl.class" />
-            <include name="com/sun/jini/test/impl/mercury/TestGeneratorImpl.class" />
-            <include name="com/sun/jini/test/impl/mercury/DisableListenerImpl.class" />
-            <include name="com/sun/jini/test/impl/mercury/DisableNSOListenerImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/TestListenerImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/TestPullListenerImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/TestGeneratorImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/DisableListenerImpl.class" />
+            <include name="org/apache/river/test/impl/mercury/DisableNSOListenerImpl.class" />
         </rmic>
     </target>
 
@@ -800,20 +800,20 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.mercury.NSOListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.REListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.UEListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.NSOListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.REListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.UEListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" >
@@ -824,22 +824,22 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
-            <arg line="-hide com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.mercury.NSOListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.REListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.UEListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.NSOListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.REListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.UEListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" update="true">
@@ -857,12 +857,12 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury-dl.jar" index="false">
@@ -872,7 +872,7 @@
             <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/mercury/MyUnknownEventException.class"/>
+                <include name="org/apache/river/test/impl/mercury/MyUnknownEventException.class"/>
             </fileset>
             <fileset dir="${river.classes.dir}">
                 <include name="net/jini/lookup/entry/Name.class"/>
@@ -882,17 +882,17 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="-hide com.sun.jini.test"/>
-            <arg value="com.sun.jini.landlord.LandlordProxyVerifier"/>
-            <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg value="org.apache.river.landlord.LandlordProxyVerifier"/>
+            <arg value="org.apache.river.proxy.BasicProxyTrustVerifier"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury-dl.jar" index="false" update="true">
@@ -910,9 +910,9 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.mercury.DelayedBasicJeriExporter"/>
-            <arg value="com.sun.jini.test.impl.mercury.MyLocalRemoteEvent"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.DelayedBasicJeriExporter"/>
+            <arg value="org.apache.river.test.impl.mercury.MyLocalRemoteEvent"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury-bogusimpl.jar" index="false" >
@@ -922,8 +922,8 @@
 
     <target name="qa1-norm.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/impl/norm/LeaseBackEndImpl.class" />
-            <include name="com/sun/jini/test/impl/norm/RemoteListener.class" />
+            <include name="org/apache/river/test/impl/norm/LeaseBackEndImpl.class" />
+            <include name="org/apache/river/test/impl/norm/RemoteListener.class" />
         </rmic>
     </target>
 
@@ -936,42 +936,42 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.norm.LocalLease"/>
-            <arg value="com.sun.jini.test.impl.norm.ConstrainableLocalLease"/>
-            <arg value="com.sun.jini.test.impl.norm.DestructingLocalLease"/>
-            <arg value="com.sun.jini.test.impl.norm.ConstrainableDestructingLocalLease"/>
-            <arg value="com.sun.jini.test.impl.norm.FailingLocalLease"/>
-            <arg value="com.sun.jini.test.impl.norm.ConstrainableFailingLocalLease"/>
-            <arg value="com.sun.jini.test.impl.norm.TestLease"/>
-            <arg value="com.sun.jini.test.impl.norm.ConstrainableTestLease"/>
-            <arg value="com.sun.jini.test.share.AttrOne"/>
-            <arg value="com.sun.jini.test.share.SunOfAttrOne"/>
-            <arg value="com.sun.jini.test.share.AttrTwo"/>
-            <arg value="com.sun.jini.test.impl.norm.LeaseBackEndImpl$$VerifierImpl"/>
-            <arg value="com.sun.jini.test.impl.norm.LocalLease$$VerifierImpl"/>
-            <arg value="com.sun.jini.test.impl.norm.LeaseBackEndImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.norm.RemoteListener_Stub"/>
-            <arg value="com.sun.jini.test.impl.norm.TestLease"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.norm.LocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.DestructingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableDestructingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.FailingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableFailingLocalLease"/>
+            <arg value="org.apache.river.test.impl.norm.TestLease"/>
+            <arg value="org.apache.river.test.impl.norm.ConstrainableTestLease"/>
+            <arg value="org.apache.river.test.share.AttrOne"/>
+            <arg value="org.apache.river.test.share.SunOfAttrOne"/>
+            <arg value="org.apache.river.test.share.AttrTwo"/>
+            <arg value="org.apache.river.test.impl.norm.LeaseBackEndImpl$$VerifierImpl"/>
+            <arg value="org.apache.river.test.impl.norm.LocalLease$$VerifierImpl"/>
+            <arg value="org.apache.river.test.impl.norm.LeaseBackEndImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.norm.RemoteListener_Stub"/>
+            <arg value="org.apache.river.test.impl.norm.TestLease"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-norm-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-norm-dl.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${qa1-norm-dl.deps}" />
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/proxy/BasicProxyTrustVerifier.class" />
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-outrigger.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/impl/outrigger/transaction/SimpleEventListener.class" />
-            <include name="com/sun/jini/test/impl/outrigger/matching/ARemoteInterfaceImpl.class" />
-            <include name="com/sun/jini/test/impl/outrigger/matching/MonitoredSpaceListener.class" />
-            <include name="com/sun/jini/test/impl/outrigger/matching/TestSpaceListener.class" />
-            <include name="com/sun/jini/test/impl/outrigger/notify/ThrowRuntimeException$$Listener.class" />
-            <include name="com/sun/jini/test/impl/outrigger/leasing/LeasedSpaceListener.class" />
+            <include name="org/apache/river/test/impl/outrigger/transaction/SimpleEventListener.class" />
+            <include name="org/apache/river/test/impl/outrigger/matching/ARemoteInterfaceImpl.class" />
+            <include name="org/apache/river/test/impl/outrigger/matching/MonitoredSpaceListener.class" />
+            <include name="org/apache/river/test/impl/outrigger/matching/TestSpaceListener.class" />
+            <include name="org/apache/river/test/impl/outrigger/notify/ThrowRuntimeException$$Listener.class" />
+            <include name="org/apache/river/test/impl/outrigger/leasing/LeasedSpaceListener.class" />
         </rmic>
     </target>
 
@@ -984,37 +984,37 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.outrigger.transaction.SimpleEventListener"/>
-            <arg value="com.sun.jini.test.impl.outrigger.matching.ARemoteInterfaceImpl"/>
-            <arg value="com.sun.jini.test.impl.outrigger.matching.MonitoredSpaceListener"/>
-            <arg value="com.sun.jini.test.impl.outrigger.matching.TestSpaceListener"/>
-            <arg value="com.sun.jini.test.impl.outrigger.notify.ThrowRuntimeException$$Listener"/>
-            <arg value="com.sun.jini.test.impl.outrigger.leasing.LeasedSpaceListener"/>
-            <arg value="com.sun.jini.test.impl.outrigger.transaction.SimpleEventListener_Stub"/>
-            <arg value="com.sun.jini.test.impl.outrigger.matching.ARemoteInterfaceImpl_Stub"/>
-            <arg value="com.sun.jini.test.impl.outrigger.matching.MonitoredSpaceListener_Stub"/>
-            <arg value="com.sun.jini.test.impl.outrigger.matching.TestSpaceListener_Stub"/>
-            <arg value="com.sun.jini.test.impl.outrigger.notify.ThrowRuntimeException$$Listener_Stub"/>
-            <arg value="com.sun.jini.test.impl.outrigger.leasing.LeasedSpaceListener_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.outrigger.transaction.SimpleEventListener"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.ARemoteInterfaceImpl"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.MonitoredSpaceListener"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.TestSpaceListener"/>
+            <arg value="org.apache.river.test.impl.outrigger.notify.ThrowRuntimeException$$Listener"/>
+            <arg value="org.apache.river.test.impl.outrigger.leasing.LeasedSpaceListener"/>
+            <arg value="org.apache.river.test.impl.outrigger.transaction.SimpleEventListener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.ARemoteInterfaceImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.MonitoredSpaceListener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.matching.TestSpaceListener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.notify.ThrowRuntimeException$$Listener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.leasing.LeasedSpaceListener_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-outrigger-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-outrigger-dl.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${qa1-outrigger-dl.deps}" />
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/proxy/BasicProxyTrustVerifier.class" />
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-multihomedmetainf.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-multihomedmetainf.jar" index="false" >
-            <!--<metainf dir="${src.dir}/com/sun/jini/test/impl/reggie/META-INF">
+            <!--<metainf dir="${src.dir}/org/apache/river/test/impl/reggie/META-INF">
                 <include name="**/*" />
             </metainf>-->
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/reggie/**/*"/>
+                <include name="org/apache/river/test/impl/reggie/**/*"/>
             </fileset>
         </jar>
     </target>
@@ -1030,10 +1030,10 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="-in com.sun.jini.fiddler"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-in org.apache.river.fiddler"/>
             <arg line="${jskprivate.include}" />
-            <arg path="${build.classes.dir}/com/sun/jini/test/impl"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/impl"/>
 
         </classdep>
         <jar destfile="${lib.dir}/jinitests.jar" index="false" >
@@ -1043,16 +1043,16 @@
             <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />
             <fileset dir="${build.classes.dir}" includes="${resources}"
-                excludes="com/sun/jini/qa*, com/sun/jini/tool*" />
+                excludes="org/apache/river/qa*, org/apache/river/tool*" />
         </jar>
         <classdep output="${jinitests.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="-in com.sun.jini.fiddler"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-in org.apache.river.fiddler"/>
             <arg line="${jskprivate.include}" />
-            <arg path="${build.classes.dir}/com/sun/jini/test/spec"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/spec"/>
 
         </classdep>
         <jar destfile="${lib.dir}/jinitests.jar" index="false" update="true">
@@ -1063,22 +1063,22 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="-in com.sun.jini.fiddler"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-in org.apache.river.fiddler"/>
             <arg line="${jskprivate.include}" />
-            <arg path="${build.classes.dir}/com/sun/jini/test/share"/>
-            <arg path="${build.classes.dir}/com/sun/jini/test/support"/>
-            <arg path="${build.classes.dir}/com/sun/jini/test/services/lookupsimulator/LookupSimulatorProxyInterface.class"/>
-            <arg path="${build.classes.dir}/com/sun/jini/fiddler/FiddlerAdmin.class"/>
-            <arg path="${build.classes.dir}/com/sun/jini/fiddler/JavaSpaceAdmin.class"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/share"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/support"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/services/lookupsimulator/LookupSimulatorProxyInterface.class"/>
+            <arg path="${build.classes.dir}/org/apache/river/fiddler/FiddlerAdmin.class"/>
+            <arg path="${build.classes.dir}/org/apache/river/fiddler/JavaSpaceAdmin.class"/>
 
         </classdep>
         <jar destfile="${lib.dir}/jinitests.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />
             <fileset dir="${river.src.dir}">
-                <include name="com/sun/jini/start/resources/**/*" />
-                <exclude name="com/sun/jini/start/resources/**/*.svn" />
+                <include name="org/apache/river/start/resources/**/*" />
+                <exclude name="org/apache/river/start/resources/**/*.svn" />
             </fileset>
             <fileset dir="${src.dir}">
                 <include name="interopExclusionList.txt" />
@@ -1095,8 +1095,8 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="com.sun.jini.qa.harness.MainWrapper"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="org.apache.river.qa.harness.MainWrapper"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mainwrapper.jar" index="false" >
@@ -1111,12 +1111,12 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg path="${build.classes.dir}/com/sun/jini/qa/harness"/>
+            <arg path="${build.classes.dir}/org/apache/river/qa/harness"/>
             <arg line="${jskprivate.include}" />
-            <arg line="-in com.sun.jini.start"/>
-            <arg line="-in com.sun.jini.qa"/>
-            <arg line="-in com.sun.jini.tool"/>
-            <arg line="com.sun.jini.start.DestroySharedGroup"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-in org.apache.river.qa"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="org.apache.river.start.DestroySharedGroup"/>
         </classdep>
         <jar destfile="${lib.dir}/jiniharness.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${jiniharness.deps}"/>
@@ -1125,7 +1125,7 @@
                 <include name="harness/**" />
             </fileset>
             <fileset dir="${src.dir}">
-                <include name="com/sun/jini/qa/resources/**/*" />
+                <include name="org/apache/river/qa/resources/**/*" />
             </fileset>
         </jar>
     </target>
@@ -1137,29 +1137,29 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-show com.sun.jini.test"/>
-            <arg line="-show com.sun.jini.qa"/>
-            <arg line="-show com.sun.jini.qaman"/>
-            <arg line="com.sun.jini.qa.harness.QARunner"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-show org.apache.river.test"/>
+            <arg line="-show org.apache.river.qa"/>
+            <arg line="-show org.apache.river.qaman"/>
+            <arg line="org.apache.river.qa.harness.QARunner"/>
         </classdep>
         <jar destfile="${lib.dir}/qaman.jar" index="false" manifest="${src.dir}/manifest/qa1.mf">
             <fileset dir="${build.classes.dir}" includesfile="${qaman.deps}"/>
             <fileset dir="${river.classes.dir}" includesfile="${qaman.deps}"/>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/qaman/**/*" />
+                <include name="org/apache/river/qaman/**/*" />
             </fileset>
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/start/resources/**/*" />
+                <include name="org/apache/river/start/resources/**/*" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-start.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/impl/start/ProbeImpl.class" />
-            <include name="com/sun/jini/test/impl/start/BadServiceProxyAccessorImpl.class" />
-            <include name="com/sun/jini/test/impl/start/TestServiceImpl.class" />
+            <include name="org/apache/river/test/impl/start/ProbeImpl.class" />
+            <include name="org/apache/river/test/impl/start/BadServiceProxyAccessorImpl.class" />
+            <include name="org/apache/river/test/impl/start/TestServiceImpl.class" />
         </rmic>
     </target>
 
@@ -1172,11 +1172,11 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="com.sun.jini.test.impl.start.ProbeImpl"/>
-            <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl"/>
-            <arg line="com.sun.jini.test.impl.start.ProbeImpl_Stub"/>
-            <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-probe-dl.jar" index="false">
@@ -1194,13 +1194,13 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="com.sun.jini.test.impl.start.ProbeImpl"/>
-            <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl"/>
-            <arg line="com.sun.jini.test.impl.start.ProbeImpl_Stub"/>
-            <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
-            <arg line="com.sun.jini.test.impl.start.UnsharedProbeImpl"/>
-            <arg line="com.sun.jini.test.impl.start.NoStubProbeImpl"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.UnsharedProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.NoStubProbeImpl"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-probe.jar" index="false">
@@ -1211,16 +1211,16 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}" />
-            <arg line="-hide com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.impl.start.ProbeImpl"/>
-            <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl"/>
-            <arg line="com.sun.jini.test.impl.start.ProbeImpl_Stub"/>
-            <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
-            <arg line="com.sun.jini.test.impl.start.UnsharedProbeImpl"/>
-            <arg line="com.sun.jini.test.impl.start.NoStubProbeImpl"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
+            <arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.UnsharedProbeImpl"/>
+            <arg line="org.apache.river.test.impl.start.NoStubProbeImpl"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-probe.jar" index="false" update="true">
@@ -1233,31 +1233,31 @@
         <property name="qa1-start-tests.deps" location="${build.deps.dir}/qa1-start-tests.deps" />
         <jar destfile="${lib.dir}/qa1-start-tests.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/ClassLoaderTest.class" />
-                <include name="com/sun/jini/test/impl/start/ClasspathTest.class" />
-                <include name="com/sun/jini/test/impl/start/CodebaseTest.class" />
-                <include name="com/sun/jini/test/impl/start/SecurityTest.class" />
-                <include name="com/sun/jini/test/impl/start/SecurityTestNonActivatable.class" />
-                <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/LoaderSplitPolicyProviderTest.class" />
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/GetContextTest.class" />
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/MainPolicyNotFoundTest.class" />
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/NullCasesTest.class" />
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/SubPoliciesTest.class" />
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/UntrustedGetContextClassLoader.class" />
+                <include name="org/apache/river/test/impl/start/ClassLoaderTest.class" />
+                <include name="org/apache/river/test/impl/start/ClasspathTest.class" />
+                <include name="org/apache/river/test/impl/start/CodebaseTest.class" />
+                <include name="org/apache/river/test/impl/start/SecurityTest.class" />
+                <include name="org/apache/river/test/impl/start/SecurityTestNonActivatable.class" />
+                <include name="org/apache/river/test/impl/start/loadersplitpolicyprovider/LoaderSplitPolicyProviderTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/GetContextTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/MainPolicyNotFoundTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/NullCasesTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/SubPoliciesTest.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/UntrustedGetContextClassLoader.class" />
             </fileset>
         </jar>
         <classdep output="${qa1-start-tests.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-out com.sun.jini.harness"/>
-            <arg line="-out com.sun.jini.qa.harness"/>
-            <arg line="com.sun.jini.test.impl.start.ClassLoaderTest"/>
-            <arg line="com.sun.jini.test.impl.start.ClasspathTest"/>
-            <arg line="com.sun.jini.test.impl.start.CodebaseTest"/>
-            <arg line="com.sun.jini.test.impl.start.SecurityTest"/>
-            <arg line="com.sun.jini.test.impl.start.SecurityTestNonActivatable"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-out org.apache.river.harness"/>
+            <arg line="-out org.apache.river.qa.harness"/>
+            <arg line="org.apache.river.test.impl.start.ClassLoaderTest"/>
+            <arg line="org.apache.river.test.impl.start.ClasspathTest"/>
+            <arg line="org.apache.river.test.impl.start.CodebaseTest"/>
+            <arg line="org.apache.river.test.impl.start.SecurityTest"/>
+            <arg line="org.apache.river.test.impl.start.SecurityTestNonActivatable"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-tests.jar" index="false" update="true">
@@ -1275,32 +1275,32 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/TestServiceImpl_Stub.class" />
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass0.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass1.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass2.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass2.class"/>
             </fileset>
         </jar>
         <classdep output="${qa1-start-testservice1.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-hide com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceImpl_Stub"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false" update="true">
             <fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/start/resources/**/*" />
+                <include name="org/apache/river/start/resources/**/*" />
             </fileset>
         </jar>
     </target>
@@ -1308,11 +1308,11 @@
     <target name="qa1-start-testservice1-dl.jar" depends="qa1-start.stubs">
         <jar destfile="${lib.dir}/qa1-start-testservice1-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/TestService.class" />
-                <include name="com/sun/jini/test/impl/start/TestServiceImpl_Stub.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass0.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass1.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass2.class"/>
+                <include name="org/apache/river/test/impl/start/TestService.class" />
+                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass2.class"/>
             </fileset>
         </jar>
     </target>
@@ -1326,33 +1326,33 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice2.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice2.deps}"/>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/TestServiceImpl_Stub.class" />
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass0.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass1.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass3.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass3.class"/>
             </fileset>
         </jar>
         <classdep output="${qa1-start-testservice2.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-hide com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceImpl_Stub"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice2.jar" index="false" update="true">
             <fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice2.deps}"/>
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/start/resources/**/*" />
+                <include name="org/apache/river/start/resources/**/*" />
             </fileset>
         </jar>
     </target>
@@ -1360,11 +1360,11 @@
     <target name="qa1-start-testservice2-dl.jar" depends="qa1-start.stubs">
         <jar destfile="${lib.dir}/qa1-start-testservice2-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/TestService.class" />
-                <include name="com/sun/jini/test/impl/start/TestServiceImpl_Stub.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass0.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass1.class"/>
-                <include name="com/sun/jini/test/impl/start/TestServiceDummyClass3.class"/>
+                <include name="org/apache/river/test/impl/start/TestService.class" />
+                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
+                <include name="org/apache/river/test/impl/start/TestServiceDummyClass3.class"/>
             </fileset>
         </jar>
     </target>
@@ -1378,9 +1378,9 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceDummyClass0"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceSharedMap"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceDummyClass0"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceSharedMap"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice-common.jar" index="false">
@@ -1398,8 +1398,8 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.impl.start.TestServiceDummyClass0"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.impl.start.TestServiceDummyClass0"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice-common-dl.jar" index="false">
@@ -1411,7 +1411,7 @@
     <target name="qa1-start-testservicenocons.jar" depends="qa1-start.stubs">
         <jar destfile="${lib.dir}/qa1-start-testservicenocons.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/TestServiceNoConsImpl.class" />
+                <include name="org/apache/river/test/impl/start/TestServiceNoConsImpl.class" />
             </fileset>
         </jar>
     </target>
@@ -1419,7 +1419,7 @@
     <target name="qa1-start-testservicenocons-dl.jar" depends="qa1-start.stubs">
         <jar destfile="${lib.dir}/qa1-start-testservicenocons-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/TestService.class" />
+                <include name="org/apache/river/test/impl/start/TestService.class" />
             </fileset>
         </jar>
     </target>
@@ -1427,8 +1427,8 @@
     <target name="qa1-start-cb1.jar" depends="qa1-start.stubs">
         <jar destfile="${lib.dir}/qa1-start-cb1.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Foo.class" />
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/GetContext*.class" />
+                <include name="org/apache/river/test/impl/start/loadersplitpolicyprovider/Foo.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/GetContext*.class" />
             </fileset>
         </jar>
     </target>
@@ -1436,8 +1436,8 @@
     <target name="qa1-start-cb2.jar" depends="qa1-start.stubs">
         <jar destfile="${lib.dir}/qa1-start-cb2.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Bar.class" />
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/RestoreContext*.class" />
+                <include name="org/apache/river/test/impl/start/loadersplitpolicyprovider/Bar.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/RestoreContext*.class" />
             </fileset>
         </jar>
     </target>
@@ -1445,14 +1445,14 @@
     <target name="qa1-start-cb3.jar" depends="qa1-start.stubs">
         <jar destfile="${lib.dir}/qa1-start-cb3.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/CheckContextAction.class" />
+                <include name="org/apache/river/test/impl/start/aggregatepolicyprovider/CheckContextAction.class" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-lookup-simulator.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/services/lookupsimulator/LookupSimulatorImpl.class" />
+            <include name="org/apache/river/test/services/lookupsimulator/LookupSimulatorImpl.class" />
         </rmic>
     </target>
 
@@ -1465,9 +1465,9 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false">
@@ -1477,12 +1477,12 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="-hide com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false" update="true">
@@ -1500,12 +1500,12 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorProxy"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorConstrainableProxy"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorProxyVerifier"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorProxy"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorConstrainableProxy"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorProxyVerifier"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator-dl.jar" index="false">
@@ -1518,12 +1518,12 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="-hide com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
+            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator-dl.jar" index="false" update="true">
@@ -1534,10 +1534,10 @@
 
     <target name="qa1-share.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/share/KillVMUtil$$KillVMObjectImpl.class" />
-            <include name="com/sun/jini/test/share/TesterTransactionManager.class" />
-            <include name="com/sun/jini/test/share/LeaseBackEndImpl.class" />
-            <include name="com/sun/jini/test/share/TestParticipantImpl.class" />
+            <include name="org/apache/river/test/share/KillVMUtil$$KillVMObjectImpl.class" />
+            <include name="org/apache/river/test/share/TesterTransactionManager.class" />
+            <include name="org/apache/river/test/share/LeaseBackEndImpl.class" />
+            <include name="org/apache/river/test/share/TestParticipantImpl.class" />
         </rmic>
     </target>
 
@@ -1550,21 +1550,21 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.share.AttrOne"/>
-            <arg line="com.sun.jini.test.share.AttrTwo"/>
-            <arg line="com.sun.jini.test.share.SunOfAttrOne"/>
-            <arg line="com.sun.jini.test.share.TestLease"/>
-            <arg line="com.sun.jini.test.share.ConstrainableTestLease"/>
-            <arg line="com.sun.jini.test.share.ConstrainableUnreadableTestLease"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManagerProxy"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManagerConstrainableProxy"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManagerProxyVerifier"/>
-            <arg line="com.sun.jini.test.share.LeaseBackEndImpl$$VerifierImpl"/>
-            <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
-            <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.share.AttrOne"/>
+            <arg line="org.apache.river.test.share.AttrTwo"/>
+            <arg line="org.apache.river.test.share.SunOfAttrOne"/>
+            <arg line="org.apache.river.test.share.TestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableTestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableUnreadableTestLease"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerConstrainableProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxyVerifier"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl$$VerifierImpl"/>
+            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false">
@@ -1575,18 +1575,18 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="-hide com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManagerProxy"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManagerConstrainableProxy"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManagerProxyVerifier"/>
-            <arg line="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
-            <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
-            <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>
+            <arg line="-hide org.apache.river.test"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerConstrainableProxy"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManagerProxyVerifier"/>
+            <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
+            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false" update="true">
@@ -1605,18 +1605,18 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
-            <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-reggie-race.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-reggie-race.deps}"/>
             <fileset dir="${river.classes.dir}" includesfile="${qa1-reggie-race.deps}"/>
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/start/resources/**/*" />
+                <include name="org/apache/river/start/resources/**/*" />
             </fileset>
         </jar>
     </target>
@@ -1631,15 +1631,15 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="net.jini.lookup.entry.Name"/>
             <arg line="net.jini.lookup.entry.ServiceInfo"/>
-            <arg line="com.sun.jini.lookup.entry.BasicServiceType"/>
-            <arg line="com.sun.jini.reliableLog.LogException"/>
-            <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
-            <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>
+            <arg line="org.apache.river.lookup.entry.BasicServiceType"/>
+            <arg line="org.apache.river.reliableLog.LogException"/>
+            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-reggie-race-dl.jar" index="false">
@@ -1657,8 +1657,8 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.support.FullLoggingFilter"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.support.FullLoggingFilter"/>
 
         </classdep>
         <jar destfile="${lib.dir}/fullloggingfilter.jar" index="false">
@@ -1669,9 +1669,9 @@
 
     <target name="qa1-discoveryservice.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
-            <include name="com/sun/jini/test/spec/discoveryservice/lease/LeaseExpiration$$ServiceEventListener.class" />
-            <include name="com/sun/jini/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class"/>
+            <include name="org/apache/river/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
+            <include name="org/apache/river/test/spec/discoveryservice/lease/LeaseExpiration$$ServiceEventListener.class" />
+            <include name="org/apache/river/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class"/>
         </rmic>
     </target>
 
@@ -1684,19 +1684,19 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
-            <arg line="com.sun.jini.test.spec.discoveryservice.lease.LeaseExpiration$$ServiceEventListener_Stub"/>
-            <arg line="com.sun.jini.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>
-            <arg line="com.sun.jini.test.share.AttributesUtil$$TestAttr00"/>
-            <arg line="com.sun.jini.test.share.AttributesUtil$$TestAttrSC00"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
+            <arg line="org.apache.river.test.spec.discoveryservice.lease.LeaseExpiration$$ServiceEventListener_Stub"/>
+            <arg line="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>
+            <arg line="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
+            <arg line="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-discoveryservice-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-discoveryservice-dl.deps}"/>
             <fileset dir="${river.classes.dir}" includesfile="${qa1-discoveryservice-dl.deps}"/>
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/proxy/BasicProxyTrustVerifier.class"/>
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
             </fileset>
         </jar>
     </target>
@@ -1727,15 +1727,15 @@
 
     <target name="iiop.stubs" depends="compile">
         <rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
-            <include name="com/sun/jini/test/spec/iiop/util/TestRemoteObject.class" />
+            <include name="org/apache/river/test/spec/iiop/util/TestRemoteObject.class" />
         </rmic>
     </target>
 
     <target name="qa1-io-util-dl.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-io-util-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/io/util/FakeArgument.class" />
-                <include name="com/sun/jini/test/spec/io/util/FakeInterface.class" />
+                <include name="org/apache/river/test/spec/io/util/FakeArgument.class" />
+                <include name="org/apache/river/test/spec/io/util/FakeInterface.class" />
             </fileset>
         </jar>
     </target>
@@ -1747,21 +1747,21 @@
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/io/marshalinputstream/*.class"/>
+                <include name="org/apache/river/test/spec/io/marshalinputstream/*.class"/>
             </fileset>
         </jar>
         <classdep output="${qa1-io-marshalinputstream-test.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="-out com.sun.jini.test.harness"/>
-            <arg line="-out com.sun.jini.test.spec.io.util.FakeArgument"/>
-            <arg line="-out com.sun.jini.test.spec.io.util.FakeInterface"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-out org.apache.river.test.harness"/>
+            <arg line="-out org.apache.river.test.spec.io.util.FakeArgument"/>
+            <arg line="-out org.apache.river.test.spec.io.util.FakeInterface"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="com.sun.jini.test.spec.io.util.FakeIntegrityVerifier"/>
-            <arg path="${build.classes.dir}/com/sun/jini/test/spec/io/marshalinputstream"/>
+            <arg line="org.apache.river.test.spec.io.util.FakeIntegrityVerifier"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/spec/io/marshalinputstream"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-io-marshalinputstream-test.jar" index="false" update="true">
@@ -1776,19 +1776,19 @@
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/io/marshalledinstance/*.class"/>
+                <include name="org/apache/river/test/spec/io/marshalledinstance/*.class"/>
             </fileset>
         </jar>
         <classdep output="${qa1-io-marshalledinstance-test.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="-out com.sun.jini.test.harness"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="-out org.apache.river.test.harness"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="com.sun.jini.test.spec.io.util.FakeIntegrityVerifier"/>
-            <arg path="${build.classes.dir}/com/sun/jini/test/spec/io/marshalledinstance"/>
+            <arg line="org.apache.river.test.spec.io.util.FakeIntegrityVerifier"/>
+            <arg path="${build.classes.dir}/org/apache/river/test/spec/io/marshalledinstance"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-io-marshalledinstance-test.jar" index="false" update="true">
@@ -1798,9 +1798,9 @@
 
     <target name="qa1-javaspace.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/spec/javaspace/conformance/ParticipantImpl.class" />
-            <include name="com/sun/jini/test/spec/javaspace/conformance/NotifyCounter.class" />
-            <include name="com/sun/jini/test/spec/javaspace/conformance/TestEventListener05.class" />
+            <include name="org/apache/river/test/spec/javaspace/conformance/ParticipantImpl.class" />
+            <include name="org/apache/river/test/spec/javaspace/conformance/NotifyCounter.class" />
+            <include name="org/apache/river/test/spec/javaspace/conformance/TestEventListener05.class" />
         </rmic>
     </target>
 
@@ -1813,55 +1813,55 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
-            <arg line="com.sun.jini.test.spec.javaspace.conformance.NotifyCounter_Stub"/>
-            <arg line="com.sun.jini.test.spec.javaspace.conformance.TestEventListener05_Stub"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
+            <arg line="org.apache.river.test.spec.javaspace.conformance.NotifyCounter_Stub"/>
+            <arg line="org.apache.river.test.spec.javaspace.conformance.TestEventListener05_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-javaspace-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
             <fileset dir="${river.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/proxy/BasicProxyTrustVerifier.class"/>
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
             </fileset>
         </jar>
     </target>
 
     <target name="jrmp.stubs" depends="compile">
         <rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
-            <include name="com/sun/jini/test/spec/jrmp/util/TestRemoteObject.class" />
+            <include name="org/apache/river/test/spec/jrmp/util/TestRemoteObject.class" />
         </rmic>
     </target>
 
     <target name="qa1-lookupservice.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/spec/lookupservice/test_set00/EvntLeaseExpiration$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set00/NotifyOnAttrAdd$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set00/NotifyOnAttrMod$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set00/NotifyOnAttrDel$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set00/NotifyOnSrvcLeaseExpiration$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set00/MultipleEvntLeaseRenewals$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNonNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNonNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNonNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboSrvcReg$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboSrvcLeaseExp$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnEntrySrvcReg$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNonNull$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/LeaseMapRenew$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/LeaseMapCancel$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/ExpiredEventLeaseRenew$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/ExpiredEventLeaseCancel$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/ExpiredLeaseMapRenew$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/ExpiredLeaseMapCancel$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/NotifyOnAttrSet$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/NotifyOnComboAttrSet$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set02/NotifyExceptionTest$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/EvntLeaseExpiration$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrAdd$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrMod$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrDel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnSrvcLeaseExpiration$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set00/MultipleEvntLeaseRenewals$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboSrvcReg$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnComboSrvcLeaseExp$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnEntrySrvcReg$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNonNull$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/LeaseMapRenew$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/LeaseMapCancel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredEventLeaseRenew$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredEventLeaseCancel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredLeaseMapRenew$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/ExpiredLeaseMapCancel$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyOnAttrSet$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyOnComboAttrSet$$Listener.class" />
+            <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyExceptionTest$$Listener.class" />
         </rmic>
     </target>
 
@@ -1874,50 +1874,50 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test.spec"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set00.NotifyOnAttrAdd$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set00.NotifyOnAttrMod$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set00.NotifyOnAttrDel$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set00.NotifyOnSrvcLeaseExpiration$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set00.MultipleEvntLeaseRenewals$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboAttrAddNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboAttrAddNonNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboAttrModNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboAttrModNonNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboAttrDelNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboAttrDelNonNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboSrvcReg$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnComboSrvcLeaseExp$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnEntryAttrAddNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set01.NotifyOnEntryAttrAddNonNull$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.LeaseMapCancel$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.ExpiredEventLeaseRenew$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.ExpiredEventLeaseCancel$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.ExpiredLeaseMapRenew$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.ExpiredLeaseMapCancel$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.NotifyOnAttrSet$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.NotifyOnComboAttrSet$$Listener_Stub"/>
-            <arg line="com.sun.jini.test.spec.lookupservice.test_set02.NotifyExceptionTest$$Listener_Stub"/>
+            <arg line="-in org.apache.river.test.spec"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrAdd$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrMod$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrDel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnSrvcLeaseExpiration$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set00.MultipleEvntLeaseRenewals$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrAddNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrAddNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrModNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrModNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrDelNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboAttrDelNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboSrvcReg$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnComboSrvcLeaseExp$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnEntryAttrAddNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set01.NotifyOnEntryAttrAddNonNull$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.LeaseMapCancel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredEventLeaseRenew$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredEventLeaseCancel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredLeaseMapRenew$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredLeaseMapCancel$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyOnAttrSet$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyOnComboAttrSet$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyExceptionTest$$Listener_Stub"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookupservice-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
             <fileset dir="${river.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
             <fileset dir="${river.classes.dir}">
-                <include name="com/sun/jini/proxy/BasicProxyTrustVerifier.class"/>
-                <include name="com/sun/jini/test/spec/lookupservice/attribute/**/*"/>
+                <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
+                <include name="org/apache/river/test/spec/lookupservice/attribute/**/*"/>
             </fileset>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/lookupservice/attribute/**/*"/>
+                <include name="org/apache/river/test/spec/lookupservice/attribute/**/*"/>
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-renewalservice.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
-            <include name="com/sun/jini/test/share/LeaseBackEndImpl.class" />
-            <include name="com/sun/jini/test/share/RemoteListener.class" />
+            <include name="org/apache/river/test/share/LeaseBackEndImpl.class" />
+            <include name="org/apache/river/test/share/RemoteListener.class" />
         </rmic>
     </target>
 
@@ -1930,18 +1930,18 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.share.LeaseBackEndImpl$$VerifierImpl"/>
-            <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.RemoteListener_Stub"/>
-            <arg line="com.sun.jini.test.share.TestLease"/>
-            <arg line="com.sun.jini.test.share.ConstrainableTestLease"/>
-            <arg line="com.sun.jini.test.share.UnreadableTestLease"/>
-            <arg line="com.sun.jini.test.share.ConstrainableUnreadableTestLease"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl$$VerifierImpl"/>
+            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.RemoteListener_Stub"/>
+            <arg line="org.apache.river.test.share.TestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableTestLease"/>
+            <arg line="org.apache.river.test.share.UnreadableTestLease"/>
+            <arg line="org.apache.river.test.share.ConstrainableUnreadableTestLease"/>
         </classdep>
         <jar destfile="${lib.dir}/qa1-renewalservice-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/io/marshalledinstance/*.class"/>
+                <include name="org/apache/river/test/spec/io/marshalledinstance/*.class"/>
                 <includesfile name="${qa1-renewalservice-dl.deps}" />
             </fileset>
         </jar>
@@ -1949,10 +1949,10 @@
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
-            <arg line="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
+            <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-renewalservice-dl.jar" index="false" update="true">
@@ -1963,8 +1963,8 @@
     <target name="qa1-securityDoPrivileged.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-securityDoPrivileged.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/security/security/DoPrivilegedTest.class" />
-                <include name="com/sun/jini/test/spec/security/security/DoPrivilegedExceptionTest.class" />
+                <include name="org/apache/river/test/spec/security/security/DoPrivilegedTest.class" />
+                <include name="org/apache/river/test/spec/security/security/DoPrivilegedExceptionTest.class" />
             </fileset>
         </jar>
     </target>
@@ -1972,7 +1972,7 @@
     <target name="qa1-securityUtil.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-securityUtil.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/security/util/FakeCaller.class" />
+                <include name="org/apache/river/test/spec/security/util/FakeCaller.class" />
             </fileset>
         </jar>
     </target>
@@ -1987,11 +1987,11 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in net.jini.lookup"/>
-            <arg line="-in com.sun.jini.test"/>
+            <arg line="-in org.apache.river.test"/>
             <arg line="-hide net.jini.lookup"/>
             <arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
-            <arg line="com.sun.jini.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
-            <arg line="com.sun.jini.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
             <arg line="net.jini.lookup.entry.Name"/>
 
         </classdep>
@@ -2006,14 +2006,14 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in net.jini.lookup"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in org.apache.river.test"/>
+            <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
             <arg line="-show net.jini.lookup"/>
-            <arg line="-show com.sun.jini.proxy"/>
+            <arg line="-show org.apache.river.proxy"/>
             <arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
-            <arg line="com.sun.jini.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
-            <arg line="com.sun.jini.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
+            <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
             <arg line="net.jini.lookup.entry.Name"/>
         </classdep>
         <jar destfile="${lib.dir}/qa1-servicediscovery-dl.jar" index="false" update="true">
@@ -2024,7 +2024,7 @@
     <target name="qa1-httpmd.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-httpmd.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/url/httpmd/*/*.class" />
+                <include name="org/apache/river/test/spec/url/httpmd/*/*.class" />
             </fileset>
         </jar>
     </target>
@@ -2037,41 +2037,41 @@
     <target name="qa1-httpmd-another.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-httpmd-another.jar" index="false">
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/url/httpmd/handler/*.class" />
+                <include name="org/apache/river/test/spec/url/httpmd/handler/*.class" />
             </fileset>
         </jar>
     </target>
 
     <target name="ld.jar" depends="compile">
         <jar destfile="${lib.dir}/ld.jar" index="false">
-            <metainf dir="${src.dir}/com/sun/jini/test/impl/lookupdiscovery/util/META-INF">
+            <metainf dir="${src.dir}/org/apache/river/test/impl/lookupdiscovery/util/META-INF">
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/impl/lookupdiscovery/util/*.class" />
+                <include name="org/apache/river/test/impl/lookupdiscovery/util/*.class" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-loader-pref.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-loader-pref.jar" index="false">
-            <metainf dir="${src.dir}/com/sun/jini/test/spec/loader/util/classes/META-INF">
+            <metainf dir="${src.dir}/org/apache/river/test/spec/loader/util/classes/META-INF">
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/loader/util/resources/**/*" />
-                <include name="com/sun/jini/test/spec/loader/util/classes/**/*" />
+                <include name="org/apache/river/test/spec/loader/util/resources/**/*" />
+                <include name="org/apache/river/test/spec/loader/util/classes/**/*" />
             </fileset>
         </jar>
     </target>
 
     <target name="qa1-policy-provider.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-policy-provider.jar" index="false">
-            <metainf dir="${src.dir}/com/sun/jini/test/spec/policyprovider/util/classes/META-INF">
+            <metainf dir="${src.dir}/org/apache/river/test/spec/policyprovider/util/classes/META-INF">
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}">
-                <include name="com/sun/jini/test/spec/policyprovider/util/classes/**/*" />
+                <include name="org/apache/river/test/spec/policyprovider/util/classes/**/*" />
             </fileset>
         </jar>
     </target>

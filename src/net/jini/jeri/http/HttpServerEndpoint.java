@@ -18,15 +18,15 @@
 
 package net.jini.jeri.http;
 
-import com.sun.jini.jeri.internal.http.ConnectionTimer;
-import com.sun.jini.jeri.internal.http.HttpServerConnection;
-import com.sun.jini.jeri.internal.http.HttpServerManager;
-import com.sun.jini.jeri.internal.http.HttpSettings;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.jeri.internal.http.ConnectionTimer;
+import org.apache.river.jeri.internal.http.HttpServerConnection;
+import org.apache.river.jeri.internal.http.HttpServerManager;
+import org.apache.river.jeri.internal.http.HttpSettings;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;

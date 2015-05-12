@@ -17,7 +17,7 @@
 
 package org.apache.river.api.net;
 
-import com.sun.jini.action.GetPropertyAction;
+import org.apache.river.action.GetPropertyAction;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;

@@ -26,7 +26,7 @@ java -Djava.security.manager= ^
      -Djava.security.properties=config\dynamic-policy.security-properties ^
      -Djava.security.auth.login.config=config\krb-server.login ^
      -Djava.protocol.handler.pkgs=net.jini.url ^
-     -Djava.rmi.server.RMIClassLoaderSpi=com.sun.jini.example.hello.MdClassAnnotationProvider ^
+     -Djava.rmi.server.RMIClassLoaderSpi=org.apache.river.example.hello.MdClassAnnotationProvider ^
      -Dexport.codebase.source.app=lib ^
      -Dexport.codebase.app="httpmd://%computername%:8080/server-dl.jar;sha=0" ^
      -Dexport.codebase.source.jsk=..\..\lib-dl ^

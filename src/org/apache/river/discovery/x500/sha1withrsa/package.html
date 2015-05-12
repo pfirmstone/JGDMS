@@ -1,0 +1,192 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides an implementation of the
+<code>net.jini.discovery.x500.SHA1withRSA</code> discovery format, specified in
+the <i>Jini Discovery and Join Specification</i>.  The {@link
+org.apache.river.discovery.x500.sha1withrsa.Client} class implements the client
+side of the <code>net.jini.discovery.x500.SHA1withRSA</code> discovery format
+for the multicast request and multicast announcement discovery protocols, while
+the {@link org.apache.river.discovery.x500.sha1withrsa.Server} class implements the
+server side of the discovery format for those protocols.  Both classes are
+intended to be specified in a resource to configure the operation of the {@link
+org.apache.river.discovery.Discovery} class, as described in the documentation for
+{@link org.apache.river.discovery.Discovery#getProtocol2(ClassLoader)}.
+
+<h2>Supported Constraints</h2>
+
+Both <code>Client</code> and <code>Server</code> support the following
+constraints for the multicast request protocol:
+
+<ul>
+  <li> a {@link net.jini.core.constraint.ConstraintAlternatives} if at
+       least one element is supported
+  <li> {@link net.jini.core.constraint.Integrity#YES Integrity.YES}
+  <li> {@link net.jini.core.constraint.ClientAuthentication#YES
+        ClientAuthentication.YES}
+  <li> {@link net.jini.core.constraint.Confidentiality#NO Confidentiality.NO}
+  <li> {@link net.jini.core.constraint.ServerAuthentication#NO
+        ServerAuthentication.NO}
+  <li> {@link net.jini.core.constraint.Delegation#NO Delegation.NO}
+  <li> {@link net.jini.core.constraint.ClientMaxPrincipal}, when it contains an
+       {@link javax.security.auth.x500.X500Principal} that has an RSA key as a
+       private credential
+  <li> {@link net.jini.core.constraint.ClientMaxPrincipalType}, when it
+       contains <code>X500Principal</code>
+  <li> {@link net.jini.core.constraint.ClientMinPrincipal}, when it contains a
+       single <code>X500Principal</code> only, that has an RSA key as a private
+       credential
+  <li> {@link net.jini.core.constraint.ClientMinPrincipalType}, when it
+       contains <code>X500Principal</code> only
+  <li> any {@link net.jini.core.constraint.ServerMinPrincipal}
+  <li> any {@link net.jini.core.constraint.DelegationAbsoluteTime}
+  <li> any {@link net.jini.core.constraint.DelegationRelativeTime}
+</ul>
+
+(Note that <code>ServerMinPrincipal</code>,
+<code>DelegationAbsoluteTime</code>, and <code>DelegationRelativeTime</code>
+constraints are trivially supported if <code>ServerAuthentication.YES</code>
+and <code>Delegation.YES</code> are not supported.)
+<p>
+Both <code>Client</code> and <code>Server</code> support the following
+constraints for the multicast announcement protocol:
+
+<ul>
+  <li> a {@link net.jini.core.constraint.ConstraintAlternatives} if at
+       least one element is supported
+  <li> {@link net.jini.core.constraint.Integrity#YES Integrity.YES}
+  <li> {@link net.jini.core.constraint.ServerAuthentication#YES
+        ServerAuthentication.YES}
+  <li> {@link net.jini.core.constraint.ClientAuthentication#NO
+        ClientAuthentication.NO}
+  <li> {@link net.jini.core.constraint.Confidentiality#NO Confidentiality.NO}
+  <li> {@link net.jini.core.constraint.Delegation#NO Delegation.NO}
+  <li> {@link net.jini.core.constraint.ServerMinPrincipal}, when it contains a
+       single <code>X500Principal</code> only, that has an RSA key as a private
+       credential
+  <li> any {@link net.jini.core.constraint.ClientMaxPrincipal}
+  <li> any {@link net.jini.core.constraint.ClientMaxPrincipalType}
+  <li> any {@link net.jini.core.constraint.ClientMinPrincipal}
+  <li> any {@link net.jini.core.constraint.ClientMinPrincipalType}
+  <li> any {@link net.jini.core.constraint.DelegationAbsoluteTime}
+  <li> any {@link net.jini.core.constraint.DelegationRelativeTime}
+</ul>
+
+(Note that <code>ClientMaxPricipal</code>, <code>ClientMaxPrincipalType</code>,
+<code>ClientMinPrincipal</code>, <code>ClientMinPrincipalType</code>,
+<code>DelegationAbsoluteTime</code>, and <code>DelegationRelativeTime</code>
+constraints are trivially supported if <code>ClientAuthentication.YES</code>
+and <code>Delegation.YES</code> are not supported.)
+
+<h2>System Properties</h2>
+
+Both <code>Client</code> and <code>Server</code> can be configured through use
+of the following system properties:
+<p>
+<dl>
+  <dt> <code>org.apache.river.discovery.x500.trustStore</code>
+  <dd> This system property can be used to specify the location of an alternate
+       truststore from which to obtain certificates for trusted entities.  If
+       this property is not specified, then the
+       <code>javax.net.ssl.trustStore</code> system property is consulted.  If
+       that property is unspecified as well, then the
+       <code>&lt;java-home&gt;/lib/security/cacerts</code> file is used. The
+       applicable system property, if specified, is treated as a URL if it can 
+       be parsed as such; if it cannot be parsed, it is treated as a file name.
+       <p>
+  <dt> <code>org.apache.river.discovery.x500.trustStoreType</code>
+  <dd> If the <code>org.apache.river.discovery.x500.trustStore</code> system
+       property is being used to specify the truststore location, then this
+       system property can be used to specify the type of the truststore to
+       load.  By default, the value returned by
+       {@link java.security.KeyStore#getDefaultType} is used.
+       <p>
+  <dt> <code>org.apache.river.discovery.x500.trustStorePassword</code>
+  <dd> If the <code>org.apache.river.discovery.x500.trustStore</code> system
+       property is being used to specify the truststore location, then this
+       system property can be used to specify the password for accessing the
+       contents of the truststore.  If it is not specified, then no password is
+       used when accessing the truststore.
+       <p>
+  <dt> <code>org.apache.river.discovery.x500.ldapCertStores</code>
+  <dd> This system property can be used to specify a list of LDAP-backed
+       <code>CertStore</code>s to use for mapping received X.500 principals to
+       corresponding X.509 certificates.  If set, it should contain a
+       comma-separated list of strings of the form
+       <code>"&lt;hostname&gt;:&lt;port&gt;"</code> or
+       <code>"&lt;hostname&gt;"</code>, where each string indicates the network
+       address of an LDAP server to consult.  If a given string does not
+       specify a port, a default port number of <code>389</code> is used.
+       <p>
+  <dt> <code>javax.net.ssl.trustStore</code>
+  <dd> If the <code>org.apache.river.discovery.x500.trustStore</code> system
+       property is not set, then this system property can be used to specify
+       the truststore from which to obtain certificates for trusted entities.
+       If neither this property nor the
+       <code>org.apache.river.discovery.x500.trustStore</code> property is
+       specified, then the <code>&lt;java-home&gt;/lib/security/cacerts</code>
+       file is used.
+       <p>
+  <dt> <code>javax.net.ssl.trustStoreType</code>
+  <dd> If the <code>javax.net.ssl.trustStore</code> system property is being
+       used to specify the truststore location, then this system property can
+       be used to specify the type of the truststore to load.  By default, the
+       value returned by {@link java.security.KeyStore#getDefaultType} is used.
+       <p>
+  <dt> <code>javax.net.ssl.trustStorePassword</code>
+  <dd> If the <code>javax.net.ssl.trustStore</code> system property is being
+       used to specify the truststore location, then this system property can
+       be used to specify the password for accessing the contents of the
+       truststore.  If it is not specified, then no password is used when
+       accessing the truststore.
+</dl>
+
+<h2>Logging</h2>
+
+Both <code>Client</code> and <code>Server</code> use the
+{@link java.util.logging.Logger} named <code>org.apache.river.discovery.x500</code>
+to log information at the following logging levels:
+<p>
+<table border="1" cellpadding="5"
+       summary="Describes logging performed by the
+                org.apache.river.discovery.x500.sha1withrsa provider classes at
+                different logging levels">
+  <tr> <th> Level   <th> Description
+  <tr> <td> WARNING <td> Failure to initialize a certificate store
+  <tr> <td> FINE    <td> Exceptions mapping X.500 principals to X.509
+                         certificates, as well as exceptions resulting from
+                         inadequate permissions to use private credentials
+                         corresponding to an X.500 principal
+  <tr> <td> FINEST  <td> Debugging trace information, such as the truststore
+                         and certificate stores in use, the X.500 principal
+                         used for signing a given packet, and the mapping of
+                         X.500 principals to corresponding X.509 certificates
+</table>
+
+@since 2.0
+@see "<i>Jini Discovery and Join Specification</i>"
+
+</body>
+</html>

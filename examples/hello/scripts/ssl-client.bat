@@ -24,7 +24,7 @@ java -Djava.security.manager= ^
      -Djavax.net.ssl.trustStore=prebuiltkeys\truststore ^
      -Djava.protocol.handler.pkgs=net.jini.url ^
      -Djava.security.properties=config\dynamic-policy.security-properties ^
-     -Djava.rmi.server.RMIClassLoaderSpi=com.sun.jini.example.hello.MdClassAnnotationProvider ^
+     -Djava.rmi.server.RMIClassLoaderSpi=org.apache.river.example.hello.MdClassAnnotationProvider ^
      -Dexport.codebase.source.jsk=..\..\lib-dl ^
      -Dexport.codebase.jsk=httpmd://%computername%:8080/jsk-dl.jar;sha=0 ^
      -jar lib\client.jar ^

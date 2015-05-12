@@ -18,12 +18,12 @@
 
 /* Keep this UTF-8 coded. */
 
-import com.sun.jini.start.NonActivatableServiceDescriptor;
-import com.sun.jini.start.ServiceDescriptor;
+import org.apache.river.start.NonActivatableServiceDescriptor;
+import org.apache.river.start.ServiceDescriptor;
 import net.jini.jeri.* ;
 import net.jini.jeri.tcp.* ;
 
-com.sun.jini.start {
+org.apache.river.start {
     private static codebase = "" ;
     private static policy = "" ; 
     private static classpath = "" ; 
@@ -31,12 +31,12 @@ com.sun.jini.start {
     static serviceDescriptors = new ServiceDescriptor[] {
         new NonActivatableServiceDescriptor(
             codebase, policy, classpath,
-            "com.sun.jini.reggie.TransientRegistrarImpl",
+            "org.apache.river.reggie.TransientRegistrarImpl",
             this, null, null )
     };
 }
 
-com.sun.jini.reggie {
+org.apache.river.reggie {
 
     static initialMemberGroups = new String[] { ${groups} };
 

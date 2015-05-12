@@ -1,0 +1,4 @@
+testClass=SetAttributesPropNew
+testCategories=joinmanager,joinmanager_spec
+include0=joinmanager.properties
+include1=org/apache/river/test/share/prop_lookups2_2Ports_srvcs1_0attrs3_2.properties

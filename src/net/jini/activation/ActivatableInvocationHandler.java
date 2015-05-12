@@ -18,9 +18,9 @@
 
 package net.jini.activation;
 
-import com.sun.jini.action.GetBooleanAction;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -69,11 +69,11 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This implementation recognizes the following system property:
  * <ul>
- * <li><code>com.sun.jini.activation.enableActivateGrant</code> - This
+ * <li><code>org.apache.river.activation.enableActivateGrant</code> - This
  * property is interpreted as a <code>boolean</code> value (see {@link
  * Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, this
  * implementation invokes {@link Security#grant(Class,Class) Security.grant}
@@ -90,7 +90,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * <blockquote>
  *
  * For each resource named
- * <code>com/sun/jini/proxy/resources/InvocationHandler.moreProhibitedProxyInterfaces</code>
+ * <code>org/apache/river/proxy/resources/InvocationHandler.moreProhibitedProxyInterfaces</code>
  * that is visible to the system class loader, the contents of the
  * resource are parsed as UTF-8 text to produce a list of interface
  * names.  The resource must contain a list of binary names of
@@ -147,7 +147,7 @@ public final class ActivatableInvocationHandler
      */
     private static final boolean enableGrant =
 	((Boolean) AccessController.doPrivileged(new GetBooleanAction(
-	    "com.sun.jini.activation.enableActivateGrant")))
+	    "org.apache.river.activation.enableActivateGrant")))
 	    .booleanValue();
 
     /**

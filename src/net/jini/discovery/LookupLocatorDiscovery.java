@@ -43,7 +43,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  * or its subclass {@link net.jini.discovery.ConstrainableLookupLocator
  * ConstrainableLookupLocator}.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#lldConfigEntries">Configuring LookupLocatorDiscovery</a>
@@ -166,14 +166,14 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *     <code>wakeupManager</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.WakeupManager}
+ *     Type: <td> {@link org.apache.river.thread.WakeupManager}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *     {@link com.sun.jini.thread.WakeupManager#WakeupManager(
- *          com.sun.jini.thread.WakeupManager.ThreadDesc)
+ *     {@link org.apache.river.thread.WakeupManager#WakeupManager(
+ *          org.apache.river.thread.WakeupManager.ThreadDesc)
  *     WakeupManager}(new 
- *     {@link com.sun.jini.thread.WakeupManager.ThreadDesc}(null,true))</code>
+ *     {@link org.apache.river.thread.WakeupManager.ThreadDesc}(null,true))</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
@@ -224,7 +224,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *   <td>when any exception occurs while attempting to prepare a proxy</td>
  * </tr>
  * <tr>
- *   <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ *   <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  *   <td>
  *     when an exception is handled during unicast discovery.
  *   </td>

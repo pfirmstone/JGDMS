@@ -15,5 +15,5 @@ grant {
   permission java.net.SocketPermission "*:1024-", "connect,accept,listen";
 
   // allow remote objects to call monitor's inactive method
-  permission com.sun.jini.phoenix.MonitorPermission "inactiveObject";
+  permission org.apache.river.phoenix.MonitorPermission "inactiveObject";
 };

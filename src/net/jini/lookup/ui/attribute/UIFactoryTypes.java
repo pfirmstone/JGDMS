@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Collections;
-import com.artima.lookup.util.ConsistentSet;
+import org.apache.river.lookup.util.ConsistentSet;
 
 /**
  * UI attribute that lists UI factory interfaces of which a UI factory

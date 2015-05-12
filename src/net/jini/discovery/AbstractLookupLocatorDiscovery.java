@@ -18,15 +18,15 @@
 
 package net.jini.discovery;
 
-import com.sun.jini.config.Config;
-import com.sun.jini.discovery.Discovery;
-import com.sun.jini.discovery.DiscoveryConstraints;
-import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.internal.MultiIPDiscovery;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
-import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.WakeupManager;
+import org.apache.river.config.Config;
+import org.apache.river.discovery.Discovery;
+import org.apache.river.discovery.DiscoveryConstraints;
+import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.internal.MultiIPDiscovery;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
+import org.apache.river.thread.RetryTask;
+import org.apache.river.thread.WakeupManager;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -477,10 +477,10 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
      *  If a particular instance of this class fails to find the lookup
      *  service that it references, this task will be rescheduled to be
      *  executed again at a later time, using a "backoff strategy" as defined
-     *  by the method <code>com.sun.jini.thread.RetryTask.retryTime</code>.
+     *  by the method <code>org.apache.river.thread.RetryTask.retryTime</code>.
      *
-     *  @see com.sun.jini.thread.RetryTask
-     *  @see com.sun.jini.thread.WakeupManager
+     *  @see org.apache.river.thread.RetryTask
+     *  @see org.apache.river.thread.WakeupManager
      */
     private class DiscoveryTask extends RetryTask {
         private final LocatorReg reg;

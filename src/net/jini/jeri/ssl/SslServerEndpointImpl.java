@@ -18,13 +18,13 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.action.GetLongAction;
-import com.sun.jini.jeri.internal.connection.BasicServerConnManager;
-import com.sun.jini.jeri.internal.connection.ServerConnManager;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.action.GetLongAction;
+import org.apache.river.jeri.internal.connection.BasicServerConnManager;
+import org.apache.river.jeri.internal.connection.ServerConnManager;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -103,7 +103,7 @@ class SslServerEndpointImpl extends Utilities {
      */
     private final long maxServerSessionDuration =
 	((Long) Security.doPrivileged(
-	    new GetLongAction("com.sun.jini.jeri.ssl.maxServerSessionDuration",
+	    new GetLongAction("org.apache.river.jeri.ssl.maxServerSessionDuration",
 			      24L * 60L * 60L * 1000L))).longValue();
 
     /**

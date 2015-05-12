@@ -1,7 +1,7 @@
 
 /* Kerberos login configurations */
 
-com.sun.jini.Reggie {
+org.apache.river.Reggie {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -11,7 +11,7 @@ com.sun.jini.Reggie {
     principal="${reggie}";
 };
 
-com.sun.jini.Mahalo {
+org.apache.river.Mahalo {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -21,7 +21,7 @@ com.sun.jini.Mahalo {
     principal="${mahalo}";
 };
 
-com.sun.jini.Outrigger {
+org.apache.river.Outrigger {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -31,7 +31,7 @@ com.sun.jini.Outrigger {
     principal="${outrigger}";
 };
 
-com.sun.jini.Mercury {
+org.apache.river.Mercury {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -41,7 +41,7 @@ com.sun.jini.Mercury {
     principal="${mercury}";
 };
 
-com.sun.jini.Norm {
+org.apache.river.Norm {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -51,7 +51,7 @@ com.sun.jini.Norm {
     principal="${norm}";
 };
 
-com.sun.jini.Phoenix {
+org.apache.river.Phoenix {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -61,7 +61,7 @@ com.sun.jini.Phoenix {
     principal="${phoenix}";
 };
 
-com.sun.jini.Test {
+org.apache.river.Test {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -71,7 +71,7 @@ com.sun.jini.Test {
     principal="${test}";
 };
 
-com.sun.jini.Fiddler {
+org.apache.river.Fiddler {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"
@@ -81,7 +81,7 @@ com.sun.jini.Fiddler {
     principal="${fiddler}";
 };
 
-com.sun.jini.Group {
+org.apache.river.Group {
     com.sun.security.auth.module.Krb5LoginModule required
     useKeyTab=true
     keyTab="${keytab}"

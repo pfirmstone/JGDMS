@@ -27,7 +27,7 @@
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.*;
-import com.sun.jini.collection.WeakSoftTable;
+import org.apache.river.collection.WeakSoftTable;
 
 public abstract class TestWeakSoftTable extends TestUtilities {
 
@@ -83,7 +83,7 @@ public abstract class TestWeakSoftTable extends TestUtilities {
     static final Key keyX = new Key("X");
 
     static final LazyField hash = new LazyField(
-	"com.sun.jini.collection", "WeakSoftTable", "hash");
+	"org.apache.river.collection", "WeakSoftTable", "hash");
 
     public static void main(String[] args) {
 	test(tests);

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import com.sun.jini.thread.Executor;
+import org.apache.river.thread.Executor;
 
 class NewThreadExecutor implements Executor {
     NewThreadExecutor() { }

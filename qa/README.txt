@@ -87,9 +87,9 @@ access to the GNU make utility.
 
      Example 7a. Run individual test(s) in transient mode, named:
 
-     com.sun.jini.test.spec.joinmanager.Register
-     com.sun.jini.test.impl.joinmanager.LeaseRenewDurRFE
-     com.sun.jini.test.impl.servicediscovery.event.LookupTaskServiceIdMapRace
+     org.apache.river.test.spec.joinmanager.Register
+     org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE
+     org.apache.river.test.impl.servicediscovery.event.LookupTaskServiceIdMapRace
 
      > java 
        -cp $HOME/jtsk-trunk/integrationtests/qa/lib/jiniharness.jar
@@ -98,14 +98,14 @@ access to the GNU make utility.
        -Djava.security.policy=
     $HOME/jtsk-trunk/integrationtests/qa/harness/policy/qa.policy
        -Djava.util.logging.config.file=
-    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qa1.logging
-    com.sun.jini.qa.harness.QARunner
-    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qaHarness.prop
+    $HOME/jtsk-trunk/integrationtests/qa/src/org/apache/river/test/resources/qa1.logging
+    org.apache.river.qa.harness.QARunner
+    $HOME/jtsk-trunk/integrationtests/qa/src/org/apache/river/test/resources/qaHarness.prop
     -testJar $HOME/jtsk-trunk/integrationtests/qa/lib/jinitests.jar
-    -tests com/sun/jini/test/spec/joinmanager/Register.td,
-           com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td,
-           com/sun/jini/test/impl/servicediscovery/event/LookupTaskServiceIdMapRace.td
-    -com.sun.jini.qa.harness.serviceMode transient
+    -tests org/apache/river/test/spec/joinmanager/Register.td,
+           org/apache/river/test/impl/joinmanager/LeaseRenewDurRFE.td,
+           org/apache/river/test/impl/servicediscovery/event/LookupTaskServiceIdMapRace.td
+    -org.apache.river.qa.harness.serviceMode transient
 
      Example 7b. Run all tests in transient mode under the
                  joinmanager categories:
@@ -117,12 +117,12 @@ access to the GNU make utility.
        -Djava.security.policy=
     $HOME/jtsk-trunk/integrationtests/qa/harness/policy/qa.policy
        -Djava.util.logging.config.file=
-    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qa1.logging
-    com.sun.jini.qa.harness.QARunner
-    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qaHarness.prop
+    $HOME/jtsk-trunk/integrationtests/qa/src/org/apache/river/test/resources/qa1.logging
+    org.apache.river.qa.harness.QARunner
+    $HOME/jtsk-trunk/integrationtests/qa/src/org/apache/river/test/resources/qaHarness.prop
     -testJar $HOME/jtsk-trunk/integrationtests/qa/lib/jinitests.jar
     -categories joinmanager 
-    -com.sun.jini.qa.harness.serviceMode transient
+    -org.apache.river.qa.harness.serviceMode transient
 
    Examples of test categories that can be run:
 
@@ -137,7 +137,7 @@ access to the GNU make utility.
    MODE:    To run the services being tested in activatable
             mode, rather than transient mode as was shown
             above, simply exclude the argument
-            '-com.sun.jini.qa.harness.serviceMode transient'
+            '-org.apache.river.qa.harness.serviceMode transient'
             from each command line in the examples.
 
    POLICY:  The system property related to security policy
@@ -148,7 +148,7 @@ access to the GNU make utility.
             optional, but if it is excluded, then only minimal
             default logging output will be displayed. In the
             examples above, the logging file,
-   $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qa1.logging
+   $HOME/jtsk-trunk/integrationtests/qa/src/org/apache/river/test/resources/qa1.logging
             is used to configure logging for both the test
             harness and the tests themselves. Most loggers
             referenced in the qa1.logging configuration file

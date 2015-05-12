@@ -50,7 +50,7 @@ import net.jini.security.GrantPermission;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This implementation's no-argument constructor uses a default class name of
  * <code>"org.apache.river.impl.security.policy.se.ConcurrentPolicyFile"</code> 

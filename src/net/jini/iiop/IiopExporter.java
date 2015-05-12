@@ -48,7 +48,7 @@ import org.omg.CORBA.ORB;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.iiop.IiopExporter</code> to log

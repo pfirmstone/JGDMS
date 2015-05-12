@@ -17,13 +17,13 @@
  */
 package net.jini.jeri.kerberos;
 
-import com.sun.jini.action.GetIntegerAction;
-import com.sun.jini.jeri.internal.connection.BasicServerConnManager;
-import com.sun.jini.jeri.internal.connection.ServerConnManager;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.action.GetIntegerAction;
+import org.apache.river.jeri.internal.connection.BasicServerConnManager;
+import org.apache.river.jeri.internal.connection.ServerConnManager;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -185,7 +185,7 @@ import org.ietf.jgss.GSSName;
  * (DGC); if DGC is enabled using {@link net.jini.jeri.BasicJeriExporter},
  * all DGC remote calls through this provider will silently fail.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This class uses the following {@link Logger} to log information
  * at the following logging levels: <p>
@@ -201,7 +201,7 @@ import org.ietf.jgss.GSSName;
  *     <tr> <td> {@link java.util.logging.Level#WARNING WARNING}
  *          <td> unexpected failure while accepting connections on the created
  *               <code>ServerSocket</code>.
- *     <tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+ *     <tr> <td> {@link org.apache.river.logging.Levels#FAILED FAILED}
  * 
  *          <td> problems with permission checking, server principal and
  *               Kerberos key presence checking, {@link
@@ -209,7 +209,7 @@ import org.ietf.jgss.GSSName;
  *               acception, {@link org.ietf.jgss.GSSContext}
  *               establishment, credential expiration, or wrap/unwrap
  *               GSS tokens
- *     <tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+ *     <tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED}
  *          <td> failure to set TCP no delay or keep alive properties on
  *               sockets
  *     <tr> <td> {@link java.util.logging.Level#FINE FINE}
@@ -271,7 +271,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 
     /** Maximum size of the soft cache */
     private static final int maxCacheSize = ((Integer) Security.doPrivileged(
-	new GetIntegerAction("com.sun.jini.jeri.kerberos." +
+	new GetIntegerAction("org.apache.river.jeri.kerberos." +
 			     "KerberosServerEndpoint.maxCacheSize",
 			     256))).intValue();
 

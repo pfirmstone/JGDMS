@@ -82,7 +82,7 @@ import net.jini.export.Exporter;
  * @author	Sun Microsystems, Inc.
  * @since	2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.jrmp.JrmpExporter</code> to log

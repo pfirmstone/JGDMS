@@ -29,7 +29,7 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
 
-import com.sun.jini.proxy.MarshalledWrapper;
+import org.apache.river.proxy.MarshalledWrapper;
 import java.util.List;
 import net.jini.core.lookup.ServiceID;
 

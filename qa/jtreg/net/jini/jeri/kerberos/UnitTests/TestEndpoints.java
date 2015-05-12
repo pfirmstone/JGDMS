@@ -170,7 +170,7 @@ public class TestEndpoints extends TestUtilities {
 
 	try {
 	    // disable connection reuse across tests
-	    System.setProperty("com.sun.jini.jeri.connectionTimeout", "1");
+	    System.setProperty("org.apache.river.jeri.connectionTimeout", "1");
 
 	    clientSubject = getLoginSubject(clientLoginEntry);
 

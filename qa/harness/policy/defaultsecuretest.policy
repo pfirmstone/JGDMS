@@ -6,30 +6,30 @@
  * };
  */
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jini-ext.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jini-ext.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission net.jini.security.GrantPermission
         "java.security.AllPermission \"\", \"\"";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission net.jini.security.GrantPermission
         "java.security.AllPermission \"\", \"\"";
 };
 
 grant
-    codebase "file:${com.sun.jini.qa.harness.harnessJar}"
+    codebase "file:${org.apache.river.qa.harness.harnessJar}"
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     // Allow dynamic grants
@@ -56,7 +56,7 @@ grant
 };
 
 grant
-    codebase "file:${com.sun.jini.qa.harness.harnessJar}"
+    codebase "file:${org.apache.river.qa.harness.harnessJar}"
     principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
 {
     // Allow dynamic grants
@@ -82,7 +82,7 @@ grant
     permission java.lang.RuntimePermission "enableContextClassLoaderOverride";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}"
       principal javax.security.auth.x500.X500Principal "CN=Reggie"
 {
     permission net.jini.security.AuthenticationPermission
@@ -95,7 +95,7 @@ grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
 	"net.jini.io.context.ClientSubject.getClientSubject";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}"
       principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
 {
     permission net.jini.security.AuthenticationPermission
@@ -105,7 +105,7 @@ grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
         "getProperty.net.jini.security.policy.*";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}"
       principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
     permission net.jini.security.AuthenticationPermission
@@ -113,7 +113,7 @@ grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
         "connect,accept";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}"
       principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
 {
     permission net.jini.security.AuthenticationPermission
@@ -121,7 +121,7 @@ grant codebase "file:${com.sun.jini.qa.harness.harnessJar}"
         "connect,accept";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}harness.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
     // Allow dynamic grants
     permission net.jini.security.GrantPermission
         "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\"\", \"connect\"";
@@ -136,7 +136,7 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}harness.jar" {
         "javax.security.auth.kerberos.KerberosPrincipal \"${test}\"", "connect,accept";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-start-tests.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-start-tests.jar" {
     // Allow dynamic grants
     permission net.jini.security.GrantPermission
         "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\"\", \"connect\"";
@@ -293,30 +293,30 @@ grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}" {
 
 grant {
     permission java.security.SecurityPermission
-    "setProperty.com.sun.jini.start.AggregatePolicyProvider.mainPolicyClass";
+    "setProperty.org.apache.river.start.AggregatePolicyProvider.mainPolicyClass";
     permission java.security.SecurityPermission
-    "getProperty.com.sun.jini.start.AggregatePolicyProvider.mainPolicyClass";
+    "getProperty.org.apache.river.start.AggregatePolicyProvider.mainPolicyClass";
     permission java.security.SecurityPermission
     "getProperty.net.jini.security.policy.DynamicPolicyProvider.basePolicyClass";
     permission java.security.SecurityPermission
     "getProperty.net.jini.security.policy.PolicyFileProvider.basePolicyClass";
     permission java.security.SecurityPermission
-    "getProperty.com.sun.jini.start.servicePolicyProvider";
+    "getProperty.org.apache.river.start.servicePolicyProvider";
     permission java.lang.RuntimePermission
         "accessClassInPackage.sun.security.provider";
 
     // special case for some jeri tests
     permission net.jini.export.ExportPermission
-       "exportRemoteInterface.com.sun.jini.qa.spec.jeri.abstractilfactory.AccessorTest$FakeRemoteInterface";
+       "exportRemoteInterface.org.apache.river.qa.spec.jeri.abstractilfactory.AccessorTest$FakeRemoteInterface";
 
     permission net.jini.export.ExportPermission
-       "exportRemoteInterface.com.sun.jini.qa.spec.jeri.abstractilfactory.AccessorTest$FakeRemoteSubInterface";
+       "exportRemoteInterface.org.apache.river.qa.spec.jeri.abstractilfactory.AccessorTest$FakeRemoteSubInterface";
 
     permission net.jini.export.ExportPermission
-       "exportRemoteInterface.com.sun.jini.qa.spec.jeri.basicilfactory.CreateInstancesTest$FakeRemoteInterface";
+       "exportRemoteInterface.org.apache.river.qa.spec.jeri.basicilfactory.CreateInstancesTest$FakeRemoteInterface";
 
     permission net.jini.export.ExportPermission
-       "exportRemoteInterface.com.sun.jini.qa.spec.jeri.basicilfactory.CreateInstancesTest$FakeRemoteSubInterface";
+       "exportRemoteInterface.org.apache.river.qa.spec.jeri.basicilfactory.CreateInstancesTest$FakeRemoteSubInterface";
 
     permission javax.security.auth.AuthPermission "createLoginContext.transport.KerberosClient";
     permission javax.security.auth.AuthPermission "createLoginContext.transport.KerberosServer";
@@ -331,7 +331,7 @@ grant {
     permission java.lang.RuntimePermission "setFactory";
     permission java.lang.RuntimePermission
         "accessClassInPackage.sun.util.logging.resources";
-    permission javax.security.auth.AuthPermission "createLoginContext.com.sun.jini.Test";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
     permission javax.security.auth.AuthPermission "doAs";
     permission java.security.SecurityPermission "setPolicy";
     permission java.security.SecurityPermission "getPolicy";
@@ -342,12 +342,12 @@ grant {
     permission javax.security.auth.AuthPermission "doAsPrivileged";
     permission java.net.NetPermission "specifyStreamHandler";
 
-    // needed by com.sun.jini.qa.impl.outrigger.matching.MonitoredSpaceListener
-    permission javax.security.auth.AuthPermission "createLoginContext.com.sun.jini.Outrigger";
-    // needed by com.sun.jini.qa.share.TesterTransactionManager
-    permission javax.security.auth.AuthPermission "createLoginContext.com.sun.jini.Mahalo";
+    // needed by org.apache.river.qa.impl.outrigger.matching.MonitoredSpaceListener
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Outrigger";
+    // needed by org.apache.river.qa.share.TesterTransactionManager
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mahalo";
     // needed by the DiscoveryProtocolSimulator
-    permission javax.security.auth.AuthPermission "createLoginContext.com.sun.jini.Reggie";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
 
     // Allow reflection to examine service starter framework classes
     permission java.lang.RuntimePermission "accessDeclaredMembers";
@@ -458,7 +458,7 @@ grant {
 
 // added to grant permissions to the jini dependencies jar files. Not sure which of these are required
 grant
-    codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
+    codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     // Allow dynamic grants
@@ -484,7 +484,7 @@ grant
 };
 
 grant
-    codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
+    codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
     principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
 {
     // Allow dynamic grants
@@ -509,7 +509,7 @@ grant
 
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.x500.X500Principal "CN=Reggie"
 {
     permission net.jini.security.AuthenticationPermission
@@ -522,7 +522,7 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
 	"net.jini.io.context.ClientSubject.getClientSubject";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
 {
     permission net.jini.security.AuthenticationPermission
@@ -532,7 +532,7 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
         "getProperty.net.jini.security.policy.*";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
     permission net.jini.security.AuthenticationPermission
@@ -540,7 +540,7 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
         "connect,accept";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
 {
     permission net.jini.security.AuthenticationPermission
@@ -549,7 +549,7 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
 };
 
 // shouldn't be needed - packaging problem with the lookup simulator?
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-share-dl.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-share-dl.jar" {
     // Allow dynamic grants
     permission net.jini.security.GrantPermission
         "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\"\", \"connect\"";
@@ -567,7 +567,7 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-share-dl.jar" {
 
 
 grant
-    codebase "file:${com.sun.jini.qa.harness.testJar}"
+    codebase "file:${org.apache.river.qa.harness.testJar}"
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     // Allow dynamic grants
@@ -594,7 +594,7 @@ grant
 };
 
 grant
-    codebase "file:${com.sun.jini.qa.harness.testJar}"
+    codebase "file:${org.apache.river.qa.harness.testJar}"
     principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
 {
     // Allow dynamic grants
@@ -620,7 +620,7 @@ grant
     permission java.lang.RuntimePermission "enableContextClassLoaderOverride";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.testJar}"
+grant codebase "file:${org.apache.river.qa.harness.testJar}"
       principal javax.security.auth.x500.X500Principal "CN=Reggie"
 {
     permission net.jini.security.AuthenticationPermission
@@ -633,7 +633,7 @@ grant codebase "file:${com.sun.jini.qa.harness.testJar}"
 	"net.jini.io.context.ClientSubject.getClientSubject";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.testJar}"
+grant codebase "file:${org.apache.river.qa.harness.testJar}"
       principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
 {
     permission net.jini.security.AuthenticationPermission
@@ -643,7 +643,7 @@ grant codebase "file:${com.sun.jini.qa.harness.testJar}"
         "getProperty.net.jini.security.policy.*";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.testJar}"
+grant codebase "file:${org.apache.river.qa.harness.testJar}"
       principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
     permission net.jini.security.AuthenticationPermission
@@ -651,7 +651,7 @@ grant codebase "file:${com.sun.jini.qa.harness.testJar}"
         "connect,accept";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.testJar}"
+grant codebase "file:${org.apache.river.qa.harness.testJar}"
       principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
 {
     permission net.jini.security.AuthenticationPermission

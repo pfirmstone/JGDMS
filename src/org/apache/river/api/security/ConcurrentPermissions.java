@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 
  * The first reason this class exists is due to an unknown bug in
  * java.security.Permissions not resolving 
- * permission com.sun.jini.phoenix.ExecOptionPermission "*";
+ * permission org.apache.river.phoenix.ExecOptionPermission "*";
  * in UnresolvedPermission. This occurs in start tests using Phoenix and
  * defaultphoenix.policy in the qa suite.  The second reason is performance
  * tuning for concurrency or to avoid unnecessary collection resizing, 

@@ -1,0 +1,76 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.river.test.spec.export.util;
+
+
+/**
+ * An auxiliary class used in the tests for
+ * {@link net.jini.export.ServerContext} as a server context element.
+ */
+public class FakeType {
+
+    /**
+     * The inner value.
+     */
+    private String innerValue = null;
+
+    /**
+     * Constructor.
+     * Creates an instance of {@link org.apache.river.test.spec.export.util.FakeType}
+     * object from the specified initial value.
+     *
+     * @param initValue the initial value
+     */
+    public FakeType(String initValue) {
+        innerValue = new String(initValue);
+    }
+
+    /**
+     * Get the inner value of the
+     * {@link org.apache.river.test.spec.export.util.FakeType} object.
+     *
+     * @return the inner value
+     */
+    public String getValue() {
+        return innerValue;
+    }
+
+    /**
+     * Converts the {@link org.apache.river.test.spec.export.util.FakeType} object to
+     * a String.
+     *
+     * @return the string representation of the
+     *         {@link org.apache.river.test.spec.export.util.FakeType} object.
+     */
+    public String toString() {
+        return this.getClass().getName() + "[" + innerValue.toString() + "]";
+    }
+
+    /**
+     * Indicates whether some other
+     * {@link org.apache.river.test.spec.export.util.FakeType} object is "equal to"
+     * this one.
+     *
+     * @param obj the reference object with which to compare
+     * @return true if this object is the same as the obj argument;
+     *         false otherwise.
+     */
+    public boolean equals(FakeType obj) {
+        return innerValue.equals(obj.getValue());
+    }
+}

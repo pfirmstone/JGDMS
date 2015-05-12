@@ -18,7 +18,7 @@
 /* @test 
  * @bug 4487532
  * @summary When the system property
- *	com.sun.jini.jeri.server.suppressStackTraces is set
+ *	org.apache.river.jeri.server.suppressStackTraces is set
  * true, then BasicInvocationDispatcher should take positive action
  * to counteract the new feature in 1.4 of an exception's stack trace being
  * part of its serialized form so that the server-side stack trace of an
@@ -87,7 +87,7 @@ public class SuppressStackTraces {
 	System.err.println("\nRegression test for RFE 4487532\n");
 
 	System.setProperty(
-	    "com.sun.jini.jeri.server.suppressStackTraces", "true");
+	    "org.apache.river.jeri.server.suppressStackTraces", "true");
 
 	Exporter exporter =
 	    new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new

@@ -17,11 +17,11 @@
  */
 package net.jini.lookup;
 
-import com.sun.jini.constants.ThrowableConstants;
-import com.sun.jini.lookup.entry.LookupAttributes;
-import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.WakeupManager;
-import com.sun.jini.logging.LogUtil;
+import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.lookup.entry.LookupAttributes;
+import org.apache.river.thread.RetryTask;
+import org.apache.river.thread.WakeupManager;
+import org.apache.river.logging.LogUtil;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -99,7 +99,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  * this class will create an instance of this class in the service's address
  * space to manage the entity's join state locally.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#jmConfigEntries">Configuring JoinManager</a>
@@ -329,14 +329,14 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *     <code>wakeupManager</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.WakeupManager}
+ *     Type: <td> {@link org.apache.river.thread.WakeupManager}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *     {@link com.sun.jini.thread.WakeupManager#WakeupManager(
- *          com.sun.jini.thread.WakeupManager.ThreadDesc)
+ *     {@link org.apache.river.thread.WakeupManager#WakeupManager(
+ *          org.apache.river.thread.WakeupManager.ThreadDesc)
  *     WakeupManager}(new 
- *     {@link com.sun.jini.thread.WakeupManager.ThreadDesc}(null,true))</code>
+ *     {@link org.apache.river.thread.WakeupManager.ThreadDesc}(null,true))</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
@@ -457,7 +457,7 @@ public class JoinManager {
     /** Implementation Note:
      *
      *  This class executes a number of tasks asynchronously. Each task is
-     *  initially queued in a <code>com.sun.jini.thread.TaskManager</code>
+     *  initially queued in a <code>org.apache.river.thread.TaskManager</code>
      *  instance, which executes each task in a separate thread. In this
      *  way, an upper bound is placed on the number of threads executing
      *  concurrently at any one time; that is, the number of concurrent
@@ -513,8 +513,8 @@ public class JoinManager {
      *  
      *  Each main task executed by this join manager's task manager is a
      *  sub-class of the abstract class <code>RetryTask</code>, defined in
-     *  the package <code>com.sun.jini.thread</code>, which implements
-     *  the <code>com.sun.jini.thread.TaskManager.Task</code> interface.
+     *  the package <code>org.apache.river.thread</code>, which implements
+     *  the <code>org.apache.river.thread.TaskManager.Task</code> interface.
      *  The association of each such task with a particular lookup service,
      *  and with a unique sequence number is reflected in the fields of this
      *  class. The unique sequence number associated with each main task
@@ -568,11 +568,11 @@ public class JoinManager {
      *  from its default value by setting the <code>wakeupRetries</code>
      *  configuration entry for this component.
      *
-     *  @see com.sun.jini.thread.TaskManager
-     *  @see com.sun.jini.thread.WakeupManager
-     *  @see com.sun.jini.thread.TaskManager.Task
-     *  @see com.sun.jini.thread.RetryTask
-     *  @see com.sun.jini.constants.ThrowableConstants
+     *  @see org.apache.river.thread.TaskManager
+     *  @see org.apache.river.thread.WakeupManager
+     *  @see org.apache.river.thread.TaskManager.Task
+     *  @see org.apache.river.thread.RetryTask
+     *  @see org.apache.river.constants.ThrowableConstants
      */
 
     /** Abstract base class from which all of the task classes are derived. */

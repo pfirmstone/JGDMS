@@ -35,7 +35,7 @@ import net.jini.core.constraint.MethodConstraints;
  * to lookup services - based on no information other than lookup service
  * group membership - much simpler for both services and clients.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#ldConfigEntries">Configuring LookupDiscovery</a>
@@ -79,13 +79,13 @@ import net.jini.core.constraint.MethodConstraints;
  *         	{@link MethodConstraints#getConstraints getConstraints} on the
  *         	obtained <code>MethodConstraints</code> instance with a
  *         	<code>Method</code> object for the
- *    {@link com.sun.jini.discovery.DiscoveryConstraints#multicastRequest
+ *    {@link org.apache.river.discovery.DiscoveryConstraints#multicastRequest
  *              multicastRequest} method; multicast announcement and unicast
  *              discovery constraints are similarly obtained by passing
  *              <code>Method</code> objects for the
- *    {@link com.sun.jini.discovery.DiscoveryConstraints#multicastAnnouncement
+ *    {@link org.apache.river.discovery.DiscoveryConstraints#multicastAnnouncement
  *              multicastAnnouncement} and
- *    {@link com.sun.jini.discovery.DiscoveryConstraints#unicastDiscovery
+ *    {@link org.apache.river.discovery.DiscoveryConstraints#unicastDiscovery
  *              unicastDiscovery} methods, respectively.  A <code>null</code>
  *              value is interpreted as	mapping all methods to empty
  *              constraints.
@@ -93,19 +93,19 @@ import net.jini.core.constraint.MethodConstraints;
  *         	This class supports the use of the following constraint types
  *              to control discovery behavior:
  *         	<ul>
- *         	  <li> {@link com.sun.jini.discovery.DiscoveryProtocolVersion}:
+ *         	  <li> {@link org.apache.river.discovery.DiscoveryProtocolVersion}:
  *         	       this constraint can be used to control which version(s)
  *         	       of the multicast request, multicast announcement and
  *         	       unicast discovery protocols are used.
- *         	  <li> {@link com.sun.jini.discovery.MulticastMaxPacketSize}:
+ *         	  <li> {@link org.apache.river.discovery.MulticastMaxPacketSize}:
  *         	       this constraint can be used to control the maximum size
  *         	       of multicast request packets to send; it can also be
  *         	       used to specify the size of the buffer used to receive
  *         	       incoming multicast announcement packets.
- *         	  <li> {@link com.sun.jini.discovery.MulticastTimeToLive}: this
+ *         	  <li> {@link org.apache.river.discovery.MulticastTimeToLive}: this
  *         	       constraint can be used to control the time to live (TTL)
  *         	       value set on outgoing multicast request packets.
- *         	  <li> {@link com.sun.jini.discovery.UnicastSocketTimeout}:
+ *         	  <li> {@link org.apache.river.discovery.UnicastSocketTimeout}:
  *         	       this constraint can be used to control the read timeout
  *         	       set on sockets over which unicast discovery is
  *         	       performed.
@@ -429,14 +429,14 @@ import net.jini.core.constraint.MethodConstraints;
  *     <code>wakeupManager</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.WakeupManager}
+ *     Type: <td> {@link org.apache.river.thread.WakeupManager}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *     {@link com.sun.jini.thread.WakeupManager#WakeupManager(
- *          com.sun.jini.thread.WakeupManager.ThreadDesc)
+ *     {@link org.apache.river.thread.WakeupManager#WakeupManager(
+ *          org.apache.river.thread.WakeupManager.ThreadDesc)
  *     WakeupManager}(new 
- *     {@link com.sun.jini.thread.WakeupManager.ThreadDesc}(null,true))</code>
+ *     {@link org.apache.river.thread.WakeupManager.ThreadDesc}(null,true))</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
@@ -556,7 +556,7 @@ import net.jini.core.constraint.MethodConstraints;
  *   </td>
  * </tr>
  * <tr>
- *    <td>{@link com.sun.jini.logging.Levels#FAILED FAILED}</td>
+ *    <td>{@link org.apache.river.logging.Levels#FAILED FAILED}</td>
  *    <td>
  *      when an <code>UnknownHostException</code> occurs while determining
  *      the <code>multicastRequestHost</code>, but the caller does not have
@@ -565,7 +565,7 @@ import net.jini.core.constraint.MethodConstraints;
  *      is logged
  *    </td>
  * <tr>
- *   <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ *   <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  *   <td>
  *     when this utility is configured to use all network interfaces enabled
  *     in the system, if one of those interfaces is bad or not configured for
@@ -576,14 +576,14 @@ import net.jini.core.constraint.MethodConstraints;
  *   </td>
  * </tr>
  * <tr>
- *   <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ *   <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  *   <td>
  *     when any exception occurs while attempting to unmarshal an incoming
  *     multicast announcement
  *   </td>
  * </tr>
  * <tr>
- *   <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ *   <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  *   <td>
  *     when an <code>UnsupportedConstraintException</code> occurs while
  *     marshalling an outgoing multicast request, indicating that the provider
@@ -591,7 +591,7 @@ import net.jini.core.constraint.MethodConstraints;
  *   </td>
  * </tr>
  * <tr>
- *   <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ *   <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  *   <td>
  *     when an <code>IOException</code> occurs upon attempting to close the
  *     socket after the thread that listens for multicast responses is asked
@@ -599,7 +599,7 @@ import net.jini.core.constraint.MethodConstraints;
  *   </td>
  * </tr>
  * <tr>
- *   <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+ *   <td>{@link org.apache.river.logging.Levels#HANDLED HANDLED}</td>
  *   <td>
  *     when an exception is handled during unicast discovery
  *   </td>

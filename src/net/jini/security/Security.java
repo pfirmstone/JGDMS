@@ -18,9 +18,9 @@
 
 package net.jini.security;
 
-import com.sun.jini.collection.WeakIdentityMap;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.resource.Service;
+import org.apache.river.collection.WeakIdentityMap;
+import org.apache.river.logging.Levels;
+import org.apache.river.resource.Service;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -66,7 +66,7 @@ import org.apache.river.api.security.SubjectDomain;
  * verifying codebase integrity, and for dynamically granting permissions.
  * This class cannot be instantiated.
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  * This implementation uses the {@link Logger} named
  * <code>net.jini.security.integrity</code> to log information at
  * the following levels:

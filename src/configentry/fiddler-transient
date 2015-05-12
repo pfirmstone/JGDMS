@@ -17,15 +17,15 @@
 #*/
 
 # transient fiddler configuration entries
-com.sun.jini.fiddler.discoveryManager: net.jini.discovery.DiscoveryManagement
-com.sun.jini.fiddler.initialLookupAttributes: net.jini.core.entry.Entry[]
-com.sun.jini.fiddler.initialLookupGroups: String[]
-com.sun.jini.fiddler.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
-com.sun.jini.fiddler.leaseBound: long
-com.sun.jini.fiddler.leaseMax: long
-com.sun.jini.fiddler.listenerPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.fiddler.locatorToDiscoverPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.fiddler.locatorToJoinPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.fiddler.loginContext: javax.security.auth.login.LoginContext
-com.sun.jini.fiddler.serverExporter: net.jini.export.Exporter
-com.sun.jini.fiddler.taskManager: com.sun.jini.thread.TaskManager
+org.apache.river.fiddler.discoveryManager: net.jini.discovery.DiscoveryManagement
+org.apache.river.fiddler.initialLookupAttributes: net.jini.core.entry.Entry[]
+org.apache.river.fiddler.initialLookupGroups: String[]
+org.apache.river.fiddler.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
+org.apache.river.fiddler.leaseBound: long
+org.apache.river.fiddler.leaseMax: long
+org.apache.river.fiddler.listenerPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.locatorToDiscoverPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.locatorToJoinPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.fiddler.serverExporter: net.jini.export.Exporter
+org.apache.river.fiddler.taskManager: org.apache.river.thread.TaskManager

@@ -1,0 +1,28 @@
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.qa.harness.testJar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}ld.jar" {
+    permission net.jini.discovery.DiscoveryPermission "*";
+    permission java.net.SocketPermission "*", "connect";
+};

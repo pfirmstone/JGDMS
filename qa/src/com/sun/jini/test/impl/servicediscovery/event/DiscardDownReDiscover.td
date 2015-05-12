@@ -1,4 +1,0 @@
-testClass=DiscardDownReDiscover
-testCategories=servicediscovery,servicediscovery_impl,servicediscoveryevent,implservicediscovery,implservicediscoveryevent,discardproblem
-include0=../servicediscovery.properties
-include1=com/sun/jini/test/impl/servicediscovery/event/Discard.properties

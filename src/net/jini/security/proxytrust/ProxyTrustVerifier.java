@@ -18,7 +18,7 @@
 
 package net.jini.security.proxytrust;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -61,7 +61,7 @@ import net.jini.security.TrustVerifier;
  * operation of {@link net.jini.security.Security#verifyObjectTrust
  * Security.verifyObjectTrust}.
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  * This implementation uses the {@link Logger} named
  * <code>net.jini.security.trust</code> to log
  * information at the following levels:

@@ -18,9 +18,9 @@
 
 package net.jini.jeri;
 
-import com.sun.jini.jeri.internal.runtime.DgcClient;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
+import org.apache.river.jeri.internal.runtime.DgcClient;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -177,7 +177,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.BasicObjectEndpoint</code> to log information

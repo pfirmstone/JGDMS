@@ -20,13 +20,13 @@ PreferredResources-Version: 1.0
 
 Preferred: true
 
-Name: com/sun/jini/admin/*
+Name: org/apache/river/admin/*
 Preferred: false
 
-Name: com/sun/jini/resource/ServiceConfigurationError.class
+Name: org/apache/river/resource/ServiceConfigurationError.class
 Preferred: false
 
-Name: com/sun/jini/start/ServiceProxyAccessor.class
+Name: org/apache/river/start/ServiceProxyAccessor.class
 Preferred: false
 
 Name: net/jini/-

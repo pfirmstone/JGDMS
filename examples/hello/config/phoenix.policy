@@ -31,30 +31,30 @@ grant codeBase "file:lib${/}*" {
 grant {
 
     /* Permit group options */
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-Djava.security.manager=";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-Djava.security.policy=config${/}activatable-server.policy";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-Djava.rmi.server.codebase=http://${serverHost}:8080/server-dl.jar http://${serverHost}:8080/jsk-dl.jar";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-Dconfig=config${/}activatable-jeri-server.config";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-DserverHost=${serverHost}";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission 
+    permission org.apache.river.phoenix.ExecOptionPermission 
       "-classpath";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission 
+    permission org.apache.river.phoenix.ExecOptionPermission 
       "lib${/}server-act.jar";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission 
+    permission org.apache.river.phoenix.ExecOptionPermission 
     "-Djava.security.properties=config${/}dynamic-policy.security-properties";
 
-    permission com.sun.jini.phoenix.ExecOptionPermission
+    permission org.apache.river.phoenix.ExecOptionPermission
       "-Djava.ext.dirs=../../lib-ext/";
 };

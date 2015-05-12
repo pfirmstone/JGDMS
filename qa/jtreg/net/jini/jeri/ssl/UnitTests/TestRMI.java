@@ -306,8 +306,8 @@ public class TestRMI extends TestUtilities {
 
     /** Test timing out client and server SSL sessions. */
     public static class TestTimeout extends BasicTest {
-        static final String serverPropName = "com.sun.jini.jeri.ssl.maxServerSessionDuration";
-        static final String clientPropName = "com.sun.jini.jeri.ssl.maxClientSessionDuration";
+        static final String serverPropName = "org.apache.river.jeri.ssl.maxServerSessionDuration";
+        static final String clientPropName = "org.apache.river.jeri.ssl.maxClientSessionDuration";
         static final String max = Long.toString(Long.MAX_VALUE);
 	/* Time needed to complete an initial call successfully */
 	static final long CALLTIME = 10 * 1000;
@@ -500,8 +500,8 @@ public class TestRMI extends TestUtilities {
 
     /** Test with expired certificates. */
     public static class TestExpired extends BasicTest {
-        static final String serverPropName = "com.sun.jini.jeri.ssl.maxServerSessionDuration";
-        static final String clientPropName = "com.sun.jini.jeri.ssl.maxClientSessionDuration";
+        static final String serverPropName = "org.apache.river.jeri.ssl.maxServerSessionDuration";
+        static final String clientPropName = "org.apache.river.jeri.ssl.maxClientSessionDuration";
         static final String clientMax = Long.toString(23*60*60*1000);
         static final String serverMax = Long.toString(24*60*60*1000);
 	static Test[] localtests = { new TestExpired()};

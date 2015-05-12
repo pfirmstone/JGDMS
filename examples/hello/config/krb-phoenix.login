@@ -18,7 +18,7 @@
 
 /* JAAS login configuration file for Phoenix using Kerberos */
 
-com.sun.jini.Phoenix {
+org.apache.river.Phoenix {
     com.sun.security.auth.module.Krb5LoginModule required 
 	useKeyTab=true 
 	keyTab="config/krb-servers.keytab" 
@@ -27,7 +27,7 @@ com.sun.jini.Phoenix {
 	principal="${phoenixPrincipal}";
 };
 
-com.sun.jini.example.hello.Server {
+org.apache.river.example.hello.Server {
     com.sun.security.auth.module.Krb5LoginModule required 
 	useKeyTab=true 
 	keyTab="config/krb-servers.keytab" 

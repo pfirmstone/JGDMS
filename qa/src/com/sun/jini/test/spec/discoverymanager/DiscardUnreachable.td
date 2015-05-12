@@ -1,4 +1,0 @@
-testClass=DiscardUnreachable
-testCategories=discoverymanager,discoverymanager_spec
-include0=discoverymanager.properties
-com/sun/jini/test/share/simReg6_0.properties

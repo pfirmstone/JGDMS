@@ -1,1 +1,1 @@
-com.sun.jini.test.spec.export.util.NullServerContext
+org.apache.river.test.spec.export.util.NullServerContext

@@ -167,7 +167,7 @@ public class HTTPD {
 			    new URL[]{new File(toolsJar).toURI().toURL()},
 			    port, dir);
 			Class cl =
-			    Class.forName("com.sun.jini.tool.ClassServer",
+			    Class.forName("org.apache.river.tool.ClassServer",
 					  false, ld);
 			Constructor cons =
 			    cl.getConstructor(new Class[]{int.class,

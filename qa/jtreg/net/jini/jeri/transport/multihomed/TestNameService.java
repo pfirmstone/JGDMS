@@ -42,15 +42,15 @@ public class TestNameService implements NameService {
 	    if (endpointType.equals("kerberos")) {
 		isKerberos = true;
 		NAME_THISHOST = System.getProperty(
-		    "com.sun.jini.jtreg.kerberos.multihome.hostname");
+		    "org.apache.river.jtreg.kerberos.multihome.hostname");
 		NAME_KDC = System.getProperty("java.security.krb5.kdc");
 		ADDR_THISHOST = InetAddress.getByName(
 		    System.getProperty(
-			"com.sun.jini.jtreg.kerberos.multihome.hostaddr"
+			"org.apache.river.jtreg.kerberos.multihome.hostaddr"
 		    )).getAddress();
 		ADDR_KDC = InetAddress.getByName(
 		    System.getProperty(
-			"com.sun.jini.jtreg.kerberos.multihome.kdcaddr"
+			"org.apache.river.jtreg.kerberos.multihome.kdcaddr"
 		    )).getAddress();
 	    }
 	} catch (Exception e) {

@@ -17,7 +17,7 @@
  */
 package net.jini.export;
 
-import com.sun.jini.resource.Service;
+import org.apache.river.resource.Service;
 import java.rmi.server.ServerNotActiveException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;

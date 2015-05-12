@@ -18,7 +18,7 @@
 
 package net.jini.discovery;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;

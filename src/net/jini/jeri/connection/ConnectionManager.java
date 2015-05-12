@@ -17,11 +17,11 @@
  */
 package net.jini.jeri.connection;
 
-import com.sun.jini.action.GetLongAction;
-import com.sun.jini.jeri.internal.mux.MuxClient;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.action.GetLongAction;
+import org.apache.river.jeri.internal.mux.MuxClient;
+import org.apache.river.logging.Levels;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -62,7 +62,7 @@ import net.jini.jeri.OutboundRequestIterator;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.connection.ConnectionManager</code> to log information at
@@ -105,11 +105,11 @@ import net.jini.jeri.OutboundRequestIterator;
  * <p>
  * <ul>
  *
- * <li><code>com.sun.jini.jeri.connectionTimeout</code> - Time in milliseconds
+ * <li><code>org.apache.river.jeri.connectionTimeout</code> - Time in milliseconds
  * to leave idle client-side connections around before closing them. The default
  * value is 15000 milliseconds (15 seconds).
  *
- * <li><code>com.sun.jini.jeri.handshakeTimeout</code> - Time in milliseconds
+ * <li><code>org.apache.river.jeri.handshakeTimeout</code> - Time in milliseconds
  * for client-side connections to wait for the server to acknowledge an opening
  * handshake. The default value is 120000 milliseconds (2 minutes).
  *
@@ -123,14 +123,14 @@ public final class ConnectionManager {
      */
     private static final long TIMEOUT
             = ((Long) AccessController.doPrivileged(new GetLongAction(
-                            "com.sun.jini.jeri.connectionTimeout",
+                            "org.apache.river.jeri.connectionTimeout",
                             120000))).longValue();
     /**
      * How long to wait for a server to respond to an initial client message.
      */
     private static final long HANDSHAKE_TIMEOUT
             = ((Long) AccessController.doPrivileged(new GetLongAction(
-                            "com.sun.jini.jeri.handshakeTimeout",
+                            "org.apache.river.jeri.handshakeTimeout",
                             360000))).longValue();
     /**
      * ConnectionManager logger.

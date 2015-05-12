@@ -1,3 +1,0 @@
-testClass=Equality
-testCategories=locatordiscovery,locatordiscovery_spec,speclocatordiscovery
-include0=locatordiscovery.properties

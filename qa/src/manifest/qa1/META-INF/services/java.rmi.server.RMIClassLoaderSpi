@@ -1,1 +1,1 @@
-com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider
+org.apache.river.test.spec.loader.util.QATestPreferredClassProvider

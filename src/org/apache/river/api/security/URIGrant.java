@@ -120,7 +120,7 @@ class URIGrant extends CertificateGrant {
     public boolean implies(CodeSource codeSource, Principal[] p) {
         if ( !implies(p)) return false;
         // sun.security.provider.PolicyFile compatibility for null CodeSource is false.
-        // see com.sun.jini.test.spec.policyprovider.dynamicPolicyProvider.GrantPrincipal test.
+        // see org.apache.river.test.spec.policyprovider.dynamicPolicyProvider.GrantPrincipal test.
         if (codeSource == null)  return false; // Null CodeSource is not implied.
         if (location.isEmpty()) return true; // But CodeSource with null URL is implied, if this location is empty.
         int l = location.size();

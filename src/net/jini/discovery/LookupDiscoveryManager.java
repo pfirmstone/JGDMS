@@ -37,7 +37,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * facilities on their behalf.
  * <p>
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#ldmConfigEntries">Configuring LookupDiscoveryManager</a>

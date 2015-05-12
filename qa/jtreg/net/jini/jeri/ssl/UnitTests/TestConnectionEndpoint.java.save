@@ -26,11 +26,11 @@
  * @run main/othervm/policy=policy/timeout=250 TestConnectionEndpoint
  */
 
-import com.sun.jini.temp.davis.core.security.*;
-import com.sun.jini.temp.davis.io.UnsupportedSecurityException;
-import com.sun.jini.temp.davis.securejeri.*;
-import com.sun.jini.temp.davis.securejeri.connection.*;
-import com.sun.jini.temp.davis.security.*;
+import org.apache.river.temp.davis.core.security.*;
+import org.apache.river.temp.davis.io.UnsupportedSecurityException;
+import org.apache.river.temp.davis.securejeri.*;
+import org.apache.river.temp.davis.securejeri.connection.*;
+import org.apache.river.temp.davis.security.*;
 import java.io.*;
 import java.net.*;
 import java.security.*;

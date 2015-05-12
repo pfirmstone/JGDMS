@@ -1,0 +1,4 @@
+testClass=MulticastMonitorReplaceNone
+testCategories=discoverymanager,discoverymanager_spec
+include0=discoverymanager.properties
+org/apache/river/test/share/reggie6_0.properties

@@ -2,16 +2,16 @@ PreferredResources-Version: 1.0
 
 Preferred: true
 
-Name: com/sun/jini/start/*
+Name: org/apache/river/start/*
 Preferred: false
 
-Name: com/sun/jini/admin/*
+Name: org/apache/river/admin/*
 Preferred: false
 
-Name: com/sun/jini/test/services/lookupsimulator/LookupSimulatorProxyInterface.class
+Name: org/apache/river/test/services/lookupsimulator/LookupSimulatorProxyInterface.class
 Preferred: false
 
-Name: com/sun/jini/-
+Name: org/apache/river/-
 Preferred: true
 
 Name: net/jini/-

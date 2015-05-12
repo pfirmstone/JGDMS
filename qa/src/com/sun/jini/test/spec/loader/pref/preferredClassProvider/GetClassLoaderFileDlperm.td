@@ -1,9 +1,0 @@
-testClass=GetClassLoader
-testCategories=loader,loader_spec
-testPolicyfile=loader.policy
-loader.isHttp=false
-loader.requireDlPerm=true
-loader.annotator=true
-testjvmargs=-Dnet.jini.loader.ClassLoading.provider=com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider
-com.sun.jini.qa.harness.runkitserver=false 
-com.sun.jini.qa.harness.runjiniserver=false

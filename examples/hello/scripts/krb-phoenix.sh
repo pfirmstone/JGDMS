@@ -31,7 +31,7 @@ java -Djava.security.manager= 						\
      -Djava.security.policy=config/krb-phoenix.policy 			\
      -Djava.security.auth.login.config=config/krb-phoenix.login 	\
      -Djava.protocol.handler.pkgs=net.jini.url		 		\
-     -Djava.rmi.server.RMIClassLoaderSpi=com.sun.jini.example.hello.MdClassAnnotationProvider \
+     -Djava.rmi.server.RMIClassLoaderSpi=org.apache.river.example.hello.MdClassAnnotationProvider \
      -Dexport.codebase.source.jsk=../../lib-dl		\
      -Dexport.codebase.jsk="httpmd://$host:8080/phoenix-dl.jar;sha=0 httpmd://$host:8080/jsk-dl.jar;sha=0" 	\
      -DclientPrincipal="$CLIENT"@"$REALM" 				\
@@ -41,5 +41,5 @@ java -Djava.security.manager= 						\
      -Djava.security.krb5.realm=$REALM 					\
      -Djava.security.krb5.kdc=$KDC_HOST 				\
      -classpath ../../lib/phoenix.jar:lib/mdprefld.jar 	\
-     com.sun.jini.phoenix.Activation 					\
+     org.apache.river.phoenix.Activation 					\
      config/krb-phoenix.config

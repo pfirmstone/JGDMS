@@ -17,12 +17,12 @@
  */
 package net.jini.core.discovery;
 
-import com.sun.jini.discovery.Discovery;
-import com.sun.jini.discovery.DiscoveryConstraints;
-import com.sun.jini.discovery.DiscoveryProtocolVersion;
-import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.UnicastSocketTimeout;
-import com.sun.jini.discovery.internal.MultiIPDiscovery;
+import org.apache.river.discovery.Discovery;
+import org.apache.river.discovery.DiscoveryConstraints;
+import org.apache.river.discovery.DiscoveryProtocolVersion;
+import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.UnicastSocketTimeout;
+import org.apache.river.discovery.internal.MultiIPDiscovery;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;

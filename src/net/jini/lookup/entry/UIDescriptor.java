@@ -23,7 +23,7 @@ import java.rmi.MarshalledObject;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import com.artima.lookup.util.ConsistentSet;
+import org.apache.river.lookup.util.ConsistentSet;
 import net.jini.io.MarshalledInstance;
 
 /**

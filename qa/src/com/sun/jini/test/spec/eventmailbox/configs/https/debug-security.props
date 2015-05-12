@@ -1,7 +1,0 @@
-# Java security property overrides
-
-# Debugging version of the dynamic policy provider
-policy.provider=com.sun.jini.tool.DebugDynamicPolicyProvider
-
-# Enable grant all priviledges
-com.sun.jini.tool.DebugDynamicPolicyProvider.grantAll=true

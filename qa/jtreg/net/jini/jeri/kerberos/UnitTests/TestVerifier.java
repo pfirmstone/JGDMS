@@ -21,7 +21,7 @@
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main/othervm
- *	-Dcom.sun.jini.temp.davis.jeri.server.hostname=localhost
+ *	-Dorg.apache.river.temp.davis.jeri.server.hostname=localhost
  *      TestVerifier
  */
 

@@ -1,0 +1,4 @@
+testClass=RaceAttrsVsTerminateISE
+testCategories=joinmanager,joinmanager_impl
+include0=joinmanager.properties
+include1=org/apache/river/test/share/lookups1_0srvcs1_0attrs3_4.properties

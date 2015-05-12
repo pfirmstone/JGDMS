@@ -18,19 +18,19 @@
 
 package net.jini.discovery;
 
-import com.sun.jini.config.Config;
-import com.sun.jini.discovery.Discovery;
-import com.sun.jini.discovery.DiscoveryConstraints;
-import com.sun.jini.discovery.DiscoveryProtocolException;
-import com.sun.jini.discovery.EncodeIterator;
-import com.sun.jini.discovery.MulticastAnnouncement;
-import com.sun.jini.discovery.MulticastRequest;
-import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.internal.MultiIPDiscovery;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
-import com.sun.jini.thread.WakeupManager;
-import com.sun.jini.thread.WakeupManager.Ticket;
+import org.apache.river.config.Config;
+import org.apache.river.discovery.Discovery;
+import org.apache.river.discovery.DiscoveryConstraints;
+import org.apache.river.discovery.DiscoveryProtocolException;
+import org.apache.river.discovery.EncodeIterator;
+import org.apache.river.discovery.MulticastAnnouncement;
+import org.apache.river.discovery.MulticastRequest;
+import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.internal.MultiIPDiscovery;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
+import org.apache.river.thread.WakeupManager;
+import org.apache.river.thread.WakeupManager.Ticket;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.DatagramPacket;

@@ -18,8 +18,8 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.action.GetPropertyAction;
-import com.sun.jini.collection.WeakSoftTable;
+import org.apache.river.action.GetPropertyAction;
+import org.apache.river.collection.WeakSoftTable;
 import java.lang.ref.ReferenceQueue;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -189,7 +189,7 @@ abstract class Utilities {
     private static String[] requestedCipherSuites;
     static {
 	String value = (String) Security.doPrivileged(
-	    new GetPropertyAction("com.sun.jini.jeri.ssl.cipherSuites"));
+	    new GetPropertyAction("org.apache.river.jeri.ssl.cipherSuites"));
 	if (value == null) {
 	    requestedCipherSuites = null;
 	} else {
@@ -224,7 +224,7 @@ abstract class Utilities {
 
     /** The secure socket protocol used with JSSE. */
     private static final String sslProtocol = (String) Security.doPrivileged(
-	new GetPropertyAction("com.sun.jini.jeri.ssl.sslProtocol", "TLS"));
+	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLS"));
 
     /** Permission needed to access the current subject. */
     static final AuthPermission getSubjectPermission =

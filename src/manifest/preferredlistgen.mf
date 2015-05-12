@@ -1,2 +1,2 @@
 Manifest-Version: 1.0
-Main-Class: com.sun.jini.tool.PreferredListGen
+Main-Class: org.apache.river.tool.PreferredListGen
