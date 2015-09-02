@@ -1,0 +1,4 @@
+testClass=MulticastMonitorTerminate
+testCategories=lookupdiscovery,lookupdiscovery_spec,speclookupdiscovery
+include0=lookupdiscovery.properties
+include1=org/apache/river/test/share/simReg3_0.properties

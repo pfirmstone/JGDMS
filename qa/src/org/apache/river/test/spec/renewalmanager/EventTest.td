@@ -1,0 +1,2 @@
+testClass=EventTest
+testCategories=renewalmanager,renewalmanager_spec

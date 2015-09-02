@@ -1,0 +1,179 @@
+/*
+ * This is an policy file for net.jini.security.policy tests.
+ * This file contains test-specific policy and harness-specific
+ * policy (the same as policy.qaHarness).
+ */
+
+/*
+ * Test-specific policy:
+ * 2. allow grant some permission at run time
+ * 2. allow get and set policy
+ * 3. allow getProperty for net.jini.security.policy.*
+ * 4. allow setProperty for net.jini.security.policy.*
+ * 5. allow accessClassInPackage for sun.security.provider
+ */
+
+/* Grants required for SecurityManager used a startup: */
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+/* end grants required for SecurityManager during startup. */
+
+grant {
+    permission java.lang.RuntimePermission "A";
+    permission net.jini.security.GrantPermission
+        "delim=' java.lang.RuntimePermission 'E'";
+};
+
+grant {
+    permission java.security.SecurityPermission "setPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "getDomainCombiner";
+    permission java.security.SecurityPermission "createAccessControlContext";
+
+    permission java.security.SecurityPermission
+        "getProperty.net.jini.security.policy.*";
+    permission java.security.SecurityPermission
+        "setProperty.net.jini.security.policy.*";
+    permission java.lang.RuntimePermission
+        "accessClassInPackage.sun.security.provider";
+};
+
+/*
+ * Test-specific policy for qa1-policy-provider.jar:
+ * 1. allow classes coming from qa1-policy-provider.jar to be loaded
+ * 2. allow grant some permission at run time
+ * 3. allow connection to all hosts.
+ * 4. allow call getProtectionDomain().
+ * 5. allow call setFactory().
+ */
+
+grant codebase "http://*:${org.apache.river.test.port}/qa1-policy-provider.jar" {
+    permission net.jini.loader.DownloadPermission;
+    permission java.lang.RuntimePermission "X";
+    permission java.lang.RuntimePermission "Y";
+};
+
+grant { 
+    permission java.net.SocketPermission "*",    "connect,accept"; 
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "setFactory";
+};
+
+/*
+ * Harness-specific policy is the same as policy.qaHarness.
+ */ 
+grant { 
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "setSecurityManager";
+    permission java.lang.RuntimePermission "setIO";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+
+
+    // Allow reflection to examine service starter framework classes
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+
+    // Allow logging control for setting the Formatter and Handler
+    permission java.util.logging.LoggingPermission "control";
+
+    // Allow loading of Sun's RMI impl classes
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.server";
+
+
+    permission java.net.SocketPermission "*:1024-",    "connect,accept"; 
+    permission java.net.SocketPermission "224.0.1.84", "connect,accept"; 
+    permission java.net.SocketPermission "224.0.1.85", "connect,accept"; 
+
+    // File read,write,delete permissions. 
+    // 
+    // Read permissions must be granted from the top-level root 
+    // directory because the various policy files (ex. policy.reggie,
+    // policy.fiddler, etc.) and the various executable jar files 
+    // (ex. reggie.jar, fiddler.jar, etc.) must be read by the harness. 
+    // Since the test suite may be installed into any directory 
+    // (the 'installDir' item in qaHarness.prop), it is impossible to 
+    // know a priori the path to the policy and jar files. Therefore, 
+    // this policy file allows read permission for all files throughout
+    // the whole disk.
+    // 
+    // Since the test harness creates, accesses, and ultimately deletes 
+    // a number of temporary files in the current working directory, 
+    // read, write, and delete permissions must be granted for all
+    // files in the current working directory. (Note that read permission
+    // is already granted to all files in the current working directory
+    // when read permission was granted for all files on the disk.)
+    //
+    // Because the services that are tested will persist their state
+    // to directories under the system 'tmp' directory (/tmp on some
+    // unixes, /var/tmp on other unixes; c:\temp on WinNT, c:\windows\temp
+    // on Win95/98), read, write, and delete permissions must be
+    // given for each of those directories. As with the current directory,
+    // read permission is already granted for all files in the system
+    // tmp directory when read permission was granted for all files on 
+    // the disk.
+
+    // unix file system read,write,delete permissions
+
+    permission java.io.FilePermission "/",  "read"; 
+    permission java.io.FilePermission "/-", "read"; 
+    permission java.io.FilePermission "./-",        "write,delete"; 
+    permission java.io.FilePermission "/tmp",       "write,delete"; 
+    permission java.io.FilePermission "/tmp/-",     "write,delete"; 
+    permission java.io.FilePermission "/var/tmp",   "write,delete"; 
+    permission java.io.FilePermission "/var/tmp/-", "write,delete"; 
+
+    // dos (Windows) file system read,write,delete permissions
+
+    permission java.io.FilePermission "c:\\",  "read"; 
+    permission java.io.FilePermission "c:\\-", "read"; 
+    permission java.io.FilePermission "d:\\",  "read"; 
+    permission java.io.FilePermission "d:\\-", "read"; 
+
+    permission java.io.FilePermission ".\\-",                 "write,delete"; 
+
+    permission java.io.FilePermission "c:\\temp",             "write,delete"; 
+    permission java.io.FilePermission "c:\\temp\\-",          "write,delete"; 
+    permission java.io.FilePermission "c:\\windows\\temp",    "write,delete"; 
+    permission java.io.FilePermission "c:\\windows\\temp\\-", "write,delete"; 
+
+    permission java.io.FilePermission "d:\\temp",             "write,delete"; 
+    permission java.io.FilePermission "d:\\temp\\-",          "write,delete"; 
+    permission java.io.FilePermission "d:\\windows\\temp",    "write,delete"; 
+    permission java.io.FilePermission "d:\\windows\\temp\\-", "write,delete"; 
+
+    // grant permission to execute <<ALL FILES>>
+
+    permission java.io.FilePermission "<<ALL FILES>>", "execute";
+
+    // A number of tests (ex. ServiceDiscoveryManager tests) change
+    // the current value of certain system properties during setup, and
+    // then change those values back to their original value (which may
+    // be no value at all) during tearDown. It is important to be able
+    // to do this so that system properties set in one test don't affect
+    // future tests. If a property set during setup originally did not
+    // exist in the set of system properties, then at tearDown that
+    // property must actually be removed; that is, merely invoking
+    // System.setProperty() will not suffice. To remove a property 
+    // from the system properties, System.getProperties() must first
+    // be called to retrieve the current set of system properties
+    // with which the test was run, then the targetted properties must
+    // be removed from the set, and finally System.setProperties() 
+    // must be called to replace the current set of properties with
+    // the new set. In order to do this, both read and write permission 
+    // must be granted for all properties. Thus, if read and write
+    // permission is granted for all properties, there is no need to
+    // grant read or write permission for individual properties
+    // associated with separate tests.
+
+    permission java.util.PropertyPermission "*", "read,write"; 
+
+    // discovery-specific PropertyPermission needed by the harness
+    permission net.jini.discovery.DiscoveryPermission "*"; 
+};

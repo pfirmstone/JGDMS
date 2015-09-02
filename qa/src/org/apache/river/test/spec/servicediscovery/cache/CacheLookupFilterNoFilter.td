@@ -1,0 +1,4 @@
+testClass=CacheLookupFilterNoFilter
+testCategories=servicediscovery,servicediscovery_spec,servicediscoverycache,specservicediscovery,specservicediscoverycache
+include0=../servicediscovery.properties
+include1=org/apache/river/test/share/lookups3_0srvcs7_0attrs0_0.properties

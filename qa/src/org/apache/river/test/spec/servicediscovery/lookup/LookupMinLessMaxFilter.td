@@ -1,0 +1,4 @@
+testClass=LookupMinLessMaxFilter
+testCategories=servicediscovery,servicediscovery_spec,servicediscoverylookup
+include0=../servicediscovery.properties
+include1=org/apache/river/test/share/lookups3_0srvcs3_5attrs0_0.properties
