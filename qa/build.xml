@@ -58,7 +58,7 @@
     <property name="jtreg.home" location="${env.JT_HOME}" />
     <!-- probably should rename the environment variable, to enable using the correct -->
     <!-- jdk version for the jtreg tests -->
-    <property name="jdk.home" location="/usr/jdk/jdk1.6.0_25"/>
+    <property name="jdk.home" location="${env.JAVA_HOME}"/>
     <property name="jtlib.tmp" location="${jtreg.dir}/JTlib-tmp"/>
 
     <!-- classpath for use by ClassDep in this build -->
