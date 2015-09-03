@@ -312,6 +312,9 @@
 
             <classpath refid="javadoc.classpath" />
             <sourcepath refid="javadoc.sourcepath" />
+	        <configuration>
+	          <additionalparam>-Xdoclint:none</additionalparam>
+	        </configuration>
 
             <fileset dir="${src.dir}" includes="org/apache/river/mahalo/MahaloPermission.java"/>
             <package name="org.apache.river.admin"/>
@@ -416,6 +419,9 @@
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath refid="javadoc.classpath" />
             <sourcepath refid="javadoc.sourcepath" />
+	        <configuration>
+	          <additionalparam>-Xdoclint:none</additionalparam>
+	        </configuration>
         </javadoc>
         <mkdir dir="${doc.internals.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.internals.dir}/doc-files/NOTICE.txt"/>
@@ -443,6 +449,9 @@
 			     description="ignore"/>
             <classpath refid="javadoc.classpath"/>
             <sourcepath refid="javadoc.sourcepath" />
+	        <configuration>
+	          <additionalparam>-Xdoclint:none</additionalparam>
+	        </configuration>
 
             <package name="net.jini.activation"/>
             <package name="net.jini.config"/>
@@ -490,6 +499,7 @@
             toolswrappers.jars,
             services.jars,
             extra.jar,
+			groovy-config.jar,
             browser.jars" />
 
     <target name="river.jars" depends="stubs,
@@ -542,8 +552,8 @@
         <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
             <classpath refid="compile.classpath" />
         </javac-cmd>
-    </target>
-
+    </target>	
+	
     <target name="copy-extlibs" >
         <copy todir="lib">
             <fileset refid="asm.jars"/>
@@ -711,6 +721,22 @@
         </jar>
     </target>
 
+    <target name="groovy-config.jar">  
+		 <delete file="${lib.dir}/groovy-config.jar" quiet="true"/>      
+		<groovyc srcdir="src" destdir="${build.classes.dir}" listfiles="yes"> 
+		    <classpath refid="river.classes"/>
+			<include name="**/*.groovy"/>
+		</groovyc>
+        <jar destfile="${lib.dir}/groovy-config.jar" index="false">
+            <fileset dir="${build.classes.dir}">
+                <include name="net/jini/config/GroovyConfig**"/>
+                <include name="net/jini/config/Component**"/>
+            </fileset>
+            <fileset dir="${src.manifest.dir}/groovy-config"
+		      includes="META-INF/services/net.jini.config.Configuration"/>
+        </jar>
+    </target>
+	
     <target name="extra.jar" depends="compile" >
         <!-- hooks for extra.jar build (RIVER-359) -->
         
@@ -857,6 +883,8 @@
             <arg line="-in org.apache.river"/>
 			<arg line="-out net.jini.lookup"/>
 			<arg line="-out org.apache.river.api.lookup"/>
+			<arg line="-out net.jini.config.GroovyConfig"/>
+			<arg line="-out net.jini.config.Component"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
