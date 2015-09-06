@@ -26,8 +26,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collection;
 import net.jini.loader.ClassLoading;
-import org.apache.river.api.io.PortableObjectOutputStream;
-
 /**
  * An extension of <code>ObjectOutputStream</code> that implements the
  * dynamic class loading semantics of Java(TM) Remote Method Invocation
@@ -58,7 +56,7 @@ import org.apache.river.api.io.PortableObjectOutputStream;
  * @since 2.0
  **/
 public class MarshalOutputStream
-    extends PortableObjectOutputStream
+    extends ObjectOutputStream
     implements ObjectStreamContext
 {
     /** context for ObjectStreamContext implementation */
