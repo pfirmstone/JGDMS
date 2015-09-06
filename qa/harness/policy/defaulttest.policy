@@ -98,7 +98,7 @@ grant {
     permission java.lang.RuntimePermission "setIO";
     permission java.lang.RuntimePermission "setFactory";
     permission java.net.SocketPermission "*:1024-",    "connect,accept";
-    permission java.util.PropertyPermission "org.apache.river.qa.spec.io.util.FakeIntegrityVerifier.throwException", "write";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.io.util.FakeIntegrityVerifier.throwException", "write";
 };
 
 // needed when using a SecurityManager from command line
