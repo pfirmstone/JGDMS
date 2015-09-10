@@ -261,7 +261,8 @@ class GroovyConfig implements net.jini.config.Configuration {
                 List<MetaMethod> methods = groovyConfig.metaClass.methods
                 for(MetaMethod m : methods) {
                     if(m.name==methodName) {
-                        log.trace "Found matching method name [${methodName}], check for type match"
+						if(log.isLoggable(Level.FINE))
+                            log.fine "Found matching method name [${methodName}], check for type match"
                         Class[] paramTypes = m.nativeParameterTypes
                         if(paramTypes.length==1 && paramTypes[0].isAssignableFrom(data.class)) {
                             mm = m;
