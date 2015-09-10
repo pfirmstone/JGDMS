@@ -18,11 +18,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     
     <modelVersion>4.0.0</modelVersion>
-    <groupId>net.jini</groupId>
-    <artifactId>groovy-config</artifactId>
+    <groupId>org.apache.river</groupId>
+    <artifactId>tools</artifactId>
     <version>3.0</version>
     <url>http://river.apache.org</url>
-    <description>Provides support for using Groovy as a configuration provider
+    <description>Provides utilities
     </description>
 
 	<licenses>
@@ -40,15 +40,10 @@
 	<dependencies>
         <dependency>
             <groupId>net.jini</groupId>
-            <artifactId>jsk-platform</artifactId>
+            <artifactId>jsk-lib</artifactId>
             <version>3.0</version>
-        </dependency>
+        </dependency>		
 
-        <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>2.3.8</version>
-        </dependency>
     </dependencies>
   
 </project>

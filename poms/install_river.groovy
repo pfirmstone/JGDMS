@@ -35,7 +35,8 @@ String rootDir = ".."
  "org.apache.river:outrigger-dl":"lib-dl",
  "org.apache.river:reggie":"lib",
  "org.apache.river:reggie-dl":"lib-dl",
- "org.apache.river:start":"lib"].each {artifact, subDir ->
+ "org.apache.river:start":"lib",
+ "org.apache.river:tools":"lib"].each {artifact, subDir ->
     
     String[] parts = artifact.split(":")
     String gId = parts[0]
