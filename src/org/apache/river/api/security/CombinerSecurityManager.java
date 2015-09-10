@@ -47,9 +47,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
 import org.apache.river.impl.thread.NamedThreadFactory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 

@@ -17,9 +17,9 @@
  */
 package net.jini.lookup;
 
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
 import org.apache.river.logging.Levels;
 import org.apache.river.lookup.entry.LookupAttributes;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
@@ -1465,7 +1465,7 @@ public class ServiceDiscoveryManager {
             this.serviceIdMap = new ConcurrentHashMap<ServiceID, ServiceItemReg>();
             this.sItemListeners = new HashSet<ServiceDiscoveryListener>();
             this.serviceDiscardFutures = RC.concurrentMap(new ConcurrentHashMap<Referrer<ServiceID>, Referrer<Future>>(), Ref.WEAK_IDENTITY, Ref.STRONG, 60000, 60000);
-            this.tmpl = copyServiceTemplate(tmpl);
+            this.tmpl = tmpl.clone();
             this.leaseDuration = leaseDuration;
             this.filter = filter;
             lookupListener = new LookupListener();
@@ -3877,28 +3877,6 @@ public class ServiceDiscoveryManager {
             throw new IllegalStateException("service discovery manager was terminated");
         }//endif
     }//end checkTerminated
-
-    /**
-     * Returns a "non-shallow" (not just a clone) copy of the given template.
-     */
-    static private ServiceTemplate copyServiceTemplate(ServiceTemplate tmpl) {
-        Class[] serviceTypes = null;
-        Entry[] attributeSetTemplates = null;
-        if (tmpl.serviceTypes != null) {
-            int len = tmpl.serviceTypes.length;
-            serviceTypes = new Class[len];
-            System.arraycopy(tmpl.serviceTypes, 0, serviceTypes, 0, len);
-        }
-        if (tmpl.attributeSetTemplates != null) {
-            int len = tmpl.attributeSetTemplates.length;
-            attributeSetTemplates = new Entry[len];
-            System.arraycopy(tmpl.attributeSetTemplates, 0,
-                    attributeSetTemplates, 0, len);
-        }
-        return new ServiceTemplate(tmpl.serviceID,
-                serviceTypes,
-                attributeSetTemplates);
-    }//end copyServiceTemplate
 
     /**
      * Determines if the given ServiceItem is an element of the given array.

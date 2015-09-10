@@ -80,6 +80,9 @@ class RegistrarEvent extends ServiceEvent {
      * from the lookup service.
      */
     public ServiceItem getServiceItem() {
+	if (serviceItem instanceof ServiceItem){
+	    return ((ServiceItem) serviceItem).clone();
+	}
 	return (ServiceItem)serviceItem;
     }
 

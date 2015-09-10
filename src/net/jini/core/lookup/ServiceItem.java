@@ -20,6 +20,7 @@ package net.jini.core.lookup;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamField;
+import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 
 /**
@@ -97,6 +98,8 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
      * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
      * internally stored instances with client code.
      * 
+     * A deep copy clone is made
+     * 
      * @return a clone of the original ServiceItem
      */
     @Override
@@ -104,7 +107,16 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
     {
         try {
             ServiceItem clone = (ServiceItem) super.clone();
-            clone.attributeSets = clone.attributeSets.clone();
+	    if (clone.attributeSets != null){
+		clone.attributeSets = clone.attributeSets.clone();
+		for (int i = 0, l = clone.attributeSets.length; i < l; i++){
+		    Entry e = clone.attributeSets[i];
+		    if (e instanceof CloneableEntry){
+			clone.attributeSets[i] = ((CloneableEntry) e).clone();
+		    }
+
+		}
+	    }
             return clone;
         } catch (CloneNotSupportedException ex) {
             throw new AssertionError();

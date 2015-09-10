@@ -158,10 +158,6 @@
         <include name="high-scale-lib.jar" />
     </fileset>
     
-    <fileset id="reference-collections.jar" dir="${root}/dep-libs/rc-libs">
-        <include name="custard-apple-1.0.3.jar" />
-    </fileset>
-    
     <fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">
         <include name="dnsjava-2.1.3.jar" />
     </fileset>
@@ -171,7 +167,6 @@
         <fileset refid="asm.jars" />
         <fileset refid="velocity.jars" />
         <fileset refid="high-scale-lib.jars" />
-        <fileset refid="reference-collections.jar" />
     </path>
 
 

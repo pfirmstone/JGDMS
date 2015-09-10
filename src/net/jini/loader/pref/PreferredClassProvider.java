@@ -18,9 +18,9 @@
 
 package net.jini.loader.pref;
 
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
 import org.apache.river.action.GetPropertyAction;
 import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogUtil;

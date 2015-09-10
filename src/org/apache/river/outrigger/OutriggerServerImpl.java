@@ -17,9 +17,9 @@
  */
 package org.apache.river.outrigger;
 
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
 import org.apache.river.config.Config;
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.landlord.Landlord;

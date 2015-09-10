@@ -54,11 +54,7 @@ public class B0 extends AbstractEntry implements TestEntry {
     }
 
     public TestEntry dup() {
-	try {
-	    return (TestEntry)super.clone();
-	} catch (CloneNotSupportedException e) {
-	    throw new AssertionError(e);
-	}
+	return (TestEntry)super.clone();
     }
 }
 

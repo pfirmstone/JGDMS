@@ -18,9 +18,9 @@
 
 package org.apache.river.start;
 
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
 import java.lang.reflect.Method;
 import java.security.AccessControlContext;
 import java.security.AccessController;
