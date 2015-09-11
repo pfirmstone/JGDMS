@@ -18,7 +18,7 @@
 package org.apache.river.reggie;
 
 import java.io.Serializable;
-import net.jini.loader.ClassLoading;
+import org.apache.river.proxy.CodebaseAnnotation;
 
 /**
  * A ServiceType annotated with a codebase.
@@ -51,7 +51,7 @@ class ServiceTypeBase implements Serializable {
 
     /** Sets the codebase to the codebase of the given class. */
     public void setCodebase(Class cls) {
-	codebase = ClassLoading.getClassAnnotation(cls);
+	codebase = CodebaseAnnotation.getClassAnnotation(cls);
     }
 
     /**
