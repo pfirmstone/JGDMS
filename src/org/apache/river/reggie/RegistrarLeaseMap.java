@@ -27,7 +27,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
-import org.apache.river.impl.lease.AbstractIDLeaseMap;
+import org.apache.river.lease.AbstractIDLeaseMap;
 
 /**
  * The LeaseMap implementation class for registrar leases.  Clients only see

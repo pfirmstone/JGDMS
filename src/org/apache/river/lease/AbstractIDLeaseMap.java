@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.impl.lease;
+package org.apache.river.lease;
 
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;

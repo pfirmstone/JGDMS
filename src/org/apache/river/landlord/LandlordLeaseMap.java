@@ -28,7 +28,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
-import org.apache.river.impl.lease.AbstractIDLeaseMap;
+import org.apache.river.lease.AbstractIDLeaseMap;
 
 /**
  * Implementation of <code>LeaseMap</code> for <code>LandlordLease</code>.

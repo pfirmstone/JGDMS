@@ -31,7 +31,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.id.Uuid;
-import org.apache.river.impl.lease.AbstractIDLeaseMap;
+import org.apache.river.lease.AbstractIDLeaseMap;
 
 /**
  * When clients request a registration with the Fiddler implementation of
