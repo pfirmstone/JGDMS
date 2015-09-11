@@ -28,7 +28,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
-import org.apache.river.impl.lease.AbstractLeaseMap;
+import org.apache.river.impl.lease.AbstractIDLeaseMap;
 
 /**
  * Implementation of <code>LeaseMap</code> for <code>LandlordLease</code>.
@@ -39,7 +39,7 @@ import org.apache.river.impl.lease.AbstractLeaseMap;
  * @see net.jini.core.lease.LeaseMap
  * @since 2.0
  */
-public class LandlordLeaseMap extends AbstractLeaseMap {
+public class LandlordLeaseMap extends AbstractIDLeaseMap {
     /** The landlord which this map will talk to. */
     private final Landlord landlord;
 

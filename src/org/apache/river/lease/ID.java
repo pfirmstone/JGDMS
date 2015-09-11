@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.river.api.util;
+package org.apache.river.lease;
 
 /**
  * A mix in interface that provides an identity to be used as a key in Collections.

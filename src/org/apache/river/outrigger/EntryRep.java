@@ -17,14 +17,10 @@
  */
 package org.apache.river.outrigger;
 
-import org.apache.river.landlord.LeasedResource;
-import org.apache.river.logging.Levels;
-import org.apache.river.proxy.MarshalledWrapper;
-
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -41,14 +37,16 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
-
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
-import net.jini.loader.ClassLoading;
 import net.jini.space.JavaSpace;
+import org.apache.river.landlord.LeasedResource;
+import org.apache.river.logging.Levels;
+import org.apache.river.proxy.CodebaseProvider;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * An <code>EntryRep</code> object contains a packaged
@@ -237,7 +235,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 	if (validate)
 	    ensureValidClass(realClass);
 	className = realClass.getName();
-	codebase = ClassLoading.getClassAnnotation(realClass);
+	codebase = CodebaseProvider.getClassAnnotation(realClass);
 
 	/*
 	 * Build up the per-field and superclass information through
@@ -407,7 +405,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
                       
             synchronized (this){
                 className = this.className;
-                realClass = ClassLoading.loadClass(codebase, className,
+                realClass = CodebaseProvider.loadClass(codebase, className,
                                                    null, integrity, null);
 
                 if (findHash(realClass, false).longValue() != hash)

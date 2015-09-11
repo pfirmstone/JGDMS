@@ -29,10 +29,10 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.id.Uuid;
-import org.apache.river.api.util.ID;
+import org.apache.river.lease.ID;
 
 /**
- * AbstractLeaseMap is intended to work around some minor design warts in the 
+ * AbstractIDLeaseMap is intended to work around some minor design warts in the 
  * {@link Lease} interface:
  * 
  * In the real world, when a Lease is renewed, a new Lease contract document
@@ -49,7 +49,7 @@ import org.apache.river.api.util.ID;
  * all Lease implementations are also mutable, previous implementations
  * of {@link LeaseMap} used Leases as keys.
  * 
- * AbstractLeaseMap uses only the {@link ID}, usually a {@link Uuid}
+ * AbstractIDLeaseMap uses only the {@link ID}, usually a {@link Uuid}
  * provided by a Lease for internal map keys, if {@link ID} is not implemented
  * then the Lease itself is used as the key.
  * 
@@ -64,7 +64,7 @@ import org.apache.river.api.util.ID;
  * @param <K> 
  * @author peter
  */
-public abstract class AbstractLeaseMap<K extends Lease> extends AbstractMap<K,Long> 
+public abstract class AbstractIDLeaseMap<K extends Lease> extends AbstractMap<K,Long> 
                               implements LeaseMap<K,Long> {
     
     private final ConcurrentMap<Object,K> leaseMap;
@@ -74,7 +74,7 @@ public abstract class AbstractLeaseMap<K extends Lease> extends AbstractMap<K,Lo
     /**
      * Constructor for subclasses.
      */
-    protected AbstractLeaseMap(){
+    protected AbstractIDLeaseMap(){
         leaseMap = RC.concurrentMap(
                 new ConcurrentHashMap<Referrer<Object>,Referrer<K>>(),
                 Ref.WEAK, Ref.STRONG, 10000, 10000);

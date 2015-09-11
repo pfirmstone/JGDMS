@@ -30,7 +30,7 @@ import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import org.apache.river.lease.AbstractLease;
-import org.apache.river.api.util.ID;
+import org.apache.river.lease.ID;
 
 /**
  * Basic implementation of <code>net.jini.core.lease.Lease</code> that works

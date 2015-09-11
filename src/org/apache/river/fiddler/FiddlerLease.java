@@ -37,7 +37,7 @@ import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.rmi.RemoteException;
-import org.apache.river.api.util.ID;
+import org.apache.river.lease.ID;
 
 /**
  * When the Fiddler implementation of the lookup discovery service grants

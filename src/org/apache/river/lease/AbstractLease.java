@@ -27,7 +27,6 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
-import org.apache.river.api.util.ID;
 
 /**
  * A base class for implementing lease objects.  This class takes care of

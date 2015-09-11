@@ -29,7 +29,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
-import org.apache.river.api.util.ID;
+import org.apache.river.lease.ID;
 
 /**
  * The base class for lease proxies.

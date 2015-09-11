@@ -17,7 +17,6 @@
  */
 package org.apache.river.reggie;
 
-import org.apache.river.proxy.MarshalledWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -28,7 +27,8 @@ import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
-import net.jini.loader.ClassLoading;
+import org.apache.river.proxy.CodebaseProvider;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * An EntryClass is a descriptor for an entry class, packaged up for
@@ -174,7 +174,7 @@ class EntryClass implements Serializable {
 	throws IOException, ClassNotFoundException
     {
 	Class cls = 
-	    ClassLoading.loadClass(codebase, name, null, integrity, null);
+	    CodebaseProvider.loadClass(codebase, name, null, integrity, null);
 	EntryClass local;
 	try {
 	    local = ClassMapper.toEntryClassBase(cls).eclass;

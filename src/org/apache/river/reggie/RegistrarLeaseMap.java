@@ -27,7 +27,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
-import org.apache.river.impl.lease.AbstractLeaseMap;
+import org.apache.river.impl.lease.AbstractIDLeaseMap;
 
 /**
  * The LeaseMap implementation class for registrar leases.  Clients only see
@@ -36,7 +36,7 @@ import org.apache.river.impl.lease.AbstractLeaseMap;
  * @author Sun Microsystems, Inc.
  *
  */
-class RegistrarLeaseMap extends AbstractLeaseMap<RegistrarLease> {
+class RegistrarLeaseMap extends AbstractIDLeaseMap<RegistrarLease> {
 
     private static final long serialVersionUID = 2L;
 

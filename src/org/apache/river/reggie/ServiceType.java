@@ -17,7 +17,6 @@
  */
 package org.apache.river.reggie;
 
-import org.apache.river.proxy.MarshalledWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -27,11 +26,12 @@ import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
-import java.util.StringTokenizer;
 import java.security.DigestOutputStream;
-import java.security.NoSuchAlgorithmException;
 import java.security.MessageDigest;
-import net.jini.loader.ClassLoading;
+import java.security.NoSuchAlgorithmException;
+import java.util.StringTokenizer;
+import org.apache.river.proxy.CodebaseProvider;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * A ServiceType is a descriptor for a class, packaged up for
@@ -218,7 +218,7 @@ class ServiceType implements Serializable {
 	throws IOException, ClassNotFoundException
     {
 	if (name.charAt(0) != ';') {
-	    return ClassLoading.loadClass(
+	    return CodebaseProvider.loadClass(
 		codebase, name, null, integrity, null);
 	}
 	StringTokenizer st = new StringTokenizer(name, ";");
@@ -226,7 +226,7 @@ class ServiceType implements Serializable {
 	for (int i = 0; i < ifs.length; i++) {
 	    ifs[i] = st.nextToken();
 	}
-	return ClassLoading.loadProxyClass(
+	return CodebaseProvider.loadProxyClass(
 	    codebase, ifs, null, integrity, null);
     }
 

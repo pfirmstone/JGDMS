@@ -31,7 +31,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.id.Uuid;
-import org.apache.river.impl.lease.AbstractLeaseMap;
+import org.apache.river.impl.lease.AbstractIDLeaseMap;
 
 /**
  * When clients request a registration with the Fiddler implementation of
@@ -51,7 +51,7 @@ import org.apache.river.impl.lease.AbstractLeaseMap;
  * @author Sun Microsystems, Inc.
  *
  */
-class FiddlerLeaseMap extends AbstractLeaseMap<FiddlerLease> {
+class FiddlerLeaseMap extends AbstractIDLeaseMap<FiddlerLease> {
 
     /**
      * The reference to the back-end server of the lookup discovery service
