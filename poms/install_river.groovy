@@ -36,6 +36,7 @@ String rootDir = ".."
  "org.apache.river:reggie":"lib",
  "org.apache.river:reggie-dl":"lib-dl",
  "org.apache.river:start":"lib",
+ "org.apache.river:browser":"lib",
  "org.apache.river:tools":"lib"].each {artifact, subDir ->
     
     String[] parts = artifact.split(":")
