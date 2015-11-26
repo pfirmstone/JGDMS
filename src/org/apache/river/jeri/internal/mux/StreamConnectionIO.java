@@ -353,7 +353,7 @@ final class StreamConnectionIO extends ConnectionIO {
 
     public static ReadableByteChannel newChannel(final InputStream in) {
 	return new ReadableByteChannel() {
-	    private volatile boolean open = true;
+	    private boolean open = true;
 
             // must be synchronized as per ReadableByteChannel contract
             @Override
@@ -386,7 +386,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	    }
                 
             @Override
-	    public boolean isOpen() {
+	    public synchronized boolean isOpen() {
 		return open;
 	    }
             

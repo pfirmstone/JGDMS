@@ -74,7 +74,7 @@ class MuxInputStream extends InputStream {
                     session.setInRation(session.getInRation() + inc);
                 }
                 try {
-                    sessionLock.wait(); // REMIND: timeout?
+                    sessionLock.wait(5000L); // REMIND: timeout?
                 } catch (InterruptedException e) {
                     String message = "request I/O interrupted";
                     session.setDown(message, e);
@@ -157,7 +157,7 @@ class MuxInputStream extends InputStream {
                     session.setInRation(session.getInRation() + inc);
                 }
                 try {
-                    sessionLock.wait(); // REMIND: timeout?
+                    sessionLock.wait(5000L); // REMIND: timeout?
                 } catch (InterruptedException e) {
                     String message = "request I/O interrupted";
                     session.setDown(message, e);

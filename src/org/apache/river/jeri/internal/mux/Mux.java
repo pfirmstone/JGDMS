@@ -34,9 +34,7 @@ import java.nio.charset.CharsetEncoder;
 import java.security.AccessController;
 import java.util.BitSet;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -107,6 +105,7 @@ abstract class Mux {
 
 	public void run() {
 	    for (int i = 0; i < sessions.length; i++) {
+		if (sessions[i] != null)
 		sessions[i].setDown(message, cause);
 	    }
 	}
@@ -135,7 +134,7 @@ abstract class Mux {
     Throwable muxDownCause;
 
     final BitSet busySessions = new BitSet();
-    final Map<Integer,Session> sessions = new HashMap<Integer,Session>(128);
+    final Session [] sessions = new Session[MAX_SESSION_ID + 1];
 
     private int expectedPingCookie = -1;
     
@@ -274,10 +273,15 @@ abstract class Mux {
 	assert Thread.holdsLock(muxLock);
 	assert !muxDown;
 	assert !busySessions.get(sessionID);
-	assert sessions.get(Integer.valueOf(sessionID)) == null;
+//	assert sessions.get(Byte.valueOf(sessionID)) == null;
+	assert sessions[sessionID] == null;
 
 	busySessions.set(sessionID);
-	sessions.put(Integer.valueOf(sessionID), session);
+//	Throwable t = new Throwable();
+//	System.out.println("Setting sessionID: "+ sessionID);
+//	t.printStackTrace(System.out);
+//	sessions.put(Byte.valueOf(sessionID), session);
+	sessions[sessionID] = session;
     }
 
     /**
@@ -285,14 +289,17 @@ abstract class Mux {
      * This method is intended to be invoked by this class and
      * subclasses only.
      *
-     * This method MAY be invoked while synchronized on muxLock.
+     * This method MAY be invoked while synchronized on muxLock if failure
+     * occurs during start up.
      */
     final void setDown(final String message, final Throwable cause) {
+	SessionShutdownTask sst = null;
 	synchronized (muxLock) {
 	    if (muxDown) return;
 	    muxDown = true;
 	    muxDownMessage = message;
 	    muxDownCause = cause;
+	    sst = new SessionShutdownTask(sessions.clone(), message, cause);
 	    muxLock.notifyAll();
 	}
 
@@ -309,11 +316,8 @@ abstract class Mux {
              */
 	boolean needWorker = false;
             synchronized (sessionShutdownQueue) {
-                if (!sessions.isEmpty()) {
-                    sessionShutdownQueue.add(new SessionShutdownTask(
-                        (Session[]) sessions.values().toArray(
-                            new Session[sessions.values().size()]),
-                        message, cause));
+                if (sst != null) {
+                    sessionShutdownQueue.add(sst);
                     needWorker = true;
                 } else {
                     needWorker = !sessionShutdownQueue.isEmpty();
@@ -360,7 +364,7 @@ abstract class Mux {
 	    }
 	    assert busySessions.get(sessionID);
 	    busySessions.clear(sessionID);
-	    sessions.remove(Integer.valueOf(sessionID));
+	    sessions[sessionID] = null;
 	}
     }
 
@@ -1178,8 +1182,7 @@ abstract class Mux {
 	getSession(sessionID).handleAcknowledgment();
     }
 
-    private void handleData(int sessionID, boolean open, boolean close,
-			    boolean eof, boolean ackRequired, ByteBuffer data)
+    private void handleData(int sessionID, boolean open, boolean close, boolean eof, boolean ackRequired, ByteBuffer data)
 	throws ProtocolException
     {
 	if (logger.isLoggable(Level.FINEST)) {
@@ -1219,7 +1222,7 @@ abstract class Mux {
 		throw new ProtocolException(
 		    "inactive sessionID: " + sessionID);
 	    }
-	    return (Session) sessions.get(Integer.valueOf(sessionID));
+	    return sessions[sessionID];
 	}
     }
 

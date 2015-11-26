@@ -69,7 +69,7 @@ public class MuxClient extends Mux {
 		ioe.initCause(muxDownCause);
 		throw ioe;
 	    }
-	    int sessionID = busySessions.nextClearBit(0);
+	    byte sessionID = (byte) busySessions.nextClearBit(0);
 	    if (sessionID > Mux.MAX_SESSION_ID) {
 		throw new IOException("no free sessions");
 	    }
