@@ -18,6 +18,8 @@
 
 package net.jini.loader;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
@@ -142,6 +144,8 @@ public class LoadClass {
 
     private static class GetClassTask implements Callable<Class> {
 
+        private static final ClassLoader SYSTEM_LOADER =
+                ClassLoader.getSystemClassLoader();
         private final String name;
         private final boolean initialize;
         private final ClassLoader loader;
@@ -154,7 +158,23 @@ public class LoadClass {
 
         @Override
         public Class call() throws ClassNotFoundException {
-            return Class.forName(name, initialize, loader);
+            try {
+                return Class.forName(name, initialize, loader);
+            } finally {
+                /**
+                 * See jtreg sun bug ID:6304035
+                 * This ensures that a thread doesn't unnecessarily hold 
+                 * a strong reference to a ClassLoader, thus preventing
+                 * it from being garbage collected.
+                 */
+                AccessController.doPrivileged(new PrivilegedAction(){
+                    public Object run() {
+                        Thread.currentThread().setContextClassLoader(SYSTEM_LOADER);
+                        return null;
+                    }
+                });
+                
+            }
         }
 
     }
