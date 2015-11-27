@@ -156,7 +156,10 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     /* WakeupManager to delay tasks. */
     private final WakeupManager discoveryWakeupMgr;
     private final boolean isDefaultWakeupMgr;
-    /* Outstanding tickets - Access synchronized on pendingDiscoveries */
+    /* Outstanding tickets - Access synchronized on 
+     * UnicastDiscoveryTask instance, then on tickets.
+     * Access only synchronized on tickets from nukeThreads 
+     */
     private final List<Ticket> tickets;
     /** Thread that handles incoming multicast announcements. */
     private final AnnouncementListener announceeThread;
@@ -1010,7 +1013,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                     // Since this is a valid announcement, update the
                     // sequence number.
                     AnnouncementInfo aInfo = regInfo.get(srvcID);
-                    if (!regInfo.replace
+                    if (aInfo != null && !regInfo.replace // Avoid null pointer exception
                             (   srvcID, 
                                 aInfo, 
                                 new AnnouncementInfo( 
