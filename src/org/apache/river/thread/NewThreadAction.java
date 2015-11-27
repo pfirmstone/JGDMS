@@ -78,14 +78,22 @@ public final class NewThreadAction implements PrivilegedAction<Thread> {
     private final Runnable runnable;
     private final String name;
     private final boolean daemon;
+    private final int stackSize;
 
     NewThreadAction(ThreadGroup group, Runnable runnable,
 		    String name, boolean daemon)
+    {
+	this(group, runnable, name, daemon, 0);
+    }
+    
+    NewThreadAction(ThreadGroup group, Runnable runnable,
+		    String name, boolean daemon, int stackSize)
     {
 	this.group = group;
 	this.runnable = runnable;
 	this.name = name;
 	this.daemon = daemon;
+        this.stackSize = stackSize;
     }
 
     /**
@@ -129,7 +137,7 @@ public final class NewThreadAction implements PrivilegedAction<Thread> {
 	if (sm != null) {
 	    sm.checkPermission(getClassLoaderPermission);
 	}
-	Thread t = new Thread(group, runnable, NAME_PREFIX + name);
+	Thread t = new Thread(group, runnable, NAME_PREFIX + name, stackSize);
 	t.setContextClassLoader(ClassLoader.getSystemClassLoader());
 	t.setDaemon(daemon);
 	return t;
