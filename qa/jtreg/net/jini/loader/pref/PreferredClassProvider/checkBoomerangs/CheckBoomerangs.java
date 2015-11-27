@@ -230,12 +230,15 @@ public class CheckBoomerangs extends UnicastRemoteObject
   		Naming.rebind(exchangeName, boom);
 
   		System.err.println("Situation3:");
-		String d = ".." + File.separator;
-		String d3 = d + d + d;
+//		String d = ".." + File.separator;
+//		String d3 = d + d + d;
+                String classpath = System.getProperty("test.class.path");
+                System.err.println("ParentJVM Classpath: " + classpath);
   		JavaVM jvm = new JavaVM("CheckBoomerangs",
-		    " -Djava.class.path=" + TestParams.testClasses +
-		    File.pathSeparator + TestParams.testClasses +
-		    File.separator + d3 + d3 + d3 + "testlibrary" +
+		    " -Djava.class.path=" + classpath +
+//                            + TestParams.testClasses +
+//		    File.pathSeparator + TestParams.testClasses +
+//		    File.separator + d3 + d3 + d3 + "testlibrary" +
   		    " -Djava.security.policy" +
 		    System.getProperty("java.security.policy"),
 				       " situation3");
