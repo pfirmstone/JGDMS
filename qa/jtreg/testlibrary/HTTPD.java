@@ -26,12 +26,12 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.SocketPermission;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.PermissionCollection;
-import java.security.Permissions;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
@@ -84,7 +84,18 @@ public class HTTPD {
 	String jsklibJar = libDir + File.separator + "jsk-lib.jar";
 	System.err.println("HTTPD: using " + toolsJar +
 			   " on port " + port + " serving " + dir);
-	ClassLoader ld = new Loader0(toolsJar, jsklibJar, port, dir);
+        
+	URLClassLoader ld = new Loader0(toolsJar, jsklibJar, port, dir);
+        StringBuilder sb = new StringBuilder(200);
+        URL[] urls = ld.getURLs();
+        for (int i = 0, l = urls.length; i < l; i++){
+            try {
+                sb.append(urls[i].toURI().toString());
+            } catch (URISyntaxException ex) {
+                System.err.println(HTTPD.class.getName() + ": " + ex.getMessage());
+            }
+        }
+        System.err.println("ClassLoader: " + sb.toString());
 	try {
 	    Class cl = Class.forName("HTTPD$Daemon", false, ld);
 	    Method m = cl.getMethod("create",
@@ -210,7 +221,7 @@ public class HTTPD {
 	    this.port = port;
 	    this.dir = dir;
 	}
-
+        
 	protected PermissionCollection getPermissions(CodeSource cs) {
 	    PermissionCollection perms = super.getPermissions(cs);
 	    perms.add(new SocketPermission("localhost:" + port, "listen"));
@@ -225,18 +236,39 @@ public class HTTPD {
      * permission to read toolsJar.
      */
     private static class Loader0 extends Loader {
-	private String toolsJar;
-	private String jsklibJar;
+	private final String toolsJar;
+	private final String jsklibJar;
+        
+        /**
+         * This was added because the test class path wasn't available for this
+         * loader, which meant that Daemon wasn't on the loaders class path,
+         * preventing the test from running.  Not sure why this change was
+         * necessary, whether something has changed in jtreg or Java 8.
+         * 
+         * These tests unfortunately are not run often enough by developers.
+         * 
+         * @return
+         * @throws MalformedURLException 
+         */
+        private static URL[] getPath() throws MalformedURLException{
+            String classpath = TestLibrary.getProperty("test.class.path", TestParams.testClasses);
+            String [] cp = classpath.split(File.pathSeparator);
+            int len = cp.length;
+            URL[] path = new URL[len];
+            for (int i = 0; i < len; i++){
+                path[i] = new File(cp[i]).toURI().toURL();
+            }
+            return path;
+        }
 
         Loader0(String toolsJar, String jsklibJar, int port, String dir)
 	    throws MalformedURLException
 	{
-	    super(new URL[]{new File(TestParams.testClasses).toURI().toURL()},
-		  port, dir);
+	    super(getPath(), port, dir);
 	    this.toolsJar = toolsJar;
 	    this.jsklibJar = jsklibJar;
 	}
-	
+        
 	protected synchronized Class loadClass(String name, boolean resolve)
 	    throws ClassNotFoundException
 	{
