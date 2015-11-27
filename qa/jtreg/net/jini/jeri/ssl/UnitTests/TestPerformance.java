@@ -515,7 +515,7 @@ public class TestPerformance extends TestUtilities {
 	    "replySize", "20",
 	    "count", "1000",
 	    "repeat", "4",
-	    "suite", "SSL_RSA_WITH_RC4_128_MD5",
+	    "suite", "TLS_RSA_WITH_AES_128_CBC_SHA",// Changed from SSL_RSA_WITH_RC4_128_MD5 - no longer supported by Java.
 	    "clientAuth", "true"
 	};
 	private static final String keyStoreProp = "keyStore";
