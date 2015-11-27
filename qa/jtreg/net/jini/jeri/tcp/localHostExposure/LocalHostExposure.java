@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 /* @test
+ * TODO: The sun.net.spi.nameservice.NameService is
+ * being removed from Java 9, we won't be able to test it this way.  
+ * Consider if there's another way to implement this test.
  * @bug 6189036
  * @bug 6192775
  * @summary If the local host name cannot be resolved,
