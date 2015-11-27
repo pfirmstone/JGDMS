@@ -19,5 +19,5 @@ grant {
     permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
     permission java.net.SocketPermission "localhost:1024-",
 	"listen,connect,accept";
-    permission java.net.SocketPermission "*", "connect,resolve";
+    permission java.net.SocketPermission "*", "connect,accept,resolve";
 };

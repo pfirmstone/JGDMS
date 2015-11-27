@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 /* @test 
+ * @ignore
  * @summary Echo implementation for testing basic HTTP endpoint functionality.
  * @build Echo EchoImpl
  * @run main/othervm EchoImpl

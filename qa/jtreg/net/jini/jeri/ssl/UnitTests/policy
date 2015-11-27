@@ -19,9 +19,9 @@ grant {
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.";
     permission java.net.SocketPermission "localhost", "connect,accept,resolve";
-    permission java.net.SocketPermission "localhost:1024-", "listen,resolve";
-    permission java.net.SocketPermission "*", "resolve";
+    permission java.net.SocketPermission "*", "listen,accept,resolve";
 
     // Limit these permissions so that I can do tests for principals for which
     // I don't have permission.
@@ -55,6 +55,7 @@ grant {
     permission java.security.SecurityPermission "insertProvider.*";
     permission java.security.SecurityPermission "putProviderProperty.*";
     permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "createAccessControlContext";
     permission java.util.PropertyPermission "*", "read,write";
     permission javax.security.auth.AuthPermission "modifyPrincipals";
     permission javax.security.auth.AuthPermission "modifyPrivateCredentials";

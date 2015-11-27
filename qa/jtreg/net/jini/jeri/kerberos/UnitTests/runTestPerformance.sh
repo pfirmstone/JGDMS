@@ -16,6 +16,7 @@
 # limitations under the License.
 #*/
 # @test
+# @ignore
 # @summary Tests the end to end performance of Kerberos provider.
 # @author Daniel Jiang
 # @library ../../../../../unittestlib

@@ -15,10 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #*/
-# test -- Disable for now.  -tjb[28.Apr.2003]
+# @test -- Disable for now.  -tjb[28.Apr.2003]
+# @ignore
 # @summary Test the ServerConnection class over HTTPS.
 # @author Tim Blackman
-# @library ../../../unittestlib
+# @library ../../../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestEndpointUtilities TestUtilities
 # @run main/othervm/policy=policy -DuseHttps=true TestServerConnection

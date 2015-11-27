@@ -27,6 +27,7 @@ grant {
     permission java.net.SocketPermission "localhost:1024-",
 	"listen,connect,accept";
     permission java.net.SocketPermission "*", "connect,resolve";
+    permission java.net.SocketPermission "127.0.0.1:1024-", "accept,resolve";
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
 };

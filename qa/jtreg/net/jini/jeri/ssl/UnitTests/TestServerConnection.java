@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-/* test -- Disabled for now.  -tjb[28.Apr.2003]
+/* @test -- Disabled for now.  -tjb[28.Apr.2003]
+ * @ignore
  * @summary Test the ServerConnection class.
  * @author Tim Blackman
- * @library ../../../unittestlib
+ * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @build TestEndpointUtilities TestUtilities
  * @run main/othervm/policy=policy TestServerConnection

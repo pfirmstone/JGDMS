@@ -46,6 +46,7 @@ grant {
   permission java.util.PropertyPermission "user.dir", "read";
   permission java.util.PropertyPermission "java.home", "read";
   permission java.util.PropertyPermission "java.util.logging.config.file", "write";
+  permission java.util.PropertyPermission "test.class.path", "read";
 
   // test needs to export rmid and communicate with objects on arbitrary ports
   permission java.net.SocketPermission "*:1024-", "connect,accept,listen";

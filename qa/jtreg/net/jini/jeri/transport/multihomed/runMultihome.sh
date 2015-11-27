@@ -16,6 +16,7 @@
 # limitations under the License.
 #*/
 # @test
+# @ignore
 # @summary Test the KerberosEndpoint for multihome support
 # @author Vinod Johnson
 # @build AbstractSocketFactory Multihomed TestNameService TestNameServiceDescriptor Resolver

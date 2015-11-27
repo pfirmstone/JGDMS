@@ -16,6 +16,7 @@
 # limitations under the License.
 #*/
 # @test
+# @ignore
 # @bug 6181041
 # @summary Different ServerEndPoints must allow export on same ListenEndPoint
 # @build ListenEndpointTest

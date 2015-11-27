@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-/* test -- Disabled for now.  -tjb[28.Apr.2003]
+/* @test -- Disabled for now.  -tjb[28.Apr.2003]
+ * @ignore
  * @summary Tests the SecureConnectionEndpoint methods provided by the Endpoint
  *	    class.
  * @author Tim Blackman
- * @library ../../../unittestlib
+ * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @build TestEndpoint TestEndpointUtilities TestUtilities 
  * @run main/othervm/policy=policy/timeout=250 TestConnectionEndpoint

@@ -1,4 +1,6 @@
-grant codeBase "file:${java.home}/lib/ext/*" {
+// Changed because an unprivileged domain was present on the
+// stack that caused this test to fail.  The test creates an AccessControlContext.
+grant {
     permission java.security.AllPermission; 
 }; 
 
@@ -9,4 +11,5 @@ grant codeBase "file:${jtlib.tmp}/*" {
 
 grant {
     permission java.util.PropertyPermission "test.*", "read,write";
+    permission java.security.SecurityPermission "createAccessControlContext";
 };
