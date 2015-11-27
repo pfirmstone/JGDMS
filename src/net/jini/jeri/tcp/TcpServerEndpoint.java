@@ -32,11 +32,13 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketPermission;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.Guard;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -132,6 +134,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
     
     private static final InetAddress localAdd;
     private static final UnknownHostException exception;
+    private static final Guard exposeLocalAdd;
     
     static {
         /* The following was originally in 
@@ -152,23 +155,16 @@ public final class TcpServerEndpoint implements ServerEndpoint {
                     }
                 });
         } catch (PrivilegedActionException e) {
-            try {
-                /*
-                * Only expose UnknownHostException thrown directly by
-                * InetAddress.getLocalHost if it would also be thrown
-                * in the caller's security context; otherwise, throw
-                * a new UnknownHostException without the host name.
-                */
-                InetAddress.getLocalHost();
-            } catch (UnknownHostException ex) {
-                exc = ex;
+            Exception uhe = e.getException();
+            if (uhe instanceof UnknownHostException){
+                exc = (UnknownHostException) uhe;
             }
-            if (exc == null)
-                exc = new UnknownHostException("access to resolve local host denied");
         }
         
         localAdd = localAddr;
         exception = exc;
+        // If exception occurs the localAdd will be null.
+        exposeLocalAdd = new SocketPermission("localhost", "resolve");
     }
 
     /** name for local host to fill in to corresponding TcpEndpoints */
@@ -560,7 +556,20 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 
 	String localHost = host;
 	if (localHost == null) {
-	    if (exception != null) throw exception;
+            /*
+            * Only expose UnknownHostException thrown directly by
+            * InetAddress.getLocalHost if it would also be thrown
+            * in the caller's security context; otherwise, throw
+            * a new UnknownHostException without the host name.
+            */
+            if (exception != null){
+                try {
+                    exposeLocalAdd.checkGuard(null);
+                } catch (SecurityException e){
+                    throw new UnknownHostException("access to resolve local host denied");
+                }
+                throw exception;
+            }
 	    SecurityManager sm = System.getSecurityManager();
 	    if (sm != null) {
 		try {
