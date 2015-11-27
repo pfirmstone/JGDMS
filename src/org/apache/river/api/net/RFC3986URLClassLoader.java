@@ -109,22 +109,11 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
     
     static {
         try {
-            Method registerAsParallelCapable = 
-                    ClassLoader.class.getDeclaredMethod(
-                            "registerAsParallelCapable", new Class[0]);
-            registerAsParallelCapable.setAccessible(true);
-            registerAsParallelCapable.invoke(null, new Object [0]);
-        } catch (NoSuchMethodException ex) {
-            logger.log(Level.FINEST, "Platform doesn't support parallel class loading", ex);
-        } catch (SecurityException ex) {
-            logger.log(Level.FINEST, "Insufficient permission to enable parallel class loading, disabled", ex);
-        } catch (IllegalAccessException ex) {
-            logger.log(Level.FINEST, "Unable to invoke parallel class loading", ex);
-        } catch (IllegalArgumentException ex) {
-            logger.log(Level.FINEST, "Unable to invoke parallel class loading", ex);
-        } catch (InvocationTargetException ex) {
-            logger.log(Level.FINEST, "Unable to invoke parallel class loading", ex);
-        }
+            registerAsParallelCapable();//Since 1.7
+        } catch (NoSuchMethodError e){
+	    // Ignore, earlier version of Java.
+            logger.log(Level.FINEST, "Platform doesn't support parallel class loading", e);
+	}        
         String codebaseAnnotationProperty = null;
 	String prop = AccessController.doPrivileged(
            new GetPropertyAction("net.jini.loader.codebaseAnnotation"));
