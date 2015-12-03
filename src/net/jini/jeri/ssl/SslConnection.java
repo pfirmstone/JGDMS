@@ -52,7 +52,7 @@ import net.jini.security.Security;
 /**
  * Implementation of Connection used by SslEndpoint.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class SslConnection extends Utilities implements Connection {
 

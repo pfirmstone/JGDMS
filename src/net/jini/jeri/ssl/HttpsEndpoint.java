@@ -194,7 +194,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *	if one is specified.
  * </ul>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see HttpsServerEndpoint
  * @see ConfidentialityStrength
  * @see SslTrustVerifier

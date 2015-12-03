@@ -17,6 +17,7 @@
  */
 package org.apache.river.tool;
 
+import org.apache.river.config.LocalHostLookup;
 import org.apache.river.logging.Levels;
 import org.apache.river.start.LifeCycle;
 import java.io.BufferedInputStream;
@@ -868,7 +869,7 @@ public class ClassServer extends Thread implements Startable {
 	}
 	try {
 	    if (stop) {
-		Socket sock = new Socket(InetAddress.getLocalHost(), port);
+		Socket sock = new Socket(LocalHostLookup.getLocalHost(), port);
 		try {
 		    DataOutputStream out =
 			new DataOutputStream(sock.getOutputStream());

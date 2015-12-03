@@ -18,6 +18,7 @@
 package org.apache.river.reggie;
 
 import org.apache.river.config.Config;
+import org.apache.river.config.LocalHostLookup;
 import org.apache.river.constants.ThrowableConstants;
 import org.apache.river.constants.VersionConstants;
 import org.apache.river.discovery.ClientSubjectChecker;
@@ -2839,7 +2840,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             AccessController.doPrivileged( new PrivilegedAction(){
                 public Object run(){
                     try {
-                Socket s = reggie.socketFactory.createSocket(InetAddress.getLocalHost(), port);
+                Socket s = reggie.socketFactory.createSocket(LocalHostLookup.getLocalHost(), port);
                 s.close();
 	    } catch (IOException e) {
                     } finally {
@@ -5001,7 +5002,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             } catch (NoSuchEntryException e) {
                 // fix for 4906732: only invoke getCanonicalHostName if needed
                 unicastDiscoveryHost =
-                    InetAddress.getLocalHost().getCanonicalHostName();
+                    LocalHostLookup.getLocalHost().getCanonicalHostName();
             }
             try {
                 this.unicastDiscoverySubjectChecker =

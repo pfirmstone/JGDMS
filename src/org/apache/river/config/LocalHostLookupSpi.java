@@ -18,16 +18,20 @@
 
 package org.apache.river.config;
 
-import net.jini.config.Configuration;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import org.apache.river.api.common.Beta;
 
 /**
+ * Provides a pluggable provider for LocalHostLookup.
  */
-public interface ConfigurationFactory
+@Beta
+public abstract class LocalHostLookupSpi
 {
-    /**
-     * Create a Configuration.
-     * @return a Configuration
-     * @throws Exception
-     */
-    Configuration createConfiguration() throws Exception ;
+    public abstract InetAddress getLocalHost() throws UnknownHostException ;
+    
+    public abstract String getHostName() throws UnknownHostException ;
+
+    public abstract String getHostAddress() throws UnknownHostException ;
+    
 }

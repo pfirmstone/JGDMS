@@ -69,7 +69,7 @@ import org.ietf.jgss.Oid;
 /**
  * Utility class for the Kerberos provider.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class KerberosUtil {

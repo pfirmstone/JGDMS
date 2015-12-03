@@ -65,6 +65,7 @@ import net.jini.jeri.kerberos.KerberosUtil.Config;
 import net.jini.jeri.kerberos.KerberosUtil.ConfigIter;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.jeri.internal.runtime.LocalHost;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.GSSManager;
@@ -242,7 +243,7 @@ import org.ietf.jgss.GSSName;
  * <code>Subject</code> instance, which encapsulates the principal and
  * delegated credential, if any, of the corresponding remote caller.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see KerberosEndpoint
  * @see KerberosTrustVerifier
  * @since 2.0
@@ -277,6 +278,9 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 
     /** Access control context cache, keyed by constraints */
     private final KerberosUtil.SoftCache softCache;
+    
+    private static final LocalHost LOCAL_HOST 
+            = new LocalHost(logger, KerberosServerEndpoint.class);
 
     /** The principal used for server authentication */
     private KerberosPrincipal serverPrincipal;
@@ -1105,54 +1109,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
     public Endpoint enumerateListenEndpoints(ListenContext listenContext)
 	throws IOException
     {
-	if (serverHost == null) {
-	    InetAddress localAddr;
-	    try {
-		localAddr = (InetAddress) AccessController.doPrivileged(
-		    new PrivilegedExceptionAction() {
-			    public Object run() throws UnknownHostException {
-				return InetAddress.getLocalHost();
-			    }
-			});
-	    } catch (PrivilegedActionException e) {
-		UnknownHostException uhe = (UnknownHostException) e.getCause();
-		if (logger.isLoggable(Levels.FAILED)) {
-		    KerberosUtil.logThrow(
-			logger, Levels.FAILED, this.getClass(), 
-			"enumerateListenEndpoints",
-			"InetAddress.getLocalHost() throws", null, uhe);
-		}
-		// Remove host information if caller does not have privileges
-		// to see it.
-		try {
-		    InetAddress.getLocalHost();
-		} catch (UnknownHostException te) {
-		    throw te;
-		}
-		throw new UnknownHostException("Host name cleared due to " +
-					       "insufficient caller " +
-					       "permissions");
-	    }
-
-	    SecurityManager sm = System.getSecurityManager();
-	    if (sm != null) {
-		try {
-		    sm.checkConnect(localAddr.getHostName(), -1);
-		} catch (SecurityException e) {
-		    SecurityException se = new SecurityException(
-			"Access to resolve local host denied");
-		    if (logger.isLoggable(Levels.FAILED)) {
-			KerberosUtil.logThrow(
-			    logger, Levels.FAILED, this.getClass(), 
-			    "enumerateListenEndpoints",
-			    "caller does not have permission to resolve " +
-			    "local host", null, se);
-		    }
-		    throw se;
-		}
-	    }
-	    serverHost = localAddr.getHostAddress();
-	}
+        serverHost = LOCAL_HOST.check(serverHost, this);
 
 	ListenCookieImpl cookie = checkListenCookie(
 	    listenContext.addListenEndpoint(listenEndpoint));

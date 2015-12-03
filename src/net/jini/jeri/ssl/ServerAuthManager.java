@@ -46,7 +46,7 @@ import net.jini.security.AuthenticationPermission;
  * An AuthManager for servers.  Invalidates sessions when a new key is returned
  * of a particular key type.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class ServerAuthManager extends AuthManager {
 

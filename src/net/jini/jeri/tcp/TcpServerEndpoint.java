@@ -62,6 +62,7 @@ import net.jini.jeri.connection.ServerConnection;
 import net.jini.jeri.connection.ServerConnectionManager;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.jeri.internal.runtime.LocalHost;
 
 /**
  * An implementation of the {@link ServerEndpoint} abstraction that
@@ -106,7 +107,7 @@ import net.jini.security.SecurityContext;
  * are specified for <code>equals</code> methods of {@link Endpoint}
  * instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see TcpEndpoint
  * @since 2.0
  **/
@@ -132,40 +133,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 	((Boolean) AccessController.doPrivileged(new GetBooleanAction(
 	    "org.apache.river.jeri.tcp.useNIO"))).booleanValue();
     
-    private static final InetAddress localAdd;
-    private static final UnknownHostException exception;
-    private static final Guard exposeLocalAdd;
-    
-    static {
-        /* The following was originally in 
-         * enumerateListenEndpoints(ListenContext listenContext)
-         * however, InetAddress.getLocalHost() proved to be a hotspot in 
-         * mahalo RandomStressTests for test code, which was attempting to
-         * stress Mahalo, but this was futile, given the test CPU usage
-         * for the test itself was 10x Mahalo, which wasn't raising a sweat.
-         * - Peter Firmstone 28th April 2014
-         */
-        InetAddress localAddr = null;
-        UnknownHostException exc = null;
-        try {
-            localAddr = (InetAddress) AccessController.doPrivileged(
-                new PrivilegedExceptionAction() {
-                    public Object run() throws UnknownHostException {
-                        return InetAddress.getLocalHost();
-                    }
-                });
-        } catch (PrivilegedActionException e) {
-            Exception uhe = e.getException();
-            if (uhe instanceof UnknownHostException){
-                exc = (UnknownHostException) uhe;
-            }
-        }
-        
-        localAdd = localAddr;
-        exception = exc;
-        // If exception occurs the localAdd will be null.
-        exposeLocalAdd = new SocketPermission("localhost", "resolve");
-    }
+    private static final LocalHost LOCAL_HOST = new LocalHost(null, null);
 
     /** name for local host to fill in to corresponding TcpEndpoints */
     private final String host;
@@ -554,33 +522,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 	    throw new NullPointerException();
 	}
 
-	String localHost = host;
-	if (localHost == null) {
-            /*
-            * Only expose UnknownHostException thrown directly by
-            * InetAddress.getLocalHost if it would also be thrown
-            * in the caller's security context; otherwise, throw
-            * a new UnknownHostException without the host name.
-            */
-            if (exception != null){
-                try {
-                    exposeLocalAdd.checkGuard(null);
-                } catch (SecurityException e){
-                    throw new UnknownHostException("access to resolve local host denied");
-                }
-                throw exception;
-            }
-	    SecurityManager sm = System.getSecurityManager();
-	    if (sm != null) {
-		try {
-		    sm.checkConnect(localAdd.getHostName(), -1);
-		} catch (SecurityException e) {
-		    throw new SecurityException(
-			"access to resolve local host denied");
-		}
-	    }
-	    localHost = localAdd.getHostAddress();
-	}
+	String localHost = LOCAL_HOST.check(host, this);
 
 	LE listenEndpoint = new LE(); // REMIND: needn't be new?
 	ListenCookie listenCookie =

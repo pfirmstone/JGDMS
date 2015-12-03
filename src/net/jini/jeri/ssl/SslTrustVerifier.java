@@ -31,7 +31,7 @@ import net.jini.security.TrustVerifier;
  * to configure the operation of {@link Security#verifyObjectTrust
  * Security.verifyObjectTrust}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  * @see SslEndpoint
  * @see HttpsEndpoint

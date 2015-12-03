@@ -66,7 +66,7 @@ import net.jini.security.AuthenticationPermission;
  * inherited by HttpsEndpoint without revealing the inheritance in the public
  * API.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 

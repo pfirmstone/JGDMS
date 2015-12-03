@@ -19,6 +19,7 @@
 package net.jini.discovery;
 
 import org.apache.river.config.Config;
+import org.apache.river.config.LocalHostLookup;
 import org.apache.river.discovery.Discovery;
 import org.apache.river.discovery.DiscoveryConstraints;
 import org.apache.river.discovery.DiscoveryProtocolException;
@@ -644,7 +645,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	public void interrupt() {
 	    interrupted = true;
 	    try {
-		(new Socket(InetAddress.getLocalHost(), getPort())).close();
+		(new Socket(LocalHostLookup.getLocalHost(), getPort())).close();
 	    } catch (IOException e) { /* ignore */ }
 	}//end interrupt
 
@@ -2079,14 +2080,14 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	    return ((InetAddress) Security.doPrivileged(
 		new PrivilegedExceptionAction() {
 		    public Object run() throws UnknownHostException {
-			return InetAddress.getLocalHost();
+			return LocalHostLookup.getLocalHost();
 		    }
 		})).getHostAddress();
 	} catch (PrivilegedActionException e) {
 	    // Remove host information if caller does not have privileges
 	    // to see it.
 	    try {
-		InetAddress.getLocalHost();
+		LocalHostLookup.getLocalHost();
 	    } catch (UnknownHostException uhe) {
 		throw uhe;
 	    }

@@ -36,8 +36,6 @@ import java.net.UnknownHostException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -54,6 +52,7 @@ import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.jeri.internal.runtime.LocalHost;
 
 /**
  * An implementation of the {@link ServerEndpoint} abstraction that
@@ -104,7 +103,7 @@ import net.jini.security.SecurityContext;
  * are specified for <code>equals</code> methods of {@link Endpoint}
  * instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see HttpEndpoint
  * @since 2.0
  **/
@@ -121,11 +120,14 @@ public final class HttpServerEndpoint implements ServerEndpoint {
     private static final HttpServerManager serverManager;
     /** idle connection timer */
     private static final ConnectionTimer connTimer;
+    
+    private static final LocalHost LOCAL_HOST;
 
     static {
 	HttpSettings hs = HttpEndpoint.getHttpSettings();
 	serverManager = new HttpServerManager(hs.getResponseAckTimeout());
 	connTimer = new ConnectionTimer(hs.getServerConnectionTimeout());
+        LOCAL_HOST = new LocalHost(null, null);
     }
 
     /** server transport logger */
@@ -510,39 +512,8 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 	    throw new NullPointerException();
 	}
 
-	String localHost = host;
-	if (localHost == null) {
-	    InetAddress localAddr;
-	    try {
-		localAddr = (InetAddress) Security.doPrivileged(
-		    new PrivilegedExceptionAction() {
-			public Object run() throws UnknownHostException {
-			    return InetAddress.getLocalHost();
-			}
-		    });
-	    } catch (PrivilegedActionException e) {
-		/*
-		 * Only expose UnknownHostException thrown directly by
-		 * InetAddress.getLocalHost if it would also be thrown
-		 * in the caller's security context; otherwise, throw
-		 * a new UnknownHostException without the host name.
-		 */
-		InetAddress.getLocalHost();
-		throw new UnknownHostException(
-		    "access to resolve local host denied");
-	    }
-	    SecurityManager sm = System.getSecurityManager();
-	    if (sm != null) {
-		try {
-		    sm.checkConnect(localAddr.getHostName(), -1);
-		} catch (SecurityException e) {
-		    throw new SecurityException(
-			"access to resolve local host denied");
-		}
-	    }
-	    localHost = localAddr.getHostAddress();
-	}
-
+	String localHost = LOCAL_HOST.check(host, this);
+	
 	LE listenEndpoint = new LE(); // REMIND: needn't be new?
 	ListenCookie listenCookie =
 	    listenContext.addListenEndpoint(listenEndpoint);

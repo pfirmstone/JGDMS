@@ -199,7 +199,7 @@ import net.jini.security.SecurityContext;
  * guidelines that are specified for <code>equals</code> methods of {@link
  * net.jini.jeri.ServerEndpoint.ListenEndpoint ListenEndpoint} instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see HttpsEndpoint
  * @see ConfidentialityStrength
  * @since 2.0

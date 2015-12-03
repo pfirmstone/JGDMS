@@ -267,7 +267,7 @@ import org.ietf.jgss.GSSName;
  *     default is 3.
  * </ul> <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see KerberosServerEndpoint
  * @see KerberosTrustVerifier
  * @since 2.0

@@ -31,7 +31,7 @@ import net.jini.jeri.connection.OutboundRequestHandle;
  * permitted client and server principals, cipher suites, and integrity and
  * connection time constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class CallContext extends Utilities implements OutboundRequestHandle {
 

@@ -30,7 +30,7 @@ import net.jini.security.TrustVerifier;
  * of {@link net.jini.security.Security#verifyObjectTrust
  * Security.verifyObjectTrust}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see KerberosEndpoint
  * @since 2.0
  */

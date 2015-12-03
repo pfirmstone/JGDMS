@@ -80,7 +80,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * specified for <code>equals</code> methods of {@link Endpoint}
  * instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see TcpServerEndpoint
  * @since 2.0
  **/
