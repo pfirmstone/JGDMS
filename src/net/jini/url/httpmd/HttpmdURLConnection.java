@@ -29,7 +29,7 @@ import java.security.NoSuchAlgorithmException;
 /**
  * An HTTP URL connection for HTTPMD URLs.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  */
 class HttpmdURLConnection extends DelegatingHttpURLConnection {

@@ -28,7 +28,7 @@ import java.io.IOException;
  * define how an entity retrieves or modifies the set of groups associated
  * with those lookup services.
  *
- * 
+ * @author Sun Microsystems, Inc.
  */
 public interface DiscoveryGroupManagement {
 

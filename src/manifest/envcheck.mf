@@ -1,2 +1,2 @@
 Manifest-Version: 1.0
-Main-Class: com.sun.jini.tool.envcheck.EnvCheck
+Main-Class: org.apache.river.tool.envcheck.EnvCheck

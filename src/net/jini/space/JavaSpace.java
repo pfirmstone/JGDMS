@@ -32,7 +32,7 @@ import net.jini.core.transaction.TransactionException;
  * JavaSpaces technology service.  The operations in this interface
  * are the public methods that all such spaces support.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see Entry
  */

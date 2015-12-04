@@ -18,7 +18,7 @@
 
 package org.apache.river.extra.helpers;
 
-import com.sun.jini.config.Component;
+import org.apache.river.config.Component;
 import java.lang.reflect.Proxy;
 import java.net.URL;
 import java.rmi.Remote;

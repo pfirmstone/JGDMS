@@ -30,8 +30,8 @@
  * @run main/othervm OutOfThreads
  */
 
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.ServerSocket;

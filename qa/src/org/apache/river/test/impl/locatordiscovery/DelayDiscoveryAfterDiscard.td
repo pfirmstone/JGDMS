@@ -1,0 +1,6 @@
+testClass=DelayDiscoveryAfterDiscard
+testCategories=locatordiscovery,locatordiscovery_impl,impllocatordiscovery
+include0=locatordiscovery.properties
+include1=org/apache/river/test/share/reggie1_0.properties
+org.apache.river.test.impl.locatordiscovery.discardDelayFirstWait=5000
+org.apache.river.test.impl.locatordiscovery.discardDelay=30000

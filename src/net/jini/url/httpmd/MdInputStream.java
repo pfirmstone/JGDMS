@@ -18,7 +18,7 @@
 
 package net.jini.url.httpmd;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -32,7 +32,7 @@ import java.util.logging.Logger;
  * message digest. The message digest is not checked unless the end of the
  * input stream is reached.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  */
 class MdInputStream extends InputStream {

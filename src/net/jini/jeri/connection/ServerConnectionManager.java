@@ -18,8 +18,8 @@
 
 package net.jini.jeri.connection;
 
-import com.sun.jini.jeri.internal.mux.MuxServer;
-import com.sun.jini.logging.Levels;
+import org.apache.river.jeri.internal.mux.MuxServer;
+import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -49,10 +49,10 @@ import net.jini.jeri.RequestDispatcher;
  * for the session, and response data is written as the data sent for
  * the session.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.connection.ServerConnectionManager</code> to

@@ -17,13 +17,13 @@
 #*/
 
 # transient mercury configuration entries
-com.sun.jini.mercury.discoveryManager: net.jini.discovery.DiscoveryManagement
-com.sun.jini.mercury.initialLookupAttributes: net.jini.core.entry.Entry[]
-com.sun.jini.mercury.initialLookupGroups: String[]
-com.sun.jini.mercury.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
-com.sun.jini.mercury.leasePeriodPolicy: com.sun.jini.landlord.LeasePeriodPolicy
-com.sun.jini.mercury.listenerPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.mercury.locatorToJoinPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.mercury.loginContext: javax.security.auth.login.LoginContext
-com.sun.jini.mercury.notificationsTaskManager: com.sun.jini.thread.TaskManager
-com.sun.jini.mercury.serverExporter: net.jini.export.Exporter
+org.apache.river.mercury.discoveryManager: net.jini.discovery.DiscoveryManagement
+org.apache.river.mercury.initialLookupAttributes: net.jini.core.entry.Entry[]
+org.apache.river.mercury.initialLookupGroups: String[]
+org.apache.river.mercury.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
+org.apache.river.mercury.leasePeriodPolicy: org.apache.river.landlord.LeasePeriodPolicy
+org.apache.river.mercury.listenerPreparer: net.jini.security.ProxyPreparer
+org.apache.river.mercury.locatorToJoinPreparer: net.jini.security.ProxyPreparer
+org.apache.river.mercury.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.mercury.notificationsTaskManager: org.apache.river.thread.TaskManager
+org.apache.river.mercury.serverExporter: net.jini.export.Exporter

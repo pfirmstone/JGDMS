@@ -18,7 +18,7 @@
 /*
  * @test
  * @summary Tests UnicodeEscapesDecodingReader
- * 
+ * @author Tim Blackman
  * @library ../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main/othervm/policy=policy TestUnicodeEscapesDecodingReader

@@ -24,7 +24,7 @@ import java.net.UnknownHostException;
  * A holder class for constants that pertain to the unicast and
  * multicast discovery protocols.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  */
 public class Constants {

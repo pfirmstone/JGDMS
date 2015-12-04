@@ -18,7 +18,7 @@
 
 package net.jini.config;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,10 +28,10 @@ import java.util.logging.Logger;
  * specified rather than, for example, checking for a <code>null</code>
  * configuration.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.config</code> to log information at the following logging
@@ -67,8 +67,9 @@ public class EmptyConfiguration extends AbstractConfiguration {
      * @throws NoSuchEntryException unless <code>component</code>,
      * <code>name</code>, or <code>type</code> is <code>null</code>
      */
-    protected Object getEntryInternal(
-	String component, String name, Class type, Object data)
+    @Override
+    protected <T> T getEntryInternal(
+	String component, String name, Class<T> type, Object data)
 	throws NoSuchEntryException
     {
 	if (component == null || name == null || type == null) {

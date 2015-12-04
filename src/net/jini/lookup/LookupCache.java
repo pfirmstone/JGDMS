@@ -34,7 +34,7 @@ import net.jini.core.lookup.ServiceItem;
  * discovered service references to make them eligible for re-discovery,
  * and terminate all of the cache's processing.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see ServiceDiscoveryManager
  */

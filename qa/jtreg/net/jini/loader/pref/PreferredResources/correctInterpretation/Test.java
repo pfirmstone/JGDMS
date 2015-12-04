@@ -22,7 +22,7 @@
  *
  * Created: Thu Jun 22 14:11:02 2000
  *
- * 
+ * @author Laird Dornin - SMI Software Development
  * @version
  */
 

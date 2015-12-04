@@ -21,39 +21,41 @@
       vlink="#cc1877" alink="#ffffff">
 
 
-<h1><center>Apache River Release 
-<br>v2.2.0 Manual Pages</center></h1><br>
+<h1>Apache River Release 
+<br>v3.0.0 Manual Pages</h1><br>
 
 
 <hr>
 A set of "manual pages" has been written to assist you in executing the
-<a href="#services">services</a>, <a href="#utilities">utilities</a>, and 
+<a href="#services">services</a>, <a href="#utilities">utilities</a>, 
+<a href="#infastructure">infrastructure</a> and 
 <a href="#tools">tools</a> that are part of the Apache River release. 
 These package.html or class.html files provide implementation 
 specifics for services, utilities, and tools. 
-<ul><a name="services"></a>
+<ul><LI><a name="services"></a>
 <H2>Services</H2>
 <ul>
-	<li><a href="api/com/sun/jini/fiddler/package-summary.html">
-	Fiddler</a> - a River lookup discovery service
+    <!--Please don't replace Jini with River, Jini is the spec, River the implementation -->
+	<li><a href="api/org/apache/river/fiddler/package-summary.html">
+	Fiddler</a> - a Jini lookup discovery service implementation
 
-	<li><a href="api/com/sun/jini/mahalo/package-summary.html">
-	Mahalo</a> - a River transaction manager service
+	<li><a href="api/org/apache/river/mahalo/package-summary.html">
+	Mahalo</a> - a Jini transaction manager service implementation
 
-	<li><a href="api/com/sun/jini/mercury/package-summary.html">
-	Mercury</a> - a River event mailbox service
+	<li><a href="api/org/apache/river/mercury/package-summary.html">
+        Mercury</a> - a Jini event mailbox service implementation.
 
-	<li><a href="api/com/sun/jini/norm/package-summary.html">
-	Norm</a> - a River lease renewal service
+	<li><a href="api/org/apache/river/norm/package-summary.html">
+	Norm</a> - a Jini lease renewal service implementation.
 
-	<li><a href="api/com/sun/jini/outrigger/package-summary.html">
-	Outrigger</a> - a JavaSpaces service
+	<li><a href="api/org/apache/river/outrigger/package-summary.html">
+        Outrigger</a> - a JavaSpaces service implementation.
 
-	<li><a href="api/com/sun/jini/phoenix/package-summary.html">
+	<li><a href="api/org/apache/river/phoenix/package-summary.html">
 	Phoenix</a> - a configurable Java RMI activation system daemon
 
-	<li><a href="api/com/sun/jini/reggie/package-summary.html">
-	Reggie</a> - a River lookup service
+	<li><a href="api/org/apache/river/reggie/package-summary.html">
+	Reggie</a> - a Jini lookup service
 
 
 <p>
@@ -86,39 +88,56 @@ specifics for services, utilities, and tools.
 	<li><a href="api/net/jini/lookup/ServiceDiscoveryManager.html">
 	ServiceDiscoveryManager</a> -  "discovers" services registered with any 
 	number of lookup services of interest for any client-like entity
+        
+ <p>
+</ul><a name="infrastructure"></a>
+<H2>Infrastructure</H2>
+<ul>
+<li><a href="api/org/apache/river/api/security/package-summary.html">Apache River's
+        Security Extensions</a> - A scalable SecurityManager and ConcurrentPolicyFile
+        solve long standing performance issues in distributed environments.
+<li><a href="api/org/apache/river/api/io/package-summary.html">Portable objects</a>
+    - an extension of the Serialization protocol, Portable objects are themselves
+    not Serialized, instead only instructions for recreating an object remotely 
+    using reflection are Marshalled.  This allows Portable objects to utilize
+    public api methods for construction, avoid publishing their internal state 
+    and to be immutable and safely constructed with invariants checked or 
+    defensively copied using final fields.
+<li><a href="api/org/apache/river/api/lookup/package-summary.html">A next 
+        generation lookup service API.</a>
 <p>
 </ul><a name="tools"></a>
 <H2>Tools</H2>
 <ul>
-<li><a href="api/com/sun/jini/example/browser/package-summary.html">
+<li><a href="api/org/apache/river/example/browser/package-summary.html">
 	Browser</a> - discovers lookup services and inspects the various
      services registered within those lookup services
 
-	<li><a href="api/com/sun/jini/tool/CheckConfigurationFile.html">
+	<li><a href="api/org/apache/river/tool/CheckConfigurationFile.html">
 	CheckConfigurationFile</a> - checks the format of the source for a <code> ConfigurationFile</code>
 
-	<li><a href="api/com/sun/jini/tool/ClassDep.html">
+	<li><a href="api/org/apache/river/tool/ClassDep.html">
 	ClassDep</a> - analyzes a set of classes and determines on what other classes they directly or indirectly depend
 
-	<li><a href="api/com/sun/jini/tool/ClassServer.html">
+	<li><a href="api/org/apache/river/tool/ClassServer.html">
 	ClassServer</a> - creates an HTTP server from the command line
 
-	<li><a href="api/com/sun/jini/tool/ComputeDigest.html">
+	<li><a href="api/org/apache/river/tool/ComputeDigest.html">
 	ComputeDigest</a> - prints the message digest for the contents of a URL
 
-	<li><a href="api/com/sun/jini/tool/ComputeHttpmdCodebase.html">
+	<li><a href="api/org/apache/river/tool/ComputeHttpmdCodebase.html">
 	ComputeHttpmdCodebase</a> - computes the message digests for a codebase with HTTPMD URLs
 
-	<li><a href="api/com/sun/jini/tool/envcheck/EnvCheck.html">
+	<li><a href="api/org/apache/river/tool/envcheck/EnvCheck.html">
 	EnvCheck</a> - examines the run-time environment of a River client or service
 
-	<li><a href="api/com/sun/jini/tool/JarWrapper.html">
+	<li><a href="api/org/apache/river/tool/JarWrapper.html">
 	JarWrapper</a> - generates "wrapper" JAR files
 
-	<li><a href="api/com/sun/jini/tool/PreferredListGen.html">
+	<li><a href="api/org/apache/river/tool/PreferredListGen.html">
 	PreferredListGen</a> - analyzes the contents of a JAR file and generates a preferred list
 
-	<li><a href="api/com/sun/jini/start/package-summary.html">
+	<li><a href="api/org/apache/river/start/package-summary.html">
 	ServiceStarter</a> - provides static methods used for starting shared 
 	groups, transient services, and activatable services	
 	
@@ -137,7 +156,7 @@ to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License. You may obtain a copy of the License at
 <ul>
-     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+    <LI><a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
 </ul>
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,

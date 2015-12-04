@@ -29,7 +29,7 @@ import java.util.Collection;
 /**
  * Constraint utility methods.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  */
 class Constraint {

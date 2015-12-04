@@ -22,7 +22,7 @@ package net.jini.core.transaction;
  * Exception thrown when a transaction cannot be joined because it is no
  * longer active.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */

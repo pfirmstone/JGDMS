@@ -34,7 +34,8 @@ import java.util.List;
 
 /**
  *
- * 
+ * @author Peter Firmstone.
+ * @since 3.0.0
  */
 class CertificateGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
@@ -93,10 +94,8 @@ class CertificateGrant extends PrincipalGrant {
         if (pd == null) return false; 
 	CodeSource c = null;
 	Principal[] pals = null;
-	if (pd != null){
-	    c = pd.getCodeSource();
-	    pals = getPrincipals(pd);
-	}
+        c = pd.getCodeSource();
+        pals = getPrincipals(pd);
 	return implies(c, pals);
     }
     

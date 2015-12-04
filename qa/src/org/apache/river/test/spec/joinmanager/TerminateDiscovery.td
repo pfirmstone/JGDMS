@@ -1,0 +1,4 @@
+testClass=TerminateDiscovery
+testCategories=joinmanager,joinmanager_spec
+include0=joinmanager.properties
+include1=org/apache/river/test/share/lookups3_2srvcs1_0.properties

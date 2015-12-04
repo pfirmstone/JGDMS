@@ -47,9 +47,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
+import org.apache.river.impl.thread.NamedThreadFactory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
@@ -75,7 +76,8 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * @see SecurityContext
  * @see AccessControlContext
  * 
- * 
+ * @author Peter Firmstone
+ * @since 3.0.0
  */
 public class CombinerSecurityManager 
 extends SecurityManager implements CachingSecurityManager {
@@ -94,7 +96,21 @@ extends SecurityManager implements CachingSecurityManager {
     private final ThreadLocal<SecurityContext> threadContext;
     private final ThreadLocal<Boolean> inTrustedCodeRecursiveCall;
     
+    private static boolean check(){
+        SecurityManager sm = System.getSecurityManager();
+ 	    if (sm != null) {
+ 		sm.checkPermission(new RuntimePermission("createSecurityManager"));
+  	    }
+        return true;
+    } 
+    
     public CombinerSecurityManager(){
+        // Ensure we guard against finalizer attack by checking permission
+        // before implicit super() Object constructor is called.
+        this(check());
+    }
+    
+    private CombinerSecurityManager(boolean check){
         super();
         // Get context before this becomes a SecurityManager.
         // super() checked the permission to create a SecurityManager.
@@ -108,11 +124,11 @@ extends SecurityManager implements CachingSecurityManager {
                 Referrer<AccessControlContext>> internal = 
                 new NonBlockingHashMap<Referrer<AccessControlContext>, 
                 Referrer<AccessControlContext>>();
-        contextCache = RC.concurrentMap(internal, Ref.TIME, Ref.STRONG, 60000L, 0L);
+        contextCache = RC.concurrentMap(internal, Ref.TIME, Ref.STRONG, 60000L, 60000L);
         ConcurrentMap<Referrer<Object>, Referrer<NavigableSet<Permission>>> refmap 
                 = new NonBlockingHashMap<Referrer<Object>, 
                 Referrer<NavigableSet<Permission>>>();
-        checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 0L);
+        checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 20000L);
         g = new SecurityPermission("getPolicy");
         Permission createAccPerm = new SecurityPermission("createAccessControlContext");
         action = new Action();
@@ -130,6 +146,7 @@ extends SecurityManager implements CachingSecurityManager {
         executor = 
                 new ThreadPoolExecutor(numberOfCores, poolSizeLimit, 20L, 
                 TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), 
+                new NamedThreadFactory("CombinerSecurityManager", true),
                 new ThreadPoolExecutor.CallerRunsPolicy());
         permCompare = RC.comparator(new PermissionComparator());
         threadContext = new ThreadLocal<SecurityContext>();
@@ -237,7 +254,7 @@ extends SecurityManager implements CachingSecurityManager {
              */
             NavigableSet<Referrer<Permission>> internal = 
                     new ConcurrentSkipListSet<Referrer<Permission>>(permCompare);
-            checkedPerms = RC.navigableSet(internal, Ref.TIME, 5000L);
+            checkedPerms = RC.navigableSet(internal, Ref.TIME, 10000L);
             inTrustedCodeRecursiveCall.set(Boolean.TRUE);
             try {
                 NavigableSet<Permission> existed = checked.putIfAbsent(context, checkedPerms);
@@ -451,7 +468,7 @@ extends SecurityManager implements CachingSecurityManager {
             }
             try {
                 // We can change either call to add a timeout.
-                latch.await(); // Throws InterruptedException
+                if (!latch.await(180L, TimeUnit.SECONDS)) return false; // Throws InterruptedException
                 it = resultList.iterator();
                 try {
                     while (it.hasNext()){
@@ -521,26 +538,31 @@ extends SecurityManager implements CachingSecurityManager {
         }
 
         public Boolean call() throws Exception {
-            // Required for AggregatePolicyProvider.
-            Boolean result = AccessController.doPrivileged( 
-                securityContext != null ?
-                    securityContext.wrap(
-                        new PrivilegedAction<Boolean>(){
-                            public Boolean run() {
-                                boolean result = checkPermission(pd, p);
-                                return Boolean.valueOf(result);
+            try {
+                // Required for AggregatePolicyProvider.
+                Boolean result = AccessController.doPrivileged( 
+                    securityContext != null ?
+                        securityContext.wrap(
+                            new PrivilegedAction<Boolean>(){
+                                public Boolean run() {
+                                    boolean result = checkPermission(pd, p);
+                                    return Boolean.valueOf(result);
+                                }
                             }
+                        ) 
+                    :new PrivilegedAction<Boolean>(){
+                        public Boolean run() {
+                            boolean result = checkPermission(pd, p);
+                            return Boolean.valueOf(result);
                         }
-                    ) 
-                :new PrivilegedAction<Boolean>(){
-                    public Boolean run() {
-                        boolean result = checkPermission(pd, p);
-                        return Boolean.valueOf(result);
-                    }
-                }  
-            );
-            latch.countDown();
-            return result;
+                    }  
+                );
+                return result;
+            } finally {
+                // In case we exit with a runtime exception, ensure threads
+                // aren't left waiting.
+                latch.countDown();
+            }
         }
         
     }
@@ -549,7 +571,7 @@ extends SecurityManager implements CachingSecurityManager {
      * Enables customisation of permission check.
      * @param pd
      * @param p
-     * @return
+     * @return true if ProtectionDomain pd has Permission p.
      */
     protected boolean checkPermission(ProtectionDomain pd, Permission p){
         return pd.implies(p);

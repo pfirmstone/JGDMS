@@ -1,4 +1,0 @@
-testClass=GroupsMulticastMonitorReplaceAll
-testCategories=discoverymanager,discoverymanager_spec,allgroups
-include0=discoverymanager.properties
-com/sun/jini/test/share/allgroups_reggie3_0.properties

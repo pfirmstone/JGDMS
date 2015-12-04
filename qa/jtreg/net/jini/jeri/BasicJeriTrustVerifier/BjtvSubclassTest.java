@@ -19,7 +19,7 @@
  * @bug 5024489
  * @summary Allow BasicJeriTrustVerifier subclasses to customize
  * invocation handler check
- * 
+ * @author Ann Wollrath
  *
  * @build BjtvSubclassTest
  * @run main/othervm/timeout=240 BjtvSubclassTest

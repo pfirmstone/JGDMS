@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,9 +19,16 @@
 package org.apache.river.api.util;
 
 /**
- * @since 2.2.0
+ * Interface definition of the facade pattern.
+ * @author Peter Firmstone.
+ * @since 3.0.0
  */
 public interface Facade<T> {
+    /**
+     * Reveals the object from behind the facade.
+     * 
+     * @return the object behind the facade.
+     */
     public T reveal();
     /**
      * Equals must be implemented to check against another Facade by utilising
@@ -35,7 +42,7 @@ public interface Facade<T> {
      * an IllegalArgumentException.
      * 
      * @param o
-     * @return
+     * @return true if equal
      */
     @Override
     public boolean equals(Object o);

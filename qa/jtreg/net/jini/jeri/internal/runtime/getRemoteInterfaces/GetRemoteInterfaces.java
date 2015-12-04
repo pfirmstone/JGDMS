@@ -20,7 +20,7 @@
  * @build GetRemoteInterfaces
  * @run main/othervm GetRemoteInterfaces
  */
-import com.sun.jini.jeri.internal.runtime.Util;
+import org.apache.river.jeri.internal.runtime.Util;
 import java.rmi.Remote;
 
 

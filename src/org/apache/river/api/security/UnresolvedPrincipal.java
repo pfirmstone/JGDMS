@@ -16,12 +16,13 @@
  */
 
 /**
-* 
-* @version $Revision$
+* @author Alexey V. Varlamov
+* @since 3.0.0
 */
 
 package org.apache.river.api.security;
 
+import org.apache.river.impl.Messages;
 import java.security.Principal;
 
 
@@ -36,7 +37,7 @@ import java.security.Principal;
  * acceptable principal and compares it with the actual principal. 
  * 
  * @see PermissionGrant
- * @see org.apache.river.imp.security.policy.se.ConcurrentPolicyFile
+ * @see org.apache.river.api.security.ConcurrentPolicyFile
  */
 final class UnresolvedPrincipal implements Principal {
 

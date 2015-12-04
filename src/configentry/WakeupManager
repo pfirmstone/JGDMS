@@ -17,4 +17,4 @@
 #*/
 
 # WakeupManager configuration entries
-com.sun.jini.thread.WakeupManager.queueThreadTimeout: long
+org.apache.river.thread.WakeupManager.queueThreadTimeout: long

@@ -19,7 +19,7 @@
 package org.apache.river.api.security;
 
 import java.security.ProtectionDomain;
-import java.util.Collection;
+import java.util.List;
 
 /**
  * Policy providers can implement this interface to provide nested policies
@@ -28,21 +28,31 @@ import java.util.Collection;
  * the implementer to add Permission objects to a PermissionCollection in
  * an order that avoids unnecessary reverse DNS calls for example.
  * 
- * 
+ * @author Peter Firmstone
+ * @since 3.0.0
  */
 public interface ScalableNestedPolicy {
     
     /**
-     * Returns a new Collection containing immutable PermissionGrant's, the
-     * Collection returned is not synchronised and must not be shared with policy 
+     * Returns a new List containing immutable PermissionGrant's, the
+     * List returned is not synchronised and must not be shared with policy 
      * internal state.
      * 
      * Only those PermissionGrant's that imply the domain will be returned.
      * 
-     * This allows the top level policy to gather all PermissionGrant's,
-     * retrieve all relevant permissions, then sort them using PermissionComparator
-     * or any other Comparator, so Permission objects are added to a PermissionCollection
-     * in the most efficient order.
+     * If any PermissionGrant's are privileged (contain AllPermission), then
+     * only that one PermissionGrant should be added to the collection.  If
+     * a List has a size of 1, and contains only a privileged PermissionGrant,
+     * it enables the calling policy to determine the privileged state quickly.
+     * 
+     * If a policy has a privileged PermissionGrant to add to a Collection,
+     * then the Collection must be cleared before the privileged PermissionGrant
+     * is added, so the Collection only contains the privileged PermissionGrant.
+     * 
+     * The top level policy gathers all PermissionGrant's,
+     * retrieves all relevant permissions, then sorts them using a 
+     * PermissionComparator, so Permission objects are added to a 
+     * PermissionCollection in the most efficient order.
      * 
      * If a nested base policy doesn't support ScalableNestedPolicy, then the
      * implementer should create a PermissionGrant for the domain, containing
@@ -55,6 +65,6 @@ public interface ScalableNestedPolicy {
      * @param domain 
      * @return Collection<PermissionGrant>  
      */
-    public Collection<PermissionGrant> getPermissionGrants(
+    public List<PermissionGrant> getPermissionGrants(
                                                 ProtectionDomain domain);
 }

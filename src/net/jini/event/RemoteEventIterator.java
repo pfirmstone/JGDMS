@@ -26,7 +26,7 @@ import net.jini.core.event.RemoteEvent;
  * a client can synchronously retrieve events associated with a given
  * registration.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 2.1
  */

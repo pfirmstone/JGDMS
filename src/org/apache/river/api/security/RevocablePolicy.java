@@ -61,7 +61,7 @@ import net.jini.security.policy.DynamicPolicy;
  * A list of standard Java Permission's that are confirmed safely 
  * revocable will be provided here.
  * </p>
- * 
+ * @author Peter Firmstone
  * @see java.security.Policy
  * @see java.security.ProtectionDomain
  * @see java.security.AccessController
@@ -71,6 +71,7 @@ import net.jini.security.policy.DynamicPolicy;
  * @see PermissionGrant
  * @see DelegatePermission
  * @see DelegateSecurityManager
+ * @since 3.0.0
  */
 public interface RevocablePolicy extends DynamicPolicy {
     
@@ -84,11 +85,13 @@ public interface RevocablePolicy extends DynamicPolicy {
      * 
      * @param p
      * @return true if successful 
+     * @since 3.0.0
      */
     public boolean grant(PermissionGrant p);
     /**
-     * 
+     * Checks if policy supports revocation.
      * @return true - If Revoke supported by underlying policy.
+     * @since 3.0.0
      */
     public boolean revokeSupported();
 }

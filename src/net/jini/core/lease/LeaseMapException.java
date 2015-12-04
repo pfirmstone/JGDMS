@@ -30,7 +30,7 @@ import java.util.Set;
  * An exception generated when a LeaseMap renewAll or cancelAll call
  * generates exceptions on one or more leases in the map.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
@@ -45,7 +45,7 @@ public class LeaseMapException extends LeaseException {
      *
      * @serial
      */
-    public Map exceptionMap;
+    public final Map<Lease,Exception> exceptionMap;
 
     /**
      * Constructs a LeaseMapException for the specified map with a
@@ -62,7 +62,7 @@ public class LeaseMapException extends LeaseException {
      *         {@link Lease}, or any value which is not an instance of
      *         <code>Throwable</code>
      */
-    public LeaseMapException(String s, Map exceptionMap) {
+    public LeaseMapException(String s, Map<Lease,Exception> exceptionMap) {
 	super(s);
 
 	final Set mapEntries = exceptionMap.entrySet();
@@ -132,5 +132,24 @@ public class LeaseMapException extends LeaseException {
     private void readObjectNoData() throws InvalidObjectException {
 	throw new InvalidObjectException(
 	    "LeaseMapException should always have data");
+    }
+    
+    public String getMessage(){
+        String lease = "Lease: ";
+        String exception = "Exception: ";
+        String ret = "\n";
+        StringBuilder sb = new StringBuilder(1024);
+        sb.append(super.getMessage());
+        sb.append(ret);
+        Iterator<Entry<Lease,Exception>> it = exceptionMap.entrySet().iterator();
+        while (it.hasNext()){
+            Entry<? extends Lease,Exception> entry = it.next();
+            sb.append(lease);
+            sb.append(entry.getKey());
+            sb.append(exception);
+            sb.append(entry.getValue().getMessage());
+            sb.append(ret);
+        }
+        return sb.toString();
     }
 }

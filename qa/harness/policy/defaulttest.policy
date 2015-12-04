@@ -3,7 +3,7 @@
 // the visibility of our policy implementations on the boot classpath and
 // jdk1.6 compiler optimisations. See River-334
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib-ext${/}*" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
 };
 
@@ -11,7 +11,7 @@ grant codebase "file:${com.sun.jini.jsk.home}${/}lib-ext${/}*" {
 // I think this has something to do with the new java 6 Policy implementation,
 // the visibility of our policy implementations on the boot classpath and
 // jdk1.6 compiler optimisations. See River-334
-grant codebase "file:${com.sun.jini.test.home}${/}lib-ext${/}*" {
+grant codebase "file:${org.apache.river.test.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
 };
 
@@ -21,49 +21,55 @@ grant codebase "file:${{java.ext.dirs}}${/}-" {
 };
 
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jini-ext.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jini-ext.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}high-scale-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}high-scale-lib.jar" {
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}custard-apple-1.0.3.jar" {
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "modifyThread";
+};
+
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.harness.testJar}" {
+grant codebase "file:${org.apache.river.qa.harness.testJar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}jiniharness.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jiniharness.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-start-tests.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-start-tests.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-io-marshalledinstance-test.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-io-marshalledinstance-test.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-io-marshalinputstream-test.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-io-marshalinputstream-test.jar" {
     permission java.security.AllPermission "", "";
 };
 
@@ -72,25 +78,18 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-io-marshalinputstream
 grant {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}lib${/}-", "read";
-    permission java.io.FilePermission "${com.sun.jini.qa.home}${/}lib${/}-", "read";
+    permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}-", "read";
+    permission java.io.FilePermission "${org.apache.river.qa.home}${/}lib${/}-", "read";
     permission java.util.PropertyPermission "*", "read";
-
-    //Needed since JDK7u25 appears to have made the proxy inaccessible.
-    permission java.lang.RuntimePermission
-        "accessClassInPackage.com.sun.proxy";
-
-    permission java.lang.RuntimePermission
-        "accessClassInPackage.sun.util.logging.resources";
-
-    permission java.io.FilePermission
-	"${com.sun.jini.jsk.home}${/}lib${/}-", "read";
-
-    permission java.io.FilePermission
-	"${com.sun.jini.qa.home}${/}lib${/}-", "read";
-
-    permission java.util.PropertyPermission
-        "*", "read";
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.reggie";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.norm";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.outrigger";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.mercury";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.fiddler";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.net.URLPermission "http:*", "GET:";
 };
 
 // needed by some io tests
@@ -99,7 +98,7 @@ grant {
     permission java.lang.RuntimePermission "setIO";
     permission java.lang.RuntimePermission "setFactory";
     permission java.net.SocketPermission "*:1024-",    "connect,accept";
-    permission java.util.PropertyPermission "com.sun.jini.qa.spec.io.util.FakeIntegrityVerifier.throwException", "write";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.io.util.FakeIntegrityVerifier.throwException", "write";
 };
 
 // needed when using a SecurityManager from command line
@@ -109,7 +108,7 @@ grant {
 };
 
 grant {
-      permission com.sun.jini.phoenix.ExecOptionPermission "*";
+      permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test
-      permission com.sun.jini.phoenix.ExecPermission "/bin/javax";
+      permission org.apache.river.phoenix.ExecPermission "/bin/javax";
 };

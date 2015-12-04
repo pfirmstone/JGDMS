@@ -17,37 +17,38 @@
  */
 package net.jini.core.lookup;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamField;
+import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 
 /**
  * Items are stored in and retrieved from the lookup service using
  * instances of this class.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
-public class ServiceItem implements java.io.Serializable {
+public class ServiceItem implements java.io.Serializable, Cloneable {
 
     private static final long serialVersionUID = 717395451032330758L;
+    private static final ObjectStreamField[] serialPersistentFields = 
+    { 
+        /** @serialField serviceID ServiceID Universally unique identifier for services */
+        new ObjectStreamField("serviceID", ServiceID.class),
+        /** @serialField service Object A service proxy */
+        new ObjectStreamField("service", Object.class),
+        /** @serialField attributeSets Entry[] Attribute sets */
+        new ObjectStreamField("attributeSets", Entry[].class)
+    };
 
-    /**
-     * A service ID, or null if registering for the first time.
-     *
-     * @serial
-     */
+    /** A service ID, or null if registering for the first time. */
     public ServiceID serviceID;
-    /**
-     * A service object.
-     *
-     * @serial
-     */
+    /** A service object. */
     public Object service;
-    /**
-     * Attribute sets.
-     *
-     * @serial
-     */
+    /** Attribute sets. */
     public Entry[] attributeSets;
 
     /**
@@ -70,8 +71,9 @@ public class ServiceItem implements java.io.Serializable {
      * @return <code>String</code> representation of this 
      * <code>ServiceItem</code>
      */
-    public String toString() {
-	StringBuffer sBuffer = new StringBuffer();
+    public String toString() 
+    {
+	StringBuilder sBuffer = new StringBuilder(256);
 	sBuffer.append(
 	       getClass().getName()).append(
 	       "[serviceID=").append(serviceID).append(
@@ -89,5 +91,47 @@ public class ServiceItem implements java.io.Serializable {
 	    sBuffer.append((Object)null);
 	}
 	return sBuffer.append("]").toString();
+    }
+    
+    /**
+     * Clone has been implemented to allow utilities such as
+     * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
+     * internally stored instances with client code.
+     * 
+     * A deep copy clone is made
+     * 
+     * @return a clone of the original ServiceItem
+     */
+    @Override
+    public ServiceItem clone() 
+    {
+        try {
+            ServiceItem clone = (ServiceItem) super.clone();
+	    if (clone.attributeSets != null){
+		clone.attributeSets = clone.attributeSets.clone();
+		for (int i = 0, l = clone.attributeSets.length; i < l; i++){
+		    Entry e = clone.attributeSets[i];
+		    if (e instanceof CloneableEntry){
+			clone.attributeSets[i] = ((CloneableEntry) e).clone();
+		    }
+
+		}
+	    }
+            return clone;
+        } catch (CloneNotSupportedException ex) {
+            throw new AssertionError();
+        }
+    }
+    
+    /**
+     * @serialData 
+     * @param in
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     */
+    private void readObject(ObjectInputStream in)
+	throws IOException, ClassNotFoundException
+    {
+	in.defaultReadObject();
     }
 }

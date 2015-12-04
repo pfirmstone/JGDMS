@@ -17,19 +17,19 @@
 #*/
 
 # phoenix configuration entries
-com.sun.jini.phoenix.activatorExporter: net.jini.export.Exporter
-com.sun.jini.phoenix.groupConfig: String[]
-com.sun.jini.phoenix.groupLocation: String
-com.sun.jini.phoenix.groupOptions: String[]
-com.sun.jini.phoenix.groupOutputHandler: com.sun.jini.phoenix.GroupOutputHandler
-com.sun.jini.phoenix.groupThrottle: int
-com.sun.jini.phoenix.groupTimeout: int
-com.sun.jini.phoenix.instantiatorPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.phoenix.loginContext: javax.security.auth.login.LoginContext
-com.sun.jini.phoenix.monitorExporter: net.jini.export.Exporter
-com.sun.jini.phoenix.persistenceDirectory: String
-com.sun.jini.phoenix.persistenceSnapshotThreshold: int
-com.sun.jini.phoenix.registryExporter: net.jini.export.Exporter
-com.sun.jini.phoenix.systemExporter: net.jini.export.Exporter
-com.sun.jini.phoenix.unexportTimeout: int
-com.sun.jini.phoenix.unexportWait: int
+org.apache.river.phoenix.activatorExporter: net.jini.export.Exporter
+org.apache.river.phoenix.groupConfig: String[]
+org.apache.river.phoenix.groupLocation: String
+org.apache.river.phoenix.groupOptions: String[]
+org.apache.river.phoenix.groupOutputHandler: org.apache.river.phoenix.GroupOutputHandler
+org.apache.river.phoenix.groupThrottle: int
+org.apache.river.phoenix.groupTimeout: int
+org.apache.river.phoenix.instantiatorPreparer: net.jini.security.ProxyPreparer
+org.apache.river.phoenix.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.phoenix.monitorExporter: net.jini.export.Exporter
+org.apache.river.phoenix.persistenceDirectory: String
+org.apache.river.phoenix.persistenceSnapshotThreshold: int
+org.apache.river.phoenix.registryExporter: net.jini.export.Exporter
+org.apache.river.phoenix.systemExporter: net.jini.export.Exporter
+org.apache.river.phoenix.unexportTimeout: int
+org.apache.river.phoenix.unexportWait: int

@@ -42,18 +42,17 @@ import java.util.Comparator;
  * so that must be very fast.
  * 
  * Note that for SocketPermissionCollection that the desired order to add to 
- * SocketPermission's is in , with the most likely permissions added last.  
+ * SocketPermission's is with the most likely permissions added last.  
  * 
  * HINT: Use a NavigableMap to return a reverse order iterator for 
  * PermissionCollection's like SocketPermissionCollection and 
  * FilePermissionCollection.
  * 
- * 
- * @since 2.2.1
+ * @author Peter Firmstone.
+ * @since 3.0.0
  */
 public class PermissionComparator implements Comparator<Permission>, Serializable {
     private static final long serialVersionUID = 1L;
-    private static final char wildcard = "*".charAt(0);
 
     public int compare(Permission o1, Permission o2) {
         if ( o1 == o2 ) return 0;

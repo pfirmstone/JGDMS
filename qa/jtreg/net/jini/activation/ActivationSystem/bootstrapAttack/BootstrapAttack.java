@@ -19,7 +19,7 @@
  * @bug 4398973
  * 
  * @summary test that code downloading is disabled for registry
- * 
+ * @author Bob Scheifler
  * 
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID

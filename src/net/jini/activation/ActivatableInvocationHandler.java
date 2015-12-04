@@ -18,9 +18,9 @@
 
 package net.jini.activation;
 
-import com.sun.jini.action.GetBooleanAction;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -66,14 +66,14 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * any) must implement {@link RemoteMethodControl} or a remote invocation
  * will fail with an {@link UnsupportedConstraintException}.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This implementation recognizes the following system property:
  * <ul>
- * <li><code>com.sun.jini.activation.enableActivateGrant</code> - This
+ * <li><code>org.apache.river.activation.enableActivateGrant</code> - This
  * property is interpreted as a <code>boolean</code> value (see {@link
  * Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, this
  * implementation invokes {@link Security#grant(Class,Class) Security.grant}
@@ -90,7 +90,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * <blockquote>
  *
  * For each resource named
- * <code>com/sun/jini/proxy/resources/InvocationHandler.moreProhibitedProxyInterfaces</code>
+ * <code>org/apache/river/proxy/resources/InvocationHandler.moreProhibitedProxyInterfaces</code>
  * that is visible to the system class loader, the contents of the
  * resource are parsed as UTF-8 text to produce a list of interface
  * names.  The resource must contain a list of binary names of
@@ -147,7 +147,7 @@ public final class ActivatableInvocationHandler
      */
     private static final boolean enableGrant =
 	((Boolean) AccessController.doPrivileged(new GetBooleanAction(
-	    "com.sun.jini.activation.enableActivateGrant")))
+	    "org.apache.river.activation.enableActivateGrant")))
 	    .booleanValue();
 
     /**
@@ -226,15 +226,17 @@ public final class ActivatableInvocationHandler
      * does not implement RemoteMethodControl.
      */
     private boolean hasConsistentConstraints() {
-	if (uproxy instanceof RemoteMethodControl) {
-	    MethodConstraints uproxyConstraints =
-		((RemoteMethodControl) uproxy).getConstraints();
-	    return (clientConstraints == null ?
-		    uproxyConstraints == null :
-		    clientConstraints.equals(uproxyConstraints));
-	} else {
-	    return true;
-	}
+        synchronized (this){
+            if (uproxy instanceof RemoteMethodControl) {
+                MethodConstraints uproxyConstraints =
+                    ((RemoteMethodControl) uproxy).getConstraints();
+                return (clientConstraints == null ?
+                        uproxyConstraints == null :
+                        clientConstraints.equals(uproxyConstraints));
+            } else {
+                return true;
+            }
+        }
     }
     
     /**
@@ -444,6 +446,7 @@ public final class ActivatableInvocationHandler
      * @throws	Throwable {@inheritDoc}
      * @see	java.lang.reflect.UndeclaredThrowableException
      **/
+    @Override
     public Object invoke(Object proxy, Method method, Object[] args)
 	throws Throwable
     {
@@ -876,6 +879,7 @@ public final class ActivatableInvocationHandler
 	    private RemoteException ex = null;
 	    private boolean advance = true;
 
+            @Override
 	    public synchronized boolean hasNext() {
 		if (advance) {
 		    advance = false;
@@ -927,6 +931,7 @@ public final class ActivatableInvocationHandler
 		return retries >= 0;
 	    }
 
+            @Override
 	    public synchronized Object next() throws RemoteException {
 		if (!hasNext()) {
 		    throw new NoSuchElementException();
@@ -941,6 +946,7 @@ public final class ActivatableInvocationHandler
 		}
 	    }
 
+            @Override
 	    public synchronized void setException(RemoteException e) {
 		if (e == null) {
 		    throw new NullPointerException("exception is null");
@@ -986,6 +992,7 @@ public final class ActivatableInvocationHandler
      * specified object, returns <code>false</code>.
      * </ul>
      **/
+    @Override
     public boolean checkTrustEquivalence(Object obj) {
 	if (this == obj) {
 	    return true;
@@ -1080,7 +1087,10 @@ public final class ActivatableInvocationHandler
 		throw new ActivateFailedException("unexpected activation id");
 	    }
 	    
-	    Remote newUproxy = handler.uproxy;
+	    Remote newUproxy;
+            synchronized (handler){
+                newUproxy = handler.uproxy;
+            }
 	    if (newUproxy == null) {
 		throw new ActivateFailedException("null underlying proxy");
 	    } else if (newUproxy instanceof RemoteMethodControl) {

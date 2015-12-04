@@ -18,6 +18,8 @@
 
 package net.jini.core.event;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import net.jini.core.lease.Lease;
 
 /**
@@ -36,7 +38,7 @@ import net.jini.core.lease.Lease;
  * the event registration has not expired and no call has been made to
  * cancel the lease.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
@@ -49,31 +51,33 @@ public class EventRegistration implements java.io.Serializable {
      *
      * @serial
      */
-    protected long eventID;
+    private final long eventID;
 
     /**
      * The event source.
      *
      * @serial
      */
-    protected Object source;
+    private final Object source;
 
     /**
      * The registration lease.
      *
      * @serial
      */
-    protected Lease lease;
+    private final Lease lease;
 
     /**
      * The current sequence number.
      *
      * @serial
      */
-    protected long seqNum;
+    private final long seqNum;
 
     /**
      * Constructs an <tt>EventRegistration</tt> object.
+     * 
+     * Immutable since 3.0.0
      *
      * @param eventID  a <tt>long</tt> representing the event identifier
      * @param source   an <tt>Object</tt> representing the event source
@@ -134,5 +138,16 @@ public class EventRegistration implements java.io.Serializable {
      */
     public long getSequenceNumber() {
 	return seqNum;
+    }
+    
+    /**
+     * Default read object, in case of future evolution.
+     * @serial
+     * @param in
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     */
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException{
+        in.defaultReadObject();
     }
 }

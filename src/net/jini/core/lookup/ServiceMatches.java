@@ -20,8 +20,11 @@ package net.jini.core.lookup;
 /**
  * An instance of this class is used for the return value when looking up
  * multiple items in the lookup service.
- *
  * 
+ * Public fields have been made final to ensure that ServiceItem's are safely 
+ * published at the time ServiceMatches is constructed.
+ *
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
@@ -34,13 +37,13 @@ public class ServiceMatches implements java.io.Serializable {
      *
      * @serial
      */
-    public ServiceItem[] items;
+    public final ServiceItem[] items;
     /**
      * Total number of matching items.
      *
      * @serial
      */
-    public int totalMatches;
+    public final int totalMatches;
 
     /**
      * Simple constructor.

@@ -43,7 +43,7 @@ import java.io.ObjectInputStream;
  * the reflection mechanisms of <code>java.lang.reflect</code> to
  * examine the full state of the object.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */

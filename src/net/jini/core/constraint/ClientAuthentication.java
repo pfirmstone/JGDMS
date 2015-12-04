@@ -55,7 +55,7 @@ import java.io.Serializable;
  * Serialization for this class is guaranteed to produce instances that are
  * comparable with <code>==</code>.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see ClientMaxPrincipal
  * @see ClientMaxPrincipalType
  * @see ClientMinPrincipal

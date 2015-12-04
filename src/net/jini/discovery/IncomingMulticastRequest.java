@@ -28,7 +28,7 @@ import net.jini.core.lookup.ServiceID;
  * Encapsulate the details of unmarshaling an incoming multicast
  * request packet.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see OutgoingMulticastRequest
  */

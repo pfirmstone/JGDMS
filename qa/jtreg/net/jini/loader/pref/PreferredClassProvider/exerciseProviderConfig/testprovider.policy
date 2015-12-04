@@ -25,4 +25,5 @@ grant {
 
     permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
 };

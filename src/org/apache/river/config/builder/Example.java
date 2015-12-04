@@ -18,7 +18,7 @@
 
 package org.apache.river.config.builder;
 
-import com.sun.jini.start.ServiceStarter;
+import org.apache.river.start.ServiceStarter;
 import java.security.Permission;
 import net.jini.config.ConfigurationException;
 

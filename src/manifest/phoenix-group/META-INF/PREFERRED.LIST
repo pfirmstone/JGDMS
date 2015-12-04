@@ -20,5 +20,5 @@ PreferredResources-Version: 1.0
 
 Preferred: true
 
-Name: com/sun/jini/phoenix/InactiveGroupException.class
+Name: org/apache/river/phoenix/InactiveGroupException.class
 Preferred: false

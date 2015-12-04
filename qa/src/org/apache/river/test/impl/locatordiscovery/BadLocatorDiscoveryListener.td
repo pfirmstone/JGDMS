@@ -1,0 +1,4 @@
+testClass=BadLocatorDiscoveryListener
+testCategories=locatordiscovery,locatordiscovery_impl,impllocatordiscovery
+include0=locatordiscovery.properties
+include1=org/apache/river/test/share/reggie3_2.properties

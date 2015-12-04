@@ -27,7 +27,7 @@ package net.jini.config;
  * propagated to the caller; it is not wrapped in a
  * <code>ConfigurationException</code>.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see Configuration
  * @see ConfigurationProvider
  * @since 2.0
@@ -43,14 +43,6 @@ public class ConfigurationException extends Exception {
      */
     public ConfigurationException(String s) {
 	super(s);
-    }
-
-    /**
-     * @InheritDoc
-     */
-    public ConfigurationException(Throwable cause)
-    {
-        super(cause);
     }
 
     /**

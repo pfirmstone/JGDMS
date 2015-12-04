@@ -18,12 +18,12 @@
 
 package net.jini.jeri.tcp;
 
-import com.sun.jini.action.GetBooleanAction;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,11 +32,13 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketPermission;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.Guard;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -60,7 +62,7 @@ import net.jini.jeri.connection.ServerConnection;
 import net.jini.jeri.connection.ServerConnectionManager;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
-import org.apache.river.config.LocalHostLookup;
+import org.apache.river.jeri.internal.runtime.LocalHost;
 
 /**
  * An implementation of the {@link ServerEndpoint} abstraction that
@@ -129,11 +131,13 @@ public final class TcpServerEndpoint implements ServerEndpoint {
     /** whether or not to use NIO-based sockets if possible */
     private static final boolean useNIO =		// default false
 	((Boolean) AccessController.doPrivileged(new GetBooleanAction(
-	    "com.sun.jini.jeri.tcp.useNIO"))).booleanValue();
+	    "org.apache.river.jeri.tcp.useNIO"))).booleanValue();
+    
+    private static final LocalHost LOCAL_HOST = new LocalHost(null, null);
 
     /** name for local host to fill in to corresponding TcpEndpoints */
     private final String host;
-
+    
     /** the TCP port that this TcpServerEndpoint listens on */
     private final int port;
 
@@ -518,38 +522,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 	    throw new NullPointerException();
 	}
 
-	String localHost = host;
-	if (localHost == null) {
-	    InetAddress localAddr;
-	    try {
-		localAddr = (InetAddress) AccessController.doPrivileged(
-		    new PrivilegedExceptionAction() {
-			public Object run() throws UnknownHostException {
-			    return LocalHostLookup.getLocalHost();
-			}
-		    });
-	    } catch (PrivilegedActionException e) {
-		/*
-		 * Only expose UnknownHostException thrown directly by
-		 * InetAddress.getLocalHost if it would also be thrown
-		 * in the caller's security context; otherwise, throw
-		 * a new UnknownHostException without the host name.
-		 */
-		LocalHostLookup.getLocalHost();
-		throw new UnknownHostException(
-		    "access to resolve local host denied");
-	    }
-	    SecurityManager sm = System.getSecurityManager();
-	    if (sm != null) {
-		try {
-		    sm.checkConnect(localAddr.getHostName(), -1);
-		} catch (SecurityException e) {
-		    throw new SecurityException(
-			"access to resolve local host denied");
-		}
-	    }
-	    localHost = localAddr.getHostAddress();
-	}
+	String localHost = LOCAL_HOST.check(host, this);
 
 	LE listenEndpoint = new LE(); // REMIND: needn't be new?
 	ListenCookie listenCookie =

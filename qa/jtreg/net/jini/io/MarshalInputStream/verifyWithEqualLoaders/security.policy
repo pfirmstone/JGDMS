@@ -18,6 +18,7 @@ grant {
   permission java.util.PropertyPermission "test.src", "read";
   permission java.util.PropertyPermission "user.dir", "read";
   permission java.util.PropertyPermission "java.home", "read";
+  permission java.util.PropertyPermission "test.class.path", "read";
 
   // HTTPD needs these
     permission java.io.FilePermission "..${/}..${/}test.props", "read";
@@ -29,4 +30,6 @@ grant {
 
   // permission to connect to class server
   permission java.net.SocketPermission "*:1024-", "connect";
+
+  permission java.lang.reflect.ReflectPermission "newProxyInPackage.java.util.zip";
 };

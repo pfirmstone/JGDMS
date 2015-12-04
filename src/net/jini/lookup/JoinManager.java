@@ -17,12 +17,11 @@
  */
 package net.jini.lookup;
 
-import com.sun.jini.constants.ThrowableConstants;
-import com.sun.jini.lookup.entry.LookupAttributes;
-import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.TaskManager;
-import com.sun.jini.thread.WakeupManager;
-import com.sun.jini.logging.LogUtil;
+import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.lookup.entry.LookupAttributes;
+import org.apache.river.thread.RetryTask;
+import org.apache.river.thread.WakeupManager;
+import org.apache.river.logging.LogUtil;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -50,9 +49,24 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.util.FutureObserver;
+import org.apache.river.impl.thread.DependencyLinker;
+import org.apache.river.impl.thread.ExtensibleExecutorService;
+import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * A goal of any well-behaved service is to advertise the facilities and
@@ -85,7 +99,7 @@ import java.util.logging.Logger;
  * this class will create an instance of this class in the service's address
  * space to manage the entity's join state locally.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#jmConfigEntries">Configuring JoinManager</a>
@@ -137,7 +151,7 @@ import java.util.logging.Logger;
  *            not be shared with other components in the application that
  *            employs this utility.
  * </table>
- *
+ * </a>
  * <a name="leaseManager">
  * <table summary="Describes the leaseManager configuration entry" 
  *                border="0" cellpadding="2">
@@ -162,7 +176,7 @@ import java.util.logging.Logger;
  *            be retrieved from the configuration only if no lease 
  *            renewal manager is specified in the constructor.
  * </table>
- *
+ * </a>
  * <a name="maxLeaseDuration">
  * <table summary="Describes the maxLeaseDuration
  *                configuration entry" border="0" cellpadding="2">
@@ -187,7 +201,7 @@ import java.util.logging.Logger;
  *            while the service is up, and lease expiration will occur sooner
  *            when the service goes down.
  * </table>
- *
+ * </a>
  * <a name="registrarPreparer">
  * <table summary="Describes the registrarPreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -214,7 +228,7 @@ import java.util.logging.Logger;
  *         <li>{@link net.jini.core.lookup.ServiceRegistrar#register register}
  *       </ul>
  * </table>
- *
+ * </a>
  * <a name="registrationPreparer">
  * <table summary="Describes the registrationPreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -251,7 +265,7 @@ import java.util.logging.Logger;
  *                                                           setAttributes}
  *       </ul>
  * </table>
- *
+ * </a>
  * <a name="serviceLeasePreparer">
  * <table summary="Describes the serviceLeasePreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -276,34 +290,36 @@ import java.util.logging.Logger;
  *          Currently, none of the methods on the service lease returned
  *          by this preparer are invoked by this implementation of the utility.
  * </table>
- *
- * <a name="taskManager">
- * <table summary="Describes the taskManager configuration entry" 
+ * </a>
+ * <a name="executorService">
+ * <table summary="Describes the executorService configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>taskManager</code></font>
+ *     <code>executorService</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.TaskManager}
+ *     Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *             {@link com.sun.jini.thread.TaskManager#TaskManager()
- *                                   TaskManager}(15, (15*1000), 1.0f)</code>
+ *             {@link java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+ *                   15,
+ *                   15,
+ *                   15,
+ *                   TimeUnit.SECONDS,
+ *                   new {@link java.util.concurrent/LinkedBlockingQueue LinkedBlockingQueue}(),
+ *                   new {@link org.apache.river.impl.thread.NamedThreadFactory NamedThreadFactory}("JoinManager executor thread", false))</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> The object that pools and manages the various threads
- *            executed by this utility. The default manager creates a
- *            maximum of 15 threads, waits 15 seconds before removing
- *            idle threads, and uses a load factor of 1.0 when
- *            determining whether to create a new thread. This object
+ *            executed by this utility. This object
  *            should not be shared with other components in the
  *            application that employs this utility.
  * </table>
- *
+ * </a>
  * <a name="wakeupManager">
  * <table summary="Describes the wakeupManager configuration entry" 
  *                border="0" cellpadding="2">
@@ -313,23 +329,23 @@ import java.util.logging.Logger;
  *     <code>wakeupManager</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.WakeupManager}
+ *     Type: <td> {@link org.apache.river.thread.WakeupManager}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *     {@link com.sun.jini.thread.WakeupManager#WakeupManager(
- *          com.sun.jini.thread.WakeupManager.ThreadDesc)
+ *     {@link org.apache.river.thread.WakeupManager#WakeupManager(
+ *          org.apache.river.thread.WakeupManager.ThreadDesc)
  *     WakeupManager}(new 
- *     {@link com.sun.jini.thread.WakeupManager.ThreadDesc}(null,true))</code>
+ *     {@link org.apache.river.thread.WakeupManager.ThreadDesc}(null,true))</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> Object that pools and manages the various tasks that are
  *            initially executed by the object corresponding to the
- *            <a href="#taskManager"><code>taskManager</code></a> entry
+ *            <a href="#executorService"><code>executorService</code></a> entry
  *            of this component, but which fail during that initial execution.
  *            This object schedules the re-execution of such a failed task -
- *            in the <a href="#taskManager"><code>taskManager</code></a>
+ *            in the <a href="#executorService"><code>executorService</code></a>
  *            object - at various times in the future, until either the
  *            task succeeds or the task has been executed the maximum
  *            number of allowable times, corresponding to the 
@@ -338,7 +354,7 @@ import java.util.logging.Logger;
  *            with other components in the application that employs this
  *            utility.
  * </table>
- *
+ * </a>
  * <a name="wakeupRetries">
  * <table summary="Describes the wakeupRetries
  *                configuration entry" border="0" cellpadding="2">
@@ -360,7 +376,7 @@ import java.util.logging.Logger;
  *            <a href="#wakeupManager"><code>wakeupManager</code></a>
  *            entry of this component.
  * </table>
- *
+ * </a>
  * <a name="jmLogging">
  * <p>
  * <b><font size="+1">Logging</font></b>
@@ -429,7 +445,7 @@ import java.util.logging.Logger;
  * </table>
  * <p>
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see net.jini.discovery.DiscoveryManagement
  * @see net.jini.lease.LeaseRenewalManager
@@ -437,11 +453,11 @@ import java.util.logging.Logger;
  * @see java.util.logging.Logger
  */
 public class JoinManager {
-
+    
     /** Implementation Note:
      *
      *  This class executes a number of tasks asynchronously. Each task is
-     *  initially queued in a <code>com.sun.jini.thread.TaskManager</code>
+     *  initially queued in a <code>org.apache.river.thread.TaskManager</code>
      *  instance, which executes each task in a separate thread. In this
      *  way, an upper bound is placed on the number of threads executing
      *  concurrently at any one time; that is, the number of concurrent
@@ -497,8 +513,8 @@ public class JoinManager {
      *  
      *  Each main task executed by this join manager's task manager is a
      *  sub-class of the abstract class <code>RetryTask</code>, defined in
-     *  the package <code>com.sun.jini.thread</code>, which implements
-     *  the <code>com.sun.jini.thread.TaskManager.Task</code> interface.
+     *  the package <code>org.apache.river.thread</code>, which implements
+     *  the <code>org.apache.river.thread.TaskManager.Task</code> interface.
      *  The association of each such task with a particular lookup service,
      *  and with a unique sequence number is reflected in the fields of this
      *  class. The unique sequence number associated with each main task
@@ -552,25 +568,26 @@ public class JoinManager {
      *  from its default value by setting the <code>wakeupRetries</code>
      *  configuration entry for this component.
      *
-     *  @see com.sun.jini.thread.TaskManager
-     *  @see com.sun.jini.thread.WakeupManager
-     *  @see com.sun.jini.thread.TaskManager.Task
-     *  @see com.sun.jini.thread.RetryTask
-     *  @see com.sun.jini.constants.ThrowableConstants
+     *  @see org.apache.river.thread.TaskManager
+     *  @see org.apache.river.thread.WakeupManager
+     *  @see org.apache.river.thread.TaskManager.Task
+     *  @see org.apache.river.thread.RetryTask
+     *  @see org.apache.river.constants.ThrowableConstants
      */
 
     /** Abstract base class from which all of the task classes are derived. */
-    private class ProxyRegTask extends RetryTask {
+    private class ProxyRegTask extends RetryTask implements Comparable<ProxyRegTask> {
         private final long[] sleepTime = { 5*1000, 10*1000, 15*1000,
                                           20*1000, 25*1000, 30*1000 };
-        protected int tryIndx  = 0;
-        protected int nRetries = 0;
-        protected ProxyReg proxyReg;
-        protected int seqN;
+        // volatile fields only mutated while synchronized on proxyReg.taskList
+        private volatile int tryIndx  = 0;
+        private volatile int nRetries = 0;
+        private final ProxyReg proxyReg;
+        private final int seqN;
 
         /** Basic constructor; simply stores the input parameters */
         ProxyRegTask(ProxyReg proxyReg, int seqN) {
-            super(JoinManager.this.taskMgr,JoinManager.this.wakeupMgr);
+            super(JoinManager.this.executor,JoinManager.this.wakeupMgr);
             this.proxyReg = proxyReg;
             this.seqN = seqN;
         }//end constructor
@@ -595,26 +612,29 @@ public class JoinManager {
          *  <code>WakeupManager</code> to be executed again at a later
          *  time, as indicated by the value returned by <code>retryTime</code>.
          */
+        @Override
         public boolean tryOnce() {
             while(true) {
-                JoinTask t = null;
+                JoinTask t;
                 synchronized(proxyReg.taskList) {
                     if(proxyReg.taskList.isEmpty()) {
                         proxyReg.proxyRegTask = null;
                         return true;
                     }//endif
-                    t = (JoinTask)proxyReg.taskList.get(0);
+                    t = proxyReg.taskList.get(0);
                 }//end sync
                 try {
                     t.run();
                     synchronized(proxyReg.taskList) {
                         if( !proxyReg.taskList.isEmpty() ) {
-                            proxyReg.taskList.remove(0);
+                            JoinTask task = proxyReg.taskList.get(0);
+                            if (task == t) proxyReg.taskList.remove(0);
                         }//endif
+                        /* reset the retry info for the next task in the list */
+                        tryIndx  = 0;
+                        nRetries = 0;
                     }//end sync
-                    /* reset the retry info for the next task in the list */
-                    tryIndx  = 0;
-                    nRetries = 0;
+                    
                 } catch (Exception e) {
                     return stopTrying(e);
                 }
@@ -625,10 +645,13 @@ public class JoinManager {
          *  execution of this task should be made (after the previous
          *  attempt has failed).
          */
+        @Override
         public long retryTime() {
 	    long nextTryTime = System.currentTimeMillis() + sleepTime[tryIndx];
-	    if(tryIndx < sleepTime.length-1)  tryIndx++;//don't go past end
-            nRetries++;
+            synchronized (proxyReg.taskList){
+                if(tryIndx < sleepTime.length-1)  tryIndx++;//don't go past end
+                    nRetries++;
+            }
             return nextTryTime;
         }//end retryTime
 
@@ -670,22 +693,17 @@ public class JoinManager {
          *  @param tasks the tasks with which to compare the current task
          *  @param size  elements with index less than size are considered
          */
-        public boolean runAfter(List tasks, int size) {
-            /* If the service's ID has already been set, then it's okay
-             * to run all ProxyRegTask's in parallel, otherwise, the
-             * ProxyRegTask with the lowest sequence number should be run.
-             */
-            synchronized(serviceItem) {//accessing serviceItem.serviceID
-                if(serviceItem.serviceID != null)  return false;
-                /* For task with lowest seq #, run it now; else run it later */
-                for(int i=0; i<size; i++) {
-                    TaskManager.Task t = (TaskManager.Task)tasks.get(i);
-                    int nextTaskSeqN = ((ProxyRegTask)t).getSeqN();
-                    if( seqN > nextTaskSeqN )  return true;
-                }//end loop
-                return false;
-	    }//end sync(serviceItem)
-        }//end runAfter
+        public boolean dependsOn(ProxyRegTask t) {
+            return seqN > t.getSeqN();
+        }
+        
+        /* If the service's ID has already been set, then it's okay
+         * to run all ProxyRegTask's in parallel, otherwise, the
+         * ProxyRegTask with the lowest sequence number should be run.
+         */
+        public boolean hasDeps(){
+            return serviceItem.serviceID == null;
+        }
 
         /** Accessor method that returns the instance of <code>ProxyReg</code>
          *  (the lookup service) associated with the task represented by
@@ -721,9 +739,7 @@ public class JoinManager {
             if(    (exCat != ThrowableConstants.INDEFINITE)
                 || (nRetries >= maxNRetries) )
             {
-                synchronized(joinSet) {
-                    removeTasks(proxyReg);//cancel and clear all related tasks
-                }//end sync(joinSet)
+                removeTasks(proxyReg);//cancel and clear all related tasks
                 proxyReg.fail(e);
                 return true;//don't try again
             }//endif
@@ -731,13 +747,60 @@ public class JoinManager {
                        "JoinManager - failure, will retry later", e);
             return false;//try this task again later
         }//end stopTrying
+
+        @Override
+        public int compareTo(ProxyRegTask o) {
+            if (seqN < o.seqN) return -1;
+            if (seqN > o.seqN) return 1;
+            return 0;
+        }
     }//end class ProxyRegTask
+    
+        private static final class ProxyRegTaskQueue implements FutureObserver {
+        // CacheTasks pending completion.
+        private final ConcurrentLinkedQueue<ProxyRegTask> pending;
+        private final ExecutorService executor;
+        
+        private ProxyRegTaskQueue(ExecutorService e){
+            this.pending = new ConcurrentLinkedQueue<ProxyRegTask>();
+            executor = e;
+        }
+        
+        private Future submit(ProxyRegTask t){
+            pending.offer(t);
+            t.addObserver(this);
+            if (t.hasDeps()) {
+                List<ObservableFuture> deps = new LinkedList<ObservableFuture>();
+                Iterator<ProxyRegTask> it = pending.iterator();
+                while (it.hasNext()){
+                    ProxyRegTask c = it.next();
+                    if (t.dependsOn(c)) {
+                        deps.add(c);
+                    }
+                }
+                if (deps.isEmpty()){
+                    executor.submit(t);
+                } else {
+                    DependencyLinker linker = new DependencyLinker(executor, deps, t);
+                    linker.register();
+                }
+            } else {
+                executor.submit(t);
+            }
+            return t;
+        }
+
+        @Override
+        public void futureCompleted(Future e) {
+            pending.remove(e);
+        }
+    }
 
     /** Abstract base class from which all the sub-task classes are derived. */
-    private abstract class JoinTask {
+    private static abstract class JoinTask {
 
         /** Data structure referencing the task's associated lookup service */
-        protected ProxyReg proxyReg;
+        protected final ProxyReg proxyReg;
 
         /** Basic constructor; simply stores the input parameters */
         JoinTask(ProxyReg proxyReg) {
@@ -753,12 +816,12 @@ public class JoinManager {
      *  join manager with the lookup service referenced by the current
      *  instance of this class.
      */
-    private class RegisterTask extends JoinTask {
+    private static class RegisterTask extends JoinTask {
         /** Attributes with which to register the service. These attributes
          *  must not change during the registration process performed in
          *  this this task.
          */
-        Entry[] regAttrs;
+        final Entry[] regAttrs;
 
         /** Constructor that associates this task with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
@@ -780,6 +843,7 @@ public class JoinManager {
         /** Attempts to register this join manager's service with the lookup
          *  service referenced in this task's proxyReg field.
          */
+        @Override
         public void run() throws Exception {
             logger.finest("JoinManager - RegisterTask started");
             proxyReg.register(regAttrs);
@@ -821,13 +885,10 @@ public class JoinManager {
         /** Attempts to re-register this join manager's service with the
          *  lookup service referenced by the current instance of this class.
          */
+        @Override
         public void run() throws Exception {
             logger.finest("JoinManager - LeaseExpireNotifyTask started");
-            boolean tryIt = false;
-            synchronized(joinSet) {
-                tryIt = joinSet.contains(proxyReg);
-            }//end sync(joinSet)
-            if(tryIt)  proxyReg.register(regAttrs);
+            if(joinSet.contains(proxyReg)) proxyReg.register(regAttrs);
             logger.finest("JoinManager - LeaseExpireNotifyTask completed");
 	}//end run
 
@@ -887,11 +948,13 @@ public class JoinManager {
          *  <code>ServiceRegistration</code> that is referenced in the
          *  <code>proxyReg</code> data structure.
          */
+        @Override
         public void run() {
             logger.finest("JoinManager --> DiscardProxyTask started");
-            if( (proxyReg != null) && (proxyReg.serviceLease != null) ) {
+            Lease svcLease = proxyReg != null ? proxyReg.serviceLease : null;
+            if( svcLease != null ) {
                 try {
-                    proxyReg.serviceLease.cancel();
+                    svcLease.cancel();
                 } catch (Exception e) { /*ignore*/ }
             }//endif
             logger.finest("JoinManager - DiscardProxyTask completed");
@@ -903,11 +966,11 @@ public class JoinManager {
      *  join manager's service in the lookup service referenced by the
      *  current instance of this class.
      */
-    private class AddAttributesTask extends JoinTask {
+    private static class AddAttributesTask extends JoinTask {
         /** The new attribute values with which the service's current
          *  attributes will be augmented, replaced, or changed.
          */
-	protected Entry[] attrSets;
+	protected final Entry[] attrSets;
 
         /** Constructor that associates this task with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
@@ -939,6 +1002,7 @@ public class JoinManager {
          *  augmentation, replacement, or modification -- is dependent on the
          *  definition of the <code>doAttributes/code> method.
          */
+        @Override
         public void run() throws Exception {
             doAttributes(proxyReg);
 	}//end run
@@ -949,7 +1013,7 @@ public class JoinManager {
      *  join manager's service in the lookup service referenced by the
      *  current instance of this class.
      */
-    private final class SetAttributesTask extends AddAttributesTask {
+    private static final class SetAttributesTask extends AddAttributesTask {
         /** Constructor that associates this task with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
          *
@@ -964,6 +1028,7 @@ public class JoinManager {
 	}//end constructor
 
         /** Performs the actual attribute replacement work. */
+        @Override
         protected void doAttributes(ProxyReg proxyReg) throws Exception {
             logger.finest("JoinManager - SetAttributesTask started");
 	    proxyReg.setAttributes(attrSets);
@@ -976,8 +1041,8 @@ public class JoinManager {
      *  join manager's service in the lookup service referenced by the
      *  current instance of this class.
      */
-    private final class ModifyAttributesTask extends AddAttributesTask {
-	private Entry[] attrSetTemplates;
+    private static final class ModifyAttributesTask extends AddAttributesTask {
+	private final Entry[] attrSetTemplates;
         /** Constructor that associates this task with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
          *
@@ -1003,6 +1068,7 @@ public class JoinManager {
 	}//end constructor
 
         /** Performs the actual attribute modification work. */
+        @Override
         protected void doAttributes(ProxyReg proxyReg) throws Exception {
             logger.finest("JoinManager - ModifyAttributesTask started");
 	    proxyReg.modifyAttributes(attrSetTemplates, attrSets);
@@ -1015,7 +1081,8 @@ public class JoinManager {
      *  service to discover, and with which this join manager's service
      *  should be registered.
      */
-    private class ProxyReg {
+    private class ProxyReg implements FutureObserver{
+
         /** Class that is registered as a listener with this join manager's
          *  lease renewal manager. That lease renewal manager manages the
          *  lease granted to this join manager's associated service by the
@@ -1113,24 +1180,24 @@ public class JoinManager {
          *  renewal event received by this listener.
          */
 	private class DiscLeaseListener implements LeaseListener {
+              @Override
   	    public void notify(LeaseRenewalEvent e) {
                 Throwable ex = e.getException();
 		if ( (ex == null) || (ex instanceof UnknownLeaseException) ) {
-                    synchronized(joinSet) {
-                        removeTasks(ProxyReg.this);
-                        Lease expiredLease = e.getLease();
-                        // Maybe re-register
-                        int indx = joinSet.indexOf(ProxyReg.this);
-                        if(indx >= 0) {//new proxyReg/old ProxyReg.this in set
-                            ProxyReg curProxyReg = (ProxyReg)joinSet.get(indx);
-                            if(expiredLease.equals(curProxyReg.serviceLease)) {
-                                // Okay to re-register
-                                addTask(new LeaseExpireNotifyTask
-                                                (ProxyReg.this,
-                                                 (Entry[])lookupAttr.clone()));
-                            }//endif
+                    removeTasks(ProxyReg.this);
+                    Lease expiredLease = e.getLease();
+                    // Maybe re-register
+                    Iterator<ProxyReg> it = joinSet.iterator();
+                    while (it.hasNext()){
+                        ProxyReg next = it.next();
+                        if (!ProxyReg.this.equals(next)) continue;
+                        if(expiredLease.equals(next.serviceLease)) {
+                            // Okay to re-register
+                            addTask(
+                                new LeaseExpireNotifyTask (ProxyReg.this,
+                                             (Entry[])lookupAttr.clone()));
                         }//endif
-                    }//end sync(joinSet)
+                    }
 		} else {
 		    fail(ex);
                 }//endif
@@ -1140,31 +1207,36 @@ public class JoinManager {
         /** The <code>ProxyRegTask</code> that instantiated this
          *  <code>ProxyReg</code>.
          */
-        public ProxyRegTask proxyRegTask;
+        volatile ProxyRegTask proxyRegTask;// writes sync on taskList
         /** The <i>prepared</i> proxy to the lookup service referenced by
          *  this class, and with which this join manager's service will be
          *  registered.
          */
-	public ServiceRegistrar proxy;
+	final ServiceRegistrar proxy;
         /** The <i>prepared</i> registration proxy returned by this class'
          *  associated lookup service when this join manager registers its
          *  associated service.
+         * 
+         * Writes to reference synchronized on JoinManager.this, but not referent
+         * as it has foreign remote methods.
          */
-	public ServiceRegistration srvcRegistration = null;
+	volatile ServiceRegistration srvcRegistration = null;
         /* The <i>prepared</i> proxy to the lease on the registration of this
          * join manager's service with the this class' associated lookup
          * service.
          */
-	public Lease serviceLease = null;
+	volatile Lease serviceLease = null;
         /** The set of sub-tasks that are to be executed in order for the
          *  lookup service associated with the current instance of this class.
          */
-        public List taskList = new ArrayList(1);
+        final List<JoinTask> taskList = new ArrayList<JoinTask>();
         /** The instance of <code>DiscLeaseListener</code> that is registered
          *  with the lease renewal manager that handles the lease of this join
          *  manger's service.
          */
-	private DiscLeaseListener dListener = new DiscLeaseListener();
+        final List<Future> runningTasks = new ArrayList<Future>();
+        
+	private final DiscLeaseListener dListener = new DiscLeaseListener();
 
         /** Constructor that associates this class with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
@@ -1177,7 +1249,24 @@ public class JoinManager {
 	    if(proxy == null)  throw new IllegalArgumentException
                                                       ("proxy can't be null");
 	    this.proxy = proxy;
-	}//end constructor	    
+	}//end constructor	
+        
+        @Override
+        public void futureCompleted(Future e) {
+            synchronized (runningTasks){
+                runningTasks.remove(e);
+            }
+        }
+        
+        public void terminate(){
+            synchronized (runningTasks){
+                Iterator<Future> it = runningTasks.iterator();
+                while (it.hasNext()){
+                    it.next().cancel(false);
+                }
+                runningTasks.clear();
+            }
+        }
 
         /** Convenience method that adds new sub-tasks to this class' 
          *  task queue.
@@ -1185,18 +1274,19 @@ public class JoinManager {
          *  @param task the task to add to the task queue
          */
         public void addTask(JoinTask task) {
-            synchronized(JoinManager.this) {
-                if(bTerminated) return;
-            }//end sync
+            if(bTerminated) return;
+            Future future = null;
             synchronized(taskList) {
                 taskList.add(task);
                 if(this.proxyRegTask == null) {
                     this.proxyRegTask = new ProxyRegTask(this,taskSeqN++);
-                    synchronized (taskMgr) {
-                        taskMgr.add(this.proxyRegTask);
-                    }//end sync(taskMgr)
+                    this.proxyRegTask.addObserver(this);
+                    future = proxyRegTaskQueue.submit(this.proxyRegTask);
                 }//endif
             }//end sync(taskList)
+            synchronized (runningTasks){
+                runningTasks.add(future);
+            }
         }//end addTask
 
         /** Registers the service associated with this join manager with the
@@ -1210,15 +1300,14 @@ public class JoinManager {
         public void register(Entry[] srvcAttrs) throws Exception {
             if(proxy == null) throw new RuntimeException("proxy is null");
             /* The lookup service proxy was already prepared at discovery */
-            ServiceItem tmpSrvcItem = null;
-            synchronized(joinSet) {
-                srvcRegistration = null;
-                synchronized(serviceItem) {//accessing serviceItem.serviceID
-                    tmpSrvcItem = new ServiceItem(serviceItem.serviceID,
-                                                  serviceItem.service,
-                                                  srvcAttrs);
-                }//end sync(serviceItem)
-            }//end sync(joinSet)
+            ServiceItem tmpSrvcItem;
+            ServiceItem item;
+            srvcRegistration = null;
+            //accessing serviceItem.serviceID
+            item = serviceItem;
+            tmpSrvcItem = new ServiceItem(item.serviceID,
+                                              item.service,
+                                              srvcAttrs);
             /* Retrieve and prepare the proxy to the service registration */
             ServiceRegistration tmpSrvcRegistration 
                                 = proxy.register(tmpSrvcItem, renewalDuration);
@@ -1236,31 +1325,30 @@ public class JoinManager {
                 throw e; //rethrow the exception since proxy may be unusable
             }
             /* Retrieve and prepare the proxy to the service lease */
-            serviceLease = tmpSrvcRegistration.getLease();
+            Lease svcLease = tmpSrvcRegistration.getLease();
             try {
-                serviceLease = 
-                       (Lease)serviceLeasePreparer.prepareProxy(serviceLease);
+                this.serviceLease = 
+                       (Lease)serviceLeasePreparer.prepareProxy(svcLease);
                 logger.finest("JoinManager - service lease proxy prepared");
             } catch(Exception e) {
 		LogUtil.logThrow(logger, Level.WARNING, ProxyReg.class,
 		    	"register", "JoinManager - failure during " +
 		    	"preparation of service lease proxy: {0}",
-		    	new Object[] { serviceLease }, e);
+		    	new Object[] { svcLease }, e);
                 throw e; //rethrow the exception since proxy may be unusable
             }
-            leaseRenewalMgr.renewUntil(serviceLease, Lease.FOREVER,
+            leaseRenewalMgr.renewUntil(svcLease, Lease.FOREVER,
                                        renewalDuration, dListener);
             ServiceID tmpID = null;
-            synchronized(joinSet) {
-                srvcRegistration = tmpSrvcRegistration;
-                synchronized(serviceItem) {//accessing serviceItem.serviceID
-                    if(serviceItem.serviceID == null) {
-                        serviceItem.serviceID 
-                                            = srvcRegistration.getServiceID();
-                        tmpID = serviceItem.serviceID;
-                    }//endif
-                }//end sync(serviceItem)
-            }//end sync(joinSet)
+            srvcRegistration = tmpSrvcRegistration;
+            ServiceID id = srvcRegistration.getServiceID();
+            synchronized (JoinManager.this){
+                item = serviceItem;
+                if(item.serviceID == null) {
+                    serviceItem = new ServiceItem(id, item.service, item.attributeSets);
+                    tmpID = id;
+                }//endif
+            }
             if( (tmpID != null) && (callback != null) )  {
                 callback.serviceIDNotify(tmpID);
             }//endif
@@ -1272,7 +1360,8 @@ public class JoinManager {
          *  addition to that service's current set of attributes.
          */
         public void addAttributes(Entry[] attSet) throws Exception {
-            srvcRegistration.addAttributes(attSet);
+            ServiceRegistration sr = srvcRegistration;
+            if (sr != null) sr.addAttributes(attSet);
 	}//end ProxyReg.addAttributes
 
         /** With respect to the lookup service referenced in this class
@@ -1285,7 +1374,8 @@ public class JoinManager {
         public void modifyAttributes(Entry[] templ, Entry[] attSet)
                                                              throws Exception
         {
-            srvcRegistration.modifyAttributes(templ, attSet);
+            ServiceRegistration sr = srvcRegistration;
+            if (sr != null) sr.modifyAttributes(templ, attSet);
 	}//end ProxyReg.modifyAttributes		    
 
         /** With respect to the lookup service referenced in this class
@@ -1294,7 +1384,8 @@ public class JoinManager {
          *  set of attributes.
          */
         public void setAttributes(Entry[] attSet) throws Exception {
-            srvcRegistration.setAttributes(attSet);
+            ServiceRegistration sr = srvcRegistration;
+            if (sr != null) sr.setAttributes(attSet);
 	}//end ProxyReg.setAttributes
 
         /** Convenience method that encapsulates appropriate behavior when
@@ -1319,26 +1410,22 @@ public class JoinManager {
          * For more information, refer to Bug 4490355.
          */
 	public void fail(Throwable e) {
-	    synchronized(this) {
-		if(bTerminated) {
-		    return;
-		} else {
-		    LogUtil.logThrow(logger, Level.INFO, ProxyReg.class, "fail",
-			"JoinManager - failure for lookup service proxy: {0}",
-			new Object[] { proxy }, e);
-		    try {
-			discMgr.discard(proxy);
-		    } catch(IllegalStateException e1) {
-		       logger.log(Level.FINEST,
-				  "JoinManager - cannot discard lookup, "
-				  +"discovery manager already terminated",
-				  e1);
-		    }
-		}//endif
-	    }//end sync(this)
+		if(bTerminated) return;
+                LogUtil.logThrow(logger, Level.INFO, ProxyReg.class, "fail",
+                    "JoinManager - failure for lookup service proxy: {0}",
+                    new Object[] { proxy }, e);
+                try {
+                    discMgr.discard(proxy);
+                } catch(IllegalStateException e1) {
+                   logger.log(Level.FINEST,
+                              "JoinManager - cannot discard lookup, "
+                              +"discovery manager already terminated",
+                              e1);
+                }
 	}//end ProxyReg.fail
 
 	/** Returns true if the both objects' associated proxies are equal. */
+        @Override
 	public boolean equals(Object obj) {
 	    if (obj instanceof ProxyReg) {
 		return proxy.equals( ((ProxyReg)obj).proxy );
@@ -1348,6 +1435,7 @@ public class JoinManager {
 	}//end ProxyReg.equals
 
 	/** Returns the hash code of the proxy referenced in this class. */
+        @Override
 	public int hashCode() {
 	    return proxy.hashCode();
 	}//end hashCode
@@ -1357,11 +1445,12 @@ public class JoinManager {
     /* Listener class for discovery/discard notification of lookup services. */
     private class DiscMgrListener implements DiscoveryListener {
 	/* Invoked when new or previously discarded lookup is discovered. */
+        @Override
 	public void discovered(DiscoveryEvent e) {
-	    synchronized(joinSet) {
 		ServiceRegistrar[] proxys
 				       = (ServiceRegistrar[])e.getRegistrars();
-		for(int i=0;i<proxys.length;i++) {
+                int l = proxys.length;
+		for(int i=0;i<l;i++) {
 		    /* Prepare the proxy to the discovered lookup service
 					 * before interacting with it.
 					 */
@@ -1394,26 +1483,25 @@ public class JoinManager {
 			}//endif
 		    }//endif
 		}//end loop
-	    }//end sync(joinSet)
 	}//end discovered
 
 	/* Invoked when previously discovered lookup is discarded. */
+        @Override
 	public void discarded(DiscoveryEvent e) {
-            synchronized(joinSet) {
-                ServiceRegistrar[] proxys
-                                      = (ServiceRegistrar[])e.getRegistrars();
-                for(int i=0;i<proxys.length;i++) {
-                    ProxyReg proxyReg = findReg(proxys[i]);
-		    if(proxyReg != null) {
-                        removeTasks(proxyReg);
-                        joinSet.remove(proxyReg);
-                        try {
-                            leaseRenewalMgr.remove( proxyReg.serviceLease );
-                        } catch(UnknownLeaseException ex) { /*ignore*/ }
-                        proxyReg.addTask(new DiscardProxyTask(proxyReg));
-		    }//endif
-                }//end loop
-            }//end sync(joinSet)
+            ServiceRegistrar[] proxys
+                                  = (ServiceRegistrar[])e.getRegistrars();
+            int l = proxys.length;
+            for(int i=0;i<l;i++) {
+                ProxyReg proxyReg = findReg(proxys[i]);
+                if(proxyReg != null) {
+                    removeTasks(proxyReg);
+                    joinSet.remove(proxyReg);
+                    try {
+                        leaseRenewalMgr.remove( proxyReg.serviceLease );
+                    } catch(UnknownLeaseException ex) { /*ignore*/ }
+                    proxyReg.addTask(new DiscardProxyTask(proxyReg));
+                }//endif
+            }//end loop
 	}//end discarded
     }//end class DiscMgrListener
 
@@ -1422,7 +1510,7 @@ public class JoinManager {
     /* Logger used by this utility. */
     private static final Logger logger = Logger.getLogger(COMPONENT_NAME);
     /** Maximum number of concurrent tasks that can be run in any default
-     * task manager created by this class.
+     * ExecutorService created by this class.
      */
     private static final int MAX_N_TASKS = 15;
     /** Whenever a task is created in this join manager, it is assigned a
@@ -1432,19 +1520,20 @@ public class JoinManager {
      *  which each task is associated). This field contains the value of
      *  the sequence number assigned to the most recently created task.
      */
-    private int taskSeqN = 0;
+    private int taskSeqN = 0; // access sync on taskList
     /** Task manager for the various tasks executed by this join manager.
      *  On the first attempt to execute any task is managed by this
-     *  <code>TaskManager</code> so that the number of concurrent threads
+     *  <code>ExecutorService</code> so that the number of concurrent threads
      *  can be bounded. If one or more of those attempts fails, a
      *  <code>WakeupManager</code> is used (through the use of a
      *  <code>RetryTask</code>) to schedule - at a later time (employing a
      *  "backoff strategy") - the re-execution of each failed task in this
-     *  <code>TaskManager</code>.
+     *  <code>ExecutorService</code>.
      */
-    private TaskManager taskMgr;
+    private final ExecutorService executor;
+    private final ProxyRegTaskQueue proxyRegTaskQueue;
     /** Maximum number of times a failed task is allowed to be re-executed. */
-    private int maxNRetries = 6;
+    private final int maxNRetries;
     /** Wakeup manager for the various tasks executed by this join manager.
      *  After an initial failure of any task executed by this join manager,
      *  the failed task is managed by this <code>WakeupManager</code>; which
@@ -1456,46 +1545,46 @@ public class JoinManager {
      *  join manager is requested, all tasks scheduled for retry by this
      *  wakeup manager can be cancelled.
      */
-    private WakeupManager wakeupMgr;
+    private final WakeupManager wakeupMgr;
     /** Contains the reference to the service that is to be registered with
      *  all of the desired lookup services referenced by <code>discMgr</code>.
      */
-    private ServiceItem serviceItem;
+    private volatile ServiceItem serviceItem = null; // writes sync on JoinManager.this
     /** Contains the attributes with which to associate the service in each
      *  of the lookup services with which this join manager registers the
      *  service.
      */
-    private Entry[] lookupAttr = null;
+    private volatile Entry[] lookupAttr = null; // writes sync on JoinManager.this
     /** Contains the listener -- instantiated by the entity that constructs
      *  this join manager -- that will receive an event containing the
      *  service ID assigned to this join manager's service by one of the
      *  lookup services with which that service is registered.
      */
-    private ServiceIDListener callback;
+    private final ServiceIDListener callback;
     /** Contains elements of type <code>ProxyReg</code> where each element
      *  references a proxy to one of the lookup services with which this
      *  join manager's service is registered.
      */
-    private final ArrayList joinSet = new ArrayList(1);
+    private final List<ProxyReg> joinSet = new CopyOnWriteArrayList<ProxyReg>();
     /** Contains the discovery manager that discovers the lookup services
      *  with which this join manager will register its associated service.
      */
-    private DiscoveryManagement discMgr = null;
+    private final DiscoveryManagement discMgr;
     /** Contains the discovery listener registered by this join manager with
      *  the discovery manager so that this join manager is notified whenever
      *  one of the desired lookup services is discovered or discarded.
      */
-    private DiscMgrListener discMgrListener = new DiscMgrListener();
+    private final DiscMgrListener discMgrListener ;
     /** Flag that indicate whether the discovery manager employed by this
      *  join manager was created by this join manager itself, or by the
      *  entity that constructed this join manager.
      */
-    private boolean bCreateDiscMgr = false;
+    private final boolean bCreateDiscMgr;
     /** Contains the lease renewal manager that renews all of the leases
      *  this join manager's service holds with each lookup service with which
      *  it has been registered.
      */
-    private LeaseRenewalManager leaseRenewalMgr = null;
+    private final LeaseRenewalManager leaseRenewalMgr;
     /** The value to use as the <code>renewDuration</code> parameter
      *  when invoking the lease renewal manager's <code>renewUntil</code>
      *  method to add a service lease to manage. This value represents,
@@ -1505,22 +1594,22 @@ public class JoinManager {
      *  is up, and lease expirations will occur sooner when the service
      *  goes down.
      */
-    private long renewalDuration = Lease.FOREVER;
+    private final long renewalDuration;
     /** Flag that indicates if this join manager has been terminated. */
-    private boolean bTerminated = false;
+    private volatile boolean bTerminated = false; // write access sync on this.
     /* Preparer for the proxies to the lookup services that are discovered
      * and used by this utility.
      */
-    private ProxyPreparer registrarPreparer;
+    private final ProxyPreparer registrarPreparer;
     /* Preparer for the proxies to the registrations returned to this utility
      * upon registering the service with each discovered lookup service.
      */
-    private ProxyPreparer registrationPreparer;
+    private final ProxyPreparer registrationPreparer;
     /* Preparer for the proxies to the leases returned to this utility through
      * the registrations with each discovered lookup service with which this
      * utility has registered the service.
      */
-    private ProxyPreparer serviceLeasePreparer;
+    private final ProxyPreparer serviceLeasePreparer;
 
     /** 
      * Constructs an instance of this class that will register the given
@@ -1619,11 +1708,8 @@ public class JoinManager {
 			DiscoveryManagement discoveryMgr,
 			LeaseRenewalManager leaseMgr)    throws IOException
     {
-        discMgr = discoveryMgr;
-        try {
-           createJoinManager(null, serviceProxy, attrSets, callback, leaseMgr,
-                             EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
+           this(serviceProxy, attrSets, null, callback, 
+                 getConf(EmptyConfiguration.INSTANCE, leaseMgr, discoveryMgr, serviceProxy));
     }//end constructor
 
     /** 
@@ -1737,9 +1823,10 @@ public class JoinManager {
                         Configuration config)
                                     throws IOException, ConfigurationException
     {
-        discMgr = discoveryMgr;
-        createJoinManager(null, serviceProxy, attrSets,
-                          callback, leaseMgr, config);
+        
+        this(serviceProxy, attrSets, null, callback, 
+            getConfig(config, leaseMgr, discoveryMgr, serviceProxy)
+        );
     }//end constructor
 
     /** 
@@ -1797,12 +1884,9 @@ public class JoinManager {
 			DiscoveryManagement discoveryMgr,
 			LeaseRenewalManager leaseMgr)    throws IOException
     {
-        discMgr = discoveryMgr;
-        try {
-           createJoinManager(serviceID, serviceProxy, attrSets,
-                             (ServiceIDListener)null, leaseMgr,
-                             EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
+       this(serviceProxy, attrSets, serviceID, null, 
+             getConf(EmptyConfiguration.INSTANCE, leaseMgr, discoveryMgr, serviceProxy)
+       );
     }//end constructor
 
     /** 
@@ -1877,9 +1961,9 @@ public class JoinManager {
                         Configuration config)
                                     throws IOException, ConfigurationException
     {
-        discMgr = discoveryMgr;
-        createJoinManager(serviceID, serviceProxy, attrSets,
-                          (ServiceIDListener)null, leaseMgr, config);
+        this(serviceProxy, attrSets, serviceID, null, 
+             getConfig(config, leaseMgr, discoveryMgr, serviceProxy)
+       );
     }//end constructor
 
     /** 
@@ -1901,11 +1985,8 @@ public class JoinManager {
      * @see net.jini.discovery.LookupDiscoveryManager
      */
     public DiscoveryManagement getDiscoveryManager(){
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
+        if(bTerminated) 
+            throw new IllegalStateException("join manager was terminated");
 	return discMgr; 
     }//end getDiscoveryManager
 
@@ -1930,11 +2011,8 @@ public class JoinManager {
      * @see net.jini.lease.LeaseRenewalManager
      */
     public LeaseRenewalManager getLeaseRenewalManager(){
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
+        if(bTerminated) 
+            throw new IllegalStateException("join manager was terminated");
 	return leaseRenewalMgr;
     }//end getLeaseRenewalManager
 
@@ -1952,23 +2030,15 @@ public class JoinManager {
      * @see net.jini.core.lookup.ServiceRegistrar
      */
     public ServiceRegistrar[] getJoinSet() {
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
+        if(bTerminated) throw new IllegalStateException("join manager was terminated");
+        List<ServiceRegistrar> retList = new LinkedList<ServiceRegistrar>();
+        for (Iterator<ProxyReg> iter = joinSet.iterator(); iter.hasNext(); ) {
+            ProxyReg proxyReg = iter.next();
+            if(proxyReg.srvcRegistration != null) {//test registration flag
+                retList.add(proxyReg.proxy);
             }//endif
-        }//end sync
-	synchronized(joinSet) {
-            ArrayList retList = new ArrayList(joinSet.size());
-	    int k = 0;
-	    for (Iterator iter = joinSet.iterator(); iter.hasNext(); ) {
-                ProxyReg proxyReg = (ProxyReg)iter.next();
-                if(proxyReg.srvcRegistration != null) {//test registration flag
-                    retList.add(proxyReg.proxy);
-                }//endif
-	    }//end loop
-            return ( (ServiceRegistrar[])(retList.toArray
-                                 (new ServiceRegistrar[retList.size()]) ) );
-	}//end sync(joinSet)
+        }//end loop
+        return ( (retList.toArray(new ServiceRegistrar[retList.size()]) ) );
     }//end getJoinSet
 
     /** 
@@ -1985,14 +2055,8 @@ public class JoinManager {
      * @see #setAttributes
      */
     public Entry[] getAttributes() {
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
-	synchronized(joinSet) {
-	    return (Entry[])lookupAttr.clone();
-	}//end sync(joinSet)
+        if(bTerminated) throw new IllegalStateException("join manager was terminated");
+        return (Entry[])lookupAttr.clone();
     }//end getAttributes
 
     /** 
@@ -2117,19 +2181,16 @@ public class JoinManager {
      * @see net.jini.lookup.entry.ServiceControlled
      */
     public void addAttributes(Entry[] attrSets, boolean checkSC) {
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
-	synchronized(joinSet) {
+        if(bTerminated) throw new IllegalStateException("join manager was terminated");
+	synchronized(this) {
 	    lookupAttr = LookupAttributes.add(lookupAttr, attrSets, checkSC);
-            serviceItem.attributeSets = lookupAttr;
-            for(int i=0;i<joinSet.size();i++) {
-                ProxyReg proxyReg = (ProxyReg)joinSet.get(i);
-                proxyReg.addTask(new AddAttributesTask(proxyReg,attrSets));
-            }//end loop
-	}//end sync(joinSet)
+            serviceItem = new ServiceItem(serviceItem.serviceID, serviceItem.service, lookupAttr);
+        }
+        Iterator<ProxyReg> it = joinSet.iterator();
+        while (it.hasNext()){
+            ProxyReg proxyReg = it.next();
+            proxyReg.addTask(new AddAttributesTask(proxyReg,attrSets));
+        }//end loop
     }//end addAttributes
 
     /** 
@@ -2171,20 +2232,19 @@ public class JoinManager {
      * @see #getAttributes
      */
     public void setAttributes(Entry[] attrSets) {
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
+        if(bTerminated) 
+            throw new IllegalStateException("join manager was terminated");
         testForNullElement(attrSets);
-	synchronized(joinSet) {
+	synchronized(this) {
             lookupAttr = (Entry[]) attrSets.clone();
-            serviceItem.attributeSets = lookupAttr;
-            for(int i=0;i<joinSet.size();i++) {
-                ProxyReg proxyReg = (ProxyReg)joinSet.get(i);
-                proxyReg.addTask(new SetAttributesTask(proxyReg,attrSets));
-            }//end loop
-	}//end sync(joinSet)
+            serviceItem = new ServiceItem(serviceItem.serviceID, 
+                                          serviceItem.service, lookupAttr);
+        }
+        Iterator<ProxyReg> it = joinSet.iterator();
+        while (it.hasNext()){
+            ProxyReg proxyReg = it.next();
+            proxyReg.addTask(new SetAttributesTask(proxyReg,attrSets));
+        }
     }//end setAttributes
 
     /** 
@@ -2308,22 +2368,21 @@ public class JoinManager {
                                  Entry[] attrSets,
                                  boolean checkSC)
     {
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
-	synchronized(joinSet) {
+        if(bTerminated) 
+            throw new IllegalStateException("join manager was terminated");
+	synchronized(this) {
 	    lookupAttr = LookupAttributes.modify(lookupAttr, attrSetTemplates,
                                                  attrSets, checkSC);
-            serviceItem.attributeSets = lookupAttr;
-            for(int i=0;i<joinSet.size();i++) {
-                ProxyReg proxyReg = (ProxyReg)joinSet.get(i);
-                proxyReg.addTask(new ModifyAttributesTask(proxyReg,
-                                                          attrSetTemplates,
-                                                          attrSets));
-            }//end loop
-	}//end sync(joinSet)
+            serviceItem = new ServiceItem(serviceItem.serviceID,
+                                          serviceItem.service, lookupAttr);
+        }//end sync
+        Iterator<ProxyReg> it = joinSet.iterator();
+        while (it.hasNext()){
+            ProxyReg proxyReg = it.next();
+            proxyReg.addTask(new ModifyAttributesTask(proxyReg,
+                                                      attrSetTemplates,
+                                                      attrSets));
+        }//end loop
     }//end modifyAttributes
 
     /**
@@ -2363,28 +2422,20 @@ public class JoinManager {
         synchronized(this) {
             if(bTerminated) return;//allow for multiple terminations
             bTerminated = true;
-            /* Terminate discovery and task management */
-            discMgr.removeDiscoveryListener(discMgrListener);
-            if(bCreateDiscMgr)  discMgr.terminate();
         }//end sync(this)
+        /* Terminate discovery and task management */
+        discMgr.removeDiscoveryListener(discMgrListener);
+        if(bCreateDiscMgr)  discMgr.terminate();
         terminateTaskMgr();
         /* Clear the joinSet and cancel all leases held by the service */
-        ArrayList srvcLeases = null;//store leases for use outside of sync blk
-	synchronized(joinSet) {
-            srvcLeases = new ArrayList(joinSet.size());
-	    for (Iterator iter = joinSet.iterator(); iter.hasNext(); ) {
-                srvcLeases.add
-                    ( (((ProxyReg)iter.next()).serviceLease) );
-	    }//end loop
-	    joinSet.clear();
-	}//end sync(joinSet)
-        /* Must cancel leases outside of sync block because of remote call */
-        if(srvcLeases == null) return;
-        for(int i=0;i<srvcLeases.size();i++) {
+        Iterator<ProxyReg> iter = joinSet.iterator();
+        while (iter.hasNext()) {
             try {
-                leaseRenewalMgr.cancel((Lease)srvcLeases.get(i));
-            } catch (Exception e) { }
+                leaseRenewalMgr.cancel(iter.next().serviceLease );
+            } catch (Exception e){}
         }//end loop
+        leaseRenewalMgr.close();
+        joinSet.clear();
     }//end terminate
 
     /** 
@@ -2464,54 +2515,131 @@ public class JoinManager {
         replaceRegistrationDo(serviceProxy, attrSets, true);
     }//end replaceRegistration
 
-    /** Convenience method invoked by the constructors of this class that
-     *  uses the given <code>Configuration</code> to initialize the current
-     *  instance of this utility, and initiates all join processing for
-     *  the given parameters. This method handles the various configurations
-     *  allowed by the different constructors.
+    private static class Conf{
+        ProxyPreparer registrarPreparer;
+        ProxyPreparer registrationPreparer;
+        ProxyPreparer serviceLeasePreparer;
+        ExecutorService executorService;
+        WakeupManager wakeupManager;
+        Integer maxNretrys;
+        LeaseRenewalManager leaseRenewalManager;
+        Long renewalDuration;
+        DiscoveryManagement discoveryMgr;
+        boolean bcreateDisco;
+        
+        Conf (  ProxyPreparer registrarPreparer,
+                ProxyPreparer registrationPreparer,
+                ProxyPreparer serviceLeasePreparer,
+                ExecutorService taskManager,
+                WakeupManager wakeupManager,
+                Integer maxNretrys,
+                LeaseRenewalManager leaseRenewalManager,
+                Long renewalDuration,
+                DiscoveryManagement discoveryMgr,
+                boolean bcreateDisco)
+        {
+            this.registrarPreparer = registrarPreparer;
+            this.registrationPreparer = registrationPreparer;
+            this.serviceLeasePreparer = serviceLeasePreparer;
+            this.executorService = taskManager;
+            this.wakeupManager = wakeupManager;
+            this.maxNretrys = maxNretrys;
+            this.leaseRenewalManager = leaseRenewalManager;
+            this.renewalDuration = renewalDuration;
+            this.discoveryMgr = discoveryMgr;
+            this.bcreateDisco = bcreateDisco;
+        }
+    }
+    
+    /**
+     * This method is for constructors that use an empty configuration.
+     * 
+     * @param config
+     * @param leaseMgr
+     * @param discoveryMgr
+     * @param serviceProxy
+     * @return Conf
+     * @throws IOException
+     * @throws NullPointerException
+     * @throws IllegalArgumentException 
      */
-    private void createJoinManager(ServiceID serviceID, 
-                                   Object serviceProxy,
-                                   Entry[] attrSets, 
-                                   ServiceIDListener callback,
+    private static Conf getConf(    Configuration config,
                                    LeaseRenewalManager leaseMgr,
-                                   Configuration config) 
-                                    throws IOException, ConfigurationException
+                                    DiscoveryManagement discoveryMgr,
+                                    Object serviceProxy) 
+            throws IOException, NullPointerException, IllegalArgumentException {
+        try {
+            return getConfig(config, leaseMgr, discoveryMgr, serviceProxy);
+        } catch (ConfigurationException e){
+            throw new IOException("Configuration problem during construction", e);
+        }
+    }
+    
+    /**
+     * Gets the configuration and throws any exceptions.
+     * 
+     * This static method guards against finalizer attacks and allows fields
+     * to be final.
+     * 
+     * @param config
+     * @param leaseMgr
+     * @param discoveryMgr
+     * @param serviceProxy
+     * @return Conf
+     * @throws IOException
+     * @throws ConfigurationException
+     * @throws NullPointerException
+     * @throws IllegalArgumentException 
+     */
+    private static Conf getConfig(  Configuration config,
+                                    LeaseRenewalManager leaseMgr, 
+                                    DiscoveryManagement discoveryMgr,
+                                    Object serviceProxy) 
+            throws IOException, ConfigurationException, NullPointerException,
+            IllegalArgumentException 
     {
 	if(!(serviceProxy instanceof java.io.Serializable)) {
             throw new IllegalArgumentException
                                        ("serviceProxy must be Serializable");
 	}//endif
-
         /* Retrieve configuration items if applicable */
         if(config == null)  throw new NullPointerException("config is null");
         /* Proxy preparers */
-        registrarPreparer = (ProxyPreparer)config.getEntry
+        ProxyPreparer registrarPreparer = config.getEntry
                                                    (COMPONENT_NAME,
                                                     "registrarPreparer",
                                                     ProxyPreparer.class,
                                                     new BasicProxyPreparer());
-        registrationPreparer = (ProxyPreparer)config.getEntry
+        ProxyPreparer registrationPreparer = config.getEntry
                                                    (COMPONENT_NAME,
                                                     "registrationPreparer",
                                                     ProxyPreparer.class,
                                                     new BasicProxyPreparer());
-        serviceLeasePreparer = (ProxyPreparer)config.getEntry
+        ProxyPreparer serviceLeasePreparer = config.getEntry
                                                    (COMPONENT_NAME,
                                                     "serviceLeasePreparer",
                                                     ProxyPreparer.class,
                                                     new BasicProxyPreparer());
         /* Task manager */
+        ExecutorService taskMgr;
         try {
-            taskMgr = (TaskManager)config.getEntry(COMPONENT_NAME,
-                                                   "taskManager",
-                                                   TaskManager.class);
+            taskMgr = config.getEntry(COMPONENT_NAME,
+                                       "executorService",
+                                       ExecutorService.class);
         } catch(NoSuchEntryException e) { /* use default */
-            taskMgr = new TaskManager(MAX_N_TASKS,(15*1000),1.0f);
+            taskMgr = new ThreadPoolExecutor(
+                MAX_N_TASKS, 
+                MAX_N_TASKS, /* Ignored */
+                15,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue(), /* Unbounded Queue */
+                new NamedThreadFactory("JoinManager executor thread", false)
+            );
         }
         /* Wakeup manager */
+        WakeupManager wakeupMgr;
         try {
-            wakeupMgr = (WakeupManager)config.getEntry(COMPONENT_NAME,
+            wakeupMgr = config.getEntry(COMPONENT_NAME,
                                                        "wakeupManager",
                                                        WakeupManager.class);
         } catch(NoSuchEntryException e) { /* use default */
@@ -2519,57 +2647,100 @@ public class JoinManager {
                                     (new WakeupManager.ThreadDesc(null,true));
         }
         /* Max number of times to re-schedule tasks in thru wakeup manager */
-        maxNRetries = ((Integer)config.getEntry
+        int maxNRetries = (config.getEntry
                                         (COMPONENT_NAME,
                                          "wakeupRetries",
                                          int.class,
-                                         Integer.valueOf(maxNRetries))).intValue();
-        if(attrSets == null) {
-            lookupAttr = new Entry[0];
-        } else {
-            attrSets = (Entry[])attrSets.clone();
-            LookupAttributes.check(attrSets,false);//null elements NOT ok
-            lookupAttr = attrSets;
-        }//endif
-	serviceItem = new ServiceItem(serviceID, serviceProxy, lookupAttr);
+                                         Integer.valueOf(6))).intValue();
         /* Lease renewal manager */
-        leaseRenewalMgr = leaseMgr;
-	if(leaseRenewalMgr == null) {
+	if(leaseMgr == null) {
             try {
-                leaseRenewalMgr = (LeaseRenewalManager)config.getEntry
+                leaseMgr = config.getEntry
                                                   (COMPONENT_NAME,
                                                    "leaseManager",
                                                    LeaseRenewalManager.class);
             } catch(NoSuchEntryException e) { /* use default */
-                leaseRenewalMgr = new LeaseRenewalManager(config);
+                leaseMgr = new LeaseRenewalManager(config);
             }
         }//endif
-        renewalDuration = ((Long)config.getEntry
+        long renewalDuration = (config.getEntry
                                       (COMPONENT_NAME,
                                        "maxLeaseDuration",
                                        long.class,
-                                       Long.valueOf(renewalDuration))).longValue();
+                                       Long.valueOf(Lease.FOREVER))).longValue();
         if( (renewalDuration == 0) || (renewalDuration < Lease.ANY) ) {
             throw new ConfigurationException("invalid configuration entry: "
                                              +"renewalDuration ("
                                              +renewalDuration+") must be "
                                              +"positive or Lease.ANY");
         }//endif
-	this.callback = callback;
         /* Discovery manager */
-	if(discMgr == null) {
+        boolean bCreateDiscMgr = false;
+	if(discoveryMgr == null) {
 	    bCreateDiscMgr = true;
             try {
-                discMgr = (DiscoveryManagement)config.getEntry
+                discoveryMgr = config.getEntry
                                                  (COMPONENT_NAME,
                                                   "discoveryManager",
                                                   DiscoveryManagement.class);
             } catch(NoSuchEntryException e) { /* use default */
-                discMgr = new LookupDiscoveryManager
+                discoveryMgr = new LookupDiscoveryManager
                                      (new String[] {""}, null, null, config);
             }
 	}//endif
-	discMgr.addDiscoveryListener(discMgrListener);
+        return new Conf(registrarPreparer, registrationPreparer, serviceLeasePreparer,
+                taskMgr, wakeupMgr, maxNRetries, leaseMgr, renewalDuration,
+                discoveryMgr, bCreateDiscMgr);
+    }
+    
+    /** Convenience method invoked by the constructors of this class that
+     *  uses the given <code>Configuration</code> to initialize the current
+     *  instance of this utility, and initiates all join processing for
+     *  the given parameters. This method handles the various configurations
+     *  allowed by the different constructors.
+     */
+    private JoinManager(Object serviceProxy,
+                                   Entry[] attrSets, ServiceID serviceID, 
+                                   ServiceIDListener callback, Conf conf)
+    {
+	registrarPreparer = conf.registrarPreparer;
+        registrationPreparer = conf.registrationPreparer;
+        serviceLeasePreparer = conf.serviceLeasePreparer;
+        executor = new ExtensibleExecutorService(conf.executorService, 
+                new RunnableFutureFactory(){
+
+            @Override
+            public <T> RunnableFuture<T> newTaskFor(Runnable r, T value) {
+                if (r instanceof ProxyRegTask) return (RunnableFuture<T>) r;
+                throw new IllegalStateException("Runnable not instance of ProxyRegTask");
+            }
+
+            @Override
+            public <T> RunnableFuture<T> newTaskFor(Callable<T> c) {
+                if (c instanceof ProxyRegTask) return (RunnableFuture<T>) c;
+                throw new IllegalStateException("Callable not instance of ProxyRegTask");
+            }
+            
+        });
+        proxyRegTaskQueue = new ProxyRegTaskQueue(executor);
+        wakeupMgr = conf.wakeupManager;
+        maxNRetries = conf.maxNretrys;
+        leaseRenewalMgr = conf.leaseRenewalManager;
+        renewalDuration = conf.renewalDuration;
+        bCreateDiscMgr = conf.bcreateDisco;
+        DiscMgrListener discMgrListen = new DiscMgrListener();
+        if(attrSets == null) {
+            lookupAttr = new Entry[0];
+        } else {
+            attrSets = attrSets.clone();
+            LookupAttributes.check(attrSets,false);//null elements NOT ok
+            lookupAttr = attrSets;
+        }//endif
+	serviceItem = new ServiceItem(serviceID, serviceProxy, lookupAttr);
+	this.callback = callback;
+	conf.discoveryMgr.addDiscoveryListener(discMgrListen);
+        discMgr = conf.discoveryMgr;
+        discMgrListener = discMgrListen;
     }//end createJoinManager
 
     /** For the given lookup service proxy, searches the <code>joinSet</code>
@@ -2590,17 +2761,15 @@ public class JoinManager {
      */
     private void removeTasks(ProxyReg proxyReg) {
         if(proxyReg == null) return;
-        if(taskMgr == null) return;
+        if(executor == null) return;
         synchronized(proxyReg.taskList) {
             if(proxyReg.proxyRegTask != null) {
-                synchronized(taskMgr) {
-                    taskMgr.remove(proxyReg.proxyRegTask);
-                }//end sync(taskMgr)
-                proxyReg.proxyRegTask.cancel();//cancel retry in WakeupMgr
+                proxyReg.proxyRegTask.cancel(false);                
                 proxyReg.proxyRegTask = null;  //don't reuse because of seq#
             }//endif
             proxyReg.taskList.clear();
         }//end sync(proxyReg.taskList)
+        proxyReg.terminate();
     }//end removeTasks
 
     /** Removes from the task manager, all pending tasks regardless of the
@@ -2613,20 +2782,9 @@ public class JoinManager {
             /* Cancel all tasks scheduled for future retry by the wakeup mgr */
             wakeupMgr.cancelAll();//cancel all tickets
             wakeupMgr.stop();//stop execution of the wakeup manager
-            synchronized(taskMgr) {
-                /* Remove all pending tasks */
-                ArrayList pendingTasks = taskMgr.getPending();
-                for(int i=0;i<pendingTasks.size();i++) {
-                    RetryTask pendingTask = (RetryTask)pendingTasks.get(i);
-                    pendingTask.cancel();//cancel wakeup ticket
-                    taskMgr.remove(pendingTask);//remove from task mgr
-                }//end loop
-                /* Interrupt all active tasks, prepare taskMgr for GC. */
-                taskMgr.terminate();
-                taskMgr = null;
-            }//end sync(taskMgr)
-            wakeupMgr = null;
-        }//end sync(wakeupMgr)
+        }
+        /* Interrupt all active tasks, prepare taskMgr for GC. */
+        executor.shutdownNow();
     }//end terminateTaskMgr
 
     /** Examines the elements of the input set and, upon finding at least one
@@ -2634,7 +2792,8 @@ public class JoinManager {
      */
     private void testForNullElement(Object[] a) {
         if(a == null) return;
-        for(int i=0;i<a.length;i++) {
+        int l = a.length;
+        for(int i=0;i<l;i++) {
             if(a[i] == null) {
                 throw new NullPointerException
                           ("input array contains at least one null element");
@@ -2655,16 +2814,13 @@ public class JoinManager {
                                        Entry[] attrSets,
                                        boolean doAttrs)
     {
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
+        if(bTerminated) 
+            throw new IllegalStateException("join manager was terminated");
 	if(!(serviceProxy instanceof java.io.Serializable)) {
             throw new IllegalArgumentException
                                         ("serviceProxy must be Serializable");
 	}//endif
-	synchronized(joinSet) {
+	synchronized(this) {
             if(doAttrs) {
                 if(attrSets == null) {
                     lookupAttr = new Entry[0];
@@ -2674,18 +2830,18 @@ public class JoinManager {
                     lookupAttr = attrSets;
                 }//endif
             }//endif
-            serviceItem.service = serviceProxy;
-            serviceItem.attributeSets = lookupAttr;
-            for(int i=0;i<joinSet.size();i++) {
-                ProxyReg proxyReg = (ProxyReg)(joinSet.get(i));
-                removeTasks(proxyReg);
-                try {
-                    leaseRenewalMgr.remove( proxyReg.serviceLease );
-                } catch (UnknownLeaseException e) { }
-                proxyReg.addTask(new RegisterTask(proxyReg,
+            serviceItem = new ServiceItem(serviceItem.serviceID, serviceProxy, lookupAttr);
+        }
+        Iterator<ProxyReg> it = joinSet.iterator();
+        while (it.hasNext()){
+            ProxyReg proxyReg = it.next();
+            removeTasks(proxyReg);
+            try {
+                leaseRenewalMgr.remove( proxyReg.serviceLease );
+            } catch (UnknownLeaseException e) { }
+            proxyReg.addTask(new RegisterTask(proxyReg,
                                                  (Entry[])lookupAttr.clone()));
-            }//end loop
-	}//end sync(joinSet)
+        }//end loop
     }//end replaceRegistrationDo
 
 }//end class JoinManager

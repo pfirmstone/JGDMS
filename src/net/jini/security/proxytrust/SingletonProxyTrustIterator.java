@@ -25,7 +25,7 @@ import java.util.NoSuchElementException;
  * A simple <code>ProxyTrustIterator</code> that produces a single object
  * as the only element of the iteration.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  */

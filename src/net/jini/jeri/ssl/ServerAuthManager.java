@@ -18,7 +18,7 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.net.Socket;

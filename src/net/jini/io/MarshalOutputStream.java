@@ -21,14 +21,16 @@ package net.jini.io;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.rmi.server.RMIClassLoaderSpi;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collection;
-import net.jini.loader.RiverClassLoader;
-
+import net.jini.loader.ClassLoading;
 /**
  * An extension of <code>ObjectOutputStream</code> that implements the
  * dynamic class loading semantics of Java(TM) Remote Method Invocation
  * (Java RMI) argument and result
- * marshalling (using {@link RiverClassLoader}).  A
+ * marshalling (using {@link ClassLoading}).  A
  * <code>MarshalOutputStream</code> writes data that is intended to be
  * written by a corresponding {@link MarshalInputStream}.
  *
@@ -37,8 +39,8 @@ import net.jini.loader.RiverClassLoader;
  * ObjectOutputStream#annotateClass annotateClass} and {@link
  * ObjectOutputStream#annotateProxyClass annotateProxyClass} to
  * annotate class descriptors in the stream with codebase strings
- * obtained using {@link RiverClassLoader#getClassAnnotation
- * RiverClassLoader.getClassAnnotation}.
+ * obtained using {@link RMIClassLoaderSpi#getClassAnnotation
+ * RMIClassLoaderSpi.getClassAnnotation}.
  *
  * <p><code>MarshalOutputStream</code> writes class annotations to its
  * own stream; a subclass may override the {@link #writeAnnotation
@@ -50,7 +52,7 @@ import net.jini.loader.RiverClassLoader;
  * ObjectOutputStream#useProtocolVersion
  * ObjectOutputStream.useProtocolVersion}).
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public class MarshalOutputStream
@@ -95,6 +97,16 @@ public class MarshalOutputStream
 	    throw new NullPointerException();
 	}
 	this.context = context;
+        
+        AccessController.doPrivileged(new PrivilegedAction<Object>(){
+
+            @Override
+            public Object run() {
+                enableReplaceObject(true);
+                return null;
+            }
+            
+        });
     }
 
     /**
@@ -111,8 +123,8 @@ public class MarshalOutputStream
      * <p><code>MarshalOutputStream</code> implements this method as
      * follows:
      *
-     * <p>This method invokes {@link RiverClassLoader#getClassAnnotation
-     * RiverClassLoader.getClassAnnotation} with <code>cl</code> to get
+     * <p>This method invokes {@link RMIClassLoaderSpi#getClassAnnotation
+     * RMIClassLoaderSpi.getClassAnnotation} with <code>cl</code> to get
      * the appropriate class annotation string value (possibly
      * <code>null</code>), and then it invokes this stream's {@link
      * #writeAnnotation writeAnnotation} method with that string to
@@ -127,7 +139,7 @@ public class MarshalOutputStream
      * <code>null</code>
      **/
     protected void annotateClass(Class cl) throws IOException {
-	writeAnnotation(RiverClassLoader.getClassAnnotation(cl));
+	writeAnnotation(ClassLoading.getClassAnnotation(cl));
     }
 
     /**
@@ -137,8 +149,8 @@ public class MarshalOutputStream
      * <p><code>MarshalOutputStream</code> implements this method as
      * follows:
      *
-     * <p>This method invokes {@link RiverClassLoader#getClassAnnotation
-     * RiverClassLoader.getClassAnnotation} with <code>cl</code> to get
+     * <p>This method invokes {@link RMIClassLoaderSpi#getClassAnnotation
+     * RMIClassLoaderSpi.getClassAnnotation} with <code>cl</code> to get
      * the appropriate class annotation string value (possibly
      * <code>null</code>), and then it invokes this stream's {@link
      * #writeAnnotation writeAnnotation} method with that string to
@@ -153,7 +165,7 @@ public class MarshalOutputStream
      * <code>null</code>
      **/
     protected void annotateProxyClass(Class cl) throws IOException {
-	writeAnnotation(RiverClassLoader.getClassAnnotation(cl));
+	writeAnnotation(ClassLoading.getClassAnnotation(cl));
     }
 
     /**

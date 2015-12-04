@@ -24,7 +24,7 @@ import net.jini.entry.AbstractEntry;
  * distinct from the Location class in that it is intended for use
  * with the Location class in geographically dispersed organizations.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see Location
  * @see AddressBean

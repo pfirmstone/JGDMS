@@ -39,7 +39,7 @@ non-intuitive if you do not have previous experience with the Java Remote
 Method Invocation (Java RMI) activation system.  In particular, the
 relationship between the tool used to launch our contributed service
 implementations, the <a
-href=../api/com/sun/jini/start/package-summary.html><em>service
+href=../api/org/apache/river/start/package-summary.html><em>service
 starter</em></a>, and the service launched is a bit different for
 activatable than non-activatable services. This document is intended to
 provide some background on the advantages of using the Java RMI activation
@@ -187,9 +187,9 @@ quite a few other services in the process.
 A better approach is to tell the service that you no longer need it and
 that it should destroy itself. The administration interfaces of all the
 service implementations in the Apache River release support the <a
-href=../api/com/sun/jini/admin/DestroyAdmin.html>
-<code>com.sun.jini.admin.DestroyAdmin</code></a> interface. Invoking the <a
-href=../api/com/sun/jini/admin/DestroyAdmin.html#destroy><code>destroy</code></a>
+href=../api/org/apache/river/admin/DestroyAdmin.html>
+<code>org.apache.river.admin.DestroyAdmin</code></a> interface. Invoking the <a
+href=../api/org/apache/river/admin/DestroyAdmin.html#destroy><code>destroy</code></a>
 method on the admin of an activatable service will cause the service to be
 unregistered with the activation daemon, the service's logs to be
 destroyed, and all the threads the service has started to be stopped (which
@@ -197,7 +197,7 @@ means if there are no other non-daemon threads, the VM will exit). Invoking
 <code>destroy</code> on only a single service will leave the activation
 daemon, and any other services registered with it, intact and
 available. When the <a
-href=../api/com/sun/jini/example/browser/package-summary.html>example
+href=../api/org/apache/river/example/browser/package-summary.html>example
 service browser</a> that ships with the Apache River release is started with the
 <code>folderView</code> configuration entry set to <code>true</code> (which
 is the default), it can be used to destroy services that implement
@@ -266,7 +266,7 @@ if you wanted to have the service run in a VM with the <code>-server</code>
 command line switch set, adding <code>-server</code> to the command line
 used for the setup VM will not help. How the service VM is spawned is
 controlled by the <a
-href=../api/com/sun/jini/start/SharedActivationGroupDescriptor.html><code>com.sun.jini.start.SharedActivationGroupDescriptor</code></a>
+href=../api/org/apache/river/start/SharedActivationGroupDescriptor.html><code>org.apache.river.start.SharedActivationGroupDescriptor</code></a>
 that was responsible for creating the <em>activation group</em> to which
 that service has been assigned.
 <p>
@@ -274,10 +274,10 @@ that service has been assigned.
 <b>Service Starter Needs More Information</b><br>
 
 Service starter determines what needs to be done by getting an array of <a
-href=../api/com/sun/jini/start/ServiceDescriptor.html><code>com.sun.jini.start.ServiceDescriptor</code></a>s
+href=../api/org/apache/river/start/ServiceDescriptor.html><code>org.apache.river.start.ServiceDescriptor</code></a>s
 using the <code>serviceDescriptors</code> configuration entry. Creating a
 single non-activatable service requires only a single instance of <a
-href=../api/com/sun/jini/start/NonActivatableServiceDescriptor.html><code>com.sun.jini.start.NonActivatableServiceDescriptor</code></a>,
+href=../api/org/apache/river/start/NonActivatableServiceDescriptor.html><code>org.apache.river.start.NonActivatableServiceDescriptor</code></a>,
 while creating instances of activatable services is a bit more involved
 and has more options.
 <p>
@@ -291,7 +291,7 @@ how the server VM is spawned.<p>
 
 Once you have an activation group, one or more activatable services can be
 assigned to it. Activatable services are created by placing instances of <a
-href=../api/com/sun/jini/start/SharedActivatableServiceDescriptor.html><code>com.sun.jini.start.SharedActivatableServiceDescriptor</code></a>
+href=../api/org/apache/river/start/SharedActivatableServiceDescriptor.html><code>org.apache.river.start.SharedActivatableServiceDescriptor</code></a>
 in the <code>serviceDescriptors</code> array, one instance per activatable
 service to be created.
 <p>
@@ -334,7 +334,7 @@ and/or Linux</a>
 <p>
 
 The second is <a
-href=../api/com/sun/jini/phoenix/package-summary.html>phoenix</a>, which is
+href=../api/org/apache/river/phoenix/package-summary.html>phoenix</a>, which is
 part of the release. Phoenix has better support for Jini ERI, is
 configurable, and supports <code>net.jini.security</code>, making it
 suitable for a much broader range of deployments than <code>rmid</code>.

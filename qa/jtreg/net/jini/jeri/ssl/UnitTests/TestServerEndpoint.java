@@ -17,11 +17,11 @@
  */
 /* @test 
  * @summary Test the SslServerEndpoint and HttpsServerEndpoint classes.
- * 
+ * @author Tim Blackman
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @build TestUtilities
- * @run main/othervm/policy=policy TestServerEndpoint
+ * @run main/othervm/policy=policy/secure=org.apache.river.api.security.CombinerSecurityManager TestServerEndpoint
  */
 
 import net.jini.core.constraint.*;

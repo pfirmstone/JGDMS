@@ -18,7 +18,7 @@
 /* @test 
  * @summary functional test to verify that preferred resource provider
  * correctly implements preferred classes and resource functionality
- * 
+ * @author Laird Dornin
  *
  * @library ../../../../../../testlibrary
  * @build TestLibrary
@@ -32,10 +32,16 @@
  * "NonpreferredInterface.class" in its package directory, "annoying".
  */
 
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.MalformedURLException;
@@ -43,8 +49,9 @@ import java.util.jar.JarFile;
 import java.util.jar.JarEntry;
 import java.rmi.server.RMIClassLoader;
 import java.rmi.MarshalledObject;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import com.sun.jini.loader.pref.internal.PreferredResources;
 
 /**
  * The following checks are carried out by the test:
@@ -89,10 +96,45 @@ import com.sun.jini.loader.pref.internal.PreferredResources;
  * resources are loaded from the system loader.
  */
 public class CorrectInterpretation {
+    
+    // PreferredResources was moved from public namespace to package private,
+    // Reflection is used to enable access for testing.
+    static Class prefRes = null;
+    static Constructor prefResCons = null;
+    static Method write = null;
+    static Method getNameState = null;
+    static Method getDefaultPreference = null;
+    static Method getWildcardPreference = null;
+    public static final int NAME_NO_PREFERENCE = 0;
+    public static final int NAME_NOT_PREFERRED = 1;
+    public static final int NAME_PREFERRED = 2;
+    public static final int NAME_PREFERRED_RESOURCE_EXISTS = 3;
     static {
 	// set the logging configuration file
 	System.setProperty("java.util.logging.config.file",
 			   TestParams.testSrc + "/../../logging.properties");
+        
+        try {
+            prefRes = Class.forName("net.jini.loader.pref.PreferredResources");
+            prefResCons = prefRes.getDeclaredConstructor(InputStream.class);
+            prefResCons.setAccessible(true);
+            write = prefRes.getDeclaredMethod("write", OutputStream.class);
+            write.setAccessible(true);
+            Class [] params = { String.class, Boolean.TYPE};
+            getNameState = prefRes.getDeclaredMethod("getNameState", params);
+            getNameState.setAccessible(true);
+            getDefaultPreference = prefRes.getDeclaredMethod("getDefaultPreference", new Class[0]);
+            getDefaultPreference.setAccessible(true);
+            getWildcardPreference = prefRes.getDeclaredMethod("getWildcardPreference", String.class);
+            getWildcardPreference.setAccessible(true);
+        } catch (ClassNotFoundException ex) {
+            ex.printStackTrace(System.err);
+        } catch (NoSuchMethodException ex) {
+            ex.printStackTrace(System.err);
+        } catch (SecurityException ex) {
+            ex.printStackTrace(System.err);
+        }
+        
     }
 
     final static String PREF_LIST = "META-INF/PREFERRED.LIST";
@@ -116,18 +158,17 @@ public class CorrectInterpretation {
     {
 	try {
 	    System.err.println("");
-	    PreferredResources pr =
-		new PreferredResources(new FileInputStream(absName));
+	    Object pr = null;
+                pr = prefResCons.newInstance(new FileInputStream(absName));
 	    if (failureExpected) {
-		pr.write(System.err);
+                if (pr != null) write.invoke(pr, System.err);
 		TestLibrary.bomb("preferences list syntax error not detected");
-		
 	    } else {
 		System.err.println(absName + ": Syntax ok");
 	    }
-	} catch (IOException e) {
+	} catch (Exception e) {
 	    if (!failureExpected) {
-		throw e;
+		throw new IOException("Test Failed",e);
 	    } else {
 		System.err.println(absName + ": received expected failure: " +
 				   e.getMessage());
@@ -161,7 +202,7 @@ public class CorrectInterpretation {
      * Check that the preference value for the given name matches the
      * expected parameter.
      */
-    private static void checkPreferred(PreferredResources prefs,
+    private static void checkPreferred(Object prefs,
 				       String name, boolean expected)
 	throws IOException
     {
@@ -179,7 +220,7 @@ public class CorrectInterpretation {
     /**
      * Check that a series of names have expected preferences values.
      */
-    private static void checkPreferredNames(PreferredResources pr)
+    private static void checkPreferredNames(Object pr)
 	throws IOException
     {
 	checkPreferred(pr, "One.class", true);
@@ -198,7 +239,7 @@ public class CorrectInterpretation {
      * and compare the interpreted list to the non-interpreted list.
      * The bytes of the two lists must be the same.
      */
-    private static void checkPrefRewrite(PreferredResources pr)
+    private static void checkPrefRewrite(Object pr)
 	throws IOException
     {
 	FileInputStream fin = new FileInputStream(TestParams.testSrc +
@@ -208,8 +249,17 @@ public class CorrectInterpretation {
 	fileBytes[nRead] = 0;
 	String readPrefs = new String(fileBytes, 0, nRead);
 	ByteArrayOutputStream bout = new ByteArrayOutputStream();
-	pr.write(bout);
-	pr.write(System.out);
+        try {
+            write.invoke(pr, bout);
+            write.invoke(pr, System.out);
+        } catch (IllegalAccessException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalArgumentException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvocationTargetException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
 	String rewrittenPrefs = bout.toString();
 	    
 	System.err.println("READ PREFS-----");
@@ -311,27 +361,46 @@ public class CorrectInterpretation {
      * method will be exercised by the assignability checks earlier in
      * this test.
      */
-    private static boolean isPreferred(PreferredResources prefs,
+    private static boolean isPreferred(Object prefs,
 				       String name,
 				       boolean isClass)
 	throws IOException
     {
-	int state = prefs.getNameState(name, isClass);
-	boolean preferred = prefs.getDefaultPreference().booleanValue();
+        Object[] params = {name, isClass};
+	int state = -1;
+	boolean preferred = false;
+        try {
+            state = ((Integer) getNameState.invoke(prefs, params)).intValue();
+            preferred = ((Boolean) getDefaultPreference.invoke(prefs, (Object[]) null)).booleanValue();
+        } catch (IllegalAccessException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalArgumentException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvocationTargetException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        }
 
 	switch (state) {
-	case PreferredResources.NAME_NO_PREFERENCE:
-	    Boolean wildcardPref =
-		(Boolean) prefs.getWildcardPreference(name);
+	case NAME_NO_PREFERENCE:
+	    Boolean wildcardPref = Boolean.FALSE;
+        try {
+            wildcardPref = (Boolean) getWildcardPreference.invoke(prefs, name);
+        } catch (IllegalAccessException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalArgumentException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvocationTargetException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        }
 	    if (wildcardPref != null) {
 		preferred = wildcardPref.booleanValue();
 	    }
 	    break;
-	case PreferredResources.NAME_NOT_PREFERRED:
+	case NAME_NOT_PREFERRED:
 	    preferred = false;
 	    break;
-	case PreferredResources.NAME_PREFERRED_RESOURCE_EXISTS:
-	case PreferredResources.NAME_PREFERRED:
+	case NAME_PREFERRED_RESOURCE_EXISTS:
+	case NAME_PREFERRED:
 	    preferred = true;
 	    break;
 	default:
@@ -403,16 +472,25 @@ public class CorrectInterpretation {
      * Loads the preferred list from child.jar and creates a
      * PreferredResources object from that list.
      */
-    private static PreferredResources getPreferredResources()
+    private static Object getPreferredResources()
 	throws IOException
     {
-        PreferredResources prefs = null;
+        Object prefs = null;
 	JarFile jar = new JarFile(TestParams.testSrc +
 				  File.separator + "child.jar");
         JarEntry e = jar.getJarEntry(PREF_LIST);
-	
-        // if found, then load the index
-	prefs = new PreferredResources(jar.getInputStream(e));
+        try {
+            // if found, then load the index
+            prefs = prefResCons.newInstance(jar.getInputStream(e));
+        } catch (InstantiationException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalAccessException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IllegalArgumentException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvocationTargetException ex) {
+            Logger.getLogger(CorrectInterpretation.class.getName()).log(Level.SEVERE, null, ex);
+        }
         return prefs;
     }
 
@@ -442,7 +520,7 @@ public class CorrectInterpretation {
 	    System.err.println("\nRegression test to check that preferred " +
 			       "classes implementation has correct behavior\n");
 	    
-	    PreferredResources pr = getPreferredResources();
+	    Object pr = getPreferredResources();
 
 	    installClasses();
 

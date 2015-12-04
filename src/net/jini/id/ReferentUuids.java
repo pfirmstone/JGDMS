@@ -20,7 +20,7 @@ package net.jini.id;
 /**
  * Convenience methods for working with proxies that implement
  * <code>ReferentUuid</code>.
- * 
+ * @author Sun Microsystems, Inc.
  * @see ReferentUuid
  * @since 2.0
  */

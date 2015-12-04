@@ -17,7 +17,7 @@
  */
 package net.jini.export;
 
-import com.sun.jini.resource.Service;
+import org.apache.river.resource.Service;
 import java.rmi.server.ServerNotActiveException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -37,7 +37,7 @@ import net.jini.security.Security;
  * via the {@link #doWithServerContext ServerContext.doWithServerContext}
  * method.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  * @see net.jini.io.context.ClientHost

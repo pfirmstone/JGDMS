@@ -18,21 +18,19 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.action.GetLongAction;
-import com.sun.jini.jeri.internal.connection.BasicServerConnManager;
-import com.sun.jini.jeri.internal.connection.ServerConnManager;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.action.GetLongAction;
+import org.apache.river.jeri.internal.connection.BasicServerConnManager;
+import org.apache.river.jeri.internal.connection.ServerConnManager;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -40,8 +38,6 @@ import java.security.GeneralSecurityException;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -81,7 +77,7 @@ import net.jini.jeri.connection.ServerConnection;
 import net.jini.security.AuthenticationPermission;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
-import org.apache.river.config.LocalHostLookup;
+import org.apache.river.jeri.internal.runtime.LocalHost;
 
 /**
  * Provides the implementation of SslServerEndpoint so that the implementation
@@ -104,7 +100,7 @@ class SslServerEndpointImpl extends Utilities {
      */
     private final long maxServerSessionDuration =
 	((Long) Security.doPrivileged(
-	    new GetLongAction("com.sun.jini.jeri.ssl.maxServerSessionDuration",
+	    new GetLongAction("org.apache.river.jeri.ssl.maxServerSessionDuration",
 			      24L * 60L * 60L * 1000L))).longValue();
 
     /**
@@ -117,6 +113,8 @@ class SslServerEndpointImpl extends Utilities {
     /** The default server connection manager. */
     private static final ServerConnManager defaultServerConnectionManager =
 	new BasicServerConnManager();
+    
+    private static final LocalHost LOCAL_HOST = new LocalHost(logger, SslServerEndpointImpl.class);
 
     /** The associated server endpoint. */
     private final ServerEndpoint serverEndpoint;
@@ -319,8 +317,8 @@ class SslServerEndpointImpl extends Utilities {
 	    if (sslSocketFactory == null) {
 		sslInit();
 	    }
+            return sslSocketFactory;
 	}
-	return sslSocketFactory;
     }
 
     /** Returns the ServerAuthManager, calling sslInit if needed. */
@@ -329,8 +327,8 @@ class SslServerEndpointImpl extends Utilities {
 	    if (authManager == null) {
 		sslInit();
 	    }
-	}
 	return authManager;
+	}
     }
 
     /** Returns a hash code value for this object. */
@@ -523,70 +521,17 @@ class SslServerEndpointImpl extends Utilities {
     final Endpoint enumerateListenEndpoints(ListenContext listenContext)
 	throws IOException
     {
-	Exception exception = null;
-	try {
-	    String resolvedHost = this.serverHost;
-	    if (resolvedHost == null) {
-		InetAddress localAddr;
-		try {
-		    localAddr = AccessController.doPrivileged(
-                      new PrivilegedExceptionAction<InetAddress>() {
-                          public InetAddress run() throws UnknownHostException {
-                              return LocalHostLookup.getLocalHost();
-                          }
-                      });
-		} catch (PrivilegedActionException e) {
-		    UnknownHostException uhe =
-			(UnknownHostException) e.getCause();
-		    if (logger.isLoggable(Levels.FAILED)) {
-			logThrow(logger, Levels.FAILED, this.getClass(), 
-				 "enumerateListenEndpoints",
-				 "LocalHostLookup.getLocalHost() throws",
-				 null, uhe);
-		    }
-		    // Remove host information if caller does not have
-		    // privileges to see it.
-		    try {
-			LocalHostLookup.getLocalHost();
-		    } catch (UnknownHostException te) {
-			throw te;
-		    }
-		    throw new UnknownHostException("Host name cleared due to " +
-						   "insufficient caller " +
-						   "permissions");
-		}
-		SecurityManager sm = System.getSecurityManager();
-		if (sm != null) {
-		    try {
-			sm.checkConnect(localAddr.getHostName(), -1);
-		    } catch (SecurityException e) {
-			exception = e;
-			/* Throw new exception to not reveal host name */
-			throw new SecurityException(
-			    "Access to resolve local host denied");
-		    }
-		}
-		resolvedHost = localAddr.getHostAddress();
-	    }
-	    Endpoint result = createEndpoint(
-		resolvedHost,
-		checkCookie(listenContext.addListenEndpoint(listenEndpoint)));
-	    if (logger.isLoggable(Level.FINE)) {
-		logger.log(Level.FINE,
-			   "enumerate listen endpoints for {0}\nreturns {1}",
-			   new Object[] { this, result });
-	    }
-	    return result;
-	} finally {
-	    if (exception != null && logger.isLoggable(Levels.FAILED)) {
-		logThrow(
-		    logger, Levels.FAILED,
-		    SslServerEndpointImpl.class, "enumerateListenEndpoints",
-		    "enumerate listen endpoints for {0}\nthrows",
-		    new Object[] { this },
-		    exception);
-	    }
-	}
+        String resolvedHost = LOCAL_HOST.check(this.serverHost, this);
+
+        Endpoint result = createEndpoint(
+            resolvedHost,
+            checkCookie(listenContext.addListenEndpoint(listenEndpoint)));
+        if (logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE,
+                       "enumerate listen endpoints for {0}\nreturns {1}",
+                       new Object[] { this, result });
+        }
+        return result;
     }
 
     /** Creates a listen endpoint for this server endpoint. */

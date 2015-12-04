@@ -28,7 +28,7 @@ import java.rmi.RemoteException;
  * top-level transactions.  All <code>ServerTransaction</code> objects
  * are governed by a transaction manager that runs this protocol.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see NestableTransactionManager
  * @see ServerTransaction

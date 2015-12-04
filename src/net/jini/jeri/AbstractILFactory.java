@@ -18,7 +18,7 @@
 
 package net.jini.jeri;
 
-import com.sun.jini.jeri.internal.runtime.Util;
+import org.apache.river.jeri.internal.runtime.Util;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -499,6 +499,7 @@ public abstract class AbstractILFactory implements InvocationLayerFactory {
      * <p>A subclass should override this method if it adds instance state
      * that affects equality.
      **/
+    @Override
     public boolean equals(Object obj) {
 	return (obj == this ||
 		(obj != null &&

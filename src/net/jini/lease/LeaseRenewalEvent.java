@@ -68,7 +68,7 @@ import net.jini.core.lease.LeaseException;
  * The source associated with a <code>LeaseRenewalEvent</code> will be
  * the <code>LeaseRenewalManager</code> that generated the event.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see Lease
  * @see LeaseException
  * @see LeaseRenewalManager

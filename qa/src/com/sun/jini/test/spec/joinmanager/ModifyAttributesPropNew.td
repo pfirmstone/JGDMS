@@ -1,4 +1,0 @@
-testClass=ModifyAttributesPropNew
-testCategories=joinmanager,joinmanager_spec
-include0=joinmanager.properties
-include1=com/sun/jini/test/share/prop_lookups2_2Ports_srvcs1_0attrs3_2.properties

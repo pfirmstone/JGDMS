@@ -1,0 +1,5 @@
+PreferredResources-Version: 1.0
+Preferred: false
+
+Name: org/apache/river/test/spec/policyprovider/util/classes/-
+Preferred: true

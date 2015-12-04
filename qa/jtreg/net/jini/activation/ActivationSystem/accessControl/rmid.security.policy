@@ -10,39 +10,39 @@ grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
 
 grant {
     permission java.util.PropertyPermission "*", "read";
-    permission com.sun.jini.phoenix.SystemPermission "getServerSubject";
+    permission org.apache.river.phoenix.SystemPermission "getServerSubject";
 };
 
 grant principal "client1" {
-    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.SystemPermission "registerGroup";
-    permission com.sun.jini.phoenix.SystemPermission "getActivationGroupDesc";
-    permission com.sun.jini.phoenix.SystemPermission "registerObject";
-    permission com.sun.jini.phoenix.SystemPermission "getActivationDesc";
-    permission com.sun.jini.phoenix.SystemPermission "unregisterObject";
-    permission com.sun.jini.phoenix.ActivatorPermission "activate";
-    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.auth.login.config=${test.src}${/}login";
-    permission com.sun.jini.phoenix.ExecOptionPermission "-Djavax.net.ssl.trustStore=${test.src}${/}keystore";
-    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=${test.src}${/}group.security.policy";
+    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "registerGroup";
+    permission org.apache.river.phoenix.SystemPermission "getActivationGroupDesc";
+    permission org.apache.river.phoenix.SystemPermission "registerObject";
+    permission org.apache.river.phoenix.SystemPermission "getActivationDesc";
+    permission org.apache.river.phoenix.SystemPermission "unregisterObject";
+    permission org.apache.river.phoenix.ActivatorPermission "activate";
+    permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.auth.login.config=${test.src}${/}login";
+    permission org.apache.river.phoenix.ExecOptionPermission "-Djavax.net.ssl.trustStore=${test.src}${/}keystore";
+    permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.policy=${test.src}${/}group.security.policy";
 };
 
 grant principal "client2" {
-    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.SystemPermission "registerObject";
-    permission com.sun.jini.phoenix.SystemPermission "getActivationDesc";
-    permission com.sun.jini.phoenix.SystemPermission "unregisterObject";
-    permission com.sun.jini.phoenix.ActivatorPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.SystemPermission "setActivationDesc";
-    permission com.sun.jini.phoenix.SystemPermission "setActivationGroupDesc";
-    permission com.sun.jini.phoenix.ExecPermission "foobar";
-    permission com.sun.jini.phoenix.ExecOptionPermission "-baz";
+    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "registerObject";
+    permission org.apache.river.phoenix.SystemPermission "getActivationDesc";
+    permission org.apache.river.phoenix.SystemPermission "unregisterObject";
+    permission org.apache.river.phoenix.ActivatorPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "setActivationDesc";
+    permission org.apache.river.phoenix.SystemPermission "setActivationGroupDesc";
+    permission org.apache.river.phoenix.ExecPermission "foobar";
+    permission org.apache.river.phoenix.ExecOptionPermission "-baz";
 };
 
 grant principal "server" {
-    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
-    permission com.sun.jini.phoenix.SystemPermission "shutdown";
-    permission com.sun.jini.phoenix.SystemPermission "activeGroup";
-    permission com.sun.jini.phoenix.MonitorPermission "activeObject";
-    permission com.sun.jini.phoenix.MonitorPermission "inactiveGroup";
-    permission com.sun.jini.phoenix.MonitorPermission "inactiveObject";
+    permission org.apache.river.phoenix.SystemPermission "getProxyVerifier";
+    permission org.apache.river.phoenix.SystemPermission "shutdown";
+    permission org.apache.river.phoenix.SystemPermission "activeGroup";
+    permission org.apache.river.phoenix.MonitorPermission "activeObject";
+    permission org.apache.river.phoenix.MonitorPermission "inactiveGroup";
+    permission org.apache.river.phoenix.MonitorPermission "inactiveObject";
 };

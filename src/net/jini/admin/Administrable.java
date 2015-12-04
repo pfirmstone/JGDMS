@@ -21,7 +21,7 @@ package net.jini.admin;
 /** 
  * Every administrable service should implement this interface. 
  *
- * 
+ * @author Sun Microsystems, Inc.
  */
 public interface Administrable {
     /**

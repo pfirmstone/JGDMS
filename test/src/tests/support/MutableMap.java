@@ -14,7 +14,7 @@ import java.util.TreeSet;
 
 /**
  *
- * 
+ * @author Peter Firmstone.
  */
 public class MutableMap<K,V> extends AbstractMap<K,V> {
     private Set<Entry<K,V>> entrySet;

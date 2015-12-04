@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests non-public methods of the Endpoint class.
- * 
+ * @author Tim Blackman
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @build TestUtilities

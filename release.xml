@@ -33,7 +33,7 @@
         </sequential>
     </macrodef>
 
-    <property name="svnbase" value="https://svn.apache.org/repos/asf/incubator/river/" />
+    <property name="svnbase" value="https://svn.apache.org/repos/asf/river/" />
 
     <target name="copy-doc" >
         <svn-copy

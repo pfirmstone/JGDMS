@@ -25,7 +25,7 @@ import java.net.URL;
  * {@link Security#verifyCodebaseIntegrity Security.verifyCodebaseIntegrity},
  * allowing the URLs that provide content integrity to be extended.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  */

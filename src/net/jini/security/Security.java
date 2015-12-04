@@ -18,9 +18,9 @@
 
 package net.jini.security;
 
-import com.sun.jini.collection.WeakIdentityMap;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.resource.Service;
+import org.apache.river.collection.WeakIdentityMap;
+import org.apache.river.logging.Levels;
+import org.apache.river.resource.Service;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -66,7 +66,7 @@ import org.apache.river.api.security.SubjectDomain;
  * verifying codebase integrity, and for dynamically granting permissions.
  * This class cannot be instantiated.
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  * This implementation uses the {@link Logger} named
  * <code>net.jini.security.integrity</code> to log information at
  * the following levels:
@@ -147,7 +147,7 @@ import org.apache.river.api.security.SubjectDomain;
  * </tr>
  * </table>
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class Security {
@@ -551,12 +551,13 @@ public final class Security {
      * <p>
      * This method retrieves the current Threads AccessControlContext and
      * using a SubjectDomainCombiner subclass, prepends a new ProtectionDomain
-     * implementing SubjectDomain, containing the Principals of the Subject, a 
+     * implementing {@link org.apache.river.api.security.SubjectDomain}, 
+     * containing the Principals of the Subject, a 
      * CodeSource with a null URL and null Certificate array, with no
      * Permission and a null ClassLoader.
      * <p>
      * Unlike Subject.doAs, existing ProtectionDomains are not replaced unless
-     * they implement SubjectDomain.
+     * they implement {@link org.apache.river.api.security.SubjectDomain}.
      * <p>
      * Policy grants to Principals only are implied when run as the Subject, 
      * combinations of Principal, CodeSource URL and Certificates never imply 
@@ -568,16 +569,19 @@ public final class Security {
      * The SubjectDomainCombiner used treats CodeSource and Principal grants
      * as separate concerns.
      * <p>
-     * If a policy provider is installed that recognises SubjectDomain, then
+     * If a policy provider is installed that recognises 
+     * {@link org.apache.river.api.security.SubjectDomain}, then
      * Subjects who's principals are mutated are effective immediately.
      * <p>
-     * No AuthPermission is required to call this method.
+     * No AuthPermission is required to call this method, it cannot elevate
+     * privileges, only reduce them to those determined by a policy for a 
+     * particular Subject.
      * <p>
      * @param subject  The Subject the work will be performed as, may be null.
      * @param action  The code to be run as the Subject.
      * @return   The value returned by the PrivilegedAction's run() method.
      * @throws  NullPointerException if action is null;
-     * 
+     * @since 3.0.0
      */
     public static <T> T doAs(final Subject subject,
 			final PrivilegedAction<T> action) {
@@ -592,12 +596,13 @@ public final class Security {
      * <p>
      * This method retrieves the current Thread AccessControlContext and
      * using a SubjectDomainCombiner subclass, prepends a new ProtectionDomain
-     * implementing SubjectDomain, containing the Principals of the Subject, a 
+     * implementing {@link org.apache.river.api.security.SubjectDomain},
+     * containing the Principals of the Subject, a 
      * CodeSource with a null URL and null Certificate array, with no
      * Permission and a null ClassLoader.
      * <p>
      * Unlike Subject.doAs, existing ProtectionDomains are not replaced unless
-     * they implement SubjectDomain.
+     * they implement {@link org.apache.river.api.security.SubjectDomain}.
      * <p>
      * Policy grants to Principals only are implied when run as the Subject, 
      * combinations of Principal, CodeSource URL and Certificate grants never imply 
@@ -613,16 +618,20 @@ public final class Security {
      * is package private and can only be accessed through SubjectDomainCombiner
      * public methods.
      * <p>
-     * If a policy provider is installed that recognises SubjectDomain, then
+     * If a policy provider is installed that recognizes 
+     * {@link org.apache.river.api.security.SubjectDomain}, then
      * Subjects who's principals are mutated are effective immediately.
      * <p>
-     * No AuthPermission is required to call this method.
+     * No AuthPermission is required to call this method, it cannot elevate
+     * privileges, only reduce them to those determined by a policy for a 
+     * particular Subject.
      * <p>
      * @param subject  The Subject the work will be performed as, may be null.
      * @param action  The code to be run as the Subject.
      * @return   The value returned by the PrivilegedAction's run() method.
      * @throws  NullPointerException if action is null;
      * @throws PrivilegedActionException 
+     * @since 3.0.0
      */
     public static <T> T doAs(final Subject subject,
 			final PrivilegedExceptionAction<T> action)
@@ -1191,6 +1200,7 @@ public final class Security {
      * Extends and overrides SubjectDomainCombiner, to allow untrusted code
      * to run as a Subject, without injecting Principals into the ProtectionDomain
      * of untrusted code.
+     * @since 3.0.0
      */
     private static class DistributedSubjectCombiner extends SubjectDomainCombiner {
         
@@ -1198,7 +1208,8 @@ public final class Security {
     
         private DistributedSubjectCombiner(Subject subject){
             super(subject);
-            if (subject == null) throw new NullPointerException("subject cannot be null");
+            // Don't throw exception in constructor, check subject before calling constructor.
+//            if (subject == null) throw new NullPointerException("subject cannot be null");
             this.subject = subject;
         }
         
@@ -1252,6 +1263,10 @@ public final class Security {
         private final static CodeSource nullCS = new CodeSource(null, (Certificate[]) null);
         private final Subject subject;
         
+        /** 
+         * Visibility of Subject and it's principal set is guaranteed by final 
+         * reference and safe construction of this object. 
+         */
         private SubjectProtectionDomain(Subject subject){
             super(nullCS, new Permissions(), null, (Principal[]) subject.getPrincipals().toArray());
             this.subject = subject;

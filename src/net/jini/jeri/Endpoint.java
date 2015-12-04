@@ -65,7 +65,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * specified here are defined by the particular implementation of this
  * interface.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see ServerEndpoint
  * @since 2.0
  **/

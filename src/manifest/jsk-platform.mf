@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
-Class-Path: jsk-resources.jar
+Class-Path: jsk-resources.jar high-scale-lib.jar
 Implementation-Vendor: Apache Software Foundation
-Implementation-Version: 2.2.0
+Implementation-Version: 3.0

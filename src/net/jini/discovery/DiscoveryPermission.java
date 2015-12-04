@@ -35,7 +35,7 @@ import java.util.Collections;
  * permission must be granted not only to the code that calls LookupDiscovery, 
  * but also to LookupDiscovery itself.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see LookupDiscovery
  */

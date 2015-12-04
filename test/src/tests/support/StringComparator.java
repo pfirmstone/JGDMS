@@ -9,7 +9,7 @@ import java.util.Comparator;
 
 /**
  *
- * 
+ * @author peter
  */
 public class StringComparator implements Comparator<String>, Serializable {
     private static final long serialVersionUID = 1L;

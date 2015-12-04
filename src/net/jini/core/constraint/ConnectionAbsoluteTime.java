@@ -28,7 +28,7 @@ import java.io.Serializable;
  * constraint controls the timeout parameter of the
  * {@link java.net.Socket#connect(java.net.SocketAddress,int) connect} method.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class ConnectionAbsoluteTime

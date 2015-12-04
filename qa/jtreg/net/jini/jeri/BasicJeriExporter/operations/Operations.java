@@ -19,7 +19,7 @@
  * @bug 4403495 4403470 4302502
  * 
  * @summary test BasicJeriExporter basic operations
- * 
+ * @author Bob Scheifler
  * @run main/othervm/policy=security.policy Operations
  */
 import java.lang.ref.WeakReference;

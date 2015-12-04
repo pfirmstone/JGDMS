@@ -18,7 +18,7 @@
 
 package net.jini.security.proxytrust;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -31,6 +31,8 @@ import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
+import java.rmi.server.RMIClassLoader;
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -44,7 +46,7 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.ObjectStreamContext;
-import net.jini.loader.RiverClassLoader;
+import net.jini.loader.ClassLoading;
 import net.jini.security.SecurityContext;
 import net.jini.security.TrustVerifier;
 
@@ -59,7 +61,7 @@ import net.jini.security.TrustVerifier;
  * operation of {@link net.jini.security.Security#verifyObjectTrust
  * Security.verifyObjectTrust}.
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  * This implementation uses the {@link Logger} named
  * <code>net.jini.security.trust</code> to log
  * information at the following levels:
@@ -95,7 +97,7 @@ import net.jini.security.TrustVerifier;
  * </tr>
  * </table>
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class ProxyTrustVerifier implements TrustVerifier {
@@ -227,8 +229,8 @@ public class ProxyTrustVerifier implements TrustVerifier {
      * method; the class loader of the proxy's class is
      * the proper Java(TM) RMI class
      * loader (as defined below) for its parent class loader and the class's
-     * codebase (as produced by {@link RiverClassLoader#getClassAnnotation
-     * RiverClassLoader.getClassAnnotation}); and both <code>ProxyTrust</code>
+     * codebase (as produced by {@link RMIClassLoader#getClassAnnotation
+     * RMIClassLoader.getClassAnnotation}); and both <code>ProxyTrust</code>
      * and <code>RemoteMethodControl</code> are loadable by the parent class
      * loader. The derivative that is produced is an instance of a dynamically
      * generated <code>Proxy</code> class defined by the parent class loader
@@ -269,7 +271,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
      * parent class loader and the class's codebase if the class loader is
      * not <code>null</code>, the codebase for the class is a non-empty
      * string, and calling
-     * {@link RiverClassLoader#getClassLoader RiverClassLoader.getClassLoader}
+     * {@link RMIClassLoader#getClassLoader RMIClassLoader.getClassLoader}
      * with that codebase, with the thread's context class loader set to the
      * parent class loader, returns the class loader of the class.
      *
@@ -512,7 +514,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	    return null;
 	}
 	final Class base = obj.getClass();
-	final String bcb = RiverClassLoader.getClassAnnotation(base);
+	final String bcb = ClassLoading.getClassAnnotation(base);
 	if (bcb == null || bcb.length() == 0) {
 	    return null;
 	}
@@ -529,7 +531,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 		    boolean proper = false;
 		    try {
 			t.setContextClassLoader(pcl);
-			proper = (RiverClassLoader.getClassLoader(bcb) == bcl);
+			proper = (ClassLoading.getClassLoader(bcb) == bcl);
 		    } catch (MalformedURLException e) {
 		    } finally {
 			t.setContextClassLoader(ccl);
@@ -630,7 +632,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	}
 
 	private void writeAnnotation(final Class c) throws IOException {
-	    String cb = RiverClassLoader.getClassAnnotation(c);
+	    String cb = ClassLoading.getClassAnnotation(c);
 	    writeObject(cb);
 	    if (bcb.equals(cb)) {
 		AccessController.doPrivileged(new PrivilegedAction() {

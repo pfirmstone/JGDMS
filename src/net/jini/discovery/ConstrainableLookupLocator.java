@@ -18,11 +18,11 @@
 
 package net.jini.discovery;
 
-import com.sun.jini.discovery.Discovery;
-import com.sun.jini.discovery.DiscoveryConstraints;
-import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.UnicastSocketTimeout;
-import com.sun.jini.discovery.internal.MultiIPDiscovery;
+import org.apache.river.discovery.Discovery;
+import org.apache.river.discovery.DiscoveryConstraints;
+import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.UnicastSocketTimeout;
+import org.apache.river.discovery.internal.MultiIPDiscovery;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -51,15 +51,15 @@ import net.jini.core.lookup.ServiceRegistrar;
  * @author	Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This class supports use of the following constraint types to control unicast
  * discovery behavior:
  * <ul>
- *   <li> {@link com.sun.jini.discovery.DiscoveryProtocolVersion}: this
+ *   <li> {@link org.apache.river.discovery.DiscoveryProtocolVersion}: this
  *        constraint can be used to control which version of the unicast
  *        discovery protocol is used.
- *   <li> {@link com.sun.jini.discovery.UnicastSocketTimeout}: this constraint
+ *   <li> {@link org.apache.river.discovery.UnicastSocketTimeout}: this constraint
  *        can be used to control the read timeout set on sockets over which
  *        unicast discovery is performed.
  *   <li> {@link net.jini.core.constraint.ConnectionRelativeTime}:
@@ -70,8 +70,8 @@ import net.jini.core.lookup.ServiceRegistrar;
  *        set on sockets over which unicast discovery is performed.
  * </ul>
  * <p>
- * In addition, the {@link com.sun.jini.discovery.MulticastMaxPacketSize} and
- * {@link com.sun.jini.discovery.MulticastTimeToLive} constraint types are
+ * In addition, the {@link org.apache.river.discovery.MulticastMaxPacketSize} and
+ * {@link org.apache.river.discovery.MulticastTimeToLive} constraint types are
  * trivially supported, but do not have any effect on unicast discovery
  * operations.  Constraints other than those mentioned above are passed on to
  * the underlying implementations of versions 1 and 2 of the discovery
@@ -95,7 +95,6 @@ public final class ConstrainableLookupLocator
 {
     private static final long serialVersionUID = 7061417093114347317L;
 
-    private static final int DEFAULT_TIMEOUT = 60 * 1000;
     private static final Method getRegistrarMethod;
     private static final Method getRegistrarTimeoutMethod;
     static {
@@ -206,10 +205,13 @@ public final class ConstrainableLookupLocator
      * <code>ConstrainableLookupLocator</code> implements this method to use the
      * values of the <code>host</code> and <code>port</code> field in
      * determining the host and port to connect to.
+     * @return lookup service proxy
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
+     * @throws java.lang.ClassNotFoundException
      */
+    @Override
     public ServiceRegistrar getRegistrar()
 	throws IOException, ClassNotFoundException
     {
@@ -224,10 +226,13 @@ public final class ConstrainableLookupLocator
      * supplied discovery constraints. The <code>timeout</code> is considered a
      * requirement with respect to other constraints specified for this
      * instance.
+     * @return lookup service proxy
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
+     * @throws java.lang.ClassNotFoundException
      */
+    @Override
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {
@@ -258,19 +263,4 @@ public final class ConstrainableLookupLocator
 	return constraints;
     }
 
-    private ServiceRegistrar getRegistrar(InvocationConstraints constraints)
-	throws IOException, ClassNotFoundException
-    {
-	UnicastResponse resp = new MultiIPDiscovery() {	    
-	    protected UnicastResponse performDiscovery(Discovery disco,
-		    DiscoveryConstraints dc,
-		    Socket s)
-		throws IOException, ClassNotFoundException
-	    {
-		return disco.doUnicastDiscovery(
-		    s, dc.getUnfulfilledConstraints(), null, null, null);
-	    }
-	}.getResponse(host, port, constraints);
-	return resp.getRegistrar();
-    }
 }

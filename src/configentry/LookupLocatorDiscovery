@@ -19,5 +19,5 @@
 # LookupLocatorDiscovery configuration entries
 net.jini.discovery.LookupLocatorDiscovery.initialUnicastDelayRange: long
 net.jini.discovery.LookupLocatorDiscovery.registrarPreparer: net.jini.security.ProxyPreparer
-net.jini.discovery.LookupLocatorDiscovery.taskManager: com.sun.jini.thread.TaskManager
-net.jini.discovery.LookupLocatorDiscovery.wakeupManager: com.sun.jini.thread.WakeupManager
+net.jini.discovery.LookupLocatorDiscovery.taskManager: org.apache.river.thread.TaskManager
+net.jini.discovery.LookupLocatorDiscovery.wakeupManager: org.apache.river.thread.WakeupManager

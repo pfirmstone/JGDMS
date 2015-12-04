@@ -17,7 +17,7 @@
 #*/
 # test -- Disable for now.  -tjb[28.Apr.2003]
 # @summary Test the SecureServerEndpointListener implementation over HTTPS.
-# 
+# @author Tim Blackman
 # @library ../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestUtilities

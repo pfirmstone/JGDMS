@@ -31,7 +31,7 @@ import java.security.SecureRandom;
  * generate new <code>Uuid</code> values, and to read a binary
  * representation of a <code>Uuid</code> from a stream.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public final class UuidFactory {

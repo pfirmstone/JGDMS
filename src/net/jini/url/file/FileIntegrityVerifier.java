@@ -31,7 +31,7 @@ import net.jini.security.IntegrityVerifier;
  * mount remote file systems and the underlying file system protocols do
  * not provide adequate data integrity or authentication of the remote hosts.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class FileIntegrityVerifier implements IntegrityVerifier {

@@ -24,7 +24,7 @@ import net.jini.security.SecurityContext;
  * A trust verifier context element that provides a security context
  * to use to restrict privileges when invoking methods on untrusted objects.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.1
  */
 public interface UntrustedObjectSecurityContext {

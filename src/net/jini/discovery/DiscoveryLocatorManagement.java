@@ -28,7 +28,7 @@ import net.jini.core.discovery.LookupLocator;
  * retrieves or modifies the set of locators associated with those lookup
  * services.
  *
- * 
+ * @author Sun Microsystems, Inc.
  */
 public interface DiscoveryLocatorManagement {
 

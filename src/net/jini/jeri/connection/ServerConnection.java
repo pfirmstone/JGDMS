@@ -41,7 +41,7 @@ import net.jini.jeri.ServerEndpoint;
  * newly-accepted connections and passed to the manager's {@link
  * ServerConnectionManager#handleConnection handleConnection} method.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public interface ServerConnection {

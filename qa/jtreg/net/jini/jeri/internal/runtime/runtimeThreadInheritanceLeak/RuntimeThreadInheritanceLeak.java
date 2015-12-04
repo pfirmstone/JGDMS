@@ -30,7 +30,7 @@
  * created) can be garbage collected after the remote object has been
  * unexported.  [Note that this test is somewhat at the mercy of other J2SE
  * subsystems also not holding on to the loader in their daemon threads.]
- * 
+ * @author Peter Jones
  *
  * @build RuntimeThreadInheritanceLeak
  * @run main/othervm RuntimeThreadInheritanceLeak
@@ -50,6 +50,7 @@ import net.jini.export.Exporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 public class RuntimeThreadInheritanceLeak implements Remote {
 
@@ -81,7 +82,8 @@ public class RuntimeThreadInheritanceLeak implements Remote {
 	Exporter exporter = null;
 
 	try {
-	    ClassLoader loader = URLClassLoader.newInstance(new URL[0]);
+            // Test RFC3986URLClassLoader as well.
+	    ClassLoader loader = RFC3986URLClassLoader.newInstance(new URL[0]);
 	    ReferenceQueue refQueue = new ReferenceQueue();
 	    Reference loaderRef = new WeakReference(loader, refQueue);
 	    System.err.println("created loader: " + loader);

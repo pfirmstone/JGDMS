@@ -18,9 +18,9 @@
 
 package net.jini.jeri;
 
-import com.sun.jini.jeri.internal.runtime.DgcClient;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
+import org.apache.river.jeri.internal.runtime.DgcClient;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -174,10 +174,10 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * for the <code>Endpoint</code> remains valid (or while dirty calls
  * for the same <code>Endpoint</code> succeed).
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.BasicObjectEndpoint</code> to log information
@@ -209,7 +209,8 @@ public final class BasicObjectEndpoint
      * REMIND: We'd really like to use a weak *identity* hash map here--
      * does the lack of equals() security here create a risk?
      */
-    private static final Map streamBatches = new WeakHashMap(11);
+    private static final Map<ObjectInputStream,DgcBatchContext> streamBatches 
+            = new WeakHashMap<ObjectInputStream,DgcBatchContext>(11);
 
     /**
      * The endpoint to send remote call requests to.

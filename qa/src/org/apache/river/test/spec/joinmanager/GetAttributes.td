@@ -1,0 +1,4 @@
+testClass=GetAttributes
+testCategories=joinmanager,joinmanager_spec
+include0=joinmanager.properties
+include1=org/apache/river/test/share/lookups0_0srvcs1_0attrs3_0.properties

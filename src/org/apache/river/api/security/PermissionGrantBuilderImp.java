@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.net.Uri;
 
 /**
  * PermissionGrantBuilderImp represents the serialized form of all
@@ -46,7 +47,8 @@ import java.util.logging.Logger;
  * PermissinGrantBuilderImp ensures the correct PermissionGrant implementation
  * is returned, this reduces the 
  * 
- * 
+ * @author Peter Firmstone
+ * @since 3.0.0
  */
 class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         Serializable{
@@ -54,16 +56,22 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     private static final long serialVersionUID = 1L;
     private static final PermissionGrant nullGrant = new NullPermissionGrant();
     
-    // Serial Form
-    private URI[] uri;
+   
+    /*@serial */
+    private String[] uri;
+    /*@serial */
     private Certificate[] certs;
+    /*@serial */
     private Principal[] principals;
+    /*@serial */
     private Permission[] permissions;
+    /*@serial */
     private int context;
+    /*@serial */
     private boolean hasDomain;
     
     // Transient Fields
-    private transient Collection<URI> uris;
+    private transient Collection<String> uris;
     private transient WeakReference<ProtectionDomain> domain;
     
     PermissionGrantBuilderImp() {
@@ -91,19 +99,20 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         if (context < 0) {
             throw new IllegalStateException("context must be >= 0");
         }
-        if (context > 4) {
-            throw new IllegalStateException("context must be <= 4");
+        if (context > 5) {
+            throw new IllegalStateException("context must be <= 5");
         }
         this.context = context;
         return this;
     }
     
         @Override
-    public PermissionGrantBuilder uri(java.net.URI uri) {
-        if (this.uris == null) this.uris = new ArrayList<URI>(6);
-        this.uris.add(uri);
+    public PermissionGrantBuilder uri(String path) {
+        if (this.uris == null) this.uris = new ArrayList<String>(6);
+        this.uris.add(path);
         return this;
     }
+    
 
     public PermissionGrantBuilder clazz(Class cl) {
         if (cl != null) {
@@ -145,8 +154,8 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
                 // are treated special.
                 return new ClassLoaderGrant(domain, principals, permissions );
             case URI:
-                if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new URI[uris.size()]);
-                if (uri == null ) uri = new URI[0];
+                if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new String[uris.size()]);
+                if (uri == null ) uri = new String[0];
                 return new URIGrant(uri, certs, principals, permissions);              
             case CODESOURCE_CERTS:
                 return new CertificateGrant(certs, principals, permissions);
@@ -173,7 +182,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException{
-        if (uris != null && !uris.isEmpty()) uri = uris.toArray(new URI[uris.size()]);
+        if (uris != null && !uris.isEmpty()) uri = uris.toArray(new String[uris.size()]);
         out.defaultWriteObject();
     }
     
@@ -189,7 +198,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
 
 
     // This is a singleton so we don't need to implement equals or hashCode.
-    private static class NullPermissionGrant extends PermissionGrant implements Serializable {
+    static class NullPermissionGrant extends PermissionGrant implements Serializable {
         private static final long serialVersionUID = 1L;
 
         public boolean implies(ProtectionDomain pd) {

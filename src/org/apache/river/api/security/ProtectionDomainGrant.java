@@ -37,7 +37,8 @@ import java.util.logging.Logger;
  * ProtectionDomainGrant's become void if serialized, since ProtectionDomain's
  * cannot be serialized.
  * 
- * 
+ * @author Peter Firmstone
+ * @since 3.0.0
  */
 class ProtectionDomainGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;

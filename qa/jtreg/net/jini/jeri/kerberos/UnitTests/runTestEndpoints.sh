@@ -16,8 +16,9 @@
 # limitations under the License.
 #*/
 # @test
+# @ignore
 # @summary Test the KerberosEndpoint and KerberosServerEndpoint classes.
-# 
+# @author Daniel Jiang
 # @library ../../../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestUtilities TestEndpoints

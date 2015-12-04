@@ -18,7 +18,7 @@
 /* @test 
  * 
  * @summary test BasicMethodConstraints descriptor ordering restrictions
- * 
+ * @author Bob Scheifler
  * @run main/othervm Ordering
  */
 import net.jini.constraint.BasicMethodConstraints;

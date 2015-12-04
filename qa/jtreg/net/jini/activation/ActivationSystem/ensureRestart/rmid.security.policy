@@ -7,6 +7,6 @@ grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
 };
 
 grant {
-  permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.manager=default";
-  permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=*";
+  permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.manager=default";
+  permission org.apache.river.phoenix.ExecOptionPermission "-Djava.security.policy=*";
 };

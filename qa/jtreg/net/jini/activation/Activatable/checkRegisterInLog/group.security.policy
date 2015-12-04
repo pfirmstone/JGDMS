@@ -21,6 +21,6 @@ grant {
   permission java.lang.RuntimePermission "getClassLoader";
 
   // allow remote objects to call monitor's inactive method
-  permission com.sun.jini.phoenix.MonitorPermission "inactiveObject";
+  permission org.apache.river.phoenix.MonitorPermission "inactiveObject";
 
 };

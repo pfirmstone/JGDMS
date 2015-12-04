@@ -16,8 +16,9 @@
 # limitations under the License.
 #*/
 # @test
+# @ignore
 # @summary Test the KerberosEndpoint for multihome support
-# 
+# @author Vinod Johnson
 # @build AbstractSocketFactory Multihomed TestNameService TestNameServiceDescriptor Resolver
 # @run shell runMultihome.sh
 
@@ -44,9 +45,9 @@ ${TESTJAVA}/bin/java -Djava.security.manager= \
      -Djava.security.auth.login.config=${TESTSRC}/config/testEndpoints.login \
      -Djava.security.krb5.realm=$REALM \
      -Djava.security.krb5.kdc=$KDC_HOST \
-     -Dcom.sun.jini.jtreg.kerberos.multihome.hostname=$HOSTNAME \
-     -Dcom.sun.jini.jtreg.kerberos.multihome.hostaddr=$HOSTADDR \
-     -Dcom.sun.jini.jtreg.kerberos.multihome.kdcaddr=$KDCADDR \
+     -Dorg.apache.river.jtreg.kerberos.multihome.hostname=$HOSTNAME \
+     -Dorg.apache.river.jtreg.kerberos.multihome.hostaddr=$HOSTADDR \
+     -Dorg.apache.river.jtreg.kerberos.multihome.kdcaddr=$KDCADDR \
      -Dsun.net.spi.nameservice.provider.1=test,test \
      -DendpointType=kerberos \
      -DtrustProxy=true \

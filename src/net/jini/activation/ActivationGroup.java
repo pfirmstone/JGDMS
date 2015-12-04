@@ -23,10 +23,11 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
+import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
 import net.jini.export.Exporter;
-import net.jini.loader.RiverClassLoader;
+import net.jini.loader.ClassLoading;
 import net.jini.security.Security;
 
 /**
@@ -39,15 +40,15 @@ import net.jini.security.Security;
  * #createGroup createGroup} method of this class to be called.  The
  * standard <code>rmid</code> does not do this.
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * Unlike <code>rmid</code>, <a
- * href="../../../com/sun/jini/phoenix/package-summary.html#package_description">phoenix</a>
+ * href="../../../org/apache/river/phoenix/package-summary.html#package_description">phoenix</a>
  * is a configurable Java(TM) Remote Method Invocation (Java RMI)
  * activation system daemon implementation that uses
  * the {@link #createGroup createGroup} method of this class.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  **/
@@ -129,7 +130,7 @@ public abstract class ActivationGroup
 	    Class cl = (Class) Security.doPrivileged(
 		new PrivilegedExceptionAction() {
 		    public Object run() throws Exception {
-			return RiverClassLoader.loadClass(location, className);
+			return ClassLoading.loadClass(location, className, null, false, null);
 		    }
 	    });
 	    return ActivationGroup.class.isAssignableFrom(cl);

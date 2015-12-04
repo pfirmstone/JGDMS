@@ -18,7 +18,7 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.action.GetPropertyAction;
+import org.apache.river.action.GetPropertyAction;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -52,7 +52,7 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
     private static final String trustManagerFactoryAlgorithm =
 	(String) Security.doPrivileged(
 	    new GetPropertyAction(
-		"com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm",
+		"org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm",
 		TrustManagerFactory.getDefaultAlgorithm()));
 
     /** The set of permitted remote principals, or null if no restriction. */

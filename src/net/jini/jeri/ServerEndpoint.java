@@ -75,7 +75,7 @@ import javax.security.auth.Subject;
  * not specified here are defined by the particular implementation of
  * this interface.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public interface ServerEndpoint extends ServerCapabilities {

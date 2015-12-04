@@ -23,7 +23,7 @@
  * from greater than zero to zero AND the remote object is still exported
  * by at least one DGC-enabled exporter-- but not if it's only exported
  * with non-DGC-enabled exporters.
- * 
+ * @author Peter Jones
  *
  * @library ../../../../../testlibrary
  * @build WhenOnUnexport

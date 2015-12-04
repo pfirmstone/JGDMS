@@ -20,7 +20,7 @@ package net.jini.core.transaction.server;
 /**
  * Constants common to transaction managers and participants. 
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */

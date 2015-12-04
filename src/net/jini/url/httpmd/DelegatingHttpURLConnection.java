@@ -31,7 +31,7 @@ import java.util.Map;
  * An HTTP URL connection that delegates all operations defined by
  * HttpURLConnection and URLConnection.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  */
 class DelegatingHttpURLConnection extends HttpURLConnection {

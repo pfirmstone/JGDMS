@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests exports on one ListenEndpoint but different ServerEndpoints
- * 
+ * @author Fred Oliver
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test TestUtilities
  * @run main/othervm/policy=policy TestTwoEndpoints

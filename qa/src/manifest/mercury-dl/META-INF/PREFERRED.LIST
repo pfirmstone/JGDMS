@@ -2,24 +2,24 @@ PreferredResources-Version: 1.0
 
 Preferred: false
 
-Name: com/sun/jini/landlord/-
+Name: org/apache/river/landlord/-
 Preferred: true
 
-Name: com/sun/jini/lease/-
+Name: org/apache/river/lease/-
 Preferred: true
 
-Name: com/sun/jini/proxy/-
+Name: org/apache/river/proxy/-
 Preferred: true
 
-Name: com/sun/jini/test/impl/mercury/DisableListenerImpl_Stub.class
+Name: org/apache/river/test/impl/mercury/DisableListenerImpl_Stub.class
 Preferred: true
 
-Name: com/sun/jini/test/impl/mercury/DisableNSOListenerImpl_Stub.class
+Name: org/apache/river/test/impl/mercury/DisableNSOListenerImpl_Stub.class
 Preferred: true
 
-Name: com/sun/jini/test/impl/mercury/TestGeneratorImpl_Stub.class
+Name: org/apache/river/test/impl/mercury/TestGeneratorImpl_Stub.class
 Preferred: true
 
-Name: com/sun/jini/test/impl/mercury/TestListenerImpl_Stub.class
+Name: org/apache/river/test/impl/mercury/TestListenerImpl_Stub.class
 Preferred: true
 

@@ -19,7 +19,7 @@
  * @bug 4138056
  *
  * @summary synopsis: Activating objects from an Activatable constructor causes deadlock
- * 
+ * @author Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary

@@ -109,7 +109,7 @@ import java.io.Serializable;
  * Externalizable}; this restriction is enforced by this class's
  * constructor and <code>readObject</code> methods.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public class Uuid implements Serializable {

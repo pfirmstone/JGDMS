@@ -27,6 +27,9 @@ import org.apache.river.api.common.Beta;
  * <p>
  * RemotePolicy is a service api that can be implemented by a distributed Policy service, 
  * allowing local Policy providers to be updated remotely by a djinn group administrator.
+ * </p><p>
+ * No service implementation has been provided, DynamicPolicyProvider does
+ * implement this interface to simplify creation of such a service.
  * </p>
  * <h2>Notes for implementors:</h2>
  * <p>
@@ -34,8 +37,8 @@ import org.apache.river.api.common.Beta;
  * require client and server authentication, in addition the proxy must be a 
  * reflective proxy only, as DownloadPermission should not be granted, which is 
  * also beneficial to reduced network load at the administrator client.  
- * RemotePolicy may be submitted to a lookup service, where a group administrator 
- * will replace PermissionGrant's periodically.
+ * RemotePolicy may be submitted to a lookup service, where an administrator 
+ * client will look it up and replace PermissionGrant's periodically.
  * </p><p>
  * To reduce network load, the administrator client may delay updates by
  * lazily processing updates in a serial manner.  New RemotePolicy services
@@ -53,12 +56,13 @@ import org.apache.river.api.common.Beta;
  * </p><p>
  * In addition, replicating administrator clients may register a pseudo RemotePolicy
  * in order to track the primary administrator client and take over in the
- * event it fails.  Failure may be failure to authenticate or Lease expiry.
+ * event it fails.  Failure may be failure to authenticate or failure to renew
+ * a Lease.
  * </p><p>
- * RemotePolicy, if it encapsulates another nested RemotePolicy, does not
+ * RemotePolicy, if it encapsulates an underlying RemotePolicy, does not
  * delegate updates to the base RemotePolicy, this is in case an
  * implementer wants a number of different layers of RemotePolicy, where
- * each layer represents a different administrator group role or responsibility.  
+ * each layer represents a different administrator role or responsibility.  
  * The administrator's subject must hold the necessary permissions in order
  * to grant them, including GrantPermission and PolicyPermission("REMOTE").
  * </p><p>
@@ -77,17 +81,12 @@ import org.apache.river.api.common.Beta;
  * </p><p>
  * DefaultPolicyParser has been provided for an administrator client to
  * parse standard java format policy file's, to create PermissionGrant's.
- * </p><p>
- * If a node participates in more than one djinn group and registers with more
- * than one lookup service, RemotePolicy's may be nested.
  * </p>
- * 
- * @since 2.2.1
+ * @author Peter Firmstone
+ * @since 3.0.0
  * @see GrantPermission
  * @see UmbrellaGrantPermission
  * @see PolicyParser
- * @see DefaultPolicyParser
- * @see DefaultPolicyScanner
  * @see PolicyPermission
  */
 @Beta
@@ -96,45 +95,19 @@ public interface RemotePolicy {
      * Replaces the existing RemotePolicy's PermissionGrant's.
      * 
      * The array is defensively copied, the caller, must have 
-     * RuntimePermission("getProtectionDomain") and PolicyPermission("Remote"),
+     * RuntimePermission("getProtectionDomain")
      * as well as GrantPermission or UmbrellaGrantPermission for every
      * Permission granted by each PermissionGrant.
      * 
      * If the calling Subject doesn't have sufficient permission, the 
-     * first permission that fails will be logged locally and the PermissionGrant
-     * will not be included in the policy update. SecurityException's are
-     * logged as level WARNING, NullPointerException as SEVERE.
-     * 
-     * No security policy information will be returned directly or by way of exception
-     * to avoid providing an attacker with information that could lead to 
-     * privilege escalation.
+     * first permission that fails will include the SecurityException as the
+     * cause of the thrown IOException.
      * 
      * Permissions required by the callers Subject should be set in the 
-     * local policy files at the RemotePolicy service server.
+     * local policy files at the RemotePolicy server.
      * 
-     * Where an IOException is thrown, it should be assumed no update to the
-     * RemotePolicy has occurred.  The policy is idempotent and the update may
-     * be retried.
-     * 
-     * PermissionGrant's included in the policy will be the intersection
-     * of the Set of PermissionGrant's delivered by the caller and the
-     * those authorised by the local policy.  No attempt should
-     * be made by the RemotePolicy implementation to grant a subset of Permissions
-     * contained in a single PermissionGrant, each individual PermissionGrant should be 
-     * either allowed or denied atomically.
-     * 
-     * The djinn group administrator needn't be concerned if the RemotePolicy
-     * node doesn't accept all grants, it is up to the node administrator participating
-     * in the djinn to determine trust.
-     * 
-     * Administrators should group Permissions into PermissionGrant's based
-     * on component functionality, if any of the Permissions are not allowed
-     * then none of the permissions required for functionality of that component
-     * or service will be granted, this is preferred to partial functionality, 
-     * which is harder to debug.
-     * 
-     * Each node participating in a djinn may have up to one RemotePolicy
-     * service per group.
+     * Where an IOException is thrown, no update to the
+     * RemotePolicy has occurred.
      * 
      * @param policyPermissions
      * @throws java.io.IOException 

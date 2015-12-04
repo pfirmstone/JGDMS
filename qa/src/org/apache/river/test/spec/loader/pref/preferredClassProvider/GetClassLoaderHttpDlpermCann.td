@@ -1,0 +1,11 @@
+testClass=GetClassLoader
+testCategories=loader,loader_spec
+testPolicyfile=loader.policy
+loader.isHttp=true
+loader.httpPort=8087
+loader.requireDlPerm=true
+loader.annotator=true
+loader.classAnnotator=QATestClassAnnotation
+testjvmargs=-Dnet.jini.loader.ClassLoading.provider=org.apache.river.test.spec.loader.util.QATestPreferredClassProvider
+org.apache.river.qa.harness.runkitserver=false 
+org.apache.river.qa.harness.runjiniserver=false

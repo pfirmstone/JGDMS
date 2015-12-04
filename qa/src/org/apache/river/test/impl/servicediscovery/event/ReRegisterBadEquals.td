@@ -1,0 +1,4 @@
+testClass=ReRegisterBadEquals
+testCategories=servicediscovery,servicediscovery_impl,servicediscoveryevent,implservicediscovery,implservicediscoveryevent
+include0=../servicediscovery.properties
+include1=org/apache/river/test/share/lookups4_0srvcs2_0attrs0_0.properties

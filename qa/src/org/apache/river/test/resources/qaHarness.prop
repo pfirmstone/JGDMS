@@ -1,0 +1,227 @@
+#
+# This file contains the property values which define the installation
+# and behavioral characteristics of the test harness. 
+#
+# The file system path separator required by the underlying operating system
+# should be used when paths are defined. Alternatively,
+# the sequence $/ will be interpreted as the platform dependent separator.
+# If DOS-style separators are used, then they must "escaped"; that is, a
+# DOUBLE backslash must be used ('\\'). 
+# 
+# NOTE:
+# org.apache.river.qa.harness.testhosts is the only user defined
+# property which MUST BE DEFINED AS A SYSTEM PROPERTY
+# on the test harness command line rather than in this file.
+# The value of this property is the list of participating
+# hosts when running distributed. 
+#
+
+######################################################
+#
+# INSTALLATION PROPERTIES
+#
+#  edit these properties to reflect the locations of 
+#  the starter kit and harness kit
+#
+######################################################
+
+# location of the JSK installation
+# org.apache.river.jsk.home=${user.home}/river/jtsk/trunk
+
+# Location of the harness installation
+# org.apache.river.qa.home=${user.home}/river/jtsk/trunk/qa
+
+# Location of the tests installation
+# org.apache.river.test.home=${user.home}/river/jtsk/trunk/qa
+
+######################################################
+#
+# CLASS SERVER PROPERTIES
+#
+#  in most cases, these properties should not require changes
+#
+######################################################
+
+# enable the JSK class server
+org.apache.river.qa.harness.runjiniserver=true
+
+# http port of the JSK download JAR files
+org.apache.river.jsk.port=9080
+
+# download directory for JSK JAR files
+org.apache.river.qa.harness.dldir.9080=${org.apache.river.jsk.home}$/lib-dl
+
+# enable the QA class server 
+org.apache.river.qa.harness.runkitserver=true
+
+# http port of the QA download JAR files
+org.apache.river.qa.port=9081
+
+# download directory for QA JAR files
+org.apache.river.qa.harness.dldir.9081=${org.apache.river.qa.home}$/lib
+
+# class server and properties for the tests
+org.apache.river.test.port=9082
+org.apache.river.qa.harness.testClassServer=testClassServer
+org.apache.river.qa.harness.dldir.9082=${org.apache.river.test.home}$/lib
+
+testClassServer.type=classServer
+testClassServer.impl=org.apache.river.tool.ClassServer
+testClassServer.port=${org.apache.river.test.port}
+testClassServer.dir=${org.apache.river.test.home}$/lib
+
+######################################################
+#
+# SERVICE PROPERTIES
+#
+#  edit the 'type' properties to change the service
+#  types to run. In most cases, the other properties
+#  should not be changed.
+#
+######################################################
+
+# automatically start/stop the activation system for each test
+org.apache.river.qa.harness.runactivation=true
+
+# run services in shared service groups by default
+org.apache.river.qa.harness.shared=true
+
+#
+# the default service mode is 'activatable'. Alternative values
+# are 'transient' and 'persistent'
+#
+org.apache.river.qa.harness.serviceMode=activatable
+
+######################################################
+#
+# KERBEROS PROPERTIES
+#
+#  if the kerberos configuration is to be used, these
+#  properties must be edited to reflect the local
+#  kerberos environment. See the JavaDoc overview
+#  for details.
+#
+######################################################
+
+#
+# The following set of properties are used to specify the kerberos
+# environment for tests that need to access a kdc and kerberos principals
+#
+org.apache.river.qa.harness.kerberos.realm=DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.kdc=jiniautot.east.sun.com
+org.apache.river.qa.harness.kerberos.clientPasswordFile=${org.apache.river.test.home}$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabClient
+org.apache.river.qa.harness.kerberos.serverPasswordFile=${org.apache.river.test.home}$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabServer
+org.apache.river.qa.harness.kerberos.aggregatePasswordFile=${org.apache.river.qa.home}$/harness/trust$/aggregateKeytab
+org.apache.river.qa.harness.kerberos.clientPrincipal=qa-e2e-client@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.serverPrincipal=qa-e2e-server@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.reggiePrincipal=qa-reggie@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.mahaloPrincipal=qa-mahalo@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.outriggerPrincipal=qa-outrigger@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.mercuryPrincipal=qa-mercury@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.normPrincipal=qa-norm@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.phoenixPrincipal=qa-phoenix@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.testPrincipal=qa-test@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.fiddlerPrincipal=qa-fiddler@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.groupPrincipal=qa-group@DAVIS.JINI.SUN.COM
+
+######################################################
+#
+# TEST EXECUTION PROPERTIES
+#
+#  the configs property will generally be edited or overridden
+#  on the command line to select the test configuration. The
+#  other properties in this section would only be edited for
+#  debugging purposes, or for supporting automated production
+#  test runs.
+#  
+######################################################
+
+# do not automatically rerun failed tests 
+org.apache.river.qa.harness.rerunFailedTests=false
+
+#
+# display all test output in the log. If changed to true,
+# most output of passing tests is discarded
+#
+org.apache.river.qa.harness.discardOKOutput=false
+
+# when running distributed, pipe all test log output
+# to the master host logger. If changed to false, each participating
+# host will log output separately.
+#
+org.apache.river.qa.harness.slavepipe=true
+
+#
+# when running distributed, use the roundrobin
+# host selection policy. Other legal values are 'random', 
+# 'remoterandom', and 'remoteroundrobin'
+#
+org.apache.river.qa.harness.servicehostpolicy=roundrobin
+
+# if defined, the value of this property is a command to be exec'd
+# after each test is run. The example would run the unix 'ps' command.
+#
+#org.apache.river.qa.harness.runCommandAfterEachTest=ps
+
+# Disable test timeouts
+org.apache.river.qa.harness.timeout=0
+
+# the comma-separated list of configurations to run. 
+# Any combination of jrmp,jeri,jsse,http,https,kerberos,none
+#
+org.apache.river.qa.harness.configs=none
+
+# current domain
+org.apache.river.jsk.domain=apache.org
+
+# Generate an index.html results file and place each test result
+# in a separate file
+org.apache.river.qa.harness.generateHtml=false
+org.apache.river.qa.harness.generateHtml.resultLog=result$/index.html
+org.apache.river.qa.harness.generateHtml.title=Apache River QA test results
+org.apache.river.qa.harness.generateHtml.links=qaHarness.prop logging.properties
+org.apache.river.qa.harness.generateHtml.removePassResults=false
+org.apache.river.qa.harness.generateHtml.testOrderJsp=http://jiniautot.east:8080/autot/ReloadTestOrder.jsp
+org.apache.river.qa.harness.generateHtml.testOrderFileName=testorder.txt
+
+#
+# Default values used by various discovery/lookup oriented tests
+#
+# Always wait at least net.jini.discovery.maxSecsEventWait seconds, over
+# net.jini.discovery.nIntervalsToWait number of intervals for all 
+# discovery/discard/change events.
+# 
+# Also, if net.jini.discovery.minNAnnouncements number of announcements are
+# not received within net.jini.discovery.nIntervalsToWait number of intervals
+# of length net.jini.discovery.announce milliseconds, then the lookup service
+# will be discarded
+
+net.jini.discovery.maxSecsEventWait=180
+net.jini.discovery.nIntervalsToWait=1
+net.jini.discovery.minNAnnouncements=3
+
+net.jini.lookup.nLookupServices=0
+net.jini.lookup.nAddLookupServices=0
+net.jini.lookup.nAttributes=0
+net.jini.lookup.nAddAttributes=0
+net.jini.lookup.nSecsLookupDiscovery=10
+net.jini.lookup.nSecsJoin=15
+
+#   MulticastOverrideProvider is a noop unless net.jini.discovery.announce
+#   is defined. As a result, it's safe to install it by default. Ideally,
+#   it would only be defined when actually needed.
+testOverrideProviders=${testOverrideProviders} org.apache.river.test.support.MulticastOverrideProvider
+
+#include the jinittest policy file and home/port info for policy files, no white space
+org.apache.river.qa.harness.globalvmargs=${org.apache.river.qa.harness.globalvmargs},\
+-Dorg.apache.river.test.home=${org.apache.river.test.home},\
+-Dorg.apache.river.test.port=${org.apache.river.test.port},\
+-Dorg.apache.river.qa.harness.policies=<url: src/org/apache/river/test/resources/jinitest.policy>
+
+# make sure slave's use their local test home directory
+org.apache.river.qa.harness.slaveOverrides=${org.apache.river.qa.harness.slaveOverrides} org.apache.river.test.home
+
+# The src directory was newly added after the ant build conversion now policy
+# files attempts succeed and don't need to be loaded from jar files.
+# This makes life a lot easier while trying to change policy files during debugging.
+searchPath=${org.apache.river.test.home}/src,${searchPath}

@@ -42,7 +42,7 @@ import java.io.IOException;
  * granted delegation stop time.
  * </ul>
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  * @see net.jini.core.constraint.RemoteMethodControl
  */

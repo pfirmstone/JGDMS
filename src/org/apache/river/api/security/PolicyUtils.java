@@ -16,13 +16,14 @@
  */
 
 /**
-* 
- * 
-* @version $Revision$
+* @author Alexey V. Varlamov
+* @author Peter Firmstone
+* @since 3.0.0
 */
 
 package org.apache.river.api.security;
 
+import org.apache.river.impl.Messages;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,13 +41,10 @@ import java.security.PrivilegedExceptionAction;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.apache.river.impl.net.UriString;
+import org.apache.river.api.net.Uri;
 
 /**
  * This class consist of a number of static methods, which provide a common functionality 
@@ -212,18 +210,17 @@ import org.apache.river.impl.net.UriString;
                         // codebase is "file:"
                         path = "*";
                     }
-                    return UriString.normalisation(filePathToURI(new File(path)
-                            .getAbsolutePath()));
+                    return Uri.uriToURI(Uri.fileToUri(new File(path)));
                 } else {
                     // codebase is "file://<smth>"
-                    return UriString.normalisation(codebase.toURI());
+                    return Uri.uriToURI(Uri.urlToUri(codebase));
                 }
             } catch (Exception e) {
                 if ( e instanceof SecurityException ) throw (SecurityException) e;
                 // Ignore
             }
         }
-        return UriString.normalisation(codebase.toURI());
+        return Uri.uriToURI(Uri.urlToUri(codebase));
     }
 
     /**
@@ -233,14 +230,14 @@ import org.apache.river.impl.net.UriString;
      * @param path -
      *            file path.
      * @return - the resulting URI.
-     * @throw URISyntaxException
+     * @throws URISyntaxException
      */
     static URI filePathToURI(String path) throws URISyntaxException {
         if (File.separatorChar == '\\' && path != null){
             path = path.replace(File.separatorChar, '/');
             path = path.toUpperCase();
         }
-        if (!path.startsWith("/")) { //$NON-NLS-1$
+        if ( path != null && !path.startsWith("/")) { //$NON-NLS-1$
             return new URI("file", null, //$NON-NLS-1$
                     new StringBuilder(path.length() + 1).append('/')
                             .append(path).toString(), null, null);
@@ -252,7 +249,7 @@ import org.apache.river.impl.net.UriString;
      * Instances of this interface are intended for resolving  
      * generalized expansion expressions, of the form ${{protocol:data}}. 
      * Such functionality is applicable to security policy files, for example.
-     * @see org.apache.harmony.security.PolicyUtils#expandGeneral(String, GeneralExpansionHandler)
+     * @see org.apache.river.api.security.PolicyUtils#expandGeneral(String, GeneralExpansionHandler)
      */
     static interface GeneralExpansionHandler {
 

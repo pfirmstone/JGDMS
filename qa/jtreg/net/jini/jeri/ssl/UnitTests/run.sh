@@ -111,12 +111,12 @@ fi
 
 # Print server debugging messages for the provider
 if [ "${DBGSERVER}" ]; then
-    TESTARGS="${TESTARGS} -Dcom.sun.jini.temp.davis.securejeri.jsse.serverLog=true";
+    TESTARGS="${TESTARGS} -Dorg.apache.river.temp.davis.securejeri.jsse.serverLog=true";
 fi
 
 # Print client debugging messages for the provider
 if [ "${DBGCLIENT}" ]; then
-    TESTARGS="${TESTARGS} -Dcom.sun.jini.temp.davis.securejeri.jsse.clientLog=true";
+    TESTARGS="${TESTARGS} -Dorg.apache.river.temp.davis.securejeri.jsse.clientLog=true";
 fi
 
 # Print RMI debugging messages
@@ -163,7 +163,7 @@ TESTARGS="$TESTARGS -Djava.security.manager"
 TESTARGS="$TESTARGS -Djava.security.policy=$TESTSRC/policy"
 TESTARGS="$TESTARGS -Dtest.src=$TESTSRC"
 TESTARGS="$TESTARGS -Dtest.classes=$TESTCLASSES"
-TESTARGS="$TESTARGS -Dcom.sun.jini.temp.davis.jeri.server.hostname=localhost"
+TESTARGS="$TESTARGS -Dorg.apache.river.temp.davis.jeri.server.hostname=localhost"
 TESTARGS="$TESTARGS -cp $TESTCLASSES"
 
 # Use quantify

@@ -125,7 +125,7 @@ public class RMID extends JavaVM {
     }
 
     protected RMID(String classpath, boolean useHttpmd) {
-	super("com.sun.jini.phoenix.Activation",
+	super("org.apache.river.phoenix.Activation",
 	      makeOptions(useHttpmd) + " -cp " + getDefaultLocation() +
 	      File.pathSeparator + classpath + " -Dphoenix.location=" +
 	      getDefaultLocation(),

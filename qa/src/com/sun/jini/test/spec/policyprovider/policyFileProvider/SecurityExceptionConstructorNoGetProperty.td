@@ -1,6 +1,0 @@
-testClass=SecurityExceptionConstructor
-testCategories=policyprovider,policyprovider_spec
-testPolicyfile=policyProviderNoGetProperty.policy
-com.sun.jini.qa.harness.runkitserver=false 
-com.sun.jini.qa.harness.runjiniserver=false
-com.sun.jini.qa.harness.securityproperties=<url: ../securityprovider.properties>

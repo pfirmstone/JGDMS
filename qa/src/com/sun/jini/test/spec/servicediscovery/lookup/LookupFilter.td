@@ -1,4 +1,0 @@
-testClass=LookupFilter
-testCategories=servicediscovery,servicediscovery_spec,servicediscoverylookup,specservicediscovery,specservicediscoverylookup
-include0=../servicediscovery.properties
-include1=com/sun/jini/test/share/lookups3_0srvcs7_0attrs1_0.properties

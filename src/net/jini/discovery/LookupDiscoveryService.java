@@ -33,7 +33,7 @@ import java.rmi.MarshalledObject;
  * proxy objects are equal if they are proxies for the same lookup discovery
  * service.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see net.jini.discovery.LookupDiscoveryRegistration
  */

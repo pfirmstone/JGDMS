@@ -20,7 +20,7 @@
  * @summary Functional test to verify configurability of the preferred
  * classes provider
  *
- * 
+ * @author Laird Dornin
  *
  * @library ../../../../../../testlibrary
  * @build ExerciseProviderConfig Foo Bar ConnectBack TestLoaderProvider

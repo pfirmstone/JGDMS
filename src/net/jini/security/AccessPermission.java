@@ -100,7 +100,7 @@ import java.io.ObjectInputStream;
  * {@link net.jini.export.Exporter}, to allow separation of
  * grants in policy files.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class AccessPermission extends Permission {

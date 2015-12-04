@@ -17,11 +17,12 @@
  */
 package net.jini.entry;
 
-import net.jini.core.entry.Entry;
 import java.lang.reflect.*;
 
-import java.util.WeakHashMap;
 import java.util.ArrayList;
+import java.util.WeakHashMap;
+import net.jini.core.entry.CloneableEntry;
+import net.jini.core.entry.Entry;
 
 /**
  * An abstract implementation of {@link Entry} that provides useful
@@ -34,17 +35,34 @@ import java.util.ArrayList;
  * its public, non-primitive, non-static, non-transient, non-final
  * fields.<p>
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see Entry 
  */
-public abstract class AbstractEntry implements Entry {
+public abstract class AbstractEntry implements CloneableEntry {
     static final long serialVersionUID = 5071868345060424804L;
 
     /**
      * Creates an instance of this class.
      */
     protected AbstractEntry() { }
-
+    
+    /**
+     * Clone has been implemented to allow utilities such as
+     * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
+     * internally stored instances with client code.
+     * 
+     * @return a clone of the original Entry
+     */
+    public Entry clone() 
+    {
+        try {
+            Entry clone = (Entry) super.clone();
+            return clone;
+        } catch (CloneNotSupportedException ex) {
+            throw new AssertionError();
+        }
+    }
+    
     /**
      * Compares this <code>AbstractEntry</code> to the specified
      * object. If <code>other</code> is <code>null</code> or not an

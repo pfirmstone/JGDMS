@@ -30,7 +30,7 @@ import net.jini.core.entry.Entry;
  * invocation (on both ServiceRegistrar and ServiceRegistration) is atomic
  * with respect to other invocations.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see ServiceRegistrar
  *

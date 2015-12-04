@@ -17,7 +17,7 @@
  */
 package net.jini.jeri.kerberos;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.InputStream;

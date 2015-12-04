@@ -23,18 +23,20 @@ import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
+import java.rmi.server.RMIClassLoaderSpi;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import net.jini.loader.ClassLoading;
-import net.jini.loader.RiverClassLoader;
 import net.jini.security.Security;
 
 /**
  * An extension of <code>ObjectInputStream</code> that implements the
  * dynamic class loading semantics of Java(TM) Remote Method
  * Invocation (Java RMI) argument and result
- * unmarshalling (using {@link RiverClassLoader}).  A
+ * unmarshalling (using {@link ClassLoading}).  A
  * <code>MarshalInputStream</code> is intended to read data written by
  * a corresponding {@link MarshalOutputStream}.
  *
@@ -45,10 +47,10 @@ import net.jini.security.Security;
  * class descriptors in the stream using {@link ClassLoading#loadClass
  * ClassLoading.loadClass} and {@link ClassLoading#loadProxyClass
  * ClassLoading.loadProxyClass} (which, in turn, use {@link
- * RiverClassLoader#loadClass(String,String,ClassLoader)
- * RiverClassLoader.loadClass} and {@link
- * RiverClassLoader#loadProxyClass(String,String[],ClassLoader)
- * RiverClassLoader.loadProxyClass}), optionally with codebase
+ * RMIClassLoaderSpi#loadClass(String,String,ClassLoader)
+ * RMIClassLoaderSpi.loadClass} and {@link
+ * RMIClassLoaderSpi#loadProxyClass(String,String[],ClassLoader)
+ * RMIClassLoaderSpi.loadProxyClass}), optionally with codebase
  * annotation strings written by a <code>MarshalOutputStream</code>.
  *
  * <p>By default, a <code>MarshalInputStream</code> ignores all
@@ -78,12 +80,11 @@ import net.jini.security.Security;
  * <p>A <code>MarshalInputStream</code> is not guaranteed to be
  * safe for concurrent use by multiple threads.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public class MarshalInputStream
-    extends ObjectInputStream
-    implements ObjectStreamContext
+    extends ObjectInputStream implements ObjectStreamContext
 {
     /**
      * maps keywords for primitive types and void to corresponding
@@ -198,6 +199,16 @@ public class MarshalInputStream
 	this.verifyCodebaseIntegrity = verifyCodebaseIntegrity;
 	this.verifierLoader = verifierLoader;
 	this.context = context;
+        AccessController.doPrivileged(new PrivilegedAction<Object>(){
+
+            @Override
+            public Object run() {
+                enableResolveObject(true);
+                return null;
+            }
+            
+        });
+        
     }
 
     /**

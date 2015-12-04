@@ -21,7 +21,7 @@ package net.jini.core.transaction;
 /**
  * Base class for exceptions thrown during a transaction. 
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
@@ -40,5 +40,9 @@ public class TransactionException extends Exception {
     /** Constructs an instance with no detail message. */
     public TransactionException() {
 	super();
+    }
+    
+    public TransactionException(String desc, Throwable cause){
+        super(desc, cause);
     }
 }

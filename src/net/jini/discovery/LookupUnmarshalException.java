@@ -64,7 +64,7 @@ import java.rmi.MarshalledObject;
  * conditions occurring when unmarshalling a set of marshalled instances 
  * of the <code>ServiceRegistrar</code> interface.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see net.jini.core.lookup.ServiceRegistrar
  */

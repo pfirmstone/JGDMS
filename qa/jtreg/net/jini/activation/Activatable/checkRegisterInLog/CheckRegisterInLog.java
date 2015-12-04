@@ -18,7 +18,7 @@
 /* @test 
  * @bug 4110548
  * @summary activate fails if rmid is restarted
- * 
+ * @author Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build ActivationLibrary TestLibrary RMID

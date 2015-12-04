@@ -21,7 +21,7 @@
  * stack trace of the exception catchable by the client application should
  * comprise both the client-side trace as well as the server-side trace, as
  * serialized with the Throwable from the server.
- * 
+ * @author Peter Jones
  *
  * @build ServerStackTrace
  * @run main/othervm ServerStackTrace

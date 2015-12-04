@@ -19,7 +19,7 @@
  * @bug 4095165
 
  * @summary synopsis: activator should restart daemon services
- * 
+ * @author Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary

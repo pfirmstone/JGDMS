@@ -21,7 +21,7 @@ package net.jini.core.transaction;
 /**
  * Exception thrown when a transaction timeout has expired.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */

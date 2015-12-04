@@ -54,7 +54,7 @@ import  net.jini.core.lookup.ServiceItem;
  * in the proxy, specifying client constraints, and dynamically granting
  * necessary permissions to the proxy.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see ServiceDiscoveryManager
  */

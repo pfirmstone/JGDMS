@@ -22,7 +22,7 @@ package net.jini.io.context;
  * Defines a context element interface for determining if object integrity is
  * being enforced on a stream or a remote call.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  * @see net.jini.core.constraint.Integrity
  * @see net.jini.export.ServerContext

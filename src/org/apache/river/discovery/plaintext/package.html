@@ -1,0 +1,77 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides an implementation of the <code>net.jini.discovery.plaintext</code>
+discovery format, specified in the <i>Jini Discovery and Join
+Specification</i>.  The {@link org.apache.river.discovery.plaintext.Client} class
+implements the client side of the <code>net.jini.discovery.plaintext</code>
+discovery format for the multicast request, multicast announcement, and unicast
+discovery protocols, while the {@link org.apache.river.discovery.plaintext.Server}
+class implements the server side of the discovery format for those protocols.
+Both classes are intended to be specified in a resource to configure the
+operation of the {@link org.apache.river.discovery.Discovery} class, as described
+in the documentation for
+{@link org.apache.river.discovery.Discovery#getProtocol2(ClassLoader)}.
+
+<h2>Supported Constraints</h2>
+
+For each of the three discovery protocols, both <code>Client</code> and
+<code>Server</code> support the following constraints:
+
+<ul>
+  <li> any {@link net.jini.core.constraint.ConnectionAbsoluteTime}
+  <li> any {@link net.jini.core.constraint.ConnectionRelativeTime}
+  <li> a {@link net.jini.core.constraint.ConstraintAlternatives} if at
+       least one element is supported
+  <li> {@link net.jini.core.constraint.Integrity#NO Integrity.NO}
+  <li> {@link net.jini.core.constraint.Confidentiality#NO Confidentiality.NO}
+  <li> {@link net.jini.core.constraint.ClientAuthentication#NO
+        ClientAuthentication.NO}
+  <li> {@link net.jini.core.constraint.ServerAuthentication#NO
+        ServerAuthentication.NO}
+  <li> {@link net.jini.core.constraint.Delegation#NO Delegation.NO}
+  <li> any {@link net.jini.core.constraint.ClientMaxPrincipal}
+  <li> any {@link net.jini.core.constraint.ClientMaxPrincipalType}
+  <li> any {@link net.jini.core.constraint.ClientMinPrincipal}
+  <li> any {@link net.jini.core.constraint.ClientMinPrincipalType}
+  <li> any {@link net.jini.core.constraint.ServerMinPrincipal}
+  <li> any {@link net.jini.core.constraint.DelegationAbsoluteTime}
+  <li> any {@link net.jini.core.constraint.DelegationRelativeTime}
+</ul>
+
+(Note that <code>ClientMaxPricipal</code>,
+<code>ClientMaxPrincipalType</code>, <code>ClientMinPrincipal</code>,
+<code>ClientMinPrincipalType</code>, <code>ServerMinPrincipal</code>,
+<code>DelegationAbsoluteTime</code>, and
+<code>DelegationRelativeTime</code> constraints are trivially
+supported if <code>ClientAuthentication.YES</code>,
+<code>ServerAuthentication.YES</code>, and <code>Delegation.YES</code>
+are not supported.)
+
+@since 2.0
+@see "<i>Jini Discovery and Join Specification</i>"
+
+</body>
+</html>

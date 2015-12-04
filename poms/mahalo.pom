@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.river</groupId>
     <artifactId>mahalo</artifactId>
-    <version>2.2.1</version>
+    <version>3.0</version>
     <url>http://river.apache.org</url>
     <description>Mahalo Transaction Manager service implementation</description>
 	
@@ -40,7 +40,7 @@
         <dependency>
             <groupId>net.jini</groupId>
             <artifactId>jsk-lib</artifactId>
-            <version>2.2.1</version>
+            <version>3.0</version>
         </dependency>
     </dependencies>
 

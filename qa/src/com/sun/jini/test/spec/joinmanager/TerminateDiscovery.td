@@ -1,4 +1,0 @@
-testClass=TerminateDiscovery
-testCategories=joinmanager,joinmanager_spec
-include0=joinmanager.properties
-include1=com/sun/jini/test/share/lookups3_2srvcs1_0.properties

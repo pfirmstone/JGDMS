@@ -17,7 +17,7 @@
 #*/
 
 # phoenix -stop configuration entries
-com.sun.jini.phoenix.loginContext: javax.security.auth.login.LoginContext
-com.sun.jini.phoenix.registryHost: String
-com.sun.jini.phoenix.registryPort: int
-com.sun.jini.phoenix.systemPreparer: net.jini.security.ProxyPreparer
+org.apache.river.phoenix.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.phoenix.registryHost: String
+org.apache.river.phoenix.registryPort: int
+org.apache.river.phoenix.systemPreparer: net.jini.security.ProxyPreparer

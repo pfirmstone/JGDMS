@@ -18,18 +18,16 @@
 
 package net.jini.loader.pref;
 
-import com.sun.jini.loader.pref.internal.PreferredResources;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilePermission;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketPermission;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
@@ -39,18 +37,23 @@ import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
-import java.security.ProtectionDomain;
 import java.security.Policy;
-import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.util.Collection;
 import java.util.Enumeration;
-import java.util.Set;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * A class loader that supports preferred classes.
@@ -221,10 +224,10 @@ import net.jini.loader.DownloadPermission;
  * Classes that are in a package named <code>com.bar</code> are not
  * preferred because of the default preferred entry.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
-public class PreferredClassLoader extends URLClassLoader
+public class PreferredClassLoader extends RFC3986URLClassLoader
     implements ClassAnnotation
 {
     /**
@@ -240,7 +243,7 @@ public class PreferredClassLoader extends URLClassLoader
     private final String exportAnnotation;
 
     /** permissions required to access loader through public API */
-    private final PermissionCollection permissions;
+    private final Collection<Permission> permissions;
 
     /** security context for loading classes and resources */
     private final AccessControlContext acc;
@@ -252,10 +255,9 @@ public class PreferredClassLoader extends URLClassLoader
     private final URLStreamHandler jarHandler;
 
     /** PreferredResources for this loader (null if no preferred list) */
-    private PreferredResources preferredResources;
-
-    /** true if preferredResources has been successfully initialized */
-    private boolean preferredResourcesInitialized = false;
+    private final PreferredResources preferredResources;
+    
+    private final IOException exceptionWhileLoadingPreferred;
 
     private static final Permission downloadPermission =
 	new DownloadPermission();
@@ -379,8 +381,53 @@ public class PreferredClassLoader extends URLClassLoader
 	/*
 	 * Precompute the permissions required to access the loader.
 	 */
-	permissions = new Permissions();
+	PermissionCollection permissions = new Permissions();
 	addPermissionsForURLs(urls, permissions, false);
+        /*
+         * If a preferred list exists relative to the first URL of this
+         * loader's path, sets this loader's PreferredResources according
+         * to that preferred list.  If no preferred list exists relative
+         * to the first URL, leaves this loader's PreferredResources null.
+         *
+         * Throws IOException if an I/O exception occurs from which the
+         * existence of a preferred list relative to the first URL cannot
+         * be definitely determined.
+         *
+         * This method must only be invoked while synchronized on this
+         * PreferredClassLoader, and it must not be invoked again after it
+         * has completed successfully.
+         * 
+         * This was called from privileged context when it as part of a method.  
+         * Note that InputStream is not subject to deserialization attacks 
+         * like ObjectInputStream.
+         * 
+         * Also synchronization is not required as it is called from within
+         * the constructor now, this change was made to remove any possiblity
+         * of deadlock by minimising locking.
+         */
+        IOException except = null;
+        PreferredResources pref = null;
+	if (firstURL != null) {
+            try {
+                pref = AccessController.doPrivileged(
+                    new PreferredResourcesPrivilegedExceptionAction(firstURL)
+                );
+            } catch (PrivilegedActionException ex) {
+                Exception e = ex.getException();
+                if (e instanceof IOException){
+                    except = (IOException) e;
+                } else {
+                    except = new IOException(e);
+                }
+            }
+	}
+        exceptionWhileLoadingPreferred = except;
+        preferredResources = pref;
+        this.permissions = new LinkedList<Permission>();
+        Enumeration<Permission> en = permissions.elements();
+        while(en.hasMoreElements()){
+            this.permissions.add(en.nextElement());
+        }
     }
 
     /**
@@ -461,38 +508,7 @@ public class PreferredClassLoader extends URLClassLoader
 	    }, acc);
     }
 
-    /**
-     * If a preferred list exists relative to the first URL of this
-     * loader's path, sets this loader's PreferredResources according
-     * to that preferred list.  If no preferred list exists relative
-     * to the first URL, leaves this loader's PreferredResources null.
-     *
-     * Throws IOException if an I/O exception occurs from which the
-     * existence of a preferred list relative to the first URL cannot
-     * be definitely determined.
-     *
-     * This method must only be invoked while synchronized on this
-     * PreferredClassLoader, and it must not be invoked again after it
-     * has completed successfully.
-     **/
-    private void initializePreferredResources() throws IOException {
-	assert Thread.holdsLock(this);
-	assert preferredResources == null;
-
-	if (firstURL != null) {
-	    InputStream prefIn = getPreferredInputStream(firstURL);
-	    if (prefIn != null) {
-		try {
-		    preferredResources = new PreferredResources(prefIn);
-		} finally {
-		    try {
-			prefIn.close();
-		    } catch (IOException e) {
-		    }
-		}
-	    }
-	}
-    }
+    
 
     /**
      * Returns an InputStream from which the preferred list relative
@@ -592,8 +608,9 @@ public class PreferredClassLoader extends URLClassLoader
 	     * available upon the attempt (elsewhere) to obtain the preferred
 	     * list
 	     */
-            URL baseURL = getBaseJarURL(firstURL);
+            URL baseURL = null;
 	    try {
+                baseURL = getBaseJarURL(firstURL);
 		((JarURLConnection) baseURL.openConnection()).getManifest();
 		exists = true;
 	    } catch (IOException e) {
@@ -778,32 +795,33 @@ public class PreferredClassLoader extends URLClassLoader
 					  final boolean isClass)
 	throws IOException
     {
-	try {
-	    return ((Boolean) AccessController.doPrivileged(
-	        new PrivilegedExceptionAction() {
-		    public Object run() throws IOException {
-			boolean b = isPreferredResource0(name, isClass);
-			return Boolean.valueOf(b);
-		    }
-	        }, acc)).booleanValue();
-
-	} catch (PrivilegedActionException e) {
-	    throw (IOException) e.getException();
-	}
+        return isPreferredResource0(name, isClass);
+        // No longer need privilege the preferred list is now downloaded
+        // during construction.
+//	try {
+//	    return ((Boolean) AccessController.doPrivileged(
+//	        new PrivilegedExceptionAction() {
+//		    public Object run() throws IOException {
+//			boolean b = isPreferredResource0(name, isClass);
+//			return Boolean.valueOf(b);
+//		    }
+//	        }, acc)).booleanValue();
+//
+//	} catch (PrivilegedActionException e) {
+//	    throw (IOException) e.getException();
+//	}
     }
 
     /*
      * Perform the work to determine if a resource name is preferred.
+     * 
+     * Synchronized removed to avoid possible ClassLoader deadlock.
      */
-    private synchronized boolean isPreferredResource0(String name,
+    private boolean isPreferredResource0(String name,
 						      boolean isClass)
 	throws IOException
     {
-	if (!preferredResourcesInitialized) {
-	    initializePreferredResources();
-	    preferredResourcesInitialized = true;
-	}
-
+        if (exceptionWhileLoadingPreferred != null) throw exceptionWhileLoadingPreferred;
 	if (preferredResources == null) {
 	    return false;	// no preferred list: nothing is preferred
 	}
@@ -867,25 +885,19 @@ public class PreferredClassLoader extends URLClassLoader
      * Determine if a resource for a given preferred name exists.  If
      * the resource exists record its new state in the
      * preferredResources object.
-     *
-     * This method must only be invoked while synchronized on this
-     * PreferredClassLoader.
      */
     private boolean findResourceUpdateState(String name,
 					    String resourceName)
 	throws IOException
     {
-	assert Thread.holdsLock(this);
-	boolean resourcePreferred = false;
-
 	if (findResource(resourceName) != null) {
-	    /* the resource is know to exist */
+	    /* the resource is known to exist */
 	    preferredResources.setNameState(resourceName,
 	        PreferredResources.NAME_PREFERRED_RESOURCE_EXISTS);
-	    resourcePreferred = true;
+	    return true;
 	}
 
-	return resourcePreferred;
+	return false;
     }
 
     /**
@@ -939,7 +951,7 @@ public class PreferredClassLoader extends URLClassLoader
      *
      * @throws ClassNotFoundException if the class could not be found
      **/
-    protected synchronized Class loadClass(String name, boolean resolve)
+    protected Class loadClass(String name, boolean resolve)
 	throws ClassNotFoundException
     {
 	// First, check if the class has already been loaded
@@ -956,16 +968,18 @@ public class PreferredClassLoader extends URLClassLoader
 		    ")", e);
 	    }
 	    if (preferred) {
-		c = findClass(name);
-		if (resolve) {
-		    resolveClass(c);
-		}
-		return c;
+                synchronized (this){
+                    // Double check again in case the class has been loaded.
+                    c = findLoadedClass(name);
+                    if (c == null){
+                        c = findClass(name);
+                        if (resolve) resolveClass(c);
+                    }
+                }
 	    } else {
 		return super.loadClass(name, resolve);
 	    }
 	}
-
 	return c;
     }
 	
@@ -1010,6 +1024,44 @@ public class PreferredClassLoader extends URLClassLoader
 	}
 	return null;
     }
+    
+    /**
+     * Gets an Enumeration of resources with the specified name.
+     *
+     * <p><code>PreferredClassLoader</code> implements this method as
+     * follows:
+     *
+     * <p>This method invokes {@link #isPreferredResource
+     * isPreferredResource} with <code>name</code> as the first
+     * argument and <code>false</code> as the second argument:
+     *
+     * <ul>
+     *
+     * <li>If <code>isPreferredResource</code> returns
+     * <code>true</code>, then this method invokes {@link
+     * #findResources findResources} with <code>name</code> and returns
+     * the results.
+     *
+     * <li>If <code>isPreferredResource</code> returns
+     * <code>false</code>, then this method invokes the superclass
+     * implementation of {@link ClassLoader#getResources getResources}
+     * with <code>name</code> and returns the result.
+     *
+     * </ul>
+     *
+     * @param name the name of the resource to get
+     *
+     * @return an <code>Enumeration</code> for the resource, the
+     * <code>Enumeration</code> is empty if the resource could not be found
+     * 
+     * @throws an IOException if isPreferredResource throws an IOException.
+     * 
+     * @since 3.0.0
+     **/
+    public Enumeration<URL> getResources(String name) throws IOException{
+        return (isPreferredResource(name, false) ?
+                findResources(name) : super.getResources(name));
+    }
 
     /*
      * Work around 4841786: wrap ClassLoader.definePackage so that if
@@ -1035,21 +1087,21 @@ public class PreferredClassLoader extends URLClassLoader
 	}
     }
     
-    protected Class<?> findClass(final String name)
-	 throws ClassNotFoundException
-    {   
-        /* TODO: Override and create our own CodeSource
-         * implementation that contains permissions.perm
-         * After we retrieve the manifest, class bytes and
-         * certificates, create the CodeSource we call
-         * defineClass(String name, byte[]b, int off, int len, CodeSource cs)
-         * 
-         * This will be utilised by a class that overrides 
-         * BasicProxyPreparer.getPermissions()
-         * to retrieve the advisory permissions.
-         */
-        return super.findClass(name);
-    }
+//    protected Class<?> findClass(final String name)
+//	 throws ClassNotFoundException
+//    {   
+//        /* TODO: Override and create our own CodeSource
+//         * implementation that contains permissions.perm
+//         * After we retrieve the manifest, class bytes and
+//         * certificates, create the CodeSource we call
+//         * defineClass(String name, byte[]b, int off, int len, CodeSource cs)
+//         * 
+//         * This will be utilised by a class that overrides 
+//         * BasicProxyPreparer.getPermissions()
+//         * to retrieve the advisory permissions.
+//         */
+//        return super.findClass(name);
+//    }
 
     /**
      * {@inheritDoc}
@@ -1072,6 +1124,16 @@ public class PreferredClassLoader extends URLClassLoader
      */
     void checkPermissions() {
 	checkPermissions(permissions);
+    }
+
+    private void checkPermissions(Collection<Permission> permissions){
+        SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {		// should never be null?
+	    Iterator<Permission> en = permissions.iterator();
+	    while (en.hasNext()) {
+		sm.checkPermission((Permission) en.next());
+	    }
+	}
     }
 
     /**
@@ -1300,5 +1362,37 @@ public class PreferredClassLoader extends URLClassLoader
                 // Sun Bug ID: 6536522
             }
 	}
+    }
+    
+    private class PreferredResourcesPrivilegedExceptionAction 
+                implements PrivilegedExceptionAction<PreferredResources>{
+        
+        private URL firstURL;
+        
+        PreferredResourcesPrivilegedExceptionAction(URL first){
+            firstURL = first;
+        }
+
+        @Override
+        public PreferredResources run() throws Exception {
+            PreferredResources pref = null;
+            InputStream prefIn = null;
+            try {
+                prefIn = getPreferredInputStream(firstURL);
+                if (prefIn != null) pref = new PreferredResources(prefIn);
+            } catch (IOException ex) {
+                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.CONFIG, "Unable to access preferred resources", ex);
+                throw ex;
+            } finally {
+                try {
+                    if (prefIn != null){
+                        prefIn.close();
+                    }
+                } catch (IOException ex) {
+                    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.CONFIG, "Problem closing preferred resources input stream", ex);
+                } 
+            }
+            return pref;
+        }
     }
 }

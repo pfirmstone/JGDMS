@@ -18,7 +18,7 @@
 /* @test 
  * 
  * @summary test basic operations of AccessPermission
- * 
+ * @author Bob Scheifler
  * @run main/othervm Operations
  */
 import java.io.*;

@@ -1,4 +1,0 @@
-testClass=GroupsDiscoveredAll
-testCategories=discoverymanager,discoverymanager_spec,allgroups
-include0=discoverymanager.properties
-com/sun/jini/test/share/allgroups_reggie6_0.properties

@@ -26,7 +26,7 @@ import java.rmi.RemoteException;
  * nestable transactions.  All nestable transactions must have a
  * transaction manager that runs this protocol.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see NestableServerTransaction
  * @see TransactionParticipant

@@ -17,16 +17,16 @@
 #*/
 
 # browser configuration entries
-com.sun.jini.example.browser.adminPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.example.browser.discoveryManager: net.jini.discovery.DiscoveryManagement
-com.sun.jini.example.browser.exitActionListener: java.awt.event.ActionListener
-com.sun.jini.example.browser.folderView: boolean
-com.sun.jini.example.browser.initialLookupGroups: String[]
-com.sun.jini.example.browser.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
-com.sun.jini.example.browser.leaseManager: net.jini.lease.LeaseRenewalManager
-com.sun.jini.example.browser.leasePreparer: net.jini.security.ProxyPreparer
-com.sun.jini.example.browser.listenerExporter: net.jini.export.Exporter
-com.sun.jini.example.browser.loginContext: javax.security.auth.login.LoginContext
-com.sun.jini.example.browser.locatorConstraints: net.jini.core.constraint.MethodConstraints
-com.sun.jini.example.browser.servicePreparer: net.jini.security.ProxyPreparer
-com.sun.jini.example.browser.uninterestingInterfaces: String[]
+org.apache.river.example.browser.adminPreparer: net.jini.security.ProxyPreparer
+org.apache.river.example.browser.discoveryManager: net.jini.discovery.DiscoveryManagement
+org.apache.river.example.browser.exitActionListener: java.awt.event.ActionListener
+org.apache.river.example.browser.folderView: boolean
+org.apache.river.example.browser.initialLookupGroups: String[]
+org.apache.river.example.browser.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
+org.apache.river.example.browser.leaseManager: net.jini.lease.LeaseRenewalManager
+org.apache.river.example.browser.leasePreparer: net.jini.security.ProxyPreparer
+org.apache.river.example.browser.listenerExporter: net.jini.export.Exporter
+org.apache.river.example.browser.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.example.browser.locatorConstraints: net.jini.core.constraint.MethodConstraints
+org.apache.river.example.browser.servicePreparer: net.jini.security.ProxyPreparer
+org.apache.river.example.browser.uninterestingInterfaces: String[]

@@ -17,9 +17,9 @@
 #*/
 
 # non-activatable persistent fiddler configuration entries
-com.sun.jini.fiddler.initialPersistenceSnapshotThreshold: int
-com.sun.jini.fiddler.initialPersistenceSnapshotWeight: float
-com.sun.jini.fiddler.persistenceDirectory: String
-com.sun.jini.fiddler.recoveredListenerPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.fiddler.recoveredLocatorToDiscoverPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.fiddler.recoveredLocatorToJoinPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.initialPersistenceSnapshotThreshold: int
+org.apache.river.fiddler.initialPersistenceSnapshotWeight: float
+org.apache.river.fiddler.persistenceDirectory: String
+org.apache.river.fiddler.recoveredListenerPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.recoveredLocatorToDiscoverPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.recoveredLocatorToJoinPreparer: net.jini.security.ProxyPreparer

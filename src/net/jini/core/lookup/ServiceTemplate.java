@@ -17,6 +17,7 @@
  */
 package net.jini.core.lookup;
 
+import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 
 /**
@@ -35,11 +36,11 @@ import net.jini.core.entry.Entry;
  * for serviceTypes and attributeSetTemplates, a null field is equivalent to
  * an empty array; both represent a wildcard.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
-public class ServiceTemplate implements java.io.Serializable {
+public class ServiceTemplate implements java.io.Serializable, Cloneable {
 
     private static final long serialVersionUID = 7854483807886483216L;
 
@@ -75,6 +76,36 @@ public class ServiceTemplate implements java.io.Serializable {
 	this.serviceID = serviceID;
 	this.serviceTypes = serviceTypes;
 	this.attributeSetTemplates = attrSetTemplates;
+    }
+    
+    /**
+     * Clone has been implemented to allow utilities such as
+     * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
+     * internally stored instances with client code.
+     * 
+     * @return a clone of the original ServiceTemplate
+     */
+    @Override
+    public ServiceTemplate clone() 
+    {
+        try {
+            ServiceTemplate clone = (ServiceTemplate) super.clone();
+	    if (clone.serviceTypes != null){
+		clone.serviceTypes = clone.serviceTypes.clone();
+	    }
+	    if (clone.attributeSetTemplates != null){
+		clone.attributeSetTemplates = clone.attributeSetTemplates.clone();
+		for (int i = 0, l = clone.attributeSetTemplates.length; i < l; i++){
+		    Entry e = clone.attributeSetTemplates[i];
+		    if (e instanceof CloneableEntry){
+			clone.attributeSetTemplates[i] = ((CloneableEntry) e).clone();
+		    }
+		}
+	    }
+            return clone;
+        } catch (CloneNotSupportedException ex) {
+            throw new AssertionError();
+        }
     }
     
     /**

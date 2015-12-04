@@ -1,0 +1,4 @@
+testClass=CacheDiscard
+testCategories=servicediscovery,servicediscovery_spec,servicediscoverycache,specservicediscovery,specservicediscoverycache
+include0=../servicediscovery.properties
+include1=org/apache/river/test/share/lookups2_0srvcs1_0attrs0_0.properties

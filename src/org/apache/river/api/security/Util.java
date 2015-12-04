@@ -17,6 +17,11 @@
 
 package org.apache.river.api.security;
 
+/**
+ * 
+ * @author peter
+ * @since 3.0.0
+ */
 class Util {
 
     static String toUpperCase(String s) {

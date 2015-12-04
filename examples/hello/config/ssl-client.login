@@ -18,7 +18,7 @@
 
 /* JAAS login configuration file for SSL client */
 
-com.sun.jini.example.hello.Client {
+org.apache.river.example.hello.Client {
     com.sun.security.auth.module.KeyStoreLoginModule required
 	keyStoreAlias="client"
 	keyStoreURL="file:prebuiltkeys/client.keystore";

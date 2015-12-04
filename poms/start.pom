@@ -25,7 +25,7 @@
     It acts as both the class path for the container virtual machine (VM) for the Java platform 
     that executes non-activatable services, and as the setup VM for activatable services.
     </description>
-    <version>2.2.1</version>
+    <version>3.0</version>
 
   	<licenses>
 	    <license>
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>net.jini</groupId>
             <artifactId>jsk-platform</artifactId>
-            <version>2.2.1</version>
+            <version>3.0</version>
         </dependency>
     </dependencies>
 

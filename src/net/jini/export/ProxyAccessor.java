@@ -30,7 +30,7 @@ package net.jini.export;
  * java.rmi.MarshalledObject}, and it must be serializable and marshalling
  * the object produces a suitable proxy for the remote object.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public interface ProxyAccessor {

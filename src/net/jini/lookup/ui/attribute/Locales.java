@@ -22,13 +22,13 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.List;
 import java.util.Collections;
-import com.artima.lookup.util.ConsistentSet;
+import org.apache.river.lookup.util.ConsistentSet;
 
 /**
  * UI attribute that lists the locales supported
  * by a generated UI.
  *
- * 
+ * @author Bill Venners
  */
 public class Locales implements java.io.Serializable {
 

@@ -18,7 +18,7 @@
 /* @test 
  * @bug 4173960
  * @summary synopsis: Activatable objects cannot be restarted.
- * 
+ * @author Laird Dornin
  *
  * @library ../../../../../testlibrary
  * @build ActivationLibrary TestLibrary RMID

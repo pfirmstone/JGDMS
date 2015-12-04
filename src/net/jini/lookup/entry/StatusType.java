@@ -22,7 +22,7 @@ import java.io.Serializable;
 /**
  * Information pertaining to the severity of a Status object.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see Status
  */

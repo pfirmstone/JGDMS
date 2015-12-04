@@ -17,5 +17,5 @@ grant {
   permission net.jini.export.ServerPermission "exportRemoteInterface.ActivateMe";
 
   // allow remote objects to call monitor's inactive method
-  permission com.sun.jini.phoenix.MonitorPermission "inactiveObject";
+  permission org.apache.river.phoenix.MonitorPermission "inactiveObject";
 };

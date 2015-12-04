@@ -33,7 +33,7 @@ import net.jini.security.TrustVerifier;
  * {@link ProxyTrustExporter} is one example of this form of delegation.
  * {@link net.jini.jeri.ProxyTrustILFactory} is another example.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface ServerProxyTrust {

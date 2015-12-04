@@ -1,0 +1,71 @@
+PreferredResources-Version: 1.0
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class01.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class02.class
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class03.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class04.class
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class05.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class06.class
+Preferred: should_be_false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class07.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class08.class
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class09.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class10.class
+Preferred: should_be_false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class09$Inner1.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class10$Inner1.class
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class09$Inner1$Inner2.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class10$Inner1$Inner2.class
+Preferred: should_be_false
+
+Name: org/apache/river/test/spec/loader/util/classes/Class09$Inner1$Inner2$Inner3.class
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/Class10$Inner1$Inner2$Inner3.class
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/classes/dir01/*
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/dir01/Class02.class
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/classes/dir02/-
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/classes/dir02/dir/Class02.class
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/resources/files/file01
+Preferred: true
+
+Name: org/apache/river/test/spec/loader/util/resources/files/file02
+Preferred: false
+
+Name: org/apache/river/test/spec/loader/util/resources/files/file03
+Preferred: true

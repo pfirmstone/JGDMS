@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Collections;
-import com.artima.lookup.util.ConsistentMap;
+import org.apache.river.lookup.util.ConsistentMap;
 
 /**
  * UI attribute that enables clients to get a list of
@@ -74,7 +74,7 @@ import com.artima.lookup.util.ConsistentMap;
  * The version number must begin with a number.
  * </BLOCKQUOTE>
  *
- * 
+ * @author Bill Venners
  */
 public class RequiredPackages implements java.io.Serializable {
 

@@ -20,7 +20,7 @@
  * @summary ActivatableInvocationHandler wrapping of ConnectException;
  *	    this test checks possible exceptional conditions occurring when
  *	    ActivatableInvocationHandler attempts to activate an object
- * 
+ * @author Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary ActivationLibrary RMID

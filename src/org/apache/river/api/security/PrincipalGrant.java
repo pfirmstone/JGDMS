@@ -21,35 +21,24 @@ package org.apache.river.api.security;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.security.AccessController;
-import java.security.AllPermission;
-import java.security.CodeSigner;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
-import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.UnresolvedPermission;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
- * 
+ * @author Peter Firmstone.
  */
 class PrincipalGrant extends PermissionGrant implements Serializable{
     private static final long serialVersionUID = 1L;
@@ -78,7 +67,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
                 Class c = p.getClass();
                 String name = p.getName();
                 String actions = p.getActions();
-                hash = 97 * hash + (c != null ? c.hashCode() : 0);
+                hash = 97 * hash + c.hashCode();
                 hash = 97 * hash + (name != null ? name.hashCode() : 0);
                 hash = 97 * hash + (actions != null ? actions.hashCode() : 0);
             }
@@ -91,10 +80,10 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
        if (o == null) return false;
        if (o == this) return true;
        if (o.hashCode() != this.hashCode()) return false;
+       if (!super.equals(o)) return false;
        if (o instanceof PrincipalGrant ){
            PrincipalGrant p = (PrincipalGrant) o;
-           if (pals.equals(p.pals) 
-                   && getPermissions().equals(p.getPermissions())) return true;
+           if (pals.equals(p.pals)) return true;
        }
        return false;
     }
@@ -151,7 +140,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
                  * a PrincipalGrant is immutable and therefore shouldn't change.
                  * Group represents a mutable component which can change the
                  * result of implies.  A PrincipalGrant, should
-                 * have the same behaviour on all calls to implies.
+                 * have the same behaviour on all calls to implies, ie: be idempotent.
                  * 
                  * The reason for this choice at this time; there is
                  * no way a Policy can be aware the PrincipalGrant
@@ -174,39 +163,6 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
         return false;
     }
       
-    /**
-     * Utility Method, really belongs somewhere else, but CodeSource subclasses use it.
-     * @param codeSource
-     * @return
-     * @deprecated  will be removed when CodeSource based grants are removed.
-     */
-    @Deprecated
-    CodeSource normalizeCodeSource(CodeSource codeSource) {
-        if (codeSource == null ) return null;
-        URI codeSourceURI = null;
-        try {
-            codeSourceURI = PolicyUtils.normalizeURL(codeSource.getLocation());
-        } catch (URISyntaxException ex) {
-            ex.printStackTrace(System.err);
-        }
-        CodeSource result = codeSource;
-        try {
-            if ( codeSourceURI != null && codeSourceURI.toURL() != codeSource.getLocation()) {
-                // URL was normalized - recreate codeSource with new URL
-                CodeSigner[] signers = codeSource.getCodeSigners();
-                if (signers == null) {
-                    result = new CodeSource(codeSourceURI.toURL(), codeSource
-                            .getCertificates());
-                } else {
-                    result = new CodeSource(codeSourceURI.toURL(), signers);
-                }
-            }
-        } catch (MalformedURLException ex) {
-            ex.printStackTrace(System.err);
-        }
-        return result;
-    } 
-    
     /* Dynamic grant's and file policy grant's have different semantics,
      * this class was originally abstract, it might be advisable to make it so
      * again.
@@ -226,47 +182,9 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     Principal[] getPrincipals(final ProtectionDomain pd){
         if (pd instanceof SubjectDomain){
             final Set<Principal> principals = ((SubjectDomain) pd).getSubject().getPrincipals();
-            // Synchronisation would prevent modification during array creation,
-            // but it also prevents multi read,
-            // lets use an iterator, catch ConcurrentModificationException 
-            // (which should seldom happen) sleep momentarily and try again.
-            Principal[] result = null;
-            Iterator<Principal> it = null;
-            // This minimal synchronization ensures that array size will
-            // be correct if ConcurrentModificationException is not thrown.
-            synchronized (principals){
-                result = new Principal[principals.size()];
-                it = principals.iterator();
-            }
-            boolean retry = true;
-            while (retry){
-                try {
-                    int i = 0;
-                    while (it.hasNext()){
-                        result[i] = it.next();
-                        i++;
-                    }
-                    return result;
-                } catch ( ConcurrentModificationException e){
-                    try {
-                        // sleep for modifications to finish = back off.
-                        Thread.currentThread().sleep(20L);
-                        synchronized(principals){  // try again
-                            result = new Principal[principals.size()];
-                            it = principals.iterator();
-                        }
-                    } catch (InterruptedException ex) {
-                        // ProtectionDomain.getPrincipals() instead.
-                        retry = false;
-                        Thread.currentThread().interrupt(); // restore interrupt.
-                    }
-                } catch ( ArrayIndexOutOfBoundsException e) {
-                    retry = false;
-                    // ProtectionDomain.getPrincipals() instead.
-                    System.err.println("ArrayIndexOutOfBoundsException occured during iteration of Subject Principals");
-                    e.printStackTrace(System.err);
-                }
-            }
+            // principals is a synchronized Set, always up to date.
+            // Contention should be minimal even if Subject run on many threads.
+            return (Principal[]) principals.toArray();
         }
         return pd.getPrincipals();
     }

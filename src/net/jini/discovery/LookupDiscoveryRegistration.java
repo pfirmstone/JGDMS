@@ -50,7 +50,7 @@ import java.rmi.RemoteException;
  * these methods, the method may or may not have completed its processing
  * successfully.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see net.jini.core.lookup.ServiceRegistrar
  * @see net.jini.discovery.LookupDiscoveryService

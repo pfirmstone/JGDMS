@@ -18,7 +18,7 @@
 /*
  * @test 
  * @summary Tests parsing configuration files.
- * 
+ * @author Tim Blackman
  * @build TestParser MultiReader X Y TestPermission
  * @build a.X a.Y a.Z a.U
  * @build a.b.X a.b.Y a.b.Z a.b.U a.b.V

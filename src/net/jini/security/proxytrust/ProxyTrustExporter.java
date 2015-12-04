@@ -18,8 +18,8 @@
 
 package net.jini.security.proxytrust;
 
-import com.sun.jini.thread.Executor;
-import com.sun.jini.thread.GetThreadPoolAction;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -50,7 +50,7 @@ import net.jini.security.TrustVerifier;
  * corresponding {@link ServerProxyTrust#getProxyVerifier getProxyVerifier}
  * method of the main remote object.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see net.jini.jeri.ProxyTrustILFactory
  * @since 2.0
  */

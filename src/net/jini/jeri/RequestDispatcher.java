@@ -26,7 +26,7 @@ package net.jini.jeri;
  * interface that was passed to the endpoint's {@link
  * ServerEndpoint.ListenEndpoint#listen listen} method.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public interface RequestDispatcher {

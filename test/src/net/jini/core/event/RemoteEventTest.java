@@ -33,7 +33,7 @@ import static org.junit.Assert.*;
 
 /**
  *
- * 
+ * @author peter
  */
 public class RemoteEventTest {
 
@@ -49,7 +49,7 @@ public class RemoteEventTest {
     @SuppressWarnings("deprecation")
     public void setUp() {
 	try {
-	    m = new MarshalledObject(s);
+	    m = new MarshalledInstance(s).convertToMarshalledObject();
 	} catch (IOException ex) {
 	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
 	}

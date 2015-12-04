@@ -35,7 +35,7 @@ import net.jini.security.Security;
  * {@link Configuration} to prepare all remote proxies that they receive in
  * order to permit configuring how applications handle proxies.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface ProxyPreparer {

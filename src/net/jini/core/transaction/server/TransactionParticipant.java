@@ -30,7 +30,7 @@ import java.rmi.RemoteException;
  * two-phase commit protocol to be used between objects in a distributed
  * system.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see TransactionManager
  * @see NestableTransactionManager

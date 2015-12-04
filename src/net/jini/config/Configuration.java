@@ -39,7 +39,7 @@ import net.jini.security.ProxyPreparer;
  * interpretation of configuration options can be customized without requiring
  * code modifications.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface Configuration {
@@ -51,6 +51,7 @@ public interface Configuration {
      * @see #getEntry(String, String, Class, Object, Object)
      */
     Object NO_DEFAULT = new Object() {
+        @Override
 	public String toString() { return "Configuration.NO_DEFAULT"; }
     };
 
@@ -61,6 +62,7 @@ public interface Configuration {
      * @see #getEntry(String, String, Class, Object, Object)
      */
     Object NO_DATA = new Object() {
+        @Override
 	public String toString() { return "Configuration.NO_DATA"; }
     };
 
@@ -85,6 +87,7 @@ public interface Configuration {
      * #getEntry(String, String, Class, Object, Object) getEntry}(component,
      * name, type, {@link #NO_DEFAULT}, {@link #NO_DATA})</code>.
      *
+     * @param <T> Object returned.
      * @param component the component being configured
      * @param name the name of the entry for the component
      * @param type the type of the object to be returned
@@ -106,7 +109,7 @@ public interface Configuration {
      * @throws NullPointerException if any argument is <code>null</code>
      * @see #getEntry(String, String, Class, Object)
      */
-    Object getEntry(String component, String name, Class type)
+    <T> T getEntry(String component, String name, Class<T> type)
 	throws ConfigurationException;
 
     /**
@@ -131,6 +134,7 @@ public interface Configuration {
      * #getEntry(String, String, Class, Object, Object) getEntry}(component,
      * name, type, defaultValue, {@link #NO_DATA})</code>.
      *
+     * @param <T>
      * @param component the component being configured
      * @param name the name of the entry for the component
      * @param type the type of the object to be returned
@@ -163,9 +167,9 @@ public interface Configuration {
      * <code>name</code>, or <code>type</code> is <code>null</code>
      * @see #getEntry(String, String, Class, Object, Object)
      */
-    Object getEntry(String component,
+    <T> T getEntry(String component,
 		    String name,
-		    Class type,
+		    Class<T> type,
 		    Object defaultValue)
 	throws ConfigurationException;
 
@@ -188,6 +192,7 @@ public interface Configuration {
      * available for the given component. The value of <code>name</code> must
      * be an <i>Identifier</i>, as defined in the JLS.
      *
+     * @param <T>
      * @param component the component being configured
      * @param name the name of the entry for the component
      * @param type the type of the object to be returned
@@ -222,9 +227,9 @@ public interface Configuration {
      * @throws NullPointerException if <code>component</code>,
      * <code>name</code>, or <code>type</code> is <code>null</code>
      */
-    Object getEntry(String component,
+    <T> T getEntry(String component,
 		    String name,
-		    Class type,
+		    Class<T> type,
 		    Object defaultValue,
 		    Object data)
 	throws ConfigurationException;

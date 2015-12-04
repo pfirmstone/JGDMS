@@ -1,0 +1,370 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* @test -- Disabled for now.  -tjb[28.Apr.2003]
+ * @ignore
+ * @summary Test the ServerConnection class.
+ * @author Tim Blackman
+ * @library ../../../../../unittestlib
+ * @build UnitTestUtilities BasicTest Test
+ * @build TestEndpointUtilities TestUtilities
+ * @run main/othervm/policy=policy TestServerConnection
+ */
+
+import org.apache.river.temp.davis.core.security.*;
+import org.apache.river.temp.davis.securejeri.*;
+import org.apache.river.temp.davis.securejeri.connection.*;
+import org.apache.river.temp.davis.security.*;
+import java.io.*;
+import java.lang.reflect.Method;
+import java.security.*;
+import java.security.cert.X509Certificate;
+import java.util.*;
+import javax.security.auth.Subject;
+
+public class TestServerConnection extends TestEndpointUtilities {
+    static final boolean CLIENT_AUTH = true;
+    static final boolean NO_CLIENT_AUTH = false;
+
+    /** All ServerConnection tests */
+    public static Collection tests = new ArrayList();
+
+    /** Run all ServerConnection tests */
+    public static void main(String[] args) {
+	test(tests);
+    }
+
+    /** Implements name() and adds test to tests */
+    static abstract class LocalTest extends TestUtilities implements Test {
+	private String name;
+
+	LocalTest(String name) {
+	    this.name = name;
+	}
+
+	public String name() {
+	    return name;
+	}
+    }
+
+    /** Implements methods for managing a connection */
+    static abstract class ConnectionTest extends LocalTest {
+
+	boolean clientAuth;
+	Subject serverSubject;
+	SecurityConstraints clientConstraints;
+	Subject clientSubject;
+	
+	ConnectionTest(String name,
+		       boolean clientAuth,
+		       Subject serverSubject,
+		       SecurityConstraints clientConstraints,
+		       Subject clientSubject)
+	{
+	    super(name);
+	    this.clientAuth = clientAuth;
+	    this.serverSubject = serverSubject;
+	    this.clientConstraints = clientConstraints;
+	    this.clientSubject = clientSubject;
+	}
+     }
+
+    /* -- Test ServerConnection.readCallData() -- */
+
+    static {
+	tests.add(TestReadCallData.localTests);
+    }
+
+    static class TestReadCallData extends ConnectionTest {
+	static private final boolean OK = true;
+	static private final boolean FAIL = false;
+
+	static Test[] localTests = {
+	    new TestReadCallData(
+		"No authentication",
+		NO_CLIENT_AUTH,
+		null /* serverSubject */,
+		SecurityConstraints.EMPTY /* clientConstraints */,
+		null /* clientSubject */,
+		null /* expectedClientSubject */,
+		SecurityConstraints.EMPTY /* checkConstraints */,
+		OK),
+
+	    new TestReadCallData(
+		"No client auth",
+		NO_CLIENT_AUTH,
+		TestUtilities.serverSubject,
+		requirements(ServerAuthentication.YES),
+		clientRSASubject,
+		null /* expectedClientSubject */,
+		requirements(ServerAuthentication.YES),
+		OK),
+
+	    new TestReadCallData(
+		"RSA principal",
+		CLIENT_AUTH,
+		TestUtilities.serverSubject,
+		requirements(ClientAuthentication.YES),
+		clientRSASubject,
+		new WithSubject() { {
+		    addX500Principal("clientRSA1", subject, false);
+		} }.subject(),
+		requirements(ClientAuthentication.YES),
+		OK),
+
+	    new TestReadCallData(
+		"RSA principal, no client authentication",
+		NO_CLIENT_AUTH,
+		TestUtilities.serverSubject,
+		requirements(ClientAuthentication.NO),
+		clientRSASubject,
+		null /* expectedClientSubject */,
+		requirements(ClientAuthentication.NO),
+		OK),
+
+	    new TestReadCallData(
+		"Client authentication not supported",
+		NO_CLIENT_AUTH,
+		null /* serverSubject */,
+		SecurityConstraints.EMPTY /* clientConstraints */,
+		null /* clientSubject */,
+		null /* expectedClientSubject */,
+		requirements(ClientAuthentication.YES),
+		FAIL),
+
+	    new TestReadCallData(
+		"No encryption",
+		CLIENT_AUTH,
+		serverRSASubject,
+		requirements(ClientAuthentication.YES,
+			     Confidentiality.NO) /* clientConstraints */,
+		clientRSASubject /* clientSubject */,
+		new WithSubject() { {
+		    addX500Principal("clientRSA1", subject, false);
+		} }.subject(),
+		requirements(Confidentiality.NO),
+		OK),
+
+	    new TestReadCallData(
+		"Destroyed server credentials",
+		NO_CLIENT_AUTH,
+		new WithSubject() { {
+		    addX500Principal("serverRSA", subject);
+		} }.subject(false),
+		requirements(ClientAuthentication.NO),
+		clientRSASubject,
+		null /* expectedClientSubject */,
+		requirements(ServerAuthentication.YES),
+		FAIL)
+	    {
+		Object readCallData(SecureServerConnection serverConnection,
+				    InputStream inputStream,
+				    OutputStream outputStream,
+				    SecurityConstraints requiredConstraints)
+		    throws IOException
+		{
+		    destroyPrivateCredentials(serverSubject);
+		    return super.readCallData(serverConnection, inputStream,
+					      outputStream,
+					      requiredConstraints);
+		}
+	    },
+
+	    new TestReadCallData(
+		"No authentication permission",
+		CLIENT_AUTH,
+		serverRSASubject,
+		requirements(ServerAuthentication.YES) /* clientConstraints */,
+		clientRSASubject /* clientSubject */,
+		new WithSubject() { {
+		    addX500Principal("clientRSA1", subject, false);
+		} }.subject(),
+		requirements(ClientAuthentication.YES),
+		FAIL)
+	    {
+		/* Remove all AuthenticationPermissions */
+		Object readCallData(
+		    final SecureServerConnection serverConnection,
+		    final InputStream inputStream,
+		    final OutputStream outputStream,
+		    final SecurityConstraints requiredConstraints)
+		    throws IOException
+		{
+		    try {
+			return AccessController.doPrivileged(
+			    new PrivilegedExceptionAction() {
+				public Object run() throws IOException {
+				    return superReadCallData(
+					serverConnection, inputStream,
+					outputStream, requiredConstraints);
+				}
+			    },
+			    withAuthenticationPermissions(null));
+		    } catch (PrivilegedActionException e) {
+			throw (IOException) e.getException();
+		    }
+		}
+
+		private Object superReadCallData(
+		    SecureServerConnection serverConnection,
+		    InputStream inputStream,
+		    OutputStream outputStream,
+		    SecurityConstraints requiredConstraints)
+		    throws IOException
+		{
+		    return super.readCallData(
+			serverConnection, inputStream, outputStream,
+			requiredConstraints);
+		}
+
+		public void check(Object result) {
+		    super.check(result);
+		    if (!(result instanceof AccessControlException)) {
+			throw new FailedException("Wrong exception");
+		    }
+		    Permission perm =
+			((AccessControlException) result).getPermission();
+		    if (!(perm instanceof AuthenticationPermission)) {
+			new FailedException("Wrong permission: " + perm);
+		    }
+		}
+	    }
+	};
+
+	final Subject expectedClientSubject;
+	final SecurityConstraints requiredConstraints;
+	final boolean ok;
+	private SecureInboundRequest request;
+	private Exception unexpectedException;
+
+	public static void main(String[] args) {
+	    test(localTests);
+	}
+
+	TestReadCallData(
+	    String name,
+	    boolean clientAuth,
+	    Subject serverSubject,
+	    SecurityConstraints clientConstraints,
+	    Subject clientSubject,
+	    Subject expectedClientSubject,
+	    SecurityConstraints requiredConstraints,
+	    boolean ok)
+	{
+	    super(name + ", requiredConstraints=" + requiredConstraints,
+		  clientAuth, serverSubject, clientConstraints,
+		  clientSubject);
+	    this.expectedClientSubject = expectedClientSubject;
+	    this.requiredConstraints = requiredConstraints;
+	    this.ok = ok;
+	}
+
+	public Object run() throws Exception {
+	    final Object sync = new Object();
+	    SecureServerEndpoint serverEndpoint =
+		createServerEndpoint(clientAuth, serverSubject);
+	    SecureServerEndpointListener listener;
+ 	    synchronized (sync) {
+		listener = serverEndpoint.listen(
+		    new SecureRequestHandler() {
+			public void handleRequest(SecureInboundRequest r) {
+			    synchronized (sync) {
+				request = r;
+				sync.notify();
+			    }
+			}
+		    });
+		final SecureEndpoint endpoint = listener.getEndpoint();
+		final SecureCallContext context = endpoint.getCallContext(
+		    clientConstraints, clientSubject);
+		new Thread() {
+		    public void run() {
+			try {
+			    SecureOutboundRequest outbound =
+				endpoint.newRequest(context);
+			    outbound.getRequestOutputStream().close();
+			} catch (Exception e) {
+			    unexpectedException = e;
+			}
+		    }
+		}.start();
+		try {
+		    sync.wait(60 * 1000);
+		} catch (InterruptedException e) {
+		}
+	    }
+	    if (request == null) {
+		throw new RuntimeException("No server connection");
+	    } else if (unexpectedException != null) {
+		throw unexpectedException(unexpectedException);
+	    }
+
+	    SecureServerConnection serverConnection =
+		getInboundRequestConnection(request);
+	    debugPrint(30, "serverConnection: " + serverConnection);
+	    try {
+		return readCallData(
+		    serverConnection,
+		    serverConnection.getInputStream(),
+		    serverConnection.getOutputStream(),
+		    requiredConstraints);
+	    } catch (SecurityException e) {
+		return e;
+	    } finally {
+		serverConnection.close();
+		listener.close();
+	    }
+	}
+
+	Object readCallData(SecureServerConnection serverConnection,
+			    InputStream inputStream,
+			    OutputStream outputStream,
+			    SecurityConstraints requiredConstraints)
+	    throws IOException
+	{
+	    Subject result = serverConnection.processRequestData(
+		inputStream, outputStream);
+	    serverConnection.checkPermissions(result);
+	    boolean satisfied = serverConnection.satisfiesConstraints(
+		result, requiredConstraints);
+	    if (satisfied) {
+		return result;
+	    } else {
+		throw new SecurityException(
+		    "Constraints not supported: " + requiredConstraints);
+	    }
+	}
+
+	public void check(Object result) {
+	    if (result instanceof SecurityException) {
+		if (ok) {
+		    throw new FailedException(
+			"Should not have thrown an exception" +
+			(testLevel < 5 ? ""
+			 : ":\n" + getStackTrace((Exception) result)));
+		}
+	    } else {
+		if (!subjectsEqual((Subject) result, expectedClientSubject)) {
+		    throw new FailedException(
+			"Client subject should have been: " +
+			expectedClientSubject);
+		}
+	    }
+	}
+    }
+}

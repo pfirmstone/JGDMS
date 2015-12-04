@@ -1,0 +1,1315 @@
+//
+//
+// Frontend of security policy file. This is prepended to the output
+// of the SecurityGenerator output to build the full policy file
+//
+
+/**
+ * The following grants all permission to jsk-platform.jar and qa1-wrapper.jar.
+ * These files were previously installed in the extensions directory.
+ */
+grant codebase "file:${org.apache.river.jsk.jars}${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.jars}${/}jsk-lib.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.qa.jars}${/}qa1-wrapper.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+// Grant permission to execute these methods anonymously.  These
+// methods are called by the end-to-end test with no client
+// constraints, and there are no server constraints specified
+// for them.
+grant {
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "unexport";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "callAfterUnexport";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "getProxyVerifier";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "newProxy";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "getServerSubject";
+};
+
+// Grant permissions to the sample program.
+grant codebase "${serverCodebase}" {
+
+    // Permission to get the user home directory to find the default keystore
+    // file.
+    permission java.util.PropertyPermission "user.home", "read";
+
+    // Permission to read the file that contains the keystore password.
+    permission java.io.FilePermission "${keyStorePasswordFile}", "read";
+
+    // Permission to read the keystore.
+    permission java.io.FilePermission "${keyStoreFile}", "read";
+
+    // Permission to determine location of rmisec file.
+    //permission java.util.PropertyPermission "rmisec", "read";
+
+    // Permission to read the serverLog.
+    //permission java.util.PropertyPermission
+    //             "org.apache.river.temp.davis.securejeri.jsse.serverLog", "read";
+
+    // Permission to read rmisec file.
+    //permission java.io.FilePermission "${rmisec}", "read";
+
+    // JAAS permissions to read and modify the contents of the subject.
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+
+    // JAAS permissions to perform operations as a subject.
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "doAs";
+
+    // Permission to create a LoginContext.
+    permission javax.security.auth.AuthPermission "createLoginContext";
+
+    // Permission to get the current subject.
+    permission javax.security.auth.AuthPermission "getSubject";
+
+    // permission to network
+    permission java.net.SocketPermission "*","accept,connect,listen,resolve" ;
+
+    // Permission to read properties in Utilities
+    permission java.util.PropertyPermission "testLevel", "read" ;
+    permission java.util.PropertyPermission "firstTest", "read" ;
+    permission java.util.PropertyPermission "lastTest", "read" ;
+    permission java.util.PropertyPermission "stopOnFail", "read" ;
+    permission java.util.PropertyPermission "keyStoreFile", "read" ;
+    permission java.security.SecurityPermission "putProviderProperty.TestPrincipalProvider" ;
+    permission java.security.SecurityPermission "insertProvider.TestPrincipalProvider" ;
+    permission java.security.SecurityPermission "putProviderProperty.TestConstraintProvider" ;
+    permission java.security.SecurityPermission "insertProvider.TestConstraintProvider" ;
+    permission javax.security.auth.AuthPermission "setReadOnly" ;
+
+    permission java.lang.RuntimePermission "setIO";
+
+    permission java.lang.RuntimePermission "getClassLoader";
+
+    // Permission to read wrapper logging flags and test logging flags
+    permission java.util.PropertyPermission "jsseWrapper.logArgs", "read";
+    permission java.util.PropertyPermission "end2end.logArgs", "read";
+    permission java.util.PropertyPermission "end2end.abortOnFail", "read";
+    permission java.util.PropertyPermission "end2end.inhibigDebugHook", "read";
+    permission java.util.PropertyPermission "end2end.strongSupported", "read";
+
+};
+
+// Grant permissions to the client code.
+grant codebase "${clientCodebase}" {
+
+    // Permission to read wrapper logging flags and test logging flags
+    permission java.util.PropertyPermission "jsseWrapper.logArgs", "read";
+    permission java.util.PropertyPermission "end2end.logArgs", "read";
+    permission java.util.PropertyPermission "end2end.inhibitDebugHook", "read";
+    permission java.util.PropertyPermission "end2end.coverage", "read";
+    permission java.util.PropertyPermission "end2end.seed", "read";
+
+    // Permission to get the user home directory to find the default keystore
+    // file.
+    permission java.util.PropertyPermission "user.home", "read";
+
+    // Permission to read the serverLog.
+    //permission java.util.PropertyPermission
+    //             "org.apache.river.temp.davis.securejeri.jsse.serverLog", "read";
+
+    // Permission to read the file that contains the keystore password.
+    permission java.io.FilePermission "${keyStorePasswordFile}", "read";
+
+    // Permission to read the keystore.
+    permission java.io.FilePermission "${keyStoreFile}", "read";
+
+    // Permission to determine location of rmisec file.
+    //permission java.util.PropertyPermission "rmisec", "read";
+
+    // Permission to read rmisec file.
+    //permission java.io.FilePermission "${rmisec}", "read";
+
+    // JAAS permissions to read and modify the contents of the subject.
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+
+    // JAAS permissions to perform operations as a subject.
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+
+    // Permission to create a LoginContext.
+    permission javax.security.auth.AuthPermission "createLoginContext";
+
+    // Permission to get the current subject.
+    permission javax.security.auth.AuthPermission "getSubject";
+
+    // Permission to read properties in Utilities
+    permission java.util.PropertyPermission "testLevel", "read" ;
+    permission java.util.PropertyPermission "firstTest", "read" ;
+    permission java.util.PropertyPermission "lastTest", "read" ;
+    permission java.util.PropertyPermission "stopOnFail", "read" ;
+    permission java.util.PropertyPermission "keyStoreFile", "read" ;
+    permission java.security.SecurityPermission "putProviderProperty.TestPrincipalProvider" ;
+    permission java.security.SecurityPermission "insertProvider.TestPrincipalProvider" ;
+    permission java.security.SecurityPermission "putProviderProperty.TestConstraintProvider" ;
+    permission java.security.SecurityPermission "insertProvider.TestConstraintProvider" ;
+    permission javax.security.auth.AuthPermission "setReadOnly" ;
+
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.RuntimePermission "setContextClassLoader" ;
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+
+    permission java.awt.AWTPermission "showWindowWithoutWarningBanner";
+    permission java.util.PropertyPermission "end2end.strongSupported", "read";
+};
+
+// Grant permissions to the sample program when authenticated as the server
+grant
+    principal javax.security.auth.x500.X500Principal "${serverDSADN}"
+    codebase "${serverCodebase}"
+{
+    // Permission to use the RMI registry on the local machine
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the Server to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${serverRSADN}\" javax.security.auth.x500.X500Principal \"${serverDSADN}\"", "accept";
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    // permission to get the client subject
+
+    permission net.jini.io.context.ContextPermission "getClientSubject" ;
+
+    permission java.util.PropertyPermission "e2etest.serverProp", "read";
+};
+
+// Grant permissions to the sample program when authenticated as the server
+grant
+    principal javax.security.auth.x500.X500Principal "${serverRSADN}"
+    codebase "${serverCodebase}"
+{
+    // Permission to use the RMI registry on the local machine
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the Server to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${serverRSADN}\" javax.security.auth.x500.X500Principal \"${serverDSADN}\"", "accept";
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    // permission to get the client subject
+
+    permission net.jini.io.context.ContextPermission "getClientSubject" ;
+
+    permission java.util.PropertyPermission "e2etest.serverProp", "read";
+};
+
+// Grant permissions to the sample program when authenticated as the kerberos server
+grant
+    principal javax.security.auth.kerberos.KerberosPrincipal "${kerberosServer}",
+    codebase "${serverCodebase}"
+{
+    // Permission to use the RMI registry on the local machine
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the Server to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.kerberos.KerberosPrincipal \"${kerberosServer}\"",
+     "accept";
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    // permission to get the client subject
+
+    permission net.jini.io.context.ContextPermission "getClientSubject" ;
+
+    permission java.util.PropertyPermission "e2etest.serverProp", "read";
+};
+
+// Grant permissions to the sample program when authenticated as the clientDSA1
+// principal.
+grant
+    principal javax.security.auth.x500.X500Principal "${clientDSA1DN}"
+{
+    // Permission to use the RMI registry on the local machine.
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections.
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI.
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the client to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${client1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA2DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA2DN}\"", "connect";
+
+    // Permission to read properties in Utilities
+    permission java.util.PropertyPermission "testLevel", "read" ;
+    permission java.util.PropertyPermission "firstTest", "read" ;
+    permission java.util.PropertyPermission "lastTest", "read" ;
+    permission java.util.PropertyPermission "stopOnFail", "read" ;
+
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    permission java.util.PropertyPermission "e2etest.clientProp", "read";
+};
+
+grant
+    principal javax.security.auth.x500.X500Principal "${clientDSA2DN}"
+{
+    // Permission to use the RMI registry on the local machine.
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections.
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI.
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the client to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${client1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA2DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA2DN}\"", "connect";
+
+    // Permission to read properties in Utilities
+    permission java.util.PropertyPermission "testLevel", "read" ;
+    permission java.util.PropertyPermission "firstTest", "read" ;
+    permission java.util.PropertyPermission "lastTest", "read" ;
+    permission java.util.PropertyPermission "stopOnFail", "read" ;
+
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    permission java.util.PropertyPermission "e2etest.clientProp", "read";
+};
+
+// Grant permissions to the sample program when authenticated as the client
+// principal.
+grant
+    principal javax.security.auth.x500.X500Principal "${clientRSA1DN}"
+{
+    // Permission to use the RMI registry on the local machine.
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections.
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI.
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the client to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${client1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA2DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA2DN}\"", "connect";
+
+    // Permission to read properties in Utilities
+    permission java.util.PropertyPermission "testLevel", "read" ;
+    permission java.util.PropertyPermission "firstTest", "read" ;
+    permission java.util.PropertyPermission "lastTest", "read" ;
+    permission java.util.PropertyPermission "stopOnFail", "read" ;
+
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    permission java.util.PropertyPermission "e2etest.clientProp", "read";
+};
+
+// Grant permissions to the sample program when authenticated as the client
+// principal.
+grant
+    principal javax.security.auth.x500.X500Principal "${clientRSA2DN}"
+{
+    // Permission to use the RMI registry on the local machine.
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections.
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI.
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the client to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${client1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA2DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA2DN}\"", "connect";
+
+    // Permission to read properties in Utilities
+    permission java.util.PropertyPermission "testLevel", "read" ;
+    permission java.util.PropertyPermission "firstTest", "read" ;
+    permission java.util.PropertyPermission "lastTest", "read" ;
+    permission java.util.PropertyPermission "stopOnFail", "read" ;
+
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    permission java.util.PropertyPermission "e2etest.clientProp", "read";
+};
+
+
+// Grant permissions to the sample program when authenticated as the kerberos client
+// principal.
+grant
+    principal javax.security.auth.kerberos.KerberosPrincipal "${kerberosClient}"
+{
+    // Permission to use the RMI registry on the local machine.
+    permission java.net.SocketPermission
+    "129.148.70.190:1099", "connect,resolve";
+
+    // Permission to communicate use sockets on the local machine -- used to
+    // establish RMI socket connections.
+    permission java.net.SocketPermission
+    "129.148.70.190:1024-", "connect,accept,resolve";
+
+    // Permission to read the directory containing the sample program's
+    // codebase -- needed by RMI.
+    permission java.io.FilePermission "${codebaseDirectory}${/}-", "read";
+
+    // Permission for the client to authenticate itself
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.kerberos.KerberosPrincipal \"${kerberosClient}\"",
+    "connect,delegate";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientDSA2DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA1DN}\"", "connect";
+    permission net.jini.security.AuthenticationPermission
+    "javax.security.auth.x500.X500Principal \"${clientRSA2DN}\"", "connect";
+
+    // Permission to read properties in Utilities
+    permission java.util.PropertyPermission "testLevel", "read" ;
+    permission java.util.PropertyPermission "firstTest", "read" ;
+    permission java.util.PropertyPermission "lastTest", "read" ;
+    permission java.util.PropertyPermission "stopOnFail", "read" ;
+
+    // permission to reflect on normally inaccessible fields
+    permission java.lang.RuntimePermission "accessDeclaredMembers" ;
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks" ;
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.security" ;
+
+    permission java.util.PropertyPermission "e2etest.clientProp", "read";
+};
+/********************************************************************/
+grant principal javax.security.auth.x500.X500Principal "${clientDSA1DN}" {
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "multi";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "v";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt2";
+};
+
+grant principal javax.security.auth.x500.X500Principal "${clientDSA2DN}" {
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "multi";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "v";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt2";
+};
+
+grant principal javax.security.auth.x500.X500Principal "${clientRSA1DN}" {
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "multi";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "v";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt2";
+};
+
+grant principal javax.security.auth.x500.X500Principal "${clientRSA2DN}" {
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "multi";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "v";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt2";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${kerberosClient}" {
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "multi";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrAuth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "ooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "oorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "orrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "woNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "worNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "wrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "voNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vooNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vorNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vrrNoauth";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "v";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconf";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfInteg";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinP";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinPCMinTp";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt1";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoauthConfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vNoconfIntegCMinTpAlt2";
+    permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "vAuthNoconfIntegCMinTpAlt2";
+};
+

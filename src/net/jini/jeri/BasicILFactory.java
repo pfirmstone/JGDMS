@@ -205,6 +205,7 @@ public class BasicILFactory extends AbstractILFactory {
     /**
      * Returns a hash code value for this factory.
      **/
+    @Override
     public int hashCode() {
 	int h = super.hashCode();
 	if (serverConstraints != null) {
@@ -227,6 +228,7 @@ public class BasicILFactory extends AbstractILFactory {
      * object, and the server constraints and permission class are equal to
      * the ones in this object.
      **/
+    @Override
     public boolean equals(Object obj) {
 	if (!super.equals(obj)) {
 	    return false;
@@ -242,9 +244,13 @@ public class BasicILFactory extends AbstractILFactory {
      * Returns a string representation of this factory.
      **/
     public String toString() {
-	return (super.toString() + "[" + serverConstraints +
-		(permissionClass != null ?
-		 ", " + permissionClass.getName() :
-		 "") + "]");
+        StringBuilder sb = new StringBuilder(100);
+        sb.append(super.toString())
+          .append('[')
+          .append(serverConstraints);
+        if (permissionClass != null) 
+            sb.append(", ").append(permissionClass.getName());      
+        sb.append(']');
+        return sb.toString();
     }
 }

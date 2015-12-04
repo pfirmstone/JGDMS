@@ -81,7 +81,7 @@ import java.util.NoSuchElementException;
  * <p>An <code>OutboundRequestIterator</code> is not guaranteed to be
  * safe for concurrent use by multiple threads.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see Endpoint
  * @since 2.0
  **/

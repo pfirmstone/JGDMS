@@ -1,10 +1,10 @@
 PreferredResources-Version: 1.0
 
-Name: com/sun/jini/example/hello/ConfirmingInvocationHandler.class
+Name: org/apache/river/example/hello/ConfirmingInvocationHandler.class
 Preferred: true
 
-Name: com/sun/jini/example/hello/Proxy.class
+Name: org/apache/river/example/hello/Proxy.class
 Preferred: true
 
-Name: com/sun/jini/example/hello/Server_Stub.class
+Name: org/apache/river/example/hello/Server_Stub.class
 Preferred: true

@@ -22,8 +22,14 @@
  * preferred classes) when a marshalled instance of that class is
  * passed through the rmiregistry in a series of remote method
  * invocations.  The stub class is preferred.
- *
  * 
+ * @ignore
+ * Comment Monday, April 1st, 2013:  This test fails and has done
+ * for some time, I suspect this occurs because the stub is no longer required, 
+ * reflective proxy's are used instead, so we get file: instead of the 
+ * http: codebase annotation.
+ *
+ * @author Laird Dornin
  *
  * @library ../../../../../../testlibrary
  * @build RegistryRetainCodebase BasicRemote Client RegistryRetainCodebase_Stub

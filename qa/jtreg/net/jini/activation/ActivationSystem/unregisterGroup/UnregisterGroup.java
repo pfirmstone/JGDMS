@@ -20,7 +20,7 @@
  * @bug 4213186
  *
  * @summary synopsis: ActivationSystem.unregisterGroup should unregister objects in group
- * 
+ * @author Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID JavaVM StreamPipe

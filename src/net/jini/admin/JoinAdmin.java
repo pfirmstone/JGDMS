@@ -28,7 +28,7 @@ import java.rmi.RemoteException;
  * Administrable.getAdmin method should implement this interface, in
  * addition to any other service-specific administration interfaces.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see net.jini.admin.Administrable#getAdmin
  */

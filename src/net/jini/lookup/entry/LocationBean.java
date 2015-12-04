@@ -23,7 +23,7 @@ import net.jini.core.entry.Entry;
 /**
  * A JavaBeans(TM) component that encapsulates a Location object.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see Location
  * @see Address

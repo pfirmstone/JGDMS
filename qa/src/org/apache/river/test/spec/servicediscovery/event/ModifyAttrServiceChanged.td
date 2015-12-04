@@ -1,0 +1,4 @@
+testClass=ModifyAttrServiceChanged
+testCategories=servicediscovery,servicediscovery_spec,servicediscoveryevent,specservicediscovery,specservicediscoveryevent
+include0=../servicediscovery.properties
+include1=org/apache/river/test/share/lookups1_0Ports_srvcs1_0attrs1_0.properties

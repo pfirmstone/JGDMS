@@ -30,7 +30,7 @@ import java.awt.Panel;
  * <P>A <CODE>PreferredTitle</CODE> may be placed in the attributes set to indicate
  * a preferred title of a pop-up window containing this component.
  *
- * 
+ * @author Bill Venners
  */
 public interface PanelFactory extends java.io.Serializable {
 

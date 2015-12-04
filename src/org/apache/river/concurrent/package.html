@@ -1,0 +1,81 @@
+<!--
+/* Copyright (c) 2010-2012 Zeus Project Services Pty Ltd.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Custard-apple</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    </head>
+    <body>
+        <div>
+            <p>Custard-apple is a utility that enables weak, soft, strong 
+            or time references to be used in any collection implementing standard
+            Java Framework Interfaces</p>
+            <p>Expected behaviour of reference types may vary between platforms
+            and should not be depended upon other than; weak references will 
+            be collected when no further strong references remain and soft
+            references may be collected at any time the JVM's available memory 
+            is under pressure and the referent is softly reachable.  Time
+            references should exhibit identical behaviour on all platforms and
+            will be collected after a period of inactivity, even while strong
+            references to those objects remain.</p>
+            <p>Due to the multi threaded nature of Custard-apple the 
+            garbage collection thread may not see timestamp updates on soft
+            references when reading objects from collections, possibly causing those
+            soft references to be collected earlier than expected.</p>
+            <p>Large memory heaps cause issues with soft references in the Oracle
+            jvm, in this case use -XX:SoftRefLRUPolicyMSPerMB=1 to minimise 
+            GC issues.  At least until bug 6912889 is fixed.</p>
+            <p>Cliff Click's highly scalable hash map has been tested with
+            Custard-apple, also designed with scalability in mind.
+            Cleaning of garbage collected objects from collections is performed
+            by a background executor periodically.  Internal implementations
+            produce significant quantities of short lived objects during
+            read operations that die young.  These objects only ever live in
+            CPU cache, are not written back to shared memory and are never
+            shared between threads.</p>
+            <p>Although Custard-apple is intended to be scalable it
+            has not been tested on highly scalable hardware, if you have
+            access to such hardware, feel free to write tests and
+            contribute back performance improvements.</p>
+            <p>Timed references are provided for caching purposes and also
+            support cancellation of Future's, for example timed references can
+            be used in Queue's as a throttling mechanism, similar to a
+            network dropping packets.  Referent Future tasks will be cancelled by the
+            cleaning thread when enqueued.</p>
+            <p>Serialization support for Map's will be implemented in a future
+            release.  Serialization of other collection types is supported,
+            provided the underlying collection also supports Serialization.</p>
+            <p>Serialized form has been implemented as a separate concern
+                using the 
+                <link><i><a href="http://wiki.apache.org/river/Serialization">
+                            Serialization Builder Pattern</a></i>
+            with the readResolve() workaround.
+            </p>
+            <p>Package private implementation classes are not tied to
+            serial form.  These classes are not published by implementing
+            Serializable. Future versions of this library, may 
+            utilise a completely different class or classes upon deserialisation.
+            The serial form may also change between releases in ways that would
+            normally break compatibility, multiple serial forms may exist for
+            one class in multiple versions of it, without ever breaking
+            compatibility.  Currently all classes that implement Collection
+            share an identical serial form.</p>
+            <p>Serialization compatibility is guaranteed between different releases.</p>
+        </div>
+    </body>
+</html>

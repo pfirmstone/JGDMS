@@ -39,7 +39,7 @@ package net.jini.security.proxytrust;
  * proxy, and use its <code>checkTrustEquivalence</code> method to check
  * that a candidate smart proxy contains the correct inner proxy.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface TrustEquivalence {

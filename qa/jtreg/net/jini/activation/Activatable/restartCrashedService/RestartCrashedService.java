@@ -19,7 +19,7 @@
  * @bug 4095165
  * @bug 4140736
  * @summary synopsis: rmid should waitFor restartable objects that crash and restart them
- * 
+ * @author Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID JavaVM StreamPipe

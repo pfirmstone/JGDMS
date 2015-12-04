@@ -1,3 +1,3 @@
-com.sun.jini.test.spec.export.util.NullServerContext
-com.sun.jini.test.spec.export.util.NonNullServerContext
-com.sun.jini.test.spec.export.util.NonNullServerContext_Another
+org.apache.river.test.spec.export.util.NullServerContext
+org.apache.river.test.spec.export.util.NonNullServerContext
+org.apache.river.test.spec.export.util.NonNullServerContext_Another

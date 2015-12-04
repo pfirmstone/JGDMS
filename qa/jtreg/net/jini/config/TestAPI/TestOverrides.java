@@ -18,7 +18,7 @@
 /*
  * @test
  * @summary Tests configuration file overrides
- * 
+ * @author Tim Blackman
  * @library ../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main/othervm TestOverrides

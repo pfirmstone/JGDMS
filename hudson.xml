@@ -81,36 +81,25 @@
         <verify-signature signature="dep-libs/animal-sniffer/java15-ibm-1.0.signature" />
     </target>
 
-    <target name="qa-tree" depends="qa-tree-build, qa-tree-zip" description="build QA tree" >
-    </target>
-    
-    <target name="qa-tree-build" description="build QA tree" >
+    <target name="qa-runtime" description="build QA runtime" >
         <ant dir="qa" inheritall="false">
             <target name="clean" />
             <target name="harness-runtime" />
         </ant>
+        <delete file="harness-runtime.jar" />
+        <jar destfile="harness-runtime.jar" index="false">
+            <fileset dir=".">
+                <include name="lib/**" />
+                <include name="lib-dl/**"/>
+                <include name="lib-ext/**"/>
+                <include name="qa/lib/**" />
+                <include name="qa/lib-ext/**"/>
+            </fileset>
+        </jar>
     </target>
 
-    <target name="qa-tree-zip" description="Zip QA tree" >
-        <property name="qa-tree-zipfile" value="build/qa-tree.zip" />
-        <delete file="${qa-tree-zipfile}" />
-        <zip destfile="${qa-tree-zipfile}" >
-            <fileset dir=".">
-                <exclude name="examples/**" />
-                <exclude name="netbeans/**" />
-                <exclude name="poms/**" />
-                <exclude name="qa/doc/**" />
-                <exclude name="qa-matrix/**" />
-                <exclude name="src-doc/**" />
-                <!--
-                <exclude name="build/**" />
-                -->
-            </fileset>
-        </zip>
-    </target>
-    
     <target name="run-qa" description="execute QA test" >
-        <property name="harness-runtime-src" value="https://builds.apache.org/view/M-R/view/River/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
+        <property name="harness-runtime-src" value="https://hudson.apache.org/hudson/pview/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
         <property name="harness-runtime-dst" value="harness-runtime.jar" />
         
         <get src="${harness-runtime-src}" dest="${harness-runtime-dst}" />
@@ -120,22 +109,6 @@
         </ant>
     </target>
 
-    <target name="list-tests" >
-        <fileset id="qa-td-files" dir="qa/src/">
-            <include name="**/*.td" />
-        </fileset>
-        <script language="javascript"> 
-        <![CDATA[
-            var testfiles = project.getReference("qa-td-files")
-//            println( testfiles )
-//            println( testfiles.getClass() )
-            var iter = testfiles.iterator();
-            while( iter.hasNext() ) {
-//                println("-----")
-                println(iter.next().getName().replace("/","-"))
-            }
-        ]]> 
-        </script>
-    </target>
+
 
 </project>

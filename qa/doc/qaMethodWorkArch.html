@@ -100,7 +100,7 @@
     </DT>
     <DD>
     This refers to the TCK harness in which all tests are run. The class
-    <CODE>com.sun.jini.tck.harness.Runner</CODE> implements the
+    <CODE>org.apache.river.tck.harness.Runner</CODE> implements the
     harness. More detail on this is available in the "How to Run a Test"
     document.
     </DD>
@@ -223,13 +223,13 @@
   <LI><H3>How to Write a Test</H3></LI>
   <P>
   Every QA test subclasses the abstract class
-  <CODE>com.sun.jini.test.harness.QATest</CODE> which implements the
-  <CODE>com.sun.jini.tck.Test</CODE> interface. There are 4 abstract
+  <CODE>org.apache.river.test.harness.QATest</CODE> which implements the
+  <CODE>org.apache.river.tck.Test</CODE> interface. There are 4 abstract
   methods that must be implemented.
   </P>
   <P>
   Please note that the <CODE>Status</CODE> object mentioned below belongs
-  to the <CODE>com.sun.jini.tck.harness</CODE> package and has nothing to
+  to the <CODE>org.apache.river.tck.harness</CODE> package and has nothing to
   do directly with the object of the same name implemented by JavaTest.
   </P>
      <P>
@@ -269,7 +269,7 @@
 	function. Test writer only need to be concerned about this method
 	in the case were they are writing tests for a service. In that case
 	the test writer under is required to create a class that implements the
-	<CODE>com.sun.jini.tck.harness.BasicServiceAdmin</CODE>. The
+	<CODE>org.apache.river.tck.harness.BasicServiceAdmin</CODE>. The
 	BasicServiceAdmin requirement is discussed in more detail in a
 	later section. Otherwise, this method can just return
 	<CODE>null</CODE>.
@@ -335,9 +335,9 @@
      <P>
      The TCK requires that for each service (product) under test the test
      writer must create a class that implements the
-     <CODE>com.sun.jini.tck.harness.BasicServiceAdmin</CODE> interface. The
+     <CODE>org.apache.river.tck.harness.BasicServiceAdmin</CODE> interface. The
      BasicServiceAdmin extends the interface
-     <CODE>com.sun.jini.tck.harness.BasicAdmin</CODE>. The interface
+     <CODE>org.apache.river.tck.harness.BasicAdmin</CODE>. The interface
      definitions follow:
      </P>
 
@@ -412,7 +412,7 @@
      <P>
      A default abstract implementation of the above interfaces is provided
      in the class
-     <CODE>com.sun.jini.test.harness.QATestServiceAdmin</CODE>. In most
+     <CODE>org.apache.river.test.harness.QATestServiceAdmin</CODE>. In most
      cases the methods provided by this class will be adequate.
      </P>
 
@@ -424,7 +424,7 @@
      <P>
      The Framework has a single object that provides all the utility
      methods offered to test writers. The class of the object is
-     <CODE>com.sun.jini.test.harness.QATestUtil</CODE>. This class
+     <CODE>org.apache.river.test.harness.QATestUtil</CODE>. This class
      publishes methods for test writers to request services, retrieve test
      parameters, and perform reporting functions.
      </P>
@@ -441,13 +441,13 @@
   <P>
   A QA test is run inside of a test harness that is supplied by the
   TCK. The harness is implemented by the
-  <CODE>com.sun.jini.tck.harness.Runner</CODE> class and its operation is
+  <CODE>org.apache.river.tck.harness.Runner</CODE> class and its operation is
   transparent to the user. The <CODE>Runner</CODE> passes the command line
   arguments and sets up the list of tests to run. There is a class server
   integrated into the test harness. The harness starts the class server to
   serve the class files and then runs the tests. The class server defaults
   to port 8080 and there is currently no way to change this. The directory
-  defaults to the property com.sun.jini.tck.installDir with the string
+  defaults to the property org.apache.river.tck.installDir with the string
   "/lib/dl" appended. There is no way to prevent the TCK from starting up
   this class server.
   </P>
@@ -457,7 +457,7 @@
   is as follows:
   </DT>
   <DD>
-  java -Djava.security.policy=a com.sun.jini.tck.harness.Runner
+  java -Djava.security.policy=a org.apache.river.tck.harness.Runner
   <EM>ConfigFileName</EM> [-categories a,b] [-tests a,b] [-noduplicates] 
   </DD>
   </DL>
@@ -499,13 +499,13 @@
   </P>
   <P>
   <CODE>
-  -tests com.sun.jini.tck.test.RegistrationTest,Set:my.tests 
+  -tests org.apache.river.tck.test.RegistrationTest,Set:my.tests 
   </CODE>
   </P>
   and in the properties file: 
   <P>
   <CODE>
-  my.tests=com.sun.jini.tck.test.MultiRegistrationTest 
+  my.tests=org.apache.river.tck.test.MultiRegistrationTest 
   </CODE>
   </P>
   <P>
@@ -515,8 +515,8 @@
   infinite expansion can occur when one set includes another set and vice
   versa. For examples consider the following properties:
   <P>
-  my.tests01=com.sun.jini.tck.test.MultiRegistrationTest,Set:my.tests02<BR>
-  my.tests02=com.sun.jini.tck.test.RegistrationTest,Set:my.tests01
+  my.tests01=org.apache.river.tck.test.MultiRegistrationTest,Set:my.tests02<BR>
+  my.tests02=org.apache.river.tck.test.RegistrationTest,Set:my.tests01
   </P>
   <P>
   The above two lines are an error because they will cause an infinite
@@ -638,7 +638,7 @@
   </P>
   <P>
   A test captures parameters by using methods of the
-  <CODE>com.sun.jini.test.harness.QATestUtil</CODE> object. These methods
+  <CODE>org.apache.river.test.harness.QATestUtil</CODE> object. These methods
   attempt to retrieve parameters first from the command line, and then from
   the test's private property file, and failing that from the TCK Config
   file, and failing that from the default value passed into the method from
@@ -740,13 +740,13 @@
   running a test is specified in the TCK Config file as a property. The
   property name is the test's fully qualified class name followed by
   ".prop". For example given the test
-  <CODE>com.sun.jini.tck.test.MultiCastTest</CODE>, the entry in the
+  <CODE>org.apache.river.tck.test.MultiCastTest</CODE>, the entry in the
   Properties file would be :
 
   <P>
   <CODE>
-  com.sun.jini.tck.test.MultiCastTest.prop=
-  /vob/qa/src/com/sun/jini/discovery/MCast01.prop
+  org.apache.river.tck.test.MultiCastTest.prop=
+  /vob/qa/src/org/apache/river/discovery/MCast01.prop
   </CODE>
   </P>
 
@@ -817,7 +817,7 @@
 
   <BR> 
   <LI>The entity under test implements the
-  <CODE>com.sun.jini.admin.DestroyAdmin</CODE> interface.</LI>
+  <CODE>org.apache.river.admin.DestroyAdmin</CODE> interface.</LI>
   </P>
   <P>
   An auxiliary service is started using the QATestUtil method
@@ -828,13 +828,13 @@
   property in the test's Properties file. The keyword is (for example)
   <CODE>com.jini.space.JavaSpace</CODE> and the value is a string
   expressing the fully specified class name of the service class such as
-  <CODE>com.sun.jini.outrigger.FrontEndSpace</CODE>. So from the command
+  <CODE>org.apache.river.outrigger.FrontEndSpace</CODE>. So from the command
   line one would enter</BR>
   <CODE>-net.jini.space.JavaSpace
-  com.sun.jini.outrigger.FrontEndSpace</CODE>
+  org.apache.river.outrigger.FrontEndSpace</CODE>
   <BR>
   or from a Properities file:<BR>
-  net.jini.outrigger.JavaSpace=com.sun.jini.outrigger.FrontEndSpace  
+  net.jini.outrigger.JavaSpace=org.apache.river.outrigger.FrontEndSpace  
   </P>
 
   <LI><H3>Cleaning Up Auxiliary Services</H3></LI>
@@ -969,14 +969,14 @@
       <TR>
       <TD><EM>serviceInterfaceClass</EM>.classpath</TD>
       <TD>where service loads classes from</TD>
-      <TD>qaTest.util.getStringArgValue("com.sun.jini.tck.installDir",
+      <TD>qaTest.util.getStringArgValue("org.apache.river.tck.installDir",
           null) + "/lib"</TD>
       </TR>
      
       <TR>
       <TD><EM>serviceInterfaceClass</EM>.policyFilePath</TD>
       <TD>Security policy file location</TD>
-      <TD>qaTest.util.getStringArgValue("com.sun.jini.tck.installDir", null)
+      <TD>qaTest.util.getStringArgValue("org.apache.river.tck.installDir", null)
 	  + "/config/tck.policy"</TD>
       </TR>
      

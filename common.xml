@@ -80,23 +80,23 @@
     <!-- Standard javadoc options and settings -->
     <property name="jdk.doc.url" value="http://docs.oracle.com/javase/6/docs/api"/>
     <property name="jdk.packages" location="${root}/${src-doc}/j2se"/>
-    <property name="api.copyright" value="Copyright 2007-2010, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
+    <property name="api.copyright" value="Copyright 2007-2013, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 
     <!--## Private package inclusions for use with classdep; the
         ## classes in these packages are both not part of the JSK
         ## platform and not public (have generated javadoc).
         ## The -skip for logging classes is because LogManager is in
         ## jsk-platform.jar and Levels is in jsk-lib.jar.
-        ## The -in com.sun.jini.outrigger is there in order to catch
+        ## The -in org.apache.river.outrigger is there in order to catch
         ## any use of the following deprecated APIs:
-        ##       com.sun.jini.outrigger.AdminIterator
-        ##       com.sun.jini.outrigger.ConstrainableJavaSpaceAdmin
-        ##       com.sun.jini.outrigger.JavaSpaceAdmin
+        ##       org.apache.river.outrigger.AdminIterator
+        ##       org.apache.river.outrigger.ConstrainableJavaSpaceAdmin
+        ##       org.apache.river.outrigger.JavaSpaceAdmin
         ## Once these APIs have been removed, the outrigger include
         ## can be removed -->
-    <property name="jskprivate.include" value="-in com.sun.jini.action -in com.sun.jini.collection -in com.sun.jini.constants -in com.sun.jini.system -in com.sun.jini.logging -skip com.sun.jini.logging.LogManager -skip com.sun.jini.logging.Levels -in com.sun.jini.outrigger"/>
+    <property name="jskprivate.include" value="-in org.apache.river.action -in org.apache.river.collection -in org.apache.river.constants -in org.apache.river.system -in org.apache.river.logging -skip org.apache.river.logging.LogManager -skip org.apache.river.logging.Levels -in org.apache.river.outrigger"/>
     <!-- Common packages to exclude within ClassDep -->
-    <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
+    <property name="jskplatform.exclude" value="-out org.apache.river.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip org.apache.river.config.ConfigUtil -skip org.apache.river.config.KeyStores -skip org.apache.river.logging.LogManager"/>
 
     <property name="river.home" location="${root}"/>
     <property name="river.lib.dir" location="${river.home}/${lib}"/>
@@ -106,6 +106,18 @@
 
     <property name="debug" value="true"/>
     <property name="verbose" value="false"/>
+    <property name="source" value="6"/>
+    <property name="target" value="6"/>
+    <!-- Example add the following lines to build.properties to utilise Java 8 compact profiles
+    target=8
+    profile=compact3
+    -->
+    <condition property="prof" value="-profile ${profile}">
+        <isset property="profile"/>
+    </condition>
+    <condition property="prof" value="">
+        <not><isset property="profile"/></not>
+    </condition>
     <!-- Possible values for 'debuglevel': none or combination of lines,source,vars -->
     <property name="debuglevel" value="lines,source,vars"/>
     <property name="nowarn" value="true"/>
@@ -126,20 +138,24 @@
     </path>
 
     <fileset id="asm.jars" dir="${root}/dep-libs/asm">
-        <include name="asm-3.2.jar" />
-        <include name="asm-commons-3.2.jar" />
+        <include name="asm-5.0.1.jar" />
+        <include name="asm-commons-5.0.1.jar" />
     </fileset>
 
+    <path id="groovy.jars">
+		<fileset dir="${root}/dep-libs/groovy" includes="**/*.jar" />
+    </path>
+	
+	<taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc">
+	    <classpath refid="groovy.jars"/>
+	</taskdef>
+	
     <fileset id="velocity.jars" dir="${root}/dep-libs/velocity">
         <include name="velocity-1.7.jar" />
     </fileset>
     
     <fileset id="high-scale-lib.jars" dir="${root}/dep-libs/high-scale-lib">
         <include name="high-scale-lib.jar" />
-    </fileset>
-    
-    <fileset id="reference-collections.jar" dir="${root}/dep-libs/rc-libs">
-        <include name="reference-collections-1.0.1.jar" />
     </fileset>
     
     <fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">
@@ -151,7 +167,6 @@
         <fileset refid="asm.jars" />
         <fileset refid="velocity.jars" />
         <fileset refid="high-scale-lib.jars" />
-        <fileset refid="reference-collections.jar" />
     </path>
 
 
@@ -198,15 +213,15 @@
     </path>
 
     <property name="jre.ext.dir" location="${java.home}/lib/ext"/>
-
+        
     <macrodef name="javac-cmd" description="Run javac">
         <attribute name="source.pat" default="java.source"/>
         <attribute name="source.dir"/>
         <attribute name="dest.dir"/>
         <attribute name="debug" default="${debug}"/>
         <attribute name="debuglevel" default="${debuglevel}"/>
-        <attribute name="source" default="6"/>
-        <attribute name="target" default="6"/>
+        <attribute name="source" default="${source}"/>
+        <attribute name="target" default="${target}"/>
         <attribute name="deprecation" default="${deprecation}"/>
         <attribute name="verbose" default="${verbose}"/>
         <attribute name="nowarn" default="${nowarn}"/>
@@ -223,8 +238,14 @@
                     target="@{target}"
                     verbose="@{verbose}"
                     includeantruntime="false">
+                <compilerarg value="-version" />
                 <patternset refid="@{source.pat}"/>
+                <compilerarg line="${prof}"/>
+                <compilerarg value="-Xlint:unchecked" />
+                <compilerarg value="-Xlint:fallthrough" />
+                <compilerarg value="-Xlint:deprecation" />
                 <javac-cmd-elements/>
+                
             </javac>
         </sequential>
     </macrodef>
@@ -232,7 +253,7 @@
     <macrodef name="preferredlistgen" description="Run PreferredListGen">
         <element name="plg-elements" implicit="true"/>
         <sequential>
-            <java classname="com.sun.jini.tool.PreferredListGen"
+            <java classname="org.apache.river.tool.PreferredListGen"
                     fork="true" failonerror="true" >
                 <plg-elements/>
             </java>
@@ -244,7 +265,7 @@
         <attribute name="classpathref" default="classdep.classpath" />
         <element name="cd-elements" implicit="yes" />
         <sequential>
-            <java classname="com.sun.jini.tool.ClassDep" 
+            <java classname="org.apache.river.tool.ClassDep" 
                   fork="true" failonerror="true"
                   logError="true" output="@{output}">
                 <classpath refid="@{classpathref}"/>
@@ -257,7 +278,7 @@
         <attribute name="classpathref" default="jarwrapper.classpath" />
         <element name="jw-elements" implicit="yes" />
         <sequential>
-            <java classname="com.sun.jini.tool.JarWrapper"
+            <java classname="org.apache.river.tool.JarWrapper"
                     fork="true" failonerror="true">
                 <classpath refid="@{classpathref}"/>
                 <jw-elements />

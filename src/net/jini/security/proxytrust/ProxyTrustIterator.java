@@ -31,7 +31,7 @@ import java.rmi.RemoteException;
  * <code>getProxyTrustIterator</code> method that can be used recursively to
  * obtain further candidates.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  */

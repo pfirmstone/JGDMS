@@ -15,11 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #*/
-# test -- Disable for now. -tjb[28.Apr.2003]
+# @test -- Disable for now. -tjb[28.Apr.2003]
+# @ignore
 # @summary Tests the SecureConnectionEndpoint methods provided by the Endpoint
 #	   class over HTTPS.
-# 
-# @library ../../../unittestlib
+# @author Tim Blackman
+# @library ../../../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestEndpoint TestEndpointUtilities TestUtilities
 # @run main/othervm/policy=policy/timeout=250 -DuseHttps=true

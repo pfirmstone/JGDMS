@@ -38,8 +38,8 @@ import net.jini.lookup.ServiceItemFilter;
  * immediately after filtering.
  * New instances can be created as required.
  * <p>
- * 
- * @since 2.2.1
+ * @author Peter Firmstone.
+ * @since 3.0.0
  */
 public class ServiceResultStreamFilter implements ResultStream<ServiceItem> {
     private final List<ServiceItemFilter> filters;

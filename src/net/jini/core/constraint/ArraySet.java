@@ -28,7 +28,7 @@ import java.util.Set;
  * An immutable set backed by an array.  Any attempts to modify the set
  * result in UnsupportedOperationException being thrown.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  */
 final class ArraySet implements Set {

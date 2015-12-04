@@ -24,7 +24,7 @@ import javax.security.auth.Subject;
  * A server context element that can supply the client subject for the
  * remote call.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see net.jini.export.ServerContext#getServerContextElement
  * @since 2.0
  **/

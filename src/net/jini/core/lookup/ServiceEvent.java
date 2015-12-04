@@ -29,7 +29,7 @@ package net.jini.core.lookup;
  * example, a gap might occur if the lookup service crashes, even if no
  * events are lost due to the crash.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
@@ -42,13 +42,13 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      *
      * @serial
      */
-    protected ServiceID serviceID;
+    protected final ServiceID serviceID;
     /**
      * One of ServiceRegistrar.TRANSITION_*MATCH_*MATCH.
      *
      * @serial
      */
-    protected int transition;
+    protected final int transition;
 
     /**
      * Simple constructor.
@@ -94,8 +94,9 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * <code>ServiceEvent</code>.
      * @return a <code>String</code> representation of this object
      */
+    @Override
     public String toString() {
-	StringBuffer sBuffer = new StringBuffer();
+	StringBuilder sBuffer = new StringBuilder(256);
 	sBuffer.append(getClass().getName()).append(
 	       "[serviceID=").append(getServiceID()).append(
 	       ", transition=");
@@ -113,7 +114,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	        sBuffer.append("UNKNOWN_TRANSITION:").append(
 	            transition);
 	}
-	sBuffer.append(", source=").append(source).append(
+	sBuffer.append(", source=").append(getSource()).append(
 	    ", eventID=").append(getID()).append(
 	    ", seqNum=").append(getSequenceNumber()).append(
 	    ", handback=").append(getRegistrationObject());
@@ -127,5 +128,15 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @return a <tt>ServiceItem</tt> object representing the service item value
      */
     public abstract ServiceItem getServiceItem();
+    
+    /**
+     * Serialization evolution support
+     * @serialData 
+     */
+    private void readObject(java.io.ObjectInputStream stream)
+	throws java.io.IOException, ClassNotFoundException
+    {
+	stream.defaultReadObject();
+    }
 }
 

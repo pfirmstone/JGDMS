@@ -20,7 +20,7 @@
  * constructed to do so) even if the defaultLoader and the context class
  * loader identical, as long as neither of them are the same as or a
  * descendant of the defining class loader of the class being resolved.
- * 
+ * @author Peter Jones
  *
  * @library ../../../../../testlibrary
  * @build VerifyWithEqualLoaders

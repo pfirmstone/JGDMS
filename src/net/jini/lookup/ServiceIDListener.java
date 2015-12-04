@@ -21,7 +21,7 @@ package net.jini.lookup;
  * Interface used by a service that does not yet have a service ID, for
  * callback from the JoinManager when a service ID is assigned.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see JoinManager
  */

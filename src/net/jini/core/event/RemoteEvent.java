@@ -72,7 +72,9 @@ import java.rmi.MarshalledObject;
  * RemoteEvent object being sent occurs outside of the scope of the
  * transaction (but is visible within the transaction).
  *
+ * Immutable since 3.0.0
  * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
@@ -85,28 +87,28 @@ public class RemoteEvent extends java.util.EventObject {
      *
      * @serial
      */
-    protected Object source;
+    private final Object source;
 
     /**
      * The event identifier.
      *
      * @serial
      */
-    protected long eventID;
+    private final long eventID;
 
     /**
      * The event sequence number.
      *
      * @serial
      */
-    protected long seqNum;
+    private final long seqNum;
 
     /**
      * The handback object.
      *
      * @serial
      */
-    protected MarshalledObject handback;
+    private final MarshalledObject handback;
 
     /**
      * Constructs a RemoteEvent object.
@@ -134,7 +136,17 @@ public class RemoteEvent extends java.util.EventObject {
 	this.seqNum = seqNum;
 	this.handback = handback;
     }
-
+    
+    /**
+     * The object on which the RemoteEvent initially occurred.
+     *
+     * @return   The object on which the RemoteEvent initially occurred.
+     */
+    @Override
+    public Object getSource(){
+        return source;
+    }
+    
     /**
      * Returns the event identifier, used to identify the kind of event
      * relative to the object in which the event occurred.

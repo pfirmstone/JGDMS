@@ -1,0 +1,10 @@
+testClass=LoadProxyClasses
+testCategories=loader,loader_spec
+loader.isHttp=true
+loader.httpPort=8087
+loader.requireDlPerm=false
+loader.annotator=true
+loader.classAnnotator=QATestClassAnnotation
+testjvmargs=-Dnet.jini.loader.ClassLoading.provider=org.apache.river.test.spec.loader.util.QATestPreferredClassProvider
+org.apache.river.qa.harness.runkitserver=false 
+org.apache.river.qa.harness.runjiniserver=false

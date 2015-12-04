@@ -27,7 +27,7 @@ import java.io.IOException;
  * lookup locator.  Lookup services that implement the Administrable
  * interface should return an admin object that implements this interface.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  */
 public interface DiscoveryAdmin {
 

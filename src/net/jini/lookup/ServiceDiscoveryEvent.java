@@ -30,7 +30,7 @@ import net.jini.core.lookup.ServiceItem;
  * This class is used by 
  * {@link net.jini.lookup.ServiceDiscoveryManager ServiceDiscoveryManager}.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see ServiceDiscoveryManager
  */
@@ -41,13 +41,13 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      *
      *  @serial
      */
-    private ServiceItem preEventItem = null;
+    private final ServiceItem preEventItem;
 
     /** Represents the state of the service after the event.
      *
      *  @serial
      */
-    private ServiceItem postEventItem = null;
+    private final ServiceItem postEventItem;
 
     /**
      * The constructor of <code>ServiceDiscoveryEvent</code> takes
@@ -100,22 +100,42 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      * 			<code>preEventItem </code>and the 
      * 			<code>postEventItem</code> parameters.
      */
-    public ServiceDiscoveryEvent(Object source, ServiceItem preEventItem,
-				 ServiceItem postEventItem) {
-	super(source);
-	if((preEventItem == null && postEventItem == null)
-	   || source == null)
+    public ServiceDiscoveryEvent(
+            Object source, 
+            ServiceItem preEventItem,
+            ServiceItem postEventItem) 
+    {
+	this(source, preEventItem, postEventItem, 
+                nullCheck(source, preEventItem, postEventItem));
+    }
+    
+    private static boolean nullCheck( //Prevent finalizer attack.
+            Object source, 
+            ServiceItem preEventItem,
+            ServiceItem postEventItem) throws NullPointerException 
+    {
+        if((preEventItem == null && postEventItem == null)|| source == null)
 	    throw new NullPointerException();
-
+        return true;
+    }
+    
+    private ServiceDiscoveryEvent(
+            Object source,
+            ServiceItem preEventItem,
+            ServiceItem postEventItem,
+            boolean check)
+    {
+        super(source);
 	if(preEventItem != null)
 	    this.preEventItem = new ServiceItem(preEventItem.serviceID,
 					    preEventItem.service,
 					    preEventItem.attributeSets);
+        else this.preEventItem = null;
 	if(postEventItem != null)
 	    this.postEventItem = new ServiceItem(postEventItem.serviceID,
 					     postEventItem.service,
 					     postEventItem.attributeSets);
-	
+        else this.postEventItem = null;
     }
 
     /**
@@ -144,7 +164,8 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      * @return ServiceItem containing the service reference corresponding 
      *  		to the given event.
      */
-    public ServiceItem getPreEventServiceItem() {
+    public ServiceItem getPreEventServiceItem() 
+    {
 	return preEventItem;
     }
 
@@ -173,7 +194,8 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      * @return ServiceItem containing the service reference corresponding 
      *  		to the given event.
      */
-    public ServiceItem getPostEventServiceItem() {
+    public ServiceItem getPostEventServiceItem() 
+    {
 	return postEventItem;
     }
 	

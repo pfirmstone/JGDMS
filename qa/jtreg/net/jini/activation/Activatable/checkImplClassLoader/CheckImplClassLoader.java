@@ -19,7 +19,7 @@
  * @bug 4289544
  * @summary ActivationGroupImpl.newInstance does not set context classloader for impl
  *
- * 
+ * @author Laird Dornin; code borrowed from Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID JavaVM StreamPipe
@@ -94,10 +94,10 @@ public class CheckImplClassLoader {
 		new File(RMID.getDefaultGroupLocation()).toURI().toString();
 	    Class cl = RMIClassLoader.loadClass(
 				cb,
-				"com.sun.jini.phoenix.ActivationGroupData");
+				"org.apache.river.phoenix.ActivationGroupData");
 	    Constructor cons = cl.getConstructor(new Class[]{String[].class});
 	    groupDesc = new ActivationGroupDesc(
-		 "com.sun.jini.phoenix.ActivationGroupImpl",
+		 "org.apache.river.phoenix.ActivationGroupImpl",
 		 cb,
 		 new MarshalledObject(cons.newInstance(
 			new Object[]{new String[]{TestParams.testSrc +
@@ -105,7 +105,7 @@ public class CheckImplClassLoader {
 		 null, null);
 	    cl = RMIClassLoader.loadClass(
 				 cb,
-				 "com.sun.jini.phoenix.ActivationGroupImpl");
+				 "org.apache.river.phoenix.ActivationGroupImpl");
 	    Method m = cl.getMethod("createGroup",
 				    new Class[]{ActivationGroupID.class,
 						ActivationGroupDesc.class,

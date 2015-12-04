@@ -23,7 +23,7 @@ import java.util.EventListener;
  * This interface must be implemented by parties that wish to obtain
  * notifications from a LookupDiscovery object.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see LookupDiscovery
  */

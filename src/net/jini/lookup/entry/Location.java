@@ -24,7 +24,7 @@ import net.jini.entry.AbstractEntry;
  * distinct from the Address class in that it can be used alone in a
  * small, local organization.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see Address
  * @see LocationBean

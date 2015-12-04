@@ -18,12 +18,11 @@
 
 package net.jini.lease;
 
-import com.sun.jini.config.Config;
-import com.sun.jini.constants.ThrowableConstants;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogManager;
-import com.sun.jini.proxy.ConstrainableProxyUtil;
-import com.sun.jini.thread.TaskManager;
+import org.apache.river.config.Config;
+import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogManager;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -32,6 +31,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -43,6 +47,7 @@ import net.jini.core.lease.LeaseException;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.UnknownLeaseException;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * Provides for the systematic renewal and overall management of a set
@@ -118,12 +123,12 @@ import net.jini.core.lease.UnknownLeaseException;
  * calls from that method to any other method of this class are
  * guaranteed not to result in a deadlock condition.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @see Lease
  * @see LeaseException
  * @see LeaseRenewalEvent 
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul>
@@ -175,25 +180,23 @@ import net.jini.core.lease.UnknownLeaseException;
  *     should have durations exceeding the <code>roundTripTime</code>.
  *     This entry is obtained in the constructor.
  * </table>
- * <table summary="Describes the taskManager configuration entry"
+ * <table summary="Describes the executorService configuration entry"
  *	  border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *	 taskManager</code></font>
+ *	 executorService</code></font>
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link TaskManager}
+ *     Type: <td> {@link ExecutorService}
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Default: <td> <code>new TaskManager(11, 15000, 1.0f)</code>
+ *     Default: <td> <code>new ThreadPoolExecutor(1,11,15,TimeUnit.SECONDS,
+ *     new LinkedBlockingQueue())</code>
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description: <td> The object used to manage queuing tasks
  *     involved with renewing leases and sending notifications. The
  *     value must not be <code>null</code>. The default value creates
  *     a maximum of 11 threads for performing operations, waits 15
- *     seconds before removing idle threads, and uses a load factor of
- *     1.0 when determining whether to create a new thread. Note that
- *     the implementation of the renewal algorithm includes an assumption
- *     that the <code>TaskManager</code> uses a load factor of 1.0.
+ *     seconds before removing idle threads.
  * </table>
  * 
  * <a name="logging">
@@ -300,7 +303,7 @@ import net.jini.core.lease.UnknownLeaseException;
  * are added to it and the {@link LeaseMap#renewAll} method is called. Otherwise, the
  * last lease is renewed directly.
  * <p> 
- * The <code>TaskManager</code> that manages the renewal threads has a bound on
+ * The <code>ExecutorService</code> that manages the renewal threads has a bound on
  * the number of simultaneous threads it will support. The renewal time of
  * leases may be adjusted earlier in time to reduce the likelihood that the
  * renewal of a lease will be delayed due to exhaustion of the thread pool.
@@ -355,8 +358,15 @@ public class LeaseRenewalManager {
     /** Time window in which to look for batchable leases */
     private long renewBatchTimeWindow = 1000 * 60 * 5;
 
-    /** Task manager for queuing and renewing leases */
-    TaskManager taskManager = new TaskManager(11, 1000 * 15, 1.0f);
+    /** Task manager for queuing and renewing leases 
+     *  NOTE: test failures occur with queue's that have capacity, 
+     *  no test failures occur with SynchronousQueue, for the time
+     *  being, until the cause is sorted out we may need to rely on 
+     *  a larger pool, if necessary.  TaskManager is likely to have 
+     *  lower throughput capacity that ExecutorService with a
+     *  SynchronousQueue although this hasn't been confirmed yet.
+     */
+    final ExecutorService leaseRenewalExecutor;
 
     /**
      * The worst-case renewal round-trip-time
@@ -380,7 +390,7 @@ public class LeaseRenewalManager {
      */
     private List calcList;
 
-    private final class RenewTask implements TaskManager.Task {
+    private final class RenewTask implements Runnable {
 	/** Entries of leases to renew (if multiple, all can be batched) */
 	private final List bList;
 
@@ -436,6 +446,7 @@ public class LeaseRenewalManager {
 	    }
 	}
 
+        @Override
 	public void run() {
 	    if (noRenewals) {
 		// Just notify
@@ -452,11 +463,6 @@ public class LeaseRenewalManager {
 		if (bad != null)
 		    tell(bad);
 	    }
-	}
-
-	/** No ordering. */
-	public boolean runAfter(List tasks, int size) {
-	    return false;
 	}
 
 	/**
@@ -600,6 +606,7 @@ public class LeaseRenewalManager {
 	}
 
 	/** Sort by decreasing renew time, secondary sort by decreasing id */
+        @Override
 	public int compareTo(Object obj) {
 	    if (this == obj)
 		return 0;
@@ -706,6 +713,16 @@ public class LeaseRenewalManager {
      * that initially manages no leases.
      */
     public LeaseRenewalManager() {
+        leaseRenewalExecutor = 
+            new ThreadPoolExecutor(
+                    1,  /* min threads */
+                    11, /* max threads */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new SynchronousQueue<Runnable>(), /* Queue has no capacity */
+                    new NamedThreadFactory("LeaseRenewalManager",false),
+                    new CallerRunsPolicy()
+            );
     }
 
     /**
@@ -731,8 +748,21 @@ public class LeaseRenewalManager {
 	renewalRTT = Config.getLongEntry(
 	    config, LRM, "roundTripTime",
 	    renewalRTT, 1, Long.MAX_VALUE);
-	taskManager = (TaskManager) Config.getNonNullEntry(
-	    config, LRM, "taskManager", TaskManager.class, taskManager);
+	leaseRenewalExecutor = Config.getNonNullEntry(
+            config, 
+            LRM, 
+            "executorService", 
+            ExecutorService.class,
+            new ThreadPoolExecutor(
+                    1,  /* Min Threads */
+                    11, /* Max Threads */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new SynchronousQueue<Runnable>(), /* No capacity */
+                    new NamedThreadFactory("LeaseRenewalManager",false),
+                    new CallerRunsPolicy()
+            ) 
+        );
     }
 
     /**
@@ -760,6 +790,15 @@ public class LeaseRenewalManager {
 			       long desiredExpiration,
 			       LeaseListener listener)
     {
+        leaseRenewalExecutor = new ThreadPoolExecutor(
+                1,  /* Min Threads */
+                11, /* Max Threads */
+                15,
+                TimeUnit.SECONDS, 
+                new SynchronousQueue<Runnable>(), /* No Capacity */
+                new NamedThreadFactory("LeaseRenewalManager",false),
+                new CallerRunsPolicy()
+        );
 	renewUntil(lease, desiredExpiration, listener);
     }
 
@@ -787,7 +826,7 @@ public class LeaseRenewalManager {
      *	       <code>null</code>
      * @see #renewUntil
      */
-    public void renewUntil(Lease lease,
+    public final void renewUntil(Lease lease,
 			   long desiredExpiration,
 			   LeaseListener listener)
     {
@@ -1152,6 +1191,10 @@ public class LeaseRenewalManager {
 	remove(lease);
 	lease.cancel();
     }
+    
+    public void close(){
+        leaseRenewalExecutor.shutdown();
+    }
 
     /**
      * Removes a given lease from the managed set of leases; but does
@@ -1192,7 +1235,9 @@ public class LeaseRenewalManager {
 	 * Subtract one to account for the queuer thread, which should not be
 	 * counted.
 	 */
-	int maxThreads = taskManager.getMaxThreads() - 1;
+	int maxThreads = leaseRenewalExecutor instanceof ThreadPoolExecutor ? 
+            ((ThreadPoolExecutor)leaseRenewalExecutor).getMaximumPoolSize() - 1 
+                : 10;
 	if (calcList == null) {
 	    calcList = new ArrayList(maxThreads);
 	}
@@ -1271,7 +1316,7 @@ public class LeaseRenewalManager {
 	if (queuer == null) {
 	    if (newWakeup < Long.MAX_VALUE) {
 		queuer = new QueuerTask(newWakeup);
-		taskManager.add(queuer);
+		leaseRenewalExecutor.execute(queuer);
 	    }
 	} else if (newWakeup < queuer.wakeup ||
 		   (newWakeup == Long.MAX_VALUE && leaseInRenew.isEmpty()))
@@ -1360,9 +1405,8 @@ public class LeaseRenewalManager {
 		       e.lease);
 	} else {
 	    logger.log(Levels.FAILED,
-		       "Lease {0} expired before reaching "
-		       + "desired expiration of " 
-		       + e.expiration);
+               "Lease '{'0'}' expired before reaching desired expiration of {0}",
+               e.expiration);
 	}
     }
 		
@@ -1522,19 +1566,15 @@ public class LeaseRenewalManager {
 	return ((Entry) leases.lastKey()).actualRenew;
     }
 
-    private class QueuerTask implements TaskManager.Task {
+    private class QueuerTask implements Runnable {
 
 	/** When to next wake up and queue a new renew task */
-	long wakeup;
+	private long wakeup;
 
 	QueuerTask(long wakeup) {
 	    this.wakeup = wakeup;
 	}
 
-	/** No ordering */
-	public boolean runAfter(List tasks, int size) {
-	    return false;
-	}
 
         public void run() {
 	    synchronized (LeaseRenewalManager.this) {
@@ -1546,7 +1586,7 @@ public class LeaseRenewalManager {
 			final long now = System.currentTimeMillis();
 			long delta = wakeup - now;
 			if (delta <= 0) {
-			    taskManager.add(new RenewTask(now));
+			    leaseRenewalExecutor.execute(new RenewTask(now));
 			} else {
 			    LeaseRenewalManager.this.wait(delta);
 			}

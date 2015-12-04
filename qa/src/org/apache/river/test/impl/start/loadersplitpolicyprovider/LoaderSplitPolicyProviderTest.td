@@ -1,0 +1,9 @@
+testClass=LoaderSplitPolicyProviderTest
+testCategories=start,start_impl,policyprovider
+testClasspath=${altClasspath}$:<file:lib/qa1-start-tests.jar>
+testPolicyfile=<url:harness/policy/defaulttest.policy>
+ldrPolicyfile=<url:LoaderSplitPolicyProviderTest.loader.policy>
+defPolicyfile=<url:/LoaderSplitPolicyProviderTest.default.policy>
+fooJarFile=<file:lib/qa1-start-cb1.jar>
+barJarFile=<file:lib/qa1-start-cb2.jar>
+include0=../start.properties

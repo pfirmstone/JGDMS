@@ -1,0 +1,40 @@
+/* Grants required for SecurityManager used a startup: */
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+/* end grants required for SecurityManager during startup. */
+
+grant {
+    permission java.io.FilePermission
+    "${java.io.tmpdir}${/}testservice1", "read";
+    permission java.io.FilePermission
+    "${org.apache.river.qa.harness.harnessJar}", "read";
+    permission java.io.FilePermission
+    "${org.apache.river.qa.harness.testJar}", "read";
+    permission java.io.FilePermission
+    "${org.apache.river.test.home}/src/org/apache/river/test/impl/start/configs/-", "read";
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.net.SocketPermission "*:1098", "connect,resolve";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.rmi.*", "";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Fiddler";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission java.security.SecurityPermission "getProperty.net.jini.security.policy.PolicyFileProvider.basePolicyClass";
+    permission net.jini.security.AuthenticationPermission
+        "javax.security.auth.x500.X500Principal \"CN=Fiddler\"", "accept,connect,listen";
+    permission net.jini.security.AuthenticationPermission
+        "javax.security.auth.kerberos.KerberosPrincipal \"${fiddler}\"", "accept,connect,listen";
+
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
+{
+      permission net.jini.security.AccessPermission "*";
+};

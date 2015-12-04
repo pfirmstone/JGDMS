@@ -18,7 +18,7 @@
 /* @test 
  * 
  * @summary test constraint class readObject methods
- * 
+ * @author Bob Scheifler
  * @run main/othervm ReadObject
  */
 import java.io.*;

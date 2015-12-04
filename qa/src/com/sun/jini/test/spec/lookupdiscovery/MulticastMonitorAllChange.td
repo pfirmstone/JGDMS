@@ -1,4 +1,0 @@
-testClass=MulticastMonitorAllChange
-testCategories=lookupdiscovery,lookupdiscovery_spec,speclookupdiscovery,allgroups
-include0=lookupdiscovery.properties
-include1=com/sun/jini/test/share/allgroups_reggie3_0.properties

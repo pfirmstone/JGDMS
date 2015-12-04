@@ -20,7 +20,7 @@
  * @summary Functional test to verify configurability of the preferred
  * class provider using the RequireDlPermProvider
  *
- * 
+ * @author Laird Dornin
  *
  * @library ../../../../../../testlibrary
  * @build ExerciseRequireDlPermProvider Foo Bar ConnectBack TestLoaderProvider

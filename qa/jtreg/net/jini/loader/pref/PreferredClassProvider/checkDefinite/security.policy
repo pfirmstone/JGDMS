@@ -16,11 +16,12 @@ grant {
 
   permission java.io.FilePermission ".${/}cbArchive", "read";
   permission java.io.FilePermission ".${/}cbArchive${/}-", "read";
-    permission java.io.FilePermission "..${/}..${/}test.props", "read";
+  permission java.io.FilePermission "..${/}..${/}test.props", "read";
   permission java.lang.RuntimePermission "createClassLoader";
 
   permission java.util.PropertyPermission "test.src", "read";
   permission java.util.PropertyPermission "test.classes", "read";
+  permission java.util.PropertyPermission "test.class.path", "read";
   permission java.util.PropertyPermission "java.security.policy", "read";
   permission java.util.PropertyPermission "java.security.manager", "read";
   permission java.util.PropertyPermission "java.home", "read";
@@ -30,5 +31,8 @@ grant {
 
   permission java.io.FilePermission "${test.src}${/}cbArchive", "read";
   permission java.io.FilePermission "${test.src}${/}cbArchive${/}-", "read";
+  permission java.io.FilePermission "${test.src}${/}..${/}-", "read";
+
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
 };
 

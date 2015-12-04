@@ -27,7 +27,7 @@ import java.rmi.RemoteException;
  * <code>NestableTransactionManager</code> servers for use with transaction
  * participants that implement the default transaction semantics.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see Transaction
  * @see net.jini.core.transaction.server.NestableTransactionManager

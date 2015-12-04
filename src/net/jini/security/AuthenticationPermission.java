@@ -134,7 +134,7 @@ import java.util.StringTokenizer;
  *     "* \"*\" peer javax.security.auth.x500.X500Principal \"CN=jack\"", "accept,connect";
  * </pre>
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  */
@@ -334,13 +334,16 @@ public final class AuthenticationPermission extends Permission {
 	    if (!nm.startsWith("\"")) {
 		throw new IllegalArgumentException("name must be in quotes");
 	    }
-	    while (!nm.endsWith("\"")) {
+            StringBuilder sb = new StringBuilder(120);
+            sb.append(nm);
+	    while (!sb.substring(sb.length()-1).equals("\"")) {
 		if (!st.hasMoreTokens()) {
 		    throw new IllegalArgumentException(
 						   "name must be in quotes");
 		}
-		nm = nm + st.nextToken();
+		sb.append(st.nextToken());
 	    }
+            nm = sb.toString();
 	    if (nm.equals("\"*\"")) {
 		if (peer) {
 		    throw new IllegalArgumentException(

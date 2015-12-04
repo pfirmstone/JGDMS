@@ -1,0 +1,61 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides a set of constraints, low-level utility classes, and provider
+interfaces for participating in versions 1 and 2 of the multicast request,
+multicast announcement, and unicast discovery protocols.
+<p>
+The {@link org.apache.river.discovery.DiscoveryProtocolVersion},
+{@link org.apache.river.discovery.MulticastMaxPacketSize},
+{@link org.apache.river.discovery.MulticastTimeToLive} and
+{@link org.apache.river.discovery.UnicastSocketTimeout} classes represent
+constraints which can be applied to multicast and unicast discovery.  The
+{@link org.apache.river.discovery.DiscoveryConstraints} class offers convenience
+methods for querying the values expressed by groups of these constraints.  The
+{@link org.apache.river.discovery.Discovery} class provides methods implementing
+various low-level discovery protocol operations, such as encoding and decoding
+multicast packet contents and unicast discovery data.  These methods accept as
+arguments instances of the {@link org.apache.river.discovery.MulticastRequest},
+{@link org.apache.river.discovery.MulticastAnnouncement} and
+{@link org.apache.river.discovery.UnicastResponse} classes, which represent the
+values (independent of protocol details) to be transmitted by multicast
+requests, multicast announcements, and unicast discovery.
+<p>
+The <code>Discovery</code> class implements both versions 1 and 2 of the
+discovery protocols.  For version 2 of the protocols, it accepts pluggable
+format providers, specified via resource using the
+{@link org.apache.river.discovery.DiscoveryFormatProvider} interface, which
+implement the {@link org.apache.river.discovery.MulticastRequestEncoder},
+{@link org.apache.river.discovery.MulticastRequestDecoder},
+{@link org.apache.river.discovery.MulticastAnnouncementEncoder},
+{@link org.apache.river.discovery.MulticastAnnouncementDecoder},
+{@link org.apache.river.discovery.UnicastDiscoveryClient}, and
+{@link org.apache.river.discovery.UnicastDiscoveryServer} format provider
+sub-interfaces.
+
+@see "<i>Jini Discovery and Join Specification</i>"
+
+</body>
+</html>

@@ -22,7 +22,7 @@
  * a BasicJeriExporter-exported stub getting unmarshalled, and then garbage
  * collected, in which case the impl's unreferenced() method should get
  * invoked.
- * 
+ * @author Peter Jones
  *
  * @library ../../../../../testlibrary
  * @build MarshalledObjectGet

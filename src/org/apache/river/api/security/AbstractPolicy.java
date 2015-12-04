@@ -38,14 +38,13 @@ import java.util.TreeSet;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.UmbrellaGrantPermission;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.river.api.common.Beta;
 
 /**
  * A common superclass with utility methods for policy providers.
  * 
- * 
+ * @author Peter Firmstone.
+ * @since 3.0.0
  */
-@Beta
 public abstract class AbstractPolicy extends Policy {
     protected final Permission umbrella = new UmbrellaGrantPermission();
     protected final Permission ALL_PERMISSION = new AllPermission();
@@ -64,22 +63,17 @@ public abstract class AbstractPolicy extends Policy {
      * PermissionGrant implementation was mutable.
      *
      * @param grants
-     * @return map of checked grants.
      */
     protected final void checkCallerHasGrants(Collection<PermissionGrant> grants) throws SecurityException {
         Iterator<PermissionGrant> grantsItr = grants.iterator();
         while (grantsItr.hasNext()) {
             PermissionGrant grant = grantsItr.next();
-            checkCallerHasGrants(grant);
-        }
-    }
-    
-    protected final void checkCallerHasGrants(PermissionGrant grant) throws SecurityException {
             Collection<Permission> permCol = grant.getPermissions();
             Permission[] perms = permCol.toArray(new Permission[permCol.size()]);
             checkNullElements(perms);
             Guard g = new GrantPermission(perms);
             g.checkGuard(this);
+        }
     }
 
     /**
@@ -110,7 +104,7 @@ public abstract class AbstractPolicy extends Policy {
      * @param concurrencyLevel
      * @param unresolvedCapacity  Capacity of Map used to store 
      * UnresolvedPermission instances
-     * @return
+     * @return PermissionCollection
      * @throws IllegalArgumentException if the initial capacity is
      * negative or the load factor or concurrencyLevel are
      * nonpositive.
@@ -211,6 +205,7 @@ public abstract class AbstractPolicy extends Policy {
             while (grants.hasNext()) {
                 PermissionGrant g = grants.next();
                 if (stopIfAll && g.isPrivileged()) {
+                    setToAddPerms.clear();
                     setToAddPerms.add(ALL_PERMISSION);
                     return;
                 }

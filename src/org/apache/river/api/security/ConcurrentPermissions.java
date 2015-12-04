@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 
  * The first reason this class exists is due to an unknown bug in
  * java.security.Permissions not resolving 
- * permission com.sun.jini.phoenix.ExecOptionPermission "*";
+ * permission org.apache.river.phoenix.ExecOptionPermission "*";
  * in UnresolvedPermission. This occurs in start tests using Phoenix and
  * defaultphoenix.policy in the qa suite.  The second reason is performance
  * tuning for concurrency or to avoid unnecessary collection resizing, 
@@ -74,8 +74,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * TODO: Serialization properly
  * @version 0.5 2012/04/18
  * 
- * 
- * @since 2.2.1
+ * @author Peter Firmstone
+ * @since 3.0.0
  * @serial permsMap
  */
 final class ConcurrentPermissions extends PermissionCollection 
@@ -225,7 +225,7 @@ implements Serializable {
      * Any number of these Enumerations may be utilised , each accessed by 
      * a separate thread.
      * 
-     * 
+     * @author Peter Firmstone
      */   
     private final static class PermissionEnumerator implements Enumeration<Permission> {
         private final static Enumeration<Permission> empty = 

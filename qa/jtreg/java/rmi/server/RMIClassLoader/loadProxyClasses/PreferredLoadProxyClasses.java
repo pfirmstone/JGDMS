@@ -21,7 +21,7 @@
  * ensures that the preferred class loader provider implements
  * RMIClassLoader.loadProxyClass correctly.
  *
- * 
+ * @author Laird Dornin
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary FnnClass FnnUnmarshal PreferredLoadProxyClasses LoadProxyClasses NonpublicInterface

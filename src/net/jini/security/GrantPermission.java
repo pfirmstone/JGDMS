@@ -607,7 +607,7 @@ public final class GrantPermission extends Permission {
     /**
      * Returns quoted string literal that, if parsed by
      * java.io.StreamTokenizer, would yield the given string.  This method is
-     * essentially a copy of com.sun.jini.config.ConfigUtil.stringLiteral; the
+     * essentially a copy of org.apache.river.config.ConfigUtil.stringLiteral; the
      * two methods are kept separate since ConfigUtil.stringLiteral could
      * conceivably escape unicode characters, while such escaping would be
      * incorrect for GrantPermission.

@@ -1,0 +1,4 @@
+testClass=AddDiscoveryListenerNull
+testCategories=locatordiscovery,locatordiscovery_spec,speclocatordiscovery
+include0=locatordiscovery.properties
+include1=org/apache/river/test/share/reggie1_0.properties

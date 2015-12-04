@@ -29,7 +29,7 @@ import static org.junit.Assert.*;
 /**
  * Tests fail when run from IDE.
  * 
- * 
+ * @author peter
  */
 public class DelegatePermissionTest {
    

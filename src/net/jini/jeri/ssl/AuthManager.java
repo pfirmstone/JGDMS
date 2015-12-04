@@ -18,7 +18,7 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.lang.ref.WeakReference;
 import java.security.GeneralSecurityException;
 import java.security.KeyException;

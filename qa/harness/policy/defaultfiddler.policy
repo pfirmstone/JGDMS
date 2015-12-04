@@ -1,11 +1,11 @@
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}fiddler.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}fiddler.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };

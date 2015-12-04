@@ -40,7 +40,7 @@ import net.jini.core.entry.Entry;
  *
  * </ul>
  * 
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see net.jini.core.entry.Entry
  */

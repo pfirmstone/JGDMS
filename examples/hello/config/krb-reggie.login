@@ -18,7 +18,7 @@
 
 /* JAAS login configuration file for Reggie using Kerberos */
 
-com.sun.jini.Reggie {
+org.apache.river.Reggie {
     com.sun.security.auth.module.Krb5LoginModule required 
 	useKeyTab=true 
 	keyTab="config/krb-servers.keytab" 

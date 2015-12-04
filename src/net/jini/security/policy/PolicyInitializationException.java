@@ -21,7 +21,7 @@ package net.jini.security.policy;
 /**
  * Exception indicating failed initialization of a security policy provider.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  */

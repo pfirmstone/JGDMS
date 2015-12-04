@@ -1,0 +1,152 @@
+#
+# This file contains the property values which define the installation
+# and behavioral characteristics of the test harness. 
+#
+# The file system path separator required by the underlying operating system
+# should be used when paths are defined. Alternatively,
+# the sequence $/ will be interpreted as the platform dependent separator.
+# If DOS-style separators are used, then they must "escaped"; that is, a
+# DOUBLE backslash must be used ('\\'). 
+# 
+# NOTE:
+# org.apache.river.qa.harness.testhosts is the only user defined
+# property which MUST BE DEFINED AS A SYSTEM PROPERTY
+# on the test harness command line rather than in this file.
+# The value of this property is the list of participating
+# hosts when running distributed. 
+#
+
+######################################################
+#
+# INSTALLATION PROPERTIES
+#
+#  edit these properties to reflect the locations of 
+#  the starter kit and harness kit
+#
+######################################################
+
+# location of the JSK installation
+org.apache.river.jsk.home=/vob/jive
+
+# Location of the QA installation
+org.apache.river.qa.home=/vob/qa
+
+######################################################
+#
+# CLASS SERVER PROPERTIES
+#
+#  in most cases, these properties should not require changes
+#
+######################################################
+
+# enable the JSK class server
+org.apache.river.qa.harness.runjiniserver=true
+
+# http port of the JSK download JAR files
+org.apache.river.jsk.port=8080
+
+# download directory for JSK JAR files
+org.apache.river.qa.harness.dldir.8080=${org.apache.river.jsk.home}$/lib-dl
+
+# enable the QA class server 
+org.apache.river.qa.harness.runkitserver=true
+
+# http port of the QA download JAR files
+org.apache.river.qa.port=8081
+
+# download directory for QA JAR files
+org.apache.river.qa.harness.dldir.8081=${org.apache.river.qa.home}$/lib
+
+# automatically start/stop the activation system for each test
+org.apache.river.qa.harness.runactivation=true
+
+# run services in shared service groups by default
+org.apache.river.qa.harness.shared=true
+
+#
+# the default service mode is 'activatable'. Alternative values
+# are 'transient' and 'persistent'
+#
+org.apache.river.qa.harness.serviceMode=activatable
+
+######################################################
+#
+# KERBEROS PROPERTIES
+#
+#  if the kerberos configuration is to be used, these
+#  properties must be edited to reflect the local
+#  kerberos environment. See the JavaDoc overview
+#  for details.
+#
+######################################################
+
+#
+# The following set of properties are used to specify the kerberos
+# environment for tests that need to access a kdc and kerberos principals
+#
+org.apache.river.qa.harness.kerberos.realm=DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.kdc=jiniautot.east.sun.com
+org.apache.river.qa.harness.kerberos.clientPasswordFile=${org.apache.river.qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabClient
+org.apache.river.qa.harness.kerberos.serverPasswordFile=${org.apache.river.qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabServer
+org.apache.river.qa.harness.kerberos.aggregatePasswordFile=${org.apache.river.qa.home}$/trust$/aggregateKeytab
+org.apache.river.qa.harness.kerberos.clientPrincipal=qa-e2e-client@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.serverPrincipal=qa-e2e-server@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.reggiePrincipal=qa-reggie@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.mahaloPrincipal=qa-mahalo@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.outriggerPrincipal=qa-outrigger@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.mercuryPrincipal=qa-mercury@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.normPrincipal=qa-norm@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.phoenixPrincipal=qa-phoenix@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.testPrincipal=qa-test@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.fiddlerPrincipal=qa-fiddler@DAVIS.JINI.SUN.COM
+org.apache.river.qa.harness.kerberos.groupPrincipal=qa-group@DAVIS.JINI.SUN.COM
+
+######################################################
+#
+# TEST EXECUTION PROPERTIES
+#
+#  the configs property will generally be edited or overridden
+#  on the command line to select the test configuration. The
+#  other properties in this section would only be edited for
+#  debugging purposes, or for supporting automated production
+#  test runs.
+#  
+######################################################
+
+# do not automatically rerun failed tests 
+org.apache.river.qa.harness.rerunFailedTests=false
+
+#
+# display all test output in the log. If changed to true,
+# most output of passing tests is discarded
+#
+org.apache.river.qa.harness.discardOKOutput=false
+
+# when running distributed, pipe all test log output
+# to the master host logger. If changed to false, each participating
+# host will log output separately.
+#
+org.apache.river.qa.harness.slavepipe=true
+
+#
+# when running distributed, use the roundrobin
+# host selection policy. Other legal values are 'random', 
+# 'remoterandom', and 'remoteroundrobin'
+#
+org.apache.river.qa.harness.servicehostpolicy=roundrobin
+
+# if defined, the value of this property is a command to be exec'd
+# after each test is run. The example would run the unix 'ps' command.
+#
+#org.apache.river.qa.harness.runCommandAfterEachTest=ps
+
+# Disable test timeouts
+org.apache.river.qa.harness.timeout=0
+
+# the comma-separated list of configurations to run. 
+# Any combination of jrmp,jeri,jsse,http,https,kerberos,none
+#
+org.apache.river.qa.harness.configs=none
+
+# current domain
+org.apache.river.jsk.domain=east.sun.com

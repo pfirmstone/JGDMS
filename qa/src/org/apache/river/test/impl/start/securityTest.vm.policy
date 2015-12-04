@@ -1,0 +1,10 @@
+grant codebase "file:${java.class.path}" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission org.apache.river.start.SharedActivationPolicyPermission "c:${/}-";
+    permission org.apache.river.start.SharedActivationPolicyPermission "/-";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:/-";
+    permission java.util.PropertyPermission "org.apache.river.start.startutil.debug", "read";
+};

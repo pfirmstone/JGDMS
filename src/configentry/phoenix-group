@@ -17,10 +17,10 @@
 #*/
 
 # phoenix activation group configuration entries
-com.sun.jini.phoenix.inheritGroupSubject: boolean
-com.sun.jini.phoenix.instantiatorExporter: net.jini.export.Exporter
-com.sun.jini.phoenix.loginContext: javax.security.auth.login.LoginContext
-com.sun.jini.phoenix.monitorPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.phoenix.systemPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.phoenix.unexportTimeout: int
-com.sun.jini.phoenix.unexportWait: int
+org.apache.river.phoenix.inheritGroupSubject: boolean
+org.apache.river.phoenix.instantiatorExporter: net.jini.export.Exporter
+org.apache.river.phoenix.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.phoenix.monitorPreparer: net.jini.security.ProxyPreparer
+org.apache.river.phoenix.systemPreparer: net.jini.security.ProxyPreparer
+org.apache.river.phoenix.unexportTimeout: int
+org.apache.river.phoenix.unexportWait: int

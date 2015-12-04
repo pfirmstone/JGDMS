@@ -22,7 +22,7 @@
  * the preferred list definitely does not exist in the resources of a
  * class loader
  *
- * 
+ * @author Laird Dornin
  *
  * @library ../../../../../../testlibrary
  * @build CheckDefinite
@@ -37,6 +37,8 @@ import java.rmi.server.RMIClassLoader;
 import java.io.IOException;
 import java.io.File;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -60,13 +62,13 @@ public class CheckDefinite {
     static {
 	try {
 	    if (!TestParams.testSrc.startsWith(".")) {
-		SRC_URL = (new URL("file", "",
+		SRC_URL = (new URI("file://" +
 		    (TestParams.testSrc + File.separator).
 		    replace(File.separatorChar, '/')).toString());
 
 		BASE = TestParams.testSrc;
 	    }
-	} catch (MalformedURLException e) {
+	} catch (URISyntaxException e) {
 	    e.printStackTrace();
 	}
     }

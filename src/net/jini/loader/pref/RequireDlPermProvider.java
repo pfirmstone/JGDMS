@@ -18,18 +18,18 @@
 
 package net.jini.loader.pref;
 
+import java.rmi.server.RMIClassLoader;
 import net.jini.loader.DownloadPermission;
-import net.jini.loader.RiverClassLoader;
 
 /**
- * An <code>RiverClassLoader</code> provider that supports preferred
+ * An <code>RMIClassLoader</code> provider that supports preferred
  * classes and enforces {@link DownloadPermission}.
  *
- * <p>See the {@link RiverClassLoader} specification for information
- * about how to install and configure the <code>RiverClassLoader</code>
+ * <p>See the {@link RMIClassLoader} specification for information
+ * about how to install and configure the <code>RMIClassLoader</code>
  * service provider.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public class RequireDlPermProvider extends PreferredClassProvider {
@@ -37,10 +37,10 @@ public class RequireDlPermProvider extends PreferredClassProvider {
     /**
      * Creates a new <code>RequireDlPermProvider</code>.
      *
-     * <p>This constructor is used by the {@link RiverClassLoader}
+     * <p>This constructor is used by the {@link RMIClassLoader}
      * service provider location mechanism when
      * <code>RequireDlPermProvider</code> is configured as the
-     * <code>RiverClassLoader</code> provider class.
+     * <code>RMIClassLoader</code> provider class.
      *
      * <p>This constructor passes <code>true</code> to the superclass
      * constructor that has a <code>boolean</code> parameter.

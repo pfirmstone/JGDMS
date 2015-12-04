@@ -32,7 +32,7 @@
   <P>
   This document explains in step by step fashion how to run Jini QA
   tests. A Jini QA test is a class that implements the
-  com.sun.jini.tck.harness.Test interface and is thus able to run inside of
+  org.apache.river.tck.harness.Test interface and is thus able to run inside of
   the TCK (Technology Compatibility Kit) test harness. In general, a Jini
   QA test will test either a service (such as Lookup Discovery Service) or
   a utility (such as Client Lookup Manager or Join Manager). For more
@@ -67,14 +67,14 @@
   <LI>Start up a class server to serve up the Jini jars (core, ext, etc...)
   in directory /vob/jive/lib on port 8085</LI>
 
-  <LI>Copy the contents of /vob/qa/src/com/sun/jini/qa/harness/resource
+  <LI>Copy the contents of /vob/qa/src/org/apache/river/qa/harness/resource
   to some convenient directory.<BR>For the purposes of these instructions
   we will assume <CODE>$HOME/qatest</CODE>.</LI>
 
   <LI>cd to <CODE>$HOME/qatest</CODE> if you are not already there.</LI>
 
   <LI>Enter the command
-  <CODE>/vob/qa/src/com/sun/jini/qa/harness/examples/run_sampleutilitytest
+  <CODE>/vob/qa/src/org/apache/river/qa/harness/examples/run_sampleutilitytest
   </CODE></LI>
   <P>
   The qatest.prop file that you copied to the $HOME/qatest directory has a
@@ -92,7 +92,7 @@
   </PRE>
   </P>
   <LI>Enter the command
-  <CODE>/vob/qa/src/com/sun/jini/qa/harness/examples/run_sampleservicetest
+  <CODE>/vob/qa/src/org/apache/river/qa/harness/examples/run_sampleservicetest
   </CODE></LI>
   <P>
   At the end of the output you should see the following text:
@@ -121,7 +121,7 @@
   </UL>
   For example to run the SampleUtilityTest example use the command:
   <PRE>
-  qatest -test com.sun.jini.test.harness.examples.ServiceUtilityTest 
+  qatest -test org.apache.river.test.harness.examples.ServiceUtilityTest 
          -categories joinmanager
   </PRE>
   </P>
@@ -141,7 +141,7 @@
 
   <LI>Create a Properties file for your test(s). You may
   create one Properties file for each test or use one for all your tests. See
-  /vob/qa/src/com/sun/jini/qa/harness/examples/sampletest.prop for an 
+  /vob/qa/src/org/apache/river/qa/harness/examples/sampletest.prop for an 
   example.</LI>  
 
   <LI>Edit the qatest.prop file in $HOME/qatest and add a line to the end
@@ -151,20 +151,20 @@
 
   <LI>Edit the properties file and include argument information for the
   services that your test(s) will need to start. Also see
-  /vob/qa/src/com/sun/jini/qa/harness/examples/sampletest.prop for an
+  /vob/qa/src/org/apache/river/qa/harness/examples/sampletest.prop for an
   example.</LI> 
 
   <LI>cd to <CODE>$HOME/qatest</CODE> if you are not already there.</LI>
 
   <LI>Execute the command:
   <PRE>
-  run_qatest -tests com.sun.jini.test.myarea.MyTest -categories myCategory 
+  run_qatest -tests org.apache.river.test.myarea.MyTest -categories myCategory 
              -cp /vob/qa/classes
   </PRE>
   You may also define any parameters that you might put in a Properties
   file on the command line. For example:
   <PRE>
-  run_qatest -tests com.sun.jini.test.myarea.MyTest -categories myCategory 
+  run_qatest -tests org.apache.river.test.myarea.MyTest -categories myCategory 
              -cp /vob/qa/classes -qautil.debug true
   </PRE>
   Will turn on debugging information in the QA Methodology Framework code.

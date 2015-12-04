@@ -16,21 +16,20 @@
  */
 
 /**
-* 
-* @version $Revision$
+* @author Alexey V. Varlamov
+* @author Peter Firmstone.
+* @since 3.0.0
 */
 
 package org.apache.river.api.security;
 
+import org.apache.river.impl.Messages;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import org.apache.river.impl.net.UriString;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.URI;
 import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -50,6 +49,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.DefaultPolicyScanner.GrantEntry;
 import org.apache.river.api.security.DefaultPolicyScanner.KeystoreEntry;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
@@ -60,10 +60,10 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
 /**
  * This is a basic loader of policy files. It delegates lexical analysis to 
  * a pluggable scanner and converts received tokens to a set of 
- * {@link org.apache.river.security.PermissionGrant PermissionGrant's}. 
+ * {@link org.apache.river.api.security.PermissionGrant PermissionGrant's}. 
  * For details of policy format, which should be identical to Sun's Java Policy
  * files see the 
- * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile default policy description}.
+ * {@link org.apache.river.api.security.ConcurrentPolicyFile default policy description}.
  * <br>
  * For ordinary uses, this class has just one public method <code>parse()</code>, 
  * which performs the main task.
@@ -73,8 +73,8 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * This implementation is effectively thread-safe, as it has no field references 
  * to data being processed (that is, passes all the data as method parameters).
  * 
- * @see org.apache.river.imp.security.policy.se.ConcurrentPolicyFile
- * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+ * @see org.apache.river.api.security.ConcurrentPolicyFile
+ * @see org.apache.river.api.security.DefaultPolicyScanner
  * @see org.apache.river.api.security.PermissionGrant
  */
 class DefaultPolicyParser implements PolicyParser {
@@ -84,7 +84,7 @@ class DefaultPolicyParser implements PolicyParser {
 
     /** 
      * Default constructor, 
-     * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner DefaultPolicyScanner} 
+     * {@link org.apache.river.api.security.DefaultPolicyScanner DefaultPolicyScanner} 
      * is used. 
      */
     DefaultPolicyParser() {
@@ -101,7 +101,7 @@ class DefaultPolicyParser implements PolicyParser {
     /**
      * This is the main business method. It manages loading process as follows:
      * the associated scanner is used to parse the stream to a set of 
-     * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner.GrantEntry composite tokens},
+     * {@link org.apache.river.api.security.DefaultPolicyScanner.GrantEntry composite tokens},
      * then this set is iterated and each token is translated to a PermissionGrant.
      * Semantically invalid tokens are ignored, the same as void PermissionGrant's.
      * <br>
@@ -146,7 +146,6 @@ class DefaultPolicyParser implements PolicyParser {
                 if ( e instanceof SecurityException ) throw (SecurityException) e;
                 System.err.println("Problem parsing policy: "+ location 
                         + "\n" + e);
-                e.printStackTrace(System.err);
             }
         }
         
@@ -184,19 +183,12 @@ class DefaultPolicyParser implements PolicyParser {
      * of the GrantEntry
      * @see DefaultPolicyScanner.PrincipalEntry
      * @see DefaultPolicyScanner.PermissionEntry
-     * @see org.apache.river.imp.security.policy.util.PolicyUtils
+     * @see org.apache.river.api.security.PolicyUtils
      */
     PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
             KeyStore ks, Properties system, boolean resolve) throws Exception {
         if ( ge == null ) return null;
-        /*
-         * Do we return multiple grants or do we allow a codebase array 
-         * in a permission grant?
-         * 
-         * ANSWER: No we just make a CodeSourceSetGrant, that contains multiple
-         * CodeSource.
-         */
-        List<URI> codebases = new ArrayList<URI>(8);
+        List<String> codebases = new ArrayList<String>(8);
         Certificate[] signers = null;
         Set<Principal> principals = new HashSet<Principal>();
         Set<Permission> permissions = new HashSet<Permission>();
@@ -256,7 +248,7 @@ class DefaultPolicyParser implements PolicyParser {
             }
         }
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
-        Iterator<URI> iter = codebases.iterator();
+        Iterator<String> iter = codebases.iterator();
         while (iter.hasNext()){
             pgb.uri(iter.next());
         }
@@ -268,13 +260,11 @@ class DefaultPolicyParser implements PolicyParser {
             .build();
     }
     
-    URI getURI(String uriString) throws MalformedURLException, URISyntaxException{
+    String getURI(String uriString) throws MalformedURLException, URISyntaxException{
         // We do this to support windows, this is to ensure that path
         // capitalisation is correct and illegal strings are escaped correctly.
         if (uriString == null) return null;
-        uriString = UriString.fixWindowsURI(uriString);
-        uriString = UriString.escapeIllegalCharacters(uriString);
-        return new URI(uriString);
+        return Uri.fixWindowsURI(uriString);
     }
     
     Segment segment(String s, Properties p) throws ExpansionFailedException{

@@ -135,7 +135,7 @@ are not supported.)
 @since 2.0
 @version 2.0
 
-@com.sun.jini.impl
+@org.apache.river.impl
 
 <h2>Logging</h2>
 
@@ -148,10 +148,10 @@ various logging levels" border=1 cellpadding=5>
 
 <tr> <th> Level <th> Description
 
-<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+<tr> <td> {@link org.apache.river.logging.Levels#FAILED FAILED}
      <td> exceptions thrown attempting to initiate a request
 
-<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+<tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED}
      <td> exceptions caught attempting to connect a socket, set
 	  options on a client-side socket, or reuse a connection
 
@@ -173,7 +173,7 @@ various logging levels" border=1 cellpadding=5>
 <tr> <td> {@link java.util.logging.Level#WARNING WARNING}
      <td> exceptions accepting on a server socket
 
-<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+<tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED}
      <td> exceptions caught setting options on a server-side socket
 
 <tr> <td> {@link java.util.logging.Level#FINE FINE}
@@ -188,23 +188,23 @@ implementation of <code>HttpEndpoint</code> and <code>HttpServerEndpoint</code>
 recognizes the following system properties:
 <p>
 <ul>
-<li><code>com.sun.jini.jeri.http.idleConnectionTimeout</code> - The number of
+<li><code>org.apache.river.jeri.http.idleConnectionTimeout</code> - The number of
     milliseconds to retain idle client-side HTTP connections before closing
     them.  The default is <code>15000</code>.
-<li><code>com.sun.jini.jeri.http.idleServerConnectionTimeout</code> - The
+<li><code>org.apache.river.jeri.http.idleServerConnectionTimeout</code> - The
     number of milliseconds to retain idle server-side HTTP connections before
     closing them.  The default is the idle client-side connection timeout (as
-    specified by the <code>com.sun.jini.jeri.http.idleConnectionTimeout</code>
+    specified by the <code>org.apache.river.jeri.http.idleConnectionTimeout</code>
     system property) plus <code>10000</code>.
-<li><code>com.sun.jini.jeri.http.responseAckTimeout</code> - The number of
+<li><code>org.apache.river.jeri.http.responseAckTimeout</code> - The number of
     milliseconds to wait for acknowledgments from
     {@link net.jini.io.context.AcknowledgmentSource} instances.  The default is
     <code>15000</code>.
-<li><code>com.sun.jini.jeri.http.disableProxyPersistentConnections</code> - If
+<li><code>org.apache.river.jeri.http.disableProxyPersistentConnections</code> - If
     the value is case-insensitive equal to <code>true</code>, client-side
     connections through the HTTP proxy are not reused across requests;
     otherwise, persistent connections are maintained and reused if possible.
-<li><code>com.sun.jini.jeri.http.pingProxyConnections</code> - If
+<li><code>org.apache.river.jeri.http.pingProxyConnections</code> - If
     the value is case-insensitive equal to <code>true</code>, then if an
     HTTP proxy is being used, ping the server endpoint to verify whether
     it is alive and reachable. The ping occurs before the first request
@@ -217,7 +217,7 @@ recognizes the following system properties:
     UnmarshalException). The ping increases the likelihood that the
     inability to reach the server endpoint can be explicitly identified.
     The default value is <code>false</code>, and no pings are done.
-<li><code>com.sun.jini.jeri.http.pingProxyConnectionTimeout</code> - The
+<li><code>org.apache.river.jeri.http.pingProxyConnectionTimeout</code> - The
     number of milliseconds from the time a server endpoint was last
     pinged before a ping will precede the next request. The default is
     <code>Long.MAX_VALUE</code> (essentially meaning, ping only before

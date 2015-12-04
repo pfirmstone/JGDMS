@@ -19,14 +19,14 @@
 
 <html>
 <head>
-  <title>Release Notes for com.sun.jini.outrigger
+  <title>Release Notes for org.apache.river.outrigger
   </title>
 </head>
 
 <body text="black" bgcolor="white" link="#9b37cc" vlink="#cc1877" alink="white">
 <center>
 <h1>Outrigger<br>
-Apache River v2.2.0 Release Notes</h1>
+Apache River v3.0.0 Release Notes</h1>
 </center>
 <hr>
 <ul>
@@ -41,7 +41,7 @@ interface (note, <code>JavaSpace05</code> extends the
 <code>JavaSpace05</code> can also be used as a <code>JavaSpace</code>). For
 a listing of the additional interfaces implemented by Outrigger, please
 consult <a
-href="../api/com/sun/jini/outrigger/package-summary.html">Outrigger's
+href="../api/org/apache/river/outrigger/package-summary.html">Outrigger's
 package documentation</a>.
 <p>
 <H3>Changes since the v2.2.0 release</H3>
@@ -81,12 +81,12 @@ Included in Release</b>
 
 The persistent version of Outrigger relies on a pluggable persistence layer,
 <a
-href="../api/com/sun/jini/outrigger/Store.html"><code>com.sun.jini.outrigger.Store</code></a>.
+href="../api/org/apache/river/outrigger/Store.html"><code>org.apache.river.outrigger.Store</code></a>.
 Previous releases included one implementation of the <code>Store</code>
 interface, <a
-href="../api/com/sun/jini/outrigger/logstore/LogStore.html">logstore</a>.
+href="../api/org/apache/river/outrigger/logstore/LogStore.html">logstore</a>.
 This release adds a second implementation, <a
-href="../api/com/sun/jini/outrigger/snaplogstore/LogStore.html">snaplogstore</a>.
+href="../api/org/apache/river/outrigger/snaplogstore/LogStore.html">snaplogstore</a>.
 <p>
 
 While all the necessary classes are included with this release to run the
@@ -105,13 +105,13 @@ Where v2.0.n releases used logstore as the default <code>Store</code>
 implementation, this release has no default store. In order to switch an
 existing set of configuration files, security policy files, etc., from
 using logstore to snaplogstore, you will need to change the <a
-href="../api/com/sun/jini/outrigger/package-summary.html#store">
-<code>com.sun.jini.outrigger.store</code></a> configuration entry (or add a
+href="../api/org/apache/river/outrigger/package-summary.html#store">
+<code>org.apache.river.outrigger.store</code></a> configuration entry (or add a
 <code>store</code> if you don't already have one) to yield a
-<code>com.sun.jini.outrigger.snaplogstore.LogStore</code> object. You will
+<code>org.apache.river.outrigger.snaplogstore.LogStore</code> object. You will
 also need to ensure that <code>outrigger-snaplogstore.jar</code> has been
 granted sufficient permissions (see Outrigger's package <a
-href="../api/com/sun/jini/outrigger/package-summary.html#outrigger_all_policy">documentation</a>
+href="../api/org/apache/river/outrigger/package-summary.html#outrigger_all_policy">documentation</a>
 for a sample security policy file.).<p>
 
 Note that depending on the nature of your application snaplogstore can have
@@ -126,9 +126,9 @@ incompatible.<p>
 <dd>
 The persistent version of Outrigger relies on a pluggable persistence
 layer, <a
-href="../api/com/sun/jini/outrigger/Store.html"><code>com.sun.jini.outrigger.Store</code></a>.
+href="../api/org/apache/river/outrigger/Store.html"><code>org.apache.river.outrigger.Store</code></a>.
 This release makes incompatible changes to a subsidiary interface, <a
-href="../api/com/sun/jini/outrigger/LogOps.html"><code>com.sun.jini.outrigger.LogOps</code></a>
+href="../api/org/apache/river/outrigger/LogOps.html"><code>org.apache.river.outrigger.LogOps</code></a>
 in order to support the implementation of the <a
 href="../api/net/jini/space/JavaSpace05.html"><code>JavaSpace05</code></a>
 interface. New methods were added and existing methods were changed, so old
@@ -166,10 +166,10 @@ Interfaces Have Been Deprecated</b>
 <dd>
 
 This release deprecates the <code><a
-href="../api/com/sun/jini/outrigger/JavaSpaceAdmin.html">
-com.sun.jini.outrigger.JavaSpaceAdmin</a></code> and <code><a
-href="../api/com/sun/jini/outrigger/ConstrainableJavaSpaceAdmin.html">
-com.sun.jini.outrigger.ConstrainableJavaSpaceAdmin</a></code>
+href="../api/org/apache/river/outrigger/JavaSpaceAdmin.html">
+org.apache.river.outrigger.JavaSpaceAdmin</a></code> and <code><a
+href="../api/org/apache/river/outrigger/ConstrainableJavaSpaceAdmin.html">
+org.apache.river.outrigger.ConstrainableJavaSpaceAdmin</a></code>
 interfaces. Outrigger's admin proxy still implements
 <code>JavaSpaceAdmin</code> (and if deployed with a Java(TM) Remote Method
 Invocation implementation that supports remote method constraints,
@@ -177,7 +177,7 @@ Invocation implementation that supports remote method constraints,
 doing so in a future release. The primary function provided by
 <code>JavaSpaceAdmin</code> and <code>ConstrainableJavaSpaceAdmin</code>
 was the creation of <code><a
-href="../api/com/sun/jini/outrigger/AdminIterator.html">com.sun.jini.outrigger.AdminIterator</a></code>
+href="../api/org/apache/river/outrigger/AdminIterator.html">org.apache.river.outrigger.AdminIterator</a></code>
 instances that could be used to semi-exhaustively read through the contents
 of the space. Similar functionality is now provided through the <code><a
 href="../api/net/jini/space/JavaSpace05.html#contents(java.util.Collection, net.jini.core.transaction.Transaction, long, long)">JavaSpace05.contents</a> </code> method. <p>
@@ -185,7 +185,7 @@ href="../api/net/jini/space/JavaSpace05.html#contents(java.util.Collection, net.
 <code>JavaSpaceAdmin</code> extends the <code><a
 href="../api/net/jini/admin/JoinAdmin.html">net.jini.admin.JoinAdmin</a></code>
 and <code><a
-href="../api/com/sun/jini/admin/DestroyAdmin.html">com.sun.jini.admin.DestroyAdmin</a></code>
+href="../api/org/apache/river/admin/DestroyAdmin.html">org.apache.river.admin.DestroyAdmin</a></code>
 interfaces. It is our intention for Outrigger's admin proxy to continue
 implementing <code>JoinAdmin</code> and <code>DestroyAdmin</code> after
 support for <code>JavaSpaceAdmin</code> is dropped.
@@ -214,7 +214,7 @@ JAR file changes</a>.
 
 For examples on how to start Outrigger and a description of Outrigger JAR
 file structure, please see <a
-href="../api/com/sun/jini/outrigger/package-summary.html">Outrigger's
+href="../api/org/apache/river/outrigger/package-summary.html">Outrigger's
 package documentation</a>.
 <p>
 
@@ -255,16 +255,16 @@ The race condition has been fixed in this release.
 <dd>
 The v2.0.n releases had a bug where if there was a blocked query
 in progress when the <a
-href="../api/com/sun/jini/admin/DestroyAdmin.html#destroy()"><code>DestroyAdmin.destroy</code></a>
+href="../api/org/apache/river/admin/DestroyAdmin.html#destroy()"><code>DestroyAdmin.destroy</code></a>
 method was called, CPU usage would peak for up to two minutes and the
 process of destroying the server would be delayed. This was caused by
 Outrigger making repeated attempts to &#147nicely&#148 unexport the server
 with no pause between attempts. This version addresses this issue by
 introducing a pause between unexport attempts. This delay can be controlled
 using the <a
-href="../api/com/sun/jini/outrigger/package-summary.html#unexportRetryDelay"><code>unexportRetryDelay</code></a>
+href="../api/org/apache/river/outrigger/package-summary.html#unexportRetryDelay"><code>unexportRetryDelay</code></a>
 configuration entry. This version also introduces the <a
-href="../api/com/sun/jini/outrigger/package-summary.html#maxUnexportDelay"><code>maxUnexportDelay</code></a>
+href="../api/org/apache/river/outrigger/package-summary.html#maxUnexportDelay"><code>maxUnexportDelay</code></a>
 configuration entry, which can be used to control how long Outrigger will
 attempt nice unexport attempts before giving up and forcefully unexporting
 itself (see the <code>maxUnexportDelay</code> configuration entry for more
@@ -302,7 +302,7 @@ query timeout</em> feature was being used.
 <dd>
 Previous 2.n versions of Outrigger had a bug where attempts to iterate over the
 space using the <code><a
-href="../api/com/sun/jini/outrigger/AdminIterator.html">com.sun.jini.outrigger.AdminIterator</a></code>
+href="../api/org/apache/river/outrigger/AdminIterator.html">org.apache.river.outrigger.AdminIterator</a></code>
 or the <code><a
 href="../api/net/jini/space/JavaSpace05.html#contents">net.jini.space.JavaSpace05.contents</a></code> method
 while at the same time writing entries of a type the iteration could return

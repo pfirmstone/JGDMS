@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests ConfigurationFile.getEntry
- * 
+ * @author Tim Blackman
  * @library ../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test TestGetEntryType
  * @run shell classpath.sh shell run-java.sh TestGetEntryType

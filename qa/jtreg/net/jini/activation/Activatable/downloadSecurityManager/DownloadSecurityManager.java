@@ -21,7 +21,7 @@
  * @summary Activation groups should be able to download and 
  * install a security manager.
  *
- * 
+ * @author Laird Dornin; code borrowed from Ann Wollrath
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary
@@ -132,10 +132,10 @@ public class DownloadSecurityManager
 		new File(RMID.getDefaultGroupLocation()).toURI().toString();
 	    Class cl = RMIClassLoader.loadClass(
 				cb,
-				"com.sun.jini.phoenix.ActivationGroupData");
+				"org.apache.river.phoenix.ActivationGroupData");
 	    Constructor cons = cl.getConstructor(new Class[]{String[].class});
 	    ActivationGroupDesc groupDesc1 = new ActivationGroupDesc(
-		"com.sun.jini.phoenix.ActivationGroupImpl",
+		"org.apache.river.phoenix.ActivationGroupImpl",
 		cb,
 		new MarshalledObject(cons.newInstance(
 			new Object[]{new String[]{TestParams.testSrc +

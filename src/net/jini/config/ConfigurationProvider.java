@@ -18,7 +18,7 @@
 
 package net.jini.config;
 
-import com.sun.jini.logging.Levels;
+import org.apache.river.logging.Levels;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,6 +32,8 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.loader.ClassLoading;
+import net.jini.loader.LoadClass;
 import net.jini.security.Security;
 
 /**
@@ -68,10 +70,10 @@ import net.jini.security.Security;
  * on each line, all characters following the first comment character are
  * ignored. The resource file must be encoded in UTF-8.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl <!-- Implementation Specifics -->
+ * @org.apache.river.impl <!-- Implementation Specifics -->
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.config</code> to log information at the following logging
@@ -240,7 +242,7 @@ public class ConfigurationProvider {
 	    return new ConfigurationFile(options, cl);
 	}
 	try {
-	    Class cls = Class.forName(cname, true, resourceLoader);
+	    Class cls = LoadClass.forName(cname, true, resourceLoader);
 	    if (!Configuration.class.isAssignableFrom(cls)) {
 		configEx = new ConfigurationException(
 		    "provider class " + cname +

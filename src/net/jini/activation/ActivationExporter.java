@@ -267,14 +267,13 @@ public final class ActivationExporter implements Exporter
 	Class[] interfaces = cl.getInterfaces();
 	for (int i = 0; i < interfaces.length; i++) {
 	    Class intf = interfaces[i];
-	    
 	    /*
 	     * Complain if the underlying proxy has a non-public class and
 	     * implements non-public interfaces.
 	     */
 	    if (checkPublic && !Modifier.isPublic(intf.getModifiers())) {
 		throw new ExportException(
-		    "proxy implements non-public interface");
+		    "proxy implements non-public interface " + intf.getName());
 	    }
 	    
 	    /*

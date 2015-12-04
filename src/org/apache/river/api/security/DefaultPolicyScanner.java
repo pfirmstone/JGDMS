@@ -16,12 +16,13 @@
  */
 
 /**
-* 
-* @version $Revision$
+* @author Alexey V. Varlamov
+* @since 3.0.0
 */
 
 package org.apache.river.api.security;
 
+import org.apache.river.impl.Messages;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StreamTokenizer;
@@ -70,7 +71,7 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * This implementation is effectively thread-safe, as it has no field references
  * to data being processed (that is, passes all the data as method parameters).
  * 
- * @see org.apache.harmony.security.fortress.DefaultPolicyParser
+ * @see org.apache.river.api.security.DefaultPolicyParser
  */
 class DefaultPolicyScanner {
     
@@ -413,10 +414,10 @@ class DefaultPolicyScanner {
 
     /**
      * Compound token representing <i>keystore </i> clause. See policy format
-     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
+     * {@link org.apache.river.api.security.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+     * @see org.apache.river.api.security.DefaultPolicyParser
+     * @see org.apache.river.api.security.DefaultPolicyScanner
      */
     static class KeystoreEntry {
 
@@ -463,10 +464,10 @@ class DefaultPolicyScanner {
 
     /**
      * Compound token representing <i>grant </i> clause. See policy format
-     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
+     * {@link org.apache.river.api.security.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+     * @see org.apache.river.api.security.DefaultPolicyParser
+     * @see org.apache.river.api.security.DefaultPolicyScanner
      */
     static class GrantEntry {
 
@@ -551,10 +552,10 @@ class DefaultPolicyScanner {
     /**
      * Compound token representing <i>principal </i> entry of a <i>grant </i>
      * clause. See policy format
-     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
+     * {@link org.apache.river.api.security.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+     * @see org.apache.river.api.security.DefaultPolicyParser
+     * @see org.apache.river.api.security.DefaultPolicyScanner
      */
     static class PrincipalEntry {
 
@@ -582,10 +583,7 @@ class DefaultPolicyScanner {
         
         public String toString(){
             String newline = "\n";
-            int l = getKlass() == null? 0 : getKlass().length();
-            l = l + getName() == null? 0 : getName().length();
-            l = l + 4;
-            StringBuffer sb = new StringBuffer(l);
+            StringBuilder sb = new StringBuilder(100);
             if ( getKlass() != null ) sb.append(getKlass()).append(newline);
             if ( getName() != null ) sb.append(getName()).append(newline);
             return sb.toString();

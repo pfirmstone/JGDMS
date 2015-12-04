@@ -25,7 +25,7 @@ import net.jini.core.transaction.*;
  * participant's current crash count is different from the crash
  * count the manager received in a previous join by that participant.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see TransactionManager#join
  * @see ServerTransaction#join

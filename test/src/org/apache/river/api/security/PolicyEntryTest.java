@@ -16,7 +16,7 @@
  */
 
 /**
-* 
+* @author Alexey V. Varlamov
 * @version $Revision$
 */
 
@@ -54,7 +54,7 @@ public class PolicyEntryTest extends TestCase {
 
 //        pe = new PolicyEntry(new CodeSource(null, (Certificate[])null),
 //            new ArrayList<Principal>(), new ArrayList<Permission>());
-        pe = pgb
+        pe = pgb.uri(null)
                 .principals(new Principal[0])
                 .permissions(new Permission[0])
                 .context(PermissionGrantBuilder.URI)
@@ -65,7 +65,7 @@ public class PolicyEntryTest extends TestCase {
         Permission[] perms = new Permission[] {
             new SecurityPermission("dsfg"), new AllPermission() };
         //pe = new PolicyEntry((CodeSource) null, (Collection<Principal>) null, perms);
-        pe = pgb
+        pe = pgb.uri(null)
                 .principals(null)
                 .permissions(perms)
                 .build();

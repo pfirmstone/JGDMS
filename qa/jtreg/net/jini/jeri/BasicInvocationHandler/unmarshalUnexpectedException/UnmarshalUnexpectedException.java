@@ -19,7 +19,7 @@
  * @summary Verify that an unexpected exception (except RuntimeException or
  * Error) unmarshalled by BasicInvocationHandler.unmarshalThrow method
  * are wrapped in a java.rmi.UnexpectedException.
- * 
+ * @author Ann Wollrath
  *
  * @build UnmarshalUnexpectedException
  * @run main/othervm UnmarshalUnexpectedException

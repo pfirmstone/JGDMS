@@ -18,8 +18,8 @@
 
 package net.jini.jeri;
 
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -84,7 +84,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @see		BasicInvocationDispatcher
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * This implementation's {@link #invoke invoke} method throws {@link
  * IllegalArgumentException} if a remote invocation is to be made and
@@ -96,7 +96,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * <blockquote>
  *
  * For each resource named
- * <code>com/sun/jini/proxy/resources/InvocationHandler.moreProhibitedProxyInterfaces</code>
+ * <code>org/apache/river/proxy/resources/InvocationHandler.moreProhibitedProxyInterfaces</code>
  * that is visible to the system class loader, the contents of the
  * resource are parsed as UTF-8 text to produce a list of interface
  * names.  The resource must contain a list of binary names of
@@ -643,10 +643,10 @@ public class BasicInvocationHandler
 	}
 
 	OutboundRequestIterator iter = oe.newCall(constraints);
-	if (!iter.hasNext()) {
-	    throw new ConnectIOException("iterator produced no requests",
-		new IOException("iterator produced no requests"));
-	}
+            if (!iter.hasNext()) {
+                throw new ConnectIOException("iterator produced no requests",
+                    new IOException("iterator produced no requests"));
+            }
 
 	Failure failure = null;
 	do {

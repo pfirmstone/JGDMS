@@ -25,7 +25,7 @@ package net.jini.core.transaction;
  * aborted because the transaction manager crashed; the transaction has
  * previously been explicitly committed.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */
@@ -44,5 +44,9 @@ public class UnknownTransactionException extends TransactionException {
     /** Constructs an instance with no detail message. */
     public UnknownTransactionException() {
 	super();
+    }
+    
+    public UnknownTransactionException(String desc, Throwable cause){
+        super(desc, cause);
     }
 }

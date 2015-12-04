@@ -18,7 +18,7 @@
 /* @test 
  * 
  * @summary test ConnectionManager.newRequest handling of mux saturation
- * 
+ * @author Bob Scheifler
  * @run main/othervm Saturation
  */
 

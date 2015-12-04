@@ -30,7 +30,7 @@ import net.jini.security.IntegrityVerifier;
  * This verifier assumes the HTTPS URL protocol handler is configured to
  * provide adequate data integrity and server authentication.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class HttpsIntegrityVerifier implements IntegrityVerifier {

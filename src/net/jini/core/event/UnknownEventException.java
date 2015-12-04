@@ -24,7 +24,7 @@ package net.jini.core.event;
  * asking the sender to not send further notifications of this kind of event
  * from this source in the future.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  */

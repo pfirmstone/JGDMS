@@ -17,5 +17,5 @@
 #*/
 
 # activatable persistent outrigger configuration entries
-com.sun.jini.outrigger.activationIdPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.outrigger.activationSystemPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.activationIdPreparer: net.jini.security.ProxyPreparer
+org.apache.river.outrigger.activationSystemPreparer: net.jini.security.ProxyPreparer

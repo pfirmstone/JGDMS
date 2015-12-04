@@ -37,8 +37,8 @@ import net.jini.lookup.entry.UIDescriptor;
  * Note: This class is not threadsafe, use external synchronization if required.
  * 
  * Suggested by Dan Creswell.
- * 
- * @since 2.2.1
+ * @author Peter Firmstone.
+ * @since 3.0.0
  */
 public class DefaultEntries {
     private final Set<Class> entrys;
@@ -57,7 +57,7 @@ public class DefaultEntries {
     }
     /**
      * All all the Jini Platform Entry's
-     * @return
+     * @return DefaultEntries
      */
     public DefaultEntries addPlatformEntries(){
         add(Comment.class);
@@ -78,7 +78,7 @@ public class DefaultEntries {
     
     /**
      * Generate a new array containing all Entry's added since last reset.
-     * @return
+     * @return Class[] an array of Entry classes.
      */
     public Class[] getEntries(){
         return entrys.toArray(new Class[entrys.size()]);

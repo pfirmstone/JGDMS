@@ -18,12 +18,12 @@
 
 package net.jini.jeri.ssl;
 
-import com.sun.jini.jeri.internal.connection.BasicConnManagerFactory;
-import com.sun.jini.jeri.internal.connection.ConnManager;
-import com.sun.jini.jeri.internal.connection.ConnManagerFactory;
-import com.sun.jini.jeri.internal.runtime.Util;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
+import org.apache.river.jeri.internal.connection.BasicConnManagerFactory;
+import org.apache.river.jeri.internal.connection.ConnManager;
+import org.apache.river.jeri.internal.connection.ConnManagerFactory;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;

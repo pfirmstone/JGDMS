@@ -26,6 +26,9 @@ import java.io.IOException;
  * check first operation as implementors must return a null value after
  * the backing data source has been exhausted. So this terminates like a stream
  * by returning a null value.
+ * 
+ * @author Peter Firmstone
+ * @since 3.0.0
  */
 public interface ResultStream<T> {
     /**
@@ -36,6 +39,8 @@ public interface ResultStream<T> {
     /**
      * Close the result stream, this allows the implementer to close any
      * resources prior to deleting reference.
+     * 
+     * At an arbitrary future date, this interface will extend Closeable in Java 8.
      */
     public void close() throws IOException;
 }

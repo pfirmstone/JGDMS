@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 /* @test 
- * 
+ * @author Laird Dornin
  * @bug 4164971
  * @summary allow non-public activatable class and/or constructor
  *

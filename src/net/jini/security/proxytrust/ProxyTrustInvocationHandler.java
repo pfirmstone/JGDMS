@@ -18,7 +18,7 @@
 
 package net.jini.security.proxytrust;
 
-import com.sun.jini.jeri.internal.runtime.Util;
+import org.apache.river.jeri.internal.runtime.Util;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -45,7 +45,7 @@ import net.jini.core.constraint.RemoteMethodControl;
  * the {@link #getProxyTrustIterator getProxyTrustIterator} method, as
  * required by <code>ProxyTrustVerifier</code>.
  *
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class ProxyTrustInvocationHandler

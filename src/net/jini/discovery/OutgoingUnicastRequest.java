@@ -24,7 +24,7 @@ import java.io.OutputStream;
 /**
  * Encapsulate the details of marshaling a unicast request.
  *
- * 
+ * @author Sun Microsystems, Inc.
  *
  * @see IncomingUnicastRequest
  */

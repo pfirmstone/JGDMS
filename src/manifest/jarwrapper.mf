@@ -1,2 +1,2 @@
 Manifest-Version: 1.0
-Main-Class: com.sun.jini.tool.JarWrapper
+Main-Class: org.apache.river.tool.JarWrapper

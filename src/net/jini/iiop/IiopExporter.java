@@ -45,10 +45,10 @@ import org.omg.CORBA.ORB;
  * over JRMP (as <code>PortableRemoteObject</code> can).  For JRMP exports,
  * {@link net.jini.jrmp.JrmpExporter} should be used instead.
  * 
- * 
+ * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @com.sun.jini.impl
+ * @org.apache.river.impl
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.iiop.IiopExporter</code> to log
