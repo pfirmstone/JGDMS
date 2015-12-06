@@ -466,6 +466,133 @@ documentation comments, so if you wish, you can produce
 API documentation for them yourself.
 </ul>
 
+<!-- Start 3.0.0 Release Note -->
+
+<hr> 
+<h1>Release Notes - River 3.0.0</h1>
+<h2>Sub-task</h2>
+
+        Release Notes - River - Version River_3.0.0
+    
+<h2>        Sub-task
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-319'>RIVER-319</a>] -         Change River Build Dist structure to support jtreg test automation
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-344'>RIVER-344</a>] -         com.sun.jini.thread.TaskManager scalability and concurrency.
+</li>
+</ul>
+                            
+<h2>        Bug
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-19'>RIVER-19</a>] -         PreferredClassLoader doesn&#39;t implement preferred semantics for getResources(String)
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-113'>RIVER-113</a>] -         JoinManager synchronization on each proxyReg should be reviewed, doc&#39;d and fixed where appropriate
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-145'>RIVER-145</a>] -         JoinManager synchronization on serviceItem should be reviewed, doc&#39;d and fixed where appropriate
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-148'>RIVER-148</a>] -         JoinManager.ProxyReg.fail synchronization may be wrong or may be able to simplify it
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-265'>RIVER-265</a>] -         PreferredClassProvider performs &#39;unlucky&#39; caching
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-282'>RIVER-282</a>] -         Suspect exception cast
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-335'>RIVER-335</a>] -         com.sun.jini.phoenix.ConstrainableAID missing from phoenix.jar
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-337'>RIVER-337</a>] -         Attempted discard of unknown registrar kills LookupLocatorDiscovery thread
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-345'>RIVER-345</a>] -         SDM LookupCache multi-LUS stale proxy/discard problems
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-348'>RIVER-348</a>] -         Possible race condition in net.jini.lookup.ServiceDiscoveryManager addProxyReg
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-367'>RIVER-367</a>] -         com.sun.jini.mahalo.TxnManagerImpl fails to abort a Transaction when notified of its lease expiration.
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-387'>RIVER-387</a>] -         KerberosServerEndpoint calls com.sun.security methods, animal-sniffer warns
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-395'>RIVER-395</a>] -         Ill-behaved DiscoveryListener can terminate discovery notifier threads
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-402'>RIVER-402</a>] -         NullPointerException in LookupCacheImpl.notifyServiceMap
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-418'>RIVER-418</a>] -         Service server implementations start threads before construction is complete allow &quot;this&quot; to escape
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-420'>RIVER-420</a>] -         Export during construction.
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-422'>RIVER-422</a>] -         Missing reference-collections and high-scale-lib in Manifest for jsk-platform
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-431'>RIVER-431</a>] -         Java Memory Model Compliance
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-433'>RIVER-433</a>] -         Test suite freeze while testing service discovery category
+</li>
+</ul>
+                        
+<h2>        Improvement
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-26'>RIVER-26</a>] -         Make UmbrellaGrantPermission work with DynamicPolicy
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-107'>RIVER-107</a>] -         DynamicPolicyProvider could use finer grained locking
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-123'>RIVER-123</a>] -         ConfigurationFile should support arithmetic operations
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-140'>RIVER-140</a>] -         JoinManager synchronization strategy should be reviewed, documented, and fixed where appropriate
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-193'>RIVER-193</a>] -         support declaring entries in a &quot;common&quot; configuration source for use in other configuration sources
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-249'>RIVER-249</a>] -         DynamicPolicy providers do not support UmbrellaGrantPermission
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-274'>RIVER-274</a>] -         Improve logging of diagnostic messages in ServiceDiscoveryManager
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-343'>RIVER-343</a>] -         Private class extends java.lang.Thread, causing synchronization bottleneck.
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-386'>RIVER-386</a>] -         Refactor of FastList inside of Outrigger
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-401'>RIVER-401</a>] -         PreferredClassProvider using URL as key in map
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-412'>RIVER-412</a>] -         rename com.sun.jini packages to org.apache.river.impl
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-439'>RIVER-439</a>] -         River only builds on Sun&#39;s JVM, add support for other JVM&#39;s
+</li>
+</ul>
+            
+<h2>        New Feature
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-313'>RIVER-313</a>] -         Provide mechanism to swap in alternatives to Java DSL for service configuration
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-340'>RIVER-340</a>] -         Additional Dynamic Grants and Revokeable Permissions
+</li>
+</ul>
+                        
+<h2>        Question
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-365'>RIVER-365</a>] -         main build.xml contains remarks about deprecated (and to be removed) targets, needs clarification
+</li>
+</ul>
+                            
+<h2>        TCK Challenge
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-419'>RIVER-419</a>] -         ServiceDiscoveryManager lookup qa TCK tests need to be reviewed
+</li>
+</ul>
+    
+<h2>        Task
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-261'>RIVER-261</a>] -         update com.sun.* namespace to org.apache.river.*
+</li>
+</ul>
+        
+<h2>        Test
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-304'>RIVER-304</a>] -         Reactivate River jtreg tests
+</li>
+</ul>
+        
+
 <!-- Start 2.2.0 Release Note -->
 
 <hr> 
@@ -520,14 +647,14 @@ API documentation for them yourself.
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-396'>RIVER-396</a>] -         PreferredClassProvider classloader cache concurrency improvement
 </li>
 </ul>
-    
+<!--    This has not been implemented.
 <h2>        New Feature
 </h2>
 <ul>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-338'>RIVER-338</a>] -         Integrate The Jini Surrogate Architecture
 </li>
 </ul>
-                        
+   -->                     
 <h2>        Task
 </h2>
 <ul>
@@ -568,7 +695,7 @@ API documentation for them yourself.
 	<li><a href="comsunjiniexample.html"><code>org.apache.river.example</code></a>
 	<li><a href="activation.html"><code>org.apache.river.phoenix</code></a>
 	<li><a href="build.html">Build</a></li>
-	<li><a href="jinisurrogatearchitecture.html">Jini Surrogate Architecture</a></li>
+	<!--<li><a href="jinisurrogatearchitecture.html">Jini Surrogate Architecture</a></li>-->
 </ul>
 <hr>
 <ul><a name="platform"><h2>Platform dependencies</h2></a>
