@@ -312,9 +312,9 @@
 
             <classpath refid="javadoc.classpath" />
             <sourcepath refid="javadoc.sourcepath" />
-	        <configuration>
+	        <!--<configuration>
 	          <additionalparam>-Xdoclint:none</additionalparam>
-	        </configuration>
+	        </configuration>-->
 
             <fileset dir="${src.dir}" includes="org/apache/river/mahalo/MahaloPermission.java"/>
             <package name="org.apache.river.admin"/>
@@ -419,9 +419,9 @@
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath refid="javadoc.classpath" />
             <sourcepath refid="javadoc.sourcepath" />
-	        <configuration>
+	        <!--<configuration>
 	          <additionalparam>-Xdoclint:none</additionalparam>
-	        </configuration>
+	        </configuration>-->
         </javadoc>
         <mkdir dir="${doc.internals.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.internals.dir}/doc-files/NOTICE.txt"/>
@@ -449,9 +449,9 @@
 			     description="ignore"/>
             <classpath refid="javadoc.classpath"/>
             <sourcepath refid="javadoc.sourcepath" />
-	        <configuration>
+	        <!--<configuration>
 	          <additionalparam>-Xdoclint:none</additionalparam>
-	        </configuration>
+	        </configuration>-->
 
             <package name="net.jini.activation"/>
             <package name="net.jini.config"/>
