@@ -101,7 +101,28 @@ final class UriParser {
                 query = temp.substring(index + 1);
                 temp.delete(index, temp.length());
                 validateQuery(uri, query, index2 + 1 + index);
-                if ("".equals(query)) query = null;
+                /**
+                 * The following line of code was incorrect and caused 6 test failures.
+                 * According to RFC 3986, Pages 40 and 41:
+                 * 
+                 * For example,
+                 * because the "http" scheme makes use of an authority component, has a
+                 * default port of "80", and defines an empty path to be equivalent to
+                 * "/", the following four URIs are equivalent:
+                 * 
+                 *    http://example.com
+                 *    http://example.com/
+                 *    http://example.com:/
+                 *    http://example.com:80/
+                 * 
+                 * Normalization should not remove delimiters when their associated
+                 * component is empty unless licensed to do so by the scheme 
+                 * specification.
+                 * 
+                 * For example, the URI "http://example.com/?" cannot be
+                 * assumed to be equivalent to any of the examples above.
+                 */
+//                if ("".equals(query)) query = null; //This line causes ? to be removed.
             }
             // Authority and Path
             if (temp.length() >= 2 && temp.charAt(0) == fSlash && temp.charAt(1) == fSlash) {

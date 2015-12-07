@@ -65,7 +65,7 @@ public class MuxStartTimeoutTest {
                     try {
                         muxClient.start();
                         succeeded.set(true);
-                    } catch (IOException e) {
+                    } catch (Throwable e) {
                         failed.set(true);
                     }
                     finished.set(true);

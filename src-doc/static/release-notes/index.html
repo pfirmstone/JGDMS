@@ -68,7 +68,12 @@ applications and services. To permit effective use of this policy provider,
 it must first be installed as an extension in the Java 2 SDK (or JRE)
 that you will be using, as described in the
 <a href="../info-index.html#install">installation instructions</a>.
-This is the <i>only</i> JAR file that we recommend installing as an extension.
+This is the <i>only</i> JAR file that we recommend installing as an extension
+to avoid possible deadlock, however this is no longer necessary if using 
+<code>DynamicPolicyProvider</code> with
+<a href="../api/org/apache/river/api/security/ConcurrentPolicyFile.html"> 
+    <code>ConcurrentPolicyFile</code></a> as the default base policy.  
+It will not be possible to use the extension facility with Java 9.
 <p>
 To use this provider, you need to define a <i>security</i> property
 (<i>not</i> a system property):
@@ -80,16 +85,7 @@ then define a <i>system</i> property:
 <pre>
 -Djava.security.properties=<var>path-to-file</var>/security.properties
 </pre>
-when running your application. If you are using a Java 2 SDK (or JRE)
-from a vendor other than Sun, you may also need to set a security property:
-<pre>
-net.jini.security.policy.PolicyFileProvider.basePolicyClass=<var>provider-class</var>
-</pre>
-in the same <code>security.properties</code> file, where
-<var>provider-class</var> is the vendor's default policy provider class,
-which typically can be found as the value of the <code>policy.provider</code>
-security property in the <code>jre/lib/security/java.security</code> file of
-the Java 2 SDK installation.
+when running your application.
 <p><dt><b><code>jsk-platform.jar</code></b>
 <dd>
 This JAR file contains classes and interfaces that we have chosen to include
@@ -435,6 +431,11 @@ ClassServer</a>.
 Browser</a>.
 <p><dt><b><code>browser-dl.jar</code></b>
 <dd>The codebase JAR file for the Service Browser.
+<dd>Note that the Service Browser is an old example written before 
+    the Java Memory Model JSR 133, it doesn't export
+    services safely.  Do not copy this example.  For a modern example
+    see <a href ="https://github.com/dreedyman/apache-river-example">
+        Dennis Reedy's apache-river-example on GitHub</a>
 </dl>
 </ul>
 <ul><a name="persistent_outrigger_jars">
