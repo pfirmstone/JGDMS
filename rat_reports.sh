@@ -7,6 +7,6 @@ else
 	exit 1
 fi
 
-java -jar $RAT_HOME/apache-rat-0.8.jar -d src > RAT_REPORT_src.txt
-java -jar $RAT_HOME/apache-rat-0.8.jar -d examples -e *.mf > RAT_REPORT_examples.txt
-java -jar $RAT_HOME/apache-rat-0.8.jar -d qa/jtreg -e *.mf > RAT_REPORT_qa_jtreg.txt
+java -jar $RAT_HOME/apache-rat-0.11.jar -d src > RAT_REPORT_src.txt
+java -jar $RAT_HOME/apache-rat-0.11.jar -d examples -e *.mf > RAT_REPORT_examples.txt
+java -jar $RAT_HOME/apache-rat-0.11.jar -d qa/jtreg -e *.mf > RAT_REPORT_qa_jtreg.txt
