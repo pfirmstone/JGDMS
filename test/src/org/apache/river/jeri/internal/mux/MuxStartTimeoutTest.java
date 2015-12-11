@@ -67,8 +67,9 @@ public class MuxStartTimeoutTest {
                         succeeded.set(true);
                     } catch (Throwable e) {
                         failed.set(true);
+                    } finally {
+                        finished.set(true);
                     }
-                    finished.set(true);
                 }
             });
             t.start();
