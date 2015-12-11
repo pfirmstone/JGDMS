@@ -111,7 +111,7 @@ import net.jini.jeri.OutboundRequestIterator;
  *
  * <li><code>org.apache.river.jeri.handshakeTimeout</code> - Time in milliseconds
  * for client-side connections to wait for the server to acknowledge an opening
- * handshake. The default value is 120000 milliseconds (2 minutes).
+ * handshake. The default value is 15000 milliseconds (15 seconds).
  *
  * </ul>
  *
@@ -124,14 +124,14 @@ public final class ConnectionManager {
     private static final long TIMEOUT
             = ((Long) AccessController.doPrivileged(new GetLongAction(
                             "org.apache.river.jeri.connectionTimeout",
-                            120000))).longValue();
+                            15000))).longValue();
     /**
      * How long to wait for a server to respond to an initial client message.
      */
     private static final long HANDSHAKE_TIMEOUT
             = ((Long) AccessController.doPrivileged(new GetLongAction(
                             "org.apache.river.jeri.handshakeTimeout",
-                            360000))).longValue();
+                            15000))).longValue();
     /**
      * ConnectionManager logger.
      */
