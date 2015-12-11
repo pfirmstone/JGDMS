@@ -47,13 +47,14 @@ public class MuxClient extends Mux {
      * @param out the output stream of the underlying connection
      *
      * @param in the input stream of the underlying connection
+     * @param handshakeTimeout
      **/
-    public MuxClient(OutputStream out, InputStream in) throws IOException {
-	super(out, in, Mux.CLIENT, clientInitialInboundRation, 1024);
+    public MuxClient(OutputStream out, InputStream in, long handshakeTimeout) throws IOException {
+	super(out, in, Mux.CLIENT, clientInitialInboundRation, 1024, handshakeTimeout);
     }
 
-    public MuxClient(SocketChannel channel) throws IOException {
-	super(channel, Mux.CLIENT, clientInitialInboundRation, 1024);
+    public MuxClient(SocketChannel channel, long handshakeTimeout) throws IOException {
+	super(channel, Mux.CLIENT, clientInitialInboundRation, 1024, handshakeTimeout);
     }
 
     /**

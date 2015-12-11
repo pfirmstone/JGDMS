@@ -83,7 +83,7 @@ abstract class Mux {
      * used for shutting down sessions when a connection goes down
      */
     private static final Executor systemThreadPool =
-	(Executor) AccessController.doPrivileged(
+	AccessController.doPrivileged(
 	    new GetThreadPoolAction(false));
 
     /** session shutdown tasks to be executed asynchronously */
@@ -125,11 +125,13 @@ abstract class Mux {
     /** lock guarding all mutable instance state (below) */
     final Object muxLock = new Object();
 
-    int initialOutboundRation;		// set from remote connection header
-    private boolean clientConnectionReady = false; // server header received
+    int initialOutboundRation;		// set from remote connection
+    // volatile reads, sync writes on muxLock
+    private volatile boolean clientConnectionReady = false; // server header received
     boolean serverConnectionReady = false;	   // server header sent
 
-    boolean muxDown = false;
+    // volatile reads, sync writes on muxLock
+    volatile boolean muxDown = false;
     String muxDownMessage;
     Throwable muxDownCause;
 
@@ -138,15 +140,14 @@ abstract class Mux {
 
     private int expectedPingCookie = -1;
     
-    /** unguarded instance state */
-    private volatile long startTimeout = 30000; // milliseconds
+    /** ONLY USED BY CLIENT */
+    private final long startTimeout; // milliseconds
 
     /**
      * Constructs a new Mux instance for a connection accessible through
      * standard (blocking) I/O streams.
      */
-    Mux(OutputStream out, InputStream in,
-	int role, int initialInboundRation, int maxFragmentSize)
+    Mux(OutputStream out, InputStream in, int role, int initialInboundRation, int maxFragmentSize, long handshakeTimeout)
 	throws IOException
     {
 	this.role = role;
@@ -160,10 +161,10 @@ abstract class Mux {
 
 	this.connectionIO = new StreamConnectionIO(this, out, in);
 	directBuffersUseful = false;
+        startTimeout = handshakeTimeout;
     }
 
-    Mux(SocketChannel channel,
-	int role, int initialInboundRation, int maxFragmentSize)
+    Mux(SocketChannel channel, int role, int initialInboundRation, int maxFragmentSize, long handshakeTimeout)
 	throws IOException
     {
 	this.role = role;
@@ -177,6 +178,7 @@ abstract class Mux {
 
 	this.connectionIO = new SocketChannelConnectionIO(this, channel);
 	directBuffersUseful = true;
+        startTimeout = handshakeTimeout;
     }
     
     /**
@@ -191,11 +193,11 @@ abstract class Mux {
      * @param timeout
      *            positive value in milliseconds
      */
-    public void setStartTimeout(long timeout) {
-	if (timeout <= 0)
-	    throw new IllegalArgumentException("start timeout must be a positive number of milliseconds");
-	this.startTimeout  = timeout;
-    }
+//    public void setStartTimeout(long timeout) {
+//	if (timeout <= 0)
+//	    throw new IllegalArgumentException("start timeout must be a positive number of milliseconds");
+//	this.startTimeout  = timeout;
+//    }
 
     /**
      * Starts I/O processing.
@@ -221,25 +223,26 @@ abstract class Mux {
 
         if (role == CLIENT) {
             asyncSendClientConnectionHeader();
-	    synchronized (muxLock) {
-		long now = System.currentTimeMillis();
-		long endTime = now + this.startTimeout;
-		while (!muxDown && !clientConnectionReady) {
-		    if (now > endTime) {
-			setDown("timeout waiting for server to respond to handshake", null);
-		    } else {
-                        try {
-                                muxLock.wait(endTime - now);
-                                now = System.currentTimeMillis();
-                        } catch (InterruptedException e) {
-                            setDown("interrupt waiting for connection header", e);
-                        }
+            long now = System.currentTimeMillis();
+            long endTime = now + this.startTimeout;
+            while (!muxDown && !clientConnectionReady) {
+                try {
+                    synchronized (muxLock){
+                        muxLock.wait(endTime - now);
+                        if (clientConnectionReady) return;
+                        if (muxDown) throw new IOException(muxDownMessage, muxDownCause);
                     }
-		}
-		if (muxDown) {
-		    throw new IOException(muxDownMessage, muxDownCause);
-		}
-	    }
+                    now = System.currentTimeMillis();
+                    if (now < endTime) continue;
+                    String message = "timeout waiting for server to respond to handshake";
+                    setDown(message, null);
+                    throw new IOException(message, null);
+                } catch (InterruptedException e) {
+                    String message = "interrupt waiting for connection header";
+                    setDown(message, e);
+                    throw new IOException(message, e);
+                }
+            }
 	}
     }
 
@@ -294,8 +297,8 @@ abstract class Mux {
      */
     final void setDown(final String message, final Throwable cause) {
 	SessionShutdownTask sst = null;
+        if (muxDown) return;
 	synchronized (muxLock) {
-	    if (muxDown) return;
 	    muxDown = true;
 	    muxDownMessage = message;
 	    muxDownCause = cause;

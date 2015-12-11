@@ -58,7 +58,8 @@ public class MuxStartTimeoutTest {
         final AtomicBoolean finished = new AtomicBoolean(false);
         final AtomicBoolean succeeded = new AtomicBoolean(false);
         final AtomicBoolean failed = new AtomicBoolean(false);
-        final MuxClient muxClient = new MuxClient(os, is);
+        // Set mux client timeout in constructor, independant of any system properties.
+        final MuxClient muxClient = new MuxClient(os, is, 15000);
         try {
             Thread t = new Thread(new Runnable() {
                 public void run() {
@@ -71,9 +72,9 @@ public class MuxStartTimeoutTest {
                         finished.set(true);
                     }
                 }
-            });
+            }, "MuxStartTimeoutTest client.start");
             t.start();
-            t.join(35000);
+            t.join(20000); // 5 seconds grace should be sufficient.
             assertTrue(finished.get());
             assertFalse(succeeded.get());
             assertTrue(failed.get());

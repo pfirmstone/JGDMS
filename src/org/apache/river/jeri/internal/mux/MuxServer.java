@@ -46,16 +46,16 @@ public class MuxServer extends Mux {
 
     /** initial inbound ration as server, default is 32768 */
     private static final int serverInitialInboundRation =
-	((Integer) AccessController.doPrivileged(new GetIntegerAction(
+	AccessController.doPrivileged(new GetIntegerAction(
 	    "org.apache.river.jeri.connection.mux.server.initialInboundRation",
-	    32768))).intValue();
+	    32768)).intValue();
 
     /**
      * pool of threads for executing tasks with user code: used for
      * dispatching incoming requests to request dispatchers
      **/
     private static final Executor userThreadPool =
-	(Executor) AccessController.doPrivileged(
+	AccessController.doPrivileged(
 	    new GetThreadPoolAction(true));
 
     /** mux logger */
@@ -83,7 +83,7 @@ public class MuxServer extends Mux {
 		     RequestDispatcher requestDispatcher)
 	throws IOException
     {
-	super(out, in, Mux.SERVER, serverInitialInboundRation, 1024);
+	super(out, in, Mux.SERVER, serverInitialInboundRation, 1024, 0L);
 
 	this.requestDispatcher = requestDispatcher;
 	this.securityContext = Security.getContext();
@@ -93,7 +93,7 @@ public class MuxServer extends Mux {
 		     RequestDispatcher requestDispatcher)
 	throws IOException
     {
-	super(channel, Mux.SERVER, serverInitialInboundRation, 1024);
+	super(channel, Mux.SERVER, serverInitialInboundRation, 1024, 0L);
 
 	this.requestDispatcher = requestDispatcher;
 	this.securityContext = Security.getContext();

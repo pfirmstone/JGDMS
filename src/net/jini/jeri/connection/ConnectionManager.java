@@ -122,16 +122,16 @@ public final class ConnectionManager {
      * How long to leave idle muxes around before closing them.
      */
     private static final long TIMEOUT
-            = ((Long) AccessController.doPrivileged(new GetLongAction(
+            = AccessController.doPrivileged(new GetLongAction(
                             "org.apache.river.jeri.connectionTimeout",
-                            15000))).longValue();
+                            15000)).longValue();
     /**
      * How long to wait for a server to respond to an initial client message.
      */
     private static final long HANDSHAKE_TIMEOUT
-            = ((Long) AccessController.doPrivileged(new GetLongAction(
+            = AccessController.doPrivileged(new GetLongAction(
                             "org.apache.river.jeri.handshakeTimeout",
-                            15000))).longValue();
+                            15000)).longValue();
     /**
      * ConnectionManager logger.
      */
@@ -141,7 +141,7 @@ public final class ConnectionManager {
      * Executor that executes tasks in pooled system threads.
      */
     private static final Executor systemThreadPool
-            = (Executor) AccessController.doPrivileged(
+            =  AccessController.doPrivileged(
                     new GetThreadPoolAction(false));
     /**
      * Set of connection managers with open or pending muxes (connections), for
@@ -252,9 +252,9 @@ public final class ConnectionManager {
      * removes the mux and adds it to the idle list. Returns true if no connects
      * are pending and no muxes remain.
      */
-    synchronized boolean checkIdle(long now, List idle) {
+    synchronized boolean checkIdle(long now, List<OutboundMux> idle) {
         for (int i = muxes.size(); --i >= 0;) {
-            OutboundMux mux = (OutboundMux) muxes.get(i);
+            OutboundMux mux = muxes.get(i);
             if (mux.checkIdle(now)) {
                 muxes.remove(i);
                 idle.add(mux);
@@ -282,7 +282,6 @@ public final class ConnectionManager {
         try {
             mux = (c.getChannel() == null)
                     ? new OutboundMux(this, c) : new OutboundMux(this, c, true);
-            mux.setStartTimeout(HANDSHAKE_TIMEOUT);
         } finally {
             if (mux == null) {
                 try {
@@ -332,7 +331,7 @@ public final class ConnectionManager {
          * Constructs an instance from the connection's streams.
          */
         OutboundMux(ConnectionManager manager, Connection c) throws IOException {
-            super(c.getOutputStream(), c.getInputStream());
+            super(c.getOutputStream(), c.getInputStream(), HANDSHAKE_TIMEOUT);
             this.c = c;
             this.manager = manager;
         }
@@ -341,7 +340,7 @@ public final class ConnectionManager {
          * Constructs an instance from the connection's channel.
          */
         OutboundMux(ConnectionManager manager, Connection c, boolean ignore) throws IOException {
-            super(c.getChannel());
+            super(c.getChannel(), HANDSHAKE_TIMEOUT);
             this.c = c;
             this.manager = manager;
         }

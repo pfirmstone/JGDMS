@@ -71,7 +71,7 @@ import net.jini.security.Security;
  * @see		Security
  * @since 2.0
  **/
-public class GetLongAction implements PrivilegedAction {
+public class GetLongAction implements PrivilegedAction<Long> {
 
     private static final Logger logger =
 	Logger.getLogger("org.apache.river.action.GetLongAction");
@@ -121,7 +121,7 @@ public class GetLongAction implements PrivilegedAction {
      * @return	a <code>Long</code> representing the value of the
      * system property or the default value, or <code>null</code>
      **/
-    public Object run() {
+    public Long run() {
 	try {
 	    Long value = Long.getLong(theProp);
 	    if (value != null) {

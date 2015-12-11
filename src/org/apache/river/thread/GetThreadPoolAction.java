@@ -46,7 +46,7 @@ import java.security.PrivilegedAction;
  *
  * @author Sun Microsystems, Inc.
  **/
-public final class GetThreadPoolAction implements PrivilegedAction {
+public final class GetThreadPoolAction implements PrivilegedAction<Executor> {
 
     /** pool of threads for executing tasks in system thread group */
     private static final ThreadPool systemThreadPool =
@@ -77,7 +77,7 @@ public final class GetThreadPoolAction implements PrivilegedAction {
 	this.user = user;
     }
 
-    public Object run() {
+    public Executor run() {
         if (user){
             getUserThreadPoolPermission.checkGuard(this);
             return userThreadPool;
