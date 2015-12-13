@@ -37,10 +37,10 @@ import java.util.TimeZone;
  */
 class Header {
     
-    private static final SimpleDateFormat dateFormat;
+    private static final SimpleDateFormat DATE_FORMAT;
     static {
-	dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'");
-	dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+	DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'");
+	DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
     }
     
     private Map fields = new HashMap(5);
@@ -166,7 +166,9 @@ class Header {
      * Returns formatted date string for given time.
      */
     static String getDateString(long time) {
-	return dateFormat.format(new Date(time));
+        synchronized (DATE_FORMAT){
+            return DATE_FORMAT.format(new Date(time));
+        }
     }
 
     private static boolean isSpaceOrTab(char c) {

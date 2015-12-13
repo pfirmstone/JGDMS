@@ -267,7 +267,7 @@ public class MultiLogManager
 	    tmpfile = new File(directory);
 	    filenames = tmpfile.list(filter);
 
-	    if (filenames.length == 0)
+	    if (filenames == null || filenames.length == 0)
 	      return;
 
             String logName;

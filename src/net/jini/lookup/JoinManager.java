@@ -46,6 +46,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 
 import java.io.IOException;
+import java.rmi.RemoteException;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -2432,7 +2433,8 @@ public class JoinManager {
         while (iter.hasNext()) {
             try {
                 leaseRenewalMgr.cancel(iter.next().serviceLease );
-            } catch (Exception e){}
+            } catch (UnknownLeaseException e){
+            } catch (RemoteException e) {}
         }//end loop
         leaseRenewalMgr.close();
         joinSet.clear();

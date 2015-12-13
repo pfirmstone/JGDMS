@@ -39,6 +39,8 @@ public class Constants {
      * announcement protocol takes place.
      */
     private static InetAddress announcementAddress = null;
+    
+    private static final Object LOCK = new Object();
 
     /**
      * The port for both unicast and multicast boot requests.
@@ -60,9 +62,11 @@ public class Constants {
     public static final InetAddress getRequestAddress()
 	throws UnknownHostException
     {
-	if (requestAddress == null)
-	    requestAddress = InetAddress.getByName("224.0.1.85");
-	return requestAddress;
+        synchronized (LOCK){
+            if (requestAddress != null) return requestAddress;
+            requestAddress = InetAddress.getByName("224.0.1.85");
+            return requestAddress;
+        }
     }
   
 
@@ -76,8 +80,10 @@ public class Constants {
     public static final InetAddress getAnnouncementAddress()
 	throws UnknownHostException
     {
-	if (announcementAddress == null)
-	    announcementAddress = InetAddress.getByName("224.0.1.84");
-	return announcementAddress;
+        synchronized (LOCK){
+            if (announcementAddress != null) return announcementAddress;
+            announcementAddress = InetAddress.getByName("224.0.1.84");
+            return announcementAddress;
+        }
     }
 }

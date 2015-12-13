@@ -57,12 +57,12 @@ public class SimpleLogFile implements Log {
      */
     private /*final*/ FileOutputStream outfile;
     /** (Relative) File name of the log file */
-    private /*final*/ String name;
+    private final String name;
     /** 
      * Reference to <code>LogRemovalManager</code>, which is called
      * to remove this log from the managed set of logs.
      */
-    private /*final*/ LogRemovalManager logMgr;
+    private final LogRemovalManager logMgr;
     /** 
      * Flag that indicates validity of this log. Set to false
      * by call to <code>invalidate()</code>.
@@ -167,7 +167,7 @@ public class SimpleLogFile implements Log {
      * @see org.apache.river.mahalo.log.MultiLogManager.LogRemovalManager
      */
     public SimpleLogFile(String name, LogRemovalManager logMgr) {
-	init(name, 0, logMgr);
+	this(name, 0, logMgr);
 	readonly = true;
     }
 
@@ -188,14 +188,7 @@ public class SimpleLogFile implements Log {
      * @see org.apache.river.mahalo.log.MultiLogManager.LogRemovalManager
      */
     public SimpleLogFile(String name, long cookie, LogRemovalManager logMgr) {
-	init(name, cookie, logMgr);
-    }
-
-    /*
-     * Utility method that contains code common to all constructors 
-     */
-    private void init(String name, long cookie, LogRemovalManager logMgr) {
-        if (operationsLogger.isLoggable(Level.FINER)) {
+	if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(SimpleLogFile.class.getName(), 
 	        "init", new Object[] {name, Long.valueOf(cookie), logMgr});
 	}
@@ -222,7 +215,7 @@ public class SimpleLogFile implements Log {
      *
      * @see org.apache.river.mahalo.log.Log
      */
-    public long cookie() {
+    public synchronized long cookie() {
 	return cookie;
     }
 

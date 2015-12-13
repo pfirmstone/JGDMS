@@ -329,7 +329,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private final Thread snapshotter;
 
     /** Concurrent object to control read and write access */
-    private final ReadersWriter concurrentObj = new ReadersWriter();
+    private final ReadersWriter concurrentObj;
     /** Object for synchronizing with the service expire thread */
     private final Condition serviceNotifier;
     /** Object for synchronizing with the event expire thread */
@@ -486,6 +486,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     }
     
      private RegistrarImpl(Initializer init){
+        this.concurrentObj = new ReadersWriter();
         this.snapshotNotifier = concurrentObj.newCondition();
         this.eventNotifier = concurrentObj.newCondition();
         this.serviceNotifier = concurrentObj.newCondition();

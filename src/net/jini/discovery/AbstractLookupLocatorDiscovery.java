@@ -377,13 +377,13 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
     /** Data structure containing task data processed by the Notifier Thread */
     private static class NotifyTask {
 	/** The listeners to notify */
-	public final List listeners;
+	public final List<DiscoveryListener> listeners;
 	/** Map of discovered registrars to groups in which each is a member */
-	public final Map groupsMap;
+	public final Map<ServiceRegistrar, String[]> groupsMap;
 	/** True if discarded, else discovered */
 	public final boolean discard;
-	public NotifyTask(List listeners,
-                          Map groupsMap,
+	public NotifyTask(List<DiscoveryListener> listeners,
+                          Map<ServiceRegistrar, String[]> groupsMap,
 			  boolean discard)
 	{
 	    this.listeners = listeners;
@@ -422,11 +422,11 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                     return;
                 }
                 boolean firstListener = true;
-		for(Iterator iter = task.listeners.iterator();iter.hasNext();){
-		    DiscoveryListener l = (DiscoveryListener)iter.next();
+		for(Iterator<DiscoveryListener> iter = task.listeners.iterator();iter.hasNext();){
+		    DiscoveryListener l = iter.next();
 		    DiscoveryEvent e =
                         new DiscoveryEvent(AbstractLookupLocatorDiscovery.this,
-                                           deepCopy((HashMap)task.groupsMap) );
+                                           deepCopy(task.groupsMap) );
                     /* Log the event info about the lookup(s) */
                     if(firstListener && (logger.isLoggable(Level.FINEST)) ) {
                         String eType = (task.discard ? 
@@ -638,13 +638,14 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
             if(listeners.contains(l)) return; //already have this listener
             listeners.add(l); // Small window where it's possible to add duplicates.
         }
-        Map groupsMap = new HashMap(discoveredLocators.size());
+        Map<ServiceRegistrar, String[]> groupsMap 
+                = new HashMap<ServiceRegistrar, String[]>(discoveredLocators.size());
         Iterator<LocatorReg> iter = discoveredLocators.iterator();
         while (iter.hasNext()) {
             LocatorReg reg = iter.next();
             groupsMap.put(reg.getProxy(), reg.getMemberGroups());
         }//end loop
-        List list = new ArrayList(1);
+        List<DiscoveryListener> list = new ArrayList<DiscoveryListener>(1);
         list.add(l);
         if (!groupsMap.isEmpty()) addNotify(list, groupsMap, false);
     }//end addDiscoveryListener
@@ -1159,8 +1160,8 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
     /** Add a notification task to the pending queue, and start an instance of
      *  the Notifier thread if one isn't already running.
      */
-    private void addNotify(List notifies,
-                           Map groupsMap,
+    private void addNotify(List<DiscoveryListener> notifies,
+                           Map<ServiceRegistrar, String[]> groupsMap,
 			   boolean discard)
     {
         pendingNotifies.addLast(new NotifyTask(notifies,
@@ -1265,15 +1266,18 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
      *  @return clone of the input map, and of each key-value pair contained
      *          in the input map
      */
-    private Map deepCopy(HashMap groupsMap) {
+    private Map<ServiceRegistrar, String[]> deepCopy(Map<ServiceRegistrar, String[]> groupsMap) {
         /* clone the input HashMap */
-        HashMap newMap = (HashMap)(groupsMap.clone());
+        Map<ServiceRegistrar, String[]> newMap 
+                = new HashMap<ServiceRegistrar, String[]>(groupsMap);
         /* clone the values of each mapping in place */
-        Set eSet = newMap.entrySet();
-        for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
-            Map.Entry pair = (Map.Entry)itr.next();
+        Set<Map.Entry<ServiceRegistrar, String[]>> eSet = newMap.entrySet();
+        for(Iterator<Map.Entry<ServiceRegistrar, String[]>> itr = eSet.iterator();
+                itr.hasNext(); ) 
+        {
+            Map.Entry<ServiceRegistrar, String[]> pair = itr.next();
             /* only need to clone the value of the order pair */
-            pair.setValue( ((String[])pair.getValue()).clone() );
+            pair.setValue( pair.getValue().clone() );
         }//end loop
         return newMap;
     }//end deepCopy

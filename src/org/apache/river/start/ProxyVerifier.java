@@ -32,7 +32,7 @@ final class ProxyVerifier implements TrustVerifier, Serializable {
     private static final long serialVersionUID = 1L;
 
     /** Logger and configuration component name for SharedGroup */
-    protected static final String START_PROXY = "org.apache.river.start.proxy";
+    private static final String START_PROXY = "org.apache.river.start.proxy";
 
     /** Logger for logging information about this instance */
     private static final Logger logger = Logger.getLogger(START_PROXY);

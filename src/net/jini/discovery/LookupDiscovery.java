@@ -646,7 +646,7 @@ import net.jini.core.constraint.MethodConstraints;
  * @see DiscoveryEvent
  * @see DiscoveryPermission
  */
-public class LookupDiscovery extends AbstractLookupDiscovery 
+public final class LookupDiscovery extends AbstractLookupDiscovery 
                              implements DiscoveryManagement,
                                         DiscoveryGroupManagement
 {

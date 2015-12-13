@@ -355,8 +355,7 @@ public class LeaseRenewalManager {
 	cancelMethod, cancelAllMethod, renewMethod, renewAllMethod
     };
 
-    /** Time window in which to look for batchable leases */
-    private long renewBatchTimeWindow = 1000 * 60 * 5;
+    private final long renewBatchTimeWindow;
 
     /** Task manager for queuing and renewing leases 
      *  NOTE: test failures occur with queue's that have capacity, 
@@ -371,7 +370,7 @@ public class LeaseRenewalManager {
     /**
      * The worst-case renewal round-trip-time
      */
-    private static long renewalRTT = 10 * 1000;
+    private final long renewalRTT ;
 
     /** 
      * Entries for leases that are not actively being renewed.
@@ -413,7 +412,7 @@ public class LeaseRenewalManager {
 
 	    if (e.renewalsDone() || e.endTime <= now) {
 		noRenewals = true;
-		Map lMap = leases.tailMap(new Entry(now));
+		Map lMap = leases.tailMap(new Entry(now, renewalRTT));
 		for (Iterator iter = lMap.values().iterator(); 
 		     iter.hasNext(); )
 		{
@@ -431,8 +430,7 @@ public class LeaseRenewalManager {
 		}
 	    } else {
 		noRenewals = false;
-		Map lMap = leases.tailMap(
-		    new Entry(e.renew + renewBatchTimeWindow));
+		Map lMap = leases.tailMap(new Entry(e.renew + renewBatchTimeWindow, renewalRTT));
 		for (Iterator iter = lMap.values().iterator(); 
 		     iter.hasNext(); )
 		{
@@ -510,6 +508,7 @@ public class LeaseRenewalManager {
 	public final LeaseListener listener;
 	/** Current actual expiration */
 	public long endTime;
+        private final long renewalRTT;
 
 	/** 
 	 * The next time we have to do something with this lease.
@@ -523,25 +522,24 @@ public class LeaseRenewalManager {
 	/** Renewal exception, or null */
 	public Throwable ex = null;
 
-	public Entry(Lease lease,
-		     long expiration,
-		     long renewDuration,
-		     LeaseListener listener)
+	public Entry(Lease lease, long expiration, long renewDuration, long renewalRTT, LeaseListener listener)
 	{
 	    this.endTime = lease.getExpiration();
 	    this.lease = lease;
 	    this.expiration = expiration;
 	    this.renewDuration = renewDuration;
 	    this.listener = listener;
+            this.renewalRTT = renewalRTT;
 	    id = cnt++;
 	}
 
 	/** Create a fake entry for tailMap */
-	public Entry(long renew) {
+	public Entry(long renew, long renewalRTT) {
 	    this.renew = renew;
 	    id = Long.MAX_VALUE;
 	    lease = null;
 	    listener = null;
+            this.renewalRTT = renewalRTT;
 	}
 
 	/**
@@ -713,6 +711,8 @@ public class LeaseRenewalManager {
      * that initially manages no leases.
      */
     public LeaseRenewalManager() {
+        this.renewBatchTimeWindow = 1000 * 60 * 5;
+        this.renewalRTT = 10 * 1000;
         leaseRenewalExecutor = 
             new ThreadPoolExecutor(
                     1,  /* min threads */
@@ -723,6 +723,43 @@ public class LeaseRenewalManager {
                     new NamedThreadFactory("LeaseRenewalManager",false),
                     new CallerRunsPolicy()
             );
+    }
+    
+    private static Init init(Configuration config) throws ConfigurationException{
+        return new Init(config);
+    }
+    
+    private static class Init {
+        long renewBatchTimeWindow = 1000 * 60 * 5 ;
+        long renewalRTT = 10 * 1000;
+        ExecutorService leaseRenewalExecutor;
+        
+        Init(Configuration config) throws ConfigurationException{
+            if (config == null) {
+	    throw new NullPointerException("config is null");
+            }
+            renewBatchTimeWindow = Config.getLongEntry(
+                config, LRM, "renewBatchTimeWindow",
+                renewBatchTimeWindow, 0, Long.MAX_VALUE);
+            renewalRTT = Config.getLongEntry(
+                config, LRM, "roundTripTime",
+                renewalRTT, 1, Long.MAX_VALUE);
+            leaseRenewalExecutor = Config.getNonNullEntry(
+                config, 
+                LRM, 
+                "executorService", 
+                ExecutorService.class,
+                new ThreadPoolExecutor(
+                        1,  /* Min Threads */
+                        11, /* Max Threads */
+                        15,
+                        TimeUnit.SECONDS, 
+                        new SynchronousQueue<Runnable>(), /* No capacity */
+                        new NamedThreadFactory("LeaseRenewalManager",false),
+                        new CallerRunsPolicy()
+                ) 
+            );
+        }
     }
 
     /**
@@ -739,30 +776,13 @@ public class LeaseRenewalManager {
     public LeaseRenewalManager(Configuration config)
 	throws ConfigurationException
     {
-	if (config == null) {
-	    throw new NullPointerException("config is null");
-	}
-	renewBatchTimeWindow = Config.getLongEntry(
-	    config, LRM, "renewBatchTimeWindow",
-	    renewBatchTimeWindow, 0, Long.MAX_VALUE);
-	renewalRTT = Config.getLongEntry(
-	    config, LRM, "roundTripTime",
-	    renewalRTT, 1, Long.MAX_VALUE);
-	leaseRenewalExecutor = Config.getNonNullEntry(
-            config, 
-            LRM, 
-            "executorService", 
-            ExecutorService.class,
-            new ThreadPoolExecutor(
-                    1,  /* Min Threads */
-                    11, /* Max Threads */
-                    15,
-                    TimeUnit.SECONDS, 
-                    new SynchronousQueue<Runnable>(), /* No capacity */
-                    new NamedThreadFactory("LeaseRenewalManager",false),
-                    new CallerRunsPolicy()
-            ) 
-        );
+	this(init(config));
+    }
+    
+    private LeaseRenewalManager(Init init){
+        this.renewBatchTimeWindow = init.renewBatchTimeWindow;
+        this.renewalRTT = init.renewalRTT;
+        this.leaseRenewalExecutor = init.leaseRenewalExecutor;
     }
 
     /**
@@ -790,6 +810,8 @@ public class LeaseRenewalManager {
 			       long desiredExpiration,
 			       LeaseListener listener)
     {
+        this.renewBatchTimeWindow = 1000 * 60 * 5;
+        this.renewalRTT = 10 * 1000;
         leaseRenewalExecutor = new ThreadPoolExecutor(
                 1,  /* Min Threads */
                 11, /* Max Threads */
@@ -1093,7 +1115,7 @@ public class LeaseRenewalManager {
 	Entry e = findEntryDo(lease);
 	if (e != null && !removeLeaseInRenew(e))
 	    leases.remove(e);
-	insertEntry(new Entry(lease, desiredExpiration, renewDuration,
+	insertEntry(new Entry(lease, desiredExpiration, renewDuration, renewalRTT,
 			      listener),
 		    now);
 	calcActualRenews(now);

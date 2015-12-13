@@ -19,6 +19,7 @@ package net.jini.discovery;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Collections;
 import java.util.EventObject;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,7 +56,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    private volatile Map groups;
+    private volatile Map<ServiceRegistrar, String[]> groups;
 
     /**
      * Construct a new <code>DiscoveryEvent</code> object, with the given
@@ -81,10 +82,10 @@ public class DiscoveryEvent extends EventObject {
      *               event to the member groups in which each registrar is
      *               a member
      */
-    public DiscoveryEvent(Object source, Map groups) {
+    public DiscoveryEvent(Object source, Map<ServiceRegistrar, String[]> groups) {
 	super(source);
 	this.groups = groups;
-        this.regs   = (ServiceRegistrar[])(groups.keySet()).toArray
+        this.regs   = groups.keySet().toArray
                                        (new ServiceRegistrar[groups.size()]);
     }
 
@@ -116,14 +117,22 @@ public class DiscoveryEvent extends EventObject {
      *          arrays containing the member groups corresponding to each
      *          registrar.
      */
-    public Map getGroups() {
-        return groups != null ? new HashMap(groups) : null;
+    public Map<ServiceRegistrar, String[]> getGroups() {
+        return groups != null ? new HashMap<ServiceRegistrar, String[]>(groups) : null;
     }
     
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream oin) throws IOException, ClassNotFoundException{
         oin.defaultReadObject();
         regs = regs.clone();
-        if (groups != null) groups = new HashMap(groups);
+        Map<ServiceRegistrar, String[]> groupClone;
+        Map<ServiceRegistrar, String[]> typeCheckedGroups;
+        if (groups != null) {
+            groupClone = new HashMap<ServiceRegistrar, String[]>(groups.size());
+            typeCheckedGroups = Collections.checkedMap(groupClone, ServiceRegistrar.class, String[].class);
+            typeCheckedGroups.putAll(groups);
+            groups = groupClone;
+        }
+            
     }
 }

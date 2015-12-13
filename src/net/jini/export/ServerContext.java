@@ -23,6 +23,7 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import net.jini.io.context.ClientHost;
 import net.jini.io.context.ClientSubject;
 import net.jini.security.Security;
@@ -46,24 +47,28 @@ import net.jini.security.Security;
 public final class ServerContext {
 
     private static final ThreadLocal state = new ThreadLocal();
-    private static ServerContext.Spi[] providers = null;
+    private static ServerContext.Spi[] providers = null; 
+    private static final Object LOCK = new Object();
 
-    private static ServerContext.Spi[] getProviders() {
-        if (providers == null) {
-            providers = (ServerContext.Spi[]) Security.doPrivileged(new PrivilegedAction() {
+    private static Spi[] getProviders() {
+        synchronized (LOCK){
+            if (providers != null) return providers;
+            
+            providers = Security.doPrivileged(new PrivilegedAction<Spi[]>() {
 
-                public Object run() {
+                public Spi[] run() {
                     ClassLoader cl = Thread.currentThread().getContextClassLoader();
-                    ArrayList list = new ArrayList(1);
-                    Iterator i = Service.providers(ServerContext.Spi.class, cl);
+                    List<Spi> list = new ArrayList<Spi>(1);
+                    Iterator<Spi> i = Service.providers(Spi.class, cl);
                     while (i.hasNext()) {
                         list.add(i.next());
                     }
-                    return list.toArray(new ServerContext.Spi[list.size()]);
+                    return list.toArray(new Spi[list.size()]);
                 }
             });
+        
+            return providers;
         }
-        return providers;
     }
 
     /**
@@ -161,7 +166,7 @@ public final class ServerContext {
             throws ServerNotActiveException {
         Collection context = (Collection) state.get();
         if (context == null) {
-            for (int i = 0; i < getProviders().length; i++) {
+            for (int i = 0, l = getProviders().length; i < l; i++) {
                 if ((context = getProviders()[i].getServerContext()) != null) {
                     break;
                 }

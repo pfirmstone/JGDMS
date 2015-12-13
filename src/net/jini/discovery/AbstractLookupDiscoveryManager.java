@@ -396,16 +396,17 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
          */
 	public void discovered(DiscoveryEvent e) {
             ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
-            Map groupsMap = e.getGroups();
+            Map<ServiceRegistrar, String[]> groupsMap = e.getGroups();
             int len = proxys.length;
-            HashMap discoveredGroupsMap = new HashMap(len);
+            Map<ServiceRegistrar, String[]> discoveredGroupsMap 
+                    = new HashMap<ServiceRegistrar, String[]>(len);
             discoveredSetAddLock.lock();
             try {
                 for(int i=0; i<len; i++) {
                         ProxyReg reg = findReg(proxys[i]);
                         if(reg == null) {//newly discovered, send event
-                            reg = new ProxyReg(proxys[i],
-                                              (String[])(groupsMap.get(proxys[i])),
+                            reg = new ProxyReg(proxys[i], 
+                                               groupsMap.get(proxys[i]),
                                                FROM_LOCATOR);
                             discoveredSet.add(reg);
                             discoveredGroupsMap.put(proxys[i],
@@ -501,16 +502,16 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
          *  </pre>
          */
 	public void discarded(DiscoveryEvent e) {
-	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
-            Map groupsMap = e.getGroups();
+	    ServiceRegistrar[] proxys = e.getRegistrars();
+            Map<ServiceRegistrar, String[]> groupsMap = e.getGroups();
             int len = proxys.length;
-            HashMap discardedGroupsMap = new HashMap(len);
+            Map<ServiceRegistrar, String[]> discardedGroupsMap 
+                    = new HashMap<ServiceRegistrar, String[]>(len);
 	    for(int i=0; i<len; i++) {
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg != null) {
-                        String[] newGroups = (String[])groupsMap.get
-                                                                   (reg.proxy);
-                        if( removeDiscoveredSet(reg,FROM_LOCATOR) ) {
+                        String[] newGroups = groupsMap.get(reg.proxy);
+                        if ( removeDiscoveredSet(reg,FROM_LOCATOR) ) {
                             /* Locator discovery only, always send discarded */
                             discardedGroupsMap.put(reg.proxy,newGroups);
                         } else {//group and loc discovery
@@ -575,25 +576,26 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
          */
 	public void discovered(DiscoveryEvent e) {
             ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
-            Map groupsMap = e.getGroups();
+            Map<ServiceRegistrar, String[]> groupsMap = e.getGroups();
             int len = proxys.length;
-            HashMap discoveredGroupsMap = new HashMap(len);
-            HashMap changedGroupsMap    = new HashMap(len);
+            Map<ServiceRegistrar, String[]> discoveredGroupsMap 
+                    = new HashMap<ServiceRegistrar, String[]>(len);
+            Map<ServiceRegistrar, String[]> changedGroupsMap    
+                    = new HashMap<ServiceRegistrar, String[]>(len);
             discoveredSetAddLock.lock();
             try {
                 for(int i=0; i<len; i++) {
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg == null) {//newly discovered, send discovered event
                         reg = new ProxyReg(proxys[i],
-                                          (String[])(groupsMap.get(proxys[i])),
+                                           groupsMap.get(proxys[i]),
                                            FROM_GROUP);
                         discoveredSet.add(reg);
                         discoveredGroupsMap.put(proxys[i],
                                                 groupsMap.get(proxys[i]));
                     } else {//previously discovered by group, by loc or by both
                         String[] oldGroups = reg.getMemberGroups();
-                        String[] newGroups = (String[])groupsMap.get
-                                                                  (reg.proxy);
+                        String[] newGroups = groupsMap.get(reg.proxy);
                         if( groupSetsEqual(oldGroups,newGroups) ) {//by loc
                             reg.addFrom(FROM_GROUP);//send no event
                         } else {//by group or by both, send changed event
@@ -734,15 +736,16 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
          */
 	public void discarded(DiscoveryEvent e) {
 	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
-            Map groupsMap = e.getGroups();
+            Map<ServiceRegistrar, String[]> groupsMap = e.getGroups();
             int len = proxys.length;
-            HashMap discardedGroupsMap = new HashMap(len);
-            HashMap changedGroupsMap   = new HashMap(len);
+            Map<ServiceRegistrar, String[]> discardedGroupsMap 
+                    = new HashMap<ServiceRegistrar, String[]>(len);
+            Map<ServiceRegistrar, String[]> changedGroupsMap   
+                    = new HashMap<ServiceRegistrar, String[]>(len);
 	    for(int i=0; i<len; i++) {
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg != null) {
-                        String[] newGroups = (String[])groupsMap.get
-                                                                   (reg.proxy);
+                        String[] newGroups = groupsMap.get(reg.proxy);
                         if( removeDiscoveredSet(reg,FROM_GROUP) ) {
                             /* group discovery only, always send discarded */
                             discardedGroupsMap.put(reg.proxy,newGroups);
@@ -776,14 +779,14 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
         public void changed(DiscoveryEvent e) {
             /* update the groups of each changed registrar */
             ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
-            Map groupsMap = e.getGroups();
+            Map<ServiceRegistrar, String[]> groupsMap = e.getGroups();
             int len = proxys.length;
-            HashMap changedGroupsMap = new HashMap(len);
+            Map<ServiceRegistrar, String[]> changedGroupsMap 
+                    = new HashMap<ServiceRegistrar, String[]>(len);
 	    for(int i=0; i<len; i++) {
                 ProxyReg reg = findReg(proxys[i]);
                 if(reg != null) {//previously discovered
-                    String[] newGroups = (String[])groupsMap.get
-                                                               (reg.proxy);
+                    String[] newGroups = groupsMap.get(reg.proxy);
                     reg.setMemberGroups(newGroups);
                     changedGroupsMap.put(reg.proxy,newGroups);
                 }//endif
@@ -1094,7 +1097,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
         
         listeners.add(listener);
         if (discoveredSet.isEmpty()) return;
-        HashMap groupsMap = new HashMap(discoveredSet.size());
+        Map<ServiceRegistrar, String[]> groupsMap = new HashMap<ServiceRegistrar, String[]>(discoveredSet.size());
         Iterator<ProxyReg> it = discoveredSet.iterator();
         while (it.hasNext()){
             ProxyReg reg = it.next();
@@ -1229,7 +1232,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      *               a member.
      * @param eventType The type of event.
      */
-    private void notifyListener(Map groupsMap, int eventType) {
+    private void notifyListener(Map<ServiceRegistrar, String[]> groupsMap, int eventType) {
 	if(groupsMap.isEmpty()) return;
 	Iterator<DiscoveryListener> iter = listeners.iterator();
 	while(iter.hasNext()) {
@@ -1253,7 +1256,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      * @param eventType The type of the event.
      */
     private void notifyListener(DiscoveryListener l,
-                                Map groupsMap,
+                                Map<ServiceRegistrar, String[]> groupsMap,
                                 int eventType)
     {
         /* always send discovered and discarded events, not always changed */
@@ -1261,7 +1264,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
             return;
         }
         DiscoveryEvent evt = new DiscoveryEvent(AbstractLookupDiscoveryManager.this,
-                                                deepCopy((HashMap)groupsMap) );
+                                                deepCopy(groupsMap) );
         switch(eventType) {
             case DISCOVERED:
                 l.discovered(evt);
@@ -1337,15 +1340,16 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      *  @return clone of the input map, and of each key-value pair contained
      *          in the input map
      */
-    private Map deepCopy(HashMap groupsMap) {
+    private Map<ServiceRegistrar, String[]> deepCopy(Map<ServiceRegistrar, String[]> groupsMap) {
         /* clone the input HashMap */
-        HashMap newMap = (HashMap)(groupsMap.clone());
+        Map<ServiceRegistrar, String[]> newMap 
+                = new HashMap<ServiceRegistrar, String[]>(groupsMap);
         /* clone the values of each mapping in place */
-        Set eSet = newMap.entrySet();
-        for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
-            Map.Entry pair = (Map.Entry)itr.next();
+        Set<Map.Entry<ServiceRegistrar, String[]>> eSet = newMap.entrySet();
+        for(Iterator<Map.Entry<ServiceRegistrar, String[]>> itr = eSet.iterator(); itr.hasNext(); ) {
+            Map.Entry<ServiceRegistrar, String[]> pair = itr.next();
             /* only need to clone the value of the order pair */
-            pair.setValue( ((String[])pair.getValue()).clone() );
+            pair.setValue( pair.getValue().clone() );
         }
         return newMap;
     }//end deepCopy

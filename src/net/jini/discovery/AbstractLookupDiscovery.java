@@ -348,7 +348,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 			    DiscoveryEvent e =
 				new DiscoveryEvent
                                         ( AbstractLookupDiscovery.this,
-                                          deepCopy((HashMap)task.groupsMap) );
+                                          deepCopy(task.groupsMap) );
                             /* Log the event info about the lookup(s) */
                             if(     firstListener
                                 && (logger.isLoggable(Level.FINEST)) )
@@ -1683,13 +1683,13 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         if (listeners.indexOf(l) >= 0) return; //already have this listener
         listeners.add(l);
         if (registrars.isEmpty()) return;//nothing to send the new listener
-        HashMap groupsMap = new HashMap(registrars.size());
-        Iterator iter = registrars.values().iterator();
+        Map<ServiceRegistrar,String[]> groupsMap = new HashMap(registrars.size());
+        Iterator<UnicastResponse> iter = registrars.values().iterator();
         while (iter.hasNext()) {
-            UnicastResponse resp = (UnicastResponse)iter.next();
+            UnicastResponse resp = iter.next();
             groupsMap.put(resp.getRegistrar(),resp.getGroups());
         }
-        List list = new ArrayList(1);
+        List<DiscoveryListener> list = new ArrayList<DiscoveryListener>(1);
         list.add(l);
         addNotify(list, groupsMap, DISCOVERED);
     }//end addDiscoveryListener
@@ -2625,15 +2625,15 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *  @return clone of the input map, and of each key-value pair contained
      *          in the input map
      */
-    private Map deepCopy(HashMap groupsMap) {
+    private Map<ServiceRegistrar, String[]> deepCopy(Map<ServiceRegistrar,String[]> groupsMap) {
         /* clone the input HashMap */
-        HashMap newMap = (HashMap)(groupsMap.clone());
+        Map<ServiceRegistrar,String[]> newMap = new HashMap<ServiceRegistrar,String[]>(groupsMap);
         /* clone the values of each mapping in place */
-        Set eSet = newMap.entrySet();
-        for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
-            Map.Entry pair = (Map.Entry)itr.next();
+        Set<Map.Entry<ServiceRegistrar,String[]>> eSet = newMap.entrySet();
+        for(Iterator<Map.Entry<ServiceRegistrar,String[]>> itr = eSet.iterator(); itr.hasNext(); ) {
+            Map.Entry<ServiceRegistrar,String[]> pair = itr.next();
             /* only need to clone the value of the order pair */
-            pair.setValue( ((String[])pair.getValue()).clone() );
+            pair.setValue( pair.getValue().clone() );
         }
         return newMap;
     }//end deepCopy

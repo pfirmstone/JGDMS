@@ -136,6 +136,7 @@ class LeaseSet implements Serializable, LeasedResource {
 	this.ID = ID;
 
 	// For completeness
+        expiration = 0;
 	expiration2 = new ExpirationTime(expiration);
 	leaseTable = new LeaseTable();
 

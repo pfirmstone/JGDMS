@@ -283,7 +283,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *
  * @see net.jini.core.discovery.LookupLocator
  */
-public class LookupLocatorDiscovery extends AbstractLookupLocatorDiscovery 
+public final class LookupLocatorDiscovery extends AbstractLookupLocatorDiscovery 
                                     implements DiscoveryManagement,
                                                DiscoveryLocatorManagement
 {
