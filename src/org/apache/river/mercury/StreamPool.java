@@ -44,7 +44,7 @@ class StreamPool {
     // Class fields
     /** Logger for lease related messages */
     private static final Logger persistenceLogger = 
-        MailboxImpl.persistenceLogger;
+        MailboxImpl.PERSISTENCE_LOGGER;
     
     /** 
      * Maximum limit for the number of concurrent <tt>LogStream</tt>s

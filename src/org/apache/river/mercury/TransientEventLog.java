@@ -60,7 +60,7 @@ class TransientEventLog implements EventLog {
 
     /** <tt>Logger</tt> used for persistence-related debugging messages */
     private static final Logger persistenceLogger = 
-	MailboxImpl.persistenceLogger;
+	MailboxImpl.PERSISTENCE_LOGGER;
 
     //
     // Object fields

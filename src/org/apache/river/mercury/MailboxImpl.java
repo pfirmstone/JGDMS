@@ -21,7 +21,6 @@ package org.apache.river.mercury;
 import org.apache.river.config.Config;
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.constants.ThrowableConstants;
-import org.apache.river.landlord.FixedLeasePeriodPolicy;
 import org.apache.river.landlord.LeasedResource;
 import org.apache.river.landlord.LeaseFactory;
 import org.apache.river.landlord.LeasePeriodPolicy;
@@ -44,7 +43,6 @@ import org.apache.river.thread.ReadersWriter.ConcurrentLockException;
 import org.apache.river.thread.ReadyState;
 import org.apache.river.thread.RetryTask;
 import org.apache.river.thread.WakeupManager;
-import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.ConfigurationException;
@@ -54,10 +52,6 @@ import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.tcp.TcpServerEndpoint;
-import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
@@ -169,94 +163,94 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     static final String MERCURY = "org.apache.river.mercury";
 
     /** Logger for lease related messages */
-    static final Logger leaseLogger = 
+    static final Logger LEASE_LOGGER = 
         Logger.getLogger(MERCURY + ".lease");
     
     /** Logger for event delivery related messages */
-    static final Logger deliveryLogger = 
+    static final Logger DELIVERY_LOGGER = 
         Logger.getLogger(MERCURY + ".delivery");
     
     /** Logger for service administration related messages */
-    static final Logger adminLogger = 
+    static final Logger ADMIN_LOGGER = 
         Logger.getLogger(MERCURY + ".admin");
     
     /** Logger for service initialization related messages */
-    static final Logger initLogger = 
+    static final Logger INIT_LOGGER = 
         Logger.getLogger(MERCURY + ".init");
     
     /** Logger for event reception related messages */
-    static final Logger receiveLogger = 
+    static final Logger RECEIVE_LOGGER = 
         Logger.getLogger(MERCURY + ".receive");
     
     /** Logger for lease expiration related messages */
-    static final Logger expirationLogger = 
+    static final Logger EXPIRATION_LOGGER = 
         Logger.getLogger(MERCURY + ".expiration");
     
     /** Logger for service recovery related messages */
-    static final Logger recoveryLogger = 
+    static final Logger RECOVERY_LOGGER = 
         Logger.getLogger(MERCURY + ".recovery");
     
     /** Logger for service persistence related messages */
-    static final Logger persistenceLogger = 
+    static final Logger PERSISTENCE_LOGGER = 
         Logger.getLogger(MERCURY + ".persistence");
     
     /** Logger for (successful) service startup message */
-    static final Logger startupLogger =
+    static final Logger STARTUP_LOGGER =
         Logger.getLogger(MERCURY + ".startup");
    
     /** Logger for service operation messages */
-    static final Logger operationsLogger =
+    static final Logger OPERATIONS_LOGGER =
         Logger.getLogger(MERCURY + ".operations");
 
-    static final String mailboxSourceClass = 
+    static final String MAILBOX_SOURCE_CLASS = 
 	MailboxImpl.class.getName();
 
-    private static final String notifierSourceClass = 
+    private static final String NOTIFIER_SOURCE_CLASS = 
 	Notifier.class.getName();
 
-    private static final String notifyTaskSourceClass = 
+    private static final String NOTIFY_TASK_SOURCE_CLASS = 
 	NotifyTask.class.getName();
 
-    private static final String destroyThreadSourceClass = 
+    private static final String DESTROY_THREAD_SOURCE_CLASS = 
 	DestroyThread.class.getName();
 
-    private static final String expirationThreadSourceClass = 
+    private static final String EXPIRATION_THREAD_SOURCE_CLASS = 
 	ExpirationThread.class.getName();
 
-    private static final String registrationLogObjSourceClass = 
+    private static final String REGISTRATION_LOG_OBJ_SOURCE_CLASS = 
 	RegistrationLogObj.class.getName();
 
-    private static final String registrationEnabledLogObjSourceClass = 
+    private static final String REGISTRATION_ENABLED_LOG_OBJ_SOURCE_CLASS = 
 	RegistrationEnabledLogObj.class.getName();
 
-    private static final String registrationDisabledLogObjSourceClass = 
+    private static final String REGISTRATION_DISABLED_LOG_OBJ_SOURCE_CLASS = 
 	RegistrationDisabledLogObj.class.getName();
 
-    private static final String registrationIteratorEnabledLogObjSourceClass = 
+    private static final String REGISTRATION_ITERATOR_ENABLED_LOG_OBJ_SOURCE_CLASS = 
 	RegistrationIteratorEnabledLogObj.class.getName();
     
-    private static final String lookupGroupsChangedLogObjSourceClass = 
+    private static final String LOOKUP_GROUPS_CHANGED_LOG_OBJ_SOURCE_CLASS = 
 	LookupGroupsChangedLogObj.class.getName();
 
-    private static final String lookupLocatorsChangedLogObjSourceClass = 
+    private static final String LOOKUP_LOCATORS_CHANGED_LOG_OBJ_SOURCE_CLASS = 
 	LookupLocatorsChangedLogObj.class.getName();
 
-    private static final String attrsAddedLogObjSourceClass = 
+    private static final String ATTRS_ADDED_LOG_OBJ_SOURCE_CLASS = 
 	AttrsAddedLogObj.class.getName();
 
-    private static final String attrsModifiedLogObjSourceClass = 
+    private static final String ATTRS_MODIFIED_LOG_OBJ_SOURCE_CLASS = 
 	AttrsModifiedLogObj.class.getName();
 
-    private static final String registrationRenewedLogObjSourceClass = 
+    private static final String REGISTRATION_RENEWED_LOG_OBJ_SOURCE_CLASS = 
 	RegistrationRenewedLogObj.class.getName();
 
-    private static final String registrationCancelledLogObjSourceClass = 
+    private static final String REGISTRATION_CANCELLED_LOG_OBJ_SOURCE_CLASS = 
 	RegistrationCancelledLogObj.class.getName();
 
-    private static final String unknownEventExceptionLogObjSourceClass = 
+    private static final String UNKNOWN_EVENT_EXCEPTION_LOG_OBJ_SOURCE_CLASS = 
 	UnknownEventExceptionLogObj.class.getName();
 
-    private static final String snapshotThreadSourceClass = 
+    private static final String SNAPSHOT_THREAD_SOURCE_CLASS = 
 	SnapshotThread.class.getName();
 
     /** ServiceInfo product value */
@@ -270,6 +264,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	org.apache.river.constants.VersionConstants.SERVER_VERSION;
     /** Log format version */
     private static final int LOG_VERSION = 2;
+    
+    /** The attributes to use when joining lookup services */
+    private static final Entry[] BASE_LOOKUP_ATTRS = new Entry[] { 
+	    new ServiceInfo(PRODUCT, MANUFACTURER, VENDOR, VERSION, "", ""),
+            new BasicServiceType("Event Mailbox")
+    };
 
     /** The inner proxy of this server */
     private /*final*/ volatile MailboxBackEnd serverStub;
@@ -307,7 +307,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     // HashMap is unsynchronized, but we are performing external
     // synchronization via the <code>concurrentObj</code> field. 
     private final Map<Uuid,NotifyTask> activeReg;
-    /** Reliable log to hold registration state information */
+    /** Reliable loG to hold registration state information */
     // Note that event state is kept separately
     private final ReliableLog log;
     /** Flag indicating whether system is in a state of recovery */
@@ -327,6 +327,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private final String persistenceDirectory;
     /** Proxy preparer for listeners */
     private final ProxyPreparer listenerPreparer;
+    /** Proxy preparer recovered */
+    private ProxyPreparer recoveredListenerPreparer;
     /** The exporter for exporting and unexporting */
     protected final Exporter exporter;
    /** ServiceID returned from the lookup registration process */
@@ -353,12 +355,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * this is just used as a shortcut.
      */
     private DiscoveryManagement lookupDiscMgr = null;
-
-    /** The attributes to use when joining lookup services */
-    private final Entry[] baseLookupAttrs = new Entry[] { 
-	    new ServiceInfo(PRODUCT, MANUFACTURER, VENDOR, VERSION, "", ""),
-            new BasicServiceType("Event Mailbox")
-    };
+    
     private Entry[] lookupAttrs = new Entry[] {};
     /** 
      * The lookup groups we should join. 
@@ -383,7 +380,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private final Thread notifier;
     /** Object for coordinating actions with the notification thread */
     private final Object eventNotifier = new Object();
-    /** Registration expirer thread */
+    /** Registration expireR thread */
     private final Thread expirer;
     /** Earliest expiration time of any registration */
     private long minRegExpiration = Long.MAX_VALUE;
@@ -434,12 +431,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     ///////////////////////
 
     public Object getProxy() {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getProxy");
 	}
-	if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+	if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "getProxy", serverStub);
 	}
 	return serverStub;
@@ -447,13 +444,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     /* inherit javadoc */
     public Object getServiceProxy() {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getServiceProxy");
 	}
         readyState.check();
-	if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+	if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "getServiceProxy", mailboxProxy);
 	}
         return mailboxProxy;
@@ -461,13 +458,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     /* inherit javadoc */
     public Object getAdmin() throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getAdmin");
 	}
         readyState.check();
-	if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+	if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "getAdmin", mailboxAdminProxy);
 	}
         return mailboxAdminProxy;
@@ -482,24 +479,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     MailboxImpl(ActivationID activationID, MarshalledObject data) 
 	throws Exception
     {
-        this((String[]) new MarshalledInstance(data).get(false), activationID, true, new Object[] {activationID, data} );
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.entering(mailboxSourceClass, 
-//	        "MailboxImpl", 
-//		new Object[] {activationID, data});
-//	}
-//	this.activationID = activationID;
-//	try {
-//	    // Initialize state
-//	    init((String[])data.get());
-//	} catch (Throwable e) {
-//	    cleanup();
-//	    initFailed(e);
-//	}	  
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.exiting(mailboxSourceClass, 
-//	        "MailboxImpl");
-//	}
+        this((String[]) new MarshalledInstance(data).get(false), activationID,
+                true, new Object[] {activationID, data} );
     }
     
     /////////////////////////
@@ -512,574 +493,197 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * This method is only intended for debugging purposes at this time.
      *  
      */
-    // @param log directory where persistent state is maintained
+    // @param loG directory where persistent state is maintained
     MailboxImpl(String[] configArgs, LifeCycle lc, boolean persistent) 
 	throws Exception
     {
         this(configArgs, null, persistent, new Object[] {Arrays.asList(configArgs), lc, Boolean.valueOf(persistent)});
 	lifeCycle = lc; 
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.entering(mailboxSourceClass, 
-//	        "MailboxImpl", 
-//		new Object[] { configArgs, lc, Boolean.valueOf(persistent)});
-//	}
-//	try {
-//	    lifeCycle = lc;
-//	    this.persistent = persistent;
-//            init(configArgs);
-//	} catch (Throwable e) {
-//	    cleanup();
-//	    initFailed(e);
-//	}	  
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.exiting(mailboxSourceClass, 
-//	        "MailboxImpl");
-//	}
     }
     
-    private MailboxImpl(String[] configArgs, final ActivationID activID, final boolean persistant, Object [] logMessage){
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.entering(
+    private static Configuration config(String[] configArgs) 
+            throws ConfigurationException
+    {
+        Configuration config;
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+            OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
+                "init", (Object[])configArgs);
+        }
+        config =
+            ConfigurationProvider.getInstance(
+                configArgs, MailboxImpl.class.getClassLoader());
+        return config;
+    }
+    
+    private static LoginContext loginContext(Configuration config) 
+            throws ConfigurationException
+    {
+        return config.getEntry(MERCURY, "loginContext", LoginContext.class, null);
+    }
+    
+    private static MailboxImplInit init(final Configuration config, LoginContext loginContext, final ActivationID activID, final boolean persistant, Object [] logMessage) throws ConfigurationException, LoginException, RemoteException, ActivationException, IOException, Exception{
+        MailboxImplInit init = null;
+        if (loginContext != null) {
+//                doInitWithLogin(config, loginContext);
+            /* */
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+                OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
+                    "doInitWithLogin", new Object[] { config, loginContext});
+            }
+            loginContext.login();
+            try {
+                init = Subject.doAsPrivileged(loginContext.getSubject(),
+                    new PrivilegedExceptionAction<MailboxImplInit>() {
+                        public MailboxImplInit run() 
+                                throws 
+                                ConfigurationException, 
+                                RemoteException, 
+                                ActivationException, 
+                                IOException 
+                        {
+//                                doInit(config);
+                            // Thread need to inherit the
+                            // current context.
+                            return new MailboxImplInit(config,
+                                    persistant, 
+                                    activID, 
+                                    BASE_LOOKUP_ATTRS);
+                        }
+                    },
+                    null);
+            } catch (PrivilegedActionException e) {
+                try {
+                    loginContext.logout();
+                } catch (LoginException le) {
+    //TODO - Move to end of cleanup()
+                    if (INIT_LOGGER.isLoggable(Levels.HANDLED)) {
+                        INIT_LOGGER.log(Levels.HANDLED, "Trouble logging out", le);
+                    }
+                }
+                throw e.getException(); 
+            }
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+                OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
+                    "doInitWithLogin");
+            }
+            /* */
+        } else {
+            init = new MailboxImplInit(config, 
+                    persistant, 
+                    activID, 
+                    BASE_LOOKUP_ATTRS
+                    );
+
+        }
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+            OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
+                "init");
+        }
+        return init;
+    }
+        
+    private MailboxImpl( 
+            Configuration config,  
+            final ActivationID activID, 
+            final boolean persistant, 
+            Object [] logMessage ) throws LoginException, 
+            ActivationException, IOException, RemoteException, Exception
+    {
+        this(init(config, loginContext(config), activID, persistant, logMessage), activID, persistant, logMessage);
+    }
+    
+    private MailboxImpl(MailboxImplInit init, 
+            ActivationID activID,
+            final boolean persistent,
+            final Object [] logMessage )
+    {
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+            OPERATIONS_LOGGER.entering(
 		MailboxImpl.class.getName(), "MailboxImpl",logMessage );
 	}
-        this.persistent = persistant;
-        MailboxImplInit init = null;
-        final Configuration config;
-        LoginContext loginContext = null;
-        try {
-           if (operationsLogger.isLoggable(Level.FINER)) {
-                operationsLogger.entering(mailboxSourceClass, 
-                    "init", (Object[])configArgs);
-           }
-           config =
-                ConfigurationProvider.getInstance(
-                    configArgs, getClass().getClassLoader());
-            loginContext = (LoginContext) config.getEntry(
-                MERCURY, "loginContext", LoginContext.class, null);
-            if (loginContext != null) {
-//                doInitWithLogin(config, loginContext);
-                /* */
-                if (operationsLogger.isLoggable(Level.FINER)) {
-                    operationsLogger.entering(mailboxSourceClass, 
-                        "doInitWithLogin", new Object[] { config, loginContext});
-                }
-                loginContext.login();
-                try {
-                    init = Subject.doAsPrivileged(
-                        loginContext.getSubject(),
-                        new PrivilegedExceptionAction<MailboxImplInit>() {
-                            public MailboxImplInit run() throws Exception {
-//                                doInit(config);
-                                // Create these threads here so they inherit
-                                // current context.
-                                return new MailboxImplInit(config,
-                                        persistant, 
-                                        activID, 
-                                        baseLookupAttrs, 
-                                        new LocalLogHandler(),
-                                        persistant ? new SnapshotThread(): null,
-                                        new Notifier(config),
-                                        new ExpirationThread()
-                                        );
-                            }
-                        },
-                        null);
-                } catch (PrivilegedActionException e) {
-                    try {
-                        loginContext.logout();
-                    } catch (LoginException le) {
-        //TODO - Move to end of cleanup()
-                        if (initLogger.isLoggable(Levels.HANDLED)) {
-                            initLogger.log(Levels.HANDLED, "Trouble logging out", le);
-                        }
-                    }
-                    throw e.getException();
-                }
-                if (operationsLogger.isLoggable(Level.FINER)) {
-                    operationsLogger.exiting(mailboxSourceClass, 
-                        "doInitWithLogin");
-                }
-                /* */
-            } else {
-//                doInit(config);
-                init = new MailboxImplInit(config, 
-                        persistant, 
-                        activID, 
-                        baseLookupAttrs, 
-                        new LocalLogHandler(),
-                        persistant ? new SnapshotThread(): null,
-                        new Notifier(config),
-                        new ExpirationThread()
-                        );
-                
-            }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-                operationsLogger.exiting(mailboxSourceClass, 
-                    "init");
-            }
-        } catch (Throwable t){
-            thrown = t;
-        } finally {
-            if (init != null){
-                activationID = init.activationID;
-                activationSystem = init.activationSystem;
-                activationPrepared = init.activationPrepared;
-                exporter = init.exporter;
-                listenerPreparer = init.listenerPreparer;
-                locatorToJoinPreparer = init.locatorToJoinPreparer;
-                leasePolicy = init.leasePolicy;
-                persistenceDirectory = init.persistenceDirectory;
-                recoveredLocatorToJoinPreparer = init.recoveredLocatorToJoinPreparer;
-                logToSnapshotThreshold = init.logToSnapshotThreshold;
-                log = init.log;
-                serviceID = init.serviceID;
-                lookupGroups = init.lookupGroups;
-                lookupLocators = init.lookupLocators;
-                lookupAttrs = init.lookupAttrs;
-                maxUnexportDelay = init.maxUnexportDelay;
-                unexportRetryDelay = init.unexportRetryDelay;
-                lookupDiscMgr = init.lookupDiscMgr;
-                regByExpiration = init.regByExpiration;
-                regByID = init.regByID;
-                activeReg = init.activeReg;
-                /** <code>EventLogIterator</code> generator */
-                eventLogFactory = init.eventLogFactory;
-                pendingReg = init.pendingReg;
-                snapshotter = init.snapshotter;
-                notifier = init.notifier;
-                expirer = init.expirer;
-                this.config = init.config;
-                this.loginContext = loginContext;
-                context = init.context;
-                
-            } else {
-                activationID = activID;
-                activationSystem = null;
-                activationPrepared = false;
-                exporter = null;
-                listenerPreparer = null;
-                locatorToJoinPreparer = null;
-                leasePolicy = null;
-                persistenceDirectory = null;
-                recoveredLocatorToJoinPreparer = null;
-                logToSnapshotThreshold = 0;
-                log = null;
-                serviceID = null;
-                lookupGroups = null;
-                lookupLocators = null;
-                lookupAttrs = null;
-                maxUnexportDelay = 0;
-                unexportRetryDelay = 0;
-                lookupDiscMgr = null;
-                regByExpiration = null;
-                regByID = null;
-                activeReg = null;
-                /** <code>EventLogIterator</code> generator */
-                eventLogFactory = null;
-                pendingReg = null;
-                snapshotter = null;
-                notifier = null;
-                expirer = null;
-                this.config = null;
-                this.loginContext = loginContext;
-                context = null;
-            }
-            // Assign fields.
-        }
-        
-    }
+        this.persistent = persistent; 
+        activationID = init.activationID;
+        activationSystem = init.activationSystem;
+        activationPrepared = init.activationPrepared;
+        exporter = init.exporter;
+        listenerPreparer = init.listenerPreparer;
+        recoveredListenerPreparer = init.recoveredListenerPreparer;
+        locatorToJoinPreparer = init.locatorToJoinPreparer;
+        leasePolicy = init.leasePolicy;
+        persistenceDirectory = init.persistenceDirectory;
+        recoveredLocatorToJoinPreparer = init.recoveredLocatorToJoinPreparer;
+        logToSnapshotThreshold = init.logToSnapshotThreshold;
+        serviceID = init.serviceID;
+        lookupGroups = init.lookupGroups;
+        lookupLocators = init.lookupLocators;
+        lookupAttrs = init.lookupAttrs;
+        maxUnexportDelay = init.maxUnexportDelay;
+        unexportRetryDelay = init.unexportRetryDelay;
+        lookupDiscMgr = init.lookupDiscMgr;
+        regByExpiration = init.regByExpiration;
+        regByID = init.regByID;
+        activeReg = init.activeReg;
+        /** <code>EventLogIterator</code> generator */
+        eventLogFactory = init.eventLogFactory;
+        pendingReg = init.pendingReg;
+        this.config = init.config;
+        this.loginContext = init.loginContext;
+        context = init.context;
 
-//    /** Initialization common to both activatable and transient instances. */
-//    private void init(String[] configArgs) 
-//	throws Exception
-//    {
-//       if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.entering(mailboxSourceClass, 
-//	        "init", (Object[])configArgs);
-//       }
-//       final Configuration config =
-//            ConfigurationProvider.getInstance(
-//	        configArgs, getClass().getClassLoader());
-//        loginContext = (LoginContext) config.getEntry(
-//            MERCURY, "loginContext", LoginContext.class, null);
-//        if (loginContext != null) {
-//            doInitWithLogin(config, loginContext);
-//        } else {
-//            doInit(config);
-//	}
-//	if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.exiting(mailboxSourceClass, 
-//	        "init");
-//	}
-//    }
+        // Assign fields
+        
+        Thread snapShotter = null;
+        Thread notifieR = null;
+        Thread expireR = null;
+        ReliableLog loG = null;
+        try {
+            Object [] result
+                = AccessController.doPrivileged(new PrivilegedExceptionAction<Object[]>(){
+                    public Object [] run() throws Exception {
+                        Object [] res = new Object [4];
+                        res [0] = persistent ? new SnapshotThread(): null;
+                        res [1] = new Notifier(config);
+                        res [2] = new ExpirationThread();
+                        
+                        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+                            OPERATIONS_LOGGER.entering(
+                                MailboxImpl.class.getName(), "MailboxImpl",
+                                    logMessage );
+                        }
+                        if(persistent){
+                            res [3] = new ReliableLog(persistenceDirectory,
+                                    new LocalLogHandler());
+                        } else {
+                            res [3] = null;
+                        }
+                        return res;
+                    }
+                }, context);
+            snapShotter = (Thread) result[0];
+            notifieR = (Thread) result [1];
+            expireR = (Thread) result [2];
+            loG = (ReliableLog) result [3];
+            thrown = null;
+        } catch (PrivilegedActionException ex) {
+            thrown = ex.getException();
+        }
+        this.log = loG;
+        this.snapshotter = snapShotter;
+        this.notifier = notifieR;
+        this.expirer = expireR;
+    }
     
-    /** 
-     * Method that attempts to login before delegating the
-     * rest of the initialization process to <code>doInit</code>
-     */
-//    private void doInitWithLogin(final Configuration config, 
-//        LoginContext loginContext) throws Exception 
-//    {
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.entering(mailboxSourceClass, 
-//	        "doInitWithLogin", new Object[] { config, loginContext});
-//	}
-//        loginContext.login();
-//	try {
-//            Subject.doAsPrivileged(
-//                loginContext.getSubject(),
-//                new PrivilegedExceptionAction() {
-//                    public Object run() throws Exception {
-//                        doInit(config);
-//                        return null;
-//                    }
-//                },
-//                null);
-//	} catch (PrivilegedActionException e) {
-//	    try {
-//	        loginContext.logout();
-//	    } catch (LoginException le) {
-////TODO - Move to end of cleanup()
-//		if (initLogger.isLoggable(Levels.HANDLED)) {
-//	            initLogger.log(Levels.HANDLED, "Trouble logging out", le);
-//		}
-//	    }
-//	    throw e.getException();
-//        }
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.exiting(mailboxSourceClass, 
-//	        "doInitWithLogin");
-//	}
-//    }
-    
-//    /** Initialization common to both activatable and transient instances. */
-//    private void doInit(Configuration config) throws Exception { 
-//
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.entering(mailboxSourceClass, 
-//	        "doInit", config);
-//	}
-////TODO - defer "big" default object to catch block around getNonNullEntry()
-//    
-//        // Get activation specific configuration items, if activated
-//	if (activationID != null) {
-//            ProxyPreparer activationSystemPreparer =
-//                (ProxyPreparer) Config.getNonNullEntry(config,
-//	            MERCURY, "activationSystemPreparer", 
-//		    ProxyPreparer.class, new BasicProxyPreparer());
-//            if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "activationSystemPreparer: {0}", 
-//	        activationSystemPreparer);
-//	    }		
-//            activationSystem =
-//                (ActivationSystem) activationSystemPreparer.prepareProxy(
-//                    ActivationGroup.getSystem());
-//            if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, "Prepared activation system is: {0}", 
-//	        activationSystem);
-//	    }		
-//            ProxyPreparer activationIdPreparer = 
-//	        (ProxyPreparer)  Config.getNonNullEntry(config,
-//	            MERCURY, "activationIdPreparer", 
-//		    ProxyPreparer.class, new BasicProxyPreparer());
-//            if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "activationIdPreparer: {0}", 
-//	        activationIdPreparer);
-//	    }		
-//            activationID = (ActivationID) activationIdPreparer.prepareProxy(
-//                activationID);
-//            if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, "Prepared activationID is: {0}", 
-//	        activationID);
-//	    }		
-//            activationPrepared = true;
-//	
-//            exporter = (Exporter)Config.getNonNullEntry(config,
-//	        MERCURY, "serverExporter", Exporter.class,
-//		new ActivationExporter(
-//		    activationID, 
-//		    new BasicJeriExporter(
-//		        TcpServerEndpoint.getInstance(0), 
-//			new BasicILFactory(), false, true)),
-//		activationID);
-//            if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "Activatable service exporter is: {0}", 
-//	        exporter);
-//	    }		
-//	} else { //Get non-activatable configuration items
-//            exporter = (Exporter) Config.getNonNullEntry(config,
-//                MERCURY, "serverExporter", Exporter.class, 
-//		new BasicJeriExporter(
-//		    TcpServerEndpoint.getInstance(0), 
-//		    new BasicILFactory(), false, true));
-//            if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, 
-//		"Non-activatable service exporter is: {0}", exporter);		
-//	    }
-//	}
-//
-//        listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
-//	    config, MERCURY, "listenerPreparer", ProxyPreparer.class,
-//            new BasicProxyPreparer());
-//        if (initLogger.isLoggable(Level.CONFIG)) {
-//            initLogger.log(Level.CONFIG, "Listener preparer is: {0}", 
-//	    listenerPreparer);	
-//	}
-//	
-//        /* Get the proxy preparers for the lookup locators to join */
-//        locatorToJoinPreparer = (ProxyPreparer)Config.getNonNullEntry
-//             (config, MERCURY, "locatorToJoinPreparer",
-//              ProxyPreparer.class, new BasicProxyPreparer());
-//        if (initLogger.isLoggable(Level.CONFIG)) {
-//            initLogger.log(Level.CONFIG, "Locator preparer is: {0}", 
-//	    locatorToJoinPreparer);
-//	}	
-//	
-//        // Create lease policy -- used by recovery logic, below
-//        leasePolicy = (LeasePeriodPolicy) Config.getNonNullEntry(config,
-//	    MERCURY, "leasePeriodPolicy", LeasePeriodPolicy.class,
-//            new FixedLeasePeriodPolicy(3 * HOURS, 1 * HOURS));
-//        if (initLogger.isLoggable(Level.CONFIG)) {
-//            initLogger.log(Level.CONFIG, "LeasePeriodPolicy is: {0}", 
-//	    leasePolicy);
-//	}	
-//	    
-//	// Note: referenced by recovery logic in rebuildTransientState()	
-//        ProxyPreparer recoveredListenerPreparer = null;
-//        if (persistent) {
-//	    persistenceDirectory = 
-//	        (String)Config.getNonNullEntry(
-//                    config, MERCURY, "persistenceDirectory", String.class);
-//            if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "Persistence directory is: {0}", 
-//	        persistenceDirectory);
-//	    }	
-//	    // Note: referenced by recovery logic in rebuildTransientState()	
-//            recoveredListenerPreparer = 
-//	        (ProxyPreparer) Config.getNonNullEntry(
-//	        config, MERCURY, "recoveredListenerPreparer", ProxyPreparer.class,
-//                new BasicProxyPreparer());
-//            if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "Recovered listener preparer is: {0}", 
-//	        recoveredListenerPreparer);	
-//	    }
-//	    // Note: referenced by recovery logic, below	
-//            recoveredLocatorToJoinPreparer = (ProxyPreparer)Config.getNonNullEntry
-//                 (config, MERCURY, "recoveredLocatorToJoinPreparer",
-//                  ProxyPreparer.class, new BasicProxyPreparer());
-//            if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "Recovered locator preparer is: {0}", 
-//	        recoveredLocatorToJoinPreparer);
-//	    }	
-//
-//	    logToSnapshotThreshold = Config.getIntEntry(config,
-//                MERCURY, "logToSnapshotThreshold", 50, 0, Integer.MAX_VALUE);
-//	    
-////            log = new ReliableLog(persistenceDirectory, new LocalLogHandler());
-//
-//	    if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, "Recovering persistent state");
-//	    }
-//            inRecovery = true;
-//            log.recover();
-//            inRecovery = false;
-//	}
-//
-//	if (serviceID == null) { // First time up, get initial values
-//	    if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, "Getting initial values.");
-//	    }
-//	    serviceID = UuidFactory.generate();
-//	    if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, "ServiceID: {0}", serviceID);
-//	    }
-//	    // Can be null for ALL_GROUPS
-//            lookupGroups = (String[])config.getEntry(MERCURY, 
-//	        "initialLookupGroups", String[].class, 
-//		new String[] { "" }); //default to public group
-//	    if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "Initial groups:");
-//	        dumpGroups(lookupGroups, initLogger, Level.CONFIG);
-//	    }
-//	    /*
-//	     * Note: Configuration provided locators are assumed to be 
-//	     * prepared already.
-//	     */
-//            lookupLocators = (LookupLocator[]) Config.getNonNullEntry(config,
-//	        MERCURY, "initialLookupLocators", LookupLocator[].class, 
-//		new LookupLocator[0]);
-//	    if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "Initial locators:");
-//	        dumpLocators(lookupLocators, initLogger, Level.CONFIG);
-//	    }
-//
-//            final Entry[] initialAttrs = 
-//	        (Entry[])Config.getNonNullEntry(config,
-//	            MERCURY, "initialLookupAttributes" ,
-//		    Entry[].class, new Entry[0]);
-//	    if (initLogger.isLoggable(Level.CONFIG)) {
-//                initLogger.log(Level.CONFIG, "Initial lookup attributes:");
-//	        dumpAttrs(initialAttrs, initLogger, Level.CONFIG);
-//	    }
-//            if (initialAttrs.length == 0) {
-//                lookupAttrs = baseLookupAttrs;
-//            } else {
-//                lookupAttrs = 
-//		    new Entry[initialAttrs.length + baseLookupAttrs.length];
-//                int i=0;
-//                for (int j=0; j<baseLookupAttrs.length; j++, i++)
-//                    lookupAttrs[i] = baseLookupAttrs[j];
-//                for (int j=0; j<initialAttrs.length; j++, i++)
-//                    lookupAttrs[i] = initialAttrs[j];
-//            }
-//	    if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, 
-//		    "Combined lookup attributes:"); 
-//	        dumpAttrs(lookupAttrs, initLogger, Level.FINEST);
-//	    }
-//        } else { // recovered logic
-//	    if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, "Preparing recovered locators:"); 
-//	        dumpLocators(lookupLocators, initLogger, Level.FINEST);
-//	    }
-//            prepareExistingLocators(
-//	        recoveredLocatorToJoinPreparer, lookupLocators);
-////TODO - Add recovered state debug: groups, locators, etc.
-//	}
-//	
-//        if (persistent) {
-//	    // Take snapshot of current state.
-//	    if (initLogger.isLoggable(Level.FINEST)) {
-//                initLogger.log(Level.FINEST, "Taking snapshot.");
-//	    }
-//            log.snapshot();
-//
-//            // Reconstruct any transient state, if necessary.
-//            rebuildTransientState(recoveredListenerPreparer);
-//	    
-//            /*  ----  ----- */
-//	    // Start snapshot thread belongs in start method
-////	    snapshotter = new SnapshotThread();
-//            snapshotter.start();
-//	}
-//        
-//	maxUnexportDelay = Config.getLongEntry(config, MERCURY, 
-//	    "maxUnexportDelay", 2 * MINUTES, 0, Long.MAX_VALUE);
-//
-//	unexportRetryDelay = Config.getLongEntry(config, MERCURY, 
-//	    "unexportRetryDelay", SECONDS, 1, Long.MAX_VALUE);
-//        
-//        /*  ---  The following will go into start method --- */
-//
-//        // Start threads
-////	notifier = new Notifier(config);
-//        notifier.start();
-////	expirer = new ExpirationThread();
-//        expirer.start();
-//
-//	// Export server instance and get its reference
-//	serverStub = (MailboxBackEnd)exporter.export(this);
-//        if (initLogger.isLoggable(Level.FINEST)) {
-//            initLogger.log(Level.FINEST, "Service stub is: {0}", 
-//	    serverStub);	
-//	}	
-//
-//        // Create the proxy that will be registered in the lookup service
-//        mailboxProxy = 
-//	    MailboxProxy.create(serverStub, serviceID);
-//        if (initLogger.isLoggable(Level.FINEST)) {
-//            initLogger.log(Level.FINEST, "Service proxy is: {0}", 
-//	    mailboxProxy);
-//	}		
-//
-//        // Create the admin proxy for this service
-//        mailboxAdminProxy = 
-//	    MailboxAdminProxy.create(serverStub, serviceID);
-//        if (initLogger.isLoggable(Level.FINEST)) {
-//            initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
-//	    mailboxAdminProxy);		
-//	}
-//
-//	// Create leaseFactory
-//	leaseFactory = new LeaseFactory(serverStub, serviceID);
-//
-//        // Get shorthand reference to the discovery manager
-//	try {
-//            lookupDiscMgr  = 
-//                (DiscoveryManagement)Config.getNonNullEntry(config,
-//	            MERCURY, "discoveryManager",
-//                    DiscoveryManagement.class);
-//            if(lookupDiscMgr instanceof DiscoveryGroupManagement) {
-//                 // Verify proper initial state ---> NO_GROUPS
-//                String[] groups =
-//                    ((DiscoveryGroupManagement)lookupDiscMgr).getGroups();
-//                if( (groups == DiscoveryGroupManagement.ALL_GROUPS) ||
-//                    (groups.length != 0) )
-//                {
-//                    throw new ConfigurationException(
-//                        "discoveryManager entry must be configured " +
-//		        " with no groups.");
-//                }//endif
-//	    } else {
-//               throw new ConfigurationException(
-//                    "discoveryManager entry must implement " +
-//                    "DiscoveryGroupManagement");
-//            }
-//	    
-//            if(lookupDiscMgr instanceof DiscoveryLocatorManagement) {
-//                LookupLocator[] locs =
-//                        ((DiscoveryLocatorManagement)lookupDiscMgr).getLocators();
-//                if( (locs != null) && (locs.length != 0) ) {
-//                    throw new ConfigurationException(
-//                        "discoveryManager entry must be configured " +
-//		        "with no locators");
-//                }//endif
-//	    } else {
-//                throw new ConfigurationException(
-//                    "discoveryManager entry must implement " +
-//                    "DiscoveryLocatorManagement");
-//            }  
-//	    
-//	    ((DiscoveryGroupManagement)lookupDiscMgr).setGroups(lookupGroups);
-//	    ((DiscoveryLocatorManagement)lookupDiscMgr).setLocators(lookupLocators);
-//	} catch (NoSuchEntryException e) {
-//	    lookupDiscMgr  =
-//		new LookupDiscoveryManager(lookupGroups, lookupLocators,
-//                    null, config);
-//	}
-//        if (initLogger.isLoggable(Level.FINEST)) {
-//            initLogger.log(Level.FINEST, "Discovery manager is: {0}", 
-//	    lookupDiscMgr);
-//	}		
-//
-//        ServiceID lookupID = new ServiceID(
-//	    serviceID.getMostSignificantBits(),
-//	    serviceID.getLeastSignificantBits());
-//
-//	if (initLogger.isLoggable(Level.FINEST)) {
-//            initLogger.log(Level.FINEST, "Creating JoinManager.");
-//	}
-//	joiner = new JoinManager(
-//	    mailboxProxy,                // service object
-//	    lookupAttrs,               // service attributes
-//	    lookupID,                 // Service ID
-//	    lookupDiscMgr,             // DiscoveryManagement ref - default
-//	    null,                      // LeaseRenewalManager reference
-//	    config); 
-//	                      
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//	    operationsLogger.exiting(mailboxSourceClass, 
-//	        "doInit");
-//	}
-//        readyState.ready();
-//
-//	if (startupLogger.isLoggable(Level.INFO)) {
-//            startupLogger.log
-//                   (Level.INFO, "Mercury started: {0}", this);
-//        }
-//
-//    } // End doInit()
-//    
+    private MailboxImpl(String[] configArgs,
+            final ActivationID activID, 
+            final boolean persistant, 
+            Object [] logMessage) 
+        throws ConfigurationException, ActivationException,
+            IOException, RemoteException, Exception
+    {
+        this(config(configArgs), activID, persistant, logMessage);
+    }
+   
+    /* Recovery and starting of threads performed here */
     public void start() throws Exception {
         concurrentObj.writeLock();
         if (started) return;
@@ -1092,39 +696,212 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 @Override
                 public Object run() throws Exception {
                     if (persistent){
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
+                        MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Recovering persistent state");
+                        }
+                        log.recover();  
+                    }
+                    if (serviceID == null) {
+                        // First time up, get initial values
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Getting initial values.");
+                        }
+                        serviceID = UuidFactory.generate();
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.FINEST, "ServiceID: {0}", serviceID);
+                        }
+                        // Can be null for ALL_GROUPS
+                        lookupGroups = (String[]) config.getEntry(MailboxImpl.MERCURY, "initialLookupGroups", String[].class, new String[]{""}); //default to public group
+                        //default to public group
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Initial groups:");
+                            MailboxImpl.dumpGroups(lookupGroups, MailboxImpl.INIT_LOGGER, Level.CONFIG);
+                        }
+                        /*
+                         * Note: Configuration provided locators are assumed to be
+                         * prepared already.
+                         */
+                        lookupLocators = (LookupLocator[]) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "initialLookupLocators", LookupLocator[].class, new LookupLocator[0]);
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Initial locators:");
+                            MailboxImpl.dumpLocators(lookupLocators, MailboxImpl.INIT_LOGGER, Level.CONFIG);
+                        }
+                        final Entry[] initialAttrs = (Entry[]) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "initialLookupAttributes", Entry[].class, new Entry[0]);
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Initial lookup attributes:");
+                            MailboxImpl.dumpAttrs(initialAttrs, MailboxImpl.INIT_LOGGER, Level.CONFIG);
+                        }
+                        if (initialAttrs.length == 0) {
+                            lookupAttrs = BASE_LOOKUP_ATTRS;
+                        } else {
+                            lookupAttrs = new Entry[initialAttrs.length + BASE_LOOKUP_ATTRS.length];
+                            int i = 0;
+                            for (int j = 0; j < BASE_LOOKUP_ATTRS.length; j++, i++) {
+                                lookupAttrs[i] = BASE_LOOKUP_ATTRS[j];
+                            }
+                            for (int j = 0; j < initialAttrs.length; j++, i++) {
+                                lookupAttrs[i] = initialAttrs[j];
+                            }
+                        }
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Combined lookup attributes:");
+                            MailboxImpl.dumpAttrs(lookupAttrs, MailboxImpl.INIT_LOGGER, Level.FINEST);
+                        }
+                    } else {
+                        // recovered logic
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Preparing recovered locators:");
+                            MailboxImpl.dumpLocators(lookupLocators, MailboxImpl.INIT_LOGGER, Level.FINEST);
+                        }
+                        MailboxImpl.prepareExistingLocators(recoveredLocatorToJoinPreparer, lookupLocators);
+                        //TODO - Add recovered state debug: groups, locators, etc.
+                    }
+                    if (persistent) {
+                        // Take snapshot of current state.
+                        if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
+                            MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Taking snapshot.");
+                        }
+                        log.snapshot();
+                        
+                        // Reconstruct any transient state, if necessary.
+                        // Rebuilds internal data structures after a restart.
+                        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+                            OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
+                                "RebuildTransientState", recoveredListenerPreparer);
+                        }
+
+                        // Reconstruct regByExpiration and pendingReg data structures,
+                        // if necessary.
+                        if (!regByID.isEmpty()) {
+                            if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                RECOVERY_LOGGER.log(Level.FINEST, "Rebuilding transient state ...");
+                            }
+                            Collection regs = regByID.values();
+                            Iterator iter = regs.iterator();
+                            ServiceRegistration reg = null;
+                            Uuid uuid = null;
+                            EventLogIterator eli = null; 
+                            while (iter.hasNext()) {
+                                reg = (ServiceRegistration)iter.next(); // get Reg
+                                uuid = (Uuid)reg.getCookie();           // get its Uuid
+                                if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                    RECOVERY_LOGGER.log(Level.FINEST, "Checking reg : {0}", reg);
+                                }
+                                // Check if registration is still current
+                                if (ensureCurrent(reg)) {
+                                    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                        RECOVERY_LOGGER.log(Level.FINEST,
+                                        "Restoring reg transient state ...");
+                                    }
+                                    try {
+                                        concurrentObj.writeUnlock();//release
+                                        // Holding a lock while calling this method should be avoided.
+                                        reg.restoreTransientState(recoveredListenerPreparer);
+                                    } catch (Exception e) {
+                                        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                                            RECOVERY_LOGGER.log(Levels.HANDLED,
+                                                "Trouble restoring reg transient state", e);
+                                        }
+                                        try {
+                                            reg.setEventTarget(null);
+                                        } catch (IOException ioe) {
+                                            throw new AssertionError(
+                                                "Setting a null target threw an exception: "
+                                                + ioe);
+                                        }
+                                    } finally {
+                                        concurrentObj.writeLock();//relock
+                                    } 
+
+                                    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                        RECOVERY_LOGGER.log(Level.FINEST,
+                                            "Reinitializing iterator ...");
+                                    }
+                                    // regenerate an EventLogIterator for this Reg
+                                    // Note that event state is maintained separately
+                                    // through the event loG mechanism.
+                                    eli = persistent?
+                                        eventLogFactory.iterator(uuid, 
+                                            getEventLogPath(persistenceDirectory, uuid)):
+                                        eventLogFactory.iterator(uuid); 
+                                    reg.setIterator(eli);
+                                    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                        RECOVERY_LOGGER.log(Level.FINEST, 
+                                        "Adding registration to expiration watch list");
+                                    }
+                                    // Put Reg into time sorted collection
+                                    regByExpiration.put(reg, reg);
+
+                                    // Check if registration needs to be added to the
+                                    // pending list. Note, we could have processed
+                                    // an "enabled" log record during recovery, so 
+                                    // only add it if it's not already there.
+                                    // We don't need to check activeReg since the
+                                    // the notifieR hasn't kicked in yet. Don't call
+                                    // enableRegistration() since it clears the "unknown
+                                    // events" list which we want to maintain.
+                                    if (reg.hasEventTarget() &&
+                                        !pendingReg.contains(uuid))
+                                    {
+                                        if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                            RECOVERY_LOGGER.log(Level.FINEST, 
+                                                "Adding registration to pending task list");
+                                        }
+                                        pendingReg.add(uuid);
+
+                                    }
+                                } else {
+                                    /* Registration has expired, so remove it via the iterator,
+                                     * which is the only "safe" way to do it during a traversal.
+                                     * Call the overloaded version of removeRegistration()
+                                     * which will avoid directly removing the registration
+                                     * from regByID (which would result in a 
+                                     * ConcurrentModificationException). See Bug 4507320.
+                                     */
+                                    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                        RECOVERY_LOGGER.log(Level.FINEST,
+                                            "Removing expired registration: ");
+                                    }
+                                    iter.remove();
+                                    removeRegistration(uuid, reg, true);
+                                }
+                            }
+                        }
+                        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+                            OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
+                                "rebuildTransientState");
+                        }
+                    
                         // Start snapshot thread belongs in start method
-            //	    snapshotter = new SnapshotThread();
                         snapshotter.start();
                     }
 
                     /*  ---  The following will go into start method --- */
 
                     // Start threads
-            //	notifier = new Notifier(config);
                     notifier.start();
-            //	expirer = new ExpirationThread();
                     expirer.start();
 
                     // Export server instance and get its reference
                     serverStub = (MailboxBackEnd)exporter.export(MailboxImpl.this);
-                    if (initLogger.isLoggable(Level.FINEST)) {
-                        initLogger.log(Level.FINEST, "Service stub is: {0}", 
+                    if (INIT_LOGGER.isLoggable(Level.FINEST)) {
+                        INIT_LOGGER.log(Level.FINEST, "Service stub is: {0}", 
                         serverStub);	
                     }	
 
                     // Create the proxy that will be registered in the lookup service
                     mailboxProxy = 
                         MailboxProxy.create(serverStub, serviceID);
-                    if (initLogger.isLoggable(Level.FINEST)) {
-                        initLogger.log(Level.FINEST, "Service proxy is: {0}", 
+                    if (INIT_LOGGER.isLoggable(Level.FINEST)) {
+                        INIT_LOGGER.log(Level.FINEST, "Service proxy is: {0}", 
                         mailboxProxy);
                     }		
 
                     // Create the admin proxy for this service
                     mailboxAdminProxy = 
                         MailboxAdminProxy.create(serverStub, serviceID);
-                    if (initLogger.isLoggable(Level.FINEST)) {
-                        initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
+                    if (INIT_LOGGER.isLoggable(Level.FINEST)) {
+                        INIT_LOGGER.log(Level.FINEST, "Service admin proxy is: {0}", 
                         mailboxAdminProxy);		
                     }
 
@@ -1175,8 +952,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                             new LookupDiscoveryManager(lookupGroups, lookupLocators,
                                 null, config);
                     }
-                    if (initLogger.isLoggable(Level.FINEST)) {
-                        initLogger.log(Level.FINEST, "Discovery manager is: {0}", 
+                    if (INIT_LOGGER.isLoggable(Level.FINEST)) {
+                        INIT_LOGGER.log(Level.FINEST, "Discovery manager is: {0}", 
                         lookupDiscMgr);
                     }		
 
@@ -1184,8 +961,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         serviceID.getMostSignificantBits(),
                         serviceID.getLeastSignificantBits());
 
-                    if (initLogger.isLoggable(Level.FINEST)) {
-                        initLogger.log(Level.FINEST, "Creating JoinManager.");
+                    if (INIT_LOGGER.isLoggable(Level.FINEST)) {
+                        INIT_LOGGER.log(Level.FINEST, "Creating JoinManager.");
                     }
                     joiner = new JoinManager(
                         mailboxProxy,                // service object
@@ -1195,14 +972,14 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         null,                      // LeaseRenewalManager reference
                         config); 
 
-                    if (operationsLogger.isLoggable(Level.FINER)) {
-                        operationsLogger.exiting(mailboxSourceClass, 
+                    if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+                        OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
                             "doInit");
                     }
                     readyState.ready();
 
-                    if (startupLogger.isLoggable(Level.INFO)) {
-                        startupLogger.log
+                    if (STARTUP_LOGGER.isLoggable(Level.INFO)) {
+                        STARTUP_LOGGER.log
                                (Level.INFO, "Mercury started: {0}", this);
                     }
                     return null;
@@ -1221,202 +998,97 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         }
     }
 
-    // Rebuilds internal data structures after a restart.
-    private void rebuildTransientState(ProxyPreparer recoveredListenerPreparer) {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
-	        "rebuildTransientState", recoveredListenerPreparer);
-	}
-
-	// Reconstruct regByExpiration and pendingReg data structures,
-	// if necessary.
-	if (!regByID.isEmpty()) {
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, "Rebuilding transient state ...");
-            }
-	    Collection regs = regByID.values();
-	    Iterator iter = regs.iterator();
-	    ServiceRegistration reg = null;
-	    Uuid uuid = null;
-            EventLogIterator eli = null; 
-	    while (iter.hasNext()) {
-	        reg = (ServiceRegistration)iter.next(); // get Reg
-	        uuid = (Uuid)reg.getCookie();           // get its Uuid
-	        if (recoveryLogger.isLoggable(Level.FINEST)) {
-                    recoveryLogger.log(Level.FINEST, "Checking reg : {0}", reg);
-		}
-	        // Check if registration is still current
-	        if (ensureCurrent(reg)) {
-	            if (recoveryLogger.isLoggable(Level.FINEST)) {
-                        recoveryLogger.log(Level.FINEST,
-			"Restoring reg transient state ...");
-		    }
-                    try {
-                        reg.restoreTransientState(recoveredListenerPreparer);
-                    } catch (Exception e) {
-	                if (recoveryLogger.isLoggable(Levels.HANDLED)) {
-                            recoveryLogger.log(Levels.HANDLED,
-			        "Trouble restoring reg transient state", e);
-			}
-                        try {
-                            reg.setEventTarget(null);
-                        } catch (IOException ioe) {
-                            throw new AssertionError(
-                                "Setting a null target threw an exception: "
-                                + ioe);
-                        }
-                    }  
-		    		
-	            if (recoveryLogger.isLoggable(Level.FINEST)) {
-                        recoveryLogger.log(Level.FINEST,
-			    "Reinitializing iterator ...");
-	            }
-		    // regenerate an EventLogIterator for this Reg
-		    // Note that event state is maintained separately
-		    // through the event log mechanism.
-                    eli = persistent?
-		        eventLogFactory.iterator(uuid, 
-		            getEventLogPath(persistenceDirectory, uuid)):
-			eventLogFactory.iterator(uuid); 
-		    reg.setIterator(eli);
-	            if (recoveryLogger.isLoggable(Level.FINEST)) {
-                        recoveryLogger.log(Level.FINEST, 
-		        "Adding registration to expiration watch list");
-		    }
-		    // Put Reg into time sorted collection
-	            regByExpiration.put(reg, reg);
-
-	            // Check if registration needs to be added to the
-	            // pending list. Note, we could have processed
-	            // an "enabled" log record during recovery, so 
-	            // only add it if it's not already there.
-	            // We don't need to check activeReg since the
-	            // the notifier hasn't kicked in yet. Don't call
-	            // enableRegistration() since it clears the "unknown
-	            // events" list which we want to maintain.
-	            if (reg.hasEventTarget() &&
-	                !pendingReg.contains(uuid))
-		    {
-	                if (recoveryLogger.isLoggable(Level.FINEST)) {
-                            recoveryLogger.log(Level.FINEST, 
-			        "Adding registration to pending task list");
-			}
-        	        pendingReg.add(uuid);
-
-	            }
-	        } else {
-	            /* Registration has expired, so remove it via the iterator,
-		     * which is the only "safe" way to do it during a traversal.
-		     * Call the overloaded version of removeRegistration()
-		     * which will avoid directly removing the registration
-		     * from regByID (which would result in a 
-		     * ConcurrentModificationException). See Bug 4507320.
-		     */
-    	            if (recoveryLogger.isLoggable(Level.FINEST)) {
-                        recoveryLogger.log(Level.FINEST,
-			    "Removing expired registration: ");
-		    }
-		    iter.remove();
-	            removeRegistration(uuid, reg, true);
-	        }
-	    }
-	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
-	        "rebuildTransientState");
-	}
-    }
     /*
      *
      */
     private void cleanup() {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, "cleanup");
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, "cleanup");
 	}
         if (serverStub != null) { // implies that exporter != null
 	    try {
-                if(initLogger.isLoggable(Level.FINEST)) {
-                    initLogger.log(Level.FINEST, "Unexporting service");
+                if(INIT_LOGGER.isLoggable(Level.FINEST)) {
+                    INIT_LOGGER.log(Level.FINEST, "Unexporting service");
 		}		    
 	        exporter.unexport(true);
 	    } catch (Throwable t) {
-                if(initLogger.isLoggable(Levels.HANDLED)) {
-                    initLogger.log(Levels.HANDLED, "Trouble unexporting service", t);
+                if(INIT_LOGGER.isLoggable(Levels.HANDLED)) {
+                    INIT_LOGGER.log(Levels.HANDLED, "Trouble unexporting service", t);
 		}		    
 	    }
 	}
 	
 	if (joiner != null) {
 	    try {
-                if(initLogger.isLoggable(Level.FINEST)) {
-                    initLogger.log(Level.FINEST, "Terminating join manager");
+                if(INIT_LOGGER.isLoggable(Level.FINEST)) {
+                    INIT_LOGGER.log(Level.FINEST, "Terminating join manager");
 		}		    
 	        joiner.terminate();
 	    } catch (Throwable t) {
-                if(initLogger.isLoggable(Levels.HANDLED)) {
-                    initLogger.log(Levels.HANDLED, 
+                if(INIT_LOGGER.isLoggable(Levels.HANDLED)) {
+                    INIT_LOGGER.log(Levels.HANDLED, 
 		    "Trouble terminating join manager", t);
 		}		    
 	    }
 	}
 	if (lookupDiscMgr != null) {
 	    try {
-                if(initLogger.isLoggable(Level.FINEST)) {
-                    initLogger.log(Level.FINEST, 
+                if(INIT_LOGGER.isLoggable(Level.FINEST)) {
+                    INIT_LOGGER.log(Level.FINEST, 
 		    "Terminating lookup discovery manager");		    
 		}
 	        lookupDiscMgr.terminate();
 	    } catch (Throwable t) {
-                if(initLogger.isLoggable(Levels.HANDLED)) {
-                    initLogger.log(Levels.HANDLED, 
+                if(INIT_LOGGER.isLoggable(Levels.HANDLED)) {
+                    INIT_LOGGER.log(Levels.HANDLED, 
 		    "Trouble terminating lookup discovery manager", t);	
 		}	    
 	    }
 	}
    	if (notifier != null) {
 	    try {
-                if(initLogger.isLoggable(Level.FINEST)) {
-                    initLogger.log(Level.FINEST, 
+                if(INIT_LOGGER.isLoggable(Level.FINEST)) {
+                    INIT_LOGGER.log(Level.FINEST, 
 		        "Interrupting notifier");	
 		}	    
 	        notifier.interrupt();
 	    } catch (Throwable t) {
-                if(initLogger.isLoggable(Levels.HANDLED)) {
-                    initLogger.log(Levels.HANDLED, 
+                if(INIT_LOGGER.isLoggable(Levels.HANDLED)) {
+                    INIT_LOGGER.log(Levels.HANDLED, 
 		        "Trouble interrupting notifier", t);		    
 		}
 	    }
 	}
    	if (expirer != null) {
 	    try {
-                if(initLogger.isLoggable(Level.FINEST)) {
-                    initLogger.log(Level.FINEST, 
+                if(INIT_LOGGER.isLoggable(Level.FINEST)) {
+                    INIT_LOGGER.log(Level.FINEST, 
 		        "Interrupting expirer");
 		}		    
 	        expirer.interrupt();
 	    } catch (Throwable t) {
-                if(initLogger.isLoggable(Levels.HANDLED)) {
-                    initLogger.log(Levels.HANDLED, 
+                if(INIT_LOGGER.isLoggable(Levels.HANDLED)) {
+                    INIT_LOGGER.log(Levels.HANDLED, 
 		        "Trouble interrupting expirer", t);	
 		}	    
 	    }
 	}
         if (snapshotter != null) {
 	    try {
-                if(initLogger.isLoggable(Level.FINEST)) {
-                    initLogger.log(Level.FINEST, 
+                if(INIT_LOGGER.isLoggable(Level.FINEST)) {
+                    INIT_LOGGER.log(Level.FINEST, 
 		        "Interrupting snapshotter");
 		}		    
 	        snapshotter.interrupt();
 	    } catch (Throwable t) {
-                if(initLogger.isLoggable(Levels.HANDLED)) {
-                    initLogger.log(Levels.HANDLED, 
+                if(INIT_LOGGER.isLoggable(Levels.HANDLED)) {
+                    INIT_LOGGER.log(Levels.HANDLED, 
 		        "Trouble interrupting snapshotter", t);	
 		}	    
 	    }
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, "cleanup");
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, "cleanup");
 	}
     }
 
@@ -1464,8 +1136,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 preparedTarget =
                     (RemoteEventListener) 
 		        listenerPreparer.prepareProxy(target);
-                if(deliveryLogger.isLoggable(Level.FINEST)) {
-                    deliveryLogger.log(Level.FINEST, 
+                if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                    DELIVERY_LOGGER.log(Level.FINEST, 
 		        "prepared listener: {0}", preparedTarget);
 		}
 	    } catch (RemoteException e) {
@@ -1610,8 +1282,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     // This method's javadoc is inherited from an interface of this class
     public void destroy() {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "destroy");
 	}
         readyState.check();
@@ -1633,8 +1305,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
             ServiceRegistration[] regs = 
                 (ServiceRegistration[])regByID.values().toArray(
                     new ServiceRegistration[regByID.size()]);
-            if (adminLogger.isLoggable(Level.FINEST)) {
-                adminLogger.log(Level.FINEST,
+            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                ADMIN_LOGGER.log(Level.FINEST,
                     "Notifying {0} possible registrations",
                      Integer.valueOf(regByID.size()));
             }
@@ -1643,8 +1315,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 removeRegistration(regs[i].getCookie(), regs[i]);
                 // Notify any associated iterations so they can return early
                 regs[i].getIteratorCondition().signal();           
-                if(adminLogger.isLoggable(Level.FINEST)) {
-                    adminLogger.log(Level.FINEST, 
+                if(ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                    ADMIN_LOGGER.log(Level.FINEST, 
                         "Iterator for reg {0} notified",
                         regs[i]);
                 }
@@ -1654,8 +1326,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}        
         
 	(new DestroyThread()).start();
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "destroy");
 	}
     }
@@ -1667,15 +1339,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     // This method's javadoc is inherited from an interface of this class
     public Entry[] getLookupAttributes() throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getLookupAttributes");
 	}
         readyState.check();
 	concurrentObj.readLock();
 	try {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(mailboxSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	            "getLookupAttributes");
             }
 	    return lookupAttrs;
@@ -1686,8 +1358,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     // This method's javadoc is inherited from an interface of this class
     public void addLookupAttributes(Entry[] attrSets) throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "addLookupAttributes");
 	}
         readyState.check();
@@ -1701,8 +1373,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "addLookupAttributes");
 	}
     }
@@ -1712,8 +1384,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 				       Entry[] attrSets)
 	throws RemoteException
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "modifyLookupAttributes");
 	}
         readyState.check();
@@ -1727,8 +1399,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "modifyLookupAttributes");
 	}
     }
@@ -1736,15 +1408,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     // This method's javadoc is inherited from an interface of this class
     public String[] getLookupGroups() throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getLookupGroups");
 	}
         readyState.check();
 	concurrentObj.readLock();
 	try {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(mailboxSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	            "getLookupGroups");
 	    }
 	    return lookupGroups;
@@ -1755,8 +1427,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     // This method's javadoc is inherited from an interface of this class
     public void addLookupGroups(String[] groups) throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "addLookupGroups");
 	}
         readyState.check();
@@ -1774,16 +1446,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "addLookupGroups");
 	}
     }
 
     // This method's javadoc is inherited from an interface of this class
     public void removeLookupGroups(String[] groups) throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "removeLookupGroups");
 	}
         readyState.check();
@@ -1797,16 +1469,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "removeLookupGroups");
 	}
     }
 
     // This method's javadoc is inherited from an interface of this class
     public void setLookupGroups(String[] groups) throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "setLookupGroups");
 	}
         readyState.check();
@@ -1824,23 +1496,23 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "setLookupGroups");
 	}
     }
 
     // This method's javadoc is inherited from an interface of this class
     public LookupLocator[] getLookupLocators() throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getLookupLocators");
 	}
         readyState.check();
 	concurrentObj.readLock();
 	try {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(mailboxSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
     	            "getLookupLocators");
             }
 	    return lookupLocators;
@@ -1853,8 +1525,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     public void addLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "addLookupLocators");
 	}
         readyState.check();
@@ -1871,8 +1543,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "addLookupLocators");
 	}
     }
@@ -1881,8 +1553,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     public void removeLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "removeLookupLocators");
 	}
         readyState.check();
@@ -1899,8 +1571,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "removeLookupLocators");
 	}
     }
@@ -1909,8 +1581,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     public void setLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "setLookupLocators");
 	}
         readyState.check();
@@ -1927,8 +1599,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "setLookupLocators");
 	}
     }
@@ -1942,8 +1614,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * throw a UnknownEventException back to the event sender.
      */
     private void addUnknownEvent(Uuid regID, EventID evid) {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	    "addUnknownEvent", new Object[] {regID, evid});
 	}
 	concurrentObj.writeLock();
@@ -1952,8 +1624,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} finally {
 	    concurrentObj.writeUnlock();
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "addUnknownEvent");
 	}
     }
@@ -1964,8 +1636,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * holds a write lock.
      */
     private void addUnknownEventDo(Uuid regID, EventID evid) {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	    "addUnknownEventDo", new Object[] {regID, evid});
 	}
         //Ensure that the registration is still valid
@@ -1973,22 +1645,22 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         if(reg == null || !ensureCurrent(reg)) {
             return; // nothing to do ... registration is gone
         }
-        if(deliveryLogger.isLoggable(Level.FINEST)) {
-            deliveryLogger.log(Level.FINEST, "Using reg: {0} ", reg);
+        if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+            DELIVERY_LOGGER.log(Level.FINEST, "Using reg: {0} ", reg);
         }
 
-        // TODO - check if already there and save a log record.
+        // TODO - check if already there and save a loG record.
         // Add EventID to the list
         reg.getUnknownEvents().put(evid, evid);
         // Log this event
         addLogRecord(new UnknownEventExceptionLogObj(regID, evid));
 
-        if(deliveryLogger.isLoggable(Level.FINEST)) {
-            deliveryLogger.log(Level.FINEST, "UnknownEvents size: {0}", 
+        if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+            DELIVERY_LOGGER.log(Level.FINEST, "UnknownEvents size: {0}", 
                 Integer.valueOf(reg.getUnknownEvents().size()));
         }
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "addUnknownEventDo");
 	}
     }
@@ -2007,8 +1679,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private ServiceRegistration getServiceRegistration(Uuid regID) 
         throws ThrowThis
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getServiceRegistration", regID);
 	}
         ServiceRegistration reg = (ServiceRegistration)regByID.get(regID); 
@@ -2022,8 +1694,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		    "has expired"));
 	}
 	// Must be a valid registration at this point
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "getServiceRegistration", reg);
 	}
 	return reg;
@@ -2044,8 +1716,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private void removeRegistration(Uuid regID, ServiceRegistration reg,
                                     boolean initializing) 
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "removeRegistration", 
 	        new Object[] {regID, reg, Boolean.valueOf(initializing)});
 	}
@@ -2063,24 +1735,24 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	NotifyTask task = (NotifyTask)activeReg.remove(regID);
 	if (task != null) { // cancel active task, if any
 	    task.cancel(false);
-	    if(deliveryLogger.isLoggable(Level.FINEST)) {
-                deliveryLogger.log(Level.FINEST, 
+	    if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                DELIVERY_LOGGER.log(Level.FINEST, 
 		    "Cancelling active notification task for {0}", regID);
 	    }
 	}
 
 	// Delete any associated resources
 	try {
-	    if(persistenceLogger.isLoggable(Level.FINEST)) {
-                persistenceLogger.log(Level.FINEST, 
+	    if(PERSISTENCE_LOGGER.isLoggable(Level.FINEST)) {
+                PERSISTENCE_LOGGER.log(Level.FINEST, 
 		    "Removing logs for {0}", reg);
             }
 	    EventLogIterator iter = reg.iterator();
 	    if (iter != null) // iter is null when recovering state
 		iter.destroy();
 	} catch (IOException ioe) {
-	    if(persistenceLogger.isLoggable(Levels.HANDLED)) {
-                persistenceLogger.log(Levels.HANDLED, 
+	    if(PERSISTENCE_LOGGER.isLoggable(Levels.HANDLED)) {
+                PERSISTENCE_LOGGER.log(Levels.HANDLED, 
 		    "Trouble removing logs", ioe);
 	    }
 	    // Did the best we could ... continue.
@@ -2089,15 +1761,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
 	// Sanity check
 	if (exists && task != null) {
-	    if(leaseLogger.isLoggable(Level.SEVERE)) {
-                leaseLogger.log(Level.SEVERE, 
+	    if(LEASE_LOGGER.isLoggable(Level.SEVERE)) {
+                LEASE_LOGGER.log(Level.SEVERE, 
 		    "ERROR: Registration was found "
 	            + "on both the active and pending lists");
 	    }
 // TODO (FCS)- throw assertion error
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "removeRegistration");
 	}
     }
@@ -2112,8 +1784,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     /** Actual implementation of the registration process. */
     private Registration registerDo(long duration) {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "registerDo", Long.valueOf(duration));
 	}
         if (duration < 1 && duration != Lease.ANY) 
@@ -2142,27 +1814,27 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         // Add registration to internal data structures 
         addRegistration(reg);
 
-        // log a record of this event
+        // loG a record of this event
         addLogRecord(new RegistrationLogObj(reg));
 
         // Check expiration and notify expiration thread to 
         // wake up earlier than scheduled, if needed.
 	if (reg.getExpiration() < minRegExpiration) {
 	    minRegExpiration = reg.getExpiration();
-            if (expirationLogger.isLoggable(Level.FINEST)) {
-                expirationLogger.log(Level.FINEST,"Notifying expiration thread");
+            if (EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                EXPIRATION_LOGGER.log(Level.FINEST,"Notifying expiration thread");
             }
 	    concurrentObj.waiterNotify(expirationNotifier);
 	}
 
-	if(leaseLogger.isLoggable(Level.FINEST)) {
-            leaseLogger.log(Level.FINEST, 
+	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+            LEASE_LOGGER.log(Level.FINEST, 
 		"Generated new lease for: {0}", reg);
-	    reg.dumpInfo(leaseLogger);
+	    reg.dumpInfo(LEASE_LOGGER);
 	}
 
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "registerDo");
 	}
         // Return client-side proxy for the ServiceRegistration
@@ -2183,8 +1855,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private long renewDo(Uuid cookie, long extension)
         throws UnknownLeaseException, LeaseDeniedException 
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "renewDo", new Object[] { cookie, Long.valueOf(extension)});
 	}
         if (extension < 1 && extension != Lease.ANY)
@@ -2194,8 +1866,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         ServiceRegistration reg = null;
 	long expiration = 0;
         
-	if(leaseLogger.isLoggable(Level.FINEST)) {
-            leaseLogger.log(Level.FINEST, 
+	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+            LEASE_LOGGER.log(Level.FINEST, 
 		"Attempting to renew {0}''s lease for {1} sec",
 		new Object[] {cookie, Long.valueOf(extension/1000)}); 
 	}
@@ -2218,21 +1890,21 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    regByExpiration.put(reg, reg);
 	} catch (ThrowThis tt) {
 	    // Registration doesn't exist or has expired
-	    if(leaseLogger.isLoggable(Level.FINEST)) {
-                leaseLogger.log(Level.FINEST, 
+	    if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+                LEASE_LOGGER.log(Level.FINEST, 
 		    "Lease for {0} was NOT renewed", cookie);
 	    }
 	    throw new UnknownLeaseException("Not managing requested lease");
 	}
 
-	if(leaseLogger.isLoggable(Level.FINEST)) {
-            leaseLogger.log(Level.FINEST, 
+	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+            LEASE_LOGGER.log(Level.FINEST, 
 	        "Lease for {0} was renewed", cookie);
-	    reg.dumpInfo(leaseLogger);
+	    reg.dumpInfo(LEASE_LOGGER);
 	}
 	
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "renewDo", Long.valueOf(r.duration));
 	}
 	return r.duration;
@@ -2241,14 +1913,14 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     
     /** Performs the actual registration cancellation logic */
     private void cancelDo(Uuid cookie) throws UnknownLeaseException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "cancelDo", cookie);
 	}
         ServiceRegistration reg = null;
 
-    	if(leaseLogger.isLoggable(Level.FINEST)) {
-            leaseLogger.log(Level.FINEST, 
+    	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+            LEASE_LOGGER.log(Level.FINEST, 
 	        "Attempting to cancel lease for: {0}", cookie); 
     	}
 
@@ -2263,28 +1935,28 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    // Notify expiration thread in case we deleted the registration
 	    // nearest to expiration, so it can recompute minRegExpiration.
             if (reg.getExpiration() == minRegExpiration) {
-                if(expirationLogger.isLoggable(Level.FINEST)) {
-                    expirationLogger.log(Level.FINEST, 
+                if(EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                    EXPIRATION_LOGGER.log(Level.FINEST, 
 	                "Notifying expiration thread");
                 }
 	        concurrentObj.waiterNotify(expirationNotifier);
 	    }
             // Notify any pending iterations
             reg.getIteratorCondition().signal();          
-            if(expirationLogger.isLoggable(Level.FINEST)) {
-                expirationLogger.log(Level.FINEST, "Iterator notified");
+            if(EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                EXPIRATION_LOGGER.log(Level.FINEST, "Iterator notified");
             }
             
 	} catch (ThrowThis tt) {
 	    // Registration doesn't exist or has expired
 	    throw new UnknownLeaseException("Not managing requested lease");
 	}
-    	if(leaseLogger.isLoggable(Level.FINEST)) {
-            leaseLogger.log(Level.FINEST, 
+    	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+            LEASE_LOGGER.log(Level.FINEST, 
 	        "Lease cancelled for: {0}", cookie); 
     	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "cancelDo");
 	}
     }
@@ -2293,14 +1965,14 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private RenewResults renewAllDo(Uuid[] cookie, long[] extension)
 	    throws RemoteException 
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "renewAllDo");
 	}
 	int count = cookie.length;
 
-	if(leaseLogger.isLoggable(Level.FINEST)) {
-            leaseLogger.log(Level.FINEST, 
+	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+            LEASE_LOGGER.log(Level.FINEST, 
 	        "Attempting to renew a batch of {0} leases", 
 		Integer.valueOf(count)); 
 	}
@@ -2310,19 +1982,19 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 							cookie,	extension);
 
 	if(rslt.denied == null)  {
-	    if(leaseLogger.isLoggable(Level.FINEST)) {
-                leaseLogger.log(Level.FINEST, 
+	    if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+                LEASE_LOGGER.log(Level.FINEST, 
 	            "Batch renew totally successful");
 	    }
 	} else {
-	    if(leaseLogger.isLoggable(Level.FINEST)) {
-                leaseLogger.log(Level.FINEST, 
+	    if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+                LEASE_LOGGER.log(Level.FINEST, 
 	            "Batch renew contained exceptions");
 	    }
 	}
 
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "renewAllDo");
 	}
 	return rslt;
@@ -2330,19 +2002,19 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     /** Performs the actual cancelAll logic */
     private Map cancelAllDo(Uuid[] cookie) throws RemoteException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "cancelAllDo");
 	}
 	int count = cookie.length;
-	if(leaseLogger.isLoggable(Level.FINEST)) {
-            leaseLogger.log(Level.FINEST, 
+	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
+            LEASE_LOGGER.log(Level.FINEST, 
 	        "Attempting to cancel a batch of {0} leases", 
 		Integer.valueOf(count)); 
 	}
 
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "cancelAllDo");
 	}
 	// Delegate functionality to Landlord utility
@@ -2354,16 +2026,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         RemoteEventListener preparedTarget) 
 	throws ThrowThis 
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "enableDeliveryDo", new Object[] {uuid, preparedTarget});
 	}
 	// Check for the resubmission of one of our own listeners
 	if (preparedTarget instanceof ListenerProxy) {
 	    Uuid id = ((ListenerProxy)preparedTarget).getReferentUuid(); 
 	    if (regByID.get(id) != null) {
-	        if(deliveryLogger.isLoggable(Level.FINEST)) {
-                    deliveryLogger.log(Level.FINEST, 
+	        if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                    DELIVERY_LOGGER.log(Level.FINEST, 
 	                "Disallowing resubmission of one of" 
 		        +  " this service''s own listeners: {0}", id); 
 	        }
@@ -2379,7 +2051,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	// Log this event
 	addLogRecord(new RegistrationEnabledLogObj(uuid, preparedTarget));
 
-	// Notify the notifier thread of new "enabled" entry
+	// Notify the notifieR thread of new "enabled" entry
 	concurrentObj.waiterNotify(eventNotifier);
         
         // Note: the following method will throw a ThrowThis exception
@@ -2388,17 +2060,17 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         
         // Notify any pending iterations
         reg.getIteratorCondition().signal();          
-        if(expirationLogger.isLoggable(Level.FINEST)) {
-            expirationLogger.log(Level.FINEST, "Iterator notified");
+        if(EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+            EXPIRATION_LOGGER.log(Level.FINEST, "Iterator notified");
         }
 
-	if(deliveryLogger.isLoggable(Level.FINEST)) {
-            deliveryLogger.log(Level.FINEST, 
+	if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+            DELIVERY_LOGGER.log(Level.FINEST, 
 	        "Enabling delivery for {0} to {1}",
 		new Object[] {uuid, preparedTarget});
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "enableDeliveryDo");
 	}
     }
@@ -2445,16 +2117,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * for a particular registration.
      */
     private void disableDeliveryDo(Uuid uuid) throws ThrowThis {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "disableDeliveryDo", uuid);
 	}
         // Disable event delivery for the associated registration
         disableRegistration(uuid);
         // Log this event
         addLogRecord(new RegistrationDisabledLogObj(uuid)); 
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "disableDeliveryDo");
 	}
     }
@@ -2464,8 +2136,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * registration associated with the given <tt>UUID</tt>
      */
     private void disableRegistration(Uuid uuid) throws ThrowThis {
-	if(deliveryLogger.isLoggable(Level.FINEST)) {
-            deliveryLogger.log(Level.FINEST, 
+	if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+            DELIVERY_LOGGER.log(Level.FINEST, 
 	        "Attempting to disable delivery for {0}", uuid);
 	}
 
@@ -2490,8 +2162,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	NotifyTask task = (NotifyTask)activeReg.remove(uuid);
 	if (task != null) { // cancel active task, if any
 	    task.cancel(false);
-	    if(deliveryLogger.isLoggable(Level.FINEST)) {
-                deliveryLogger.log(Level.FINEST, 
+	    if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                DELIVERY_LOGGER.log(Level.FINEST, 
 	            "Cancelling active notification task for {0}", uuid);
 	    }
 	}
@@ -2501,16 +2173,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         // the active or pending data structures. This can happen 
         // during recovery but otherwise there's a problem.
 	if (wasEnabled && !inPending && task == null && !inRecovery) {
-	    if(deliveryLogger.isLoggable(Level.FINEST)) {
-                deliveryLogger.log(Level.FINEST, 
+	    if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                DELIVERY_LOGGER.log(Level.FINEST, 
 	            "*** Registration was not found "
 	            + "on the active or pending lists");
 	    }
 	    // TODO (FCS)- throw Assertion exception
 	}
 
-	if(deliveryLogger.isLoggable(Level.FINEST)) {
-            deliveryLogger.log(Level.FINEST, 
+	if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+            DELIVERY_LOGGER.log(Level.FINEST, 
 	        "Disabled delivery for {0}", uuid);
 	}
     }
@@ -2559,8 +2231,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	Uuid uuid, Collection unknownEvents) 
 	throws ThrowThis 
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "addUnknownEventsDo", new Object[] {uuid, unknownEvents});
 	}
 
@@ -2576,8 +2248,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
             addUnknownEventDo(uuid, new EventID(ev));
         }
         
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "addUnknownEventsDo");
 	}
         return;
@@ -2592,8 +2264,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	throws ThrowThis 
     {
 
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getRemoteEventsDo", new Object[] {uuid});
 	}
 
@@ -2604,8 +2276,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         ServiceRegistration reg = getServiceRegistration(uuid); 
         
         Uuid iteratorId = UuidFactory.generate();
-        if(deliveryLogger.isLoggable(Level.FINEST)) {
-            deliveryLogger.log(Level.FINEST, 
+        if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+            DELIVERY_LOGGER.log(Level.FINEST, 
                 "Generated remote event iterator id {0}", iteratorId);
         }       
 	// Log this event
@@ -2639,21 +2311,21 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    //      of an IOException
 	} catch (NoSuchElementException nse) {
 	    //TODO - throw an assertion error since this shouldn't happen
-            // Can also be thrown if reading from empty log
+            // Can also be thrown if reading from empty loG
     	} catch (ClassNotFoundException cnfe) {
 	    // TODO - retry?
         }
         
         // Notify any pending iterations
         reg.getIteratorCondition().signal();            
-        if(expirationLogger.isLoggable(Level.FINEST)) {
-            expirationLogger.log(Level.FINEST, "Iterator notified");
+        if(EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+            EXPIRATION_LOGGER.log(Level.FINEST, "Iterator notified");
         }
         
 	// Compact the collection, if possible
 	events.trimToSize();
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "getRemoteEventsDo", events);
 	}
         
@@ -2669,8 +2341,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	throws InvalidIteratorException, ThrowThis 
     {
 
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getNextBatchDo", 
                 new Object[] {regId, iterId, Long.valueOf(timeout), lastEventCookie});
 	}
@@ -2696,8 +2368,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
             ServiceRegistration reg = getServiceRegistration(regId); 
 	    EventLogIterator eli = reg.iterator();
             //TODO - sep try block for "move"
-            if (operationsLogger.isLoggable(Level.FINEST)) {
-                operationsLogger.log(Level.FINEST, "Moving past lastEventCookie {0}", 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINEST)) {
+                OPERATIONS_LOGGER.log(Level.FINEST, "Moving past lastEventCookie {0}", 
                         lastEventCookie);
             }
             
@@ -2717,16 +2389,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                                 !reg.getUnknownEvents().containsKey(new EventID(evt))) {
                                 events.add(evts[i]);
                             } else {
-                                if(deliveryLogger.isLoggable(Level.FINEST)) {
-                                    deliveryLogger.log(Level.FINEST, 
+                                if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                    DELIVERY_LOGGER.log(Level.FINEST, 
                                         "Problem with unknown or unrecoverable " +
                                         "RemoteEvent {0} -- skipping", evt);
                                 }                                
                             }
                         } catch (ClassNotFoundException cnfe) {
                             //skip event if can't re-create it
-                            if(deliveryLogger.isLoggable(Levels.HANDLED)) {
-                                deliveryLogger.log(Levels.HANDLED, 
+                            if(DELIVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                                DELIVERY_LOGGER.log(Levels.HANDLED, 
                                     "Problem accessing RemoteEvent -- skipping", 
                                     cnfe);
                             }
@@ -2739,8 +2411,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                  */
                 waitFor = (endTime - System.currentTimeMillis());
                 if ((events.size() == 0) && (waitFor > 0)) {
-                    if(deliveryLogger.isLoggable(Level.FINEST)) {
-                        deliveryLogger.log(Level.FINEST, 
+                    if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                        DELIVERY_LOGGER.log(Level.FINEST, 
                             "No available events. Attempting to wait for "
                             + waitFor + " milliseconds.");
                     }   
@@ -2762,29 +2434,29 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    //      so keep trying.
 	    //    - event logging state is still valid in the face
 	    //      of an IOException
-            if(deliveryLogger.isLoggable(Levels.HANDLED)) {
-                deliveryLogger.log(Levels.HANDLED, 
+            if(DELIVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                DELIVERY_LOGGER.log(Levels.HANDLED, 
                     "Trouble accessing event state - skipping", ioe);
             }
         } catch (NoSuchElementException nse) {
             // Shouldn't happen at this point. readAhead can throw this.
-            if(deliveryLogger.isLoggable(Level.WARNING)) {
-                deliveryLogger.log(Level.WARNING, 
+            if(DELIVERY_LOGGER.isLoggable(Level.WARNING)) {
+                DELIVERY_LOGGER.log(Level.WARNING, 
                     "Invalid iterator access", nse);
             }
             throw new InvalidIteratorException("Invalid iterator access: " + nse);                    
         } catch (ClassNotFoundException cnfe) {
             // readAhead can throw this.
-            if(deliveryLogger.isLoggable(Levels.HANDLED)) {
-                deliveryLogger.log(Levels.HANDLED, 
+            if(DELIVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                DELIVERY_LOGGER.log(Levels.HANDLED, 
                     "Trouble accessing remote event(s) - skipping", cnfe);
             }
         }
 
 	// Compact the collection, if possible
 	events.trimToSize();
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "getNextBatchDo", events);
 	}
         return events;
@@ -2798,8 +2470,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         ServiceRegistration reg = getServiceRegistration(regId); 
         Uuid validIterId = reg.getRemoteEventIteratorID();
         if (!iterId.equals(validIterId)) {
-	    if(deliveryLogger.isLoggable(Level.FINEST)) {
-                deliveryLogger.log(Level.FINEST, 
+	    if(DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                DELIVERY_LOGGER.log(Level.FINEST, 
 	            "Provided iterator id " + iterId + 
                     " doesn't match current valid iterator id " +
                     validIterId);
@@ -2815,13 +2487,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private void notifyDo(Uuid registrationID, RemoteEvent theEvent) 
 	throws UnknownEventException, RemoteException, ThrowThis
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "notifyDo",
 	        new Object[] {registrationID, theEvent});
 	}
-	if(receiveLogger.isLoggable(Level.FINEST)) {
-            receiveLogger.log(Level.FINEST, 
+	if(RECEIVE_LOGGER.isLoggable(Level.FINEST)) {
+            RECEIVE_LOGGER.log(Level.FINEST, 
 	        "RemoteEvent {0}, ID {1}, Seq# {2}",
 	        new Object[] {theEvent, Long.valueOf(theEvent.getID()), 
 	        Long.valueOf(theEvent.getSequenceNumber())});
@@ -2839,8 +2511,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	// the same eventID for the same registration,listener pair.
 	EventID evtid = new EventID(theEvent);
 	if (reg.getUnknownEvents().containsKey(evtid)) {
-            if(receiveLogger.isLoggable(Level.FINEST)) {
-                receiveLogger.log(Level.FINEST, 
+            if(RECEIVE_LOGGER.isLoggable(Level.FINEST)) {
+                RECEIVE_LOGGER.log(Level.FINEST, 
 	            "Discarding event -- it is unknown");
 	    }
 	    // TODO (FCS)- store exception state from event target and retransmit 
@@ -2860,30 +2532,30 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    //      of an IOException
 	}
 
-        // Notify the notifier if this registration is enabled
+        // Notify the notifieR if this registration is enabled
 	if (reg.hasEventTarget()) {
 	    concurrentObj.waiterNotify(eventNotifier);
-            if(receiveLogger.isLoggable(Level.FINEST)) {
-                receiveLogger.log(Level.FINEST, "Notifier notified");
+            if(RECEIVE_LOGGER.isLoggable(Level.FINEST)) {
+                RECEIVE_LOGGER.log(Level.FINEST, "Notifier notified");
             }
 	} else if (reg.getRemoteEventIteratorID() != null) {
             reg.getIteratorCondition().signal();         
-            if(receiveLogger.isLoggable(Level.FINEST)) {
-                receiveLogger.log(Level.FINEST, "Iterator notified");
+            if(RECEIVE_LOGGER.isLoggable(Level.FINEST)) {
+                RECEIVE_LOGGER.log(Level.FINEST, "Iterator notified");
             }
         } else {
-            if(receiveLogger.isLoggable(Level.FINEST)) {
-                receiveLogger.log(Level.FINEST, "Notification skipped");
+            if(RECEIVE_LOGGER.isLoggable(Level.FINEST)) {
+                RECEIVE_LOGGER.log(Level.FINEST, "Notification skipped");
             }
         }
 
-        if(receiveLogger.isLoggable(Level.FINEST)) {
-            receiveLogger.log(Level.FINEST, "");
-	    reg.dumpInfo(receiveLogger);
+        if(RECEIVE_LOGGER.isLoggable(Level.FINEST)) {
+            RECEIVE_LOGGER.log(Level.FINEST, "");
+	    reg.dumpInfo(RECEIVE_LOGGER);
 	}
 	
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "notifyDo");
 	}
     }
@@ -2891,7 +2563,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
 
     /**
-     * The notifier thread.  This thread is responsible for delivering events
+     * The notifieR thread.  This thread is responsible for delivering events
      * to client supplied notification targets when their associated 
      * registrations are enabled. 
      * <p>
@@ -2949,8 +2621,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          * Schedule delivery tasks for any enabled registrations.
          */
         public void run() {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(notifierSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(NOTIFIER_SOURCE_CLASS, 
 	            "run");
             }
 	    try {
@@ -2962,8 +2634,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    try {
 	        while (!hasBeenInterrupted()) { 
     	            int count = pendingReg.size();
-    	            if (deliveryLogger.isLoggable(Level.FINEST)) {
-                        deliveryLogger.log(Level.FINEST,
+    	            if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                        DELIVERY_LOGGER.log(Level.FINEST,
 			    "Notifier checking {0} possible registrations",
 			    Integer.valueOf(count));
 		    }
@@ -2983,8 +2655,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                             // Check if the registration has any events to 
                             // be delivered
     	                    if (reg.iterator().hasNext()) {
-    	                        if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                    deliveryLogger.log(Level.FINEST,
+    	                        if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                    DELIVERY_LOGGER.log(Level.FINEST,
 				    "Scheduling delivery task for reg: {0} ", reg); 
 				}
 				// Create and schedule a event delivery task
@@ -2998,23 +2670,23 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     		            }
 			} catch (ThrowThis tt) {
 			    // Invalid registration ... skip
-    	                    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                deliveryLogger.log(Level.FINEST,
+    	                    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                DELIVERY_LOGGER.log(Level.FINEST,
 				    "Notifier: invalid registration for {0}", uuid);
 			    }
 
 			} catch (IOException ioe) {
 			    // Could not access registration state  ... skip
-    	                    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                deliveryLogger.log(Level.FINEST,
+    	                    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                DELIVERY_LOGGER.log(Level.FINEST,
 				    "Notifier: inaccessible registration data for {0}", 
 				    uuid);
 			    }
 			}
     		    }
 		    try {
-                       if (deliveryLogger.isLoggable(Level.FINEST)) {
-                            deliveryLogger.log(Level.FINEST,
+                       if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                            DELIVERY_LOGGER.log(Level.FINEST,
                                 "Notifier: delayed until {0}", 
                                 new Date(PAUSE_TIME + 
 				    System.currentTimeMillis()));
@@ -3033,21 +2705,21 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		// it means we are shutting down so try to clean
 		// up after ourselves.
 		if (hasBeenInterrupted()) {
-                    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                        deliveryLogger.log(Level.FINEST,
+                    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                        DELIVERY_LOGGER.log(Level.FINEST,
 			    "Notifier: terminating taskManager");
 		    }
 		    wakeupMgr.stop();
 		    wakeupMgr.cancelAll();
     	            taskManager.shutdownNow();
 		} 
-                if (deliveryLogger.isLoggable(Level.FINEST)) {
-                    deliveryLogger.log(Level.FINEST,
+                if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                    DELIVERY_LOGGER.log(Level.FINEST,
 		        " Notifier: exiting ...");
 		}
     	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(notifierSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(NOTIFIER_SOURCE_CLASS, 
 	            "run");
 	    }
         }
@@ -3074,8 +2746,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * <li> The task quits after <tt>MAX_ATTEMPTS</tt> unsuccessful delivery 
      *      attempts
      * <li> The event could not be successfully retrieved from the 
-     *      registration's event log iterator.
-     * </ul>
+      registration's event loG iterator.
+ </ul>
      * 
      */
     class NotifyTask extends RetryTask {
@@ -3098,8 +2770,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	// Note that next() will return the same event on subsequent calls
     	// unless remove() is called (indicating sucessful delivery).
     	private RemoteEvent getNextEvent(ServiceRegistration reg) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(NOTIFY_TASK_SOURCE_CLASS, 
 	            "getNextEvent", reg);
 	    }
     	    RemoteEvent evt = null;
@@ -3116,8 +2788,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    } catch (IOException ioe) {
 		//just return null in this case.
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(NOTIFY_TASK_SOURCE_CLASS, 
 	            "getNextEvent", evt);
 	    }
 	    return evt;
@@ -3132,8 +2804,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	 * 4) the event delivery resulted in an UnknownEventException
     	 */
     	private void deleteNextEvent(ServiceRegistration reg) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(NOTIFY_TASK_SOURCE_CLASS, 
 	            "deleteNextEvent", reg);
 	    }
 	    try {
@@ -3141,8 +2813,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		    try {
 		        reg.iterator().remove();
 		    } catch (IOException ioe) {
-	                if (deliveryLogger.isLoggable(Level.FINEST)) {
-                            deliveryLogger.log(Level.FINEST,
+	                if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                            DELIVERY_LOGGER.log(Level.FINEST,
 			        "NotifyTask could not "
 				+ "deleteNextEvent for reg: {0}",
 				reg);
@@ -3150,15 +2822,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		    }
 	        } 
 	    } catch (IOException ioe) {
-	        if (deliveryLogger.isLoggable(Level.FINEST)) {
-                    deliveryLogger.log(Level.FINEST,
+	        if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                    DELIVERY_LOGGER.log(Level.FINEST,
 			"NotifyTask could not delete event because "
 			+ "state info for {0} was inaccessible",
 			reg);
 		}
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(NOTIFY_TASK_SOURCE_CLASS, 
 	            "deleteNextEvent");
 	    }
     	}    
@@ -3168,8 +2840,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	 * because there was a problem with the provided listener.
     	 */
     	private boolean disableRegistration(Uuid regID, RemoteEventListener l) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(NOTIFY_TASK_SOURCE_CLASS, 
 	            "disableRegistration", new Object[] {regID, l});
 	    }
     	    boolean disabled = true;
@@ -3195,8 +2867,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		    if (currentListener == l) {
 		        disableDeliveryDo(regID);
 		    } else {
-	                if (deliveryLogger.isLoggable(Level.FINEST)) {
-                            deliveryLogger.log(Level.FINEST,
+	                if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                            DELIVERY_LOGGER.log(Level.FINEST,
 			        "Disabling registration for {0}" 
 	                        + " skipped due to listener change.",
 				regID );
@@ -3209,8 +2881,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    } finally {
 	        concurrentObj.writeUnlock();
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(NOTIFY_TASK_SOURCE_CLASS, 
 	            "disableRegistration", Boolean.valueOf(disabled));
 	    }
 	    return disabled;
@@ -3223,8 +2895,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	 * point in the future.
     	 */
     	public boolean tryOnce() {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(NOTIFY_TASK_SOURCE_CLASS, 
 	            "tryOnce");
 	    }
     
@@ -3235,8 +2907,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	    RemoteEventListener listener = null; // event delivery target
 	    RemoteEvent ev = null;               // event to deliver
 
-    	    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                deliveryLogger.log(Level.FINEST,
+    	    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                DELIVERY_LOGGER.log(Level.FINEST,
 		    "Attempting event delivery for: {0} at {1}",
 		        new Object[] {
 		            regID,
@@ -3256,8 +2928,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		succeeded = true;
 		deleteEvent = false;
     	        doNotify = false;
-    	        if (deliveryLogger.isLoggable(Level.FINEST)) {
-                    deliveryLogger.log(Level.FINEST,
+    	        if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                    DELIVERY_LOGGER.log(Level.FINEST,
 		        "Cancelling delivery due to time limit expiration.");
 		}
 	    } else {
@@ -3282,8 +2954,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
  			    succeeded = true;   // don't try again
         		    deleteEvent = false; // don't delete event
         		    doNotify = false;    // skip notify
-			    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                deliveryLogger.log(Level.FINEST,
+			    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                DELIVERY_LOGGER.log(Level.FINEST,
 		                    "Cancelling delivery because of disabled listener");
 		            }
        			} else if (ev == null) {
@@ -3295,8 +2967,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         		    // event, so we don't have to remove it.
         		    deleteEvent = false; 
         		    doNotify = false;    // skip notify
-    	                    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                deliveryLogger.log(Level.FINEST,
+    	                    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                DELIVERY_LOGGER.log(Level.FINEST,
 		                    "Cancelling delivery because of null event");
 			    }
 			} else if (ev != null &&
@@ -3308,8 +2980,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         		    succeeded = true;    // don't try again
         		    deleteEvent = true;  // delete event
         		    doNotify = false;    // skip notify
-    	                    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                deliveryLogger.log(Level.FINEST,
+    	                    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                DELIVERY_LOGGER.log(Level.FINEST,
 		                    "Cancelling delivery because of unknown event");
 			    }
         		}
@@ -3317,8 +2989,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     		        succeeded = true;        // don't try again
     		        deleteEvent = false;     // don't remove event
         		doNotify = false;        // skip notify
-    	                if (deliveryLogger.isLoggable(Level.FINEST)) {
-                            deliveryLogger.log(Level.FINEST,
+    	                if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                            DELIVERY_LOGGER.log(Level.FINEST,
 		                "Cancelling delivery because of unknown registration");
 			}
     		    }
@@ -3329,8 +3001,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	    
     	    // Important - don't hold any locks during a remote invocation
             if (doNotify) { 
-	        if (deliveryLogger.isLoggable(Level.FINEST)) {
-                    deliveryLogger.log(Level.FINEST,
+	        if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                    DELIVERY_LOGGER.log(Level.FINEST,
 		        "Delivering evt: {0}, ID {1}, Seq# {2}",
 		            new Object[] {ev, Long.valueOf(ev.getID()), 
 		            Long.valueOf(ev.getSequenceNumber())});
@@ -3340,15 +3012,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		    listener.notify(ev);
 		    succeeded = true;
     		    deleteEvent = true;
-    	            if (deliveryLogger.isLoggable(Level.FINEST)) {
-                        deliveryLogger.log(Level.FINEST,
+    	            if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                        DELIVERY_LOGGER.log(Level.FINEST,
 		            "Delivery was successful");
 		    }
 		} catch (UnknownEventException e) {
 		    // Target wasn't expecting this event, so prevent
 		    // future notifications of the same event type.
-    	            if (deliveryLogger.isLoggable(Levels.HANDLED)) {
-                        deliveryLogger.log(Levels.HANDLED,
+    	            if (DELIVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                        DELIVERY_LOGGER.log(Levels.HANDLED,
 		            "Caught UnknownEventException during notify");
 	            }
 	            // Add offending event type to this registration's
@@ -3366,8 +3038,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		        // Definite remote exception means there is
 		        // no possibility that a retry attempt will
 		        // succeed (ex: NoSuchObjectException).
-    	                if (deliveryLogger.isLoggable(Levels.HANDLED)) {
-                            deliveryLogger.log(Levels.HANDLED,
+    	                if (DELIVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                            DELIVERY_LOGGER.log(Levels.HANDLED,
 		                "Caught a BAD_OBJECT exception during notify", t);
 			}
 	                // Disable event delivery for this particular
@@ -3376,8 +3048,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		        succeeded = true;
 		        deleteEvent = false;
 		    } else if (cat == ThrowableConstants.INDEFINITE) {
-    	                if (deliveryLogger.isLoggable(Level.FINEST)) {
-                            deliveryLogger.log(Level.FINEST,
+    	                if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                            DELIVERY_LOGGER.log(Level.FINEST,
 		                "Caught an INDEFINITE exception during notify", t);
 			}
 		        // Indefinite remote exception means there is
@@ -3385,8 +3057,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		        succeeded = false;
 		        deleteEvent = false;
 		    } else if (cat == ThrowableConstants.BAD_INVOCATION) {
-    	                if (deliveryLogger.isLoggable(Levels.HANDLED)) {
-                            deliveryLogger.log(Levels.HANDLED,
+    	                if (DELIVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                            DELIVERY_LOGGER.log(Levels.HANDLED,
 		                "Caught a BAD_INVOCATION exception during notify", t);
 			}
 		        // BAD_INVOCATION exception means there is little 
@@ -3395,8 +3067,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		        succeeded = true;
 		        deleteEvent = true;
 		    } else { // uncategorized or bad invocation
-    	                if (deliveryLogger.isLoggable(Level.FINEST)) {
-                            deliveryLogger.log(Level.FINEST,
+    	                if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                            DELIVERY_LOGGER.log(Level.FINEST,
 		                "Caught an uncategorized exception during notify",t);
 			}
 		        // uncategorized exception means there is a 
@@ -3406,14 +3078,14 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		        succeeded = false;
 		        deleteEvent = false;
 		    }
-		} // end catch    
+		} // end catch     // end catch    
 	    } // end if
     
             // If we still aren't successful after MAX_ATTEMPTS
             // then give up
     	    if (!succeeded && attempt() > MAX_ATTEMPTS) {
-    	        if (deliveryLogger.isLoggable(Levels.HANDLED)) {
-                    deliveryLogger.log(Levels.HANDLED,
+    	        if (DELIVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                    DELIVERY_LOGGER.log(Levels.HANDLED,
 		        "Maximum delivery attempts reached");
 		}
 		succeeded = true;		
@@ -3421,7 +3093,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    }
     
             // Check if data structures need to be modified
-            // If so, make the change(s) and notify the notifier thread.
+            // If so, make the change(s) and notify the notifieR thread.
             if (succeeded || deleteEvent) {
                 concurrentObj.writeLock();
         	try {
@@ -3434,23 +3106,23 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                             // If we are still enabled, then move this reg
                             // from active --> pending list
                             if (reg.hasEventTarget()) { 
-    	                        if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                    deliveryLogger.log(Level.FINEST,
+    	                        if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                    DELIVERY_LOGGER.log(Level.FINEST,
 		                        "Putting task back onto pending list");
 				}
         	                activeReg.remove(regID);
         	                pendingReg.add(regID);
 			    } else { // reg is disabled 
-    	                        if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                    deliveryLogger.log(Level.FINEST,
+    	                        if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                    DELIVERY_LOGGER.log(Level.FINEST,
 		                        "Removing task ...");
 				}
 				// Note: disabling delivery should
 				// have taken care of this for us.
         	                if (activeReg.remove(regID) != null ||
         	                    pendingReg.remove(regID) == true  ) {
-    	                            if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                        deliveryLogger.log(Level.FINEST,
+    	                            if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                        DELIVERY_LOGGER.log(Level.FINEST,
 		                            "ERROR: Found pending/active task for a "
 		                            + "disabled registration");
 				    } 
@@ -3460,8 +3132,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     		        }
 
         	        if (deleteEvent) {
-    	                    if (deliveryLogger.isLoggable(Level.FINEST)) {
-                                    deliveryLogger.log(Level.FINEST,
+    	                    if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                                    DELIVERY_LOGGER.log(Level.FINEST,
 		                        "Deleting event ...");
 			    }
         	            deleteNextEvent(reg); 
@@ -3469,8 +3141,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     		    } catch (ThrowThis tt) { 
     		        // Registration is gone ... nothing to do
     		    }
-    	            if (deliveryLogger.isLoggable(Level.FINEST)) {
-                        deliveryLogger.log(Level.FINEST,
+    	            if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
+                        DELIVERY_LOGGER.log(Level.FINEST,
                             "Waking up notifier");
 		    }
 	            concurrentObj.waiterNotify(eventNotifier);
@@ -3478,8 +3150,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                     concurrentObj.writeUnlock();
         	}
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(notifyTaskSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(NOTIFY_TASK_SOURCE_CLASS, 
 	            "tryOnce", Boolean.valueOf(succeeded));
 	    }
 
@@ -3503,16 +3175,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}
 
 	public void run() {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(destroyThreadSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(DESTROY_THREAD_SOURCE_CLASS, 
 	            "run");
 	    }
 
             synchronized (destroyLock) {
 
                 if (destroySucceeded == true) { // someone got here first
-	            if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
 			    "DestroyThread skipped ...");
 	            }
                     return;
@@ -3526,8 +3198,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
    		    try {
    		        activationSystem.unregisterObject(activationID);
    		    } catch (RemoteException e) {
-   		        if (adminLogger.isLoggable(Level.WARNING)) {
-                            adminLogger.log(Level.WARNING, 
+   		        if (ADMIN_LOGGER.isLoggable(Level.WARNING)) {
+                            ADMIN_LOGGER.log(Level.WARNING, 
                                 "aborting shutdown - could not unregister"
                                 + " activation ID", e);
                         }
@@ -3539,8 +3211,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                          * object has already been unregistered --
                          * ignore in either case.
                          */
-   		        if (adminLogger.isLoggable(Levels.HANDLED)) {
-                            adminLogger.log(Levels.HANDLED, 
+   		        if (ADMIN_LOGGER.isLoggable(Levels.HANDLED)) {
+                            ADMIN_LOGGER.log(Levels.HANDLED, 
                                 "problem shutting down - could not unregister"
                                 + " activation ID", e);
                         }
@@ -3560,8 +3232,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                     /* wait for any pending operations to complete */
                     unexported = exporter.unexport(false);
                     if (!unexported) {
-                        if (adminLogger.isLoggable(Level.FINEST)) {
-                            adminLogger.log(Level.FINEST, 
+                        if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                            ADMIN_LOGGER.log(Level.FINEST, 
                                 "Waiting for in-progress calls to complete");
                         }
                         try {
@@ -3582,15 +3254,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 			    sleep(sleepTime);
 			    now = System.currentTimeMillis();    
                         } catch (InterruptedException ie) {
-                            if (adminLogger.isLoggable(Levels.HANDLED)) {
-                                adminLogger.log(Levels.HANDLED, 
+                            if (ADMIN_LOGGER.isLoggable(Levels.HANDLED)) {
+                                ADMIN_LOGGER.log(Levels.HANDLED, 
                                     "problem unexporting nicely", ie);
                             }
                             break; //fall through to forced unexport
                        }
                     } else {
-                        if (adminLogger.isLoggable(Level.FINEST)) {
-                            adminLogger.log(Level.FINEST, 
+                        if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                            ADMIN_LOGGER.log(Level.FINEST, 
                                 "Unexport completed");
                         }
                     }
@@ -3600,8 +3272,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                     /* Attempt to forcefully export the service */
                     unexported =
                         exporter.unexport(true);
-                    if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST, 
+                    if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST, 
                             "Forced unexport completed");
                     }
                 }
@@ -3610,37 +3282,37 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
    
 		// Guard against multiple calls (which is undefined)
 		if (joiner != null) {
-   	            if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+   	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
 			    "Terminating JoinManager ...");
    	            }
    	            joiner.terminate();
 		    joiner = null;
 		}
 		if (lookupDiscMgr != null) {
-   	            if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+   	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
 			    "Terminating lookupDiscMgr ...");
    	            }
    	            lookupDiscMgr.terminate();
 		    lookupDiscMgr = null;
 		}
    
-   	        if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+   	        if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
 			    "Interrupting Notifier ...");
    	        }
    	        notifier.interrupt();
    	    
-   	        if (adminLogger.isLoggable(Level.FINEST)) {
-                    adminLogger.log(Level.FINEST,
+   	        if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                    ADMIN_LOGGER.log(Level.FINEST,
 		        "Interrupting Expirer ...");
    	        }
    	        expirer.interrupt();
 
                 if (snapshotter != null) { // == null in non-persistent case
-   	            if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+   	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
 		            "Interrupting Snapshotter ...");
    	            }
    	            snapshotter.interrupt();
@@ -3648,21 +3320,21 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
    
    	        try {
 //TODO - Use individual try-catch blocks		
-   	            if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+   	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Notifier ...");
    	            }
    	            notifier.join();
    
-   	            if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+   	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Expirer ...");
    	            }
    	            expirer.join();	        
    
                     if (snapshotter != null) { // == null in non-persistent case
-   	                if (adminLogger.isLoggable(Level.FINEST)) {
-                            adminLogger.log(Level.FINEST,
+   	                if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                            ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Snapshotter ...");
    	                }
    	                snapshotter.join();
@@ -3684,15 +3356,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         (ServiceRegistration[])regByID.values().toArray(
                             new ServiceRegistration[regByID.size()]);
                     EventLogIterator logIter = null;
-                    if (adminLogger.isLoggable(Level.FINEST)) {
-                        adminLogger.log(Level.FINEST,
+                    if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                        ADMIN_LOGGER.log(Level.FINEST,
                             "Destroying {0} registration storage locations",
                              Integer.valueOf(regByID.size()));
                     }
                     for (int i=0; i < regs.length; i++) {
                        try {
-                           if (persistenceLogger.isLoggable(Level.FINEST)) {
-                               persistenceLogger.log(Level.FINEST,
+                           if (PERSISTENCE_LOGGER.isLoggable(Level.FINEST)) {
+                               PERSISTENCE_LOGGER.log(Level.FINEST,
                                    "Destroying logs for -> {0}", regs[i]);
                            }
                            regByID.remove(regs[i].getCookie());
@@ -3700,15 +3372,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                            if(logIter != null) 
                                 logIter.destroy();
                        } catch (IOException ioe) {
-                           if (persistenceLogger.isLoggable(Levels.HANDLED)) {
-                               persistenceLogger.log(Levels.HANDLED,
+                           if (PERSISTENCE_LOGGER.isLoggable(Levels.HANDLED)) {
+                               PERSISTENCE_LOGGER.log(Levels.HANDLED,
                                    "Destroy unsuccessful.", 
                                    ioe);
                             }
                            // Did the best we could ... continue.
                        } catch (Exception de) {
-                           if (persistenceLogger.isLoggable(Levels.HANDLED)) {
-                               persistenceLogger.log(Levels.HANDLED,
+                           if (PERSISTENCE_LOGGER.isLoggable(Levels.HANDLED)) {
+                               PERSISTENCE_LOGGER.log(Levels.HANDLED,
                                    "Destroy unsuccessful", 
                                    de);
                            }
@@ -3718,8 +3390,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                        // removed from regByID, so any pending thread 
                        // should just return with a NoSuchObjectException.
                        regs[i].getIteratorCondition().signal();         
-                        if(expirationLogger.isLoggable(Level.FINEST)) {
-                            expirationLogger.log(Level.FINEST, "Iterator notified");
+                        if(EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                            EXPIRATION_LOGGER.log(Level.FINEST, "Iterator notified");
                         }
                     }
                 } finally {
@@ -3744,22 +3416,22 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
                 if (loginContext != null) {
 		    try {
-			if (adminLogger.isLoggable(Level.FINEST)) {
-			    adminLogger.log(Level.FINEST,
+			if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+			    ADMIN_LOGGER.log(Level.FINEST,
 				"Logging out");
 			}
 			loginContext.logout();
 		    } catch (Exception e) {
-                        if (adminLogger.isLoggable(Levels.HANDLED)) {
-                            adminLogger.log(Levels.HANDLED,
+                        if (ADMIN_LOGGER.isLoggable(Levels.HANDLED)) {
+                            ADMIN_LOGGER.log(Levels.HANDLED,
 			        "Exception while logging out", 
                                 e);
 		        }
 		    }
 		}
 			
-   	        if (adminLogger.isLoggable(Level.FINEST)) {
-                    adminLogger.log(Level.FINEST,
+   	        if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
+                    ADMIN_LOGGER.log(Level.FINEST,
 		        "DestroyThread finished ...");
    	        }
                 destroySucceeded = true;
@@ -3767,8 +3439,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 readyState.shutdown();
 
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(destroyThreadSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(DESTROY_THREAD_SOURCE_CLASS, 
 	            "run");
 	    }
 	}
@@ -3780,8 +3452,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	public ExpirationThread() {
 	    super("ExpirationThread");
 	    setDaemon(false);
-            if (expirationLogger.isLoggable(Level.FINEST)) {
-                expirationLogger.log(Level.FINEST,
+            if (EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                EXPIRATION_LOGGER.log(Level.FINEST,
 		    "ExpirationThread started ...");
             }
 	}
@@ -3791,8 +3463,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * that have expired.
 	 */
 	public void run() {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(expirationThreadSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(EXPIRATION_THREAD_SOURCE_CLASS, 
 	            "run");
 	    }
             ServiceRegistration reg = null;
@@ -3808,8 +3480,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        while (!hasBeenInterrupted()) {
 	            // Get current time
 		    long now = System.currentTimeMillis();
-                    if (expirationLogger.isLoggable(Level.FINEST)) {
-                        expirationLogger.log(Level.FINEST,
+                    if (EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                        EXPIRATION_LOGGER.log(Level.FINEST,
 			    "ExpirationThread checking regs @ {0}",
 			    new Date(now));
 		    }
@@ -3819,8 +3491,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		        // (earliest -> latest)
                         reg = (ServiceRegistration)regByExpiration.firstKey(); 
 			minRegExpiration = reg.getExpiration();
-                        if (expirationLogger.isLoggable(Level.FINEST)) {
-                            expirationLogger.log(Level.FINEST,
+                        if (EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                            EXPIRATION_LOGGER.log(Level.FINEST,
 			        "ExpirationThread checking {0} which expires @ {1}", 
 				new Object[] { reg, 
 				new Date(minRegExpiration)});
@@ -3834,16 +3506,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         removeRegistration((Uuid)reg.getCookie(), reg);
                         // Notify any pending iterations
                         reg.getIteratorCondition().signal();         
-                        if(expirationLogger.isLoggable(Level.FINEST)) {
-                            expirationLogger.log(Level.FINEST, "Iterator notified");
+                        if(EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                            EXPIRATION_LOGGER.log(Level.FINEST, "Iterator notified");
                         }
 		    }
 		    try {
 		        // Calculate delay
 		        delay = minRegExpiration - now;
 		        delay = (delay >= 0) ? delay : Long.MAX_VALUE;
-                        if (expirationLogger.isLoggable(Level.FINEST)) {
-                            expirationLogger.log(Level.FINEST,
+                        if (EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                            EXPIRATION_LOGGER.log(Level.FINEST,
 			        "ExpirationThread delayed until {0}",
 				new Date(delay + now));
 			}
@@ -3858,14 +3530,14 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		}
 	    } finally {
 	        concurrentObj.writeUnlock();
-                if (expirationLogger.isLoggable(Level.FINEST)) {
-                    expirationLogger.log(Level.FINEST,
+                if (EXPIRATION_LOGGER.isLoggable(Level.FINEST)) {
+                    EXPIRATION_LOGGER.log(Level.FINEST,
 		       "ExpirationThread exiting ...");
 	        }
             }
 
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(expirationThreadSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(EXPIRATION_THREAD_SOURCE_CLASS, 
 	            "run");
 	    }
 	}
@@ -3931,18 +3603,18 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * Adds the stored registration object to the mailbox's state.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(registrationLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(REGISTRATION_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
             }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
 		    "Applying a {0}", getClass().getName());
-	        reg.dumpInfo(recoveryLogger);
+	        reg.dumpInfo(RECOVERY_LOGGER);
 	    }
 	    mb.addRegistration(reg);
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(registrationLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(REGISTRATION_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
 	}
@@ -4010,12 +3682,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * associated, stored registration.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(registrationEnabledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(REGISTRATION_ENABLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
             }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
 		    "Applying a {0}, regID = {1}, target = {2}", 
 		    new Object[] {getClass().getName(), regID, target});
 	    }
@@ -4033,8 +3705,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	             */
 	            mb.enableRegistration(regID, target);
 		} else {
-	            if (recoveryLogger.isLoggable(Levels.HANDLED)) {
-                        recoveryLogger.log(Levels.HANDLED, 
+	            if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                        RECOVERY_LOGGER.log(Levels.HANDLED, 
 			"{0} cancelled due to null target",
 			getClass().getName());
 		    }
@@ -4042,15 +3714,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		    
 	    } catch (ThrowThis tt) {
 	        // Ignore - expired registration can occur on recovery
-	        if (recoveryLogger.isLoggable(Levels.HANDLED)) {
-                    recoveryLogger.log(Levels.HANDLED,
+	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                    RECOVERY_LOGGER.log(Levels.HANDLED,
 		    "{0} Null or expired registration entry",
 		    getClass().getName());
 		}
 //TODO - Throw AssertionError if null registration, which shouldn't happen 		
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(registrationEnabledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(REGISTRATION_ENABLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
 	}
@@ -4080,12 +3752,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * Disables the associated, stored registration.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(registrationDisabledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(REGISTRATION_DISABLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}, regID = {1}",
 		    new Object[] { getClass().getName(), regID});
 	    }
@@ -4094,8 +3766,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    } catch (ThrowThis tt) {
 // TODO (FCS)- throw internal exception since this shouldn't happen
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(registrationDisabledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(REGISTRATION_DISABLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
             }
 	}
@@ -4133,12 +3805,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * Disables the associated, stored registration.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(registrationIteratorEnabledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(REGISTRATION_ITERATOR_ENABLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}, regID = {1}, iterID = {2}",
 		    new Object[] { getClass().getName(), regID, iterID});
 	    }
@@ -4147,8 +3819,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    } catch (ThrowThis tt) {
 // TODO (FCS)- throw internal exception since this shouldn't happen
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(registrationIteratorEnabledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(REGISTRATION_ITERATOR_ENABLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
             }
 	}
@@ -4179,18 +3851,18 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          * set.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(lookupGroupsChangedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(LOOKUP_GROUPS_CHANGED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}", getClass().getName());
-	        mb.dumpGroups(groups, recoveryLogger, Level.FINEST);
+	        mb.dumpGroups(groups, RECOVERY_LOGGER, Level.FINEST);
     	    }
 	    mb.lookupGroups = groups;
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(lookupGroupsChangedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(LOOKUP_GROUPS_CHANGED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
 	}
@@ -4221,18 +3893,18 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * set.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(lookupLocatorsChangedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(LOOKUP_LOCATORS_CHANGED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}", getClass().getName());
-	        mb.dumpLocators(locators, recoveryLogger, Level.FINEST);
+	        mb.dumpLocators(locators, RECOVERY_LOGGER, Level.FINEST);
 	    }
 	    mb.lookupLocators = locators;
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(lookupLocatorsChangedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(LOOKUP_LOCATORS_CHANGED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
 	}
@@ -4266,23 +3938,23 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          *  @see MailboxImpl.LocalLogHandler#applyUpdate
          */
         public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(attrsAddedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(ATTRS_ADDED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}", getClass().getName());
 	    }
             Entry[] attrs = unmarshalAttributes(marshalledAttrs);
             mb.lookupAttrs = LookupAttributes.add(mb.lookupAttrs,attrs);
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Added the attributes:");
-	        dumpAttrs(attrs, recoveryLogger, Level.FINEST);
+	        dumpAttrs(attrs, RECOVERY_LOGGER, Level.FINEST);
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(attrsAddedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(ATTRS_ADDED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
         }
@@ -4329,15 +4001,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          *  @see MailboxImpl.LocalLogHandler#applyUpdate
          */
         public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(attrsModifiedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(ATTRS_MODIFIED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}", getClass().getName());
-	        recoveryLogger.log(Level.FINEST, "Attributes (before):");
-	        dumpAttrs(mb.lookupAttrs, recoveryLogger, Level.FINEST);
+	        RECOVERY_LOGGER.log(Level.FINEST, "Attributes (before):");
+	        dumpAttrs(mb.lookupAttrs, RECOVERY_LOGGER, Level.FINEST);
 	    }
             Entry[] attrTmpls = unmarshalAttributes
                                             (marshalledAttrTmpls);
@@ -4345,13 +4017,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                                             (marshalledModAttrs);
             mb.lookupAttrs = LookupAttributes.modify(mb.lookupAttrs,
                                                      attrTmpls, modAttrs);
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Attributes (after):");
-	        dumpAttrs(mb.lookupAttrs, recoveryLogger, Level.FINEST);
+	        dumpAttrs(mb.lookupAttrs, RECOVERY_LOGGER, Level.FINEST);
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(attrsModifiedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(ATTRS_MODIFIED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
             }
         }
@@ -4389,35 +4061,35 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * Sets the expiration time of the associated registration.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(registrationRenewedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(REGISTRATION_RENEWED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}", getClass().getName());
-	        recoveryLogger.log(Level.FINEST, 
+	        RECOVERY_LOGGER.log(Level.FINEST, 
                     "Reg: {0} will expire at {1}", 
 	            new Object[] {regID, new Date(expirationTime)});
 	    }
 
             // Note: The registration might be expired at this point
             // but we can't be sure until the recovery process is
-            // complete (eg there might be another renewal log for this
+            // complete (eg there might be another renewal loG for this
             // registration later on in the recovery process).
             ServiceRegistration reg = 
                 (ServiceRegistration)mb.regByID.get(regID);
             if (reg != null) { 
                 reg.setExpiration(expirationTime);
 	    } else {
-	        if (recoveryLogger.isLoggable(Levels.HANDLED)) {
-                    recoveryLogger.log(Levels.HANDLED, 
+	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                    RECOVERY_LOGGER.log(Levels.HANDLED, 
                         "*** Registration not renewed - not found");
 		}
 // TODO (FCS)- throw internal exception
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(registrationRenewedLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(REGISTRATION_RENEWED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
 	}
@@ -4447,22 +4119,22 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * Sets the expiration time of the associated registration.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(registrationCancelledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(REGISTRATION_CANCELLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}", getClass().getName());
-	        recoveryLogger.log(Level.FINEST, 
+	        RECOVERY_LOGGER.log(Level.FINEST, 
                     "Cancelling Reg: {0}", regID);
 	    }
 
             ServiceRegistration reg = 
                 (ServiceRegistration)mb.regByID.get(regID);
             mb.removeRegistration(regID, reg);
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(registrationCancelledLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(REGISTRATION_CANCELLED_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
 	}
@@ -4503,22 +4175,22 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	 * for the associated registration.
 	 */
 	public void apply(MailboxImpl mb) {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(unknownEventExceptionLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(UNKNOWN_EVENT_EXCEPTION_LOG_OBJ_SOURCE_CLASS, 
 	            "apply", mb);
 	    }
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Applying a {0}", getClass().getName());
-	        recoveryLogger.log(Level.FINEST, 
+	        RECOVERY_LOGGER.log(Level.FINEST, 
                     "Adding: {0} to {1}",
 		    new Object[] {evtID, regID});
 	    }
 	    ServiceRegistration reg = 
 	        (ServiceRegistration)mb.regByID.get(regID);
 	    reg.getUnknownEvents().put(evtID, evtID);
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(unknownEventExceptionLogObjSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(UNKNOWN_EVENT_EXCEPTION_LOG_OBJ_SOURCE_CLASS, 
 	            "apply");
 	    }
 	}
@@ -4550,11 +4222,11 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 marshalledAttrs.add(
                     new MarshalledInstance(attrs[i]).convertToMarshalledObject());
             } catch(Throwable e) {
-	        if (recoveryLogger.isLoggable(Levels.HANDLED)) {
-                    recoveryLogger.log(Levels.HANDLED, 
+	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                    RECOVERY_LOGGER.log(Levels.HANDLED, 
                         "Error while marshalling attribute[{0}]: {1}",
 			new Object[] {Integer.valueOf(i), attrs[i]});
-                    recoveryLogger.log(Levels.HANDLED, 
+                    RECOVERY_LOGGER.log(Levels.HANDLED, 
                         "Marshalling exception",e);
 	        }
             }
@@ -4589,12 +4261,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
             try {
                 attrs.add( (Entry)( new MarshalledInstance(marshalledAttrs[i]).get(false) ) );
             } catch(Throwable e) {
-	        if (recoveryLogger.isLoggable(Levels.HANDLED)) {
-                    recoveryLogger.log(Levels.HANDLED, 
+	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                    RECOVERY_LOGGER.log(Levels.HANDLED, 
                         "Error while unmarshalling attribute[{0}]: {1}",
 			new Object [] {
 			    Integer.valueOf(i), marshalledAttrs[i]});
-                    recoveryLogger.log(Levels.HANDLED, 
+                    RECOVERY_LOGGER.log(Levels.HANDLED, 
 		        "Exception was", e);
 	        }
             }
@@ -4634,19 +4306,19 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private void addLogRecord(LogRecord rec) {
 	if(log == null) return;//not persistent, don't log
 	
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "addLogRecord", rec);
 	}
 	try {
-	    if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	    if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Adding log record: {0}", rec);
 	    }
 	    log.update(rec, true);
 	    if (++logFileSize >= logToSnapshotThreshold) {
-	        if (recoveryLogger.isLoggable(Level.FINEST)) {
-                    recoveryLogger.log(Level.FINEST, 
+	        if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                    RECOVERY_LOGGER.log(Level.FINEST, 
                         "Notifying snapshot thread");
 	        }
                 concurrentObj.waiterNotify(snapshotNotifier);
@@ -4658,13 +4330,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	     *   -- set an "I have a problem" attribute & send notification
 	     * XXX this issue will be addressed at a later time
 	     */
-            if (recoveryLogger.isLoggable(Levels.HANDLED)) {
-                recoveryLogger.log(Levels.HANDLED, 
+            if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+                RECOVERY_LOGGER.log(Levels.HANDLED, 
                     "Exception adding LogRecord", e);
 	    }
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "addLogRecord");
 	}
     }
@@ -4697,17 +4369,17 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      */
     //@see Mailbox.LocalLogHandler
     private void takeSnapshot(OutputStream  out) throws IOException {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "takeSnapshot", out);
 	}
-	if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Taking snapshot ...");
 	}
 	ObjectOutputStream stream = new ObjectOutputStream(out);
 
-	stream.writeUTF(mailboxSourceClass);
+	stream.writeUTF(MAILBOX_SOURCE_CLASS);
 	stream.writeInt(LOG_VERSION);
 	stream.writeObject(serviceID);
 	stream.writeObject(lookupGroups);
@@ -4715,8 +4387,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         stream.writeObject(marshalAttributes(lookupAttrs));
 	stream.writeObject(regByID);
 	stream.flush();
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "takeSnapshot");
 	}
     }
@@ -4729,8 +4401,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * below:
      * <ul>
      * <li> our class name
-     * <li> log format version number
-     * <li> our service ID
+     * <li> loG format version number
+ <li> our service ID
      * <li> our proxy ID
      * <li> our configuration parameters
      * <li> our service attributes
@@ -4746,17 +4418,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private void recoverSnapshot(InputStream in)
 	throws IOException, ClassNotFoundException
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "recoverSnapshot", in);
 	}
-	if (recoveryLogger.isLoggable(Level.FINEST)) {
-                recoveryLogger.log(Level.FINEST, 
+	if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+                RECOVERY_LOGGER.log(Level.FINEST, 
                     "Recovering snapshot ...");
 	}
-	int i = 0;
 	ObjectInputStream stream = new ObjectInputStream(in);
-	if (!mailboxSourceClass.equals(stream.readUTF()))
+	if (!MAILBOX_SOURCE_CLASS.equals(stream.readUTF()))
 	    throw new IOException("log from wrong implementation");
 	if (stream.readInt() != LOG_VERSION)
 	    throw new IOException("wrong log format version");
@@ -4774,27 +4445,27 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         }
         this.regByID.clear();
         this.regByID.putAll(regByID);
-	if (recoveryLogger.isLoggable(Level.FINEST)) {
-            recoveryLogger.log(Level.FINEST, 
+	if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
+            RECOVERY_LOGGER.log(Level.FINEST, 
                 "serviceID: {0}", serviceID);
-	    recoveryLogger.log(Level.FINEST, 
+	    RECOVERY_LOGGER.log(Level.FINEST, 
                 "lookupGroups:");
-	    dumpGroups(lookupGroups, recoveryLogger, Level.FINEST);
-	    recoveryLogger.log(Level.FINEST, 
+	    dumpGroups(lookupGroups, RECOVERY_LOGGER, Level.FINEST);
+	    RECOVERY_LOGGER.log(Level.FINEST, 
                 "lookupLocators:");
-	    dumpLocators(lookupLocators, recoveryLogger, Level.FINEST);
-	    recoveryLogger.log(Level.FINEST, 
+	    dumpLocators(lookupLocators, RECOVERY_LOGGER, Level.FINEST);
+	    RECOVERY_LOGGER.log(Level.FINEST, 
                 "lookupAttributes:");
-	    dumpAttrs(lookupAttrs, recoveryLogger, Level.FINEST);
+	    dumpAttrs(lookupAttrs, RECOVERY_LOGGER, Level.FINEST);
 	    Collection regs = regByID.values();
 	    Iterator iter = regs.iterator();
 	    while (iter.hasNext()) {
 	        ServiceRegistration reg = (ServiceRegistration)iter.next();
-	        reg.dumpInfo(recoveryLogger);
+	        reg.dumpInfo(RECOVERY_LOGGER);
 	    }
 	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "recoverSnapshot");
 	}
     }
@@ -4960,8 +4631,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}
 
 	public void run() {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.entering(snapshotThreadSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.entering(SNAPSHOT_THREAD_SOURCE_CLASS, 
 	            "run");
 	    }
 	    try {
@@ -4977,7 +4648,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         try {
                             // Take snapshot
                             log.snapshot();
-                            // Reset log count
+                            // Reset loG count
 		            logFileSize = 0;
 	                } catch (InterruptedIOException e) {
 			    return;
@@ -4995,8 +4666,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                              *      then send a notification
 	                     * this issue will be addressed at a later time
 	                     */
-			    if (persistenceLogger.isLoggable(Levels.HANDLED)) {
-                                persistenceLogger.log(Levels.HANDLED, 
+			    if (PERSISTENCE_LOGGER.isLoggable(Levels.HANDLED)) {
+                                PERSISTENCE_LOGGER.log(Levels.HANDLED, 
 				    "Exception taking snapshot", e);
 		            }
 		        }
@@ -5007,8 +4678,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    } finally {
 		concurrentObj.readUnlock();
 	    }
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(snapshotThreadSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(SNAPSHOT_THREAD_SOURCE_CLASS, 
 	            "run");
 	    }
 	}
@@ -5071,7 +4742,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * @param e the exception produced by the failure
      */
     protected void initFailed(Throwable e) throws Exception {
-	initLogger.log(Level.SEVERE, "Mercury failed to initialize", e);
+	INIT_LOGGER.log(Level.SEVERE, "Mercury failed to initialize", e);
         if (e instanceof PrivilegedActionException) e = e.getCause();
 	if (e instanceof Exception) {
 	    throw (Exception) e;
@@ -5116,15 +4787,15 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private static void prepareNewLocators(ProxyPreparer preparer,
         LookupLocator[] locators) throws RemoteException 
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "prepareNewLocators");
 	}
         for (int i=0; i<locators.length; i++) {
             locators[i] = (LookupLocator)preparer.prepareProxy(locators[i]);
         } 
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "prepareNewLocators");
 	}
     } 
@@ -5132,8 +4803,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     static LookupLocator[] prepareExistingLocators(
         ProxyPreparer preparer, LookupLocator[] lookupLocators) 
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "prepareExistingLocators");
 	}
         ArrayList locsList = new ArrayList(lookupLocators.length);
@@ -5141,20 +4812,20 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
             try {
                 locsList.add(preparer.prepareProxy(lookupLocators[i]) );
             } catch(Exception e) {
-                if(deliveryLogger.isLoggable(Level.INFO)) {
-                    deliveryLogger.log(Level.INFO,
+                if(DELIVERY_LOGGER.isLoggable(Level.INFO)) {
+                    DELIVERY_LOGGER.log(Level.INFO,
 		        "Failure preparing recovered "
                         + "lookup locator: {0}", 
 			lookupLocators[i]);
-		    deliveryLogger.log(Level.INFO, 
+		    DELIVERY_LOGGER.log(Level.INFO, 
 		        "Associated exception is: ", e);
                 }//endif
             }
         }//end loop
         lookupLocators = (LookupLocator[])locsList.toArray
             (new LookupLocator[locsList.size()]);
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	        "prepareExistingLocators");
 	}
         return  lookupLocators;	    
@@ -5164,8 +4835,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     // ProxyTrust Method
     //////////////////////////////////////////
     public TrustVerifier getProxyVerifier( ) {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
+        if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	    OPERATIONS_LOGGER.entering(MAILBOX_SOURCE_CLASS, 
 	        "getProxyVerifier");
 	}
         readyState.check();
@@ -5173,8 +4844,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	if (!(mailboxProxy instanceof RemoteMethodControl)) {
 	    throw new UnsupportedOperationException();
 	} else {
-            if (operationsLogger.isLoggable(Level.FINER)) {
-	        operationsLogger.exiting(mailboxSourceClass, 
+            if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
+	        OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	            "getProxyVerifier");
 	    }
 	    return new ProxyVerifier(serverStub, serviceID);

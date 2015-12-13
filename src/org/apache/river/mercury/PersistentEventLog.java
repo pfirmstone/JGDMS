@@ -88,7 +88,7 @@ class PersistentEventLog implements EventLog {
 
     /** <tt>Logger</tt> used for persistence-related debugging messages */
     private static final Logger persistenceLogger = 
-	MailboxImpl.persistenceLogger;
+	MailboxImpl.PERSISTENCE_LOGGER;
 
     /** Size of control data file: 4 longs * 8 bytes per long */
     private static final int CTLBLOCK_LEN = 8 * 4;
