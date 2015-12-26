@@ -19,11 +19,25 @@
 package net.jini.core.entry;
 
 /**
- * Required because Cloneable is only a marker interface.
- * @author peter
+ * Required by service utilities to avoid sharing internal state. All cloned
+ * instances should be deep copies.
+ * 
+ * @since 3.0.0
  */
 public interface CloneableEntry extends Entry, Cloneable {
 
+    /**
+     * Clone has been implemented in AbstractEntry to allow utilities such as
+     * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
+     * internally stored mutable Entry instances with client code.
+     * 
+     * Entry's that have mutable fields, for example arrays or collections,
+     * should override this method, call super.clone(), then safely copy
+     * any mutable fields before returning the Entry clone.
+     * 
+     * @return a clone of the original Entry
+     * @since 3.0.0
+     */
     public Entry clone();
     
 }

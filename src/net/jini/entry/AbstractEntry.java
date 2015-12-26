@@ -51,7 +51,12 @@ public abstract class AbstractEntry implements CloneableEntry {
      * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
      * internally stored instances with client code.
      * 
+     * Entry's that have mutable fields, for example arrays or collections,
+     * should override this method, call super.clone(), then safely copy
+     * any mutable fields before returning.
+     * 
      * @return a clone of the original Entry
+     * @since 3.0.0
      */
     public Entry clone() 
     {

@@ -682,7 +682,7 @@ public class NonActivatableServiceDescriptor
             if (impl instanceof Startable) {
                 ((Startable) impl).start();
             } else {
-                logger.log( Level.SEVERE,
+                logger.log( Level.FINE,
                     "Service {0} doesn''t implement {1} {2} {3} {4} {5} {6}", 
                     new Object []
                         {
