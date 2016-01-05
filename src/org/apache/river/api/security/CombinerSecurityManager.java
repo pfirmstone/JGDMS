@@ -50,7 +50,7 @@ import net.jini.security.SecurityContext;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.NamedThreadFactory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**

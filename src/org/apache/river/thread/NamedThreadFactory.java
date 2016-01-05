@@ -16,26 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.util;
+package org.apache.river.thread;
 
-import java.util.EventListener;
-import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- *
+ * A utility to help readability of pool threads
  * @author peter
  */
-public interface FutureObserver<T> extends EventListener {
+public class NamedThreadFactory implements ThreadFactory {
+    private final AtomicInteger threadCount;
+    private final String name;
+    private final boolean daemon;
     
-    public void futureCompleted(Future<T> e);
+    public NamedThreadFactory(String name, boolean daemon){
+        threadCount = new AtomicInteger();
+        this.name = name;
+        this.daemon = daemon;
+    }
+
+    @Override
+    public Thread newThread(Runnable r) {
+        StringBuilder sb = new StringBuilder(name);
+        sb.append('_');
+        sb.append("thread-");
+        sb.append(threadCount.getAndIncrement());
+        Thread t = new Thread(r, sb.toString());
+        t.setDaemon(daemon);
+        return t;
+    }
     
-    public interface ObservableFuture<T> extends Future<T> {
-        /**
-         * Adds FutureObserver's to this ObservableFuture.
-         * 
-         * @param observer to observe this.
-         * @return true if observer was added, false otherwise.
-         */
-        public boolean addObserver(FutureObserver<T> observer);
-    }  
 }

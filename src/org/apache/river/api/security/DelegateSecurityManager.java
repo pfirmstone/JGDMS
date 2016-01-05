@@ -25,15 +25,15 @@ import java.security.ProtectionDomain;
  * The DelegateSecurityManager is designed to enable the use of 
  * Delegate decorators to encapsulate security sensitive objects using
  * Li Gong's method guard pattern.
- * 
+ * <p>
  * In this manner we can prevent references to security sensitive object's from 
  * escaping.
- * 
+ * <p>
  * See "Inside Java 2 Platform Security" 2nd Edition, ISBN:0-201-78791-1, page 176.
- * 
+ * <p>
  * Delegate implementations are available separately from the Apache River
  * release.
- * 
+ * <p>
  * Delegates can be enabled at runtime by using the DelegateSecurityManager,
  * but only for code that utilises delegates.
  * 

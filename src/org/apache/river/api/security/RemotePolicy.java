@@ -28,17 +28,20 @@ import org.apache.river.api.common.Beta;
  * RemotePolicy is a service api that can be implemented by a distributed Policy service, 
  * allowing local Policy providers to be updated remotely by a djinn group administrator.
  * </p><p>
- * No service implementation has been provided, DynamicPolicyProvider does
- * implement this interface to simplify creation of such a service.
+ * No service implementation has been provided, RemotePolicyProvider
+ * implements this interface to simplify creation of such a service.
  * </p>
  * <h2>Notes for implementors:</h2>
  * <p>
  * For security purposes, only secure jeri Endpoint's should be used and must
  * require client and server authentication, in addition the proxy must be a 
  * reflective proxy only, as DownloadPermission should not be granted, which is 
- * also beneficial to reduced network load at the administrator client.  
+ * also beneficial to reduce network load on the administrator client.  
  * RemotePolicy may be submitted to a lookup service, where an administrator 
- * client will look it up and replace PermissionGrant's periodically.
+ * client will respond to a ServiceEvent notification, thereby providing the
+ * RemotePolicy service node, with the permissions requried to participate in 
+ * the djinn, an administrator client will also periodically update policy in
+ * the djinn.
  * </p><p>
  * To reduce network load, the administrator client may delay updates by
  * lazily processing updates in a serial manner.  New RemotePolicy services
@@ -49,10 +52,18 @@ import org.apache.river.api.common.Beta;
  * </p><p>
  * This policy, in addition to any local policy provider, allows a network djinn
  * administrator to provide a list of PermissionGrant's, from a single or 
- * replicated remote location,  distributed to all nodes in a djinn that 
- * administrator is responsible for.  Every time the administrator updates
- * his network policy, he can use a RemoteEvent notification system to be
- * notified for any new RemotePolicy registrations.
+ * replicated remote location,  distributed to all nodes in a djinn.
+ * </p><p>
+ * Multiple RemotePolicy's may be in force on a single JVM instance,
+ * each nested policy service instance may be responsible for updating policy for each
+ * djinn or group a JVM node joins.
+ * </p><p>
+ * RemotePolicy provides a means to dynamically grant permissions required 
+ * by other services provided by the djinn or client Subjects accessing
+ * services provided by the djinn. 
+ * The JVM that receives policy in the form of PermissionGrant's should limit
+ * the GrantPermission's granted to a djinn administrator, especially if that
+ * administrator is from another organisation.
  * </p><p>
  * In addition, replicating administrator clients may register a pseudo RemotePolicy
  * in order to track the primary administrator client and take over in the

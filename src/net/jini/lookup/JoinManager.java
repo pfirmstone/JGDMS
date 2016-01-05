@@ -63,11 +63,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.river.api.util.FutureObserver;
-import org.apache.river.impl.thread.DependencyLinker;
-import org.apache.river.impl.thread.ExtensibleExecutorService;
-import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.FutureObserver;
+import org.apache.river.thread.DependencyLinker;
+import org.apache.river.thread.ExtensibleExecutorService;
+import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
+import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * A goal of any well-behaved service is to advertise the facilities and

@@ -42,50 +42,130 @@ import java.util.ArrayList;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
 
 /**
+ * Permissions such as SocketPermission or FilePermission guard a resource
+ * but allow that resource to escape the control of the SecurityManager
+ * and Policy provider, this prevents them from being revoked. DelegatePermission
+ * supports Li Gong's method guard pattern, by allowing developers to implement
+ * a method guard delegate object, that checks for the DelegatePermission on
+ * every invocation, without allowing a reference to the resource to permanently
+ * escape the control of the SecurityManager or Policy provider.
+ * <p>
  * A DelegatePermission represents any other Permission, called a candidate
  * Permission.  A user granted a DelegatePermission does not have the privilege
  * of the candidate Permission, although a user with a candidate Permission
  * has the privilege of the DelegatePermission that represents the candidate, 
  * while the @ref DelegateSecurityManager is in force.
- * 
- * A DelegatePermission requires a security delegate to be of any
- * use or value.  A security delegates ProtectionDomain is granted the 
- * candidate permission, the security delegate allows any user granted the
- * DelegatePermission to utilise the functions that the candidate Permission
- * guards, when the user no longer has the DelegatePermission, the security
+ * <p>
+ * A DelegatePermission requires a method guard delegate to encapsulate a privileged
+ * resource. The developer is responsible for developing the method guard wrapper, an 
+ * example for SocketFactory can be found on Apache River's svn.
+ * <p>
+ * A method guard delegates ProtectionDomain is granted the 
+ * candidate permission, the security delegate allows any user granted a
+ * DelegatePermission to utilise the functions that its candidate Permission
+ * guards, when the user no longer has the DelegatePermission, the method guard
  * delegate no longer allows the user to access the functions guarded by the
  * candidate permission.  A security delegate has the responsibility to
  * prevent security sensitive objects guarded by the candidate permission from
  * escaping.  In order to do so, a security delegate utilises Li Gong's 
- * method guard pattern.
- *
+ * proposed method guard pattern.
+ * <p>
  * Security Delegates enable sensitive objects to be used by code that isn't
  * fully trusted you may want to monitor, such as a 
  * file write that is limited by the number of bytes written, or a Permission
  * to write a file, that we might decide to retract or revoke if a user
  * does something we don't like, such as exceed a pre set limit or behave
  * in a manner we would like to avoid, such as hogging network bandwidth.
- * 
+ * <p>
  * If the SecurityManager installed doesn't implement DelegateSecurityManager,
- * the DelegatePermission Guard's will be disabled.  This allows delegate's
+ * DelegatePermission's will be disabled.  This allows delegate's
  * to be included in code, the decision to utilise delegate functionality may
  * delayed until runtime or deployment.
- * 
+ * <p>
  * The DelegatePermissionCollection returned by newPermissionCollection() is not
  * synchronized, this decision was made because PermissionCollection's are 
  * usually accessed from within a heterogenous PermissionCollection like 
  * Permissions that synchronizes anyway.  The decision made for the
  * PermissionCollection contract to be synchronized has been broken deliberately
- * in this case, existing PermissionCollection implementatations don't cleanly
+ * in this case, existing PermissionCollection implementations don't cleanly
  * protect their internal state with synchronization, since the Enumeration
  * returned by elements() will throw a ConcurrentModificationException if in a 
  * loop when Permission's are being added to a PermissionCollection.  In this
  * case external synchronization must be used.
- * 
- * PermissionCollection's are used mostly read only.
- * 
+ * <p>
  * Serialization has been implemented so the implementation is not
  * tied to the serialized form, instead serialization proxy's are used.
+ * <p>
+ * A candidate permission is referred to as a target in the following 
+ * explanation of DelegatePermission policy file syntax.
+ * <p>
+ * The syntax of the target name approximates that used for specifying
+ * permissions in the default security policy file; it is listed below using
+ * the same grammar notation employed by <i>The Java(TM) Language
+ * Specification</i>:
+ * <pre>
+ * <i>Target</i>:
+ *   <i>DelimiterDeclaration</i><sub>opt</sub> <i>Permissions</i> ;<sub>opt</sub>
+ *   
+ * <i>DelimiterDeclaration</i>:
+ *   delim = <i>DelimiterCharacter</i>
+ *   
+ * <i>Permissions</i>:
+ *   <i>Permission</i>
+ *   <i>Permissions</i> ; <i>Permission</i>
+ *   
+ * <i>Permission</i>:
+ *   <i>PermissionClassName</i>
+ *   <i>PermissionClassName Name</i>
+ *   <i>PermissionClassName Name</i> , <i>Actions</i>
+ *   
+ * <i>PermissionClassName</i>:
+ *   <i>ClassName</i>
+ *   
+ * <i>Name</i>:
+ *   <i>DelimitedString</i>
+ *   
+ * <i>Actions</i>:
+ *   <i>DelimitedString</i>
+ * </pre>
+ * The production for <i>ClassName</i> is the same as that used in <i>The
+ * Java Language Specification</i>.  <i>DelimiterCharacter</i> can be any
+ * unquoted non-whitespace character other than ';' (single and
+ * double-quote characters themselves are allowed).  If
+ * <i>DelimiterCharacter</i> is not specified, then the double-quote
+ * character is the default delimiter.  <i>DelimitedString</i> is the same
+ * as the <i>StringLiteral</i> production in <i>The Java Language
+ * Specification</i>, except that it is delimited by the
+ * <i>DelimiterDeclaration</i>-specified (or default) delimiter character
+ * instead of the double-quote character exclusively.
+ * <p>
+ * Note that if the double-quote character is used as the delimiter and the
+ * name or actions strings of specified permissions themselves contain nested
+ * double-quote characters, then those characters must be escaped (or in some
+ * cases doubly-escaped) appropriately.  For example, the following policy file
+ * entry would yield a <code>GrantPermission</code> containing a
+ * <code>FooPermission</code> in which the target name would include the word
+ * "quoted" surrounded by double-quote characters:
+ * <pre>
+ * permission org.apache.river.api.security.DelegatePermission
+ *     "FooPermission \"a \\\"quoted\\\" string\"";
+ * </pre>
+ * For comparison, the following policy file entry which uses a custom
+ * delimiter would yield an equivalent <code>GrantPermission</code>:
+ * <pre>
+ * permission org.apache.river.api.security.DelegatePermission
+ *     "delim=| FooPermission |a \"quoted\" string|";
+ * </pre>
+ * Some additional example policy file permissions:
+ * <pre>
+ * // allow granting of permission to listen for and accept connections
+ * permission org.apache.river.api.security.DelegatePermission
+ *     "java.net.SocketPermission \"localhost:1024-\", \"accept,listen\"";
+ *
+ * // allow granting of permissions to read files under /foo, /bar directories
+ * permission org.apache.river.api.security.DelegatePermission 
+ *     "delim=' java.io.FilePermission '/foo/-', 'read'; java.io.FilePermission '/bar/-', 'read'";
+ * </pre>
  * 
  * @author Peter Firmstone
  * @since 3.0.0

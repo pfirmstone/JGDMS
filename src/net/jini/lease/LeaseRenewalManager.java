@@ -47,7 +47,7 @@ import net.jini.core.lease.LeaseException;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.UnknownLeaseException;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * Provides for the systematic renewal and overall management of a set

@@ -90,7 +90,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.NamedThreadFactory;
 
 
 /**

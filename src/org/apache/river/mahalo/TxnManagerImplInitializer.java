@@ -51,7 +51,7 @@ import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.NamedThreadFactory;
 
 /**
  *

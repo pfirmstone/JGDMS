@@ -97,8 +97,8 @@ import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
-import org.apache.river.impl.thread.ExtensibleExecutorService;
-import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
+import org.apache.river.thread.ExtensibleExecutorService;
+import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
 
 /**
  * An implementation of the Jini Transaction Specification.

@@ -64,9 +64,9 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.impl.thread.ExtensibleExecutorService;
-import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.ExtensibleExecutorService;
+import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
+import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * This package private superclass of LookupLocatorDiscovery exists for 

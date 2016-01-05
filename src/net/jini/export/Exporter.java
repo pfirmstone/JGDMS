@@ -50,6 +50,12 @@ public interface Exporter {
      * <code>java.rmi.Remote</code> and whose methods each declare at least
      * one exception whose type is <code>java.rmi.RemoteException</code>
      * or one of its superclasses.
+     * 
+     * <p>This method should not be called from within an object constructor,
+     * otherwise the object reference will escape during construction, leaving
+     * the remote object implementation in an undefined state.
+     * 
+     * @see org.apache.river.api.util.Startable
      *
      * @param	impl a remote object to export
      * @return	a proxy for the remote object

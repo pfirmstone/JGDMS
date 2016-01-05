@@ -149,8 +149,8 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.util.Startable;
-import org.apache.river.impl.thread.NamedThreadFactory;
-import org.apache.river.impl.thread.SynchronousExecutors;
+import org.apache.river.thread.NamedThreadFactory;
+import org.apache.river.thread.SynchronousExecutors;
 
 /**
  * Base server-side implementation of a lookup service, subclassed by

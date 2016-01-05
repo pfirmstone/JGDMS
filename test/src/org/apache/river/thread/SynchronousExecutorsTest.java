@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.impl.thread;
+package org.apache.river.thread;
 
 import java.rmi.RemoteException;
 import java.util.Collection;

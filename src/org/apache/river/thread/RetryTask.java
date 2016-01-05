@@ -72,8 +72,7 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.river.api.util.FutureObserver;
-import org.apache.river.api.util.FutureObserver.ObservableFuture;
+import org.apache.river.thread.FutureObserver.ObservableFuture;
 
 /**
  *

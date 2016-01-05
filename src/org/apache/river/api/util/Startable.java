@@ -22,8 +22,14 @@ package org.apache.river.api.util;
  * Implemented by an object to enable starting threads, perform remote
  * export or any other activity after construction is complete, required to put
  * the object into an operational state.
+ * <p>
+ * All services in River now implement Startable to avoid 
+ * exporting a service during construction, for JMM compliance.
  * 
  * @see org.apache.river.start.ServiceDescriptor
+ * @see org.apache.river.start.ActivateWrapper
+ * @see org.apache.river.start.SharedGroupImpl
+ * @see org.apache.river.start.NonActivatableServiceDescriptor
  * @see net.jini.export.Exporter
  * @since 3.0.0
  */

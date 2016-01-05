@@ -84,13 +84,13 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-import org.apache.river.api.util.FutureObserver;
-import org.apache.river.api.util.FutureObserver.ObservableFuture;
-import org.apache.river.impl.thread.DependencyLinker;
-import org.apache.river.impl.thread.ExtensibleExecutorService;
-import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
-import org.apache.river.impl.thread.NamedThreadFactory;
-import org.apache.river.impl.thread.ObservableFutureTask;
+import org.apache.river.thread.FutureObserver;
+import org.apache.river.thread.FutureObserver.ObservableFuture;
+import org.apache.river.thread.DependencyLinker;
+import org.apache.river.thread.ExtensibleExecutorService;
+import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
+import org.apache.river.thread.NamedThreadFactory;
+import org.apache.river.thread.ObservableFutureTask;
 
 /**
  * The <code>ServiceDiscoveryManager</code> class is a helper utility class that

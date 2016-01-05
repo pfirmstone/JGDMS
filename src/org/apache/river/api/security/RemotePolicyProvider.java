@@ -46,6 +46,7 @@ import net.jini.security.GrantPermission;
 import org.apache.river.api.common.Beta;
 
 /**
+ * An implementation of RemotePolicy.
  * @author Peter Firmstone
  * @since 3.0.0
  */
@@ -144,13 +145,12 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
 	// changes between now and gaining the lock, only the length of the
 	// HashSet is potentially not optimal, keeping the HashSet creation
 	// outside of the lock reduces the lock held duration.
-        Set<ProtectionDomain> domains = null;
-        int l = grants.length;
-        for (int i = 0; i < l; i++ ){
+        Set<ProtectionDomain> domains = new HashSet<ProtectionDomain>(32);
+        for (int i = 0, l = grants.length; i < l; i++ ){
             if (grants[i] == null ) throw new NullPointerException("null PermissionGrant prohibited");
             // This causes a ProtectionDomain security check.
             final Class c = grants[i].getClass();
-            domains = AccessController.doPrivileged(
+            domains.addAll( AccessController.doPrivileged(
                 new PrivilegedAction<Set<ProtectionDomain>>() {
                     public Set<ProtectionDomain> run() {
                         Class[] classes = c.getDeclaredClasses();
@@ -161,7 +161,7 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
                         }
                         return domains;
                     }
-                });
+                }));
         }
         Iterator<ProtectionDomain> it = domains.iterator();
         while (it.hasNext()){

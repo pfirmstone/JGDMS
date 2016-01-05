@@ -52,7 +52,7 @@ import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * Initialization common to all modes in which instances of this service

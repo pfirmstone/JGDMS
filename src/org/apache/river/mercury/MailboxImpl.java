@@ -119,7 +119,7 @@ import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.JoinManager;
 import net.jini.discovery.LookupDiscovery;
 import net.jini.io.MarshalledInstance;
-import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * <tt>MailboxImpl</tt> implements the server side of the event 
