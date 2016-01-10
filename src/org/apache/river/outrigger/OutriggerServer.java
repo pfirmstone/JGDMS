@@ -19,7 +19,7 @@ package org.apache.river.outrigger;
 
 import org.apache.river.landlord.Landlord;
 
-import org.apache.river.start.ServiceProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;

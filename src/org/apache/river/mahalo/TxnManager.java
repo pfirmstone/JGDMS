@@ -21,7 +21,7 @@ import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.landlord.Landlord;
-import org.apache.river.start.ServiceProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.core.transaction.Transaction;

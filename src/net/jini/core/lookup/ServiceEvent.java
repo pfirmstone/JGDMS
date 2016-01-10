@@ -153,10 +153,17 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     /**
      * Returns the new state of the item, or null if the item was deleted
      * from the lookup service.
+     * 
+     * It is preferable to delay unmarshalling the service proxy until this method
+     * is called.
      *
      * @return a <tt>ServiceItem</tt> object representing the service item value
      */
     public abstract ServiceItem getServiceItem();
+    
+    public Object getBootstrapProxy(){
+	throw new UnsupportedOperationException("Lookup service doesn't support secure lookup");
+    }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
 	out.defaultWriteObject();

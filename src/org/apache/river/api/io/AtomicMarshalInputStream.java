@@ -3488,8 +3488,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	}
 	
 	@Override
-	public <T> T geT(String name, T val) throws IOException {
-	    return (T) classFields.get(context.caller()).get(name, val);
+	public <T> T geT(String name, T val) throws IOException, ClassCastException {
+	    T result = (T) classFields.get(context.caller()).get(name, val);
+	    return result;
 	}
 
 	@Override

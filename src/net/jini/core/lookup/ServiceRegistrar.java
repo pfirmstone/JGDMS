@@ -17,10 +17,12 @@
  */
 package net.jini.core.lookup;
 
-import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
-import net.jini.core.event.*;
+import java.rmi.RemoteException;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
 
 /**
  * Defines the interface to the lookup service.  The interface is not a
@@ -120,6 +122,33 @@ public interface ServiceRegistrar {
      */
     ServiceMatches lookup(ServiceTemplate tmpl, int maxMatches)
 	throws RemoteException;
+    
+    /**
+     * Returns an array with a maximum length of maxProxies, containing bootstrap
+     * proxies matching the template with service proxies that are likely to 
+     * be compatible with the clients constraints. 
+     * Bootstrap proxies returned are instances of ProxyTrust, RemoteMethodControl,
+     * ServiceProxyAccessor and ServiceAttributesAccessor.  The bootstrap proxy
+     * is used as a token to authenticate the service, prior to dynamically 
+     * granting permissions, local attribute filtering and ultimately
+     * download of the service proxy codebase and unmarshalling of the service 
+     * proxy.
+     * 
+     * @param tmpl
+     * @param maxProxies
+     * @return an array of bootstrap proxies.
+     * @throws RemoteException 
+     * @see net.jini.security.proxytrust.ProxyTrust
+     * @see net.jini.core.constraint.RemoteMethodControl
+     * @see net.jini.export.ServiceProxyAccessor
+     * @see net.jini.export.ServiceAttributesAccessor
+     */
+    default Object [] lookup(
+	    int maxProxies,
+	    ServiceTemplate tmpl) throws RemoteException
+    {
+	throw new UnsupportedOperationException("Lookup service doesn't support secure lookup");
+    }
 
     /**
      * An event is sent when the changed item matches the template before

@@ -302,7 +302,7 @@ public @interface AtomicSerial {
          * @throws IllegalArgumentException if type of <code>name</code> is
          *         not serializable or if the field type is incorrect
          */
-        public abstract <T> T geT(String name, T val) throws IOException;
+        public abstract <T> T geT(String name, T val) throws IOException, ClassCastException;
     }
     
 }

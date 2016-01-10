@@ -19,7 +19,7 @@ package org.apache.river.reggie;
 
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.proxy.MarshalledWrapper;
-import org.apache.river.start.ServiceProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;

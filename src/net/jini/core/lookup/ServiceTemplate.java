@@ -19,6 +19,7 @@ package net.jini.core.lookup;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 import org.apache.river.api.io.AtomicSerial;
@@ -67,11 +68,19 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      * @serial
      */
     public Entry[] attributeSetTemplates;
-
+    /**
+     * Client invocation constraints.
+     * 
+     * @serial
+     */
+    public InvocationConstraints clientConstraints;
+    
+    
     public ServiceTemplate(GetArg arg) throws IOException {
-	this(arg == null ? null :(ServiceID) arg.get("serviceID", null),
-	    arg == null ? null :(Class[])arg.get("serviceTypes", null),
-	    arg == null ? null :(Entry[])arg.get("attributeSetTemplates", null));
+	this(arg == null ? null : arg.geT("serviceID", (ServiceID) null),
+	    arg == null ? null : arg.geT("serviceTypes", (Class[]) null),
+	    arg == null ? null : arg.geT("attributeSetTemplates", (Entry[]) null),
+	    arg == null ? null : arg.geT("clientConstraints", (InvocationConstraints) null));
     }
 
 
@@ -85,9 +94,17 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
     public ServiceTemplate(ServiceID serviceID,
 			   Class[] serviceTypes,
 			   Entry[] attrSetTemplates) {
+	this(serviceID, serviceTypes, attrSetTemplates, null);
+    }
+    
+    public ServiceTemplate(ServiceID serviceID,
+			   Class[] serviceTypes,
+			   Entry[] attrSetTemplates,
+			   InvocationConstraints clientConstraints) {
 	this.serviceID = serviceID;
 	this.serviceTypes = serviceTypes;
 	this.attributeSetTemplates = attrSetTemplates;
+	this.clientConstraints = clientConstraints;
     }
     
     /**

@@ -20,7 +20,7 @@ package org.apache.river.fiddler;
 import net.jini.discovery.LookupDiscoveryRegistration;
 
 import org.apache.river.proxy.ThrowThis;
-import org.apache.river.start.ServiceProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.Uuid;
 
 import net.jini.admin.Administrable;

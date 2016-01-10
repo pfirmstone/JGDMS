@@ -45,7 +45,7 @@ class RegistrarEvent extends ServiceEvent {
     /**
      * The new state of the serviceItem, or null if the serviceItem has been
      * deleted from the lookup service.  This is either a ServiceItem
-     * or an Item (to be converted to a ServiceItem when unmarshalled).
+     * or an Item (to be converted to a ServiceItem when getServiceItem is called).
      *
      * @serial
      */
@@ -78,8 +78,6 @@ class RegistrarEvent extends ServiceEvent {
     public RegistrarEvent(GetArg arg) throws IOException {
 	super(check(arg));
 	serviceItem = arg.get("serviceItem", null);
-	if (serviceItem instanceof Item)
-	    serviceItem = ((Item)serviceItem).get();
 	servID = ((RO) arg.getReader()).servID;
     }
 
@@ -114,6 +112,8 @@ class RegistrarEvent extends ServiceEvent {
     public ServiceItem getServiceItem() {
 	if (serviceItem instanceof ServiceItem){
 	    return ((ServiceItem) serviceItem).clone();
+	} else if (serviceItem instanceof Item) {
+	    serviceItem = ((Item)serviceItem).get();
 	}
 	return (ServiceItem)serviceItem;
     }
@@ -136,16 +136,13 @@ class RegistrarEvent extends ServiceEvent {
     /**
      * Reads the default serializable field value for this instance, followed
      * by the serviceItem's service ID encoded as specified by the
-     * ServiceID.writeBytes method.  If the value of the serviceItem field is an Item
-     * instance, converts it to a ServiceItem.
+     * ServiceID.writeBytes method. 
      */
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
 	servID = new ServiceID(in);
-	if (serviceItem instanceof Item)
-	    serviceItem = ((Item)serviceItem).get();
     }
     
     private static class RO implements ReadObject {

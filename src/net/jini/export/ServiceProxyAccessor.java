@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.start;
+package net.jini.export;
 
 import java.rmi.RemoteException;
 

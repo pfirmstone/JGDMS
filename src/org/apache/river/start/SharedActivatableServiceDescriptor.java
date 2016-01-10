@@ -17,6 +17,7 @@
  */
 package org.apache.river.start;
 
+import net.jini.export.ServiceProxyAccessor;
 import org.apache.river.config.Config;
 
 import net.jini.config.Configuration;

@@ -18,6 +18,7 @@
 
 package org.apache.river.start;
 
+import net.jini.export.ServiceProxyAccessor;
 import org.apache.river.config.Config;
 import java.io.IOException;
 import java.io.InvalidObjectException;
