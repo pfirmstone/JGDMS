@@ -38,7 +38,7 @@ public interface JoinAdmin {
      * Get the current attribute sets for the service. 
      * 
      * @return the current attribute sets for the service
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      */
     Entry[] getLookupAttributes() throws RemoteException;
 
@@ -48,7 +48,7 @@ public interface JoinAdmin {
      * currently-joined lookup services.
      *
      * @param attrSets the attribute sets to add
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      */
     void addLookupAttributes(Entry[] attrSets) throws RemoteException;
 
@@ -60,7 +60,7 @@ public interface JoinAdmin {
      *
      * @param attrSetTemplates the templates for matching attribute sets
      * @param attrSets the modifications to make to matching sets
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      *     
      * @see net.jini.core.lookup.ServiceRegistration#modifyAttributes
      */
@@ -73,7 +73,7 @@ public interface JoinAdmin {
      *
      * @return an array of groups to join. An empty array means the service
      *         joins no groups (as opposed to "all" groups).
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #setLookupGroups
      */
     String[] getLookupGroups() throws RemoteException;
@@ -83,7 +83,7 @@ public interface JoinAdmin {
      * groups will be discovered and joined.
      *
      * @param groups groups to join
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #removeLookupGroups
      */
     void addLookupGroups(String[] groups) throws RemoteException;
@@ -93,7 +93,7 @@ public interface JoinAdmin {
      * services that are not members of any of the remaining groups.
      *
      * @param groups groups to leave
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #addLookupGroups
      */
     void removeLookupGroups(String[] groups) throws RemoteException;
@@ -105,7 +105,7 @@ public interface JoinAdmin {
      * and joined.
      *
      * @param groups groups to join
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #getLookupGroups
      */
     void setLookupGroups(String[] groups) throws RemoteException;
@@ -114,7 +114,7 @@ public interface JoinAdmin {
      *Get the list of locators of specific lookup services to join. 
      *
      * @return the list of locators of specific lookup services to join
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #setLookupLocators
      */
     LookupLocator[] getLookupLocators() throws RemoteException;
@@ -124,7 +124,7 @@ public interface JoinAdmin {
      * lookup services will be discovered and joined.
      *
      * @param locators locators of specific lookup services to join
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #removeLookupLocators
      */
     void addLookupLocators(LookupLocator[] locators) throws RemoteException;
@@ -134,7 +134,7 @@ public interface JoinAdmin {
      * Any leases held at the lookup services are cancelled.
      *
      * @param locators locators of specific lookup services to leave
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #addLookupLocators
      */
     void removeLookupLocators(LookupLocator[] locators) throws RemoteException;
@@ -146,7 +146,7 @@ public interface JoinAdmin {
      * will be discovered and joined.
      *
      * @param locators locators of specific lookup services to join
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a communication issue occurs.
      * @see #getLookupLocators
      */
     void setLookupLocators(LookupLocator[] locators) throws RemoteException;

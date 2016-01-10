@@ -26,8 +26,8 @@ import java.rmi.RemoteException;
  * an IllegalArgumentException is thrown if a key is not a Lease or a value
  * is not a Long.  Null keys and values are not supported.
  *
- * @param <K> 
- * @param <V> 
+ * @param <K> key type
+ * @param <V> value type
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
@@ -53,8 +53,8 @@ public interface LeaseMap<K,V> extends java.util.Map<K,V> {
      * normally.  Otherwise, removes all leases that failed to renew
      * from the LeaseMap, and throws LeaseMapException.
      * 
-     * @throws LeaseMapException
-     * @throws java.rmi.RemoteException
+     * @throws LeaseMapException if one or more lease renewals fail.
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     void renewAll() throws LeaseMapException, RemoteException;
 
@@ -64,8 +64,8 @@ public interface LeaseMap<K,V> extends java.util.Map<K,V> {
      * removes all leases that failed to cancel from the LeaseMap, and
      * throws LeaseMapException.
      * 
-     * @throws LeaseMapException
-     * @throws java.rmi.RemoteException
+     * @throws LeaseMapException if one or more lease cancellations fail.
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     void cancelAll() throws LeaseMapException, RemoteException;
 }

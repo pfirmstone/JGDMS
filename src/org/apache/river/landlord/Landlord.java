@@ -20,10 +20,11 @@ package org.apache.river.landlord;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
 
 /** 
  * Interface that granters of leases must implement in order to work

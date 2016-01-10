@@ -17,27 +17,26 @@
  */
 package org.apache.river.fiddler;
 
-import org.apache.river.proxy.ConstrainableProxyUtil;
-import org.apache.river.lease.AbstractLease;
-
-import net.jini.id.ReferentUuid;
-import net.jini.id.ReferentUuids;
-import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.lang.reflect.Method;
+import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
-
-import java.lang.reflect.Method;
-import java.io.InvalidObjectException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.rmi.RemoteException;
+import net.jini.id.ReferentUuid;
+import net.jini.id.ReferentUuids;
+import net.jini.id.Uuid;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.ID;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 
 /**
  * When the Fiddler implementation of the lookup discovery service grants
@@ -51,6 +50,7 @@ import org.apache.river.lease.ID;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class FiddlerLease extends AbstractLease 
                    implements ReferentUuid, ID<Uuid>
 {
@@ -158,6 +158,26 @@ class FiddlerLease extends AbstractLease
         this.registrationID = registrationID;
         this.leaseID        = leaseID;
     }//end constructor
+
+    FiddlerLease(GetArg arg) throws IOException {
+	super(check(arg));
+	this.server = (Fiddler) arg.get("server", null);
+	this.serverID = (Uuid) arg.get("serverID", null);
+	this.registrationID = (Uuid) arg.get("registrationID", null);
+	this.leaseID = (Uuid) arg.get("leaseID", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	check((Fiddler) arg.get("server", null),
+		(Uuid) arg.get("serverID", null),
+		(Uuid) arg.get("registrationID", null));
+	Object leaseID = arg.get("leaseID", null);
+	if (leaseID == null || leaseID instanceof Uuid){
+		return arg;
+	} else {
+	    throw new InvalidObjectException("leaseID not instanceof Uuid");
+	}
+    }
 
     /**
      * Creates a <code>LeaseMap</code> object that can contain leases whose
@@ -373,6 +393,12 @@ class FiddlerLease extends AbstractLease
                                throws IOException, ClassNotFoundException
     {
         s.defaultReadObject();
+	check(server, serverID, registrationID);
+    }//end readObject
+    
+    private static boolean check(Fiddler server, Uuid serverID, Uuid registrationID)
+	throws InvalidObjectException
+{
         /* Verify server */
         if(server == null) {
             throw new InvalidObjectException("FiddlerLease.readObject "
@@ -391,7 +417,8 @@ class FiddlerLease extends AbstractLease
                                              +"failure - registrationID "
                                              +"field is null");
         }//endif
-    }//end readObject
+	return true;
+    }
 
     /** During deserialization of an instance of this class, if it is found
      *  that the stream contains no data, this method is automatically
@@ -486,6 +513,7 @@ class FiddlerLease extends AbstractLease
      *
      * @since 2.0
      */
+    @AtomicSerial
     static final class ConstrainableFiddlerLease extends FiddlerLease
                                                  implements RemoteMethodControl, ID<Uuid>
     {
@@ -567,6 +595,28 @@ class FiddlerLease extends AbstractLease
                    serverID, registrationID, leaseID, expiration );
 	    this.methodConstraints = methodConstraints;
         }//end constructor
+
+        /**
+	 * {@link AtomicSerial} constructor.
+	 * @param arg
+	 * @throws IOException 
+	 */
+	ConstrainableFiddlerLease(GetArg arg) throws IOException {
+	    super(check(arg));
+	    this.methodConstraints 
+		    = (MethodConstraints) arg.get("methodConstraints", null);
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException{
+	    FiddlerLease fl = new FiddlerLease(arg);
+	    MethodConstraints methodConstraints 
+		    = (MethodConstraints) arg.get("methodConstraints", null);
+	    ConstrainableProxyUtil.verifyConsistentConstraints
+                                                       (methodConstraints,
+                                                        fl.server,
+                                                        methodMapArray);
+	    return arg;
+	}
 
         /**
          * Examines the input parameter to determine if that parameter, along

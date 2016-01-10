@@ -274,6 +274,20 @@
         </sequential>
     </macrodef>
 
+    <macrodef name="gentrustedclasses" description="Generate Trusted Deserialization Class List">
+        <attribute name="output"/>
+        <attribute name="classpathref" default="classdep.classpath" />
+        <element name="cd-elements" implicit="yes" />
+        <sequential>
+            <java classname="org.apache.river.tool.GenTrustedClasses" 
+                  fork="true" failonerror="true"
+                  logError="true" output="@{output}">
+                <classpath refid="@{classpathref}"/>
+                <cd-elements />
+            </java>
+        </sequential>
+    </macrodef>
+
     <macrodef name="jarwrapper" description="Run JarWrapper">
         <attribute name="classpathref" default="jarwrapper.classpath" />
         <element name="jw-elements" implicit="yes" />

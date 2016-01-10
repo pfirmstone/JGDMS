@@ -22,11 +22,15 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.proxy.MarshalledWrapper;
 
@@ -46,44 +50,87 @@ import org.apache.river.proxy.MarshalledWrapper;
  *
  * @see ClassMapper
  */
+@AtomicSerial
 class EntryClass implements Serializable {
 
     private static final long serialVersionUID = 2L;
-
+    private static final ObjectStreamField[] serialPersistentFields = 
+    { 
+        /** @serialField Class name */
+        new ObjectStreamField("name", String.class),
+        /** @serialField Hash for the type */
+        new ObjectStreamField("hash", Long.TYPE),
+        /** @serialField Descriptor for the superclass */
+        new ObjectStreamField("superclass", EntryClass.class),
+	 /** @serialField Descriptor for the superclass */
+        new ObjectStreamField("numFields", Integer.TYPE)
+    };
     /**
      * Class name
      *
      * @serial
      */
-    protected String name;
+    protected final String name;
     /**
      * Hash for the type
      *
      * @serial
      */
-    protected long hash;
+    protected final long hash;
     /**
      * Descriptor for the superclass
      *
      * @serial
      */
-    protected EntryClass superclass;
+    protected final EntryClass superclass;
     /**
      * Number of public fields
      *
      * @serial
      */
-    protected int numFields;
+    protected final int numFields;
+
+    private static boolean check(GetArg arg) throws IOException{
+	String name = (String) arg.get("name", null);
+	if (name == null) throw new InvalidObjectException("name cannot be null");
+	long hash = arg.get("hash", 0L);
+	if (hash == 0) throw new InvalidObjectException("hash cannot be zero");
+	Object superclass = arg.get("superclass", null);
+	if (superclass != null) {
+	    if (!(superclass instanceof EntryClass))
+		throw new InvalidObjectException(
+			"superclass must be an instance of EntryClass");
+	} else {
+	    if (!Object.class.getName().equals(name))
+		throw new InvalidObjectException(
+		    "superclass may only be null if name is an instance of java.lang.Object");
+	}
+	int numFields = arg.get("numFields", 0);
+	return true;
+    }
+    
+    public EntryClass(GetArg arg) throws IOException{
+	this(arg, check(arg));
+    }
+    
+    private EntryClass(GetArg arg, boolean check) throws IOException {
+	name = (String) arg.get("name", null);
+	hash = arg.get("hash", 0L);
+	superclass = (EntryClass) arg.get("superclass", null);
+	numFields = arg.get("numFields", 0);
+	integrity = MarshalledWrapper.integrityEnforced(arg);
+    }
+
     /** Number of instances of this class in service registrations */
-    protected transient int numInstances;
+    private transient int numInstances;
     /** Number of templates of this class in event registrations */
-    protected transient int numTemplates;
+    private transient int numTemplates;
     /**
      * An instance containing only name and hash, no superclass info.
      * This is only used on the registrar side, to minimize the amount
      * of info transmitted back to clients.
      */
-    protected transient EntryClass replacement;
+    private transient EntryClass replacement;
     /** 
      * Flag set to true if this instance was unmarshalled from an
      * integrity-protected stream, or false otherwise
@@ -98,7 +145,7 @@ class EntryClass implements Serializable {
 	this.superclass = superclass;
 	ClassMapper.EntryField[] fields = ClassMapper.getFields(clazz);
 	numFields = fields.length;
-	computeHash(fields);
+	hash = computeHash(fields);
     }
 
     /**
@@ -108,6 +155,8 @@ class EntryClass implements Serializable {
     private EntryClass(EntryClass orig) {
 	name = orig.name;
 	hash = orig.hash;
+	superclass = orig.superclass == null ? null : orig.superclass.getReplacement();
+	numFields = orig.numFields;
     }
 
     /** Return the superclass descriptor */
@@ -232,10 +281,10 @@ class EntryClass implements Serializable {
      * ordered alphabetically by field name.  The first 8 bytes of the digest
      * are used to form the 64-bit hash value for this type.
      */
-    private void computeHash(ClassMapper.EntryField[] fields) 
+    private long computeHash(ClassMapper.EntryField[] fields)  
 	throws MarshalException 
     {
-	hash = 0;
+	long hash = 0;
 	try {
 	    MessageDigest md = MessageDigest.getInstance("SHA");
 	    DataOutputStream out = new DataOutputStream(
@@ -258,7 +307,13 @@ class EntryClass implements Serializable {
 	    throw new MarshalException("Unable to calculate type hash for "
 				       + name, e);
 	}
+	return hash;
     }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
 
     /**
      * Samples integrity protection setting (if any) of the stream from which

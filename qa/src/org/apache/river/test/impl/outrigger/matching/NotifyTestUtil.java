@@ -17,9 +17,6 @@
  */
 package org.apache.river.test.impl.outrigger.matching;
 
-import java.util.logging.Level;
-
-// Test harness specific classes
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.TestException;
@@ -27,14 +24,14 @@ import java.io.PrintWriter;
 
 // All other imports
 import java.rmi.*;
-import net.jini.core.transaction.TransactionException;
-import net.jini.core.lease.Lease;
-import net.jini.core.entry.Entry;
-import net.jini.core.event.EventRegistration;
-import net.jini.space.JavaSpace;
-import org.apache.river.qa.harness.QAConfig;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.entry.Entry;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.lease.Lease;
+import net.jini.core.transaction.TransactionException;
+import net.jini.io.MarshalledInstance;
+import net.jini.space.JavaSpace;
 
 
 /**
@@ -89,7 +86,7 @@ class NotifyTestUtil {
 			     null, 
 			     tsl,
 			     Lease.ANY, 
-			     new MarshalledObject(tmpl));
+			     new MarshalledInstance(tmpl).convertToMarshalledObject());
 	    QAConfig c = QAConfig.getConfig();
 	    if (c.getConfiguration() instanceof org.apache.river.qa.harness.QAConfiguration) {
 		er = (EventRegistration) c.prepare("test.outriggerEventRegistrationPreparer", er);

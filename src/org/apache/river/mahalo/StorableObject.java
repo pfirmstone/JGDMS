@@ -23,6 +23,8 @@ import java.io.ObjectInputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
 /**
@@ -37,6 +39,7 @@ import net.jini.io.MarshalledInstance;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 public class StorableObject implements java.io.Serializable {
     /**
      * @serial
@@ -53,6 +56,14 @@ public class StorableObject implements java.io.Serializable {
      */
     public StorableObject(Object obj) throws RemoteException {
 	this(obj, toMO(obj));
+    }
+    
+    private static MarshalledObject check(GetArg arg) throws IOException {
+	return (MarshalledObject) arg.get("bytes", null);
+    }
+    // TODO: static check
+    StorableObject(GetArg arg) throws IOException {
+	this(null, check(arg));
     }
     
     private static MarshalledObject toMO(Object obj) throws RemoteException{

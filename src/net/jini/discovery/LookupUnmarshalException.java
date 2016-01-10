@@ -49,7 +49,7 @@ import java.rmi.MarshalledObject;
  * <code>ServiceRegistrar</code> instances in which each element is the
  * result of a successful unmarshalling attempt, a set of marshalled instances
  * of <code>ServiceRegistrar</code> in which each element could not be
- * successfully unmarshalled, and a set of exceptions (<code>IOException<code>,
+ * successfully unmarshalled, and a set of exceptions (<code>IOException</code>,
  * <code>ClassNotFoundException</code>, or some unchecked exception) in which
  * each element corresponds to one of the unmarshalling failures.
  * <p>
@@ -100,7 +100,7 @@ public class LookupUnmarshalException extends Exception {
      * the set of still-to-be-unmarshalled <code>ServiceRegistrar</code>
      * instances. That is, the element of this set corresponding to index i
      * should be an instance of the exception that occurred while attempting
-     * to unmarshal the element at index i of <code>marshalledRegistrars<code>.
+     * to unmarshal the element at index i of <code>marshalledRegistrars</code>.
      * This set should not be <code>null</code> and should contain at least
      * one element.
      *
@@ -245,12 +245,12 @@ public class LookupUnmarshalException extends Exception {
      * <code>IOException</code>, <code>ClassNotFoundException</code>, or
      * some unchecked exception. Additionally, there should be a one-to-one
      * correspondence between each element in the array returned by this method
-     * and the array returned by the <code>getMarshalledRegistrars<code>
+     * and the array returned by the <code>getMarshalledRegistrars</code>
      * method. That is, the i-th element of the set returned by this method
      * should be an instance of the exception that occurred while attempting
      * to unmarshal the i-th element of the set returned by the method
      * <code>getMarshalledRegistrars</code>.
-     *
+     * </p>
      * @return array of instances of <code>Throwable</code>, where each element
      *         corresponds to one of the exceptions that occurred during
      *         the unmarshalling process.
@@ -313,7 +313,7 @@ public class LookupUnmarshalException extends Exception {
      * automatically invoked. This implementation of this method validates
      * the state of the deserialized instance.
      *
-     * @throws <code>InvalidObjectException</code> if the state of the
+     * @throws InvalidObjectException if the state of the
      *         deserialized instance of this class is found to be invalid.
      */
     private void readObject(ObjectInputStream s)  

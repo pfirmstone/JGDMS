@@ -20,7 +20,7 @@ package org.apache.river.test.impl.end2end.jssewrapper;
 
 import javax.security.auth.Subject;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.InboundRequest;
 import net.jini.jeri.RequestDispatcher;
@@ -68,7 +68,7 @@ class SecureRequestHandlerWrapper implements RequestDispatcher {
                                    ClassLoader.getSystemClassLoader());
             ObjectInputStream ois =
             new ObjectInputStream(request.getRequestInputStream());
-            cb = (ReadCallback) ((MarshalledObject) ois.readObject()).get();
+            cb = (ReadCallback) ((MarshalledInstance) ois.readObject()).get(false);
             Thread.currentThread().setContextClassLoader(cl);
         }
         catch (Exception e) {

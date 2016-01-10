@@ -47,8 +47,9 @@ package org.apache.river.thread;
  * blocked nor stopped.
  *
  * @author Sun Microsystems, Inc.
- *
+ * @deprecated
  */
+@Deprecated
 public class InProgress {
     /** The state. */
     private int		count = 0;

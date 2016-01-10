@@ -74,8 +74,8 @@
 
     <path id="ext.dirs.path">
         <pathelement path="${java.ext.dirs}" />
-        <pathelement path="${lib-ext.dir}" />
-        <pathelement path="${river.lib-ext.dir}" />
+        <!--<pathelement path="${lib-ext.dir}" />
+        <pathelement path="${river.lib-ext.dir}" />-->
     </path>
 
     <property name="ext.dirs" refid="ext.dirs.path" />

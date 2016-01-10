@@ -23,6 +23,7 @@
  */
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.constraint.BasicMethodConstraints.MethodDesc;
+import net.jini.core.constraint.InvocationConstraints;
 
 public class Ordering {
 
@@ -109,7 +110,7 @@ public class Ordering {
     }
 
     static void def(String n) {
-	MethodDesc d = new MethodDesc(null);
+	MethodDesc d = new MethodDesc((InvocationConstraints) null);
 	legal(desc(n, null), d);
 	illegal(d, desc(n, null));
 	if (n.indexOf('*') < 0) {

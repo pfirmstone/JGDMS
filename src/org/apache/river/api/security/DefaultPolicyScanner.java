@@ -60,8 +60,6 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  *  
  * </pre>
  * 
- * For semantical details of this format, see the
- * {@link org.apache.harmony.security.DefaultPolicy default policy description}.
  * <br>
  * Keywords are case-insensitive in contrast to quoted string literals.
  * Comma-separation rule is quite forgiving, most commas may be just omitted.
@@ -607,10 +605,10 @@ class DefaultPolicyScanner {
     /**
      * Compound token representing <i>permission </i> entry of a <i>grant </i>
      * clause. See policy format
-     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
+     * {@link org.apache.river.api.security.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+     * @see org.apache.river.api.security.DefaultPolicyParser
+     * @see org.apache.river.api.security.DefaultPolicyScanner
      */
     static class PermissionEntry {
 

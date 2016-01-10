@@ -22,7 +22,7 @@ package org.apache.river.test.spec.renewalservice;
 import java.util.logging.Level;
 
 // java.rmi
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 // net.jini
 import net.jini.core.lease.Lease;
@@ -80,8 +80,8 @@ public class SetEqualsTest extends AbstractLeaseRenewalServiceTest {
        set2 = prepareSet(set2);
        set3 = lrs01.createLeaseRenewalSet(Lease.FOREVER);
        set3 = prepareSet(set3);
-       MarshalledObject marshObj = new MarshalledObject(set1);
-       set4 = (LeaseRenewalSet) marshObj.get();
+       MarshalledInstance marshObj = new MarshalledInstance(set1);
+       set4 = (LeaseRenewalSet) marshObj.get(false);
        set4 = prepareSet(set4);
        return this;
     }

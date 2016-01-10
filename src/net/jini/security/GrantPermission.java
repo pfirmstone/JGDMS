@@ -84,31 +84,31 @@ import net.jini.security.policy.DynamicPolicy;
  * permissions in the default security policy file; it is listed below using
  * the same grammar notation employed by <i>The Java(TM) Language
  * Specification</i>:
- * <pre>
- * <i>Target</i>:
- *   <i>DelimiterDeclaration</i><sub>opt</sub> <i>Permissions</i> ;<sub>opt</sub>
- *   
- * <i>DelimiterDeclaration</i>:
- *   delim = <i>DelimiterCharacter</i>
- *   
- * <i>Permissions</i>:
- *   <i>Permission</i>
- *   <i>Permissions</i> ; <i>Permission</i>
- *   
- * <i>Permission</i>:
- *   <i>PermissionClassName</i>
- *   <i>PermissionClassName Name</i>
- *   <i>PermissionClassName Name</i> , <i>Actions</i>
- *   
- * <i>PermissionClassName</i>:
- *   <i>ClassName</i>
- *   
- * <i>Name</i>:
- *   <i>DelimitedString</i>
- *   
- * <i>Actions</i>:
- *   <i>DelimitedString</i>
- * </pre>
+ * <div>
+ * <i>Target</i>:<br>
+ * &nbsp;&nbsp;<i>DelimiterDeclaration</i><sub>opt</sub> <i>Permissions</i> ;<sub>opt</sub><br>
+ * <br>
+ * <i>DelimiterDeclaration</i>:<br>
+ * &nbsp;&nbsp;delim = <i>DelimiterCharacter</i><br>
+ * <br>
+ * <i>Permissions</i>:<br>
+ * &nbsp;&nbsp;<i>Permission</i><br>
+ * &nbsp;&nbsp;<i>Permissions</i> ; <i>Permission</i><br>
+ * <br>
+ * <i>Permission</i>:<br>
+ * &nbsp;&nbsp;<i>PermissionClassName</i><br>
+ * &nbsp;&nbsp;<i>PermissionClassName Name</i><br>
+ * &nbsp;&nbsp;<i>PermissionClassName Name</i> , <i>Actions</i><br>
+ * <br>
+ * <i>PermissionClassName</i>:<br>
+ * &nbsp;&nbsp;<i>ClassName</i><br>
+ * <br>
+ * <i>Name</i>:<br>
+ * &nbsp;&nbsp;<i>DelimitedString</i><br>
+ * <br>
+ * <i>Actions</i>:<br>
+ * &nbsp;&nbsp;<i>DelimitedString</i><br>
+ * </div>
  * The production for <i>ClassName</i> is the same as that used in <i>The
  * Java Language Specification</i>.  <i>DelimiterCharacter</i> can be any
  * unquoted non-whitespace character other than ';' (single and

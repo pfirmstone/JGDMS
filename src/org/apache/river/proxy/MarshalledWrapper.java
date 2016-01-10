@@ -64,19 +64,29 @@ public class MarshalledWrapper implements Serializable {
      * of that object is called and the resulting value returned; otherwise,
      * <code>false</code> is returned.
      *
+     * @param stream the given stream
      * @return integrity protection setting of the given stream
      */
     public static boolean integrityEnforced(ObjectInputStream stream) {
 	if (stream instanceof ObjectStreamContext) {
-	    Collection ctx =
-		((ObjectStreamContext) stream).getObjectStreamContext();
+	    return  integrityEnforced(((ObjectStreamContext) stream));
+	}
+	return false;
+    }
+    
+    /**
+     * Returns the integrity protection setting in the given ObjectStreamContext.
+     * @param context
+     * @return 
+     */
+    public static boolean integrityEnforced(ObjectStreamContext context) {
+	Collection ctx = context.getObjectStreamContext();
 	    for (Iterator i = ctx.iterator(); i.hasNext(); ) {
 		Object obj = i.next();
 		if (obj instanceof IntegrityEnforcement) {
 		    return ((IntegrityEnforcement) obj).integrityEnforced();
 		}
 	    }
-	}
 	return false;
     }
 

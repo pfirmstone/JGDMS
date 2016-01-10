@@ -23,6 +23,8 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the timeout set on sockets used for unicast
@@ -33,6 +35,7 @@ import net.jini.core.constraint.InvocationConstraint;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class UnicastSocketTimeout 
     implements InvocationConstraint, Serializable
 {
@@ -53,10 +56,22 @@ public final class UnicastSocketTimeout
      * @throws IllegalArgumentException if the given timeout is negative
      */
     public UnicastSocketTimeout(int timeout) {
+	this(timeout, check(timeout));
+    }
+    
+    UnicastSocketTimeout(GetArg arg) throws IOException {
+	this(arg.get("timeout", -1));
+    }
+    
+    private UnicastSocketTimeout(int timeout, boolean check){
+	this.timeout = timeout;
+    }
+    
+    private static boolean check(int timeout){
 	if (timeout < 0) {
 	    throw new IllegalArgumentException("invalid timeout");
 	}
-	this.timeout = timeout;
+	return true;
     }
 
     /**

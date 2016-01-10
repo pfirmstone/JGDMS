@@ -439,7 +439,7 @@ class SlaveHarness {
 			logger.log(Level.SEVERE, 
 				   "MergedPolicyProvider must be "
 				 + "installed in an extensions directory");
-			System.exit(1);
+//			System.exit(1);
 		    }
 		} catch (Exception e) {
 		    logger.log(Level.SEVERE, 

@@ -126,6 +126,9 @@ public class UnusableEntriesException extends Exception {
      * <code>InvalidObjectException</code> if the
      * <code>exceptions</code> field is <code>null</code>, empty, or contains
      * an element which is not an {@link UnusableEntryException}
+     * @param in ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException

@@ -21,7 +21,7 @@ import java.util.logging.Level;
 
 // java
 import java.io.InvalidObjectException;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 // net.jini
 import net.jini.core.constraint.RemoteMethodControl;
@@ -75,27 +75,27 @@ import org.apache.river.test.spec.security.proxytrust.util.RMCPTTEReadPTTE;
  *   The test performs the following steps:
  *     1) construct ProxyTrustInvocationHandler1 with RMCTEImpl and RMCPTTEImpl
  *        as parameters
- *     2) construct MarshalledObject1 with ProxyTrustInvocationHandler1 as a
+ *     2) construct MarshalledInstance1 with ProxyTrustInvocationHandler1 as a
  *        parameter
- *     3) invoke get method of MarshalledObject1
+ *     3) invoke get method of MarshalledInstance1
  *     4) assert that object will be got without exceptions
  *     5) construct ProxyTrustInvocationHandler2 with RMCTEReadRMC and
  *        RMCPTTEImpl as parameters
- *     6) construct MarshalledObject2 with ProxyTrustInvocationHandler2 as a
+ *     6) construct MarshalledInstance2 with ProxyTrustInvocationHandler2 as a
  *        parameter
- *     7) invoke get method of MarshalledObject2
+ *     7) invoke get method of MarshalledInstance2
  *     8) assert that InvalidObjectException will be thrown
  *     9) construct ProxyTrustInvocationHandler3 with RMCTEImpl and
  *        RMCPTTEReadRMCPT as parameters
- *     10) construct MarshalledObject3 with ProxyTrustInvocationHandler3 as a
+ *     10) construct MarshalledInstance3 with ProxyTrustInvocationHandler3 as a
  *         parameter
- *     11) invoke get method of MarshalledObject3
+ *     11) invoke get method of MarshalledInstance3
  *     12) assert that InvalidObjectException will be thrown
  *     13) construct ProxyTrustInvocationHandler4 with RMCTEImpl and
  *         RMCPTTEReadPTTE as parameters
- *     14) construct MarshalledObject4 with ProxyTrustInvocationHandler4 as a
+ *     14) construct MarshalledInstance4 with ProxyTrustInvocationHandler4 as a
  *         parameter
- *     15) invoke get method of MarshalledObject4
+ *     15) invoke get method of MarshalledInstance4
  *     16) assert that InvalidObjectException will be thrown
  * </pre>
  */
@@ -109,66 +109,66 @@ public class ReadObjectTest extends AbstractTestBase {
         RemoteMethodControl main = new RMCTEImpl();
         ProxyTrust boot = new RMCPTTEImpl();
         ProxyTrustInvocationHandler ptih = createPTIH(main, boot);
-        MarshalledObject mo = new MarshalledObject(ptih);
+        MarshalledInstance mo = new MarshalledInstance(ptih);
 
         try {
-            mo.get();
+            mo.get(false);
 
             // PASS
-            logger.fine("'get' method invocation of MarshalledObject "
+            logger.fine("'get' method invocation of MarshalledInstance "
                     + "did not throw any exception as expected.");
         } catch (Exception e) {
             // FAIL
             throw new TestException(
-                    "'get' method invocation of MarshalledObject "
+                    "'get' method invocation of MarshalledInstance "
                     + "threw " + e + " while no exceptions were expected.");
         }
         ptih = createPTIH(new RMCTEReadRMC(), boot);
-        mo = new MarshalledObject(ptih);
+        mo = new MarshalledInstance(ptih);
 
         try {
-            mo.get();
+            mo.get(false);
 
             // FAIL
             throw new TestException(
-                    "'get' method invocation of MarshalledObject did not "
+                    "'get' method invocation of MarshalledInstance did not "
                     + "throw any exception while InvalidObjectException "
                     + "was expected.");
         } catch (InvalidObjectException ioe) {
             // PASS
-            logger.fine("'get' method invocation of MarshalledObject "
+            logger.fine("'get' method invocation of MarshalledInstance "
                     + "threw InvalidObjectException as expected.");
         }
         ptih = createPTIH(main, new RMCPTTEReadRMCPT());
-        mo = new MarshalledObject(ptih);
+        mo = new MarshalledInstance(ptih);
 
         try {
-            mo.get();
+            mo.get(false);
 
             // FAIL
             throw new TestException(
-                    "'get' method invocation of MarshalledObject did not "
+                    "'get' method invocation of MarshalledInstance did not "
                     + "throw any exception while InvalidObjectException "
                     + "was expected.");
         } catch (InvalidObjectException ioe) {
             // PASS
-            logger.fine("'get' method invocation of MarshalledObject "
+            logger.fine("'get' method invocation of MarshalledInstance "
                     + "threw InvalidObjectException as expected.");
         }
         ptih = createPTIH(main, new RMCPTTEReadPTTE());
-        mo = new MarshalledObject(ptih);
+        mo = new MarshalledInstance(ptih);
 
         try {
-            mo.get();
+            mo.get(false);
 
             // FAIL
             throw new TestException(
-                    "'get' method invocation of MarshalledObject did not "
+                    "'get' method invocation of MarshalledInstance did not "
                     + "throw any exception while InvalidObjectException "
                     + "was expected.");
         } catch (InvalidObjectException ioe) {
             // PASS
-            logger.fine("'get' method invocation of MarshalledObject "
+            logger.fine("'get' method invocation of MarshalledInstance "
                     + "threw InvalidObjectException as expected.");
         }
     }

@@ -17,10 +17,15 @@
  */
 package org.apache.river.reggie;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceTemplate;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A Template contains the fields of a ServiceTemplate packaged up for
@@ -34,6 +39,7 @@ import net.jini.core.lookup.ServiceTemplate;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class Template implements Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -43,19 +49,19 @@ class Template implements Serializable {
      *
      * @serial
      */
-    public ServiceID serviceID;
+    final ServiceID serviceID;
     /**
      * ServiceTemplate.serviceTypes converted to ServiceTypes
      *
      * @serial
      */
-    public ServiceType[] serviceTypes;
+    final ServiceType[] serviceTypes;
     /**
      * ServiceTemplate.attributeSetTemplates converted to EntryReps
      *
      * @serial
      */
-    public EntryRep[] attributeSetTemplates;
+    final EntryRep[] attributeSetTemplates;
 
     /**
      * Converts a ServiceTemplate to a Template.  Any exception that results
@@ -66,5 +72,50 @@ class Template implements Serializable {
 	serviceTypes = ClassMapper.toServiceType(tmpl.serviceTypes);
 	attributeSetTemplates =
 	    EntryRep.toEntryRep(tmpl.attributeSetTemplates, false);
+    }
+    
+    private static boolean check(GetArg arg) throws IOException {
+	Object serviceID = arg.get("serviceID", null);
+	if (serviceID != null && !(serviceID instanceof ServiceID)) 
+	    throw new InvalidObjectException("serviceID must be instance of ServiceID");
+	Object serviceTypes = arg.get("serviceTypes", null);
+	if (serviceTypes != null && !(serviceTypes instanceof ServiceType []))
+	    throw new InvalidObjectException("serviceTypes must be instance of ServiceType[]");
+	Object attributeSetTemplates = arg.get("attributeSetTemplates", null);
+	if (attributeSetTemplates != null && !(attributeSetTemplates instanceof EntryRep[]))
+	    throw new InvalidObjectException("attributeSetTemplates must be instance of EntryRep[]");
+	return true;
+}
+    
+    Template(GetArg arg) throws IOException {
+	this(check(arg), arg);
+    }
+    
+    private Template(boolean check, GetArg arg) throws IOException {
+	serviceID = (ServiceID) arg.get("serviceID", null);
+	ServiceType [] serviceTypes = (ServiceType[]) arg.get("serviceTypes", null);
+	this.serviceTypes = 
+		serviceTypes != null? 
+		serviceTypes.clone() : 
+		null;
+	EntryRep [] attributeSetTemplates = (EntryRep[]) arg.get("attributeSetTemplates", null);
+	this.attributeSetTemplates = 
+		attributeSetTemplates != null ?
+		attributeSetTemplates.clone():
+		null;
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+    
+    /**
+     * Serialization evolution support
+     * @serialData 
+     */
+    private void readObject(java.io.ObjectInputStream in)
+	throws java.io.IOException, ClassNotFoundException
+    {
+	in.defaultReadObject();
     }
 }

@@ -17,6 +17,10 @@
  */
 package org.apache.river.norm;
 
+import org.apache.river.lease.BasicRenewalFailureEvent;
+import org.apache.river.logging.Levels;
+import org.apache.river.norm.event.EventFactory;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -26,7 +30,6 @@ import java.rmi.UnmarshalException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.lease.Lease;
@@ -36,11 +39,8 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.security.ProxyPreparer;
-
-import org.apache.river.lease.BasicRenewalFailureEvent;
-import org.apache.river.logging.Levels;
-import org.apache.river.norm.event.EventFactory;
-import org.apache.river.proxy.ConstrainableProxyUtil;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Class that wraps client Leases.  Provides hooks for synchronization 
@@ -54,6 +54,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  *
  * @author Sun Microsystems, Inc.
  */
+@AtomicSerial
 class ClientLeaseWrapper implements Lease, Serializable {
     private static final long serialVersionUID = 2;
 
@@ -99,7 +100,7 @@ class ClientLeaseWrapper implements Lease, Serializable {
      * Sequence number that uniquely identifies this wrapper
      * @serial
      */
-    private long UID;
+    private final long UID;
 
     /**
      * Membership expiration of this lease
@@ -173,14 +174,39 @@ class ClientLeaseWrapper implements Lease, Serializable {
 	marshalledClientLease = new MarshalledInstance(clientLease);
 
 	this.renewDuration = renewDuration;
-	calcMembershipExpiration(membershipDuration, now);
+	membershipExpiration = calcMembershipExpiration(membershipDuration, now);
+    }
+
+    ClientLeaseWrapper(GetArg arg) throws IOException {
+	this((Throwable) arg.get("lastFailure", null),
+	    (MarshalledInstance) arg.get("marshalledClientLease", null),
+	    arg.get("clientLeaseExpiration", 0L),
+	    arg.get("UID", 0L),
+	    arg.get("membershipExpiration", 0L),
+	    arg.get("renewDuration", 0L));
+    }
+    
+    ClientLeaseWrapper(Throwable lastFailure, 
+	    MarshalledInstance marshalledClientLease,
+	    long clientLeaseExpiration,
+	    long UID,
+	    long membershipExpiration,
+	    long renewDuration)
+    {
+	this.lastFailure = lastFailure;
+	this.marshalledClientLease = marshalledClientLease;
+	this.clientLeaseExpiration = clientLeaseExpiration;
+	this.UID = UID;
+	this.membershipExpiration = membershipExpiration;
+	this.renewDuration = renewDuration;
     }
 
     /**
      * Given the current time and a membershipDuration set membershipExpiration
      * the correct value.
      */
-    private void calcMembershipExpiration(long membershipDuration, long now) {
+    private static long calcMembershipExpiration(long membershipDuration, long now) {
+	long membershipExpiration;
 	if (membershipDuration == Lease.FOREVER) {
 	    membershipExpiration = Lease.FOREVER;
 	} else {
@@ -189,6 +215,7 @@ class ClientLeaseWrapper implements Lease, Serializable {
 	    if (membershipExpiration < 0)
 		membershipExpiration = Long.MAX_VALUE;
 	}
+	return membershipExpiration;
     }
 
 
@@ -197,7 +224,7 @@ class ClientLeaseWrapper implements Lease, Serializable {
      */
     void update(long membershipDuration, long renewDuration, long now) {
 	this.renewDuration = renewDuration;
-	calcMembershipExpiration(membershipDuration, now);
+	membershipExpiration = calcMembershipExpiration(membershipDuration, now);
     }	
 
     /**

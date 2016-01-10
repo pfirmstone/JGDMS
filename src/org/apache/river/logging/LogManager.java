@@ -25,6 +25,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
+ * <p>
  * Defines a {@link java.util.logging.LogManager} that insures that the {@link
  * Levels#FAILED Levels.FAILED} and {@link Levels#HANDLED Levels.HANDLED}
  * fields, instances of {@link Level}, have been initialized, and that can
@@ -33,8 +34,8 @@ import java.util.logging.Logger;
  * <code>java.util.logging.manager</code> system property to permit specifying
  * the symbolic names for the <code>FAILED</code> and <code>HANDLED</code>
  * logging levels in standard logging configuration files, or to allow changes
- * to the logging configuration file to be noticed. <p>
- *
+ * to the logging configuration file to be noticed. </p>
+ * <p>
  * The <code>org.apache.river.logging.interval</code> logging property (obtained
  * using {@link java.util.logging.LogManager#getProperty
  * LogManager.getProperty}) specifies the time interval in milliseconds
@@ -47,16 +48,15 @@ import java.util.logging.Logger;
  * <code>logging.properties</code> file in the <code>lib</code> subdirectory
  * of the directory specified by the <code>java.home</code> system property.
  * The file is read if the name of the file differs from that used in the
- * previous probe or if the file has a different modification time. <p>
- *
+ * previous probe or if the file has a different modification time. </p>
+ * <p>
  * This implementation uses the {@link java.util.logging.Logger} named
  * <code>org.apache.river.logging.LogManager</code> to log information at the
- * following logging levels: <p>
+ * following logging levels: </p>
  *
  * <table border="1" cellpadding="5" summary="Describes logging performed
  *	  by the LogManager class at different logging levels">
- * <caption halign="center" valign="top"><b><code>
- * org.apache.river.logging.LogManager</code></b></caption>
+ * <caption><b><code>org.apache.river.logging.LogManager</code></b></caption>
  * <tr><th scope="col">Level<th scope="col">Description
  * <tr><td>{@link Level#WARNING WARNING}<td>if an exception occurs while
  * rereading the logging configuration file

@@ -125,3 +125,11 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
 };
+
+grant { 
+    permission net.jini.io.DeSerializationPermission "org.apache.river.test.share.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.test.impl.norm.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.lease.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.landlord.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.norm.*";
+};

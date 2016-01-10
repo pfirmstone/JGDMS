@@ -29,14 +29,14 @@ import net.jini.io.MarshalledInstance;
  *
  * @author Sun Microsystems, Inc.
  */
-public class PersistentRegistrarImpl extends RegistrarImpl {
+class PersistentRegistrarImpl extends RegistrarImpl {
 
     /**
      * Constructs a non-activatable PersistentRegistrarImpl based on a
      * configuration obtained using the provided arguments.  If lifeCycle is
      * non-null, then its unregister method is invoked during service shutdown.
      */
-    protected PersistentRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
+    PersistentRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
 	throws Exception
     {
 	super(configArgs, null, true, lifeCycle);

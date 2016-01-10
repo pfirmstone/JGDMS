@@ -100,7 +100,7 @@ import java.rmi.RemoteException;
  * <pre>
  * The following comparison is made to determine when to take a snapshot:
  * 
- *   if (logSize >= W*snapshotSize) && (snapshotSize >= T) {
+ *   if (logSize &gt;= W*snapshotSize) &amp;&amp; (snapshotSize &gt;= T) {
  *       take a snapshot;
  *   }
  *       where W = persistenceSnapshotWeight

@@ -229,6 +229,9 @@ public final class DelegationRelativeTime
      * than <code>maxStart</code>, or <code>maxStart</code> is greater than
      * <code>minStop</code>, or <code>minStop</code> is greater than
      * <code>maxStop</code>, or <code>minStop</code> is less than zero
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

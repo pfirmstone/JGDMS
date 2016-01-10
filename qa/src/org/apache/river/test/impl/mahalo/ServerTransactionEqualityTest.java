@@ -17,18 +17,18 @@
  */
 package org.apache.river.test.impl.mahalo;
 
-import java.util.logging.Level;
-
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
 
 import java.rmi.MarshalledObject;
 
+import java.util.logging.Level;
 import net.jini.core.transaction.server.NestableServerTransaction;
 import net.jini.core.transaction.server.NestableTransactionManager;
 import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionManager;
+import net.jini.io.MarshalledInstance;
 
 public class ServerTransactionEqualityTest extends TxnMgrTestBase 
 {
@@ -58,8 +58,8 @@ public class ServerTransactionEqualityTest extends TxnMgrTestBase
 	    new NestableServerTransaction(ntxnmgr, 5L, nst1_1);
 
         // Get duplicate references
-	MarshalledObject marshObj11 = new MarshalledObject(st1_1);
-        st1_1_dup = (ServerTransaction)marshObj11.get();
+	MarshalledInstance marshObj11 = new MarshalledInstance(st1_1);
+        st1_1_dup = (ServerTransaction)marshObj11.get(false);
 
         // check top-level proxies
         if (!checkEquality(st1_1, st1_1)) {

@@ -282,8 +282,8 @@ public final class ConstraintAlternatives
      *
      * @return an immutable set of all of the constraints
      */
-    public Set elements() {
-	return new ArraySet(constraints);
+    public Set<InvocationConstraint> elements() {
+	return new ArraySet<InvocationConstraint>(constraints);
     }
 
     /**
@@ -349,6 +349,9 @@ public final class ConstraintAlternatives
      * @throws InvalidObjectException if there are less than two constraints,
      * or any constraint is <code>null</code> or an instance of this class,
      * or if there are duplicates
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

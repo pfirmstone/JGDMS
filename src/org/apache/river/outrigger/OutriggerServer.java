@@ -37,7 +37,7 @@ import net.jini.space.InternalSpaceException;
 
 /**
  * This interface is the private wire protocol to the Outrigger
- * implementations of JavaSpaces<sup><font size=-2>TM</font></sup> 
+ * implementations of JavaSpaces<sup>TM</sup> 
  * technology.
  *
  * @author Sun Microsystems, Inc.
@@ -60,7 +60,13 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
 
     /**
      * Write a new entry into the space.
-     *
+     * @param entry The EntryRep representing the Entry.
+     * @param txn the Transaction.
+     * @param lease the lease duration.
+     * @return an array consisting of three long values, the lease duration, 
+     * followed by the least significant bits, then the most significant bits
+     * of the EntryRep's Uuid.
+     * @throws RemoteException if a communication related exception occurs.
      * @exception TransactionException A transaction error occurred
      */
     long[] write(EntryRep entry, Transaction txn, long lease)
@@ -110,6 +116,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param cookie If this call is a continuation of 
      *         an earlier query, the cookie from the 
      *         last sub-query.
+     * @return an EntryRep if match found, otherwise it will return a QueryCookie 
      * @throws RemoteException if a network failure occurs.
      * @throws TransactionException if there is a problem
      *         with the specified transaction such as 
@@ -176,6 +183,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param cookie If this call is a continuation of 
      *         an earlier query, the cookie from the 
      *         last sub-query.
+     * @return an EntryRep if a match is found, otherwise a QueryCookie
      * @throws RemoteException if a network failure occurs.
      * @throws TransactionException if there is a problem
      *         with the specified transaction such as 
@@ -239,6 +247,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param cookie If this call is a continuation of 
      *         an earlier query, the cookie from the 
      *         last sub-query.
+     * @return an EntryRep if a match is found, otherwise returns a QueryCookie.
      * @throws RemoteException if a network failure occurs.
      * @throws TransactionException if there is a problem
      *         with the specified transaction such as 
@@ -305,6 +314,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param cookie If this call is a continuation of 
      *             an earlier query, the cookie from the 
      *             last sub-query.
+     * @return an EntryRep if a match is found, otherwise returns a QueryCookie.
      * @throws RemoteException if a network failure occurs.
      * @throws TransactionException if there is a problem
      *         with the specified transaction such as 
@@ -326,6 +336,14 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
     /**
      * When entries are written that match this template notify the
      * given <code>listener</code>. Matching is done as for <code>read</code>.
+     * @param tmpl template
+     * @param txn transaction
+     * @param listener listener
+     * @param lease lease duration in milliseconds
+     * @param handback MarshalledObject.
+     * @return the EventRegistration.
+     * @throws TransactionException if a transaction related exception occurs.
+     * @throws RemoteException if a communication related exception occurs.
      */
     EventRegistration
 	notify(EntryRep tmpl, Transaction txn, RemoteEventListener listener,
@@ -333,7 +351,10 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
 	throws TransactionException, RemoteException;
 
     /**
-     * Write a set of entires into the space.
+     * Write a set of entries into the space.
+     * @param entries array of entries to be written into the space.
+     * @param txn the Transaction
+     * @param leaseTimes for each EntryRep in entries at the same array index.
      * @return an array of longs that can be used to construct the 
      *         leases on the client side. The array will have 3
      *         elements for each lease, the first will be the 
@@ -341,6 +362,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      *         <code>Uuid</code> and then the lower order bits
      *         of the <code>Uuid</code>.
      * @exception TransactionException A transaction error occurred
+     * @throws RemoteException if a connection related exception occurs.
      */
     long[] write(EntryRep[] entries, Transaction txn, long[] leaseTimes)
         throws TransactionException, RemoteException;
@@ -390,6 +412,8 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param cookie If this call is a continuation of 
      *         an earlier query, the cookie from the 
      *         last sub-query.
+     * @return an array of EntryRep's if match is successful, 
+     * otherwise a QueryCookie
      * @throws RemoteException if a network failure occurs.
      * @throws TransactionException if there is a problem
      *         with the specified transaction such as 
@@ -431,6 +455,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @return An object with information on the registration
      * @throws TransactionException if <code>txn</code> is 
      *         non-<code>null</code> and not active or otherwise invalid
+     * @throws RemoteException if a connection related exception occurs.
      */
     EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
 	    Transaction txn, boolean visibilityOnly, 
@@ -457,9 +482,10 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * there are no matching entries in the space
      * @throws TransactionException if
      *         <code>tr</code> is non-<code>null</code> and can't be used
-     * @throws IllegaleArgumentException if limit is non-positive or
+     * @throws IllegalArgumentException if limit is non-positive or
      *         leaseTime is less than -1
      * @throws NullPointerException if tmpls is <code>null</code>
+     * @throws RemoteException if a communication related exception occurs.
      */
     public MatchSetData contents(EntryRep[] tmpls, Transaction tr, 
 				 long leaseTime, long limit)
@@ -487,6 +513,8 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
 
     /**
      * Return the admin proxy for this space.
+     * @return the admin proxy.
+     * @throws RemoteException if a communication problem occurs.
      */
     Object getAdmin() throws RemoteException;
 }

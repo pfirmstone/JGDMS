@@ -75,6 +75,7 @@ public final class Confidentiality
 
     /**
      * Canonicalize so that <code>==</code> can be used.
+     * @return true for YES, false for NO.
      */
     private Object readResolve() {
 	return val ? YES : NO;

@@ -105,7 +105,7 @@ import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
 
 /**
- * A basic implementation of a JavaSpaces<sup><font size=-2>TM</font></sup> 
+ * A basic implementation of a JavaSpaces<sup>TM</sup> 
  * service. This class is designed for use by both transient and 
  * persistent instances. Persistence is delegated to <code>Store</code>
  * and <code>LogOps</code> objects which handles the details

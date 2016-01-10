@@ -40,9 +40,9 @@ import net.jini.security.AccessPermission;
  * convention is that the target name is the fully qualified name of the
  * remote method being invoked. Wildcard matches are supported using the
  * syntax specified by {@link AccessPermission}.
- * 
- * <p>The possible target names for the activation monitor are:
+ * </p>
  * <table border=1 cellpadding=5>
+ * <caption>The possible target names for the activation monitor are:</caption>
  * <tr>
  * <th>Permission Target Name</th>
  * <th>What the Permission Allows</th>

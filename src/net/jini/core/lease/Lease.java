@@ -88,7 +88,7 @@ public interface Lease {
      *
      * @throws UnknownLeaseException the lease being cancelled is unknown
      *         to the lease grantor
-     * @throws RemoteException
+     * @throws RemoteException if a connection problem occurs
      */
     void cancel() throws UnknownLeaseException, RemoteException;
 
@@ -106,7 +106,7 @@ public interface Lease {
      *         unwilling to renew the lease
      * @throws UnknownLeaseException the lease being renewed is unknown
      *         to the lease grantor
-     * @throws RemoteException
+     * @throws RemoteException if a connection problem occurs.
      */
     void renew(long duration)
 	throws LeaseDeniedException, UnknownLeaseException, RemoteException;

@@ -45,6 +45,7 @@ public class InternalMailboxException extends RuntimeException {
     /**
      * Create an exception, passing the string to the superclass' 
      * constructor. The nested exception will be <code>null</code>.
+     * @param str message detail.
      */
     public InternalMailboxException(String str) {
 	super(str);
@@ -55,6 +56,8 @@ public class InternalMailboxException extends RuntimeException {
      * Create an exception, passing the string to the superclass' 
      * constructor. The nested exception will be set to the provided
      * <tt>Throwable</tt> argument.
+     * @param str message detail
+     * @param ex the cause.
      */
     public InternalMailboxException(String str, Throwable ex) {
 	super(str);

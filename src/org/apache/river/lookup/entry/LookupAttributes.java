@@ -60,6 +60,9 @@ public class LookupAttributes {
      * <code>Entry</code> class (the class is not public, or does not have a
      * no-arg constructor, or has primitive public non-static non-final
      * fields).
+     * @param attrSets original Entry attributes
+     * @param addAttrSets Entry attributes to added if not already contained in attrSets
+     * @return new array of Entry attributes, containing no duplicates.
      */
     public static Entry[] add(Entry[] attrSets, Entry[] addAttrSets) {
 	return add(attrSets, addAttrSets, false);
@@ -86,6 +89,11 @@ public class LookupAttributes {
      * <code>Entry</code> class (the class is not public, or does not have a
      * no-arg constructor, or has primitive public non-static non-final
      * fields).
+     * @param attrSets original Entry attributes
+     * @param addAttrSets Entry attributes to added if not already contained in attrSets
+     * @param checkSC if true checks for any elements of addAttrSets are instances
+     * of ServiceControlled.
+     * @return new array of Entry attributes, containing no duplicates.
      */
     public static Entry[] add(Entry[] attrSets,
 			      Entry[] addAttrSets,
@@ -114,6 +122,10 @@ public class LookupAttributes {
      * instance of a valid <code>Entry</code> class (the class is not public,
      * or does not have a no-arg constructor, or has primitive public
      * non-static non-final fields).
+     * @param attrSets Entry attributes
+     * @param attrSetTmpls Entry attribute templates
+     * @param modAttrSets Entry modified attributes
+     * @return a new array of Entry attributes.
      */
     public static Entry[] modify(Entry[] attrSets,
 				 Entry[] attrSetTmpls,
@@ -139,6 +151,12 @@ public class LookupAttributes {
      * instance of a valid <code>Entry</code> class (the class is not public,
      * or does not have a no-arg constructor, or has primitive public
      * non-static non-final fields).
+     * @param attrSets Entry attributes
+     * @param attrSetTmpls Entry attribute templates
+     * @param modAttrSets Entry modified attributes
+     * @param checkSC if true checks for any elements of addAttrSets are instances
+     * of ServiceControlled.
+     * @return a new array of Entry attributes.
      */
     public static Entry[] modify(Entry[] attrSets,
 				 Entry[] attrSetTmpls,
@@ -185,6 +203,9 @@ public class LookupAttributes {
      * Test that two entries are the same type, with the same
      * public fields. Attribute equality is defined in terms of
      * <code>MarshalledObject.equals</code> on field values.
+     * @param e1 an Entry
+     * @param e2 A second Entry
+     * @return true if Entries are the same type.
      */
     public static boolean equal(Entry e1, Entry e2) {
 	if (!equal(e1.getClass(), e2.getClass()))
@@ -203,7 +224,12 @@ public class LookupAttributes {
 	return true;
     }
 
-    /** Tests that two <code>Entry[]</code> arrays are the same. */
+    /** Tests that two <code>Entry[]</code> arrays are the same.
+     * @param attrSet1 first Entry array.
+     * @param attrSet2 second Entry array
+     * @return true if both arrays contain the same number of elements with 
+     * equal entries
+     */
     public static boolean equal(Entry[] attrSet1, Entry[] attrSet2) {
 	return contains(attrSet1, attrSet2) && contains(attrSet2, attrSet1);
     }
@@ -215,6 +241,9 @@ public class LookupAttributes {
      * same as the corresponding field of <code>e</code>. Attribute equality
      * is defined in terms of <code>MarshalledObject.equals</code> on
      * field values.
+     * @param tmpl Entry template.
+     * @param e Entry to be checked for template matching.
+     * @return true if Entry matches template.
      */
     public static boolean matches(Entry tmpl, Entry e) {
 	if (!isAssignableFrom(tmpl.getClass(), e.getClass()))
@@ -242,6 +271,8 @@ public class LookupAttributes {
      * <code>nullOK</code> is <code>false</code>, and any element of the
      * array is <code>null</code>, a <code>NullPointerException</code>
      * is thrown.
+     * @param attrs to be checked if valid Entry classes.
+     * @param nullOK true if array can contain null elements.
      */
     public static void check(Entry[] attrs, boolean nullOK) {
 	for (int i = attrs.length; --i >= 0; ) {

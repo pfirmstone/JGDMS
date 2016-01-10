@@ -43,7 +43,8 @@ public class ClientPermissionChecker implements ClientSubjectChecker {
     private static final ProtectionDomain emptyPD = 
 	new ProtectionDomain(emptyCS, null, null, null);
 
-    private final SoftCache domains = new SoftCache();
+    private final SoftCache<Subject,ProtectionDomain> domains 
+	    = new SoftCache<Subject,ProtectionDomain>();
     private final Permission permission;
 
     /**
@@ -91,7 +92,7 @@ public class ClientPermissionChecker implements ClientSubjectChecker {
 	    pd = emptyPD;
 	} else {
 	    synchronized (domains) {
-		pd = (ProtectionDomain) domains.get(subject);
+		pd = domains.get(subject);
 	    }
 	    if (pd == null) {
 		Set<Principal> s = subject.getPrincipals();

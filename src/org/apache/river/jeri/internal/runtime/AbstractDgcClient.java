@@ -91,19 +91,19 @@ abstract class AbstractDgcClient {
 
     /** lease duration to request (usually ignored by server) */
     private static final long leaseValue =		// default 10 minutes
-	((Long) AccessController.doPrivileged(new GetLongAction(
+	( AccessController.doPrivileged(new GetLongAction(
 	    "org.apache.river.jeri.dgc.leaseValue", 600000)))
 	    .longValue();
 
     /** maximum interval between retries of failed clean calls */
     private static final long cleanInterval =		// default 3 minutes
-	((Long) AccessController.doPrivileged(new GetLongAction(
+	( AccessController.doPrivileged(new GetLongAction(
 	    "org.apache.river.jeri.dgc.cleanInterval", 180000)))
 	    .longValue();
 
     /** minimum lease duration that we bother to honor */
     private static final long minimumDuration =		// default 5 seconds
-	((Long) AccessController.doPrivileged(new GetLongAction(
+	( AccessController.doPrivileged(new GetLongAction(
 	    "org.apache.river.jeri.dgc.minimumDuration", 5000)))
 	    .longValue();
 

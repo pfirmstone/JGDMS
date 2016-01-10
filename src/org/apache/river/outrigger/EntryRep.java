@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -43,6 +44,10 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.space.JavaSpace;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.landlord.LeasedResource;
 import org.apache.river.logging.Levels;
 import org.apache.river.proxy.CodebaseProvider;
@@ -58,6 +63,7 @@ import org.apache.river.proxy.MarshalledWrapper;
  * @see JavaSpace
  * @see Entry
  */
+@AtomicSerial
 class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializable {
     static final long serialVersionUID = 3L;
 
@@ -328,9 +334,65 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
     public EntryRep(Entry entry) throws MarshalException {
 	this(entry, true);
     }
+    private static boolean checkIntegrity(GetArg arg) throws IOException {
+	MarshalledInstance[] values = (MarshalledInstance[]) arg.get("values", null);
+	if (values == null) throw new InvalidObjectException("null values");
+	String[] superclasses = (String[]) arg.get("superclasses", null); // class names of the superclasses
+	if (superclasses == null) throw new InvalidObjectException("null superclasses");
+	long[]	hashes = (long[]) arg.get("hashes", null); // superclass hashes
+	if (hashes == null) throw new InvalidObjectException("null hashes");
+	if (hashes.length != superclasses.length)
+	    throw new InvalidObjectException("hashes.length (" +
+                hashes.length + ") does not equal  superclasses.length (" +
+	        superclasses.length + ")");
+	arg.get("hash", 0L); // hash for the entry class, causes IllegalArgumentException if doesn't exist
+	String	className = (String) arg.get("className", null); // the class ID of the entry
+	if (className == null) throw new InvalidObjectException("null className");
+	Object	codebase = arg.get("codebase", null); // the codebase for this entry class
+	if (codebase != null && !((codebase instanceof String))) throw 
+		new InvalidObjectException("codebase must be an instance of string");
+	Object	id = arg.get("id", null); // space-relative stor
+	if (id != null && !((id instanceof Uuid))) throw 
+		new InvalidObjectException("id must be an instance of Uuid");
+	return ((RO) arg.getReader()).integrity;
+    }
+
+    private EntryRep(GetArg arg, boolean integrity) throws IOException {
+	values = (MarshalledInstance[]) arg.get("values", null);
+	superclasses = (String[]) arg.get("superclasses", null); // class names of the superclasses
+	hashes = (long[]) arg.get("hashes", null); // superclass hashes
+	hash = arg.get("hash", 0L); // hash for the entry class
+	className = (String) arg.get("className", null); // the class ID of the entry
+	codebase = (String) arg.get("codebase", null); // the codebase for this entry class
+	id = (Uuid) arg.get("id", null); // space-relative stor
+	this.integrity = integrity;
+    }
+    
+    EntryRep(GetArg arg) throws IOException {
+	this(arg, checkIntegrity(arg));
+    }
+
 
     /** Used in recovery */
     EntryRep() { }
+
+    @ReadInput
+    private static ReadObject getRO() {
+	return new RO();
+    }
+    
+    private static class RO implements ReadObject {
+
+	boolean integrity;
+	
+	@Override
+	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+	    // get value for integrity flag
+	    integrity = MarshalledWrapper.integrityEnforced((ObjectInputStream)input);
+	}
+    
+    }
+
 
     /** Used to look up no-arg constructors.  */
     private final static Class[] noArg = new Class[0];
@@ -535,7 +597,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
             if (hash != other.hash)
                 return false;
 
-            /* Paranoid check just to make sure we can't get an
+            /* Paranoid checkIntegrity just to make sure we can't get an
              * IndexOutOfBoundsException. Should never happen.
              */
             if (values.length != other.values.length)
@@ -558,7 +620,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
             }
 
             /* The most expensive tests we save for last.
-             * Because we've made the null/non-null check above, we can
+             * Because we've made the null/non-null checkIntegrity above, we can
              * simplify our comparison here: if our element is non-null,
              * we know the other value is non-null, too.
              * If any equals() calls from these element comparisons come
@@ -776,6 +838,10 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
     private void readObjectNoData() throws InvalidObjectException {
 	throw new 
 	    InvalidObjectException("SpaceProxy should always have data");
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
     }
 
 

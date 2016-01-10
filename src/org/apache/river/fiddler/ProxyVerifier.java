@@ -17,15 +17,17 @@
  */
 package org.apache.river.fiddler;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.ReferentUuid;
 import net.jini.id.Uuid;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
-
-import java.io.Serializable;
-import java.rmi.RemoteException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /** This class defines a trust verifier for the proxies related to the 
  *  Fiddler implementation of the lookup discovery service.
@@ -36,6 +38,7 @@ import java.rmi.RemoteException;
  *
  * @since 2.0
  */
+@AtomicSerial
 final class ProxyVerifier implements Serializable, TrustVerifier {
 
     private static final long serialVersionUID = 2L;
@@ -76,6 +79,25 @@ final class ProxyVerifier implements Serializable, TrustVerifier {
      *         TrustEquivalence}
      */
     ProxyVerifier(Fiddler innerProxy, Uuid proxyID) {
+        this(innerProxy, proxyID, check(innerProxy, proxyID));
+        
+    }//end constructor
+    
+    /**
+     * {@link AtomicSerial} constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    ProxyVerifier(GetArg arg) throws IOException {
+	this((Fiddler) arg.get("innerProxy", null), (Uuid) arg.get("proxyID", null));
+    }
+    
+    private ProxyVerifier(Fiddler innerProxy, Uuid proxyID, boolean check){
+	this.innerProxy = (RemoteMethodControl)innerProxy;
+        this.proxyID = proxyID;
+    }
+    
+    private static boolean check(Fiddler innerProxy, Uuid proxyID){
         if( !(innerProxy instanceof RemoteMethodControl) ) {
             throw new UnsupportedOperationException
                          ("cannot construct verifier - canonical inner "
@@ -85,9 +107,8 @@ final class ProxyVerifier implements Serializable, TrustVerifier {
                              ("cannot construct verifier - canonical inner "
                               +"proxy is not an instance of TrustEquivalence");
         }//endif
-        this.innerProxy = (RemoteMethodControl)innerProxy;
-        this.proxyID = proxyID;
-    }//end constructor
+	return true;
+    }
 
     /** Returns <code>true</code> if the specified proxy object (that is
      *  not yet known to be trusted) is equivalent in trust, content, and

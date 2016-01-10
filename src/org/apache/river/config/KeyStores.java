@@ -50,15 +50,16 @@ public class KeyStores {
     }
 
     /**
+     * <p>
      * Returns a <code>KeyStore</code> initialized with contents read from a
      * location specified as a file or URL. This method provides a convenient
      * way to refer to keystores from within the source for a configuration,
      * which may then be used with {@link #getX500Principal getX500Principal}
-     * to refer to principals. <p>
-     *
+     * to refer to principals. </p>
+     * <p>
      * For example, a deployer that was using {@link SslServerEndpoint} might
      * use the following in the source for a {@link ConfigurationFile} to
-     * supply principals for use in security constraints: <p>
+     * supply principals for use in security constraints: </p>
      *
      * <pre>
      *  Client {
@@ -112,16 +113,17 @@ public class KeyStores {
     }
 
     /**
+     * <p>
      * Returns the <code>X500Principal</code> for the alias in a
      * <code>KeyStore</code>; or <code>null</code> if the alias is not found,
      * if the alias is not associated with a certificate, or if the certificate
      * is not an {@link X509Certificate}. This method provides a convenient way
      * to refer to principals from within the source for a configuration by
-     * specifying aliases when used with {@link #getKeyStore getKeystore}. <p>
-     *
+     * specifying aliases when used with {@link #getKeyStore getKeystore}. </p>
+     * <p>
      * For example, a deployer that was using {@link SslServerEndpoint} might
      * use the following in the source for a {@link ConfigurationFile} to
-     * supply principals for use in security constraints: <p>
+     * supply principals for use in security constraints: </p>
      *
      * <pre>
      *  Client {

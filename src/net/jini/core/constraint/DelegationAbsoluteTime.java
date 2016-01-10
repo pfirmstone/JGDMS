@@ -280,6 +280,9 @@ public final class DelegationAbsoluteTime
      * than <code>maxStart</code>, or <code>maxStart</code> is greater than
      * <code>minStop</code>, or <code>minStop</code> is greater than
      * <code>maxStop</code>
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

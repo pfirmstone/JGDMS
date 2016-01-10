@@ -109,9 +109,8 @@ import net.jini.io.MarshalledInstance;
  * <li><a href="#logging">Logging</a>
  * </ul>
  *
- * <a name="configEntries">
+ * <a name="configEntries"></a>
  * <h3>Configuring SharedActivatableServiceDescriptor</h3>
- * </a>
  *
  * <code>SharedActivatableServiceDescriptor</code> 
  * depends on {@link ActivateWrapper}, which can itself be configured. See
@@ -129,16 +128,16 @@ import net.jini.io.MarshalledInstance;
  *   <table summary="Describes the activationIdPreparer configuration entry"
  *          border="0" cellpadding="2">
  *     <tr valign="top">
- *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *       activationIdPreparer</code></font>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *       <th scope="col">&#X2022;
+ *       <th scope="col" align="left" colspan="2"><code>
+ *       activationIdPreparer</code>
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>
  *         new {@link net.jini.security.BasicProxyPreparer}()
  *         </code>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Description: <td> The proxy preparer for the service's activation
  *       ID. The value should not be <code>null</code>. 
  * 
@@ -156,12 +155,12 @@ import net.jini.io.MarshalledInstance;
  *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
  *       activationSystemPreparer</code></font>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>
  *         new {@link net.jini.security.BasicProxyPreparer}()</code>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Description: <td> The proxy preparer for the proxy for the
  *       activation system. The value should not be <code>null</code>. 
  * 
@@ -172,20 +171,20 @@ import net.jini.io.MarshalledInstance;
  *       creating a service.
  *   </table>
  * 
- * <a name="servicePreparer">
+ * <a name="servicePreparer"></a>
  * <table summary="Describes the default service preparer configuration entry"
  *        border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      servicePreparer</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"> <code>
+ *      servicePreparer</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> {@link net.jini.security.ProxyPreparer}
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>
  *        new {@link net.jini.security.BasicProxyPreparer}()
  *        </code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> The default proxy preparer used to prepare
  *      service proxies.
  *      This value should not be <code>null</code>. This entry is
@@ -200,23 +199,22 @@ import net.jini.io.MarshalledInstance;
  *      accept a {@linkplain ProxyPreparer proxy preparer} argument. 
  *  </table>
  *
- *<a name="logging">
+ *<a name="logging"></a>
  *<h3>Loggers and Logging Levels</h3>
- *</a>
- *
+ * <p>
  * The implementation uses the {@link
  * java.util.logging.Logger}, named 
  * <code>org.apache.river.start.service.starter</code>. 
  * The following table describes the
  * type of information logged as well as the levels of information logged.
- * <p>
+ * </p>
  *
  *  <table border="1" cellpadding="5"
  *	 summary="Describes logging performed by the shared,
  *       activatable service descriptor at different
  *	 logging levels">
  *
- *  <caption halign="center" valign="top"><b><code>
+ *  <caption><b><code>
  *	   org.apache.river.start.service.starter</code></b></caption>
  *
  *  <tr> <th scope="col"> Level <th scope="col"> Description
@@ -228,7 +226,7 @@ import net.jini.io.MarshalledInstance;
  *    for low level
  *    service operation tracing
  *
- *  </table> <p>
+ *  </table>
  * 
  * @author Sun Microsystems, Inc.
  * @since 2.0
@@ -426,7 +424,7 @@ public class SharedActivatableServiceDescriptor
      *     activation system.
      * @param host hostname of desired activation system. If <code>null</code>,
      *     defaults to the localhost.  
-     * @param port port of desired activation system. If value is <= 0, then
+     * @param port port of desired activation system. If value is &lt;= 0, then
      *     defaults to  
      *     {@link java.rmi.activation.ActivationSystem#SYSTEM_PORT 
      *     ActivationSystem.SYSTEM_PORT}.
@@ -554,6 +552,7 @@ public class SharedActivatableServiceDescriptor
      *      <LI>if the <A HREF="#innerProxy">inner proxy</A> is 
      *      not <code>null</code> then it is used
      *      <LI>Otherwise, <code>null</code> is used
+     *	    </UL>
      * </UL>
      *
      * @return a 

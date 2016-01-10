@@ -43,6 +43,7 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}" {
 };
 
 grant { 
+    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.loader.util.classes.*";
     permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission java.net.SocketPermission "*", "connect,accept,listen,resolve"; 
     permission java.lang.RuntimePermission "getProtectionDomain";

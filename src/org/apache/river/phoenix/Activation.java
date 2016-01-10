@@ -37,6 +37,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
+import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;

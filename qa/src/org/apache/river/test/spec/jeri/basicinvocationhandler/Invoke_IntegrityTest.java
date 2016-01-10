@@ -136,7 +136,9 @@ public class Invoke_IntegrityTest extends AbstractInvokeTest {
             } catch (Throwable ignore) {
             }
             requestStream = request.getRequestStream();
-            assertion(requestStream.read() == 0x00);
+	    int version = requestStream.read();
+	    System.out.println("Version: " + version);
+            assertion(version == 0x00);
             assertion(requestStream.read() == 0x01);
 
             checkIntegrityEnforcement(true);
@@ -160,7 +162,9 @@ public class Invoke_IntegrityTest extends AbstractInvokeTest {
             } catch (Throwable ignore) {
             }
             requestStream = request.getRequestStream();
-            assertion(requestStream.read() == 0x00);
+	    int version = requestStream.read();
+	    System.out.println("Version: " + version);
+            assertion(version == 0x00);
             assertion(requestStream.read() == 0x00);
 
             checkIntegrityEnforcement(false);

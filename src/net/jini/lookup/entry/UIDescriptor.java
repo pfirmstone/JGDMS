@@ -146,6 +146,9 @@ public class UIDescriptor extends AbstractEntry {
      *     serviceItem.service.getClass().getClassLoader());
      * </PRE>
      *
+     * @param parentLoader the parent ClassLoader 
+     * @throws java.io.IOException if an IOException occurs
+     * @throws java.lang.ClassNotFoundException if class not found.
      * @throws NullPointerException if <CODE>parentLoader</CODE> is null.
      * @return the unmarshalled UI factory
      */

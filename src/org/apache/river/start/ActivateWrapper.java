@@ -54,7 +54,6 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
-import net.jini.loader.ClassLoading;
 import net.jini.loader.LoadClass;
 
 /**
@@ -102,12 +101,12 @@ import net.jini.loader.LoadClass;
  *		true,
  *              activationSystem);
  * </pre>
- * <A NAME="serviceConstructor">
+ * <A NAME="serviceConstructor"></A>
  * Clients of this wrapper service need to implement the following "activation
  * constructor":
  * <blockquote><pre>
  * &lt;impl&gt;(ActivationID activationID, MarshalledObject data)
- * </blockquote></pre>
+ * </pre></blockquote>
  * where,
  * <UL>
  * <LI>activationID - is the object's activation identifier
@@ -118,7 +117,7 @@ import net.jini.loader.LoadClass;
  * {@link net.jini.export.ProxyAccessor}, which allows the service 
  * implementation to provide a remote reference of its choosing.
  * <P>
- * <A NAME="configEntries">
+ * <A NAME="configEntries"></A>
  * This implementation of <code>ActivateWrapper</code>
  * supports the
  * following {@link java.security.Security} property:
@@ -143,10 +142,9 @@ import net.jini.loader.LoadClass;
  *       <LI> implement the following constructor:
  *           <blockquote><pre>
  *   public &lt;impl&gt;(Policy servicePolicy)
- *           </blockquote></pre>
+ *           </pre></blockquote>
  *           where,
- *           <UL>
- *           <LI>servicePolicy - is the service policy object to be wrapped
+ *           <LI><UL>servicePolicy - is the service policy object to be wrapped
  *           </UL>
  *       <LI> implement {@link net.jini.security.policy.DynamicPolicy}
  *       <LI> be a public, non-interface, non-abstract class

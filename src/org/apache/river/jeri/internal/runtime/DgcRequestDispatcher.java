@@ -50,6 +50,7 @@ import net.jini.jeri.InboundRequest;
 import net.jini.jeri.InvocationDispatcher;
 import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerCapabilities;
+import org.apache.river.api.io.AtomicMarshalInputStream;
 
 /**
  *
@@ -112,7 +113,7 @@ public class DgcRequestDispatcher implements RequestDispatcher {
                         throws IOException
                     {
                         ClassLoader loader = getClassLoader();
-                        return new MarshalInputStream(
+                        return AtomicMarshalInputStream.create(
                             request.getRequestInputStream(),
                             loader, integrity, loader,
                             Collections.unmodifiableCollection(context));

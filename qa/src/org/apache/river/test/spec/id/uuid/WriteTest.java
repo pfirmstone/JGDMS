@@ -17,22 +17,19 @@
  */
 package org.apache.river.test.spec.id.uuid;
 
-import java.util.logging.Level;
-
-import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
-
-import net.jini.id.Uuid;
-import net.jini.id.UuidFactory;
-
-import java.io.ByteArrayOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.util.logging.Level;
+import org.apache.river.qa.harness.TestException;
 
 import org.apache.river.test.spec.id.util.FakeUuid;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.OutputStream;
+import java.util.logging.Level;
+import net.jini.id.Uuid;
+import net.jini.id.UuidFactory;
 
 /**
  * <pre>
@@ -89,7 +86,7 @@ public class WriteTest extends QATestEnvironment implements Test {
         logger.log(Level.FINE,"");
 
         try {
-            uuid.write(null);
+            uuid.write((OutputStream) null);
             assertion(false);
         } catch (NullPointerException ignore) {
         }

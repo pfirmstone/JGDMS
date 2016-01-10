@@ -18,6 +18,10 @@
 
 package org.apache.river.mahalo;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * A <code>LogRecord</code> which encapsulates a participant
  * being instructed to perform the prepareAndCommit optimization.
@@ -25,6 +29,7 @@ package org.apache.river.mahalo;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class PrepareAndCommitRecord extends ParticipantModRecord {
     static final long serialVersionUID = -4355088085028784921L;
 
@@ -32,5 +37,9 @@ class PrepareAndCommitRecord extends ParticipantModRecord {
     {
 	super(part, result);
     }
+    
+    PrepareAndCommitRecord(GetArg arg) throws IOException {
+	super(arg);
+}
 }
 

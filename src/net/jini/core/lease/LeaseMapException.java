@@ -99,6 +99,9 @@ public class LeaseMapException extends LeaseException {
      * <code>null</code>, contains any key which is not an instance of
      * {@link Lease}, or contains any value which in not an instance of
      * <code>Throwable</code>
+     * @param in ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException

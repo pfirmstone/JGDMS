@@ -20,6 +20,7 @@ package net.jini.security.proxytrust;
 
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
+import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -28,12 +29,14 @@ import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
+import java.security.CodeSource;
 import java.security.Permission;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 
@@ -309,11 +312,14 @@ public class ProxyTrustExporter implements Exporter {
      */
     private static class WeakRef extends WeakReference {
 	/** The bootstrap remote object */
-	ProxyTrust boot = new ProxyTrustImpl(this);
+	ProxyTrust boot;
 
 	/** Create an instance registered with queue */
 	WeakRef(Remote impl) {
 	    super(impl, queue);
+	    this.boot = impl instanceof ServerSmartProxyAccessor ? 
+		    new SmartProxyAccessorImpl(this):
+		    new ProxyTrustImpl(this);
 	}
 
 	/** Clear both references */
@@ -353,7 +359,7 @@ public class ProxyTrustExporter implements Exporter {
     /** ProxyTrust impl class */
     private static class ProxyTrustImpl implements ProxyTrust {
 	/** Weak reference to the main remote object */
-	private final Reference ref;
+	protected final Reference ref;
 
 	ProxyTrustImpl(Reference ref) {
 	    this.ref = ref;
@@ -367,5 +373,24 @@ public class ProxyTrustExporter implements Exporter {
 	    }
 	    return impl.getProxyVerifier();
 	}
+    }
+    
+    /** SmartProxyAccessor impl class */
+    private static class SmartProxyAccessorImpl extends ProxyTrustImpl 
+						    implements SmartProxyAccessor {
+
+	public SmartProxyAccessorImpl(Reference ref) {
+	    super(ref);
+}
+
+	@Override
+	public Object getSmartProxy() throws IOException {
+	    ServerSmartProxyAccessor impl = (ServerSmartProxyAccessor) ref.get();
+	    if (impl == null) {
+		throw new UnsupportedOperationException("impl is gone");
+	    }
+	    return impl.getSmartProxy();
+	}
+	
     }
 }

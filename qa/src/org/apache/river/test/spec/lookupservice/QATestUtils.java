@@ -17,38 +17,39 @@
  */
 package org.apache.river.test.spec.lookupservice;
 
-import org.apache.river.test.spec.lookupservice.attribute.Attr;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.TestException;
 import org.apache.river.test.spec.lookupservice.ServiceLeaseOverrideProvider;
-import net.jini.core.lookup.ServiceEvent;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceRegistration;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceItem;
-import net.jini.core.lookup.ServiceMatches;
-import net.jini.core.lookup.ServiceTemplate;
-import net.jini.core.entry.Entry;
-import net.jini.lookup.entry.ServiceType;
-import net.jini.core.lease.*;
-import java.rmi.RemoteException;
-import java.io.Serializable;
+import org.apache.river.test.spec.lookupservice.attribute.Attr;
 import java.io.IOException;
-import java.util.Vector;
-import java.util.HashMap;
-import java.util.ArrayList;
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.QATestEnvironment;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-
-import java.util.logging.Logger;
+import java.util.ListIterator;
+import java.util.Vector;
 import java.util.logging.Level;
+import java.util.logging.Logger;
+import net.jini.core.entry.Entry;
+import net.jini.core.lease.*;
+import net.jini.core.lookup.ServiceEvent;
+import net.jini.core.lookup.ServiceID;
+import net.jini.core.lookup.ServiceItem;
+import net.jini.core.lookup.ServiceMatches;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.ServiceRegistration;
+import net.jini.core.lookup.ServiceTemplate;
+import net.jini.io.MarshalledInstance;
+import net.jini.lookup.entry.ServiceType;
 
 /** Provides useful constants and utility methods and classes for all 
  *  classes of the Lookup component of the Jini System. Each field and 
@@ -177,7 +178,7 @@ public class QATestUtils {
         /** Sets this tuple equal to the given tuple
          *  @param tuple the SrvcAttrTuple to set this tuple equal to
          */
-        public void setEqualTo(SrvcAttrTuple tuple) {
+        public synchronized void setEqualTo(SrvcAttrTuple tuple) {
             this.srvcItems  = tuple.srvcItems;
             this.attrs      = tuple.attrs;
             this.srvcObj    = tuple.srvcObj;
@@ -186,20 +187,20 @@ public class QATestUtils {
         }
 
         /** Returns the array of service items associated with this tuple */
-        public ServiceItem[] getSrvcItems() {
-            return srvcItems;
+        public synchronized ServiceItem[] getSrvcItems() {
+            return srvcItems.clone();
         }
 
         /** Sets the reference to the array of service items associated with
          *  this tuple equal to the given reference
          *  @param srvcItems the new array of service items
          */
-        public void setSrvcItems(ServiceItem[] srvcItems) {
-            this.srvcItems = srvcItems;
+        public synchronized  void setSrvcItems(ServiceItem[] srvcItems) {
+            this.srvcItems = srvcItems == null ? null : srvcItems.clone();
         }
 
         /** Returns the array of attributes associated with this tuple */
-        public Entry[][] getAttrs() {
+        public synchronized Entry[][] getAttrs() {
             return attrs;
         }
 
@@ -207,12 +208,12 @@ public class QATestUtils {
          *  this tuple equal to the given reference
          *  @param attrs the new array-of-arrays of attributes
          */
-        public void setAttrs(Entry[][] attrs) {
+        public synchronized void setAttrs(Entry[][] attrs) {
             this.attrs = attrs;
         }
 
         /** Returns the service item associated with this tuple */
-        public Object getSrvcObj() {
+        public synchronized Object getSrvcObj() {
             return srvcObj;
         }
 
@@ -220,12 +221,12 @@ public class QATestUtils {
          *  this tuple equal to the given reference
          *  @param srvcObj the new service item
          */
-        public void setSrvcObj(Object srvcObj) {
+        public synchronized void setSrvcObj(Object srvcObj) {
             this.srvcObj = srvcObj;
         }
 
         /** Returns the attribute associated with this tuple */
-        public Object getAttrObj() {
+        public synchronized Object getAttrObj() {
             return attrObj;
         }
 
@@ -233,12 +234,12 @@ public class QATestUtils {
          *  this tuple equal to the given reference
          *  @param attrObj the new attribute
          */
-        public void setAttrObj(Object attrObj) {
+        public synchronized void setAttrObj(Object attrObj) {
             this.attrObj = attrObj;
         }
 
         /** Returns the transition associated with this tuple */
-        public int getTransition() {
+        public synchronized int getTransition() {
             return transition;
         }
 
@@ -246,7 +247,7 @@ public class QATestUtils {
          *  given transition
          *  @param transition the new transition value
          */
-        public void setTransition(int transition) {
+        public synchronized void setTransition(int transition) {
             this.transition = transition;
         }
 
@@ -258,7 +259,7 @@ public class QATestUtils {
          */
         public boolean equals(Object obj) {
             int trans = ((SrvcAttrTuple)obj).getTransition();
-            return ( (objEquals(obj)) && (this.transition == trans) );
+            return ( (objEquals(obj)) && (getTransition() == trans) );
         }
 
         /** Determines if the service item and and the attribute of the 
@@ -272,7 +273,7 @@ public class QATestUtils {
             if (this == obj) {
                 return true;
             } else if ( (obj.getClass()).equals(SrvcAttrTuple.class) ) {
-                if ((srvcItems == null)||(attrs == null)) {
+                if ((getSrvcItems() == null)||(getAttrs() == null)) {
                     return false;
 		}
                 int n=0;
@@ -280,10 +281,10 @@ public class QATestUtils {
                 Object srvc = ((SrvcAttrTuple)obj).getSrvcObj();
                 Object attr = ((SrvcAttrTuple)obj).getAttrObj();
                 try {
-                    n = getSrvcIndx(this.srvcObj,srvcItems);
-                    k = getAttrIndx(this.attrObj,attrs);
-                    if (    ((srvcItems[n].service).equals(srvc))
-                         && ((attrs[k][0]).equals(attr)) ) {
+                    n = getSrvcIndx(getSrvcObj(),getSrvcItems());
+                    k = getAttrIndx(getAttrObj(),getAttrs());
+                    if (    ((getSrvcItems()[n].service).equals(srvc))
+                         && ((getAttrs()[k][0]).equals(attr)) ) {
                         return true;
 		    } else {
                         return false;
@@ -514,7 +515,7 @@ public class QATestUtils {
 						    expdSrvcID+")");
 			} else {
 			    handbackSrvcID = 
-				(ServiceID)(evnt.getRegistrationObject().get());
+				(ServiceID)(new MarshalledInstance(evnt.getRegistrationObject()).get(false));
 
 			    if ( !(handbackSrvcID.equals(expdSrvcID)) ) {
 				throw new TestException
@@ -1609,12 +1610,27 @@ public class QATestUtils {
      *  set of received events (this method is shared by the overloaded 
      *  versions of the method verifyEventTuples)
      */
-    private static void verifyEventTupleContent(List  receivedTuples,
-                                                List  expectedTuples)
+    private static void verifyEventTupleContent(List<SrvcAttrTuple>  receivedTuples,
+                                                List<SrvcAttrTuple>  expectedTuples)
                                                          throws Exception
     {
         int i,j;
+//	ListIterator<SrvcAttrTuple> rit = receivedTuples.listIterator();
+//	ListIterator<SrvcAttrTuple> eit = expectedTuples.listIterator();
         iLoop:
+//	while (rit.hasNext() && eit.hasNext()){
+//	    SrvcAttrTuple received = rit.next();
+//	    SrvcAttrTuple expected = eit.next();
+//	    if (received.equals(expected)) continue iLoop;
+//	    throw new TestException("Received an UNEXPECTED Event\nSrvc  = " +
+//		    received.getSrvcObj() + ",\nAttr  = " +
+//		    received.getAttrObj() + ",\nTrans = " +
+//		    received.getTransition() + ",\n EXPECTED Event was\nSrvc  = "+
+//		    expected.getSrvcObj() + ",\nAttr  = " +
+//		    expected.getAttrObj() + ",\nTrans = " +
+//		    expected.getTransition()
+//		    );
+//	}
         for(i=0; i<receivedTuples.size(); i++) {
 	    /*  step through the vector containing the expected tuples
              *  if the current received tuple is not in the set of 

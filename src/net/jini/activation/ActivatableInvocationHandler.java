@@ -282,7 +282,7 @@ public final class ActivatableInvocationHandler
      *
      * <p>If the specified method is one of the following
      * <code>java.lang.Object</code> methods, it will be processed as follows:
-     * <p><ul>
+     * </p><ul>
      * <li>{@link Object#equals equals}: returns
      * <code>true</code> if the argument is an
      * instance of a dynamically generated {@link Proxy}
@@ -326,7 +326,7 @@ public final class ActivatableInvocationHandler
      * duration of the remote invocation, including any activation that may
      * occur.
      *
-     * <p><ul>
+     * </p><ul>
      * <li>If the underlying proxy is non-<code>null</code>, the method is
      * invoked as follows:
      *
@@ -362,7 +362,7 @@ public final class ActivatableInvocationHandler
      * exception is thrown to the caller, otherwise the exception is thrown
      * directly.
      *
-     * <p><li>If the underlying proxy is <code>null</code> or if the
+     * </p><li>If the underlying proxy is <code>null</code> or if the
      * reflective invocation does not throw an exception to the caller as
      * described above:
      * <ul>
@@ -1179,6 +1179,10 @@ public final class ActivatableInvocationHandler
      * <code>null</code>, or if the underlying proxy implements {@link
      * RemoteMethodControl} and the constraints on the underlying proxy are
      * not equivalent to this invocation handler's constraints
+     * 
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      **/
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

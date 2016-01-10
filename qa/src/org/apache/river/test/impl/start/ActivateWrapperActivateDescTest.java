@@ -17,17 +17,16 @@
  */
 package org.apache.river.test.impl.start;
 
-import java.util.logging.Level;
-
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.start.*;
+import org.apache.river.start.ActivateWrapper.*;
 import java.net.URL;
 import java.rmi.*;
 import java.rmi.activation.*;
 import java.rmi.activation.ActivationGroupDesc.*;
 import java.util.Arrays;
-
-import org.apache.river.start.*;
-import org.apache.river.start.ActivateWrapper.*;
-import org.apache.river.qa.harness.TestException;
+import java.util.logging.Level;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This test verifies that the ActivateDesc constructor sets the
@@ -85,7 +84,7 @@ public class ActivateWrapperActivateDescTest extends AbstractStartBaseTest {
 
 	logger.log(Level.INFO, "Generating activation wrapper descriptor");
         MarshalledObject params = null;
-	params = new MarshalledObject(logDir);
+	params = new MarshalledInstance(logDir).convertToMarshalledObject();
 
 	// Create ActivateDesc
         ActivateWrapper.ActivateDesc adesc = null;

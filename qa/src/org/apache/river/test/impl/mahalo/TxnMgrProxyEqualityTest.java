@@ -17,22 +17,21 @@
  */
 package org.apache.river.test.impl.mahalo;
 
-import java.util.logging.Level;
+import org.apache.river.constants.TimeConstants;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
 
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.ServerException;
 
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.TestException;
-
-import org.apache.river.constants.TimeConstants;
-import org.apache.river.qa.harness.Test;
-
+import java.util.logging.Level;
 import net.jini.core.lease.Lease;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionManager.Created;
+import net.jini.io.MarshalledInstance;
 
 public class TxnMgrProxyEqualityTest extends TxnMgrTestBase 
     implements TimeConstants 
@@ -70,12 +69,12 @@ public class TxnMgrProxyEqualityTest extends TxnMgrTestBase
 	Lease txnl1_dup = null;
 
         // Get Duplicate references
-	MarshalledObject marshObj01 = new MarshalledObject(txnmgr1);
-	txnmgr1_dup = (TransactionManager)marshObj01.get();
-	marshObj01 = new MarshalledObject(admin1);
-	admin1_dup = marshObj01.get();
-	marshObj01 = new MarshalledObject(txnl1);
-	txnl1_dup = (Lease)marshObj01.get();
+	MarshalledInstance marshObj01 = new MarshalledInstance(txnmgr1);
+	txnmgr1_dup = (TransactionManager)marshObj01.get(false);
+	marshObj01 = new MarshalledInstance(admin1);
+	admin1_dup = marshObj01.get(false);
+	marshObj01 = new MarshalledInstance(txnl1);
+	txnl1_dup = (Lease)marshObj01.get(false);
 
         // check top-level proxies
         if (!proxiesEqual(txnmgr1, txnmgr1_dup)) {

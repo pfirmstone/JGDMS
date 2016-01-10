@@ -57,6 +57,7 @@ public interface ServiceProxyAccessor {
      * <code>null</code>. 
      *
      * @return a proxy object reference
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      **/
      public Object getServiceProxy() throws RemoteException;
 }

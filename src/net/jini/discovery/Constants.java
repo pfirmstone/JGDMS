@@ -57,7 +57,8 @@ public class Constants {
      * multicast request protocol takes place.
      * @return the address of the multicast group over which the
      *         multicast request protocol takes place
-     * @throws UnknownHostException 
+     * @throws UnknownHostException if no IP address for the host could
+     * be found, or if a scope_id was specified for a global IPv6 address.
      */
     public static final InetAddress getRequestAddress()
 	throws UnknownHostException
@@ -75,7 +76,8 @@ public class Constants {
      * multicast announcement protocol takes place.
      * @return the address of the multicast group over which the
      *         multicast announcement protocol takes place.
-     * @throws UnknownHostException
+     * @throws UnknownHostException if no IP address for the host could
+     * be found, or if a scope_id was specified for a global IPv6 address.
      */
     public static final InetAddress getAnnouncementAddress()
 	throws UnknownHostException

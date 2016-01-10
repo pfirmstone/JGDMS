@@ -17,22 +17,39 @@
  */
 package org.apache.river.outrigger;
 
+import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
-import net.jini.core.event.RemoteEvent;
-import net.jini.space.JavaSpace;
 import net.jini.space.AvailabilityEvent;
+import net.jini.space.JavaSpace;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Outrigger's implementation of <code>AvailabilityEvent</code>
  */
+@AtomicSerial
 class OutriggerAvailabilityEvent extends AvailabilityEvent {
     private static final long serialVersionUID = 1L;
 
     /** The entry that triggered the event */
     final private EntryRep rep;
+
+    private static GetArg check(GetArg arg) throws IOException{
+	EntryRep rep = (EntryRep) arg.get("rep", null);
+	if (rep == null)
+	    throw new InvalidObjectException(
+	    "OutriggerAvailabilityEvent should always have data");
+	return arg;
+    }
+    
+    OutriggerAvailabilityEvent(GetArg arg) throws IOException{
+	super(check(arg));
+	rep = (EntryRep) arg.get("rep", null);
+    }
 
     /**
      * Constructs an OutriggerAvailabilityEvent object.
@@ -55,6 +72,9 @@ class OutriggerAvailabilityEvent extends AvailabilityEvent {
 	this.rep = rep;
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
     /** 
      * @throws InvalidObjectException if called
      */

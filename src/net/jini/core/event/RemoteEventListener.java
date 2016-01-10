@@ -60,7 +60,7 @@ public interface RemoteEventListener
      *
      * @throws UnknownEventException the recipient does not recognize the
      *         combination of event identifier and event source
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     void notify(RemoteEvent theEvent)
 	throws UnknownEventException, java.rmi.RemoteException;

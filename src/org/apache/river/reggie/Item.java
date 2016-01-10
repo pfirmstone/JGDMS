@@ -20,19 +20,23 @@ package org.apache.river.reggie;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.logging.Levels;
 import org.apache.river.proxy.MarshalledWrapper;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
+import java.io.Serializable;
 import java.rmi.MarshalException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
-import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.security.Security;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * An Item contains the fields of a ServiceItem packaged up for
@@ -46,9 +50,23 @@ import net.jini.security.Security;
  * @author Sun Microsystems, Inc.
  *
  */
-class Item implements Serializable, Cloneable {
+@AtomicSerial
+final class Item implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 2L;
+    private static final ObjectStreamField[] serialPersistentFields = 
+    { 
+        /** @serialField ServiceItem.serviceID. */
+        new ObjectStreamField("serviceID", ServiceID.class),
+        /** @serialField The Class of ServiceItem.service converted to ServiceType. */
+        new ObjectStreamField("serviceType", ServiceType.class),
+	/** @serialField The codebase of the service object. */
+        new ObjectStreamField("codebase", String.class),
+	/** @serialField ServiceItem.service as a MarshalledWrapper. */
+        new ObjectStreamField("service", MarshalledWrapper.class),
+	/** @serialField ServiceItem.attributeSets converted to EntryReps. */
+        new ObjectStreamField("attributeSets", EntryRep[].class)
+    };
 
     /** Logger for Reggie. */
     private static final Logger logger = 
@@ -75,31 +93,80 @@ class Item implements Serializable, Cloneable {
      *
      * @serial
      */
-    public ServiceID serviceID;
+    private ServiceID serviceID; // mutated by RegistrarImpl
     /**
      * The Class of ServiceItem.service converted to ServiceType.
      *
      * @serial
      */
-    public final ServiceType serviceType;
+    final ServiceType serviceType;
     /**
      * The codebase of the service object.
      *
      * @serial
      */
-    public final String codebase;
+    final String codebase;
     /**
      * ServiceItem.service as a MarshalledWrapper.
      *
      * @serial
      */
-    public final MarshalledWrapper service;
+    final MarshalledWrapper service;
     /**
      * ServiceItem.attributeSets converted to EntryReps.
      *
      * @serial
      */
-    public EntryRep[] attributeSets;
+    private EntryRep[] attributeSets; // mutated by RegistrarImpl
+
+    /**
+     * List view of attributeSets
+     */
+//    final List<EntryRep> attribSets;
+     
+    /**
+     * Checks all invariants are satisfied during de-serialization.
+     * @param arg
+     * @return
+     * @throws IOException 
+     * @throws ClassCastException
+     * @throws NullPointerException
+     */
+    private static boolean check(GetArg arg) throws IOException{
+	ServiceID serviceID = (ServiceID) arg.get("serviceID", null); // Throws ClassCastException
+	// serviceID is assigned by Reggie if null.
+	ServiceType serviceType = (ServiceType) arg.get("serviceType", null); // Throws ClassCastException
+	// serviceType allowed to be null
+	String codebase = (String) arg.get("codebase", null); // Throws ClassCastException
+	// codebase allowed to be null
+	MarshalledWrapper service = (MarshalledWrapper) arg.get("service", null); // Throws ClassCastException
+	if (service == null) throw new NullPointerException();
+	EntryRep[] attributeSets = (EntryRep[]) arg.get("attributeSets", null); // Throws ClassCastException
+	// attributeSets can be null and can contain null
+	return true;
+    }
+    
+    /**
+     * Failure is atomic, if any invariants aren't satisfied, construction fails
+     * before an instance can be created.
+     * @param arg
+     * @throws IOException 
+     */
+    public Item(GetArg arg) throws IOException{
+	this(arg, check(arg));
+    };
+    
+    private Item(GetArg arg, boolean check) throws IOException{
+	super(); // instance has been created here.
+	serviceID = (ServiceID) arg.get("serviceID", null);
+	serviceType = (ServiceType) arg.get("serviceType", null);
+	codebase = (String) arg.get("codebase", null);
+	service = (MarshalledWrapper) arg.get("service", null);
+	EntryRep [] attributeSets = ((EntryRep[]) arg.get("attributeSets", null));
+	if (attributeSets != null) attributeSets = attributeSets.clone();
+	this.attributeSets = attributeSets;
+//	attribSets = Arrays.asList(attributeSets);
+    }
 
     /**
      * Converts a ServiceItem to an Item.  Any exception that results
@@ -127,6 +194,7 @@ class Item implements Serializable, Cloneable {
 	    throw new MarshalException("error marshalling arguments", e);
 	}
 	attributeSets = EntryRep.toEntryRep(item.attributeSets, true);
+//	attribSets = Arrays.asList(attributeSets);
     }
     
     Item(ServiceID serviceID,
@@ -140,6 +208,7 @@ class Item implements Serializable, Cloneable {
         this.codebase = codebase;
         this.service = service;
         attributeSets = attrSets;
+//	attribSets = Arrays.asList(attributeSets);
     }
 
     /**
@@ -155,9 +224,11 @@ class Item implements Serializable, Cloneable {
 	} catch (Throwable e) {
 	    RegistrarProxy.handleException(e);
 	}
+	synchronized (this){
 	return new ServiceItem(serviceID,
 			       obj,
 			       EntryRep.toEntry(attributeSets));
+    }
     }
 
     /**
@@ -186,5 +257,37 @@ class Item implements Serializable, Cloneable {
 	    }
 	}
 	return items;
+    }
+    
+    private synchronized void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+}
+
+    /**
+     * @return the serviceID
+     */
+    public synchronized ServiceID getServiceID() {
+	return serviceID;
+    }
+
+    /**
+     * @param serviceID the serviceID to set
+     */
+    public synchronized void setServiceID(ServiceID serviceID) {
+	this.serviceID = serviceID;
+    }
+
+    /**
+     * @return the attributeSets
+     */
+    public synchronized EntryRep[] getAttributeSets() {
+	return attributeSets == null ? null : attributeSets.clone();
+    }
+
+    /**
+     * @param attributeSets the attributeSets to set
+     */
+    public synchronized void setAttributeSets(EntryRep[] attributeSets) {
+	this.attributeSets = attributeSets;
     }
 }

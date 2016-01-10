@@ -17,13 +17,17 @@
  */
 package org.apache.river.reggie;
 
+import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * When a registrar (lookup service) grants a lease on an event registration
@@ -34,6 +38,7 @@ import net.jini.id.Uuid;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class EventLease extends RegistrarLease {
 
     private static final long serialVersionUID = 2L;
@@ -59,10 +64,20 @@ class EventLease extends RegistrarLease {
     {
 	return (server instanceof RemoteMethodControl) ?
 	    new ConstrainableEventLease(
-		server, registrarID, eventID, leaseID, expiration, null) :
+		server, registrarID, eventID, leaseID, expiration, null, true) :
 	    new EventLease(server, registrarID, eventID, leaseID, expiration);
     }
 
+    private static GetArg check(GetArg arg) throws IOException{
+	long eventID = arg.get("eventID", 0L);
+	return arg;
+    }
+    
+    EventLease(GetArg arg) throws IOException{
+	super(check(arg));
+	eventID = arg.get("eventID", 0L);
+    }
+    
     /** Constructor for use by getInstance(), ConstrainableEventLease. */
     EventLease(Registrar server,
 	       ServiceID registrarID,
@@ -106,6 +121,10 @@ class EventLease extends RegistrarLease {
     // inherit javadoc
     String getLeaseType() {
 	return LEASE_TYPE;
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
     }
 
     /**

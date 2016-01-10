@@ -62,8 +62,8 @@ public interface ScalableNestedPolicy {
      * responsible for merging any static Permission objects from the
      * ProtectionDomain.
      * 
-     * @param domain 
-     * @return Collection<PermissionGrant>  
+     * @param domain ProtectionDomain grants apply to
+     * @return List of PermissionGrant's
      */
     public List<PermissionGrant> getPermissionGrants(
                                                 ProtectionDomain domain);

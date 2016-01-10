@@ -18,41 +18,42 @@
 
 package org.apache.river.qa.harness;
 
+import org.apache.river.start.ServiceDescriptor;
 import org.apache.river.start.ServiceStarter;
 import org.apache.river.start.SharedActivatableServiceDescriptor;
-import org.apache.river.start.ServiceDescriptor;
 
 import java.io.File;
 import java.io.IOException;
+import java.rmi.MarshalledObject;
+import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
+import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
-import java.rmi.MarshalledObject;
-import java.rmi.NoSuchObjectException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.security.auth.Subject;
 
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
-import javax.security.auth.Subject;
 
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
 import net.jini.config.Configuration;
-import net.jini.config.ConfigurationProvider;
 import net.jini.config.ConfigurationException;
+import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.io.MarshalledInstance;
 import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.ProxyPreparer;
 
@@ -247,7 +248,7 @@ public class ActivatableServiceStarterAdmin
 	}
         //XXX temporary work-around for jrmp dgc problem
 	try {
-	    serviceRef = new MarshalledObject(created.proxy).get();
+	    serviceRef = new MarshalledInstance(created.proxy).get(false);
         } catch (IOException e) {
 	    throw new TestException("Problem unmarshalling proxy", e);
         } catch (ClassNotFoundException e) {

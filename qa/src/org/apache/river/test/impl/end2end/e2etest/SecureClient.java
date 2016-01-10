@@ -22,25 +22,18 @@ package org.apache.river.test.impl.end2end.e2etest;
 import javax.security.auth.Subject;
 
 /* Java imports */
-import java.io.EOFException;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 
 import java.rmi.ConnectException;
 import java.rmi.ConnectIOException;
 import java.rmi.MarshalledObject;
-import java.rmi.MarshalException;
-import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
-import net.jini.io.UnsupportedConstraintException;
 
 import net.jini.jeri.ssl.ConfidentialityStrength;
 
@@ -50,8 +43,6 @@ import net.jini.core.constraint.Confidentiality;
 import net.jini.core.constraint.ConstraintAlternatives;
 import net.jini.core.constraint.Delegation;
 import net.jini.core.constraint.Integrity;
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
@@ -59,20 +50,10 @@ import net.jini.constraint.BasicMethodConstraints;
 import net.jini.security.Security;
 import net.jini.jeri.InboundRequest;
 import net.jini.jeri.OutboundRequest;
-import net.jini.jeri.OutboundRequestIterator;
-import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.jeri.connection.Connection;
-import net.jini.jeri.connection.ConnectionEndpoint;
-import net.jini.jeri.connection.ServerConnection;
-
-import java.security.AccessControlException;
-import java.security.NoSuchProviderException;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.security.Provider;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -93,7 +74,7 @@ import javax.net.ssl.SSLSocket;
 import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
 import org.apache.river.test.impl.end2end.jssewrapper.ReadCallback;
 import org.apache.river.test.impl.end2end.jssewrapper.WriteCallback;
-import org.apache.river.test.impl.end2end.jssewrapper.EndpointWrapper;
+import net.jini.io.MarshalledInstance;
 
 /*
  * A client that uses a proxy exported by <code>SecureServer</code>
@@ -178,7 +159,7 @@ class SecureClient implements Constants, TestClient, Runnable {
     private Integer myKey;
 
     /** the first picked proxy obtained from SecureServer */
-    private MarshalledObject pickledStub;
+    private MarshalledInstance pickledStub;
 
     /** the proxy obtained by unmarshalling pickled server stubs */
     private SmartInterface origIface;
@@ -340,7 +321,7 @@ class SecureClient implements Constants, TestClient, Runnable {
      * @param coordinator the test coordinator
      * @param pickledStub the serialized proxy exported by the server
      */
-    SecureClient(TestCoordinator coordinator, MarshalledObject pickledStub) {
+    SecureClient(TestCoordinator coordinator, MarshalledInstance pickledStub) {
         this.coordinator = coordinator;
         this.pickledStub = pickledStub;
         totalTests = computeTotalTestCount();
@@ -398,10 +379,10 @@ class SecureClient implements Constants, TestClient, Runnable {
      * @return the deserialized object, or null if the object could not be
      *         deserialized.
      */
-    private Object unpickle(MarshalledObject mobj) {
+    private Object unpickle(MarshalledInstance mobj) {
         Object obj = null;
         try {
-            obj = mobj.get();
+            obj = mobj.get(false);
         } catch (IOException e) {
             logger.log(ALWAYS, "I/O error unmarshalling stub");
             logger.log(ALWAYS, e);

@@ -170,6 +170,9 @@ public final class ServerMinPrincipal
      * @throws java.io.InvalidObjectException if there are no principals,
      * or any principal is <code>null</code>, or if there are duplicate
      * principals
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

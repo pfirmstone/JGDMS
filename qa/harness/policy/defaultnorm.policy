@@ -9,3 +9,11 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
+
+grant { 
+    permission net.jini.io.DeSerializationPermission "org.apache.river.test.share.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.test.impl.norm.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.lease.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.landlord.*";
+    permission net.jini.io.DeSerializationPermission "org.apache.river.norm.*";
+};

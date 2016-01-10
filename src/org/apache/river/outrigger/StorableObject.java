@@ -36,17 +36,17 @@ public interface StorableObject<T> {
 
     /**  
      * Store the persistent fields 
-     * @param out
-     * @throws IOException  
+     * @param out ObjectOutputStream in which to store the object.
+     * @throws IOException if an IO related exception occurs.
      */
     public void store(ObjectOutputStream out) throws IOException;
 
     /**
      * Restore the persistent fields and return new instance.
-     * @param in
+     * @param in ObjectInputStream from which to read the object.
      * @return new object instance.
-     * @throws IOException
-     * @throws ClassNotFoundException  
+     * @throws IOException if an IO related exception occurs.
+     * @throws ClassNotFoundException if class of object is not found.
      */
     public T  restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException;

@@ -39,12 +39,20 @@ import net.jini.space.JavaSpace;
  */
 // @see OutriggerServerImpl#AdminProxy
 interface OutriggerAdmin  extends Remote, DestroyAdmin, JoinAdmin {
-    /** Return the space administered by this object. */
+    /** Return the space administered by this object. 
+     * @return JavaSpace administered by this object.
+     * @throws RemoteException if a communication related exception occurs.
+     */
     JavaSpace space() throws RemoteException;
     
     /**
      * Return the remote iterator object needed by
      * <code>JavaSpaceAdmin.contents</code>.
+     * @param tmpl EntryRep
+     * @param txn Transaction
+     * @throws TransactionException if transaction not active or other transaction related problem occurs. 
+     * @throws RemoteException if a communication related exception occurs.
+     * @return Uuid of the Iterator.
      */
     Uuid contents(EntryRep tmpl, Transaction txn)
 	throws TransactionException, RemoteException;
@@ -63,6 +71,8 @@ interface OutriggerAdmin  extends Remote, DestroyAdmin, JoinAdmin {
      *            <code>null</code> in which case a new batch will be
      *            sent.  The first call to <code>next()</code> should
      *            have <code>id</code> set to <code>null</code>
+     * @return an EntryRep array.
+     * @throws RemoteException if a communication related Exception occurs.
      */
     EntryRep[] nextReps(Uuid iterationUuid, int max, 
 			Uuid entryUuid) 
@@ -76,12 +86,14 @@ interface OutriggerAdmin  extends Remote, DestroyAdmin, JoinAdmin {
      *            iteration.
      * @param entryUuid the <code>Uuid</code> of the entry
      *            to be deleted.
+     * @throws RemoteException if a communication problem occurs.
      */
     void delete(Uuid iterationUuid, Uuid entryUuid) throws RemoteException;
 
     /** 
      * Forget about the indicated iteration 
      * @param iterationUuid The <code>Uuid</code> iteration to close.
+     * @throws RemoteException if a communication problem occurs.
      */
     void close(Uuid iterationUuid) throws RemoteException;
 }

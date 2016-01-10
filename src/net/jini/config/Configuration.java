@@ -134,7 +134,7 @@ public interface Configuration {
      * #getEntry(String, String, Class, Object, Object) getEntry}(component,
      * name, type, defaultValue, {@link #NO_DATA})</code>.
      *
-     * @param <T>
+     * @param <T> the type of the object returned.
      * @param component the component being configured
      * @param name the name of the entry for the component
      * @param type the type of the object to be returned
@@ -192,7 +192,7 @@ public interface Configuration {
      * available for the given component. The value of <code>name</code> must
      * be an <i>Identifier</i>, as defined in the JLS.
      *
-     * @param <T>
+     * @param <T> the type of the object to be returned
      * @param component the component being configured
      * @param name the name of the entry for the component
      * @param type the type of the object to be returned

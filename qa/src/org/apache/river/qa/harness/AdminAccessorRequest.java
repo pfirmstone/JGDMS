@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 /**
  * A <code>SlaveRequest</code> which calls an admin accessor method
@@ -30,14 +31,14 @@ import java.rmi.MarshalledObject;
 class AdminAccessorRequest implements SlaveRequest {
 
     /** the service proxy who's admin is to be access */
-    MarshalledObject marshalledServiceRef;
+    MarshalledInstance marshalledServiceRef;
 
     /** the name of the accessor method to call */
     String methodName;
 
     /**
      * Construct the request for the given method and proxy. The
-     * proxy is wrapped in a <code>MarshalledObject</code> so
+     * proxy is wrapped in a <code>MarshalledInstance</code> so
      * that the codebase will be retained.
      *
      * @param methodName the name of the admin accessor method to call
@@ -47,7 +48,7 @@ class AdminAccessorRequest implements SlaveRequest {
      */
     AdminAccessorRequest(String methodName, Object serviceRef) {
 	try {
-	    marshalledServiceRef = new MarshalledObject(serviceRef);
+	    marshalledServiceRef = new MarshalledInstance(serviceRef);
 	} catch (IOException e) {
 	    throw new RuntimeException("Marshalling problem", e);
 	}
@@ -65,7 +66,7 @@ class AdminAccessorRequest implements SlaveRequest {
     public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
 	AdminManager manager = slaveTest.getAdminManager();
 	AbstractServiceAdmin admin = 
-            (AbstractServiceAdmin) manager.getAdmin(marshalledServiceRef.get());
+            (AbstractServiceAdmin) manager.getAdmin(marshalledServiceRef.get(false));
 	Method accessor = admin.getClass().getMethod(methodName, null);
 	return accessor.invoke(admin, null);
     }

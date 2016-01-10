@@ -17,15 +17,16 @@
  */
 package org.apache.river.test.impl.start;
 
-import java.util.logging.Level;
-
-import java.rmi.*;
-import java.rmi.activation.*;
+import org.apache.river.qa.harness.TestException;
 
 import org.apache.river.start.*;
 import org.apache.river.start.ActivateWrapper.*;
+import org.apache.river.start.ActivateWrapper.ActivateDesc;
 import org.apache.river.start.ServiceStarter.*;
-import org.apache.river.qa.harness.TestException;
+import java.rmi.*;
+import java.rmi.activation.*;
+import java.util.logging.Level;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This test verifies that the ActivateDesc stored by the Activation system
@@ -46,7 +47,7 @@ public class ActivateWrapperActivateDescTest2 extends AbstractStartBaseTest {
         logger.log(Level.INFO, "Probe ActivateDesc = " + adesc);
     
         logger.log(Level.INFO, "Marshalling ActivateDesc");
-        MarshalledObject mo = new MarshalledObject(adesc);
+        MarshalledObject mo = (new MarshalledInstance(adesc)).convertToMarshalledObject();
     
         logger.log(Level.INFO, "Obtaining shared group info");
         ActivationGroupID gid = TestUtil.loadSharedCreate(getManager().getSharedVMLog());

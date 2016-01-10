@@ -118,6 +118,9 @@ public final class ConnectionRelativeTime
      * Verifies that <code>time</code> is greater than or equal to zero.
      *
      * @throws InvalidObjectException if <code>time</code> is less than zero
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

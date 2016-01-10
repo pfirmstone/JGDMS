@@ -30,6 +30,8 @@ import net.jini.core.entry.Entry;
 import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Defines a proxy for a Norm server's admin object.
@@ -37,6 +39,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
     private static final long serialVersionUID = 1;
 
@@ -55,6 +58,10 @@ class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
     /** Creates an instance of this class. */
     AdminProxy(NormServer server, Uuid serverUuid) {
 	super(server, serverUuid);
+    }
+
+    AdminProxy(GetArg arg) throws IOException {
+	super(arg);
     }
 
     /** Require fields to be non-null. */
@@ -137,6 +144,7 @@ class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
     }
 
     /** Defines a subclass that implements RemoteMethodControl. */
+    @AtomicSerial
     static final class ConstrainableAdminProxy extends AdminProxy
 	implements RemoteMethodControl
     {
@@ -149,6 +157,19 @@ class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {
 		throw new IllegalArgumentException(
 		    "server must implement RemoteMethodControl");
 	    }
+	}
+
+	ConstrainableAdminProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException {
+	    AbstractProxy ap = new AbstractProxy(arg){};
+	    if (!(ap.server instanceof RemoteMethodControl)) {
+		    throw new InvalidObjectException(
+			"server must implement RemoteMethodControl");
+		}
+	    return arg;
 	}
 
 	/** Require server to implement RemoteMethodControl. */

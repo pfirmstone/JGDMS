@@ -17,23 +17,23 @@
  */
 package org.apache.river.outrigger;
 
-import java.io.ObjectInputStream;
-import java.io.Serializable;
+import org.apache.river.landlord.LandlordLease;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.rmi.MarshalException;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.MarshalException;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import net.jini.admin.Administrable;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
@@ -43,16 +43,15 @@ import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.entry.UnusableEntriesException;
-import net.jini.space.JavaSpace05;
-import net.jini.space.MatchSet;
-
-import net.jini.id.Uuid;
-import net.jini.id.UuidFactory;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
+import net.jini.id.Uuid;
+import net.jini.id.UuidFactory;
 import net.jini.security.Security;
-
-import org.apache.river.landlord.LandlordLease;
+import net.jini.space.JavaSpace05;
+import net.jini.space.MatchSet;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * This class is the client-side proxy for the Outrigger
@@ -70,6 +69,7 @@ import org.apache.river.landlord.LandlordLease;
  *
  */
 // @see OutriggerSpace
+@AtomicSerial
 class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 			     Serializable 
 {
@@ -141,18 +141,29 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
     SpaceProxy2(OutriggerServer space, Uuid spaceUuid, 
 		long serverMaxServerQueryTimeout)
     {
-	if (space == null)
-	    throw new NullPointerException("space must be non-null");
-	if (spaceUuid == null) 
-	    throw new NullPointerException("spaceUuid must be non-null");
-	if (serverMaxServerQueryTimeout <= 0)
-	    throw new 
-		IllegalArgumentException("serverMaxServerQueryTimeout " +
-					 "must be positive");
+	this (notNull(space),
+		notNull(spaceUuid),
+		serverMaxServerQueryTimeout,
+		setMaxServerQueryTimeout(serverMaxServerQueryTimeout));
+    }
+    
+    private static <T> T notNull(T value){
+	if (value == null) throw new NullPointerException();
+	return value;
+    }
+    
+    private SpaceProxy2( OutriggerServer space, Uuid spaceUuid, 
+	    long serverMaxServerQueryTimeout, long maxServerQueryTimeout ){
 	this.space = space;
 	this.spaceUuid = spaceUuid;
 	this.serverMaxServerQueryTimeout = serverMaxServerQueryTimeout;
-	setMaxServerQueryTimeout();
+	this.maxServerQueryTimeout = maxServerQueryTimeout;
+    }
+
+    SpaceProxy2(GetArg arg) throws IOException {
+	this((OutriggerServer) arg.get("space", null),
+		(Uuid) arg.get("spaceUuid", null),
+		arg.get("serverMaxServerQueryTimeout", -1L));
     }
 
     public String toString() {
@@ -226,11 +237,16 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
      * of <code>serverMaxServerQueryTimeout</code> and 
      * <code>maxServerQueryTimeoutPropertyValue</code>.
      */
-    private void setMaxServerQueryTimeout() {
+    private static long setMaxServerQueryTimeout(long serverMaxServerQueryTimeout) {
+	if (serverMaxServerQueryTimeout <= 0)
+	    throw new 
+		IllegalArgumentException("serverMaxServerQueryTimeout " +
+					 "must be positive");
 	/* If the org.apache.river.outrigger.maxServerQueryTimeout property
 	 * was set in this VM, override the value set by the server
 	 * when we were created.
 	 */
+	long maxServerQueryTimeout;
 	if (maxServerQueryTimeoutPropertyValue > 0) 
 	    maxServerQueryTimeout = maxServerQueryTimeoutPropertyValue;
 	else if (serverMaxServerQueryTimeout > 0)
@@ -249,6 +265,7 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		"Outrigger proxy using {0} ms for maxServerQueryTimeout",
 		Long.valueOf(maxServerQueryTimeout));
 	}
+	return maxServerQueryTimeout;
     }
 
     /**
@@ -271,7 +288,7 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		InvalidObjectException("Bad serverMaxServerQueryTimeout " +
 		    "value:" + serverMaxServerQueryTimeout);
 
-	setMaxServerQueryTimeout();
+	maxServerQueryTimeout = setMaxServerQueryTimeout(serverMaxServerQueryTimeout);
     }
 
     /** 

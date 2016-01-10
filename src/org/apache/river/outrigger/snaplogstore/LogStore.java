@@ -51,6 +51,7 @@ public class LogStore implements Store {
     /**
      * Create a new <code>LogStore</code>.
      * @param config the directory to use for persistence.
+     * @throws ConfigurationException if there's a problem with the configuration.
      */
     public LogStore(Configuration config) throws ConfigurationException {
 	path = (String)Config.getNonNullEntry(config,

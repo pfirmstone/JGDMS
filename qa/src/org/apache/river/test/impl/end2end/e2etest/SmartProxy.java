@@ -19,13 +19,10 @@
 package org.apache.river.test.impl.end2end.e2etest;
 
 import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.core.constraint.ClientAuthentication;
@@ -34,7 +31,6 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
-import net.jini.constraint.BasicMethodConstraints.MethodDesc;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustIterator;
@@ -42,7 +38,6 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import net.jini.jeri.BasicInvocationHandler;
 
-import javax.security.auth.Subject;
 
 import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
 
@@ -195,8 +190,8 @@ final class SmartProxy implements SmartInterface,
     public SmartInterface newProxy(TestCoordinator coordinator) {
     SmartInterface si = null;
         try {
-            MarshalledObject m = ((CoreInterface)remoteProxy).newProxy();
-        si = (SmartInterface)m.get();
+            MarshalledInstance m = ((CoreInterface)remoteProxy).newProxy();
+        si = (SmartInterface)m.get(false);
             si.setCoordinator(coordinator);
     } catch (Exception e) {
         InstanceCarrier ic =

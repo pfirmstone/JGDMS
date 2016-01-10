@@ -17,26 +17,25 @@
  */
 package org.apache.river.outrigger;
 
-import java.lang.reflect.Method;
+import org.apache.river.admin.DestroyAdmin;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
+import java.lang.reflect.Method;
 import java.rmi.RemoteException;
-
-import net.jini.core.entry.Entry;
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.transaction.Transaction;
-import net.jini.core.transaction.TransactionException;
-import net.jini.space.JavaSpace;
 import net.jini.admin.JoinAdmin;
-
-import net.jini.id.Uuid;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.TransactionException;
+import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-import org.apache.river.proxy.ConstrainableProxyUtil;
-import org.apache.river.admin.DestroyAdmin;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Constrainable subclass of <code>AdminProxy</code>
@@ -44,6 +43,7 @@ import org.apache.river.admin.DestroyAdmin;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 final class ConstrainableAdminProxy extends AdminProxy
     implements RemoteMethodControl, ConstrainableJavaSpaceAdmin
 {
@@ -172,6 +172,26 @@ final class ConstrainableAdminProxy extends AdminProxy
 	this.methodConstraints = methodConstraints;
     }
 
+    ConstrainableAdminProxy(GetArg arg)throws IOException {
+	super(check(arg));
+	methodConstraints = (MethodConstraints) 
+		arg.get("methodConstraints", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	AdminProxy ap = new AdminProxy(arg);
+	MethodConstraints methodConstraints = (MethodConstraints) 
+		arg.get("methodConstraints", null);
+	/* basic validation of admin and spaceUuid was performed by
+	 * AdminProxy.readObject(), we just need to verify than space
+	 * implements RemoteMethodControl and that it has appropriate
+	 * constraints.
+	 */
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+	    methodConstraints, ap.admin, methodMapArray);
+	return arg;
+    }
+
     /**
      * Returns a copy of the given <code>OutriggerAdmin</code> proxy
      * having the client method constraints that result after
@@ -214,6 +234,9 @@ final class ConstrainableAdminProxy extends AdminProxy
 	return new SingletonProxyTrustIterator(admin);
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
     private void readObject(ObjectInputStream s)  
 	throws IOException, ClassNotFoundException
     {

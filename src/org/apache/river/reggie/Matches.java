@@ -17,11 +17,17 @@
  */
 package org.apache.river.reggie;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import net.jini.core.lookup.ServiceMatches;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A Matches contains the fields of a ServiceMatches packaged up for
@@ -35,6 +41,7 @@ import net.jini.core.lookup.ServiceMatches;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class Matches implements Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -52,6 +59,30 @@ class Matches implements Serializable {
      */
     private final int totalMatches;
 
+    private static boolean check(GetArg arg) throws IOException{
+	List items = (List) arg.get("items", null); // Throws ClassCastException
+	int totalMatches = arg.get("totalMatches", 0);
+	if (items != null){
+	    int len = items.size();
+	    List l = Collections.checkedList(new ArrayList<Item>(len), Item.class);
+	    l.addAll(items); // Throws ClassCastException
+
+	    if (totalMatches != len) throw new InvalidObjectException("wrong number of matches");
+	}
+	return true;
+    }
+    
+    Matches(GetArg arg) throws IOException{
+	this(arg,check(arg));
+    }
+    
+    private Matches(GetArg arg, boolean check) throws IOException{
+	List l = (List) arg.get("items", null);
+	if (l != null) items = new ArrayList(l) ;
+	else items = null;
+	totalMatches = arg.get("totalMatches", 0);
+    }
+
     /** Simple constructor. */
     public Matches(List items, int totalMatches) {
 	this.items = items;
@@ -62,4 +93,8 @@ class Matches implements Serializable {
     ServiceMatches get() throws RemoteException {
 	return new ServiceMatches(Item.toServiceItem(items), totalMatches);
     }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+}
 }

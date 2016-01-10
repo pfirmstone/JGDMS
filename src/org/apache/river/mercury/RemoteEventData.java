@@ -18,21 +18,20 @@
 package org.apache.river.mercury;
 
 import org.apache.river.proxy.MarshalledWrapper;
-
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.util.Collection;
-
 import net.jini.core.event.RemoteEvent;
-import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Simple struct to hold a <code>RemoteEvent</code> and its associated 
  * <code>Object</code> (cookie) obtained from an <code>EventLog</code>.
  */
+@AtomicSerial
 class RemoteEventData implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -59,12 +58,36 @@ class RemoteEventData implements Serializable {
      * @param cookie value of <code>cookie</code> field.
      */
     RemoteEventData(RemoteEvent re, Object cookie) {
+        this(convert(re), cookie);
+    }
+    
+    RemoteEventData(GetArg arg) throws IOException {
+	this(check(arg), arg.get("cookie", null));
+	// get value for integrity flag
+	integrity = MarshalledWrapper.integrityEnforced(arg);
+    }
+    
+    private RemoteEventData(MarshalledInstance mi, Object cookie){
+	this.mi = mi;
+	this.cookie = cookie;
+    }
+    
+    private static MarshalledInstance convert(RemoteEvent re){
+	MarshalledInstance mi;
         try {
             mi = (re==null)?null:new MarshalledInstance(re);
         } catch (IOException ioe) {
             mi = null;
         }
-	this.cookie = cookie;
+	return mi;
+    }
+    
+    private static MarshalledInstance check(GetArg arg) throws IOException {
+	MarshalledInstance mi = (MarshalledInstance) arg.get("mi", null);
+	Object cookie = arg.get("cookie", null);
+	if (cookie == null) 
+	    throw new InvalidObjectException("null cookie");
+	return mi;
     }
     
     public RemoteEvent getRemoteEvent() throws ClassNotFoundException {

@@ -434,7 +434,7 @@ final class PreferredResources {
      * @param name the resource name to which the returned boolean
      * value will apply
      *
-     * @return <code>Boolean.TRUE/code> if <code>name</code> is
+     * @return <code>Boolean.TRUE</code> if <code>name</code> is
      * preferred. <code>Boolean.FALSE</code> is it is
      * not. <code>null</code> if there is no wildcard preference for
      * the name.

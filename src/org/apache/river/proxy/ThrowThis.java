@@ -77,6 +77,7 @@ public class ThrowThis extends Exception {
 
     /**
      * Throw the <code>RemoteException</code> the server wants thrown
+     * @throws java.rmi.RemoteException when called.
      */
     public void throwRemoteException() throws RemoteException {
 	throw toThrow;

@@ -17,18 +17,19 @@
  */
 package org.apache.river.landlord;
 
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.security.TrustVerifier;
-import net.jini.security.proxytrust.TrustEquivalence;
-import net.jini.id.Uuid;
-import net.jini.id.ReferentUuid;
-
-import java.io.Serializable;
-import java.io.ObjectInputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.rmi.RemoteException;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.id.ReferentUuid;
+import net.jini.id.Uuid;
+import net.jini.security.TrustVerifier;
+import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /** 
  * This class defines a trust verifier for the proxies defined
@@ -38,6 +39,7 @@ import java.rmi.RemoteException;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 final public class LandlordProxyVerifier 
     implements Serializable, TrustVerifier 
 {
@@ -81,6 +83,20 @@ final public class LandlordProxyVerifier
      *         <code>null</code>.
      */
     public LandlordProxyVerifier(Landlord landlord, Uuid landlordUuid) {
+	this(landlord, landlordUuid, check(landlord, landlordUuid));
+    }
+    
+    private LandlordProxyVerifier(Landlord landlord, Uuid landlordUuid, boolean check){
+	this.landlord = (RemoteMethodControl)landlord;
+	this.landlordUuid = landlordUuid;
+    }
+    
+    LandlordProxyVerifier(GetArg arg) throws IOException {
+	this((Landlord) arg.get("landlord", null),
+		(Uuid) arg.get("landlordUuid", null));
+    }
+    
+    private static boolean check(Landlord landlord, Uuid landlordUuid){
 	if (landlord == null)
 	    throw new NullPointerException("landlord must not be null");
 
@@ -98,9 +114,7 @@ final public class LandlordProxyVerifier
 		("cannot construct verifier - server reference does not " +
 		 "implement TrustEquivalence");
         }
-
-        this.landlord = (RemoteMethodControl)landlord;
-	this.landlordUuid = landlordUuid;
+	return true;
     }
 
     /** 

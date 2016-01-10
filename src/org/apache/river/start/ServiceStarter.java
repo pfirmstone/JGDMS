@@ -53,9 +53,8 @@ import org.apache.river.api.security.CombinerSecurityManager;
  * <li><a href="#logging">Logging</a>
  * </ul>
  *
- * <a name="configEntries">
+ * <a name="configEntries"></a>
  * <h3>Configuring ServiceStarter</h3>
- * </a>
  *
  * This implementation of <code>ServiceStarter</code> supports the
  * following configuration entries, with component
@@ -64,14 +63,14 @@ import org.apache.river.api.security.CombinerSecurityManager;
  *   <table summary="Describes the loginContext configuration entry"
  *     border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *   loginContext</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *   loginContext</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link javax.security.auth.login.LoginContext}
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>null</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> If not <code>null</code>, specifies the JAAS
  *     login context to use for performing a JAAS login and supplying the
  *     {@link javax.security.auth.Subject} to use when running the
@@ -81,21 +80,20 @@ import org.apache.river.api.security.CombinerSecurityManager;
  * <table summary="Describes the serviceDescriptors configuration entry"
  *	  border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *	 serviceDescriptors</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *	 serviceDescriptors</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link ServiceDescriptor}[]
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: no default
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> Array of service descriptors to start.
  * </table>
  *
  *
- *<a name="logging">
+ *<a name="logging"></a>
  *<h3>Loggers and Logging Levels</h3>
- *</a>
  *
  *The implementation uses the {@link
  *java.util.logging.Logger}, named 
@@ -108,7 +106,7 @@ import org.apache.river.api.security.CombinerSecurityManager;
  *	 summary="Describes logging performed by service.starter at different
  *	 logging levels">
  *
- *  <caption halign="center" valign="top"><b><code>
+ *  <caption><b><code>
  *	   org.apache.river.start.service.starter</code></b></caption>
  *
  *  <tr> <th scope="col"> Level <th scope="col"> Description

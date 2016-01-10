@@ -18,13 +18,16 @@
 
 package org.apache.river.lookup.util;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.AbstractMap;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Iterator;
-import java.util.HashSet;
-import java.util.AbstractMap;
-import java.io.Serializable;
-import java.util.Collections;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * An implementation of the <code>java.util.Map</code> interface that has
@@ -47,6 +50,7 @@ import java.util.Collections;
  *
  * @author Bill Venners
  */
+@AtomicSerial
 public class ConsistentMap<K,V> extends AbstractMap<K,V> implements Serializable {
 
     private static final long serialVersionUID = -5223157327307155247L;
@@ -75,7 +79,14 @@ public class ConsistentMap<K,V> extends AbstractMap<K,V> implements Serializable
      *     is <code>null</code>
      */
     public ConsistentMap(Map<K,V> init) {
+	this(entrySet(init));
+    }
 
+    public ConsistentMap(GetArg arg) throws IOException {
+	this(entrySet((Map<K, V>) arg.get("entrySet", null)));
+    }
+    
+    private static <K,V> Set<Map.Entry<K,V>> entrySet(Map<K,V> init){
         if (init == null) {
             throw new NullPointerException();
         }
@@ -91,7 +102,11 @@ public class ConsistentMap<K,V> extends AbstractMap<K,V> implements Serializable
             Map.Entry<K,V> unmodEntry = new ConsistentMapEntry<K,V>(entry.getKey(), entry.getValue());
             unmodEntries.add(unmodEntry);
         }
-        entrySet = new ConsistentSet(unmodEntries);
+        return new ConsistentSet<Map.Entry<K,V>>(unmodEntries);
+    }
+
+    private ConsistentMap(Set<Map.Entry<K,V>> set){
+	entrySet = set;
     }
 
     /**

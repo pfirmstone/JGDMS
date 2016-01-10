@@ -63,7 +63,7 @@ public class ClassLoaderUtil {
      *                       
      * @throws java.net.MalformedURLException 
      *         If the path cannot be parsed as a URL
-     * @throws java.net.IOException 
+     * @throws IOException 
      *         If an I/O error occurs, 
      *         which is possible because the construction of 
      *         the canonical pathname may require filesystem queries 
@@ -121,7 +121,7 @@ public class ClassLoaderUtil {
      *                       
      * @throws java.net.MalformedURLException 
      *         If the path cannot be parsed as a URL
-     * @throws java.net.IOException 
+     * @throws IOException 
      *         If an I/O error occurs, 
      *         which is possible because the construction of 
      *         the canonical pathname may require filesystem queries 

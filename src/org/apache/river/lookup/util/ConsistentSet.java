@@ -18,12 +18,16 @@
 
 package org.apache.river.lookup.util;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.AbstractSet;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * An implementation of the <code>java.util.Set</code> interface that has
@@ -46,6 +50,7 @@ import java.util.Set;
  *
  * @author Bill Venners
  */
+@AtomicSerial
 public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
 
     private static final long serialVersionUID = -533615203387369436L;
@@ -60,6 +65,7 @@ public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
      * Constructs a new, empty <code>ConsistentSet</code>. All instances
      * of <code>ConsistentSet</code> are unmodifiable.
      */
+    @SuppressWarnings("unchecked")
     public ConsistentSet() {
         elements = (T[]) new Object[0];
     }
@@ -73,8 +79,17 @@ public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
      * @throws NullPointerException if the passed <code>init</code> reference
      *     is <code>null</code>
      */
+    @SuppressWarnings("unchecked")
     public ConsistentSet(Collection<T> init) {
+	this(elements(init));
+    }
 
+    public ConsistentSet(GetArg arg) throws IOException {
+	this(elements(Arrays.asList((T[])arg.get("elements", null))));
+    }
+    
+    public static <T> T[] elements(Collection<T> init){
+	
         if (init == null) {
             throw new NullPointerException();
         }
@@ -82,7 +97,11 @@ public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
         // Put the collection in a HashSet to get rid of duplicates
         Set<T> tempSet = new HashSet<T>(init);
 
-        elements = tempSet.toArray((T[]) new Object[init.size()]);
+        return tempSet.toArray((T[]) new Object[init.size()]);
+    }
+
+    private ConsistentSet(T[] elements){
+	this.elements = elements;
     }
 
     /**
@@ -98,7 +117,7 @@ public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
     @Override
     public Iterator<T> iterator() {
 
-        return new Iterator() {
+        return new Iterator<T>() {
 
             private int nextPos = 0;
 

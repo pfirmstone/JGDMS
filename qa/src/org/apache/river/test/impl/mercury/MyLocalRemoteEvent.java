@@ -17,12 +17,16 @@
  */
 package org.apache.river.test.impl.mercury;
 
-import net.jini.core.event.RemoteEvent;
+import java.io.IOException;
 import java.rmi.MarshalledObject;
+import net.jini.core.event.RemoteEvent;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /*
  * Dummy class used to induce class not found exceptions on the client-side.
  */ 
+@AtomicSerial
 public class MyLocalRemoteEvent extends RemoteEvent
 {
     public MyLocalRemoteEvent(
@@ -30,6 +34,10 @@ public class MyLocalRemoteEvent extends RemoteEvent
     {
 	super(source, eventID, seqNum, handback);
     }
+    
+    public MyLocalRemoteEvent(GetArg arg) throws IOException{
+	super(arg);
+}
 }
 
 

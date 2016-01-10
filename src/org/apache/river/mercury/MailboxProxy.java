@@ -18,32 +18,34 @@
 package org.apache.river.mercury;
 
 import org.apache.river.proxy.ThrowThis;
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
+
+import java.lang.reflect.Method;
+import java.rmi.RemoteException;
+
+import javax.security.auth.Subject;
+
+import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseDeniedException;
+import net.jini.event.EventMailbox;
+import net.jini.event.MailboxPullRegistration;
+import net.jini.event.MailboxRegistration;
+import net.jini.event.PullEventMailbox;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
-import java.lang.reflect.Method;
-import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
-import java.rmi.RemoteException;
-
-import javax.security.auth.Subject;
-
-import net.jini.admin.Administrable;
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseDeniedException;
-import net.jini.event.EventMailbox;
-import net.jini.event.MailboxRegistration;
-import net.jini.event.MailboxPullRegistration;
-import net.jini.event.PullEventMailbox;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A MailboxProxy is a proxy for the event mailbox service.  
@@ -55,6 +57,7 @@ import net.jini.event.PullEventMailbox;
  *
  * @since 1.1
  */
+@AtomicSerial
 class MailboxProxy implements PullEventMailbox,
     Administrable, Serializable, ReferentUuid 
 {
@@ -83,6 +86,9 @@ class MailboxProxy implements PullEventMailbox,
      * @param id the ID of the server
      */
     static MailboxProxy create(MailboxBackEnd mailbox, Uuid id) {
+        if (mailbox == null || id == null) {
+            throw new IllegalArgumentException("Cannot accept null arguments");
+        }
         if (mailbox instanceof RemoteMethodControl) {
             return new ConstrainableMailboxProxy(mailbox, id, null);
         } else {
@@ -92,11 +98,30 @@ class MailboxProxy implements PullEventMailbox,
 
     /** Convenience constructor. */
     private MailboxProxy(MailboxBackEnd mailbox, Uuid proxyID) {
-        if (mailbox == null || proxyID == null) {
-            throw new IllegalArgumentException("Cannot accept null arguments");
-        }
 	this.mailbox = mailbox;
 	this.proxyID = proxyID;
+    }
+
+    MailboxProxy(GetArg arg) throws IOException {
+	this(check(arg),(Uuid) arg.get("proxyID", null));
+    }
+    
+    private static MailboxBackEnd check(GetArg arg) throws IOException {
+	MailboxBackEnd mailbox = (MailboxBackEnd) arg.get("mailbox", null);
+	Uuid proxyID = (Uuid) arg.get("proxyID", null);
+	/* Verify server */
+        if(mailbox == null) {
+            throw new InvalidObjectException("MailboxProxy.readObject "
+                                             +"failure - mailbox "
+                                             +"field is null");
+        }//endif
+        /* Verify proxyID */
+        if(proxyID == null) {
+            throw new InvalidObjectException("MailboxProxy.proxyID "
+                                             +"failure - proxyID "
+                                             +"field is null");
+        }//endif
+	return mailbox;
     }
 
     // inherit javadoc from parent
@@ -196,6 +221,7 @@ class MailboxProxy implements PullEventMailbox,
 
     
     /** A subclass of MailboxProxy that implements RemoteMethodControl. */
+    @AtomicSerial
     final static class ConstrainableMailboxProxy extends MailboxProxy
         implements RemoteMethodControl
     {
@@ -208,6 +234,21 @@ class MailboxProxy implements PullEventMailbox,
             super(constrainServer(mailbox, methodConstraints),
                   uuid);
         }
+
+	ConstrainableMailboxProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException{
+	    MailboxProxy mp = new MailboxProxy(arg);
+	    // Verify that the server implements RemoteMethodControl
+            if( !(mp.mailbox instanceof RemoteMethodControl) ) {
+                throw new InvalidObjectException(
+		    "MailboxAdminProxy.readObject failure - mailbox " +
+		    "does not implement constrainable functionality ");
+            }//endif
+	    return arg;
+	}
 
        /**
          * Returns a copy of the server proxy with the specified client

@@ -17,13 +17,17 @@
  */
 package org.apache.river.outrigger;
 
+import java.io.IOException;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Simple struct to hold the <code>Uuid</code> for a new
  * <code>MatchSet</code> instance and the first batch of
  * data. Also holds initial lease time.
  */
+@AtomicSerial
 class MatchSetData implements java.io.Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -55,4 +59,10 @@ class MatchSetData implements java.io.Serializable {
 	this.reps = reps;
 	this.intialLeaseDuration = intialLeaseDuration;
     }
+    
+    MatchSetData(GetArg arg) throws IOException {
+	this((Uuid) arg.get("uuid", null),
+		((EntryRep[]) arg.get("reps", null)).clone(), // Throws NPE, should it?
+		arg.get("intialLeaseDuration", 0L) );
+}
 }

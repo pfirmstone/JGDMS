@@ -26,8 +26,10 @@ import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.security.Permission;
 import java.util.Collections;
+import java.util.logging.Logger;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import org.apache.river.api.security.AdvisoryDynamicPermissions;
 
 /**
  * A <code>ProxyPreparer</code> for verifying that proxies are trusted,
@@ -54,7 +56,9 @@ import net.jini.core.constraint.RemoteMethodControl;
  *
  * <li> Grant permissions, to prepare a trusted proxy received with integrity
  * protection from a trusted source that supplies appropriate constraints, if
- * the proxy needs permission grants.
+ * the proxy needs permission grants.  Permissions may be 
+ * either passed explicitly via a constructor or if null may be advised by the
+ * proxy using {@link AdvisoryDynamicPermissions}
  *
  * <li> Do nothing, to use as a default when retrieving an optional
  * configuration entry, or to prepare a non-secure proxy. </ul>
@@ -220,6 +224,9 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * Subclasses may wish to override this method, for example, to grant
      * permissions that depend on principal constraints found on the proxy.
      *
+     * Note if no permissions have been specified, this method attempts to 
+     * detect any advisory permissions.
+     *
      * @param proxy the proxy being prepared
      * @return the permissions to grant to the proxy
      */
@@ -239,6 +246,10 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * call succeeds, returns the result of calling {@link #setConstraints
      * setConstraints} with <code>proxy</code>. <p>
      *
+     * Note the {@link #grant grant} call will only dynamically grant 
+     * permissions if the current context has the relevant GrantPermission's 
+     * in a security policy file.
+     *
      * Subclasses may wish to override this method, for example, to perform
      * additional operations, typically calling the default implementation via
      * <code>super</code>.
@@ -252,6 +263,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * @see #grant grant
      * @see #setConstraints setConstraints
      */
+    @Override
     public Object prepareProxy(Object proxy) throws RemoteException {
 	if (proxy == null) {
 	    throw new NullPointerException("Proxy cannot be null");
@@ -337,6 +349,19 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
 		    "Dynamic permission grants are not supported");
 		se.initCause(e);
 		throw se;
+	    }
+	} else {
+	    ClassLoader loader = proxy.getClass().getClassLoader();
+	    if (loader instanceof AdvisoryDynamicPermissions) {
+		perms = ((AdvisoryDynamicPermissions) loader).getPermissions();
+		if (perms.length > 0){
+		    try {
+			Security.grant(proxy.getClass(), perms);
+		    } catch (UnsupportedOperationException e) {
+			Logger.getLogger("net.jini.security")
+				.config("Local configuration doesn't allow advisory dynamic permission grants, consider using a DynamicPolicy provider");
+	}
+    }
 	    }
 	}
     }

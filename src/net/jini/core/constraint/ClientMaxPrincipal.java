@@ -167,6 +167,9 @@ public final class ClientMaxPrincipal
      * @throws java.io.InvalidObjectException if there are no principals,
      * or any principal is <code>null</code>, or if there are duplicate
      * principals
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

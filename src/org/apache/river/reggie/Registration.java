@@ -17,12 +17,15 @@
  */
 package org.apache.river.reggie;
 
+import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.rmi.RemoteException;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.entry.Entry;
 import net.jini.core.lease.Lease;
@@ -32,6 +35,8 @@ import net.jini.core.lookup.ServiceRegistration;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Implementation class for the ServiceRegistration interface.
@@ -39,9 +44,32 @@ import net.jini.id.Uuid;
  * @author Sun Microsystems, Inc.
  *
  */
-class Registration implements ServiceRegistration, ReferentUuid, Serializable {
+@AtomicSerial
+class Registration implements ServiceRegistration, ReferentUuid, Serializable 
+{
 
     private static final long serialVersionUID = 2L;
+
+    /** Mappings between ServiceRegistration and Registrar methods */
+    static final Method[] methodMappings = {
+	Util.getMethod(ServiceRegistration.class, "addAttributes",
+		       new Class[]{ Entry[].class }),
+	Util.getMethod(Registrar.class, "addAttributes",
+		       new Class[]{ ServiceID.class, Uuid.class,
+				    EntryRep[].class }),
+
+	Util.getMethod(ServiceRegistration.class, "modifyAttributes",
+		       new Class[]{ Entry[].class, Entry[].class }),
+	Util.getMethod(Registrar.class, "modifyAttributes",
+		       new Class[]{ ServiceID.class, Uuid.class,
+				    EntryRep[].class, EntryRep[].class }),
+
+	Util.getMethod(ServiceRegistration.class, "setAttributes",
+		       new Class[]{ Entry[].class }),
+	Util.getMethod(Registrar.class, "setAttributes",
+		       new Class[]{ ServiceID.class, Uuid.class,
+				    EntryRep[].class }),
+    };
 
     /**
      * The registrar
@@ -56,14 +84,62 @@ class Registration implements ServiceRegistration, ReferentUuid, Serializable {
      */
     final ServiceLease lease;
 
+    
+//    @Override
+//    public void write(PutArg arg) {
+//	arg.put("server", server);
+//	arg.put("lease", lease);
+//    }
+    
+    private static boolean check(GetArg arg) throws IOException {
+	Registrar server = (Registrar) arg.get("server", null);
+	if (server == null) throw new InvalidObjectException("null server");
+	ServiceLease lease = (ServiceLease) arg.get("lease", null);
+	if (lease == null) throw new InvalidObjectException("null lease");
+	return true;
+    }
+    
+    public Registration(GetArg arg) throws IOException {
+	this(arg, check(arg));
+    }
+    
+    private Registration(GetArg arg, boolean check) throws IOException {
+	server = (Registrar) arg.get("server", null);
+	lease = (ServiceLease) arg.get("lease", null);
+    }
+
     /**
      * Returns Registration or ConstrainableRegistration instance, depending on
      * whether given server implements RemoteMethodControl.
      */
     static Registration getInstance(Registrar server, ServiceLease lease) {
 	return (server instanceof RemoteMethodControl) ?
-	    new ConstrainableRegistration(server, lease, null) :
+	    new ConstrainableRegistration(server, lease, null, true) :
 	    new Registration(server, lease);
+    }
+
+    /**
+     * Portable factory
+     * Returns Registration or ConstrainableRegistration instance, depending on
+     * whether given server implements RemoteMethodControl.
+     */
+    public static Object getInstance(Object server, ServiceLease lease,
+	    MethodConstraints constraints) throws InvalidObjectException {
+	if (server instanceof Registrar){
+	    if (server instanceof RemoteMethodControl) {
+		ConstrainableProxyUtil.verifyConsistentConstraints(
+		constraints, server, methodMappings);
+		return new ConstrainableRegistration((Registrar)server, lease, constraints, false) ;
+	    }else{
+		return new Registration((Registrar)server, lease);
+	    }
+	}
+	throw new ClassCastException("server must be an instance of Registrar");
+    }
+    
+    static MethodConstraints translateConstraints(MethodConstraints constraints){
+	return ConstrainableProxyUtil.translateConstraints(
+		      constraints, methodMappings);
     }
 
     /** Constructor for use by getInstance(), ConstrainableRegistration. */
@@ -73,16 +149,19 @@ class Registration implements ServiceRegistration, ReferentUuid, Serializable {
     }
 
     // This method's javadoc is inherited from an interface of this class
+    @Override
     public ServiceID getServiceID() {
 	return lease.getServiceID();
     }
 
     // This method's javadoc is inherited from an interface of this class
+    @Override
     public Lease getLease() {
 	return lease;
     }
 
     // This method's javadoc is inherited from an interface of this class
+    @Override
     public void addAttributes(Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException
     {
@@ -92,6 +171,7 @@ class Registration implements ServiceRegistration, ReferentUuid, Serializable {
     }
 
     // This method's javadoc is inherited from an interface of this class
+    @Override
     public void modifyAttributes(Entry[] attrSetTmpls, Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException
     {
@@ -102,6 +182,7 @@ class Registration implements ServiceRegistration, ReferentUuid, Serializable {
     }
 
     // This method's javadoc is inherited from an interface of this class
+    @Override
     public void setAttributes(Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException
     {
@@ -111,16 +192,19 @@ class Registration implements ServiceRegistration, ReferentUuid, Serializable {
     }
 
     // This method's javadoc is inherited from an interface of this class
+    @Override
     public Uuid getReferentUuid() {
 	return lease.getReferentUuid();
     }
 
     /** Returns the registration Uuid's hash code. */
+    @Override
     public int hashCode() {
 	return lease.getReferentUuid().hashCode();
     }
 
     /** Returns true if registration Uuids match, false otherwise. */
+    @Override
     public boolean equals(Object obj) {
 	return ReferentUuids.compare(this, obj);
     }
@@ -131,6 +215,7 @@ class Registration implements ServiceRegistration, ReferentUuid, Serializable {
      * 
      * @return String
      */
+    @Override
     public String toString() {
 	return getClass().getName() + "[" + lease + "]";
     }

@@ -25,7 +25,7 @@ import java.util.logging.Level;
 import net.jini.lease.LeaseRenewalService;
 
 // java.rmi
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 // 
 import org.apache.river.qa.harness.TestException;
@@ -75,12 +75,12 @@ public class EqualsTest extends AbstractLeaseRenewalServiceTest {
 	 * To perform all equals tests we require 4 different proxy
 	 * instances. Two from each service.
 	 */
-	MarshalledObject marshObj01 = new MarshalledObject(getLRS(0));
-	LeaseRenewalService lrs01 = (LeaseRenewalService) marshObj01.get();
-	LeaseRenewalService lrs03 = (LeaseRenewalService) marshObj01.get();
+	MarshalledInstance marshObj01 = new MarshalledInstance(getLRS(0));
+	LeaseRenewalService lrs01 = (LeaseRenewalService) marshObj01.get(false);
+	LeaseRenewalService lrs03 = (LeaseRenewalService) marshObj01.get(false);
 
-	MarshalledObject marshObj02 = new MarshalledObject(getLRS(1));
-	LeaseRenewalService lrs02 = (LeaseRenewalService) marshObj02.get();
+	MarshalledInstance marshObj02 = new MarshalledInstance(getLRS(1));
+	LeaseRenewalService lrs02 = (LeaseRenewalService) marshObj02.get(false);
 
 	/* ensure that comparing two proxies from different LRS services
 	 * comes back false.

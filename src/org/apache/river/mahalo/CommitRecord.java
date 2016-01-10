@@ -18,10 +18,14 @@
 package org.apache.river.mahalo;
 
 import org.apache.river.mahalo.log.CannotRecoverException;
-import net.jini.core.transaction.server.TransactionParticipant;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.transaction.server.TransactionParticipant;
+
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>CommitRecord</code> represents the logged state of
@@ -31,6 +35,7 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class CommitRecord implements TxnLogRecord {
     static final long serialVersionUID = 5706802011705258126L;
 
@@ -59,12 +64,33 @@ class CommitRecord implements TxnLogRecord {
     CommitRecord(ParticipantHandle parts[]) {
 	//Note: the state is implied in the
 	//      class name
+	this(check(parts), parts);
+    }
 
+    CommitRecord(AtomicSerial.GetArg arg) throws IOException {
+	this(check(arg),
+		((ParticipantHandle[]) arg.get("parts", null)).clone());
+    }
+    
+    private CommitRecord(boolean check, ParticipantHandle[] parts){
+	this.parts = parts;
+    }
+    
+    private static boolean check(Object parts){
 	if (parts == null)
 	    throw new IllegalArgumentException("CommitRecord: must specify " +
 		    			        "a non-null parts array");
+	return true;
+    }
 
-	this.parts = parts;
+    private static boolean check(GetArg arg) throws IOException {
+	try {
+	    return check(arg.get("parts", null));
+	} catch (IllegalArgumentException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
+	    e.initCause(ex);
+	    throw e;
+    }
     }
 
     

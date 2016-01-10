@@ -44,6 +44,7 @@ public interface Store {
     /**
      * Destroy any persistent state and release
      * any resources associated with this store.
+     * @throws java.io.IOException if an IO related exception occurs.
      */
     public void destroy() throws java.io.IOException;
 
@@ -52,6 +53,7 @@ public interface Store {
      * threads, close files, etc.) but do not destroy any persistent
      * state. This method is used when there is a failure
      * in <code>OutriggerServerImpl</code> constructor.
+     * @throws java.io.IOException if an IO related exception occurs.
      */
     public void close() throws java.io.IOException;
 }

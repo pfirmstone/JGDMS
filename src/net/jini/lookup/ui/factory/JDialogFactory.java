@@ -79,7 +79,7 @@ public interface JDialogFactory extends java.io.Serializable {
 
     /**
      * Returns a non-modal <CODE>JDialog</CODE> with a
-     * predetermined title with the specified owner </CODE>Frame</CODE>.
+     * predetermined title with the specified owner <CODE>Frame</CODE>.
      *
      * @param roleObject an object defined by the semantics of the UI role interface
      * implemented by the returned UI object. (UI role is indicated in the

@@ -50,36 +50,37 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
     private final ServiceItem postEventItem;
 
     /**
+     * <p>
      * The constructor of <code>ServiceDiscoveryEvent</code> takes
-     * three arguments:
-     * 
+     * three arguments:</p>
+     * <ul>
      * <li>An instance of <code>Object</code> corresponding to the
      * instance of <code>LookupCache</code> from which the given event
      * originated</li>
-     * <p>
+     * 
      * <li>A <code>ServiceItem</code> reference representing the state
      * of the service (associated with the given event) prior to the
      * occurrence of the event</li>
-     * <p>
+     * 
      * <li>A <code>ServiceItem</code> reference representing the state
      * of the service after the occurrence of the event</li>
-     * 
+     * </ul>
      * <p>
      * If <code>null</code> is passed as the source parameter for the
      * constructor, a <code>NullPointerException</code> will be thrown.
-     * <p>
+     * </p><p>
      * Depending on the nature of the discovery event, a null reference
      * may be passed as one or the other of the remaining parameters, but
      * never both. If <code>null</code> is passed as both the
      * <code>preEventItem </code>and the <code>postEventItem</code>
      * parameters, a <code>NullPointerException</code> will be thrown.
-     * <p>
+     * </p><p>
      * Note that the constructor will not modify the contents of either
      * <code>ServiceItem</code> argument. Doing so can result in
      * unpredictable and undesirable effects on future processing by the
      * <code>ServiceDiscoveryManager</code>. That is why the effects of any
      * such modification to the contents of either input parameter are
-     * undefined.
+     * undefined.</p>
      *
      * @param source an instance of <code>Object</code> corresponding 
      * 			to the instance of <code>LookupCache</code> from 
@@ -94,7 +95,7 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      *  		representing the state of the service after the 
      * 			occurrence of the event.
      *
-     * @throws <code>NullPointerException</code> if <code>null</code> is 
+     * @throws NullPointerException if <code>null</code> is 
      *			passed as the source parameter for the constructor, 
      * 			or if <code>null</code> is passed as both the 
      * 			<code>preEventItem </code>and the 

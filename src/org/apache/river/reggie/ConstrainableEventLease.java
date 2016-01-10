@@ -19,7 +19,9 @@ package org.apache.river.reggie;
 
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -29,6 +31,8 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * EventLease subclass that supports constraints.
@@ -36,6 +40,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class ConstrainableEventLease
     extends EventLease implements RemoteMethodControl
 {
@@ -52,8 +57,32 @@ final class ConstrainableEventLease
 		       new Class[]{ long.class, Uuid.class, long.class })
     };
 
+    /**
+     * Verifies that the client constraints for this proxy are consistent with
+     * those set on the underlying server ref.
+     */
+    public static void verifyConsistentConstraints(
+	MethodConstraints constraints, Object proxy) throws InvalidObjectException {
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+	    constraints, proxy, methodMappings);
+    }
+
+
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
+
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	EventLease el = new EventLease(arg);
+	verifyConsistentConstraints(constraints, el.server);
+	return arg;
+    }
+    
+    ConstrainableEventLease(GetArg arg) throws IOException{
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
 
     /**
      * Creates new ConstrainableEventLease with given server reference, event
@@ -64,11 +93,12 @@ final class ConstrainableEventLease
 			    long eventID,
 			    Uuid leaseID,
 			    long expiration,
-			    MethodConstraints constraints)
+			    MethodConstraints constraints,
+			    boolean setConstraints)
     {
-	super((Registrar) ((RemoteMethodControl) server).setConstraints(
+	super( setConstraints ? (Registrar) ((RemoteMethodControl) server).setConstraints(
 		  ConstrainableProxyUtil.translateConstraints(
-		      constraints, methodMappings)),
+		      constraints, methodMappings)) : server,
 	      registrarID,
 	      eventID,
 	      leaseID,
@@ -101,7 +131,7 @@ final class ConstrainableEventLease
     // javadoc inherited from RemoteMethodControl.setConstraints
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
 	return new ConstrainableEventLease(
-	    server, registrarID, eventID, leaseID, expiration, constraints);
+	    server, registrarID, eventID, leaseID, getExpiration(), constraints, true);
     }
 
     // javadoc inherited from RemoteMethodControl.getConstraints
@@ -117,6 +147,10 @@ final class ConstrainableEventLease
 	return new SingletonProxyTrustIterator(server);
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
     /**
      * Verifies that the client constraints for this proxy are consistent with
      * those set on the underlying server ref.
@@ -125,7 +159,6 @@ final class ConstrainableEventLease
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
-	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    constraints, server, methodMappings);
+	verifyConsistentConstraints(constraints, server);
     }
 }

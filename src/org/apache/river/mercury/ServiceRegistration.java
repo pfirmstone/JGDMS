@@ -22,14 +22,9 @@ import net.jini.id.Uuid;
 import net.jini.security.ProxyPreparer;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Map;
@@ -309,9 +304,4 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
 	        }
 	    }
     }
-    
-    /* Stateless serializable lock */
-    private static final class Lock implements Serializable {
-        private static final long serialVersionUID = 1L;
     }
-}

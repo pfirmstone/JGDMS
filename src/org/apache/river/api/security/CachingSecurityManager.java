@@ -31,9 +31,6 @@ public interface CachingSecurityManager {
      * Clears permissions from the checked cache, it must be
      * called after calling Policy.refresh();  It is recommended that it
      * be called by a Policy provider, rather than application code.
-     *
-     * @throws java.lang.InterruptedException
-     * @throws java.util.concurrent.ExecutionException
      */
     void clearCache() throws SecurityException;
     

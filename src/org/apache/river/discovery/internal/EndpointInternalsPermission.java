@@ -34,10 +34,14 @@ public final class EndpointInternalsPermission extends BasicPermission {
      * Creates new instance.
      */
     public EndpointInternalsPermission(String name) {
-	super(name);
+	super(check(name));
+    }
+    
+    private static String check(String name){
 	if (!name.equals(GET) && !name.equals(SET)) {
 	    throw new IllegalArgumentException(name);
 	}
+	return name;
     }
     
     // REMIND: include readObject method?

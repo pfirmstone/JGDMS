@@ -26,23 +26,24 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
 
 /**
+ * <p>
  * Class providing methods for participating in versions 1 and 2 of the
- * discovery protocol. <p>
+ * discovery protocol. </p>
  *
- * <b><font size="+1">Logging</font></b> <p>
+ * <b>Logging</b>
+ * <p>
  *
  * This implementation uses the {@link java.util.logging.Logger}s named
  * <code>org.apache.river.discovery.DiscoveryV1</code> and
  * <code>org.apache.river.discovery.DiscoveryV2</code> to log information at the
- * following logging levels: <p>
+ * following logging levels: </p>
  *
  * <table border="1" cellpadding="5"
  *	  summary="Describes logging performed by the
  *		   Discovery class to the DiscoveryV1 logger at various
  *		   logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
- *	    org.apache.river.discovery.DiscoveryV1</code></b></caption>
+ * <caption><b><code>org.apache.river.discovery.DiscoveryV1</code></b></caption>
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *
@@ -50,15 +51,14 @@ import net.jini.io.UnsupportedConstraintException;
  *	<td> Encoding and decoding of discovery protocol version 1 multicast
  *	     requests, multicast announcements, and unicast responses
  *
- * </table> <p>
+ * </table>
  *
  * <table border="1" cellpadding="5"
  *	  summary="Describes logging performed by the
  *		   Discovery class to the DiscoveryV2 logger at various logging
  *		   levels">
  *
- * <caption halign="center" valign="top"><b><code>
- *	    org.apache.river.discovery.DiscoveryV2</code></b></caption>
+ * <caption><b><code>org.apache.river.discovery.DiscoveryV2</code></b></caption>
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *

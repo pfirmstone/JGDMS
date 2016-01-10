@@ -128,7 +128,7 @@ public class AccessPermission extends Permission {
 	super(name);
 	init(name);
     }
-
+    //TODO: Fix construction, susceptible to finalizer attack.
     /**
      * Parses the target name and initializes the transient fields.
      */

@@ -456,6 +456,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
 
 	// Receive Lookup proxy
 	proxy = getManager().startLookupService();
+	proxy = (ServiceRegistrar) config.prepare("test.reggiePreparer", proxy);
 	// Receive admin proxy fro Lookup
 	adminProxy = ((Administrable)proxy).getAdmin();
 	adminProxy = config.prepare("test.reggieAdminPreparer",adminProxy);

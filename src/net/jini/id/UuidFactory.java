@@ -22,6 +22,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.SecureRandom;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Provides static methods for creating {@link Uuid} instances.
@@ -218,6 +220,7 @@ public final class UuidFactory {
      * Extends <code>Uuid</code> trivially, in order to be a preferred
      * class and retain the original codebase annotation.
      **/
+    @AtomicSerial
     private static class Impl extends Uuid {
 
 	private static final long serialVersionUID = 1089722863511468966L;
@@ -225,5 +228,9 @@ public final class UuidFactory {
 	Impl(long bits0, long bits1) {
 	    super(bits0, bits1);
 	}
+	
+	Impl(GetArg arg) throws IOException{
+	    super(arg);
     }
+}
 }

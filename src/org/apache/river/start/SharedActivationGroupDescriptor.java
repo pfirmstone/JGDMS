@@ -152,7 +152,7 @@ public class SharedActivationGroupDescriptor
      *     array must have an even number of elements.
      * @param host hostname of desired activation system. If <code>null</code>,
      *     defaults to the localhost.  
-     * @param port port of desired activation system. If value is <= 0, then
+     * @param port port of desired activation system. If value is &lt;= 0, then
      *     defaults to  
      *     {@link java.rmi.activation.ActivationSystem#SYSTEM_PORT 
      *     ActivationSystem.SYSTEM_PORT}.

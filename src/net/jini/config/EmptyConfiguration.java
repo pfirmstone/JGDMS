@@ -35,13 +35,12 @@ import java.util.logging.Logger;
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.config</code> to log information at the following logging
- * levels: <p>
+ * levels: <br>
  *
  * <table border="1" cellpadding="5" summary="Describes logging performed by
  *	  the EmptyConfiguration class at different logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
- *	    net.jini.config</code></b></caption>
+ * <caption><b><code>net.jini.config</code></b></caption>
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *

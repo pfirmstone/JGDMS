@@ -177,6 +177,9 @@ public final class ClientMaxPrincipalType
      * any class is <code>null</code>, a primitive type, array type, or
      * <code>final</code> class that does not have <code>Principal</code> as
      * a superinterface, or if any class is assignable to any other class
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

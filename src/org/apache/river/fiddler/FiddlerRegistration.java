@@ -19,32 +19,31 @@ package org.apache.river.fiddler;
 
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.proxy.ThrowThis;
-
-import net.jini.discovery.LookupDiscoveryRegistration;
-import net.jini.discovery.LookupUnmarshalException;
-import net.jini.id.ReferentUuid;
-import net.jini.id.ReferentUuids;
-import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.lease.Lease;
 import net.jini.core.lookup.ServiceRegistrar;
-
-import java.lang.reflect.Method;
-import java.io.InvalidObjectException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
-import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
-import java.util.ArrayList;
-import java.util.HashSet;
+import net.jini.discovery.LookupDiscoveryRegistration;
+import net.jini.discovery.LookupUnmarshalException;
+import net.jini.id.ReferentUuid;
+import net.jini.id.ReferentUuids;
+import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * This class is an implementation of the LookupDiscoveryRegistration
@@ -63,6 +62,7 @@ import net.jini.io.MarshalledInstance;
  *
  * @see net.jini.discovery.LookupDiscoveryRegistration
  */
+@AtomicSerial
 class FiddlerRegistration implements LookupDiscoveryRegistration, 
                                      ReferentUuid, Serializable
 {
@@ -170,6 +170,16 @@ class FiddlerRegistration implements LookupDiscoveryRegistration,
 	this.registrationID = registrationID;
 	this.eventReg       = eventReg;
     }//end constructor
+
+    FiddlerRegistration(GetArg arg) throws IOException {
+	this(check((Fiddler) arg.get("server", null),
+		   (Uuid) arg.get("registrationID", null),
+		   (EventRegistration) arg.get("eventReg", null)),
+		(Uuid) arg.get("registrationID", null),
+		(EventRegistration) arg.get("eventReg", null)
+	    );
+    }
+    
 
     /* *** Methods of net.jini.discovery.LookupDiscoveryRegistration *** */
 
@@ -926,6 +936,66 @@ class FiddlerRegistration implements LookupDiscoveryRegistration,
 
     }//end readObject
 
+    private static Fiddler check(Fiddler server,
+                                Uuid registrationID,
+                                EventRegistration eventReg)
+	    throws InvalidObjectException
+    {
+	/* Verify server */
+        if(server == null) {
+            throw new InvalidObjectException
+                                          ("FiddlerRegistration.readObject "
+                                           +"failure - server field is null");
+        }//endif
+
+        /* Verify registrationID */
+        if(registrationID == null) {
+            throw new InvalidObjectException
+                                  ("FiddlerRegistration.readObject "
+                                   +"failure - registrationID field is null");
+        }//endif
+
+        /* Verify eventReg and its contents */
+        if(eventReg == null) {
+            throw new InvalidObjectException
+                                        ("FiddlerRegistration.readObject "
+                                         +"failure - eventReg field is null");
+        }//endif
+        /* Verify eventReg is not a subclass EventRegistration */
+        if( !((EventRegistration.class).equals(eventReg.getClass())) ) {
+            throw new InvalidObjectException
+                              ("ConstrainableFiddlerRegistration.readObject "
+                               +"failure - eventReg class is not "
+                               +"EventRegistration");
+        }//endif
+        /* Verify eventReg.source */
+        Object source = eventReg.getSource();
+        if(source == null) {
+            throw new InvalidObjectException
+                                        ("FiddlerRegistration.readObject "
+                                         +"failure - eventReg source is null");
+        }//endif
+        if( !(source instanceof FiddlerProxy) ) {
+            throw new InvalidObjectException
+                                ("FiddlerRegistration.readObject failure - "
+                                 +"eventReg source is not an instance of "
+                                 +"FiddlerProxy");
+        }//endif
+        /* source.server != null was verified in FiddlerProxy.readObject() */
+
+        /* Verify eventReg.lease */
+        Object lease = eventReg.getLease();
+        if( !(lease instanceof FiddlerLease) ) {
+            throw new InvalidObjectException
+                                ("FiddlerRegistration.readObject failure - "
+                                 +"eventReg lease is not an instance of "
+                                 +"FiddlerLease");
+        }//endif
+        /* lease.server != null was verified in FiddlerLease.readObject() */
+
+	return server;
+    }
+    
     /** During deserialization of an instance of this class, if it is found
      *  that the stream contains no data, this method is automatically
      *  invoked. Because it is expected that the stream should always 
@@ -1078,6 +1148,7 @@ class FiddlerRegistration implements LookupDiscoveryRegistration,
      *
      * @since 2.0
      */
+    @AtomicSerial
     static final class ConstrainableFiddlerRegistration
                                                  extends FiddlerRegistration
                                                  implements RemoteMethodControl
@@ -1199,6 +1270,41 @@ class FiddlerRegistration implements LookupDiscoveryRegistration,
                    eventReg);
 	    this.methodConstraints = methodConstraints;
         }//end constructor
+
+	ConstrainableFiddlerRegistration(GetArg arg) throws IOException {
+	    super(check(arg));
+	    methodConstraints 
+		    = (MethodConstraints) arg.get("methodConstraints", null);
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException {
+	    FiddlerRegistration fr = new FiddlerRegistration(arg);
+	    MethodConstraints methodConstraints 
+		    = (MethodConstraints) arg.get("methodConstraints", null);
+	    /* Verify server1 constraints */
+            ConstrainableProxyUtil.verifyConsistentConstraints
+                                                       (methodConstraints,
+                                                        fr.server,
+                                                        methodMapArray);
+
+            /* Verify server3 constraints */
+            Object source = fr.eventReg.getSource();
+            if( !(source instanceof FiddlerProxy.ConstrainableFiddlerProxy) ) {
+                throw new InvalidObjectException
+                              ("ConstrainableFiddlerRegistration.readObject "
+                               +"failure - eventReg source is not an instance "
+                               +" of ConstrainableFiddlerProxy");
+            }//endif
+            /* Verify server4 constraints */
+            Object lease = fr.eventReg.getLease();
+            if( !(lease instanceof FiddlerLease.ConstrainableFiddlerLease) ) {
+                throw new InvalidObjectException
+                              ("ConstrainableFiddlerRegistration.readObject "
+                               +"failure - eventReg lease is not an instance "
+                               +" of ConstrainableFiddlerLease");
+            }//endif
+	    return arg;
+	}
 
         /** Returns a copy of the given server proxy having the client method
          *  constraints that result after the specified method mapping is

@@ -62,9 +62,8 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * <li><a href="#logging">Logging</a>
  * </ul>
  *
- * <a name="configEntries">
+ * <a name="configEntries"></a>
  * <h3>Configuring SharedGroupImpl</h3>
- * </a>
  *
  * This implementation of <code>SharedGroupImpl</code> supports the
  * following configuration entries, with component
@@ -73,16 +72,16 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *   <table summary="Describes the activationIdPreparer configuration entry"
  *          border="0" cellpadding="2">
  *     <tr valign="top">
- *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *       activationIdPreparer</code></font>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *       <th scope="col">&#X2022;
+ *       <th scope="col" align="left" colspan="2"><code>
+ *       activationIdPreparer</code>
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>
  *         new {@link net.jini.security.BasicProxyPreparer}()
  *         </code>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Description: <td> The proxy preparer for the service's activation
  *       ID. The value should not be <code>null</code>. 
  * 
@@ -95,15 +94,15 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *          entry"
  *          border="0" cellpadding="2">
  *     <tr valign="top">
- *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *       activationSystemPreparer</code></font>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *       <th scope="col">&#X2022;
+ *       <th scope="col" align="left" colspan="2"><code>
+ *       activationSystemPreparer</code>
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>
  *         new {@link net.jini.security.BasicProxyPreparer}()</code>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Description: <td> The proxy preparer for the proxy for the
  *       activation system. The value should not be <code>null</code>. This
  *       entry is obtained at service start and restart. 
@@ -117,12 +116,12 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *   <table summary="Describes the exporter configuration entry"
  *          border="0" cellpadding="2">
  *     <tr valign="top">
- *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *       exporter</code></font>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *       <th scope="col">&#X2022;
+ *       <th scope="col" align="left" colspan="2"><code>
+ *       exporter</code>
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.export.Exporter}
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td>
  * <pre>
  * new {@link net.jini.activation.ActivationExporter}(
@@ -131,7 +130,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *         {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(0),
  *         new {@link net.jini.jeri.BasicILFactory}(), false, true))
  * </pre>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Description: <td> The object to use for exporting the service. The
  *       value should not be <code>null</code>. The call to 
  *       <code>getEntry</code> will supply the activation ID in
@@ -142,14 +141,14 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *   <table summary="Describes the loginContext configuration entry"
  *     border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *   loginContext</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *   loginContext</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link javax.security.auth.login.LoginContext}
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>null</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> If not <code>null</code>, specifies the JAAS
  *     login context to use for performing a JAAS login and supplying the
  *     {@link javax.security.auth.Subject} to use when running the
@@ -158,9 +157,8 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *   </table>
  *
  *
- *<a name="logging">
+ *<a name="logging"></a>
  *<h3>Loggers and Logging Levels</h3>
- *</a>
  *
  *The SharedGroupImpl service implementation uses the {@link
  *java.util.logging.Logger}, named <code>org.apache.river.sharedGroup</code>. 
@@ -172,7 +170,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *	 summary="Describes logging performed by sharedGroup at different
  *	 logging levels">
  *
- *  <caption halign="center" valign="top"><b><code>
+ *  <caption><b><code>
  *	   org.apache.river.start.sharedGroup</code></b></caption>
  *
  *  <tr> <th scope="col"> Level <th scope="col"> Description
@@ -326,6 +324,7 @@ public class SharedGroupImpl implements Remote,
     }
 
     // javadoc inherited from supertype
+    @Override
     public void destroyVM() throws RemoteException, ActivationException {
 	logger.entering(SharedGroupImpl.class.getName(), "destroyVM"); 
 	/*

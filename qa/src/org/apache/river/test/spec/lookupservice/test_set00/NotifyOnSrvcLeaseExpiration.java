@@ -35,7 +35,7 @@ import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.StubNotFoundException;
 import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
@@ -131,7 +131,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
             srvcIDTmpl[i] = new ServiceTemplate(curSrvcID,null,null);
 	    EventRegistration er;
 	    er = proxy.notify(srvcIDTmpl[i], regTransitions, listener,
-			      new MarshalledObject(curSrvcID),
+			      new MarshalledInstance(curSrvcID).convertToMarshalledObject(),
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}

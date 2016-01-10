@@ -18,50 +18,90 @@
 package org.apache.river.fiddler;
 
 import org.apache.river.config.Config;
-
 import org.apache.river.constants.ThrowableConstants;
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.constants.VersionConstants;
-
 import org.apache.river.logging.Levels;
-
 import org.apache.river.lookup.entry.BasicServiceType;
 import org.apache.river.lookup.entry.LookupAttributes;
-
 import org.apache.river.proxy.ThrowThis;
-
-import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.reliableLog.LogHandler;
-
+import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.start.LifeCycle;
-import org.apache.river.api.util.Startable;
-
 import org.apache.river.thread.InterruptedStatusThread;
 import org.apache.river.thread.ReadersWriter;
 import org.apache.river.thread.ReadersWriter.ConcurrentLockException;
 import org.apache.river.thread.ReadyState;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidObjectException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.lang.reflect.Array;
+import java.net.InetAddress;
+import java.rmi.MarshalledObject;
+import java.rmi.NoSuchObjectException;
+import java.rmi.RemoteException;
+import java.rmi.activation.ActivationException;
+import java.rmi.activation.ActivationID;
+import java.rmi.activation.ActivationSystem;
+import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
 
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.ActivationGroup;
 import net.jini.config.Configuration;
-import net.jini.config.ConfigurationProvider;
 import net.jini.config.ConfigurationException;
+import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
 
-import net.jini.discovery.DiscoveryEvent;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.core.lookup.ServiceID;
+import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.DiscoveryChangeListener;
+import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.RemoteDiscoveryEvent;
-
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
-
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
@@ -80,60 +120,11 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
-
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.entry.Entry;
-import net.jini.core.event.EventRegistration;
-import net.jini.core.event.RemoteEventListener;
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.UnknownLeaseException;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceRegistrar;
-
-import javax.security.auth.Subject;
-import javax.security.auth.login.LoginContext;
-import javax.security.auth.login.LoginException;
-
-import java.lang.reflect.Array;
-
-import java.net.InetAddress;
-
-import java.io.InputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.MarshalledObject;
-import java.rmi.NoSuchObjectException;
-import java.rmi.RemoteException;
-import java.rmi.server.ExportException;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-
-import java.security.PrivilegedExceptionAction;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.util.Startable;
 
 /**
  * This class is the server side of an implementation of the lookup
@@ -572,6 +563,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  discovery service; containing all of the information about that
      *  registration.
      */
+    @AtomicSerial
     private final static class RegistrationInfo
                                           implements Comparable, Serializable
     {
@@ -595,21 +587,21 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
          *  currently discovered lookup service(s).
          *  @serial
          */
-        public final HashMap discoveredRegsMap;
+        public final Map<ServiceRegistrar, MarshalledObject> discoveredRegsMap;
         /** The managed set containing the names of the groups whose
          *  members are the lookup services the lookup discovery service
          *  should attempt to discover for the current registration.
          *  (HashSet is used to prevent duplicates.)
          *  @serial
          */
-        public HashSet<String> groups;
+        public Set<String> groups;
         /** The managed set containing the locators of the specific lookup
          *  services the lookup discovery service should attempt to discover
          *  for the current registration. (HashSet is used to prevent
          *  duplicates.)
          *  @serial
          */
-        public HashSet locators;
+        public Set<LookupLocator> locators;
         /** The ID of the lease placed on the current registration.
          *  @serial
          */
@@ -657,6 +649,64 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
          */
          public transient RemoteEventListener listener;
          
+	 private static RemoteEventListener check(GetArg arg) throws IOException {
+	    Object registrationID = arg.get("registrationID", null);
+	    if (!(registrationID instanceof Uuid)) 
+		throw new InvalidObjectException(
+		    "registrationID must be instanceof Uuid and non null");
+	    Map<ServiceRegistrar, MarshalledObject> discoveredRegsMap 
+		= (Map<ServiceRegistrar, MarshalledObject>)
+		    arg.get("discoveredRegsMap", null);
+	    Map<ServiceRegistrar, MarshalledObject> checkedRegsMap =
+		Collections.checkedMap(
+		    new HashMap(discoveredRegsMap.size()),
+			ServiceRegistrar.class, MarshalledObject.class);
+	    checkedRegsMap.putAll(discoveredRegsMap);
+	    Set<String> groups = (Set<String>) arg.get("groups", null);
+	    Set<String> checkedGroups = 
+		    Collections.checkedSet(new TreeSet<String>(), String.class);
+	    checkedGroups.addAll(groups);
+	    Set<LookupLocator> locators = (Set<LookupLocator>) arg.get("locators", null);
+	    Set<LookupLocator> checkedLocators = 
+		    Collections.checkedSet(
+			    new HashSet(locators.size()), LookupLocator.class);
+	    checkedLocators.addAll(locators);
+	    Object leaseID = arg.get("leaseID", null);
+	    if (!(leaseID instanceof Uuid)) 
+		throw new InvalidObjectException(
+		    "leaseID must be instanceof Uuid and non null");
+	    arg.get("leaseExpiration", 0L); // Checks existance
+	    arg.get("eventID", 0L); // Checks existance
+	    arg.get("seqNum", 0L); // Checks existance
+	    Object handback = arg.get("handback", null);
+	    if (handback != null && !(handback instanceof MarshalledObject))
+		throw new InvalidObjectException(
+		    "handback, if non null, must be an instance of MarshalledObject");
+	    arg.get("discardFlag", false); // Checks existance
+	    return ((RO)arg.getReader()).listener;
+	 }
+	 
+	 RegistrationInfo(GetArg arg) throws IOException {
+	     this(arg, check(arg));
+	 }
+	 
+	private RegistrationInfo(GetArg arg, RemoteEventListener listener) throws IOException {
+	    this.listener = listener;
+	    registrationID = (Uuid) arg.get("registrationID", null);
+	    discoveredRegsMap = new HashMap<ServiceRegistrar, MarshalledObject>(
+		    (Map<ServiceRegistrar, MarshalledObject>)
+		arg.get("discoveredRegsMap", null));
+	    groups = new HashSet<String>((Set<String>) arg.get("groups", null));
+	    locators = new HashSet<LookupLocator>(
+		    (Set<LookupLocator>) arg.get("locators", null));
+	    leaseID = (Uuid) arg.get("leaseID", null);
+	    leaseExpiration = arg.get("leaseExpiration", 0L);
+	    eventID = arg.get("eventID", 0L);
+	    seqNum = arg.get("seqNum", 0L);
+	    handback = (MarshalledObject) arg.get("handback", null);
+	    discardFlag = arg.get("discardFlag", false);
+	}
+         
         /** Constructs an instance of this class and stores the information
          *  related to the current registration: IDs, managed sets, lease
          *  information, and event registration information.
@@ -673,21 +723,21 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             this.registrationID = registrationID;
             /* Initialize the groups field, removing nulls and duplicates */
             if(groups != null) {
-                this.groups = new HashSet<String>();
+                this.groups = new HashSet<String>(groups.length);
                 for(int i=0;i<groups.length;i++) {
                     if(groups[i] == null) continue;
                     this.groups.add(groups[i]);
                 }
             }
             /* Initialize the locators field, removing nulls and duplicates */
-            this.locators = new HashSet();
+            this.locators = new HashSet(locators.length);
             if( (locators != null) && (locators.length > 0) ) {
                 for(int i=0;i<locators.length;i++) {
                     if(locators[i] == null) continue;
                     this.locators.add(locators[i]);
                 }
             }
-            this.discoveredRegsMap = new HashMap(11);
+            this.discoveredRegsMap = new HashMap<ServiceRegistrar, MarshalledObject>(11);
             this.leaseID = leaseID;
             this.leaseExpiration = leaseExpiration;
 
@@ -720,7 +770,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
          *          field of this regInfo; and whose values are the member
          *          groups of each corresponding registrar key.
          */
-        public HashMap addToDiscoveredRegs(HashMap regMapIn) {
+        public Map addToDiscoveredRegs(Map regMapIn) {
             HashMap regMapOut = new HashMap(regMapIn.size());
             Iterator itr = (regMapIn.entrySet()).iterator();
             nextReg:
@@ -810,6 +860,33 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 }//endif
             }
         }//end readObject
+        
+	@ReadInput
+	private static ReadObject getRO(){
+	    return new RO();
+	}
+	
+	private static class RO implements ReadObject {
+	    
+	    RemoteEventListener listener;
+
+	    @Override
+	    public void read(ObjectInput stream) throws IOException, ClassNotFoundException { 
+		MarshalledObject mo = (MarshalledObject)stream.readObject();
+		try {
+		    listener = (RemoteEventListener) new MarshalledInstance(mo).get(false);
+		} catch (Throwable e) {
+		    problemLogger.log(Level.INFO, "problem recovering listener "
+				      +"for recovered registration", e);
+		    if((e instanceof Error) && (ThrowableConstants.retryable(e)
+						 == ThrowableConstants.BAD_OBJECT))
+		    {
+		       throw (Error)e;
+		    }//endif
+		}
+	    }
+	    
+	}
         
         /**
          * Must be called immediately after de-serialization to prepare
@@ -1085,7 +1162,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
          * @return set of registrars that were discarded for the given regInfo
          */
         private HashSet maybeSendDiscardedEvent(RegistrationInfo regInfo,
-                                                Map groupsMap,
+                                                Map<ServiceRegistrar,String[]> groupsMap,
                                                 boolean active)
         {
             HashSet discardedRegs = new HashSet(groupsMap.size()); //return val
@@ -1095,7 +1172,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             {
                 return discardedRegs;
             }
-            HashMap discardMap = new HashMap(groupsMap.size());
+            HashMap<ServiceRegistrar,String[]> discardMap = new HashMap<ServiceRegistrar,String[]>(groupsMap.size());
             /* loop thru the (registrar,groups) pairs, find regs to discard */
             Set eSet = groupsMap.entrySet();
             for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
@@ -1410,9 +1487,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 if(newGroupSet.size() > 0) {
                     logInfoTasks("AddGroupsTask.run(): adding to the "
                                  +"registration's groups");
-                    HashMap discoveredRegs = getDesiredRegsByGroup
+                    Map discoveredRegs = getDesiredRegsByGroup
                                                               (regInfo); // b.
-                    HashMap regsAdded = regInfo.addToDiscoveredRegs
+                    Map regsAdded = regInfo.addToDiscoveredRegs
                                                        (discoveredRegs); // c.
                     RemoteDiscoveryEvent event = buildEvent
                                               (regInfo,regsAdded,false); // d.
@@ -1516,8 +1593,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                              +"registration's groups");
                 Map oldDesiredRegs = getDesiredRegsByGroup(regInfo);     // a.
                 setRegInfoGroups(regInfo,groups);                        // b.
-                HashMap newDesiredRegs = getDesiredRegsByGroup(regInfo); // c.
-                HashMap regsAdded = regInfo.addToDiscoveredRegs
+                Map newDesiredRegs = getDesiredRegsByGroup(regInfo); // c.
+                Map regsAdded = regInfo.addToDiscoveredRegs
                                                        (newDesiredRegs); // d.
                 RemoteDiscoveryEvent event = buildEvent
                                               (regInfo,regsAdded,false); // e.
@@ -1689,9 +1766,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 if(newLocSet.size() > 0) {
                     logInfoTasks("AddLocatorsTask.run(): adding to the "
                                  +"registration's locators");
-                    HashMap discoveredRegs = getDesiredRegsByLocator
+                    Map discoveredRegs = getDesiredRegsByLocator
                                                               (regInfo); // b.
-                    HashMap regsAdded = regInfo.addToDiscoveredRegs
+                    Map regsAdded = regInfo.addToDiscoveredRegs
                                                        (discoveredRegs); // c.
                     RemoteDiscoveryEvent event = buildEvent
                                               (regInfo,regsAdded,false); // d.
@@ -1795,8 +1872,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                              +"registration's locators");
                 Map oldDesiredRegs = getDesiredRegsByLocator(regInfo);    // a.
                 setRegInfoLocators(regInfo,locators);                     // b.
-                HashMap newDesiredRegs = getDesiredRegsByLocator(regInfo);// c.
-                HashMap regsAdded = regInfo.addToDiscoveredRegs
+                Map newDesiredRegs = getDesiredRegsByLocator(regInfo);// c.
+                Map regsAdded = regInfo.addToDiscoveredRegs
                                                        (newDesiredRegs);  // d.
                 RemoteDiscoveryEvent event = buildEvent
                                               (regInfo,regsAdded,false);  // e.
@@ -4282,8 +4359,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
                 throw new UnknownLeaseException
-                                 ("\n    Invalid registration ID on call to "
-                                  +"cancelLease() method"
+                                 ("\n    Invalid registration ID "+ registrationID + " on call to "
+                                  +"renewLease() method"
                                   +"\n    The lease may have expired or been "
                                   +"cancelled");
             }//endif
@@ -4594,10 +4671,10 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *          of the desired groups referenced in the <code>regInfo</code>
      *          parameter
      */
-    private static HashMap getUndesiredRegsByGroup(Map regMap, 
+    private static Map getUndesiredRegsByGroup(Map regMap, 
                                                    RegistrationInfo regInfo)
     {
-        HashSet desiredGroups = regInfo.groups;
+        Set<String> desiredGroups = regInfo.groups;
         HashMap undesiredRegMap = new HashMap(regMap.size());
         Set eSet = regMap.entrySet();
         for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
@@ -4648,7 +4725,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     private static Map getUndesiredRegsByLocator(Map regMap, 
                                                  RegistrationInfo regInfo)
     {
-        HashSet desiredLocators = regInfo.locators;
+	Set<LookupLocator> desiredLocators = regInfo.locators;
         HashMap undesiredRegMap = new HashMap(regMap.size());
         Set eSet = regMap.entrySet();
         for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
@@ -5680,8 +5757,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *          <code>LocatorGroupsStruct</code> that contain the associated
      *          locator and member groups of the corresponding registrar key
      */
-    private HashMap getDesiredRegsByGroup(RegistrationInfo regInfo) {
-        HashSet desiredGroups = regInfo.groups;
+    private Map getDesiredRegsByGroup(RegistrationInfo regInfo) {
+        Set<String> desiredGroups = regInfo.groups;
         HashMap desiredRegMap = new HashMap(allDiscoveredRegs.size());
         Set eSet = allDiscoveredRegs.entrySet();
         for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
@@ -5950,8 +6027,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *          contain the associated locator and member groups of the
      *          corresponding registrar key
      */
-    private HashMap getDesiredRegsByLocator(RegistrationInfo regInfo) {
-        HashSet desiredLocators = regInfo.locators;
+    private Map getDesiredRegsByLocator(RegistrationInfo regInfo) {
+        Set<LookupLocator> desiredLocators = regInfo.locators;
         HashMap desiredRegMap = new HashMap(allDiscoveredRegs.size());
         Set eSet = allDiscoveredRegs.entrySet();
         for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
@@ -6438,7 +6515,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
          * registration's map of discovered registrars. If any registrars
          * cannot be serialized, drop them.
          */
-        HashMap regsAdded = regInfo.addToDiscoveredRegs(regsToAdd);
+        Map regsAdded = regInfo.addToDiscoveredRegs(regsToAdd);
         /* Build and send a "discovered event" */
         RemoteDiscoveryEvent event = buildEvent(regInfo,regsAdded,false);
         if(event != null) {
@@ -6579,7 +6656,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *         record
      */
     private RemoteDiscoveryEvent buildEvent(RegistrationInfo regInfo,
-                                            Map groupsMap,
+                                            Map<ServiceRegistrar,String[]> groupsMap,
                                             boolean discarded)
     {
         RemoteDiscoveryEvent newEvent = null;

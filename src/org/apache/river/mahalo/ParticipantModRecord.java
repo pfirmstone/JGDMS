@@ -18,8 +18,12 @@
 package org.apache.river.mahalo;
 
 import org.apache.river.mahalo.log.CannotRecoverException;
+import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>LogRecord</code> which encapsulates a generic
@@ -28,6 +32,7 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class ParticipantModRecord implements TxnLogRecord {
     static final long serialVersionUID = 5542043673924560855L;
 
@@ -46,13 +51,37 @@ class ParticipantModRecord implements TxnLogRecord {
     private final int result;
 
     ParticipantModRecord(ParticipantHandle part, int result) {
+	this(check(part, result), part, result);
+    }
+    
+    ParticipantModRecord(GetArg arg) throws IOException {
+	this(check(arg),
+		(ParticipantHandle)arg.get("part", null),
+		arg.get("result", 0));
+    }
+    
+    private ParticipantModRecord(boolean check, ParticipantHandle part, int result) {
+	this.part = part;
+	this.result = result;
+    }
+    
+    private static boolean check(GetArg arg) throws IOException {
+	try {
+	    return check(arg.get("part", null), arg.get("result", 0));
+	} catch (IllegalArgumentException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
+	    e.initCause(ex);
+	    throw e;
+	}
+    }
+    
+    private static boolean check(Object part, int result){
 	if (part == null)
 	    throw new IllegalArgumentException("ParticipantModRecord: " +
 			    "recover: non-null ParticipantHandle " +
 						"recover attempted");
-
-	this.part = part;
-	this.result = result;
+	if (result > 0 && result < 7) return true;
+	throw new IllegalArgumentException("Result not valid " + result);
     }
 
     ParticipantHandle getPart() {

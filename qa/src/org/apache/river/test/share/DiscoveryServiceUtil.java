@@ -47,6 +47,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import java.rmi.server.ExportException;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This class contains a set of static methods that provide general-purpose
@@ -186,15 +187,10 @@ public class DiscoveryServiceUtil {
      *          the state of its registration with the service
      */
     public static LookupDiscoveryRegistration
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 String[] groups,
-                                                 LookupLocator[] locators,
-                                                 long duration,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, String[] groups, LookupLocator[] locators, long duration, MarshalledInstance handback)
                                                         throws RemoteException
     {
-	    return proxy.register(groups,locators,listener,handback,duration);
+	    return proxy.register(groups,locators,listener,handback.convertToMarshalledObject(),duration);
     }//end getRegistration
 
     /* 1. No handback parameter */
@@ -208,7 +204,7 @@ public class DiscoveryServiceUtil {
     {
         try {
             return getRegistration(proxy,listener,groups,locators,duration,
-                                   new MarshalledObject(defaultHbVal) );
+                                   new MarshalledInstance(defaultHbVal) );
         } catch (IOException e) {
             return getRegistration(proxy,listener,groups,locators,duration,
                                    null);
@@ -217,11 +213,7 @@ public class DiscoveryServiceUtil {
 
     /* 2. No duration parameter */
     public static LookupDiscoveryRegistration
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 String[] groups,
-                                                 LookupLocator[] locators,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, String[] groups, LookupLocator[] locators, MarshalledInstance handback)
                                                         throws RemoteException
     {
         return getRegistration(proxy,listener,groups,locators,
@@ -241,11 +233,7 @@ public class DiscoveryServiceUtil {
 
     /* 4. No locators parameter */
     public static LookupDiscoveryRegistration 
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 String[] groups,
-                                                 long duration,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, String[] groups, long duration, MarshalledInstance handback)
                                                         throws RemoteException
     {
         return getRegistration(proxy,listener,groups,defaultLocators,
@@ -265,11 +253,7 @@ public class DiscoveryServiceUtil {
 
     /* 6. No groups parameter */
     public static LookupDiscoveryRegistration 
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 LookupLocator[] locators,
-                                                 long duration,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, LookupLocator[] locators, long duration, MarshalledInstance handback)
                                                         throws RemoteException
     {
         return getRegistration(proxy,listener,defaultGroups,locators,
@@ -289,10 +273,7 @@ public class DiscoveryServiceUtil {
 
     /* 8. No locators or duration parameter */
     public static LookupDiscoveryRegistration 
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 String[] groups,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, String[] groups, MarshalledInstance handback)
                                                         throws RemoteException
     {
         return getRegistration(proxy,listener,groups,defaultLocators,
@@ -312,10 +293,7 @@ public class DiscoveryServiceUtil {
 
     /* 10. No groups or duration parameter */
     public static LookupDiscoveryRegistration 
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 LookupLocator[] locators,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, LookupLocator[] locators, MarshalledInstance handback)
                                                         throws RemoteException
     {
         return getRegistration(proxy,listener,defaultGroups,locators,
@@ -335,10 +313,7 @@ public class DiscoveryServiceUtil {
 
     /* 12. No groups or locators parameter */
     public static LookupDiscoveryRegistration 
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 long duration,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, long duration, MarshalledInstance handback)
                                                         throws RemoteException
     {
         return getRegistration(proxy,listener,defaultGroups,defaultLocators,
@@ -358,9 +333,7 @@ public class DiscoveryServiceUtil {
 
     /* 14. No groups, locators, or duration parameter */
     public static LookupDiscoveryRegistration
-                                 getRegistration(LookupDiscoveryService proxy,
-                                                 RemoteEventListener listener,
-                                                 MarshalledObject handback)
+                                 getRegistration(LookupDiscoveryService proxy, RemoteEventListener listener, MarshalledInstance handback)
                                                         throws RemoteException
     {
         return getRegistration(proxy,listener,defaultGroups,defaultLocators,

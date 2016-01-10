@@ -23,6 +23,8 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the version of the discovery protocol used to
@@ -34,6 +36,7 @@ import net.jini.core.constraint.InvocationConstraint;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class DiscoveryProtocolVersion
     implements InvocationConstraint, Serializable
 {
@@ -58,6 +61,7 @@ public final class DiscoveryProtocolVersion
      * Returns a <code>DiscoveryProtocolVersion</code> constraint for the given
      * version number.
      *
+     * @param version DiscoveryProtolVersion.
      * @return a constraint for the given version number
      */
     public static DiscoveryProtocolVersion getInstance(int version) {
@@ -67,14 +71,22 @@ public final class DiscoveryProtocolVersion
 	    case Discovery.PROTOCOL_VERSION_2:
 		return TWO;
 	    default:
-		return new DiscoveryProtocolVersion(version);
+		return new DiscoveryProtocolVersion(version(version));
 	}
     }
 
-    private DiscoveryProtocolVersion(int version) {
+    DiscoveryProtocolVersion(GetArg arg) throws IOException{
+	this(version(arg.get("version", 0)));
+    }
+    
+    private static int version(int version){
 	if (version <= 0) {
 	    throw new IllegalArgumentException("invalid version");
 	}
+	return version;
+    }
+
+    private DiscoveryProtocolVersion(int version) {
 	this.version = version;
     }
 

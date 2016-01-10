@@ -18,6 +18,7 @@
 
 package org.apache.river.collection;
 
+import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.util.HashMap;
@@ -30,28 +31,35 @@ import java.util.Map;
  * sun.misc.SoftCache.
  *
  * @author Sun Microsystems, Inc.
+ * @param <K>
+ * @param <V>
  *
  * @since 2.0
  */
-public class SoftCache {
+public class SoftCache<K,V> {
 
-    private final Map map = new HashMap();
-    private final ReferenceQueue queue = new ReferenceQueue();
+    private final Map<K,Value<V>> map = new HashMap<K,Value<V>>();
+    private final ReferenceQueue<V> queue = new ReferenceQueue<V>();
 
     /**
      * Associates value with given key, returning value previously associated
      * with key, or null if none.
+     * @param key
+     * @param value
+     * @return 
      */
-    public Object put(Object key, Object value) {
+    public V put(K key, V value) {
 	processQueue();
-	Value v = Value.create(key, value, queue);
+	Value<V> v = Value.create(key, value, queue);
 	return Value.strip(map.put(key, v), true);
     }
 
     /**
      * Returns value associated with given key, or null if none.
+     * @param key
+     * @return 
      */
-    public Object get(Object key) {
+    public V get(Object key) {
 	processQueue();
 	return Value.strip(map.get(key), false);
     }
@@ -59,8 +67,10 @@ public class SoftCache {
     /**
      * Removes association for given key, returning value previously associated
      * with key, or null if none.
+     * @param key
+     * @return 
      */
-    public Object remove(Object key) {
+    public V remove(Object key) {
 	processQueue();
 	return Value.strip(map.remove(key), true);
     }
@@ -70,8 +80,8 @@ public class SoftCache {
      */
     public void clear() {
 	processQueue();
-	for (Iterator i = map.values().iterator(); i.hasNext(); ) {
-	    Value v = (Value) i.next();
+	for (Iterator<Value<V>> i = map.values().iterator(); i.hasNext(); ) {
+	    Value<V> v = i.next();
 	    if (v != null) {
 		v.drop();
 	    }
@@ -80,32 +90,32 @@ public class SoftCache {
     }
 
     private void processQueue() {
-	Value v;
-	while ((v = (Value) queue.poll()) != null) {
-	    if (v.key != Value.DROPPED) {
-		map.remove(v.key);
+	Reference<? extends V> v;
+	while ((v = queue.poll()) != null) {
+	    if (((Value)v).key != Value.DROPPED) {
+		map.remove(((Value)v).key);
 	    }
 	}
     }
 
-    private static class Value extends SoftReference {
+    private static class Value<V> extends SoftReference<V> {
 
 	static final Object DROPPED = new Object();
 	Object key;
 
-	static Value create(Object k, Object v, ReferenceQueue q) {
-	    return (v != null) ? new Value(k, v, q) : null;
+	static <V> Value<V> create(Object k, V v, ReferenceQueue<V> q) {
+	    return (v != null) ? new Value<V>(k, v, q) : null;
 	}
 
-	static Object strip(Object o, boolean drop) {
+	static <V> V strip(Value<V> o, boolean drop) {
+	    V v = null;
 	    if (o != null) {
-		Value v = (Value) o;
-		o = v.get();
+		v = o.get();
 		if (drop) {
-		    v.drop();
+		    o.drop();
 		}
 	    }
-	    return o;
+	    return v;
 	}
 
 	void drop() {
@@ -113,7 +123,7 @@ public class SoftCache {
 	    key = DROPPED;
 	}
 
-	private Value(Object k, Object v, ReferenceQueue q) {
+	private Value(Object k, V v, ReferenceQueue<V> q) {
 	    super(v, q);
 	    key = k;
 	}

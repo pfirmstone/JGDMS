@@ -29,6 +29,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
 };
 
 grant { 
+    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.loader.util.classes.*";
     permission java.net.SocketPermission "*",    "connect,accept"; 
     permission java.net.SocketPermission "*",    "listen,resolve";
     permission java.lang.RuntimePermission "getProtectionDomain";

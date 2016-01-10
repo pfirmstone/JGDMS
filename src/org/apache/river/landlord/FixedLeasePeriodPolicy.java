@@ -77,6 +77,7 @@ public class FixedLeasePeriodPolicy implements LeasePeriodPolicy {
      * @param resource          the resource having a lease granted
      *                          or renewed
      * @param requestedDuration the duration the client wants 
+     * @return  duration in milliseconds.
      * @exception IllegalArgumentException thrown if requestedDuration
      *            is less than 0 and not equal to
      *            <code>Lease.ANYLENGTH</code> or
@@ -101,6 +102,7 @@ public class FixedLeasePeriodPolicy implements LeasePeriodPolicy {
      * Method that provides some notion of the current time in milliseconds
      * since the beginning of the epoch. Default implementation
      * calls System.currentTimeMillis()
+     * @return current time in milliseconds.
      */
     protected long currentTime() {
 	return System.currentTimeMillis();

@@ -19,9 +19,12 @@ package net.jini.core.lookup;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Items are stored in and retrieved from the lookup service using
@@ -31,6 +34,7 @@ import net.jini.core.entry.Entry;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class ServiceItem implements java.io.Serializable, Cloneable {
 
     private static final long serialVersionUID = 717395451032330758L;
@@ -51,6 +55,17 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
     /** Attribute sets. */
     public Entry[] attributeSets;
 
+    /**
+     * {@link AtomicSerial} constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    public ServiceItem(GetArg arg) throws IOException {
+	this( arg == null ? null : (ServiceID) arg.get("serviceID", null),
+	    arg == null ? null : arg.get("service", null),
+	    arg == null ? null : (Entry[]) arg.get("attributeSets", null));
+    }
+    
     /**
      * Simple constructor.
      *
@@ -125,9 +140,18 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
     
     /**
      * @serialData 
-     * @param in
+     * @param out
      * @throws IOException
-     * @throws ClassNotFoundException 
+     */
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+    
+    /**
+     * @serial
+     * @param in ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException

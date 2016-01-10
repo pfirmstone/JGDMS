@@ -28,14 +28,16 @@ import javax.security.auth.Subject;
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
-import net.jini.core.discovery.LookupLocator;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * RegistrarProxy subclass that supports constraints.
@@ -43,6 +45,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class LookupSimulatorConstrainableProxy
     extends LookupSimulatorProxy implements RemoteMethodControl
 {
@@ -119,6 +122,20 @@ final class LookupSimulatorConstrainableProxy
 		      constraints, methodMappings)),
 	      serviceID);
 	this.constraints = constraints;
+    }
+
+    LookupSimulatorConstrainableProxy(GetArg arg) throws IOException {
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	LookupSimulatorProxy lsp = new LookupSimulatorProxy(arg);
+	MethodConstraints constraints 
+		= (MethodConstraints) arg.get("constraints", null);
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+	    constraints, lsp.server, methodMappings);
+	return arg;
     }
 
     // javadoc inherited from RemoteMethodControl.setConstraints

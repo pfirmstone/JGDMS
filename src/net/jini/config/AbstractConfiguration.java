@@ -44,13 +44,12 @@ import java.util.logging.Logger;
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.config</code> to log information at the following logging
- * levels: <p>
- *
+ * levels: <br>
+ * <br>
  * <table border="1" cellpadding="5" summary="Describes logging performed by
  *	  the AbstractConfiguration class at different logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
- *	    net.jini.config</code></b></caption>
+ * <caption><b><code>net.jini.config</code></b></caption>
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *
@@ -285,7 +284,7 @@ public abstract class AbstractConfiguration implements Configuration {
      * made to this method by those methods will have arguments that are not
      * <code>null</code> and that have the correct syntax.
      *
-     * @param <T>
+     * @param <T> the type of object requested
      * @param component the component being configured
      * @param name the name of the entry for the component
      * @param type the type of object requested

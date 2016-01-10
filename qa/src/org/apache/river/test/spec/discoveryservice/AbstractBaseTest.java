@@ -18,78 +18,54 @@
 
 package org.apache.river.test.spec.discoveryservice;
 
-import java.util.logging.Level;
-
+import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.TestException;
-
 import org.apache.river.test.share.DiscoveryProtocolSimulator;
 import org.apache.river.test.share.DiscoveryServiceUtil;
-import org.apache.river.test.share.FiddlerAdminUtil;
 import org.apache.river.test.share.GroupsUtil;
 import org.apache.river.test.share.LocatorsUtil;
-
+import org.apache.river.test.share.LookupServices;
+import java.io.IOException;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
+import java.rmi.server.ExportException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import net.jini.admin.Administrable;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
-import net.jini.export.Exporter;
-import net.jini.security.BasicProxyPreparer;
-import net.jini.security.ProxyPreparer;
-
-import org.apache.river.qa.harness.QAConfig;
-
-import net.jini.discovery.DiscoveryGroupManagement;
-
-import net.jini.discovery.LookupDiscoveryService;
-import net.jini.discovery.LookupDiscoveryRegistration;
-import net.jini.discovery.RemoteDiscoveryEvent;
-import net.jini.discovery.LookupUnmarshalException;
-
-import net.jini.lookup.DiscoveryAdmin;
-import net.jini.admin.Administrable;
-
 import net.jini.core.discovery.LookupLocator;
-import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.Lease;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
-import java.io.IOException;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
-
-import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-
-import java.util.logging.Level;
-
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
+import net.jini.discovery.DiscoveryGroupManagement;
+import net.jini.discovery.LookupDiscoveryRegistration;
+import net.jini.discovery.LookupDiscoveryService;
+import net.jini.discovery.LookupUnmarshalException;
+import net.jini.discovery.RemoteDiscoveryEvent;
+import net.jini.export.Exporter;
+import net.jini.io.MarshalledInstance;
+import net.jini.lookup.DiscoveryAdmin;
+import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-
-import org.apache.river.proxy.BasicProxyTrustVerifier;
-import org.apache.river.qa.harness.Test;
-import org.apache.river.test.share.LookupServices;
-import java.rmi.server.ExportException;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -255,11 +231,11 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      */
     protected class RegTuple {
         private final ServiceRegistrar[] regs;
-        private final MarshalledObject[] mRegs;
+        private final MarshalledInstance[] mRegs;
         private final Throwable[]        exceptions;
         private final Map                groupsMap;
         RegTuple(ServiceRegistrar[] regs,
-                 MarshalledObject[] mRegs,
+                 MarshalledInstance[] mRegs,
                  Throwable[]        exceptions,
                  Map                groupsMap)
         {
@@ -279,7 +255,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
         /**
          * @return the mRegs
          */
-        public MarshalledObject[] getmRegs() {
+        public MarshalledInstance[] getmRegs() {
             return mRegs.clone();
         }
 
@@ -855,6 +831,15 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
             }//endif
         }//end discarded
 
+	private MarshalledInstance[] convert(MarshalledObject [] objs){
+	    int l = objs.length;
+	    MarshalledInstance [] result = new MarshalledInstance[l];
+	    for (int i = 0; i < l; i++){
+		result[i] = new MarshalledInstance(objs[i]);
+	    }
+	    return result;
+	}
+
         private RegTuple getRegistrars(RemoteDiscoveryEvent evnt) {
             if(evnt == null) {
                 logger.log(Level.FINE, "WARNING -- event input to "
@@ -862,7 +847,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
                 return null;
             }
             ServiceRegistrar[] regs  = new ServiceRegistrar[0];
-            MarshalledObject[] mRegs = new MarshalledObject[0];
+            MarshalledInstance[] mRegs = new MarshalledInstance[0];
             Throwable[] exceptions   = new Throwable[0];
             Map groupsMap = evnt.getGroups();
             try {
@@ -870,7 +855,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
             } catch (LookupUnmarshalException e) {
                 logger.log(Level.FINE, "LookupUnmarshalException --");
                 regs       = e.getRegistrars();
-                mRegs      = e.getMarshalledRegistrars();
+                mRegs      = convert(e.getMarshalledRegistrars());
                 exceptions = e.getExceptions();
                 logger.log(Level.FINE, "  registrars that were "
                                             +"successfully un-marshalled --");
@@ -929,10 +914,10 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
 
         private void setRegInfoHandback(RemoteDiscoveryEvent evnt) {
             int iHandback = -1;//for null handbacks
-            MarshalledObject mHandback = evnt.getRegistrationObject();
+            MarshalledInstance mHandback = new MarshalledInstance(evnt.getRegistrationObject());
             if(mHandback != null) {
                 try {
-                    Integer handback = (Integer)mHandback.get();
+                    Integer handback = (Integer)mHandback.get(false);
                     iHandback = handback.intValue();
                 } catch (ClassNotFoundException e) {
                     logger.log(Level.FINE, "WARNING - failure while "
@@ -1256,12 +1241,12 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
                                                 +locatorsToDiscover[i]);
             }
         }//endif
-        MarshalledObject mHandback = null;
+        MarshalledInstance mHandback = null;
         int iHandback = -1;
         try {
             if(handback >= 0) {//negative handback param ==> null mHandback
                 iHandback = handback;
-                mHandback = new MarshalledObject(new Integer(handback));
+                mHandback = new MarshalledInstance(new Integer(handback));
             }//endif
         } catch (IOException e) {
             logger.log(Level.FINE, "WARNING -- failure on handback construction "
@@ -1279,7 +1264,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
 	    ldsReg = discoverySrvc.register(groupsToDiscover,
 					    locatorsToDiscover,
 					    listener,
-					    mHandback,
+					    mHandback != null ? mHandback.convertToMarshalledObject() : null,
 					    leaseDuration);	
 	    logger.log(Level.FINEST, "Preparing fiddler registration");
 	    Configuration c = getConfig().getConfiguration();

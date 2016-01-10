@@ -413,8 +413,8 @@ public final class InvocationConstraints implements Serializable {
      *
      * @return an immutable set of all of the requirements
      */
-    public Set requirements() {
-	return new ArraySet(reqs);
+    public Set<InvocationConstraint> requirements() {
+	return new ArraySet<InvocationConstraint>(reqs);
     }
 
     /**
@@ -424,8 +424,8 @@ public final class InvocationConstraints implements Serializable {
      *
      * @return an immutable set of all of the preferences
      */
-    public Set preferences() {
-	return new ArraySet(prefs);
+    public Set<InvocationConstraint> preferences() {
+	return new ArraySet<InvocationConstraint>(prefs);
     }
 
     /**
@@ -478,6 +478,9 @@ public final class InvocationConstraints implements Serializable {
      * arrays are <code>null</code>, or any element is <code>null</code>,
      * or if there are duplicate requirements, duplicate preferences, or
      * preferences that are duplicates of requirements
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     /* Also sets the rel field */
     private void readObject(ObjectInputStream s)

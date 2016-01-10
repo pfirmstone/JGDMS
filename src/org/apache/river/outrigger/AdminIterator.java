@@ -48,9 +48,11 @@ public interface AdminIterator {
      * <p>
      * This method is idempotent in the face of <code>RemoteException</code>s.
      *
+     * @return next Entry in the sequence.
      * @throws UnusableEntryException if the field of next entry in
      * sequence can't be deserialized (usually this is because the class
      * in question could not be loaded).
+     * @throws java.rmi.RemoteException if connection problem occurs.
      */
     public Entry next()	throws UnusableEntryException, RemoteException;
 
@@ -60,11 +62,11 @@ public interface AdminIterator {
      * <ul>
      * <li> If the last call to <code>next()</code> returned an
      * <code>Entry</code> that entry will be removed from the space.
-     * <p>
+     * 
      * <li> If the last call to <code>next()</code> threw a
      * <code>UnusableEntryException</code> the <code>Entry</code> that
      * could not be deserialized will be removed from the space.
-     * <p>
+     * 
      * <li> If the last call to <code>next()</code> returned
      * <code>null</code>, threw a <code>RemoteException</code>, or
      * <code>next()</code> has not yet been called on this iterator a
@@ -75,6 +77,7 @@ public interface AdminIterator {
      * This method is idempotent in the face of
      * <code>RemoteException</code>.
      * <p>
+     * @throws java.rmi.RemoteException if connection problem occurs.
      * @throws IllegalStateException if <code>next()</code> has not be
      * called on this iterator, or the last invocation of
      * <code>next()</code> returned <code>null</code> or threw
@@ -88,6 +91,8 @@ public interface AdminIterator {
      * the <code>close()</code> method.
      * <p> 
      * This method is idempotent in the face of <code>RemoteException</code>.
+     * @throws java.rmi.RemoteException if connection problem occurs, or if
+     * connection already closed.
      */
     public void close() throws RemoteException;
 }

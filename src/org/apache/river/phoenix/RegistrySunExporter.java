@@ -18,8 +18,11 @@
 
 package org.apache.river.phoenix;
 
+import org.apache.river.action.GetBooleanAction;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.server.ObjID;
+import java.security.AccessController;
+import java.util.logging.Logger;
 
 /**
  * JRMP exporter to export a <code>Registry</code> using the well-known
@@ -32,6 +35,19 @@ import java.rmi.server.ObjID;
  * @since 2.0
  */
 public class RegistrySunExporter extends SunJrmpExporter {
+    
+    static {
+	if (!AccessController.doPrivileged
+		(new GetBooleanAction("java.rmi.server.useCodebaseOnly"))
+	    )
+	{
+	    Logger.getLogger("org.apache.river.phoenix").config(
+		"RMI Registry remote code downloading DOS possible,\n" + 
+		" consider setting java.rmi.server.useCodebaseOnly=true\n " + 
+		" and using JERI instead of JRMP for all services\n");
+	}
+    }
+    
     /**
      * Creates a JRMP exporter that exports on the standard activation port
      * (1098).
@@ -53,8 +69,10 @@ public class RegistrySunExporter extends SunJrmpExporter {
      * registry object identifier and preventing remote code downloading for 
      * incoming remote calls.
      * 
-     * UnicastServerRef now uses dynamic stubs by default, there shouldn't
-     * be any code downloads required.
+     * UnicastServerRef now uses dynamic stubs by default.
+    
+    However a Registry still uses skeleton and stub protocols.
+    REMIND: java.rmi.server.useCodebaseOnly=true does the same as below.
     */
 
 //    @Override

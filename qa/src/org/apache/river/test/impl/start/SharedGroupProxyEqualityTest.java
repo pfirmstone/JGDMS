@@ -17,20 +17,21 @@
  */
 package org.apache.river.test.impl.start;
 
-import java.util.logging.Level;
 
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
 import org.apache.river.start.ServiceStarter;
 import org.apache.river.start.SharedGroup;
-import org.apache.river.qa.harness.TestException;
 
 import java.io.*;
 import java.rmi.*;
+import java.util.logging.Level;
 
 import net.jini.admin.Administrable;
 import net.jini.event.EventMailbox;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Verifies that proxies for the same shared group service 
@@ -51,14 +52,14 @@ public class SharedGroupProxyEqualityTest extends QATestEnvironment implements T
         SharedGroup group_proxy_dup = null;
         SharedGroup bogus_group_proxy = null;
 	final String serviceName = "org.apache.river.start.SharedGroup";
-	MarshalledObject marshObj01 = 
-		new MarshalledObject(getManager().startService(serviceName));
-        MarshalledObject marshObj02 = 
-		new MarshalledObject(getManager().startService(serviceName));
+	MarshalledInstance marshObj01 = 
+		new MarshalledInstance(getManager().startService(serviceName));
+        MarshalledInstance marshObj02 = 
+		new MarshalledInstance(getManager().startService(serviceName));
 
-        group_proxy = (SharedGroup) marshObj01.get();
-        group_proxy_dup = (SharedGroup) marshObj01.get();
-        bogus_group_proxy = (SharedGroup) marshObj02.get();
+        group_proxy = (SharedGroup) marshObj01.get(false);
+        group_proxy_dup = (SharedGroup) marshObj01.get(false);
+        bogus_group_proxy = (SharedGroup) marshObj02.get(false);
 
 	// Check proxies
 	if (group_proxy == null ||

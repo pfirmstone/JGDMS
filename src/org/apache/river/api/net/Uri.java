@@ -913,9 +913,9 @@ public final class Uri implements Comparable<Uri> {
      * 
      * The Uri is normalised according to RFC3986.
      * 
-     * @param unescapedString
+     * @param unescapedString URI in un-escaped string form
      * @return an RFC3986 compliant Uri.
-     * @throws java.net.URISyntaxException
+     * @throws java.net.URISyntaxException if string cannot be escaped.
      */
     public static Uri escapeAndCreate(String unescapedString) throws URISyntaxException{
         return new Uri(quoteComponent(unescapedString, allLegalUnescaped));
@@ -926,9 +926,9 @@ public final class Uri implements Comparable<Uri> {
      * characters are escaped and any that shouldn't be escaped are un-escaped.
      * 
      * The escape character % is not re-encoded.
-     * @param nonCompliantEscapedString 
+     * @param nonCompliantEscapedString URI in string from.
      * @return an RFC3986 compliant Uri.
-     * @throws java.net.URISyntaxException
+     * @throws java.net.URISyntaxException if string cannot be escaped.
      */
     public static Uri parseAndCreate(String nonCompliantEscapedString) throws URISyntaxException{
         return new Uri(quoteComponent(nonCompliantEscapedString, allLegal));
@@ -1065,10 +1065,11 @@ public final class Uri implements Comparable<Uri> {
     }
     
     /** 
+     * <p>
      * Indicates whether the specified Uri is implied by this {@link
      * Uri}. Returns {@code true} if all of the following conditions are
      * {@code true}, otherwise {@code false}:
-     * <p>
+     * </p>
      * <ul>
      * <li>this scheme is not {@code null}
      * <li>this scheme is equal to {@code implied}'s scheme.

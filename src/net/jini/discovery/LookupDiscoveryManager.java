@@ -19,13 +19,12 @@
 package net.jini.discovery;
 
 import java.io.IOException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.logging.Levels;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
 import net.jini.core.discovery.LookupLocator;
-import net.jini.core.lookup.ServiceRegistrar;
 
 /** 
  * This class is a helper utility class that organizes and manages all
@@ -44,29 +43,21 @@ import net.jini.core.lookup.ServiceRegistrar;
  *     <li> <a href="#ldmLogging">Logging</a>
  * </ul>
  *
- * <a name="ldmConfigEntries">
+ * <a name="ldmConfigEntries"><b>Configuring LookupDiscoveryManager</b></a>
  * <p>
- * <b><font size="+1">Configuring LookupDiscoveryManager</font></b>
- * <p>
- * </a>
- *
  * Currently, there are no configuration entries directly supported by this
  * implementation of <code>LookupDiscoveryManager</code>. All configuration
  * entries affecting the operation of this utility are retrieved by either
  * the {@link LookupDiscovery} utility, or the {@link LookupLocatorDiscovery}
  * utility. Please refer to the documentation provided with those utilities
  * when configuring the behavior of <code>LookupDiscoveryManager</code>.
- *
- * <a name="ldmLogging">
+ * </p>
+ * <a name="ldmLogging"><b>Logging</b></a>
  * <p>
- * <b><font size="+1">Logging</font></b>
- * <p>
- * </a>
- *
  * With one exception, all logging information produced
  * when using this utility is controlled by the loggers supported by the
  * following utilities:
- * <p>
+ * </p>
  * <ul>
  *  <li> {@link LookupDiscovery} 
  *  <li> {@link LookupLocatorDiscovery} 
@@ -74,13 +65,13 @@ import net.jini.core.lookup.ServiceRegistrar;
  * <p>
  * This implementation of <code>LookupDiscoveryManager</code> uses the {@link Logger}
  * named <code>net.jini.discovery.LookupDiscoveryManager</code> to log information
- * at the following logging levels: <p>
+ * at the following logging levels: </p>
  * 
  * <table border="1" cellpadding="5"
  *       summary="Describes the information logged by LookupDiscoveryManager, and
  *                 the levels at which that information is logged">
  * 
- * <caption halign="center" valign="top">
+ * <caption>
  *   <b><code>net.jini.discovery.LookupDiscoveryManager</code></b>
  * </caption>
  *
@@ -89,7 +80,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * </tr>
  * 
  * <tr>
- *   <td>{@link java.util.logging.Level#HANDLED HANDLED}</td>
+ *   <td>{@link Levels#HANDLED HANDLED}</td>
  *   <td>
  *     when this utility asynchronously invokes a {@link net.jini.discovery.DiscoveryListener}
  *     implementation and that listener throws and unchecked exception. If the listener throws

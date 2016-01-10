@@ -23,7 +23,6 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
-import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
 import net.jini.export.Exporter;

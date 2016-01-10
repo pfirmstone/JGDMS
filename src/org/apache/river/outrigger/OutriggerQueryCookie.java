@@ -17,10 +17,15 @@
  */
 package org.apache.river.outrigger;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * Object <code>OutriggerServerImpl</code> uses to pass context between
  * related sub-queries.
  */
+@AtomicSerial
 class OutriggerQueryCookie 
     implements OutriggerServer.QueryCookie, java.io.Serializable 
 {
@@ -39,6 +44,11 @@ class OutriggerQueryCookie
 	this.startTime = startTime;
     }
 
+    OutriggerQueryCookie(GetArg arg)throws IOException {
+	this(arg.get("startTime", 0L));
+    }
+
+    @Override
     public String toString() {
 	return "OutriggerQueryCookie startTime:" + startTime;
     }

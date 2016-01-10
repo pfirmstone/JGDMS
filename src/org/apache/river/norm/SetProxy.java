@@ -17,6 +17,9 @@
  */
 package org.apache.river.norm;
 
+import org.apache.river.landlord.ConstrainableLandlordLease;
+import org.apache.river.proxy.ConstrainableProxyUtil;
+import org.apache.river.proxy.ThrowThis;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -25,7 +28,6 @@ import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.util.LinkedList;
 import java.util.List;
-
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.EventRegistration;
@@ -37,10 +39,8 @@ import net.jini.lease.LeaseRenewalSet;
 import net.jini.lease.LeaseUnmarshalException;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
-import org.apache.river.landlord.ConstrainableLandlordLease;
-import org.apache.river.proxy.ConstrainableProxyUtil;
-import org.apache.river.proxy.ThrowThis;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Client side proxy for Norm's lease renewal sets.  Uses an object of
@@ -48,6 +48,7 @@ import org.apache.river.proxy.ThrowThis;
  *
  * @author Sun Microsystems, Inc.
  */
+@AtomicSerial
 class SetProxy extends AbstractProxy implements LeaseRenewalSet {
     private static final long serialVersionUID = 2;
 
@@ -80,6 +81,19 @@ class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	    throw new NullPointerException("lease cannot be null");
 	}
 	ourLease = lease;
+    }
+
+    SetProxy(GetArg arg) throws IOException {
+	super(check(arg));
+	ourLease = (Lease) arg.get("ourLease", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	Lease ourLease = (Lease) arg.get("ourLease", null);
+	if (ourLease == null) {
+	    throw new InvalidObjectException("ourLease cannot be null");
+	}
+	return arg;
     }
 
     /** Require fields to be non-null. */
@@ -160,7 +174,7 @@ class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 		    l = (Lease) ml.get(result.verifyCodebaseIntegrity());
 		    leases.add(l);
 		} catch (Throwable t) {
-		    problems.add(ml.convertToMarshalledObject());
+		    if (ml != null) problems.add(ml.convertToMarshalledObject());
 		    exceptions.add(t);
 		}		
 	    }
@@ -278,6 +292,7 @@ class SetProxy extends AbstractProxy implements LeaseRenewalSet {
     }
 
     /** Defines a subclass of SetProxy that implements RemoteMethodControl. */
+    @AtomicSerial
     static final class ConstrainableSetProxy extends SetProxy
 	implements RemoteMethodControl
     {
@@ -368,7 +383,7 @@ class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	 *
 	 * @serial
 	 */
-	private MethodConstraints methodConstraints;
+	private final MethodConstraints methodConstraints;
 
 	/**
 	 * A second inner proxy to use when the client constraints for
@@ -386,13 +401,40 @@ class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 			      MethodConstraints methodConstraints)
 	{
 	    super(constrainServer(server, methodConstraints, methodMap1),
-		  id, lease);
+		  id, check(lease));
+	    this.methodConstraints = methodConstraints;
+	    server2 = constrainServer(server, methodConstraints, methodMap2);
+	}
+	
+	private static Lease check(Lease lease){
 	    if (!(lease instanceof ConstrainableLandlordLease)) {
 		throw new IllegalArgumentException(
 		    "lease must be a ConstrainableLandlordLease");
 	    }
-	    this.methodConstraints = methodConstraints;
+	    return lease;
+	}
+	
+	ConstrainableSetProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	    methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
 	    server2 = constrainServer(server, methodConstraints, methodMap2);
+	}
+
+	private static GetArg check(GetArg arg) throws IOException {
+	    SetProxy sp = new SetProxy(arg);
+	    if (!(sp.server instanceof RemoteMethodControl)) {
+		throw new InvalidObjectException(
+		    "server does not implement RemoteMethodControl");
+	    } else if (!(sp.ourLease instanceof ConstrainableLandlordLease)) {
+		throw new InvalidObjectException(
+		    "ourLease is not a ConstrainableLandlordLease");
+	    }
+	    MethodConstraints methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
+	    ConstrainableProxyUtil.verifyConsistentConstraints(
+		methodConstraints, sp.server, methodMap1);
+	    return arg;
 	}
 
 	/**

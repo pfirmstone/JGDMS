@@ -17,6 +17,10 @@
  */
 package org.apache.river.mahalo;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * A <code>LogRecord</code> which encapsulates a participant
  * being instructed to roll-back.
@@ -24,10 +28,15 @@ package org.apache.river.mahalo;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class ParticipantAbortRecord extends ParticipantModRecord {
     static final long serialVersionUID = -5884802000474046591L;
 
     ParticipantAbortRecord(ParticipantHandle part) {
 	super(part, ABORTED);
     }
+    
+    ParticipantAbortRecord(GetArg arg) throws IOException{
+	super(arg);
+}
 }

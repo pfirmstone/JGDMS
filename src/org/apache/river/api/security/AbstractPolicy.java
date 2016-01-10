@@ -62,7 +62,7 @@ public abstract class AbstractPolicy extends Policy {
      * again, since doing so would risk an escalation of privilege attack if the
      * PermissionGrant implementation was mutable.
      *
-     * @param grants
+     * @param grants to check
      */
     protected final void checkCallerHasGrants(Collection<PermissionGrant> grants) throws SecurityException {
         Iterator<PermissionGrant> grantsItr = grants.iterator();
@@ -78,8 +78,8 @@ public abstract class AbstractPolicy extends Policy {
 
     /**
      * Checks array for null elements
-     * @param array
-     * @throws NullPointerException  
+     * @param array to check for null elements.
+     * @throws NullPointerException if array contains null elements or array is null.
      */
     protected final void checkNullElements(Object[] array) throws NullPointerException {
         int l = array.length;
@@ -98,10 +98,10 @@ public abstract class AbstractPolicy extends Policy {
      * Other parameters enable the underlying {@link ConcurrentHashMap}
      * to be optimised, these parameters use identical names.
      * 
-     * @param permissions
-     * @param initialCapacity
-     * @param loadFactor
-     * @param concurrencyLevel
+     * @param permissions to be optimized
+     * @param initialCapacity see ConcurrentHashMap
+     * @param loadFactor see ConcurrentHashMap
+     * @param concurrencyLevel see ConcurrentHashMap
      * @param unresolvedCapacity  Capacity of Map used to store 
      * UnresolvedPermission instances
      * @return PermissionCollection

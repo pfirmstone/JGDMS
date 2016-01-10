@@ -42,7 +42,6 @@ import java.rmi.activation.ActivationSystem;
 import java.rmi.activation.UnknownGroupException;
 import java.rmi.activation.UnknownObjectException;
 import java.rmi.server.ExportException;
-import java.rmi.server.RMIClassLoader;
 import java.rmi.server.RemoteObject;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessController;
@@ -95,28 +94,28 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *  <table summary="Describes the loginContext configuration entry"
  *         border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      loginContext</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"><code>
+ *      loginContext</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> <code>{@link javax.security.auth.login.LoginContext}</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>null</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> JAAS login context
  *  </table>
  *
  *  <table summary="Describes the inheritGroupSubject configuration entry"
  *         border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      inheritGroupSubject</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"><code>
+ *      inheritGroupSubject</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> <code>boolean</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>false</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> if <code>true</code>, group subject is inherited
  *		when an activatable object is created 
  *  </table>
@@ -124,14 +123,14 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *  <table summary="Describes the instantiatorExporter configuration entry"
  *         border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      instantiatorExporter</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"><code>
+ *      instantiatorExporter</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> <code>{@link net.jini.export.Exporter}</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> retains existing JRMP export of instantiator
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> {@link java.rmi.activation.ActivationInstantiator}
  *		exporter
  *  </table>
@@ -139,15 +138,15 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *  <table summary="Describes the monitorPreparer configuration entry"
  *         border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      monitorPreparer</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"><code>
+ *      monitorPreparer</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> <code>{@link net.jini.security.ProxyPreparer}</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> {@link java.rmi.activation.ActivationMonitor}
  *		proxy preparer 
  *  </table>
@@ -155,15 +154,15 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *  <table summary="Describes the systemPreparer configuration entry"
  *         border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      systemPreparer</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"> <code>
+ *      systemPreparer</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> <code>{@link net.jini.security.ProxyPreparer}</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> {@link java.rmi.activation.ActivationSystem}
  *		proxy preparer 
  *  </table>
@@ -171,14 +170,14 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *  <table summary="Describes the unexportTimeout configuration entry"
  *         border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      unexportTimeout</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"><code>
+ *      unexportTimeout</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> <code>int</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>60000</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> maximum time in milliseconds to wait for
  *		in-progress calls to finish before forcibly unexporting the
  *		group when going inactive 
@@ -187,14 +186,14 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *  <table summary="Describes the unexportWait configuration entry"
  *         border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      unexportWait</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"> <code>
+ *      unexportWait</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> <code>int</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>10</code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> milliseconds to wait between unexport attempts
  *		when going inactive 
  *  </table>
@@ -383,9 +382,11 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	throws ConfigurationException, IOException, ClassNotFoundException
     {
         /* mobj must be MarshalledObject unmarshalled */
-	ActivationGroupData data = (ActivationGroupData) mobj.get();
-	ClassLoader cl = AbstractActivationGroup.class.getClassLoader();
 	ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+	ClassLoader cl = AbstractActivationGroup.class.getClassLoader();
+	Thread.currentThread().setContextClassLoader(cl);
+	ActivationGroupData data = (ActivationGroupData) new MarshalledInstance(mobj).get(false);
+	Thread.currentThread().setContextClassLoader(ccl);
 	if (!covers(cl, ccl)) {
 	    cl = ccl;
 	}
@@ -1059,6 +1060,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * with the permission <code>{@link MonitorPermission}("java.rmi.activation.ActivationMonitor.activeObject")</code>
      * throws a <code>SecurityException</code> 
      **/
+    @Override
     public void activeObject(final ActivationID id, Remote impl)
 	throws ActivationException
     {
@@ -1080,7 +1082,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	    }
 	    // created new entry, so inform monitor of active object
 	    try {
-		doAction(new PrivilegedExceptionAction() {
+		doAction(new PrivilegedExceptionAction<Object>() {
+		    @Override
 		    public Object run() throws Exception {
 			monitor.activeObject(id, entry.mobj);
 			return null;
@@ -1107,7 +1110,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		return AccessController.doPrivileged(action);
 	    } else {
 		return AccessController.doPrivileged(
-		    new PrivilegedExceptionAction() {
+		    new PrivilegedExceptionAction<Object>() {
+			@Override
 		        public Object run() throws Exception {
 			    try {
 				return Subject.doAsPrivileged(

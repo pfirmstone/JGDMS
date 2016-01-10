@@ -41,6 +41,8 @@ import java.rmi.UnexpectedException;
 import java.rmi.UnmarshalException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,6 +51,7 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import net.jini.core.constraint.AtomicValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
@@ -57,8 +60,13 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicMarshalInputStream;
+import org.apache.river.api.io.AtomicMarshalOutputStream;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
 /**
@@ -131,6 +139,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *
  * </table>
  **/
+@AtomicSerial
 public class BasicInvocationHandler
     implements InvocationHandler, TrustEquivalence, Serializable
 {
@@ -198,12 +207,45 @@ public class BasicInvocationHandler
     public BasicInvocationHandler(ObjectEndpoint oe,
 				  MethodConstraints serverConstraints)
     {
+	this(check(oe), oe, null, serverConstraints);
+	}
+    
+    private BasicInvocationHandler(boolean check, ObjectEndpoint oe,
+	    MethodConstraints clientConstraints,
+	    MethodConstraints serverConstraints)
+    {
+	this.oe = oe;
+	this.clientConstraints = clientConstraints;
+	this.serverConstraints = serverConstraints;
+    }
+
+    private static boolean check(ObjectEndpoint oe){
 	if (oe == null) {
 	    throw new NullPointerException();
 	}
-	this.oe = oe;
-	this.clientConstraints = null;
-	this.serverConstraints = serverConstraints;
+	return true;
+    }
+    
+    private static boolean check(GetArg arg) throws IOException{
+	ObjectEndpoint oe = (ObjectEndpoint) arg.get("oe", null);
+	if (oe == null) throw new InvalidObjectException("null object endpoint");
+	Object clientConstraints = arg.get("clientConstraints", null);
+	Object serverConstraints = arg.get("serverConstraints", null);
+	if (clientConstraints != null && !(clientConstraints instanceof MethodConstraints)){
+	    throw new InvalidObjectException("clientConstraints must be an instance of MethodConstraints");
+	}
+	if (serverConstraints != null && !(serverConstraints instanceof MethodConstraints)){
+	    throw new InvalidObjectException("serverConstraints must be an instance of MethodConstraints");
+	}
+	return true;
+    }
+    
+    public BasicInvocationHandler(GetArg arg) throws IOException {
+	this(check(arg),
+	    (ObjectEndpoint) arg.get("oe", null),
+	    (MethodConstraints) arg.get("clientConstraints", null),
+	    (MethodConstraints) arg.get("serverConstraints", null)
+	);
     }
 
     /**
@@ -502,7 +544,8 @@ public class BasicInvocationHandler
 				    "proxy cannot be an invocation handler");
 	} else if (method.getDeclaringClass() == Object.class) {
 	    return invokeObjectMethod(proxy, method, args);
-	} else if (method.getDeclaringClass() == RemoteMethodControl.class) {
+	} else if (RemoteMethodControl.class.isAssignableFrom(method.getDeclaringClass())//  == RemoteMethodControl.class
+		) {
 	    /*
 	     * REMIND: This optimization (testing the identity of the
 	     * method's declaring class) fails if the proxy's class
@@ -519,7 +562,8 @@ public class BasicInvocationHandler
 	     * parameter types) of the method directly.
 	     */
 	    return invokeRemoteMethodControlMethod(proxy, method, args);
-	} else if (method.getDeclaringClass() == TrustEquivalence.class) {
+	} else if (TrustEquivalence.class.isAssignableFrom(method.getDeclaringClass())// == TrustEquivalence.class
+		) {
 	    /*
 	     * REMIND: Ditto.
 	     */
@@ -718,6 +762,7 @@ public class BasicInvocationHandler
 	 */
 	boolean ok = false;
 	boolean integrity = false;
+	boolean atomicValidation = false;
 	boolean wroteMethod = false;
 	Collection context;
 	try {
@@ -736,7 +781,9 @@ public class BasicInvocationHandler
 		InvocationConstraint c = (InvocationConstraint) i.next();
 		if (c == Integrity.YES) {
 		    integrity = true;
-		} else if (!(c instanceof Integrity)) {
+		} else if ( c == AtomicValidation.YES){
+		    atomicValidation = true;
+		} else if (!(c instanceof Integrity) && !(c instanceof AtomicValidation)) {
 		    throw new UnsupportedConstraintException(
 			"cannot satisfy unfulfilled constraint: " + c);
 		}
@@ -754,19 +801,28 @@ public class BasicInvocationHandler
 		    InvocationConstraint c = (InvocationConstraint) i.next();
 		    if (c == Integrity.YES) {
 			integrity = true;
-			break;	// no need to examine preferences further
+//			break;	// no need to examine preferences further
+		    } else if (c == AtomicValidation.YES){
+			atomicValidation = true;
 		    }
 		    // NYI: support ConstraintAlternatives containing Integrity
 		}
 	    }
 
 	    OutputStream ros = request.getRequestOutputStream();
-
+	    // Use new protocol version if atomicValidation is required or preferred.
+	    if (atomicValidation){
+		ros.write(0x01);			// marshalling protocol version
+		ros.write(integrity ? 0x01 : 0x00);	// integrity
+		ros.write(atomicValidation ? 0x01 : 0x00);	// atomicValidation
+	    } else { // Use old version for compatibility
 	    ros.write(0x00);			// marshalling protocol version
 	    ros.write(integrity ? 0x01 : 0x00);	// integrity
+	    }
 
-	    context = new ArrayList(1);
-	    Util.populateContext(context, integrity);
+	    context = new ArrayList(2);
+	    Util.populateContext(context, integrity, atomicValidation);
+
 
 	    ObjectOutputStream out =
 		createMarshalOutputStream(proxy, method, request, context);
@@ -1008,9 +1064,31 @@ public class BasicInvocationHandler
 	if (proxy == null || method == null) {
 	    throw new NullPointerException();
 	}
-	OutputStream out = request.getRequestOutputStream();
-	Collection unmodContext = Collections.unmodifiableCollection(context);
+	final OutputStream out = request.getRequestOutputStream();
+	final Collection unmodContext = Collections.unmodifiableCollection(context);
+	try {
+	    return AccessController.doPrivileged(new PrivilegedExceptionAction<MarshalOutputStream>(){
+		
+		@Override
+		public MarshalOutputStream run() throws Exception {
+		    for (Object o : unmodContext){
+			if (o instanceof AtomicValidationEnforcement &&
+			    ((AtomicValidationEnforcement) o).enforced()){
 	return new MarshalOutputStream(out, unmodContext);
+    }
+		    }
+		    return new AtomicMarshalOutputStream(out, unmodContext);
+							  
+		}
+		
+	    });
+	} catch (PrivilegedActionException ex) {
+	    Exception e = ex.getException();
+	    if (e instanceof IOException) throw (IOException)e;
+	    if (e instanceof RuntimeException) throw (RuntimeException)e;
+	    throw new IOException("Exception thrown during construction", ex);
+	}
+	
     }
 							  
     /**
@@ -1052,8 +1130,8 @@ public class BasicInvocationHandler
     protected ObjectInputStream
         createMarshalInputStream(Object proxy,
 				 Method method,
-				 OutboundRequest request,
-				 boolean integrity,
+				 final OutboundRequest request,
+				 final boolean integrity,
 				 Collection context)
 	throws IOException
     {
@@ -1063,12 +1141,44 @@ public class BasicInvocationHandler
 	if (Proxy.getInvocationHandler(proxy) != this) {
 	    throw new IllegalArgumentException("not proxy for this");
 	}
-	ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
-	Collection unmodContext = Collections.unmodifiableCollection(context);
-	MarshalInputStream in =
-	    new MarshalInputStream(request.getResponseInputStream(),
+	final ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
+	final Collection unmodContext = Collections.unmodifiableCollection(context);
+	
+	MarshalInputStream in;
+	try {
+	    in = AccessController.doPrivileged(new PrivilegedExceptionAction<MarshalInputStream>(){
+		
+		@Override
+		public MarshalInputStream run() throws Exception {
+		    for (Object o : unmodContext){
+			if (o instanceof AtomicValidationEnforcement &&
+				((AtomicValidationEnforcement) o).enforced()){
+				    return (MarshalInputStream) 
+					AtomicMarshalInputStream.create(
+					    request.getResponseInputStream(),
 				   proxyLoader, integrity, proxyLoader,
 				   unmodContext);
+			}
+		    }
+//		    return new MarshalInputStream(
+//					request.getResponseInputStream(),
+//					proxyLoader, integrity, proxyLoader,
+//					unmodContext);
+		    return (MarshalInputStream) AtomicMarshalInputStream.create(
+					request.getResponseInputStream(),
+					proxyLoader, integrity, proxyLoader,
+					unmodContext);
+		    
+		}
+		
+	    });
+	} catch (PrivilegedActionException ex) {
+	    Exception e = ex.getException();
+	    if (e instanceof IOException) throw (IOException) e;
+	    if (e instanceof RuntimeException) throw (RuntimeException)e;
+	    throw new IOException(ex);
+	}
+	    
 	in.useCodebaseAnnotations();
 	return in;
     }
@@ -1526,9 +1636,16 @@ public class BasicInvocationHandler
 	return "Proxy[" + iface + "," + this + "]";
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
     /**
      * @throws	InvalidObjectException if the object endpoint is
      * <code>null</code>
+     * @param in ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      **/
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException

@@ -1308,14 +1308,6 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
      * the given set of locators.
      *
      * @param locators the set of locators to discover
-     *
-     * @param config an instance of <code>Configuration</code>, used to
-     *               obtain the objects needed to configure this utility
-     *
-     * @throws net.jini.config.ConfigurationException indicates an exception
-     *         occurred while retrieving an item from the given
-     *         <code>Configuration</code>
-     * 
      * @throws java.lang.NullPointerException input array contains at least
      *         one <code>null</code> element or <code>null</code> is input
      *         for the configuration

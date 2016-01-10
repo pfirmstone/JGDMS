@@ -77,6 +77,7 @@ public class MonitoredSpaceListener
 
     // handBack object that was registered with the client's notify
     final private MarshalledObject handBack;
+    private MarshalledObject handBackReceived;
 
     // The client who really registered for this event
     final private RemoteEventListener client;
@@ -252,9 +253,9 @@ public class MonitoredSpaceListener
         if (!theEvent.getSource().equals(registration.getSource())) {
             wrongSource = true;
         }
-
+	handBackReceived = theEvent.getRegistrationObject();
         if (handBack != null
-                && !handBack.equals(theEvent.getRegistrationObject())) {
+                && !handBack.equals(handBackReceived)) {
             wrongHandBack = true;
         }
 
@@ -411,7 +412,10 @@ public class MonitoredSpaceListener
         }
 
         if (wrongHandBack) {
-            rslt = rslt + "Received an event with the wrong hand back object\n";
+            rslt = rslt + "Received an event with the wrong hand back object: " 
+		    + handBack + " hashcode " +handBack.hashCode() 
+		    + " should have been " + handBackReceived 
+		    + " hashcode " + handBackReceived.hashCode()+"\n";
         }
 
         if (wrongSource) {

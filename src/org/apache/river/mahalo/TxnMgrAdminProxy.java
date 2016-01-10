@@ -18,25 +18,24 @@
 package org.apache.river.mahalo;
 
 import org.apache.river.admin.DestroyAdmin;
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
+import java.rmi.RemoteException;
+import net.jini.admin.JoinAdmin;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
-import java.io.InvalidObjectException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
-import java.rmi.RemoteException;
-
-
-import net.jini.admin.JoinAdmin;
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.entry.Entry;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <tt>TxnMgrAdminProxy</tt> is a client-side proxy for a mailbox service. 
@@ -47,6 +46,7 @@ import net.jini.core.entry.Entry;
  *
  * @since 1.1
  */
+@AtomicSerial
 class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin, 
     Serializable, ReferentUuid 
 {
@@ -87,6 +87,29 @@ class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
     private TxnMgrAdminProxy(TxnManager server, Uuid serviceProxyID) {
 	this.server = server;
 	this.proxyID = serviceProxyID;
+    }
+
+    TxnMgrAdminProxy(GetArg arg) throws IOException{
+	this(check(arg),(Uuid) arg.get("proxyID", null) );
+    }
+    
+    private static TxnManager check(GetArg arg) throws IOException{
+	TxnManager server = (TxnManager) arg.get("server", null);
+	Uuid proxyID = (Uuid) arg.get("proxyID", null);
+    
+	/* Verify server */
+        if(server == null) {
+            throw new InvalidObjectException("TxnMgrAdminProxy.readObject "
+                                             +"failure - server "
+                                             +"field is null");
+        }//endif//endif
+        /* Verify proxyID */
+        if(proxyID == null) {
+            throw new InvalidObjectException("TxnMgrAdminProxy.proxyID "
+                                             +"failure - proxyID "
+                                             +"field is null");
+	}
+	return server;
     }
 
     // This method's javadoc is inherited from an interface of this class
@@ -223,6 +246,7 @@ class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
                                          +"deserialize MailboxProxy instance");
     }//end readObjectNoData
 
+    @AtomicSerial
     static final class ConstrainableTxnMgrAdminProxy extends TxnMgrAdminProxy
                                                implements RemoteMethodControl
     {
@@ -244,6 +268,21 @@ class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
         {
             super( constrainServer(server, methodConstraints), proxyID);
         }//end constructor
+
+	ConstrainableTxnMgrAdminProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException{
+	    TxnMgrAdminProxy p = new TxnMgrAdminProxy(arg);
+	    // Verify that the server implements RemoteMethodControl
+            if( !(p.server instanceof RemoteMethodControl) ) {
+                throw new InvalidObjectException
+                              ("TxnMgrAdminProxy.readObject failure - server "
+                               +"does not implement RemoteMethodControl");
+	    }
+	    return arg;
+	}
 
         /** Returns a copy of the given server proxy having the client method
          *  constraints that result after the specified method mapping is

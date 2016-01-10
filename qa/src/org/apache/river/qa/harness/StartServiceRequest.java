@@ -18,9 +18,10 @@
 
 package org.apache.river.qa.harness;
 
-import java.rmi.MarshalledObject;
 
 import java.io.Serializable;
+import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 /**
  * A <code>SlaveRequest</code> to start a service.
@@ -58,7 +59,7 @@ class StartServiceRequest implements SlaveRequest {
     public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
 	Admin admin = slaveTest.getAdminManager().getAdmin(serviceName, count);
 	admin.start();
-	MarshalledObject mo = new MarshalledObject(admin.getProxy());
+	MarshalledInstance mo = new MarshalledInstance(admin.getProxy());
 	return mo;
     }
 }

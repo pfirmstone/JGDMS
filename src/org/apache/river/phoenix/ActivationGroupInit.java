@@ -22,7 +22,6 @@ import java.lang.reflect.Method;
 import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
-import java.rmi.server.RMIClassLoader;
 import java.util.Collections;
 import net.jini.io.MarshalInputStream;
 import net.jini.loader.ClassLoading;

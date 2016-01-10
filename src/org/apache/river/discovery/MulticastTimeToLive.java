@@ -23,6 +23,8 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the time to live (TTL) value set on outgoing
@@ -33,6 +35,7 @@ import net.jini.core.constraint.InvocationConstraint;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class MulticastTimeToLive
     implements InvocationConstraint, Serializable
 {
@@ -57,10 +60,22 @@ public final class MulticastTimeToLive
      * greater than {@link #MAX_TIME_TO_LIVE}.
      */
     public MulticastTimeToLive(int ttl) {
+	this(ttl, check(ttl));
+    }
+    
+    MulticastTimeToLive(GetArg arg)throws IOException{
+	this(arg.get("ttl", -1));
+    }
+    
+    private MulticastTimeToLive(int ttl, boolean check){
+	this.ttl = ttl;
+    }
+    
+    private static boolean check(int ttl){
 	if (ttl < 0 || ttl > MAX_TIME_TO_LIVE) {
 	    throw new IllegalArgumentException("invalid time to live");
 	}
-	this.ttl = ttl;
+	return true;
     }
 
     /**

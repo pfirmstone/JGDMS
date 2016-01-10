@@ -25,6 +25,8 @@ import java.io.Serializable;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Defines an abstract class that supplies basic referent UUID and
@@ -33,6 +35,7 @@ import net.jini.id.Uuid;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 abstract class AbstractProxy implements ReferentUuid, Serializable {
     private static final long serialVersionUID = 1;
 
@@ -52,13 +55,37 @@ abstract class AbstractProxy implements ReferentUuid, Serializable {
 
     /** Creates an instance of this class. */
     AbstractProxy(NormServer server, Uuid uuid) {
+	this(server, uuid, check(server, uuid));
+    }
+    
+    private AbstractProxy(NormServer server, Uuid uuid, boolean check){
+	this.server = server;
+	this.uuid = uuid;
+    }
+    
+    AbstractProxy(GetArg arg) throws IOException {
+	this((NormServer) arg.get("server", null),
+	    (Uuid) arg.get("uuid", null),
+	    check(arg));
+    }
+    
+    private static boolean check(NormServer server, Uuid uuid) {
 	if (server == null) {
 	    throw new NullPointerException("server cannot be null");
 	} else if (uuid == null) {
 	    throw new NullPointerException("uuid cannot be null");
 	}
-	this.server = server;
-	this.uuid = uuid;
+	return true;
+    }
+
+    private static boolean check(GetArg arg) throws IOException {
+	NormServer server = (NormServer) arg.get("server", null);
+	Uuid uuid = (Uuid) arg.get("uuid", null);
+	if (server == null || uuid == null) {
+	    throw new InvalidObjectException(
+		"server and uuid must be non-null");
+	}
+	return true;
     }
 
     /** Require fields to be non-null. */

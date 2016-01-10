@@ -17,16 +17,22 @@
  */
 package org.apache.river.norm;
 
+import org.apache.river.landlord.LeasedResource;
+import org.apache.river.norm.event.EventFactory;
+import org.apache.river.norm.event.EventType;
+import org.apache.river.norm.event.EventTypeGenerator;
+import org.apache.river.norm.event.SendMonitor;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
@@ -36,12 +42,8 @@ import net.jini.io.MarshalledInstance;
 import net.jini.lease.ExpirationWarningEvent;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.security.ProxyPreparer;
-
-import org.apache.river.landlord.LeasedResource;
-import org.apache.river.norm.event.EventFactory;
-import org.apache.river.norm.event.EventType;
-import org.apache.river.norm.event.EventTypeGenerator;
-import org.apache.river.norm.event.SendMonitor;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Norm's internal representation of LeaseRenewalSets.  Unless otherwise
@@ -50,6 +52,7 @@ import org.apache.river.norm.event.SendMonitor;
  *
  * @author Sun Microsystems, Inc.
  */
+@AtomicSerial
 class LeaseSet implements Serializable, LeasedResource {
     private static final long serialVersionUID = 2;
 
@@ -76,7 +79,7 @@ class LeaseSet implements Serializable, LeasedResource {
      * A collection of the client leases in this set (in wrapped form).
      * @serial
      */ 
-    private final Set leases = new HashSet();
+    private final Set<ClientLeaseWrapper> leases;
 
     /**
      * A table that maps client leases to client lease wrappers.
@@ -131,6 +134,7 @@ class LeaseSet implements Serializable, LeasedResource {
     LeaseSet(Uuid ID, EventTypeGenerator generator, PersistentStore store,
 	     NormServerBaseImpl normServerBaseImpl)
     {
+	this.leases = new HashSet<ClientLeaseWrapper>();
 	this.store = store;
 	this.normServerBaseImpl = normServerBaseImpl;
 	this.ID = ID;
@@ -154,6 +158,56 @@ class LeaseSet implements Serializable, LeasedResource {
 	    // Because we are passing null for the listener we will
 	    // never get an exception
 	    throw new AssertionError();
+	}
+    }
+
+    LeaseSet(GetArg arg) throws IOException {
+	this(	arg.get("expiration", 0L),
+		(Uuid) arg.get("ID", null),
+		check((Set<ClientLeaseWrapper>) arg.get("leases", null)),
+		arg.get("minWarning", 0L),
+		(EventType) arg.get("warningEventType", null),
+		arg.get("warningSeqNum", 0L),
+		(EventType) arg.get("failureEventType", null)
+		);
+	// Restore the 2nd copy
+	expiration2 = new ExpirationTime(expiration);
+
+	// Create lease table, but only populate after restoring lease wrapper
+	// transient state
+	leaseTable = new LeaseTable();
+    }
+    
+    LeaseSet(long expiration,
+	    Uuid ID,
+	    Set leases,
+	    long minWarning,
+	    EventType warningEventType,
+	    long warningSeqNum,
+	    EventType failureEventType)
+    {
+	this.expiration = expiration;
+	this.ID = ID;
+	this.leases = new HashSet<ClientLeaseWrapper>(leases);
+	this.minWarning = minWarning;
+	this.warningEventType = warningEventType;
+	this.warningSeqNum = warningSeqNum;
+	this.failureEventType = failureEventType;
+    }
+    
+    private static Set<ClientLeaseWrapper> check(Set<ClientLeaseWrapper> leases) 
+	    throws InvalidObjectException
+    {
+	try {
+	    Set<ClientLeaseWrapper> checkLeases = Collections.checkedSet(
+		    new HashSet<ClientLeaseWrapper>(leases.size()), ClientLeaseWrapper.class);
+	    checkLeases.addAll(leases);
+	    return checkLeases;
+	} catch (ClassCastException e){
+	    InvalidObjectException ex = new InvalidObjectException(
+		    "leases must only contain instances of ClientLeaseWrapper");
+	    ex.initCause(e);
+	    throw ex;
 	}
     }
 
@@ -451,7 +505,7 @@ class LeaseSet implements Serializable, LeasedResource {
      * generates <code>ExpirationWarningEvent</code>s.
      */
     private static class WarningFactory implements EventFactory {
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L; // Not Serializable
 
 	/** The source for the event */
 	final private SetProxy proxy;
@@ -593,7 +647,7 @@ class LeaseSet implements Serializable, LeasedResource {
      * time.
      */
     private static class ExpirationTime {
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L; // Not Serializable
 
 	/** 
 	 * The expiration time in milliseconds since the beginning of the 
@@ -633,7 +687,7 @@ class LeaseSet implements Serializable, LeasedResource {
 	 * Updated expiration time
 	 * @serial
 	 */
-	private long expiration;
+	private final long expiration;
 
 	/**
 	 * Simple constructor
@@ -661,7 +715,7 @@ class LeaseSet implements Serializable, LeasedResource {
 	 * Wrapped version of client lease
 	 * @serial
 	 */
-	private ClientLeaseWrapper clw;
+	private final ClientLeaseWrapper clw;
 
 	/**
 	 * Simple constructor
@@ -689,7 +743,7 @@ class LeaseSet implements Serializable, LeasedResource {
 	 * Client lease to be removed
 	 * @serial
 	 */
-	private ClientLeaseWrapper clw;
+	private final ClientLeaseWrapper clw;
 
 	/**
 	 * Simple constructor
@@ -751,13 +805,13 @@ class LeaseSet implements Serializable, LeasedResource {
 	 * Warning time associated with warning event registration
 	 * @serial
 	 */
-	private long warningTime;
+	private final long warningTime;
 
 	/**
 	 * EventType object that resulted from registration change
 	 * @serial
 	 */
-	private EventType registration;
+	private final EventType registration;
 
 	/**
 	 * Simple constructor
@@ -787,7 +841,7 @@ class LeaseSet implements Serializable, LeasedResource {
 	 * EventType object that resulted from registration change
 	 * @serial
 	 */
-	private EventType registration;
+	private final EventType registration;
 
 	/**
 	 * Simple constructor

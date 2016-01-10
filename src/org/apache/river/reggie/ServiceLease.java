@@ -17,16 +17,21 @@
  */
 package org.apache.river.reggie;
 
-import java.rmi.RemoteException;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
+import java.rmi.RemoteException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * A ServiceLease is a proxy for a service registration lease at a registrar.
@@ -35,6 +40,7 @@ import net.jini.id.Uuid;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class ServiceLease extends RegistrarLease {
 
     private static final long serialVersionUID = 2L;
@@ -58,11 +64,27 @@ class ServiceLease extends RegistrarLease {
     {
 	return (server instanceof RemoteMethodControl) ?
 	    new ConstrainableServiceLease(
-		server, registrarID, serviceID, leaseID, expiration, null) :
+		server, registrarID, serviceID, leaseID, expiration, null, true) :
 	    new ServiceLease(
 		server, registrarID, serviceID, leaseID, expiration);
     }
 
+    @ReadInput
+    private static ReadObject getRO(){
+	return new RO();
+    }
+    
+    private static GetArg check(GetArg arg){
+	RO r = (RO) arg.getReader();
+	if (r.serviceID == null) throw new NullPointerException();
+	return arg;
+    }
+    
+    ServiceLease(GetArg arg) throws IOException{
+	super(check(arg));
+	serviceID = ((RO) arg.getReader()).serviceID;
+    }
+    
     /** Constructor for use by getInstance(), ConstrainableServiceLease. */
     ServiceLease(Registrar server,
 		 ServiceID registrarID,
@@ -74,11 +96,13 @@ class ServiceLease extends RegistrarLease {
 	this.serviceID = serviceID;
     }
 
+    @Override
     public void cancel() throws UnknownLeaseException, RemoteException {
 	server.cancelServiceLease(serviceID, leaseID);
     }
 
     /** Do the actual renew. */
+    @Override
     protected long doRenew(long duration)
 	throws UnknownLeaseException, RemoteException
     {
@@ -90,11 +114,13 @@ class ServiceLease extends RegistrarLease {
 	return serviceID;
     }
 
+    @Override
     Object getRegID() {
 	return serviceID;
     }
     
     // This method's javadoc is inherited from a super class of this class
+    @Override
     String getLeaseType() {
 	return LEASE_TYPE;
     }
@@ -124,5 +150,16 @@ class ServiceLease extends RegistrarLease {
      */
     private void readObjectNoData() throws ObjectStreamException {
 	throw new InvalidObjectException("no data");
+    }
+    
+    private static class RO implements ReadObject{
+	
+	ServiceID serviceID;
+
+	@Override
+	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+	    serviceID = new ServiceID(input);
+}
+	
     }
 }

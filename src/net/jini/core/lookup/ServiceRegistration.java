@@ -64,7 +64,7 @@ public interface ServiceRegistration {
      * @param attrSets attribute sets to add
      * @throws UnknownLeaseException the registration lease has expired
      *         or been cancelled.
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a connection issue occurs.
      */
     void addAttributes(Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException;
@@ -97,7 +97,7 @@ public interface ServiceRegistration {
      *         attrSets are not equal, or class of an attrSets element is 
      *         not the same as, or a superclass of, the class of the
      *         corresponding attrSetTemplates element
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a connection issue occurs.
      */
     void modifyAttributes(Entry[] attrSetTemplates, Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException;
@@ -110,7 +110,7 @@ public interface ServiceRegistration {
      * @param attrSets attribute sets to use
      * @throws UnknownLeaseException the registration lease has expired
      *         or been cancelled
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a connection issue occurs.
      */
     void setAttributes(Entry[] attrSets)
 	throws UnknownLeaseException, RemoteException;

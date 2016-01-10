@@ -19,16 +19,22 @@ package org.apache.river.reggie;
 
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
+import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMap;
+import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
 
 /**
  * ServiceLease subclass that supports constraints.
@@ -36,6 +42,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class ConstrainableServiceLease
     extends ServiceLease implements RemoteMethodControl
 {
@@ -52,23 +59,57 @@ final class ConstrainableServiceLease
 		       new Class[]{ ServiceID.class, Uuid.class, long.class })
     };
 
+     /**
+     * Verifies that the client constraints for this proxy are consistent with
+     * those set on the underlying server ref.
+     */
+    public static void verifyConsistentConstraints(
+	MethodConstraints constraints, Object proxy) throws InvalidObjectException {
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+	    constraints, proxy, methodMappings);
+    }
+
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
+
+    private static AtomicSerial.GetArg check(AtomicSerial.GetArg arg) throws IOException{
+	RegistrarLease rl = new RegistrarLease(arg){
+	    private UnsupportedOperationException exception(){
+		return new UnsupportedOperationException("Validator only.");
+	    }
+	    Object getRegID() { throw exception();}
+	    String getLeaseType() { throw exception(); }
+	    protected long doRenew(long duration) throws UnknownLeaseException,
+		    LeaseDeniedException, RemoteException {throw exception();}
+	    public void cancel() throws UnknownLeaseException,
+		    RemoteException { throw exception();}
+	};
+	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	verifyConsistentConstraints(constraints, rl.server);
+	return arg;
+    }
+    
+    ConstrainableServiceLease(AtomicSerial.GetArg arg) throws IOException{
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
 
     /**
      * Creates new ConstrainableServiceLease with given server reference, event
      * and lease IDs, expiration time and client constraints.
      */
-    ConstrainableServiceLease(Registrar server,
+    ConstrainableServiceLease(
+	    Registrar server,
 			      ServiceID registrarID,
 			      ServiceID serviceID,
 			      Uuid leaseID,
 			      long expiration,
-			      MethodConstraints constraints)
+	    MethodConstraints constraints,
+	    boolean setConstraints)
     {
-	super((Registrar) ((RemoteMethodControl) server).setConstraints(
+	super(setConstraints ? (Registrar) ((RemoteMethodControl) server).setConstraints(
 		  ConstrainableProxyUtil.translateConstraints(
-		      constraints, methodMappings)),
+		      constraints, methodMappings)) : server,
 	      registrarID,
 	      serviceID,
 	      leaseID,
@@ -101,7 +142,7 @@ final class ConstrainableServiceLease
     // javadoc inherited from RemoteMethodControl.setConstraints
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
 	return new ConstrainableServiceLease(
-	    server, registrarID, serviceID, leaseID, expiration, constraints);
+	    server, registrarID, serviceID, leaseID, getExpiration(), constraints, true);
     }
 
     // javadoc inherited from RemoteMethodControl.getConstraints
@@ -117,6 +158,10 @@ final class ConstrainableServiceLease
 	return new SingletonProxyTrustIterator(server);
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
     /**
      * Verifies that the client constraints for this proxy are consistent with
      * those set on the underlying server ref.
@@ -125,7 +170,6 @@ final class ConstrainableServiceLease
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
-	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    constraints, server, methodMappings);
+	verifyConsistentConstraints(constraints, server);
     }
 }

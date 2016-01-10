@@ -63,6 +63,9 @@ interface Registrar
      * Returns the service object (i.e., just ServiceItem.service) from an
      * item matching the template, or null if there is no match.
      * @see net.jini.core.lookup.ServiceRegistrar#lookup
+     * @param tmpl Template used for matching service items.
+     * @return MarshalledWrapper containing service object
+     * @throws RemoteException if connection related exception occurs.
      */
     MarshalledWrapper lookup(Template tmpl) throws RemoteException;
 
@@ -103,6 +106,11 @@ interface Registrar
      * from super to subclass).
      *
      * @see net.jini.core.lookup.ServiceRegistrar#getFieldValues
+     * @param tmpl template to match service items
+     * @param setIndex index in the template of attributes
+     * @param field field index.
+     * @return Object array
+     * @throws RemoteException if a connection related exception occurs.
      */
     Object[] getFieldValues(Template tmpl, int setIndex, int field)
 	throws RemoteException;
@@ -115,6 +123,10 @@ interface Registrar
      * have names that start with the specified prefix, and returns the set
      * of all such types.
      * @see net.jini.core.lookup.ServiceRegistrar#getServiceTypes
+     * @param tmpl template to match service items.
+     * @param prefix to match start of names
+     * @return ServiceTypeBase array
+     * @throws RemoteException if connection related exception occurs.
      */
     ServiceTypeBase[] getServiceTypes(Template tmpl, String prefix)
 	throws RemoteException;
@@ -123,6 +135,8 @@ interface Registrar
      * Returns a LookupLocator that can be used if necessary for unicast
      * discovery of the lookup service.
      * @see net.jini.core.lookup.ServiceRegistrar#getLocator
+     * @return LookupLocator for lookup service
+     * @throws RemoteException if connection related exception occurs.
      */
     LookupLocator getLocator() throws RemoteException;
 
@@ -130,6 +144,11 @@ interface Registrar
      * Adds the specified attribute sets (those that aren't duplicates of
      * existing attribute sets) to the registered service item.
      * @see net.jini.core.lookup.ServiceRegistration#addAttributes
+     * @param serviceID the serviceID used to identify the service
+     * @param leaseID the Uuid of the lease.
+     * @param attrSets the array of EntryRep's.
+     * @throws UnknownLeaseException if Lease expired.
+     * @throws RemoteException if a connection related problem occurs.
      */
     void addAttributes(ServiceID serviceID, Uuid leaseID, EntryRep[] attrSets)
 	throws UnknownLeaseException, RemoteException;
@@ -155,6 +174,10 @@ interface Registrar
     /**
      * Cancels a service lease.
      * @see net.jini.core.lease.Lease#cancel
+     * @param serviceID ServiceID
+     * @param leaseID Uuid of lease.
+     * @throws UnknownLeaseException if leaseID is unknown.
+     * @throws RemoteException of a connection related exception occurs.
      */
     void cancelServiceLease(ServiceID serviceID, Uuid leaseID)
 	throws UnknownLeaseException, RemoteException;
@@ -169,6 +192,10 @@ interface Registrar
     /**
      * Cancels an event lease.
      * @see net.jini.core.lease.Lease#cancel
+     * @param eventID the event id.
+     * @param leaseID Uuid of the lease.
+     * @throws UnknownLeaseException if leaseID unknown.
+     * @throws RemoteException if connection related exception occurs.
      */
     void cancelEventLease(long eventID, Uuid leaseID)
 	throws UnknownLeaseException, RemoteException;
@@ -192,6 +219,10 @@ interface Registrar
     /**
      * Cancels service and event leases from a LeaseMap.
      * @see net.jini.core.lease.LeaseMap#cancelAll
+     * @param regIDs array of service registration id's.
+     * @param leaseIDs array of lease Uuid's
+     * @return array containing Exceptions
+     * @throws RemoteException if a connection related exception occurs.
      */
     Exception[] cancelLeases(Object[] regIDs, Uuid[] leaseIDs)
 	throws RemoteException;

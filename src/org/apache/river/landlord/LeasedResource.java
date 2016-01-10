@@ -50,6 +50,7 @@ public interface LeasedResource {
      * {@link ReferentUuid#getReferentUuid getReferentUuid}
      * method and should base their implementation of <code>equals</code> on
      * this object.
+     * @return Uuid associated with lease.
      */
     public Uuid getCookie();
 }

@@ -20,11 +20,20 @@ package org.apache.river.reggie;
 import org.apache.river.proxy.MarshalledWrapper;
 import org.apache.river.reggie.ClassMapper.EntryField;
 import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.rmi.MarshalException;
 import java.rmi.RemoteException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import net.jini.core.entry.Entry;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * An EntryRep contains the fields of an Entry packaged up for
@@ -38,22 +47,34 @@ import net.jini.core.entry.Entry;
  * @author Sun Microsystems, Inc.
  *
  */
-class EntryRep implements Serializable, Cloneable {
+@AtomicSerial
+final class EntryRep implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 2L;
+    private static final ObjectStreamField[] serialPersistentFields = 
+    { 
+        /** @serialField The Class of the Entry converted to EntryClass. */
+        new ObjectStreamField("eclass", EntryClass.class),
+        /** @serialField The codebase of the entry class. */
+        new ObjectStreamField("codebase", String.class),
+	/** @serialField The public fields of the Entry, each converted as necessary to
+	 * a MarshalledWrapper (or left as is if of known java.lang immutable
+	 * type).  The fields are in super- to subclass order. */
+        new ObjectStreamField("fields", Object[].class)
+    };
 
     /**
      * The Class of the Entry converted to EntryClass.
      *
      * @serial
      */
-    public EntryClass eclass;
+    final EntryClass eclass;
     /**
      * The codebase of the entry class.
      * 
      * @serial
      */
-    public String codebase;
+    final String codebase;
     /**
      * The public fields of the Entry, each converted as necessary to
      * a MarshalledWrapper (or left as is if of known java.lang immutable
@@ -61,16 +82,57 @@ class EntryRep implements Serializable, Cloneable {
      *
      * @serial
      */
-    public Object[] fields;
+    private final Object[] fields; // Individual fields were mutated by RegistrarImpl
 
+    transient List flds; // Reggie now uses flds to access fields.
+    
+    
+    private static boolean check(GetArg arg) throws IOException{
+	EntryClass eclass = (EntryClass) arg.get("eclass", null); // Throws ClassCastException
+	if (eclass == null) throw new InvalidObjectException("eclass cannot be null");
+	String codebase = (String) arg.get("codebase", null); // Throws ClassCastException
+	Object [] fields = (Object[]) arg.get("fields", null); // Throws ClassCastException
+	if (fields == null) throw new InvalidObjectException("fields array cannot be null");
+	return true;
+    }
+    
+    EntryRep(GetArg arg) throws IOException{
+	this(arg, check(arg));
+    }
+    
+    private EntryRep(GetArg arg, boolean check) throws IOException{
+	eclass = (EntryClass) arg.get("eclass", null);
+	codebase = (String) arg.get("codebase", null);
+	fields = ((Object[]) arg.get("fields", null)).clone();
+	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException{
+	synchronized (fields){
+	    out.defaultWriteObject();
+	}
+    }
+    
+    /**
+     * For clone & Reggie
+     */
+    EntryRep(EntryRep copy, boolean replaceEntryClass){
+	eclass = replaceEntryClass ? copy.eclass.getReplacement(): copy.eclass;
+	codebase = copy.codebase;
+	synchronized (copy.fields){
+	    fields = copy.fields.clone();
+	}
+	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
+    }
+    
     /**
      * Converts an Entry to an EntryRep.  Any exception that results
      * is bundled up into a MarshalException.
      */
-    public EntryRep(Entry entry) throws RemoteException {
+    private EntryRep(Entry entry, boolean needCodebase) throws RemoteException {
 	EntryClassBase ecb = ClassMapper.toEntryClassBase(entry.getClass());
 	eclass = ecb.eclass;
-	codebase = ecb.codebase;
+	codebase = needCodebase ? ecb.codebase : null;
 	try {
 	    EntryField[] efields = ClassMapper.getFields(entry.getClass());
 	    fields = new Object[efields.length];
@@ -86,6 +148,7 @@ class EntryRep implements Serializable, Cloneable {
 	} catch (IllegalAccessException e) {
 	    throw new MarshalException("error marshalling arguments", e);
 	}
+	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
     }
 
     /**
@@ -99,7 +162,7 @@ class EntryRep implements Serializable, Cloneable {
 	    EntryField[] efields = ClassMapper.getFields(clazz);
 	    Entry entry = (Entry)clazz.newInstance();
 	    for (int i = efields.length; --i >= 0; ) {
-		Object val = fields[i];
+		Object val = flds.get(i);
 		EntryField f = efields[i];
 		Field rf = f.field;
 		try {
@@ -145,11 +208,11 @@ class EntryRep implements Serializable, Cloneable {
 	if (obj instanceof EntryRep) {
 	    EntryRep entry = (EntryRep)obj;
 	    if (!eclass.equals(entry.eclass) ||
-		fields.length != entry.fields.length)
+		flds.size() != entry.flds.size())
 		return false;
-	    for (int i = fields.length; --i >= 0; ) {
-		if ((fields[i] == null && entry.fields[i] != null) ||
-		    (fields[i] != null && !fields[i].equals(entry.fields[i])))
+	    for (int i = flds.size(); --i >= 0; ) {
+		if ((flds.get(i) == null && entry.flds.get(i) != null) ||
+		    (flds.get(i) != null && !flds.get(i).equals(entry.flds.get(i))))
 		    return false;
 	    }	    
 	    return true;
@@ -158,19 +221,29 @@ class EntryRep implements Serializable, Cloneable {
     }
 
     /**
+     * Test if an entry matches a template.  
+     */
+    boolean matchEntry(EntryRep tmpl) {
+	if (!tmpl.eclass.isAssignableFrom(eclass) ||
+	    tmpl.flds.size() > flds.size())
+	    return false;
+	for (int i = tmpl.flds.size(); --i >= 0; ) {
+	    if (tmpl.flds.get(i) != null &&
+		!tmpl.flds.get(i).equals(flds.get(i)))
+		return false;
+	}
+	return true;
+    }
+
+    /**
      * Deep clone (which just means cloning the fields array too).
      * This is really only needed in the server, but it's very
      * convenient to have here.
      */
+    @Override
     public Object clone() {
-	try { 
-	    EntryRep entry = (EntryRep)super.clone();
-	    entry.fields = (Object[])entry.fields.clone();
-	    return entry;
-	} catch (CloneNotSupportedException e) { 
-	    throw new InternalError();
+	return new EntryRep(this, false);
 	}
-    }
 
     /**
      * Converts an array of Entry to an array of EntryRep.  If needCodebase
@@ -184,9 +257,7 @@ class EntryRep implements Serializable, Cloneable {
 	    reps = new EntryRep[entries.length];
 	    for (int i = entries.length; --i >= 0; ) {
 		if (entries[i] != null) {
-		    reps[i] = new EntryRep(entries[i]);
-		    if (!needCodebase)
-			reps[i].codebase = null;
+		    reps[i] = new EntryRep(entries[i], needCodebase);
 		}
 	    }
 	}
@@ -204,4 +275,11 @@ class EntryRep implements Serializable, Cloneable {
 	}
 	return entries;
     }
+    
+     private void readObject(ObjectInputStream in)
+	throws IOException, ClassNotFoundException
+    {
+	in.defaultReadObject();
+	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
+}
 }

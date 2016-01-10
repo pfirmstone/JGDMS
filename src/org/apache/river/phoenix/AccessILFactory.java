@@ -99,6 +99,8 @@ public class AccessILFactory extends BasicILFactory {
 	 * @throws	IllegalArgumentException if <code>methods</code>
 	 *		contains an element that is not a <code>Method</code>
 	 *		instance
+	 * @throws ExportException doesn't throw ExportException as there are no
+	 * constraints.
 	 */
 	public AccessDispatcher(Collection methods,
 				ServerCapabilities caps,
@@ -114,6 +116,7 @@ public class AccessILFactory extends BasicILFactory {
 	 * @throws java.security.AccessControlException if the client is not
 	 * calling from the local host
 	 */
+	@Override
 	protected void checkAccess(Remote impl,
 				   Method method,
 				   InvocationConstraints constraints,

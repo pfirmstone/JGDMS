@@ -113,7 +113,7 @@ public class GetFieldValuesAttrNull extends QATestRegistrar {
      *  and creates an instance of it containing all of the initialized 
      *  attributes; registers that service class with the lookup service.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         /* create the lookup service */
 	super.construct(sysConfig);
         /* retrieve the proxies to the lookup service */
@@ -143,7 +143,7 @@ public class GetFieldValuesAttrNull extends QATestRegistrar {
      *          created during construct.
      *       2. Verifies that getFieldValues() returns the expected results.
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	Object[] fieldValues = null;
 	for(int i=0;i<fieldStr.length;i++) {
 	    for(int j=0;j<fieldStr[i].length;j++) {

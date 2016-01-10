@@ -22,16 +22,13 @@ import java.security.AllPermission;
 import java.security.CodeSource;
 import java.security.Guard;
 import java.security.Permission;
+import java.security.Policy;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.util.Collection;
-import java.security.Policy;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
-import net.jini.security.GrantPermission;
+import java.util.TreeSet;
 import org.apache.river.api.security.PermissionGrantBuilderImp.NullPermissionGrant;
 
 /**
@@ -120,11 +117,16 @@ public abstract class PermissionGrant {
             privileged = false;
         }else{
             // PermissionComparator is used to avoid broken hashCode and equals
-	    Set<Permission> perms = new ConcurrentSkipListSet<Permission>(new PermissionComparator());
+	    Set<Permission> perms = new TreeSet<Permission>(new PermissionComparator());
             boolean privileged = false;
             int l = perm.length;
             for (int i = 0; i < l; i++){
-                perm[i].getActions(); //Ensure any action fields are populated.
+		/*
+		* Ensure any action fields are populated before 
+		* final field is frozen after this constructor completes,
+		* otherwise lazy initialization isn't visible to other threads.
+		*/
+                perm[i].getActions(); 
                 perms.add(perm[i]);
                 if (perm[i] instanceof AllPermission) privileged = true;
             }
@@ -134,7 +136,7 @@ public abstract class PermissionGrant {
         int hashcode = 7;
         hashcode = 97 * hashcode + (this.perms != null ? this.perms.hashCode() : 0);
         hashcode = 97 * hashcode + (this.privileged ? 1 : 0);
-        hashcode = 97 * hashcode; // for decorated which is null.
+        hashcode = 97 * hashcode; // decorated = null.
         this.hash = hashcode;
     }
     

@@ -18,8 +18,12 @@
 package org.apache.river.mahalo;
 
 import org.apache.river.mahalo.log.CannotRecoverException;
+import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * An <code>AbortRecord</code> represents the logged state of
@@ -29,6 +33,7 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class AbortRecord implements TxnLogRecord  {
     /**
      * @serial
@@ -50,10 +55,33 @@ class AbortRecord implements TxnLogRecord  {
      * @see net.jini.core.transaction.server.TransactionConstants
      */
     AbortRecord(ParticipantHandle[] parts) {
+        this(check(parts), parts);
+    }
+    
+    AbortRecord(GetArg arg) throws IOException {
+	this(check(arg),
+		((ParticipantHandle[]) arg.get("parts", null)).clone());
+    }
+    
+    private AbortRecord(boolean check,ParticipantHandle[] parts ){
+	this.parts = parts;
+    }
+    
+    private static boolean check(Object parts){
         if (parts == null)
             throw new IllegalArgumentException("AbortRecord: must specify " +
                                                 "a non-null parts array");
-	this.parts = parts;
+	return true;
+    }
+
+    private static boolean check(GetArg arg) throws IOException {
+	try {
+	    return check(arg.get("parts", null));
+	} catch (IllegalArgumentException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
+	    e.initCause(ex);
+	    throw e;
+	}
     }
 
     /**

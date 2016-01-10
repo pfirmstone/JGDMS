@@ -17,20 +17,19 @@
  */
 package org.apache.river.outrigger;
 
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.security.TrustVerifier;
-import net.jini.security.proxytrust.TrustEquivalence;
-import net.jini.id.Uuid;
-
-import java.io.Serializable;
-import java.io.ObjectInputStream;
-import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.rmi.RemoteException;
-
 import org.apache.river.landlord.Landlord;
 import org.apache.river.landlord.LandlordProxyVerifier;
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.rmi.RemoteException;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.id.Uuid;
+import net.jini.security.TrustVerifier;
+import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /** 
  * This class defines a trust verifier for the proxies related to the 
@@ -74,6 +73,32 @@ final class ProxyVerifier implements Serializable, TrustVerifier {
      *         <code>null</code>.
      */
     ProxyVerifier(OutriggerServer server, Uuid uuid) {
+	this(check(server, uuid), server, uuid);
+    }
+    
+    ProxyVerifier(GetArg arg) throws IOException {
+	this(check(arg),
+		(OutriggerServer) arg.get("server", null),
+		(Uuid) arg.get("uuid", null));
+    }
+    
+    private ProxyVerifier(boolean check, OutriggerServer server, Uuid uuid){
+	this.uuid = uuid;
+        this.server = (RemoteMethodControl)server;
+    }
+    
+    private static boolean check(GetArg arg) throws IOException {
+	try {
+	    return check((OutriggerServer) arg.get("server", null),
+		    (Uuid) arg.get("uuid", null));
+	} catch (NullPointerException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
+	    e.initCause(ex);
+	    throw e;
+	}
+    }
+    
+    private static boolean check(OutriggerServer server, Uuid uuid){
 	if (server == null)
 	    throw new NullPointerException("server can not be null");
 
@@ -89,9 +114,7 @@ final class ProxyVerifier implements Serializable, TrustVerifier {
             throw new UnsupportedOperationException
 		("cannot construct verifier - server reference does not " +
 		 "implement TrustEquivalence");
-
-	this.uuid = uuid;
-        this.server = (RemoteMethodControl)server;
+	return true;
     }
 
     /** 

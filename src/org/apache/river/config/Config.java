@@ -21,6 +21,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.config.NoSuchEntryException;
 
 /**
  * Provides static methods for getting entries from a {@link
@@ -31,7 +32,7 @@ import net.jini.config.ConfigurationException;
  * the following logging levels:
  *
  * <table border=1 cellpadding=5>
- *
+ * <caption>Logging Levels</caption>
  * <tr> <th> Level <th> Description
  *
  * <tr> <td> FINE <td> entries that are found, but do not meet
@@ -63,6 +64,7 @@ public class Config {
      * {@link Configuration#NO_DEFAULT}, 
      * {@link Configuration#NO_DATA})</code>.
      *
+     * @param <T> the type of the object to be returned.
      * @param config the <code>Configuration</code> being consulted.
      * @param component the component being configured
      * @param name the name of the entry for the component
@@ -103,6 +105,7 @@ public class Config {
      * Object) getNonNullEntry}(config, component, name, type, defaultValue,
      * {@link Configuration#NO_DATA})</code>.
      *
+     * @param <T> the type of the object to be returned.
      * @param config the <code>Configuration</code> being consulted.
      * @param component the component being configured
      * @param name the name of the entry for the component
@@ -148,6 +151,7 @@ public class Config {
      * <code>ConfigurationException</code> if the result is
      * <code>null</code>.
      * 
+     * @param <T> the type of the object to be returned.
      * @param config the <code>Configuration</code> being consulted.
      * @param component the component being configured
      * @param name the name of the entry for the component
@@ -208,7 +212,7 @@ public class Config {
      * @param value the number to check
      * @param min the low end of the range
      * @param max the high end of the range
-     * @return true if <code>min <= val <= max</code>
+     * @return true if <code>min &lt;= val &lt;= max</code>
      */
     private static boolean inRange(int value, int min, int max) {
 	return (min <= value) && (value <= max);
@@ -287,7 +291,7 @@ public class Config {
 	    throw new IllegalArgumentException("defaultValue (" + 
 	        defaultValue + ") must be between " + min + " and " + max);
 
-	final long rslt = ((Long)config.getEntry(component, name, long.class,
+	final long rslt = (config.getEntry(component, name, long.class,
 	    Long.valueOf(defaultValue))).longValue();
 
 	if (!inRange(rslt, min, max)) {
@@ -356,7 +360,7 @@ public class Config {
 	    throw new IllegalArgumentException("defaultValue (" + 
 	        defaultValue + ") must be between " + min + " and " + max);
 
-	final int rslt = ((Integer)config.getEntry(component, name, int.class,
+	final int rslt = (config.getEntry(component, name, int.class,
 	    Integer.valueOf(defaultValue))).intValue();
 
 	if (!inRange(rslt, min, max)) {
@@ -425,7 +429,7 @@ public class Config {
 	    throw new IllegalArgumentException("defaultValue (" + 
 	        defaultValue + ") must be between " + min + " and " + max);
 
-	final float rslt = ((Float)config.getEntry(component, name,
+	final float rslt = (config.getEntry(component, name,
 	    float.class, new Float(defaultValue))).floatValue();
 
 	if (!inRange(rslt, min, max)) {

@@ -17,13 +17,18 @@
  */
 package org.apache.river.mahalo;
 
-import net.jini.security.ProxyPreparer;
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.security.ProxyPreparer;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
 /**
@@ -31,7 +36,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * @author Sun Microsystems, Inc.
  *
  */
-
+@AtomicSerial
 class ParticipantHandle implements Serializable, TransactionConstants {
     static final long serialVersionUID = -1776073824495304317L;
 
@@ -48,7 +53,7 @@ class ParticipantHandle implements Serializable, TransactionConstants {
     /**
      * @serial
      */
-    private volatile long crashcount = 0;
+    private final long crashcount;
 
     /**
      * @serial
@@ -67,22 +72,50 @@ class ParticipantHandle implements Serializable, TransactionConstants {
         long crashcount) 
 	throws RemoteException 
     {
-        if (preparedPart == null) 
-	    throw new NullPointerException(
-	        "TransactionParticipant argument cannot be null");
+        this(check(preparedPart), preparedPart, crashcount, ACTIVE);
+    }
+    
+    ParticipantHandle(GetArg arg) throws IOException {
+	this(check(arg), 
+		(TransactionParticipant) arg.get("preparedPart", null),
+		arg.get("crashcount", 0),
+		arg.get("prepstate", 0));
+    }
+    
+    private ParticipantHandle(boolean check, TransactionParticipant preparedPart, 
+        long crashcount, int prepstate) throws RemoteException {
         StorableObject storedpart = null;
 	try {
 	    storedpart = new StorableObject(preparedPart);
 	    this.preparedPart = preparedPart;
-	    this.crashcount = crashcount;
 	} catch (RemoteException re) {
  	    if (persistenceLogger.isLoggable(Level.WARNING)) {
                 persistenceLogger.log(Level.WARNING,
 		    "Cannot store the TransactionParticipant", re);
 	    }
+	    crashcount = 0;
+	    //REMIND:  suspect we are supposed to rethrow exception here?
 	}
+	this.crashcount = crashcount;
         this.storedpart = storedpart;
-	this.prepstate = ACTIVE;
+	this.prepstate = prepstate;
+    }
+
+    private static boolean check(AtomicSerial.GetArg arg) throws IOException {
+	try {
+	    return check(arg.get("preparedPart", null));
+	} catch (IllegalArgumentException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
+	    e.initCause(ex);
+	    throw e;
+	}
+    }
+    
+    private static boolean check(Object preparedPart){
+	 if (preparedPart == null) 
+	    throw new NullPointerException(
+	        "TransactionParticipant argument cannot be null");
+	 return true;
     }
 
     long getCrashCount() {
@@ -131,6 +164,10 @@ class ParticipantHandle implements Serializable, TransactionConstants {
 
     synchronized int getPrepState() {
 	return prepstate;
+    }
+    
+    private synchronized void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
     }
     
     /**

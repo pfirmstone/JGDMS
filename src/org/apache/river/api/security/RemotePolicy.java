@@ -120,8 +120,8 @@ public interface RemotePolicy {
      * Where an IOException is thrown, no update to the
      * RemotePolicy has occurred.
      * 
-     * @param policyPermissions
-     * @throws java.io.IOException 
+     * @param policyPermissions PermissionGrant array.
+     * @throws java.io.IOException if connection problem occurs.
      */
     public void replace(PermissionGrant[] policyPermissions) throws IOException;
 }

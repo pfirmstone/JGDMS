@@ -194,7 +194,7 @@ implements Serializable {
      * This Enumeration may contain duplicates and it may contain UnresolvedPermission's
      * as well as their resolved form.
      * 
-     * @return Enumeration<Permission>
+     * @return Enumeration&lt;Permission&gt;
      */
     @Override
     public Enumeration<Permission> elements() {

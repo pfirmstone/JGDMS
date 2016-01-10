@@ -48,6 +48,8 @@ import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
@@ -57,12 +59,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
+import net.jini.core.constraint.AtomicValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
@@ -71,11 +75,14 @@ import net.jini.export.ServerContext;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;
 import net.jini.security.AccessPermission;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.io.AtomicMarshalInputStream;
+import org.apache.river.api.io.AtomicMarshalOutputStream;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -155,7 +162,9 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 public class BasicInvocationDispatcher implements InvocationDispatcher {
 
     /** Marshal stream protocol version. */
-    static final byte VERSION = 0x0;
+    static final byte VERSION = 0x01;
+    
+    static final byte PREVIOUS_VERSION = 0x0;
     
     /** Marshal stream protocol version mismatch. */
     static final byte MISMATCH = 0x0;
@@ -272,6 +281,57 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				     ClassLoader loader)
 	throws ExportException
     {
+	this(check(
+		methods,
+		serverCapabilities,
+		serverConstraints,
+		permissionClass,
+		loader
+	    )
+	);
+    }
+    
+    /*
+    * Protects against finalizer attacks.
+    */
+    private static Builder check(Collection methods,
+		 ServerCapabilities serverCapabilities,
+		 MethodConstraints serverConstraints,
+		 Class permissionClass,
+		 ClassLoader loader) throws ExportException 
+    {
+	return new Builder(methods,
+		serverCapabilities,
+		serverConstraints,
+		permissionClass,
+		loader
+	);
+    }
+    
+    BasicInvocationDispatcher(Builder builder){
+	this.methods = builder.methods;
+	this.loader = builder.loader;
+	this.serverConstraints = builder.serverConstraints;
+	this.permConstructor = builder.permConstructor;
+	this.permUsesMethod = builder.permUsesMethod;
+	this.permissions = builder.permissions;
+    }
+    
+    private static class Builder {
+	Map methods;
+	ClassLoader loader;
+	MethodConstraints serverConstraints;
+	Constructor permConstructor;
+	boolean permUsesMethod;
+	Map permissions;
+	
+	Builder(Collection methods,
+		 ServerCapabilities serverCapabilities,
+		 MethodConstraints serverConstraints,
+		 Class permissionClass,
+		 ClassLoader loader)
+	throws ExportException 
+	{
 	if (serverCapabilities == null) {
 	    throw new NullPointerException();
 	}
@@ -314,6 +374,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    throw new ExportException(
 		"server does not support some constraints", e);
 	}
+    }
     }
 
     /**
@@ -522,12 +583,20 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	/*
 	 * Read (and check) version number and integrity flag.
 	 */
-	InputStream rin = null;
+	//TODO: create new protocol version that handles atomic validation
+	// then handle both versions.
+	InputStream rin;
 	boolean integrity;
+	boolean supportsAtomicValidation;
+	boolean atomicValidation = false;
 	try {
 	    rin = request.getRequestInputStream();
 	    switch (rin.read()) {
 		case VERSION:
+		    supportsAtomicValidation = true;
+		    break;
+		case PREVIOUS_VERSION:
+		    supportsAtomicValidation = false;
 		    break;
 		case -1:
 		    throw new EOFException();
@@ -548,6 +617,17 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    default:
 		integrity = true;
 	    }
+	    if (supportsAtomicValidation){
+		switch (rin.read()) {
+		case 0:
+		    atomicValidation = false;
+		    break;
+		case -1:
+		    throw new EOFException();
+		default:
+		    atomicValidation = true;
+		}
+	    }
 	} catch (Throwable t) {
 	    if (logger.isLoggable(Levels.FAILED)) {
 		logLocalThrow(impl, null, t);
@@ -560,7 +640,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	Object returnValue = null;
 	Throwable t = null;
 	boolean fromImpl = false;
-	Util.populateContext(context, integrity);
+	Util.populateContext(context, integrity, atomicValidation);
 	ObjectInputStream in = null;
 	
 	try {
@@ -574,21 +654,28 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		 InvocationConstraints.EMPTY :
 		 serverConstraints.getConstraints(method));
 	    if (integrity && !sc.requirements().contains(Integrity.YES)) {
-		Collection requirements = new ArrayList(sc.requirements());
+		Collection requirements = new LinkedList(sc.requirements());
 		requirements.add(Integrity.YES);
 		sc = new InvocationConstraints(requirements, sc.preferences());
 	    }
-	    
+	    if (atomicValidation && !sc.requirements().contains(AtomicValidation.YES)){
+		Collection requirements = new LinkedList(sc.requirements());
+		requirements.add(AtomicValidation.YES);
+		sc = new InvocationConstraints(requirements, sc.preferences());
+	    }
 	    InvocationConstraints unfulfilled = request.checkConstraints(sc);
-	    for (Iterator i = unfulfilled.requirements().iterator();
+	    for (Iterator<InvocationConstraint> i = unfulfilled.requirements().iterator();
 		 i.hasNext();)
 	    {
-		InvocationConstraint c = (InvocationConstraint) i.next();
-		if (!(c instanceof Integrity) ||
-		    (!integrity && c == Integrity.YES))
-		{
-		    throw new UnsupportedConstraintException(
-		        "cannot satisfy unfulfilled constraint: " + c);
+		InvocationConstraint c = i.next();
+		if (c instanceof Integrity) {
+		    if (!integrity && c == Integrity.YES) 
+			unsupportedConstraint(c);
+		} else if (c instanceof AtomicValidation) {
+		    if (!atomicValidation && c == AtomicValidation.YES) 
+			unsupportedConstraint(c);
+		} else {
+		    unsupportedConstraint(c);
 		}
 		// REMIND: support ConstraintAlternatives containing Integrity?
 	    }
@@ -676,6 +763,13 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	}
     }
 
+    private void unsupportedConstraint(InvocationConstraint c) 
+	    throws UnsupportedConstraintException 
+    {
+	throw new UnsupportedConstraintException(
+			    "cannot satisfy unfulfilled constraint: " + c);
+    }
+
     /**
      * Returns a new marshal input stream to use to read objects from the
      * request input stream obtained by invoking the {@link
@@ -722,12 +816,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      **/
     protected ObjectInputStream
         createMarshalInputStream(Object impl,
-				 InboundRequest request,
-				 boolean integrity,
+				 final InboundRequest request,
+				 final boolean integrity,
 				 Collection context)
 	throws IOException
     {
-	ClassLoader streamLoader;
+	final ClassLoader streamLoader;
 	if (loader != null) {
 	    streamLoader = getClassLoader();
 	} else {
@@ -738,13 +832,43 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    streamLoader = impl.getClass().getClassLoader();
 	}
 	
-	Collection unmodContext = Collections.unmodifiableCollection(context);
-	MarshalInputStream in =
-	    new MarshalInputStream(request.getRequestInputStream(),
+	final Collection unmodContext = Collections.unmodifiableCollection(context);
+	try {
+	    return AccessController.doPrivileged(new PrivilegedExceptionAction<ObjectInputStream>(){
+		
+		@Override
+		public ObjectInputStream run() throws Exception {
+		    MarshalInputStream in;
+		    for (Object o : unmodContext){
+			if (o instanceof AtomicValidationEnforcement &&
+				((AtomicValidationEnforcement) o).enforced()){
+			    in = (MarshalInputStream) AtomicMarshalInputStream.create(
+				    request.getRequestInputStream(),
 				   streamLoader, integrity,
 				   streamLoader, unmodContext);
 	in.useCodebaseAnnotations();
 	return in;
+
+    }
+		    }
+		    //	in = new MarshalInputStream(request.getRequestInputStream(),
+		    //				   streamLoader, integrity,
+		    //				   streamLoader, unmodContext);
+		    in = (MarshalInputStream) AtomicMarshalInputStream.create(
+			    request.getRequestInputStream(),
+			    streamLoader, integrity,
+			    streamLoader, unmodContext);
+		    in.useCodebaseAnnotations();
+		    return in;
+		}
+    
+	    });
+	} catch (PrivilegedActionException ex) {
+	    Exception cause = ex.getException();
+	    if (cause instanceof IOException) throw (IOException) cause;
+	    if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+	    throw new IOException ("Unable to create ObjectOutputStream ",ex);
+	}
     }
     
     /**
@@ -781,16 +905,39 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     protected ObjectOutputStream
         createMarshalOutputStream(Object impl,
 				  Method method,
-				  InboundRequest request,
-				  Collection context)
+				  final InboundRequest request,
+				  final Collection context)
 	throws IOException
     {
 	if (impl == null) {
 	    throw new NullPointerException();
 	}
+	try {
+	    return AccessController.doPrivileged(new PrivilegedExceptionAction<ObjectOutputStream>(){
+		
+		@Override
+		public ObjectOutputStream run() throws IOException {
 	OutputStream out = request.getResponseOutputStream();
 	Collection unmodContext = Collections.unmodifiableCollection(context);
-	return new MarshalOutputStream(out, unmodContext);
+		    for (Object o : unmodContext){
+			if (o instanceof AtomicValidationEnforcement &&
+				((AtomicValidationEnforcement) o).enforced()){
+			    return new AtomicMarshalOutputStream(out, unmodContext);
+    }
+		    }
+		    //	return new MarshalOutputStream(out, unmodContext);
+		    return new AtomicMarshalOutputStream(out, unmodContext);
+		}
+							  
+	    });
+	} catch (PrivilegedActionException ex) {
+	    Exception cause = ex.getException();
+	    if (cause instanceof IOException) throw (IOException) cause;
+	    if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+	    throw new IOException ("Unable to create ObjectOutputStream ",ex);
+	}
+	
+	
     }
 							  
     /**
@@ -943,7 +1090,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                     "\nProtectionDomain: " + pd);
         }
 	if (!ok) {
-	    throw new AccessControlException("access denied " + permission);
+	    throw new AccessControlException("access denied " + permission + " domain that failed: " + pd);
 	}
     }
 

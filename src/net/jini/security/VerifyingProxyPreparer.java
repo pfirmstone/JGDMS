@@ -23,13 +23,20 @@ import java.security.Permission;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.logging.Logger;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import org.apache.river.api.security.AdvisoryDynamicPermissions;
+import static org.apache.river.api.security.AdvisoryDynamicPermissions.DEFAULT_PERMISSIONS;
 
 /**
  * A <code>ProxyPreparer</code> for verifying that proxies are trusted,
  * dynamically granting permissions to trusted proxies, and optionally
  * setting the client constraints on trusted proxies.
+ *
+ * Determining permissions granted to verified and trusted proxies may be 
+ * either passed explicitly via a constructor or if null may be advised by the
+ * proxy using {@link AdvisoryDynamicPermissions}
  *
  * @author Sun Microsystems, Inc.
  * @since 2.1
@@ -162,9 +169,7 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 
     /** Clones the argument, checks for null elements, returns non-null. */
     private static Permission[] checkPermissions(Permission[] permissions) {
-	if (permissions == null) {
-	    return new Permission[0];
-	}
+	if (permissions == null) return DEFAULT_PERMISSIONS;
 	permissions = (Permission[]) permissions.clone();
 	for (int i = permissions.length; --i >= 0; ) {
 	    if (permissions[i] == null) {
@@ -262,6 +267,25 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 			       "dynamic permission grants are not supported");
 		se.initCause(e);
 		throw se;
+	    }
+	} else {
+	    Permission [] perms;
+	    Class klass = proxy.getClass();
+	    ClassLoader ldr = klass.getClassLoader();
+	    if (ldr instanceof AdvisoryDynamicPermissions) {
+		perms = ((AdvisoryDynamicPermissions) ldr).getPermissions();
+		if (perms.length > 0){
+		    try {
+			if (principals == null) {
+			    Security.grant(klass, perms);
+			} else {
+			    Security.grant(klass, principals, perms);
+	}
+		    } catch (UnsupportedOperationException e) {
+			Logger.getLogger("net.jini.security")
+			    .config("Local configuration doesn't allow advisory dynamic permission grants, consider using a DynamicPolicy provider");
+		    }
+		}
 	    }
 	}
 	if (type == SET_CONSTRAINTS) {

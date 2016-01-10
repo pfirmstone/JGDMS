@@ -17,22 +17,21 @@
  */
 package org.apache.river.outrigger;
 
-import java.io.Serializable;
-import java.io.ObjectInputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.rmi.RemoteException;
-
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
-
-import net.jini.space.JavaSpace;
-
-import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
+import net.jini.id.Uuid;
+import net.jini.space.JavaSpace;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * <code>AdminProxy</code> objects are connected to particular
@@ -41,6 +40,7 @@ import net.jini.id.ReferentUuids;
  *
  * @see JavaSpaceAdmin 
  */
+@AtomicSerial
 class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
     private static final long serialVersionUID = 1L;
     
@@ -61,12 +61,38 @@ class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
      *         <code>spaceUuid</code> is <code>null</code>.     
      */
     AdminProxy(OutriggerAdmin admin, Uuid spaceUuid) {
+	this(check(admin,spaceUuid), admin, spaceUuid);
+    }
+    
+    AdminProxy(GetArg arg) throws IOException {
+	this(serialCheck((OutriggerAdmin) arg.get("admin", null),
+			(Uuid) arg.get("spaceUuid", null)),
+		(OutriggerAdmin) arg.get("admin", null),
+		(Uuid) arg.get("spaceUuid", null)
+	);
+    }
+    
+    private AdminProxy(boolean check, OutriggerAdmin admin, Uuid spaceUuid){
+	this.admin = admin;
+	this.spaceUuid = spaceUuid;
+    }
+    
+    private static boolean serialCheck(OutriggerAdmin admin, Uuid spaceUuid) throws InvalidObjectException{
+	try {
+	    return check(admin, spaceUuid);
+	} catch (NullPointerException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants not satisfied");
+	    e.initCause(ex);
+	    throw e;
+	}
+    }
+    
+    private static boolean check(OutriggerAdmin admin, Uuid spaceUuid){
 	if (admin == null)
 	    throw new NullPointerException("admin must be non-null");
 	if (spaceUuid == null) 
 	    throw new NullPointerException("spaceUuid must be non-null");
-	this.admin = admin;
-	this.spaceUuid = spaceUuid;
+	return true;
     }
 
     /**

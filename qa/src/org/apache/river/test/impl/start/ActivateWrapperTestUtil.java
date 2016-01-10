@@ -17,8 +17,11 @@
  */
 package org.apache.river.test.impl.start;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.start.*;
+import org.apache.river.start.ActivateWrapper.*;
+import org.apache.river.start.ActivateWrapper.ActivateDesc;
 
 import java.io.*;
 import java.net.*;
@@ -27,10 +30,9 @@ import java.rmi.activation.*;
 import java.rmi.activation.ActivationGroupDesc.*;
 import java.util.*;
 
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.start.*;
-import org.apache.river.start.ActivateWrapper.*;
-import org.apache.river.qa.harness.TestException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import net.jini.io.MarshalledInstance;
 
 public class ActivateWrapperTestUtil {
 
@@ -90,15 +92,15 @@ public class ActivateWrapperTestUtil {
 		+ servicePrefix + " properties.");
 	}
 
-        MarshalledObject params = 
-	    new MarshalledObject(new String[] {configFile.toString()});
+        MarshalledInstance params = 
+	    new MarshalledInstance(new String[] {configFile.toString()});
         ActivateWrapper.ActivateDesc adesc = 
 	    new ActivateWrapper.ActivateDesc(
 	        implClassName,
 	        cpURLs,
 	        cbURLs,
 	        policy,
-	        params);
+	        params.convertToMarshalledObject());
 
 	return adesc;
     }

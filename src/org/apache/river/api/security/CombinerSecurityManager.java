@@ -210,13 +210,14 @@ extends SecurityManager implements CachingSecurityManager {
      * It is absolutely essential that the SecurityContext override equals 
      * and hashCode.
      * 
-     * @param perm
+     * @param perm permission to be checked
      * @param context - AccessControlContext or SecurityContext
-     * @throws SecurityException 
+     * @throws SecurityException if context doesn't have permission.
      */
     @Override
     public void checkPermission(Permission perm, Object context) throws SecurityException {
         if (perm == null ) throw new NullPointerException("Permission Collection null");
+	perm.getActions(); // Ensure any lazy state has been instantiated before publication.
         AccessControlContext executionContext = null;
         SecurityContext securityContext = null;
 	if (context instanceof AccessControlContext){
@@ -311,8 +312,9 @@ extends SecurityManager implements CachingSecurityManager {
      * To clear the cache of checked Permissions requires the following Permission:
      * java.security.SecurityPermission("getPolicy");
      * 
-     * @throws SecurityException 
+     * @throws SecurityException if caller isn't permitted to clear cache.
      */
+    @Override
     public void clearCache() throws SecurityException {
         /* Clear the cache, out of date permission check tasks are still
          * writing to old Set's, while new checks will write to new Sets.
@@ -569,8 +571,8 @@ extends SecurityManager implements CachingSecurityManager {
     
     /**
      * Enables customisation of permission check.
-     * @param pd
-     * @param p
+     * @param pd protection domain to be checked.
+     * @param p permission to be checked.
      * @return true if ProtectionDomain pd has Permission p.
      */
     protected boolean checkPermission(ProtectionDomain pd, Permission p){

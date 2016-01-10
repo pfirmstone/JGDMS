@@ -17,18 +17,20 @@
  */
 package org.apache.river.landlord;
 
-import java.lang.reflect.Method;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
+import java.lang.reflect.Method;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseMap;
+import net.jini.id.ReferentUuid;
+import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-import net.jini.id.Uuid;
-import net.jini.id.ReferentUuid;
-import org.apache.river.proxy.ConstrainableProxyUtil;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Constrainable sub-class of <code>LandlordLease</code>.
@@ -38,6 +40,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 final public class ConstrainableLandlordLease extends LandlordLease 
     implements RemoteMethodControl 
 {
@@ -204,6 +207,25 @@ final public class ConstrainableLandlordLease extends LandlordLease
 				      methodMapArray), 
 	      landlordUuid, expiration);
 	this.methodConstraints = methodConstraints;
+    }
+
+    ConstrainableLandlordLease(GetArg arg) throws IOException {
+	super(check(arg));
+	methodConstraints = (MethodConstraints) arg.get("methodConstraints", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	LandlordLease ll = new LandlordLease(arg);
+	MethodConstraints methodConstraints 
+		= (MethodConstraints) arg.get("methodConstraints", null);
+	/* basic validation of landlord and cookie were performed by
+	 * LandlordLease.readObject(), we just need to verify than
+	 * landlord implements RemoteMethodControl and that it has
+	 * appropriate constraints.
+	 */
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+            methodConstraints, ll.landlord(), methodMapArray);
+	return arg;
     }
 
     /**

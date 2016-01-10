@@ -17,6 +17,9 @@
  */
 package org.apache.river.mercury;
 
+import org.apache.river.landlord.ConstrainableLandlordLease;
+import org.apache.river.proxy.ConstrainableProxyUtil;
+import org.apache.river.proxy.ThrowThis;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -25,26 +28,20 @@ import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.util.Collection;
-
-import javax.security.auth.Subject;
-
-import org.apache.river.landlord.ConstrainableLandlordLease;
-import org.apache.river.proxy.ConstrainableProxyUtil; 
-import org.apache.river.proxy.ThrowThis;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.Lease;
+import net.jini.event.MailboxPullRegistration;
+import net.jini.event.MailboxRegistration;
+import net.jini.event.RemoteEventIterator;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-import net.jini.security.TrustVerifier;
-
-import net.jini.event.MailboxPullRegistration;
-import net.jini.event.MailboxRegistration;
-import net.jini.event.RemoteEventIterator;
-import net.jini.core.event.RemoteEventListener;
-import net.jini.core.lease.Lease;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * The <tt>Registration</tt> class is the client-side proxy
@@ -57,6 +54,7 @@ import net.jini.core.lease.Lease;
  *
  * @since 1.1
  */ 
+@AtomicSerial
 class Registration implements MailboxPullRegistration, 
     Serializable, ReferentUuid 
 {
@@ -84,21 +82,61 @@ class Registration implements MailboxPullRegistration,
      * @param lease the lease set's lease
      */
     static Registration create(Uuid id, MailboxBackEnd server, Lease lease) {
+	if (id == null || server == null || lease == null)
+            throw new IllegalArgumentException("Cannot accept null arguments");
 	if (server instanceof RemoteMethodControl) {
 	    return new ConstrainableRegistration(id, server, lease, null);
 	} else {
-	    return new Registration(id, server, lease);
+	    return new Registration(id, server, ListenerProxy.create(id, server), lease);
 	}
     }
 
     /** Convenience constructor */
-    private Registration(Uuid id, MailboxBackEnd srv, Lease l) {
-        if (id == null || srv == null || l == null)
-            throw new IllegalArgumentException("Cannot accept null arguments");
+    private Registration(Uuid id, MailboxBackEnd srv, ListenerProxy proxy, Lease l) {
         registrationID = id;
         mailbox = srv;
-        listener = ListenerProxy.create(id, srv);
+        listener = proxy;
         lease = l;
+    }
+
+    Registration(GetArg arg) throws IOException {
+	this(check(arg),
+		(MailboxBackEnd) arg.get("mailbox", null),
+		(ListenerProxy) arg.get("listener", null),
+		(Lease) arg.get("lease", null)
+		);
+    }
+    
+    private static Uuid check(GetArg arg) throws IOException {
+	Uuid registrationID = (Uuid) arg.get("registrationID", null);
+	MailboxBackEnd mailbox = (MailboxBackEnd) arg.get("mailbox", null);
+	ListenerProxy listener = (ListenerProxy) arg.get("listener", null);
+	Lease lease = (Lease) arg.get("lease", null);
+	/* Verify server */
+        if(mailbox == null) {
+            throw new InvalidObjectException("Registration.readObject "
+                                             +"failure - mailbox "
+                                             +"field is null");
+        }//endif
+        /* Verify registrationID */
+        if(registrationID == null) {
+            throw new InvalidObjectException
+                                  ("Registration.readObject "
+                                   +"failure - registrationID field is null");
+        }//endif
+        /* Verify regLease */
+        if(lease == null) {
+            throw new InvalidObjectException
+                                        ("Registration.readObject "
+                                         +"failure - lease field is null");
+        }//endif
+        /* Verify listener */
+        if(listener == null) {
+            throw new InvalidObjectException
+                                        ("Registration.readObject "
+                                         +"failure - listener field is null");
+        }//endif
+	return registrationID;
     }
 
     // inherit javadoc from supertype
@@ -244,6 +282,7 @@ class Registration implements MailboxPullRegistration,
     }//end readObjectNoData
 
     /** A subclass of Registration that implements RemoteMethodControl. */
+    @AtomicSerial
     final static class ConstrainableRegistration extends Registration 
         implements RemoteMethodControl 
     {
@@ -286,9 +325,52 @@ class Registration implements MailboxPullRegistration,
 	private ConstrainableRegistration(Uuid id, MailboxBackEnd server,
             Lease lease, MethodConstraints methodConstraints)
 	{
-	    super(id, constrainServer(server, methodConstraints),
+	    super(id, 
+		  constrainServer(server, methodConstraints),
+		  ListenerProxy.create(id, server),
 	          lease);
 	    this.methodConstraints = methodConstraints;
+	}
+	
+	ConstrainableRegistration(GetArg arg) throws IOException {
+	    super(check(arg));
+	    methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException {
+	    Registration r = new Registration(arg);
+	    MethodConstraints methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
+	    /* Verify the server and its constraints */
+            ConstrainableProxyUtil.verifyConsistentConstraints(methodConstraints,
+                                                        r.mailbox,
+                                                        methodMap1);
+            if( !(r.lease instanceof ConstrainableLandlordLease) ) {
+                throw new InvalidObjectException
+                                ("Registration.readObject failure - "
+                                 +"lease is not an instance of "
+                                 +"ConstrainableLandlordLease");
+            }//endif
+
+            if( !(r.listener instanceof ListenerProxy.ConstrainableListenerProxy) ) {
+                throw new InvalidObjectException
+                                ("Registration.readObject failure - "
+                                 +"listener is not an instance of "
+                                 +"ListenerProxy.ConstrainableListenerProxy");
+            }//endif
+
+            /* Verify listener's ID */
+            if(r.registrationID !=
+	       ((ListenerProxy.ConstrainableListenerProxy)r.listener).registrationID) 
+            {
+                throw new InvalidObjectException
+                                        ("Registration.readObject "
+                                         +"failure - listener ID "
+                                         +"is not equal to "
+                                         +"proxy ID");
+            }   
+	    return arg;
 	}
 	
 	// inherit javadoc from supertype

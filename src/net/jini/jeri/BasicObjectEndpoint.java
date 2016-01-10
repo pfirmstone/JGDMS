@@ -24,6 +24,7 @@ import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectInputValidation;
 import java.io.ObjectOutputStream;
@@ -47,6 +48,10 @@ import net.jini.id.UuidFactory;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.AcknowledgmentSource;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * References a remote object with an {@link Endpoint Endpoint} for
@@ -57,19 +62,19 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * <code>Uuid</code>, <code>BasicObjectEndpoint</code> instances also
  * contain a flag indicating whether or not the instance participates
  * in distributed garbage collection (DGC).
- *
+ * </p>
  * <p>The {@link #newCall newCall} method can be used to send a
  * request to the remote object that this object references.
- *
- * <h4>Distributed Garbage Collection</h4>
- *
+ * </p>
+ * <h1>Distributed Garbage Collection</h1>
+ * <p>
  * The <code>BasicObjectEndpoint</code> class acts as the <i>DGC
  * client</i> for all of its instances that participate in DGC (which
  * are called live remote references).  That is, it tracks the
  * existence and reachability of live remote references and makes
  * <i>dirty calls</i> and <i>clean calls</i> to the associated
  * server-side DGC implementations, as described below.
- *
+ * </p>
  * <p>The server-side behavior of dirty and clean calls is specified
  * by {@link BasicJeriExporter}.  When the DGC client makes a dirty or
  * clean call to a given <code>Endpoint</code>, the behavior is
@@ -196,6 +201,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *
  * </table>
  **/
+@AtomicSerial
 public final class BasicObjectEndpoint
     implements ObjectEndpoint, TrustEquivalence, Serializable
 {
@@ -237,6 +243,66 @@ public final class BasicObjectEndpoint
     /** optional local reference to remote object (to maintain reachability) */
     private transient Object impl;
 
+    private static boolean checkSerial(Endpoint ep, Uuid id) throws InvalidObjectException{
+	try {
+	    return check(ep, id);
+	} catch (RuntimeException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants not satisfied");
+	    e.initCause(ex);
+	    throw e;
+	}
+    }
+    
+    private static boolean check(Endpoint ep, Uuid id){
+	if (ep == null) {
+	    throw new NullPointerException("null endpoint");
+	}
+	if (id == null) {
+	    throw new NullPointerException("null object identifier");
+	}
+	return true;
+    }
+    
+    /**
+     * {@link AtomicSerial} to maintain backward compatibility with existing serial form. 
+     * @return 
+     */
+    @ReadInput
+    private static ReadObject getRO(){
+	return new RO();
+    }
+    
+    /**
+     * {@link AtomicSerial} constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    BasicObjectEndpoint(GetArg arg) throws IOException {
+	this(checkSerial((Endpoint) arg.get("ep", null), (Uuid) arg.get("id", null)),
+	    (Endpoint) arg.get("ep", null),
+	    (Uuid)arg.get("id", null),
+	    arg.get("dgc", false)
+	); // Invariants are checked and final fields frozen.
+	/*
+	 * If DGC-enabled, register this live reference instance to be
+	 * tracked by the local client-side DGC implementation.  Use
+	 * an ObjectInputValidation for delayed registration so that
+	 * multiple live references in the object graph being
+	 * deserialized can be registered in one batch.
+	 */
+	if (dgc) {
+	    RO r = (RO) arg.getReader();
+	    r.batchContext.addLiveRef(this); // Safe publication of this.
+	}
+    }
+    
+    private BasicObjectEndpoint(boolean check, Endpoint ep, Uuid id, boolean enableDGC){
+	this.ep = ep;
+	this.id = id;
+	this.dgc = enableDGC;
+	// final field freeze occurs after constructor exits.
+    }
+
     /**
      * Creates a new <code>BasicObjectEndpoint</code> to reference a
      * remote object at the specified <code>Endpoint</code> with the
@@ -254,22 +320,13 @@ public final class BasicObjectEndpoint
      * <code>id</code> is <code>null</code>
      **/
     public BasicObjectEndpoint(Endpoint ep, Uuid id, boolean enableDGC) {
-	if (ep == null) {
-	    throw new NullPointerException("null endpoint");
-	}
-	if (id == null) {
-	    throw new NullPointerException("null object identifier");
-	}
-	this.ep = ep;
-	this.id = id;
-	this.dgc = enableDGC;
-
+	this(check(ep, id), ep, id, enableDGC); // Check invariants, freeze final fields.
 	/*
 	 * If DGC-enabled, register this live reference instance to be
 	 * tracked by the local client-side DGC system.
 	 */
 	if (dgc) {
-	    dgcClient.registerRefs(ep, Collections.singleton(this));
+	    dgcClient.registerRefs(ep, Collections.singleton(this)); // Safe publication of this reference.
 	}
     }
 
@@ -591,6 +648,8 @@ public final class BasicObjectEndpoint
      * acknowledgmentReceived} method is invoked (or some other
      * implementation-specific event occurs, such as a timeout
      * expiration).
+     * @param out ObjectOutputStream
+     * @throws IOException if a problem occurs during serialization.
      **/
     private void writeObject(ObjectOutputStream out) throws IOException {
 	out.defaultWriteObject();
@@ -627,17 +686,15 @@ public final class BasicObjectEndpoint
      *
      * @throws InvalidObjectException if the <code>Endpoint</code> or
      * the object identifier is <code>null</code>
+     * @param in ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      **/
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
-	if (ep == null) {
-	    throw new InvalidObjectException("null endpoint");
-	}
-	if (id == null) {
-	    throw new InvalidObjectException("null object identifier");
-	}
+	checkSerial(ep, id);
 	    
 	/*
 	 * If DGC-enabled, register this live reference instance to be
@@ -650,6 +707,10 @@ public final class BasicObjectEndpoint
 	    /*
 	     * REMIND: short circuit lookup with thread local,
 	     * to avoid synchronization overhead in the common case?
+	     *
+	     * Peter Firmstone, 13th December 2014: This synchronization
+	     * appears to be uncontended in stress tests; there is no 
+	     * need to optimise at this time.
 	     */
 	    DgcBatchContext batchContext;
 	    synchronized (streamBatches) {
@@ -664,8 +725,38 @@ public final class BasicObjectEndpoint
 		    streamBatches.put(in, batchContext);
 		}
 	    }
-	    batchContext.addLiveRef(this);
+	    batchContext.addLiveRef(this); // Unsafe publication, final fields haven't been frozen yet.
 	}
+    }
+
+    private static final class RO implements ReadObject{
+	
+	DgcBatchContext batchContext;
+
+	@Override
+	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
+	    /*
+	     * REMIND: short circuit lookup with thread local,
+	     * to avoid synchronization overhead in the common case?
+	     *
+	     * Peter Firmstone, 13th December 2014: This synchronization
+	     * appears to be uncontended in stress tests; there is no 
+	     * need to optimise at this time.
+	     */
+	    synchronized (streamBatches) {
+		batchContext = (DgcBatchContext) streamBatches.get(in);
+		if (batchContext == null) {
+		    batchContext = new DgcBatchContext();
+		    try {				// REMIND: priority??
+			((ObjectInputStream) in).registerValidation(batchContext, 0);
+		    } catch (InvalidObjectException e) { // should be NPE
+			throw new AssertionError();
+		    }
+		    streamBatches.put((ObjectInputStream) in, batchContext);
+		}
+	    }
+	}
+	
     }
 
     /**
@@ -677,7 +768,7 @@ public final class BasicObjectEndpoint
      **/
     private static class DgcBatchContext implements ObjectInputValidation {
 
-	/** maps Endpoint to List<BasicObjectEndpoint> */
+	/* maps Endpoint to List<BasicObjectEndpoint> */
 	private final Map endpointTable = new HashMap(3);
 
 	DgcBatchContext() { }

@@ -31,7 +31,7 @@ import org.apache.river.qa.harness.Test;
 import java.util.logging.Level;
 
 // java.rmi
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 // Davis packages
 import net.jini.core.constraint.ClientAuthentication;
@@ -77,10 +77,10 @@ import net.jini.core.constraint.InvocationConstraint;
  *   In each test case the following steps are performed:
  *   - {@link net.jini.core.constraint.InvocationConstraint} object is
  *     serialized and then deserialized; it's performed with creation
- *     of a {@link java.rmi.MarshalledObject} that contains a byte stream
+ *     of a {@link java.rmi.MarshalledInstance} that contains a byte stream
  *     with the serialized representation of the
  *     {@link net.jini.core.constraint.InvocationConstraint} object given
- *     to its constructor; then {@link java.rmi.MarshalledObject#get()} method
+ *     to its constructor; then {@link java.rmi.MarshalledInstance#get()} method
  *     returns a new copy of the original object, as deserialized from the
  *     contained byte stream,
  *   - the obtained object is compared with the original one using == operator.
@@ -141,15 +141,15 @@ public class SerializationTest extends QATestEnvironment implements Test {
         logger.log(Level.FINE, "deserialization ...");
 
         /*
-         * Creates a new MarshalledObject that contains a byte stream with the
+         * Creates a new MarshalledInstance that contains a byte stream with the
          * serialized representation of an InvocationConstraint object given
          * to its constructor. Then get() method returns a new copy
          * of the original object, as deserialized from the contained byte
          * stream.
          */
         try {
-            MarshalledObject mObj = new MarshalledObject(ic);
-            InvocationConstraint dic = (InvocationConstraint) mObj.get();
+            MarshalledInstance mObj = new MarshalledInstance(ic);
+            InvocationConstraint dic = (InvocationConstraint) mObj.get(false);
             logger.log(Level.FINE,
                     "Invocation Constraint after deserialization:: " + dic);
             return (dic == ic);

@@ -127,13 +127,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		    SocketFactory socketFactory)
     {
 	this.endpoint = endpoint;
-	if (serverHost == null) {
-	    throw new NullPointerException("serverHost is null");
-	}
 	this.serverHost = serverHost;
-	if (port <= 0 || port > 0xFFFF) {
-	    throw new IllegalArgumentException("Invalid port: " + port);
-	}
 	this.port = port;
 	this.socketFactory = socketFactory;
     }

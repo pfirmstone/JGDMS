@@ -19,40 +19,32 @@ package org.apache.river.test.share;
 
 
 // java.*
+import org.apache.river.outrigger.AdminIterator;
+import org.apache.river.outrigger.JavaSpaceAdmin;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.util.List;
-import java.util.Iterator;
 import java.util.ArrayList;
-
-// net.jini
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.lease.Lease;
-import net.jini.core.entry.Entry;
-import net.jini.core.event.EventRegistration;
-import net.jini.core.lease.UnknownLeaseException;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.lease.LeaseRenewalSet;
-import net.jini.space.JavaSpace;
-import net.jini.admin.Administrable;
-import net.jini.lookup.DiscoveryAdmin;
-
-// org.apache.river
-import org.apache.river.outrigger.JavaSpaceAdmin;
-import org.apache.river.outrigger.AdminIterator;
-
-
-// org.apache.river.qa
-import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-
+import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Level;
-
+import net.jini.admin.Administrable;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.transaction.Transaction;
+import net.jini.lease.LeaseRenewalSet;
+import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.ProxyPreparer;
+import net.jini.space.JavaSpace;
 import org.apache.river.api.security.CombinerSecurityManager;
 
 /**

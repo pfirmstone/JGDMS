@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 package org.apache.river.test.spec.lookupservice.service;
-import org.apache.river.test.spec.lookupservice.service.Interface00;
-import org.apache.river.test.spec.lookupservice.service.Interface01;
-import org.apache.river.test.spec.lookupservice.service.Interface02;
-import org.apache.river.test.spec.lookupservice.service.Interface04;
-import org.apache.river.test.spec.lookupservice.service.Service08;
+
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
+@AtomicSerial
 public class Service09 extends    Service08
                         implements Interface00,
                                    Interface01,
@@ -29,6 +30,10 @@ public class Service09 extends    Service08
 {
     public Service09(int i) {
         super(i);
+    }
+
+    public Service09(GetArg arg) throws IOException {
+	super(arg);
     }
 
     public boolean equals(Object obj) {

@@ -92,6 +92,7 @@ public final class Delegation implements InvocationConstraint, Serializable {
 
     /**
      * Canonicalize so that <code>==</code> can be used.
+     * @return true for YES, false for NO.
      */
     private Object readResolve() {
 	return val ? YES : NO;

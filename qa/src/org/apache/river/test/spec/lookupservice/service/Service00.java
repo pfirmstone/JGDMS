@@ -16,11 +16,20 @@
  * limitations under the License.
  */
 package org.apache.river.test.spec.lookupservice.service;
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
+@AtomicSerial
 public class Service00 implements Serializable {
     public int i;
     public Service00(int i) {
         this.i = i;
+    }
+
+    public Service00(GetArg arg) throws IOException{
+	i = arg.get("i", 0);
     }
 
     public boolean equals(Object obj) {

@@ -23,11 +23,14 @@ import java.io.ObjectInputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Holds the results of a call to {@link NormServer#getLeases
  * NormServer.getLeases}.
  */
+@AtomicSerial
 final class GetLeasesResult implements Serializable {
     private static final long serialVersionUID = 1;
 
@@ -55,6 +58,18 @@ final class GetLeasesResult implements Serializable {
      */
     GetLeasesResult(MarshalledInstance[] marshalledLeases) {
 	this.marshalledLeases = marshalledLeases;
+    }
+
+    GetLeasesResult(GetArg arg) throws IOException {
+	this(check(arg));
+	verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(arg);
+    }
+    
+    private static MarshalledInstance[] check(GetArg arg) throws IOException {
+	MarshalledInstance []  marshalledLeases = (MarshalledInstance[]) 
+		arg.get("marshalledLeases", null);
+	return marshalledLeases == null ? new MarshalledInstance [0] 
+		: marshalledLeases.clone();
     }
 
     /**
