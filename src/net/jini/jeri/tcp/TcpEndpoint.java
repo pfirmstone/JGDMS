@@ -241,9 +241,9 @@ public final class TcpEndpoint
     }
 
     TcpEndpoint(GetArg arg) throws IOException {
-	this(arg.geT("host", (String) null),
-	    checkSerial(arg.geT("host", (String) null), arg.get("port", 0)),
-	    arg.geT("sf", (SocketFactory) null)
+	this(arg.get("host", null, String.class),
+	    checkSerial(arg.get("host", null, String.class), arg.get("port", 0)),
+	    arg.get("sf", null, SocketFactory.class)
 	);
     }
 

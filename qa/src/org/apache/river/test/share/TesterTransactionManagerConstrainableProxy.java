@@ -70,8 +70,13 @@ final class TesterTransactionManagerConstrainableProxy
     }
 
     TesterTransactionManagerConstrainableProxy(GetArg arg) throws IOException {
-	super(arg);
+	super(check(arg));
 	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	arg.get("constraints", null, MethodConstraints.class);
+	return arg;
     }
 
     // javadoc inherited from RemoteMethodControl.setConstraints

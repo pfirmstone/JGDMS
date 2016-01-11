@@ -132,7 +132,7 @@ final class LookupSimulatorConstrainableProxy
     private static GetArg check(GetArg arg) throws IOException {
 	LookupSimulatorProxy lsp = new LookupSimulatorProxy(arg);
 	MethodConstraints constraints 
-		= (MethodConstraints) arg.get("constraints", null);
+		= arg.get("constraints", null, MethodConstraints.class);
 	ConstrainableProxyUtil.verifyConsistentConstraints(
 	    constraints, lsp.server, methodMappings);
 	return arg;

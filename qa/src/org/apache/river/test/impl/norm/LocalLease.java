@@ -419,12 +419,11 @@ class LocalLease implements Lease, Serializable {
         private transient Exporter exporter;
 
 	ProxyTrustImpl(GetArg arg) throws IOException {
-	    proxy = check(arg);
+	    this(arg.get("proxy", null, ProxyTrust.class));
 	}
 	
-	private static ProxyTrust check(GetArg arg) throws IOException {
-	    ProxyTrust proxy = (ProxyTrust) arg.get("proxy", null);
-	    return proxy;
+	private ProxyTrustImpl(ProxyTrust proxy) {
+	    this.proxy = proxy;
 	}
 
 	public ProxyTrustImpl() {

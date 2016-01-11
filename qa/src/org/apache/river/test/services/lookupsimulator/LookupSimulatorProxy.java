@@ -61,13 +61,8 @@ public class LookupSimulatorProxy implements LookupSimulatorProxyInterface {
     }//end constructor
 
     public LookupSimulatorProxy(GetArg arg)throws IOException{
-	this.server = (LookupSimulator) arg.get("server", null);
-	this.serviceID = (ServiceID) arg.get("serviceID", null);
-	if (server == null) {
-	    throw new InvalidObjectException("null server");
-	} else if (serviceID == null) {
-	    throw new InvalidObjectException("null serviceID");
-	}
+	this (GetArg.notNull(arg.get("server", null, LookupSimulator.class), "null server"),
+	      GetArg.notNull(arg.get("serviceID", null, ServiceID.class), "null serviceID"));
     }
 
     /* Administrable */

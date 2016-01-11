@@ -178,7 +178,7 @@ public class LookupLocator implements Serializable {
     }
     
     public LookupLocator(GetArg arg) throws IOException{
-	this(parseURI((String) arg.get("host", null), arg.get("port", 0)));
+	this(parseURI(arg.get("host", null, String.class), arg.get("port", 0)));
     }
 
     /**

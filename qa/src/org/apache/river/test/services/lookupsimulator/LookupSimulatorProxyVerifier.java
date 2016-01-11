@@ -53,6 +53,10 @@ final class LookupSimulatorProxyVerifier implements TrustVerifier, Serializable 
      * implement both RemoteMethodControl and TrustEquivalence.
      */
     LookupSimulatorProxyVerifier(LookupSimulator server) {
+	this(check(server));
+    }
+    
+    private static RemoteMethodControl check(LookupSimulator server) {
 	if (!(server instanceof RemoteMethodControl)) {
 	    throw new UnsupportedOperationException(
 		"server does not implement RemoteMethodControl");
@@ -60,11 +64,15 @@ final class LookupSimulatorProxyVerifier implements TrustVerifier, Serializable 
 	    throw new UnsupportedOperationException(
 		"server does not implement TrustEquivalence");
 	}
-	this.server = (RemoteMethodControl) server;
+	return (RemoteMethodControl) server;
+    }
+    
+    private LookupSimulatorProxyVerifier(RemoteMethodControl server){
+	this.server = server;
     }
 
     LookupSimulatorProxyVerifier(GetArg arg) throws IOException {
-	this((LookupSimulator) arg.get("server",null));
+	this(arg.get("server",null, LookupSimulator.class));
     }
 
     /**

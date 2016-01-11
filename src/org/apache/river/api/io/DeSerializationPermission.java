@@ -55,6 +55,11 @@ import java.security.BasicPermission;
  * <p>
  * Uses BasicPermission hierarchical naming conventions and wild card rules.
  * 
+ * TODO: consider whether DeSerializationPermission should be simpler, as
+ * an ordinary Permission that is granted to a ProtectionDomain, since this would
+ * allow dynamic grants to smart proxies after authentication, and not just
+ * assume that all instances of @AtomicSerial are indeed safe.
+ * 
  * @author peter
  * @since 3.0.0
  */

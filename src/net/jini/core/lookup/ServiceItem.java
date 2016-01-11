@@ -56,14 +56,15 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
     public Entry[] attributeSets;
 
     /**
-     * {@link AtomicSerial} constructor.
+     * {@link AtomicSerial} constructor.  This object should be cloned 
+     * during de-serialization.
      * @param arg
      * @throws IOException 
      */
     public ServiceItem(GetArg arg) throws IOException {
-	this( arg == null ? null : (ServiceID) arg.get("serviceID", null),
-	    arg == null ? null : arg.get("service", null),
-	    arg == null ? null : (Entry[]) arg.get("attributeSets", null));
+	this( arg.get("serviceID", null, ServiceID.class),
+	      arg.get("service", null),
+	      arg.get("attributeSets", null, Entry[].class));
     }
     
     /**

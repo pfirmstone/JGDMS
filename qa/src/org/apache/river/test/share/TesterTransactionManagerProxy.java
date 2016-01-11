@@ -61,7 +61,7 @@ public class TesterTransactionManagerProxy implements TransactionManager,
     }
 
     TesterTransactionManagerProxy(GetArg arg) throws IOException  {
-	this((TransactionManager)arg.get("server", null), arg.get("sid", 0));
+	this(arg.get("server", null, TransactionManager.class), arg.get("sid", 0));
     }
     
     public void commit(long id, long timeout)

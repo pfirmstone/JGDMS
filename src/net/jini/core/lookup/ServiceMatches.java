@@ -53,6 +53,8 @@ public class ServiceMatches implements java.io.Serializable {
     /**
      * {@link AtomicSerial} convenience constructor.
      * 
+     * Since this class is mutable it should be cloned during deserialization.
+     * 
      * @param arg
      * @throws IOException 
      */
@@ -60,8 +62,8 @@ public class ServiceMatches implements java.io.Serializable {
 	// The only invariant is the ServiceItem[] type check, which is done
 	// before super() is called.
 	// arg can be null, required to pass ToStringTest legacy test.
-	this(arg == null ? null : (ServiceItem[]) arg.get("items", null),
-	    arg == null ? 0 : arg.get("totalMatches", 0));
+	this(arg.get("items", null, ServiceItem[].class),
+	     arg.get("totalMatches", 0));
     }
 
     /**

@@ -75,14 +75,26 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      */
     public InvocationConstraints clientConstraints;
     
-    
+    /**
+     * Constructor for @AtomicSerial, note that any instances of this
+     * should be cloned in a secure stream to prevent an attacker retaining 
+     * a reference to mutable state.
+     * 
+     * @param arg
+     * @throws IOException 
+     */
     public ServiceTemplate(GetArg arg) throws IOException {
-	this(arg == null ? null : arg.geT("serviceID", (ServiceID) null),
-	    arg == null ? null : arg.geT("serviceTypes", (Class[]) null),
-	    arg == null ? null : arg.geT("attributeSetTemplates", (Entry[]) null),
-	    arg == null ? null : arg.geT("clientConstraints", (InvocationConstraints) null));
+	/* Any class cast exceptions will be occur before Object's default
+	 * constructor is called, in that case an instance of this object
+	 * will not be created.
+	 */
+	this(arg.get("serviceID", null, ServiceID.class),
+	    arg.get("serviceTypes", null, Class[].class),
+	    arg.get("attributeSetTemplates", null, Entry[].class),
+	    arg.get("clientConstraints", null, InvocationConstraints.class)
+	);
     }
-
+    
 
     /**
      * Simple constructor.

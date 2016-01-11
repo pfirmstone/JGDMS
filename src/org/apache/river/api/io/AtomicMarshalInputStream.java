@@ -2984,6 +2984,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		String clName = name.substring(2, l - 1);
 		name = clName;
 	    }
+	    //TODO: consider whether to simplify DeSerializationPermission
+	    // to one that is granted to a ProtectionDomain.
 	    return unprivilegedContext.implies(
 		new DeSerializationPermission(name));
 	}
@@ -3488,9 +3490,14 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	}
 	
 	@Override
-	public <T> T geT(String name, T val) throws IOException, ClassCastException {
+	public <T> T get(String name, T val, Class<T> type) throws IOException {
+	    // T will be replaced by Object by the compilers erasure.
 	    T result = (T) classFields.get(context.caller()).get(name, val);
-	    return result;
+	    if (type.isInstance(result)) return result;
+	    if (result == null) return null;
+	    InvalidObjectException e = new InvalidObjectException("Input validation failed");
+	    e.initCause(new ClassCastException("Attempt to assign object of incompatible type"));
+	    throw e;
 	}
 
 	@Override

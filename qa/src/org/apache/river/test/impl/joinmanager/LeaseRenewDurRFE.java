@@ -25,7 +25,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
-import org.apache.river.start.ServiceProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import org.apache.river.start.SharedActivatableServiceDescriptor;
 import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
 import org.apache.river.start.SharedActivationGroupDescriptor;
@@ -1453,9 +1453,9 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         }//end constructor
 
 	TestServiceProxy(GetArg arg) throws IOException {
-	    this(notNull((RemoteTestServiceInterface) arg.get("innerProxy", null),
+	    this(notNull(arg.get("innerProxy", null, RemoteTestServiceInterface.class),
 	       "TestServiceProxy.readObject failure - innerProxy field is null" ),
-		notNull((Uuid) arg.get("proxyID", null),
+		notNull(arg.get("proxyID", null, Uuid.class),
 		"TestServiceProxy.readObject failure - proxyID field is null"),
 		arg.get("val", 0),
 		arg.get("renewDur", 0L));
@@ -1554,8 +1554,8 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 	    
 	    private static GetArg check(GetArg arg) throws IOException {
 		TestServiceProxy tsp = new TestServiceProxy(arg);
-		MethodConstraints methodConstraints = (MethodConstraints) 
-			arg.get("methodConstraints", null);
+		MethodConstraints methodConstraints =  
+		    arg.get("methodConstraints", null, MethodConstraints.class);
 		ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
                                                         tsp.innerProxy,
@@ -1642,8 +1642,8 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 	}
 
 	ProxyVerifier(GetArg arg) throws IOException {
-	    this((RemoteTestServiceInterface)arg.get("innerProxy", null),
-		    (Uuid) arg.get("proxyID", null));
+	    this(arg.get("innerProxy", null, RemoteTestServiceInterface.class),
+		    arg.get("proxyID", null, Uuid.class));
 	} 
 	
 	private static <T> T check(T arg, Class<?> c, String message) {
