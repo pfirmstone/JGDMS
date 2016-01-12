@@ -265,7 +265,7 @@ public @interface AtomicSerial {
 		    
 		    @Override
 		    public Method run() throws Exception {
-			return Object.class.getDeclaredMethod("clone", (Class) null);
+			return Object.class.getDeclaredMethod("clone", new Class [0]);
 		    }
 		    
 		});

@@ -805,7 +805,7 @@
             <arg value="org.apache.river.logging.Levels"/>
             <arg value="org.apache.river.lookup.entry.BasicServiceType"/>
             <arg value="org.apache.river.resource.ServiceConfigurationError"/>
-            <arg value="org.apache.river.start.ServiceProxyAccessor"/>
+            <arg value="net.jini.export.ServiceProxyAccessor"/>
             <arg value="net.jini.discovery.LookupDiscoveryRegistration"/>
             <arg value="net.jini.discovery.LookupDiscoveryService"/>
             <arg value="net.jini.discovery.LookupUnmarshalException"/>
@@ -853,7 +853,7 @@
             <arg value="org.apache.river.logging.Levels"/>
             <arg value="org.apache.river.phoenix.ActivationAdmin"/>
             <arg value="org.apache.river.start.LifeCycle"/>
-            <arg value="org.apache.river.start.ServiceProxyAccessor"/>
+            <arg value="net.jini.export.ServiceProxyAccessor"/>
         </classdep>
         <jar destfile="${lib.dir}/jsk-lib.jar"
 		     index="false">
@@ -865,7 +865,7 @@
             <arg line="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg line="-api org.apache.river.start.LifeCycle"/>
-            <arg line="-api org.apache.river.start.ServiceProxyAccessor"/>
+            <arg line="-api net.jini.export.ServiceProxyAccessor"/>
             <classpath refid="river.classes"/>
         </preferredlistgen>
     </target>
@@ -1643,7 +1643,7 @@
             <!--<arg value="org.apache.river.norm.NormServerBaseImpl_Stub"/>-->
             <arg value="org.apache.river.norm.ProxyVerifier"/>
             <arg value="org.apache.river.reliableLog.LogException"/>
-            <arg value="org.apache.river.start.ServiceProxyAccessor"/>
+            <arg value="net.jini.export.ServiceProxyAccessor"/>
             <arg value="net.jini.lookup.entry.ServiceInfo"/>
         </classdep>
         <jar destfile="${lib-dl.dir}/norm-dl.jar" index="false">

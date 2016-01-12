@@ -3225,7 +3225,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
 
     /* -------------------------------------------------------------------- 
      * BEGIN org.apache.river.fiddler.Fiddler
-     *                          --> org.apache.river.start.ServiceProxyAccessor
+     *                          --> net.jini.export.ServiceProxyAccessor
      */
     /**
      * Public method that facilitates the use of the mechanism provided by
@@ -3248,7 +3248,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     }//end getServiceProxy
 
     /*  END org.apache.river.fiddler.Fiddler 
-     *                        --> org.apache.river.start.ServiceProxyAccessor   */
+     *                        --> net.jini.export.ServiceProxyAccessor   */
     /* -------------------------------------------------------------------- */
 
     /* -------------------------------------------------------------------- 
