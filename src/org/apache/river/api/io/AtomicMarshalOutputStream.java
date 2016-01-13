@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
+import java.security.Permission;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -230,6 +231,9 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    super.drain();
 	}
 
+	/**
+	 * Important objects that cannot be safely serialized are substituted.
+	 */
 	@Override
 	public Object replaceObject(Object obj) throws IOException {
 	    numObjectsCached++;
@@ -239,7 +243,9 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 		obj = new SerialSet((Set) obj);
 	    } else if (obj instanceof Collection){
 		obj = new SerialList((Collection) obj);
-	    } 
+	    } else if (obj instanceof Permission) {
+		obj = new PermissionSerializer((Permission) obj);
+	    }
 	    return aout.replaceObject(obj);
 	}
 
