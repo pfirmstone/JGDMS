@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamException;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -52,6 +54,18 @@ import org.apache.river.impl.Messages;
 final class PermissionSerializer implements Serializable {
     
     private static final long serialVersionUID = 1L;
+    
+    /**
+     * By defining serial persistent fields, we don't need to use transient fields.
+     * All fields can be final and this object becomes immutable.
+     */
+    private static final ObjectStreamField[] serialPersistentFields = 
+	{
+	    new ObjectStreamField("targetType", Class.class),
+	    new ObjectStreamField("unresolvedType", String.class),
+	    new ObjectStreamField("targetName", String.class),
+	    new ObjectStreamField("targetActions", String.class)
+	};
     
     // Empty set of arguments to default constructor of a Permission.
     private static final Class[] NO_ARGS = {};
@@ -121,7 +135,9 @@ final class PermissionSerializer implements Serializable {
 	if (unresolvedType != null) return 
 		new UnresolvedPermission(unresolvedType, targetName, targetActions, null);
 	try {
-	    return instantiatePermission(targetType, targetName, targetActions);
+	    Permission result = instantiatePermission(targetType, targetName, targetActions);
+	    result.getActions(); //Defeat lazy initialization, for safe publication.
+	    return result;
 	} catch (InstantiationException ex) {
 	    throw objectStreamException(ex, targetType);
 	} catch (IllegalAccessException ex) {
@@ -166,7 +182,7 @@ final class PermissionSerializer implements Serializable {
     private final String unresolvedType;
     private final String targetName;
     private final String targetActions;
-    private transient Object permission;
+    private final /*transient*/ Permission permission;
     
     /**
      * We can only validate that targetClass is non null and an instance of 
@@ -214,6 +230,11 @@ final class PermissionSerializer implements Serializable {
 	    perm
 	);
     }
+    
+    /*
+     * Permission is not included in hashCode or equals calculation as doing so
+     * can cause network calls.
+     */
 
     @Override
     public int hashCode() {
@@ -246,6 +267,11 @@ final class PermissionSerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+	PutField pf = out.putFields();
+	pf.put("targetType", targetType);
+	pf.put("unresolvedtype", unresolvedType);
+	pf.put("targetName", targetName);
+	pf.put("targetActions", targetActions);
+	out.writeFields();
     }
 }

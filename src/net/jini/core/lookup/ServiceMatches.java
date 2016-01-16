@@ -62,8 +62,8 @@ public class ServiceMatches implements java.io.Serializable {
 	// The only invariant is the ServiceItem[] type check, which is done
 	// before super() is called.
 	// arg can be null, required to pass ToStringTest legacy test.
-	this(arg.get("items", null, ServiceItem[].class),
-	     arg.get("totalMatches", 0));
+	this(arg == null? null: arg.get("items", null, ServiceItem[].class),
+	     arg == null? 0: arg.get("totalMatches", 0));
     }
 
     /**

@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URL;
+import java.rmi.activation.ActivationGroupDesc;
 import java.security.Permission;
 import java.util.Collection;
 import java.util.Map;
@@ -51,8 +54,9 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
     public AtomicMarshalOutputStream(OutputStream out, Collection context, boolean objectOutputStreamMode) throws IOException{
 	super(context);
 	d = new DelegateObjectOutputStream(out, this, objectOutputStreamMode);
+	d.enableReplaceObject(true);
     }
-
+    
     @Override
     public void writeObjectOverride(Object obj) throws IOException {
 	d.writeObject(obj);
@@ -156,7 +160,9 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
     protected boolean enableReplaceObject(boolean enable)
         throws SecurityException
     {
-        return d.enableReplaceObject(enable);
+	boolean result = super.enableReplaceObject(enable);
+        d.enableReplaceObject = enable;
+	return result;
     }
     
     @Override
@@ -207,6 +213,7 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	final AtomicMarshalOutputStream aout;
 	int numObjectsCached = 0;
 	final boolean objectOutputStreamMode;
+	boolean enableReplaceObject;
 	
 	DelegateObjectOutputStream(OutputStream out, AtomicMarshalOutputStream aout, boolean objectOutputStreamMode) throws IOException{
 	    super(out);
@@ -237,16 +244,20 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	@Override
 	public Object replaceObject(Object obj) throws IOException {
 	    numObjectsCached++;
-	    if (obj instanceof Map){
-		obj = new SerialMap((Map) obj);
-	    } else if (obj instanceof Set){
-		obj = new SerialSet((Set) obj);
-	    } else if (obj instanceof Collection){
-		obj = new SerialList((Collection) obj);
-	    } else if (obj instanceof Permission) {
-		obj = new PermissionSerializer((Permission) obj);
-	    }
-	    return aout.replaceObject(obj);
+	    if (obj.getClass().isAnnotationPresent(AtomicSerial.class)){} // Ignore
+	    else if (obj instanceof Map) obj = new MapSerializer((Map) obj);
+	    else if (obj instanceof Set) obj = new SetSerializer((Set) obj);
+	    else if (obj instanceof Collection) obj = new ListSerializer((Collection) obj);
+	    else if (obj instanceof Permission) obj = new PermissionSerializer((Permission) obj);
+	    else if (obj instanceof URL) obj = new URLSerializer((URL) obj);
+	    else if (obj instanceof URI) obj = new URISerializer((URI) obj);
+//	    else if (obj instanceof ActivationGroupDesc) obj = new ActivationGroupDescSerializer((ActivationGroupDesc) obj);
+//	    else if (obj instanceof ActivationGroupDesc.CommandEnvironment) 
+//		obj = new ActivationGroupDescSerializer.CmdEnv((ActivationGroupDesc.CommandEnvironment) obj);
+//	    else if (obj instanceof StackTraceElement) obj = new StackTraceElementSerializer((StackTraceElement) obj);
+	    else if (obj instanceof Throwable) obj = new ThrowableSerializer((Throwable) obj);
+	    if (enableReplaceObject) return aout.replaceObject(obj);
+	    return obj;
 	}
 
 	@Override

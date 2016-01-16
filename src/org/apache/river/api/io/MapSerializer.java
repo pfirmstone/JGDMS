@@ -32,14 +32,14 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author peter
  */
 @AtomicSerial
-class SerialMap<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Serializable {
+class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Serializable {
     
     private static final long serialVersionUID = 1L;
     
     final Entry<K,V> [] entrySet;
     final Comparator<? super K> comparator;
     
-    SerialMap(Map<K,V> map){
+    MapSerializer(Map<K,V> map){
 	entrySet = new Entry [map.size()];
 	Set<Entry<K,V>> eSet = map.entrySet();
 	Iterator<Entry<K,V>> it = eSet.iterator();
@@ -53,14 +53,14 @@ class SerialMap<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Seriali
 	}
     }
     
-    SerialMap(GetArg arg) throws IOException{
+    MapSerializer(GetArg arg) throws IOException{
 	entrySet = (Entry<K, V>[]) arg.get("entrySet", new Object[0]);
 	comparator = (Comparator<? super K>) arg.get("comparator", null);
     }
 
     @Override
     public Set<Entry<K, V>> entrySet() {
-	return new SerialSet<Entry<K,V>>(entrySet);
+	return new SetSerializer<Entry<K,V>>(entrySet);
     }
 
     @Override
@@ -105,10 +105,52 @@ class SerialMap<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Seriali
 	
 	final K key;
 	final V value;
+	final Class<? extends K> keyClass;
+	final Class<? extends V> valueClass;
 
 	public Ent(Entry<? extends K, ? extends V> entry) {
-	    key = entry.getKey();
-	    value = entry.getValue();
+	    this(entry.getKey(), entry.getValue());
+	}
+	
+	public Ent(GetArg arg) throws IOException{
+	    this(key(arg), value(arg));
+	}
+	
+	private Ent(K key, V value){
+	    this.key = key;
+	    this.value = value;
+	    if(key != null){
+		keyClass = (Class<K>) key.getClass();
+	    } else {
+		keyClass = null;
+	    }
+	    if (value != null){
+		valueClass = (Class<V>) value.getClass();
+	    } else {
+		valueClass = null;
+	    }
+	}
+	
+	private static <K> K key(GetArg arg) throws IOException {
+	    Class<K> keyClass = arg.get("keyClass", null, Class.class);
+	    K key;
+	    if (keyClass != null){
+		key = arg.get("key", null, keyClass) ;
+	    } else {
+		key = null;
+	    }
+	    return key;
+	}
+	
+	private static <V> V value(GetArg arg) throws IOException {
+	    Class<V> valueClass = arg.get("valueClass", null, Class.class);
+	    V value;
+	    if (valueClass != null){
+		value = arg.get("value", null, valueClass);
+	    } else {
+		value = null;
+	    }
+	    return value;
 	}
 
 	@Override

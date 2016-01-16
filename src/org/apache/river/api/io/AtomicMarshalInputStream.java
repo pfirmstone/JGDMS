@@ -2034,15 +2034,10 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     }
     
     protected Class replaceClass(Class c){
-	if ("java.net.URL".equals(c.getName())) c = URLSerialForm.class;
 	return c;
     }
     
     protected Object replaceObject(Object o) throws IOException, ClassNotFoundException{
-	if (o instanceof URLSerialForm){
-	    sc.writeObject(o, URL.class);
-	    return sc.readObject();
-	}
 	return o;
     }
 
@@ -3039,10 +3034,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		    return new MarshalledObject(null);
 //		} else if (resolvedClass == URL.class){
 //		    return new URL("http://bob.com/index.html");
-//		    return new URLSerialFormBURLSerialForm if (resolvedClass == Throwable.class){
-//		    Throwable t = new Throwable();
-//		    t.setStackTrace(new StackTraceElement[0]);
-//		    return t;
+//		    return new URLSerialFormBURLSerialForm 
+		} else if (resolvedClass == Throwable.class){
+		    Throwable t = new Throwable();
+		    t.setStackTrace(new StackTraceElement[0]);
+		    return t;
 		} else if (resolvedClass == Integer.class){
 		    return new Integer(0); // This instance will be mutated
 		} else if (resolvedClass == Long.class){

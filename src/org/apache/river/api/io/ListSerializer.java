@@ -29,7 +29,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author peter
  */
 @AtomicSerial
-class SerialList<T> extends AbstractList<T> implements Serializable {
+class ListSerializer<T> extends AbstractList<T> implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
@@ -38,19 +38,19 @@ class SerialList<T> extends AbstractList<T> implements Serializable {
      */
     private final T[] elements;
     
-    public SerialList(GetArg arg) throws IOException {
+    public ListSerializer(GetArg arg) throws IOException {
 	this((T[]) arg.get("elements", new Object [0]));
     }
     
-    private SerialList(T [] elem){
+    private ListSerializer(T [] elem){
 	elements = elem;
     }
     
-    public SerialList(){
+    public ListSerializer(){
 	elements = (T[]) new Object[0];
     }
     
-    public SerialList(Collection<T> list){
+    public ListSerializer(Collection<T> list){
 	elements = list.toArray((T[])new Object[list.size()]);
     }
 

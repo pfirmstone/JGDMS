@@ -32,26 +32,26 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author peter
  */
 @AtomicSerial
-class SerialSet<T> extends AbstractSet<T> implements SortedSet<T>, Serializable {
+class SetSerializer<T> extends AbstractSet<T> implements SortedSet<T>, Serializable {
     
     private static final long serialVersionUID = 1L;
     
     T [] content;
     Comparator<? super T> comparator;
     
-    SerialSet(Set<T> set){
+    SetSerializer(Set<T> set){
 	content = set.toArray((T[]) new Object [set.size()]);
 	if (set instanceof SortedSet) comparator = ((SortedSet<T>)set).comparator();
 	else comparator = null;
     }
     
-    SerialSet(GetArg arg) throws IOException {
+    SetSerializer(GetArg arg) throws IOException {
 	// No invariant checks
 	content = (T[]) arg.get("content", new Object[0]);
 	comparator = (Comparator<? super T>) arg.get("comparator", null);
     }
     
-    SerialSet(T [] set){
+    SetSerializer(T [] set){
 	content = set;
     }
 

@@ -87,11 +87,12 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
 	/* Any class cast exceptions will be occur before Object's default
 	 * constructor is called, in that case an instance of this object
 	 * will not be created.
+	 * null check for org/apache/river/test/spec/lookupservice/ToStringTest.td
 	 */
-	this(arg.get("serviceID", null, ServiceID.class),
-	    arg.get("serviceTypes", null, Class[].class),
-	    arg.get("attributeSetTemplates", null, Entry[].class),
-	    arg.get("clientConstraints", null, InvocationConstraints.class)
+	this(arg == null ? null: arg.get("serviceID", null, ServiceID.class),
+	    arg == null? null: arg.get("serviceTypes", null, Class[].class),
+	    arg == null? null: arg.get("attributeSetTemplates", null, Entry[].class),
+	    arg == null? null: arg.get("clientConstraints", null, InvocationConstraints.class)
 	);
     }
     

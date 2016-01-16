@@ -62,9 +62,9 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
      * @throws IOException 
      */
     public ServiceItem(GetArg arg) throws IOException {
-	this( arg.get("serviceID", null, ServiceID.class),
-	      arg.get("service", null),
-	      arg.get("attributeSets", null, Entry[].class));
+	this( arg == null ? null: arg.get("serviceID", null, ServiceID.class),
+	      arg == null ? null: arg.get("service", null),
+	      arg == null ? null: arg.get("attributeSets", null, Entry[].class));
     }
     
     /**
