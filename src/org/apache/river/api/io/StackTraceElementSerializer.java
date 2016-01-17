@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
+import java.io.Serializable;
 import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -30,7 +31,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author peter
  */
 @AtomicSerial
-class StackTraceElementSerializer {
+class StackTraceElementSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
     
     /**
@@ -45,7 +46,7 @@ class StackTraceElementSerializer {
 	    new ObjectStreamField("lineNumber", Integer.TYPE)
 	};
     
-    private final StackTraceElement stackTraceElement;
+    private final /*transient*/ StackTraceElement stackTraceElement;
     private final String declaringClass;
     private final String methodName;
     private final String fileName;

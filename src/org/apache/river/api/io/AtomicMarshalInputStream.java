@@ -1099,12 +1099,36 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
             } else {
                 // Either array or Object
                 try {
-                    element.fieldValue = readObject();
+                    element.fieldValue = readObject(false);
                 } catch (ClassNotFoundException cnf) {
                     // WARNING- Not sure this is the right thing to do. Write
                     // test case.
                     throw new InvalidClassException(cnf.toString());
-                }
+                } catch (StreamCorruptedException e){
+		    StringBuilder b = new StringBuilder(200);
+		    b.append("Unable to read field: ");
+		    b.append(element.field.getName());
+		    b.append(" of type: ");
+		    b.append(type);
+		    b.append("\n");
+		    b.append("while deserializing class: ");
+		    b.append(emulatedFields.getObjectStreamClass().getName());
+		    StreamCorruptedException ex = new StreamCorruptedException(b.toString());
+		    ex.initCause(e);
+		    throw ex;
+		} catch (EOFException e){
+		    StringBuilder b = new StringBuilder(200);
+		    b.append("Unable to read field: ");
+		    b.append(element.field.getName());
+		    b.append(" of type: ");
+		    b.append(type);
+		    b.append("\n");
+		    b.append("while deserializing class: ");
+		    b.append(emulatedFields.getObjectStreamClass().getName());
+		    EOFException ex = new EOFException(b.toString());
+		    ex.initCause(e);
+		    throw ex;
+		}
             }
         }
     }
@@ -1197,18 +1221,26 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                 }
                 Object toSet = null;
 		if (fieldDesc != null && !fieldDesc.isPrimitive()){
-		    if (fieldDesc.isUnshared()) {
-			toSet = readUnshared();
-		    } else {
-			try {
+		    try {
+			if (fieldDesc.isUnshared()) {
+			    toSet = readUnshared();
+			} else {
 			    toSet = readObject(false);
-			} catch (EOFException e){
-//			    System.out.println("Exception thrown with attemting to read field: " + fieldDesc);
-//			    System.out.println("Within fields: " + Arrays.asList(fields));
-//			    System.out.println("Class name: " + classDesc.getName());
-//			    e.printStackTrace(System.out);
-			    throw e;
 			}
+		    } catch (EOFException e){
+			StringBuilder b = new StringBuilder(200);
+			b.append("Exception thrown with attemting to read field: ");
+			b.append(fieldDesc);
+			b.append("\n");
+			b.append("Within fields: ");
+			b.append(Arrays.asList(fields));
+			b.append("\n");
+			b.append("Class name: ");
+			b.append(classDesc.getName());
+			b.append("\n");
+			EOFException ex = new EOFException(b.toString());
+			ex.initCause(e);
+			throw ex;
 		    }
 		}
                 if (setBack) {
@@ -1748,15 +1780,23 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                         "luni.C2", classDesc.getName())); //$NON-NLS-1$
             }
         } else {
-            // Array of Objects
-            Object[] objectArray = (Object[]) result;
-            for (int i = 0; i < size; i++) {
-                // TODO: This place is the opportunity for enhancement
-                //      We can implement writing elements through fast-path,
-                //      without setting up the context (see readObject()) for 
-                //      each element with public API
-                objectArray[i] = readObject();
-            }
+	    try {
+		// Array of Objects
+		Object[] objectArray = (Object[]) result;
+		for (int i = 0; i < size; i++) {
+		    // TODO: This place is the opportunity for enhancement
+		    //      We can implement writing elements through fast-path,
+		    //      without setting up the context (see readObject()) for 
+		    //      each element with public API
+		    objectArray[i] = readObject(false);
+		}
+	    } catch (EOFException e){
+		EOFException ex = new EOFException(
+			"Unable to deserialize an instanceof " 
+				+componentType + " as an array element");
+		ex.initCause(e);
+		throw ex;
+	    }
         }
         if (enableResolve) {
             result = resolveObject(result);
@@ -3028,42 +3068,14 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    // Now we ask for permission, this includes a lot of exception classes
 	    deSerializationPermitted();
 	    if (!isProxy){
-		if (resolvedClass == StackTraceElement.class){
-		    return new StackTraceElement("", "", null, 0);
-		} else if (resolvedClass == MarshalledObject.class){
-		    return new MarshalledObject(null);
-//		} else if (resolvedClass == URL.class){
-//		    return new URL("http://bob.com/index.html");
-//		    return new URLSerialFormBURLSerialForm 
-		} else if (resolvedClass == Throwable.class){
-		    Throwable t = new Throwable();
-		    t.setStackTrace(new StackTraceElement[0]);
-		    return t;
-		} else if (resolvedClass == Integer.class){
-		    return new Integer(0); // This instance will be mutated
-		} else if (resolvedClass == Long.class){
-		    return new Long(0); // This instance will be mutated
-		} else if (resolvedClass == Boolean.class){
-		    return new Boolean(false); // This instance will be mutated
-		} else if (resolvedClass == Character.class){
-		    return new Character((char)0); // This instance will be mutated
-		} else if (resolvedClass == Float.class){
-		    return new Float(0.0); // This instance will be mutated
-		} else if (resolvedClass == Byte.class){
-		    return new Byte((byte)0); // This instance will be mutated
-		} else if (resolvedClass == Double.class){
-		    return new Double(0.0); // This instance will be mutated
-		} else if (resolvedClass == Short.class){
-		    return new Short((short) 0); // This instance will be mutated
-		} 
-		
+		// Special construction cases - none at present
 	    }
 	    if (constructor == null){
 		boolean isCollections = false;
 		String classname = resolvedClass.getName();
 		if (classname.equals("java.util.Arrays$ArrayList")) isCollections = true;
 		if (classname.startsWith("java.util.Collections")) isCollections = true;
-//		System.out.println("Finding constructor for class " + resolvedClass);
+		System.out.println("Finding constructor for class " + resolvedClass);
 		Constructor [] ctors = getConstructors(resolvedClass);
 		for (int i = 0, l = ctors.length; i < l; i++){
 		    int count;

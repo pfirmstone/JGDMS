@@ -50,7 +50,7 @@ class ThrowableSerializer implements Serializable {
 	    new ObjectStreamField("suppressed", Throwable[].class)
 	};
     
-    private final Throwable throwable;
+    private final /*transient*/ Throwable throwable;
     private final Class<? extends Throwable> clazz;
     private final String message;
     private final Throwable cause;
@@ -68,20 +68,39 @@ class ThrowableSerializer implements Serializable {
 	suppressed = t.getSuppressed();
     }
     
-    ThrowableSerializer(GetArg arg) throws IOException{
+    public ThrowableSerializer(GetArg arg) throws IOException{
 	this(check(arg));
     }
     
     private static Throwable check(GetArg arg) throws IOException{
-	Class<? extends Throwable> clas = GetArg.notNull(arg.get("clazz", null, Class.class), "clas cannot be null");
+	Class<? extends Throwable> clas = GetArg.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
 	String message = arg.get("message", null, String.class);
 	Throwable cause = arg.get("cause", null, Throwable.class);
 	StackTraceElement[] stack = arg.get("stack", null, StackTraceElement[].class);
 	Throwable[] suppressed = arg.get("suppressed", null, Throwable[].class);
-	Throwable result = null;
+	Throwable result = init(clas, message, cause);
+	if (stack != null) result.setStackTrace(stack);
+	// Only adds suppressed if enabled by Throwable protected constructor.
+	if (suppressed != null){ // compat with serial form of Throwable before Java 1.7
+	    for (int i = 0, l = suppressed.length; i < l; i++){
+		result.addSuppressed(suppressed[i]);
+	    }
+	}
+	return result;
+    }
+    
+    static Throwable init(Class<? extends Throwable> clas, String message, Throwable cause) throws IOException {
+	Throwable result;
 	try {
+	    try {
+		Constructor c = clas.getConstructor( new Class[]{String.class, Throwable.class});
+		result = (Throwable) c.newInstance(new Object[]{message, cause});
+		return result;
+	    } catch (NoSuchMethodException ex){} // Ignore
 	    Constructor c = clas.getConstructor( new Class[]{String.class});
 	    result = (Throwable) c.newInstance(new Object[]{message});
+	    if (cause != null) result.initCause(cause);
+	    return result;
 	} catch (NoSuchMethodException ex) {
 	    throw throIO(ex);
 	} catch (SecurityException ex) {
@@ -95,15 +114,6 @@ class ThrowableSerializer implements Serializable {
 	} catch (InvocationTargetException ex) {
 	    throw throIO(ex);
 	}
-	if (cause != null) result.initCause(cause);
-	if (stack != null) result.setStackTrace(stack);
-	// Only adds suppressed if enabled by Throwable protected constructor.
-	if (suppressed != null){ // compat with serial form of Throwable before Java 1.7
-	    for (int i = 0, l = suppressed.length; i < l; i++){
-		result.addSuppressed(suppressed[i]);
-	    }
-	}
-	return result;
     }
     
     static IOException throIO(Exception cause){

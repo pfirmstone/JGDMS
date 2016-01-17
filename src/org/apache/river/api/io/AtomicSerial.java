@@ -35,8 +35,6 @@ import java.security.AccessController;
 import java.security.Guard;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.jini.io.ObjectStreamContext;
 
 /**

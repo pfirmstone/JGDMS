@@ -23,10 +23,13 @@ import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.rmi.MarshalledObject;
 import java.rmi.activation.ActivationGroupDesc;
+import java.rmi.server.UID;
 import java.security.Permission;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import net.jini.io.MarshalOutputStream;
 
@@ -245,16 +248,27 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	public Object replaceObject(Object obj) throws IOException {
 	    numObjectsCached++;
 	    if (obj.getClass().isAnnotationPresent(AtomicSerial.class)){} // Ignore
+	    else if (obj instanceof Byte) obj = new ByteSerializer((Byte) obj);
+	    else if (obj instanceof Short) obj = new ShortSerializer((Short) obj);
+	    else if (obj instanceof Integer) obj = new IntSerializer((Integer) obj);
+	    else if (obj instanceof Long) obj = new LongSerializer((Long) obj);
+	    else if (obj instanceof Double) obj = new DoubleSerializer((Double) obj);
+	    else if (obj instanceof Float) obj = new FloatSerializer((Float) obj);
+	    else if (obj instanceof Character) obj = new CharSerializer((Character) obj);
+	    else if (obj instanceof Boolean) obj = new BooleanSerializer((Boolean) obj);
+	    else if (obj instanceof Properties) obj = new PropertiesSerializer((Properties) obj);//Before Map
 	    else if (obj instanceof Map) obj = new MapSerializer((Map) obj);
 	    else if (obj instanceof Set) obj = new SetSerializer((Set) obj);
 	    else if (obj instanceof Collection) obj = new ListSerializer((Collection) obj);
 	    else if (obj instanceof Permission) obj = new PermissionSerializer((Permission) obj);
 	    else if (obj instanceof URL) obj = new URLSerializer((URL) obj);
 	    else if (obj instanceof URI) obj = new URISerializer((URI) obj);
-//	    else if (obj instanceof ActivationGroupDesc) obj = new ActivationGroupDescSerializer((ActivationGroupDesc) obj);
-//	    else if (obj instanceof ActivationGroupDesc.CommandEnvironment) 
-//		obj = new ActivationGroupDescSerializer.CmdEnv((ActivationGroupDesc.CommandEnvironment) obj);
-//	    else if (obj instanceof StackTraceElement) obj = new StackTraceElementSerializer((StackTraceElement) obj);
+	    else if (obj instanceof UID) obj = new UIDSerializer((UID) obj);
+	    else if (obj instanceof MarshalledObject) obj = new MarshalledObjectSerializer((MarshalledObject) obj);
+	    else if (obj instanceof ActivationGroupDesc) obj = new ActivationGroupDescSerializer((ActivationGroupDesc) obj);
+	    else if (obj instanceof ActivationGroupDesc.CommandEnvironment) 
+		obj = new ActivationGroupDescSerializer.CmdEnv((ActivationGroupDesc.CommandEnvironment) obj);
+	    else if (obj instanceof StackTraceElement) obj = new StackTraceElementSerializer((StackTraceElement) obj);
 	    else if (obj instanceof Throwable) obj = new ThrowableSerializer((Throwable) obj);
 	    if (enableReplaceObject) return aout.replaceObject(obj);
 	    return obj;

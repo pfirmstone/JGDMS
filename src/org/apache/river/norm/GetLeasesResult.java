@@ -17,14 +17,16 @@
  */
 package org.apache.river.norm;
 
-import org.apache.river.proxy.MarshalledWrapper;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * Holds the results of a call to {@link NormServer#getLeases
@@ -85,5 +87,11 @@ final class GetLeasesResult implements Serializable {
     {
 	in.defaultReadObject();
 	verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(in);
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	PutField pf = out.putFields();
+	pf.put("marshalledLeases", marshalledLeases);
+	out.writeFields();
     }
 }

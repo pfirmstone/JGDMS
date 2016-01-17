@@ -18,9 +18,6 @@
 
 package org.apache.river.phoenix;
 
-import org.apache.river.thread.Executor;
-import org.apache.river.thread.GetThreadPoolAction;
-import org.apache.river.proxy.BasicProxyTrustVerifier;
 import java.io.IOException;
 import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
@@ -71,6 +68,11 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.proxy.BasicProxyTrustVerifier;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 
 /**
  * The default activation group implementation for phoenix.  Instances of
@@ -440,6 +442,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * the original ActivationGroupID (with unprepared ActivationSystem
      * proxy), that writeReplaces itself to the original.
      */
+    @AtomicSerial
     private static class WrappedGID extends ActivationGroupID {
 	/** Original gid */
 	private final ActivationGroupID id;
@@ -450,6 +453,11 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	    super(sys);
 	    this.id = id;
 	    this.sys = sys;
+	}
+	
+	public WrappedGID(GetArg arg) throws IOException {
+	    this(arg.get("id", null, ActivationGroupID.class),
+		    arg.get("sys", null, ActivationSystem.class));
 	}
 
 	/* override */

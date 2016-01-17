@@ -19,6 +19,7 @@ package org.apache.river.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
@@ -27,6 +28,9 @@ import java.util.Iterator;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.IntegrityEnforcement;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * Wrapper around {@link MarshalledInstance} that samples the integrity setting
@@ -39,7 +43,17 @@ import net.jini.io.context.IntegrityEnforcement;
  *
  * @since 2.0
  */
+@AtomicSerial
 public class MarshalledWrapper implements Serializable {
+    
+    private static class RO implements ReadObject{
+	boolean integrity;
+	@Override
+	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+	    integrity = integrityEnforced(input);
+	}
+	
+    }
 
     private static final long serialVersionUID = 2L;
 
@@ -67,7 +81,7 @@ public class MarshalledWrapper implements Serializable {
      * @param stream the given stream
      * @return integrity protection setting of the given stream
      */
-    public static boolean integrityEnforced(ObjectInputStream stream) {
+    public static boolean integrityEnforced(ObjectInput stream) {
 	if (stream instanceof ObjectStreamContext) {
 	    return  integrityEnforced(((ObjectStreamContext) stream));
 	}
@@ -110,10 +124,24 @@ public class MarshalledWrapper implements Serializable {
      * <code>null</code>
      */
     public MarshalledWrapper(MarshalledInstance instance) {
+	this(check(instance), false);
+    }
+    
+    public MarshalledWrapper(GetArg arg) throws IOException {
+	this(check(arg.get("instance", null, MarshalledInstance.class)),
+		((RO) arg.getReader()).integrity);
+    }
+    
+    private MarshalledWrapper(MarshalledInstance instance, boolean integrity){
+	this.instance = instance;
+	this.integrity = integrity;
+    }
+    
+    private static MarshalledInstance check( MarshalledInstance instance){
 	if (instance == null) {
 	    throw new NullPointerException();
 	}
-	this.instance = instance;
+	return instance;
     }
 
     /**
