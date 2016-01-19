@@ -18,7 +18,10 @@
 
 package net.jini.core.constraint;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the absolute time by which a network connection
@@ -31,6 +34,7 @@ import java.io.Serializable;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class ConnectionAbsoluteTime
 			implements InvocationConstraint, Serializable
 {
@@ -54,6 +58,10 @@ public final class ConnectionAbsoluteTime
     public ConnectionAbsoluteTime(long time) {
 	this.time = time;
     }
+    
+    public ConnectionAbsoluteTime(GetArg arg) throws IOException{
+	this(arg.get("time", 0));
+    }
 
     /**
      * Returns the deadline for connection establishment.
@@ -68,6 +76,7 @@ public final class ConnectionAbsoluteTime
     /**
      * Returns a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	return (int)(ConnectionAbsoluteTime.class.hashCode() + time);
     }
@@ -75,6 +84,7 @@ public final class ConnectionAbsoluteTime
     /**
      * Two instances of this class are equal if both have the same deadline.
      */
+    @Override
     public boolean equals(Object obj) {
 	if (!(obj instanceof ConnectionAbsoluteTime)) {
 	    return false;
@@ -86,6 +96,7 @@ public final class ConnectionAbsoluteTime
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	return "ConnectionAbsoluteTime[" + time + "]";
     }

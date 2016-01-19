@@ -19,12 +19,14 @@ package org.apache.river.api.io;
 
 import java.io.IOException;
 import java.io.ObjectStreamException;
+import java.io.Serializable;
 
 /**
  *
  * @author peter
  */
-class CharSerializer {
+@AtomicSerial
+class CharSerializer implements Serializable {
     private final static long serialVersionUID = 1L;
     
     private final char c;

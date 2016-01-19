@@ -35,6 +35,9 @@ import java.security.AccessController;
 import java.security.Guard;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 import net.jini.io.ObjectStreamContext;
 
 /**
@@ -359,6 +362,47 @@ public @interface AtomicSerial {
 		    = new InvalidObjectException(message);
 	    ex.initCause(new NullPointerException("Object was null"));
 	    throw ex;
+	}
+	
+	/**
+	 * Convenience method to copy and type check all keys and values from
+	 * the source map, into the destination map.
+	 * 
+	 * @param <T> Map or subtype.
+	 * @param <K> key type.
+	 * @param <V> value type.
+	 * @param source any map containing unchecked keys and values.
+	 * @param destination a map into which checked values and keys are to be copied.
+	 * @param key Class of key to type check.
+	 * @param val Class of value to type check.
+	 * @return the populated destination map.
+	 * @throws ClassCastException
+	 * @throws NullPointerException if any parameter is null.
+	 */
+	public static <T extends Map<K,V>,K,V> T copyMap(T source, T destination, Class<K> key, Class<V> val)
+	{
+	    Map<K,V> typeCheckedView = Collections.checkedMap(destination, key, val);
+	    typeCheckedView.putAll(source);
+	    return destination;
+	}
+	
+	/**
+	 * Convenience method to copy and type check all elements from the
+	 * source collection, into the destination collection.
+	 * 
+	 * @param <T> Collection or subtype.
+	 * @param <E> Element type.
+	 * @param source Collection containing unchecked elements.
+	 * @param destination Empty Collection to populate with checked elements.
+	 * @param type
+	 * @return the populated destination collection.
+	 * @throws ClassCastException
+	 * @throws NullPointerException if any parameter is null.
+	 */
+	public static <T extends Collection<E>, E> T copyCol( T source, T destination, Class<E> type){  
+	    Collection typeCheckedView = Collections.checkedCollection(destination, type);
+	    typeCheckedView.addAll(source);
+	    return destination;
 	}
 	
 	protected GetArg() {

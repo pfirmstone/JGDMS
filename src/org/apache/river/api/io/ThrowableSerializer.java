@@ -97,6 +97,11 @@ class ThrowableSerializer implements Serializable {
 		result = (Throwable) c.newInstance(new Object[]{message, cause});
 		return result;
 	    } catch (NoSuchMethodException ex){} // Ignore
+	    try {
+		Constructor c = clas.getConstructor( new Class[]{Throwable.class, String.class});
+		result = (Throwable) c.newInstance(new Object[]{cause, message});
+		return result;
+	    } catch (NoSuchMethodException ex){} // Ignore
 	    Constructor c = clas.getConstructor( new Class[]{String.class});
 	    result = (Throwable) c.newInstance(new Object[]{message});
 	    if (cause != null) result.initCause(cause);

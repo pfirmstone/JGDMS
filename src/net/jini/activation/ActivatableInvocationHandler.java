@@ -18,9 +18,6 @@
 
 package net.jini.activation;
 
-import org.apache.river.action.GetBooleanAction;
-import org.apache.river.jeri.internal.runtime.Util;
-import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -58,6 +55,11 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.security.Security;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 
 /**
  * An invocation handler for activatable remote objects.  If the client
@@ -121,6 +123,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *
  * </table>
  **/
+@AtomicSerial
 public final class ActivatableInvocationHandler
     implements InvocationHandler, TrustEquivalence, Serializable
 {
@@ -181,6 +184,12 @@ public final class ActivatableInvocationHandler
 	    throw new AssertionError(nsme);
 	}
     }
+    
+    public ActivatableInvocationHandler(GetArg arg) throws IOException {
+	this(GetArg.notNull(arg.get("id", null, ActivationID.class), "id is null"),
+		arg.get("uproxy",null, Remote.class),
+		checkConstraints(arg.get("uproxy", null, Remote.class), arg.get("clientConstraints", null, MethodConstraints.class)));
+    }
 
     /**
      * Creates an instance with the specified activation identifier, a
@@ -218,6 +227,16 @@ public final class ActivatableInvocationHandler
 	    }
 	}
     }
+    
+    private static MethodConstraints checkConstraints(Remote uproxy, MethodConstraints clientConstraints)
+	    throws InvalidObjectException 
+    {
+	if (!hasConsistentConstraints(uproxy, clientConstraints)) {
+		throw new InvalidObjectException(
+		    "inconsistent constraints between underlying proxy and invocation handler");
+	    }
+	return clientConstraints;
+    }
 
     /**
      * Returns true if the constraints on the underlying proxy (if it
@@ -225,18 +244,16 @@ public final class ActivatableInvocationHandler
      * constraints of this invocation handler, or if the underlying proxy
      * does not implement RemoteMethodControl.
      */
-    private boolean hasConsistentConstraints() {
-        synchronized (this){
-            if (uproxy instanceof RemoteMethodControl) {
-                MethodConstraints uproxyConstraints =
-                    ((RemoteMethodControl) uproxy).getConstraints();
-                return (clientConstraints == null ?
-                        uproxyConstraints == null :
-                        clientConstraints.equals(uproxyConstraints));
-            } else {
-                return true;
-            }
-        }
+    private static boolean hasConsistentConstraints(Remote uproxy, MethodConstraints clientConstraints) {
+	if (uproxy instanceof RemoteMethodControl) {
+	    MethodConstraints uproxyConstraints =
+		((RemoteMethodControl) uproxy).getConstraints();
+	    return (clientConstraints == null ?
+		    uproxyConstraints == null :
+		    clientConstraints.equals(uproxyConstraints));
+	} else {
+	    return true;
+	}
     }
     
     /**
@@ -1191,10 +1208,7 @@ public final class ActivatableInvocationHandler
 	if (id == null) {
 	    throw new InvalidObjectException("id is null");
 	} else {
-	    if (!hasConsistentConstraints()) {
-		throw new InvalidObjectException(
-		    "inconsistent constraints between underlying proxy and invocation handler");
-	    }
+	    checkConstraints(uproxy, clientConstraints);
 	}
     }
 

@@ -18,7 +18,6 @@
 
 package net.jini.config;
 
-import org.apache.river.logging.Levels;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,6 +59,9 @@ import net.jini.loader.ClassLoading;
 import net.jini.loader.LoadClass;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.logging.Levels;
 
 /**
  * Supplies objects needed to configure applications, such as {@link Exporter}
@@ -2802,6 +2804,7 @@ public class ConfigurationFile extends AbstractConfiguration {
      * configuration source or a problem encountered when attempting to return
      * an existing entry or the type of an existing entry.
      */
+    @AtomicSerial
     public static class ErrorDescriptor implements Serializable {
     
         private static final long serialVersionUID = 1L;
@@ -2858,7 +2861,25 @@ public class ConfigurationFile extends AbstractConfiguration {
                                String locationName,
                                Throwable t)
         {
-            if (lineno < 0)
+            this(lineno, override, description, locationName, t,
+		    check(lineno, override, description, t));
+        }
+	
+	public ErrorDescriptor(GetArg arg) throws IOException{
+	    this(arg.get("lineno", -1),
+		 arg.get("override", -1),
+		 arg.get("description", null, String.class),
+		 arg.get("locationName", null, String.class),
+		 arg.get("t", null, Throwable.class)
+	    );
+	}
+	
+	private static boolean check(int lineno,
+				     int override,
+				     String description,
+				     Throwable t)
+	{
+	    if (lineno < 0)
                 throw new IllegalArgumentException("line number must be"
                                                    + " greater than 0");
             if (override < 0)
@@ -2870,13 +2891,23 @@ public class ConfigurationFile extends AbstractConfiguration {
             if (t instanceof Error)
                 throw new IllegalArgumentException("t cannot be an instance of"
                                                    + " java.lang.Error");
-            this.lineno = lineno;
+	    return true;
+	}
+	
+	private ErrorDescriptor(int lineno,
+				int override,
+				String description,
+				String locationName,
+				Throwable t,
+				boolean check)
+	{
+	    this.lineno = lineno;
             this.override = override;
             this.description = description;
             this.locationName = locationName;
             this.t = t;
-        }
-    
+	}
+		   
         /**
          * Creates a new error descriptor.
          *

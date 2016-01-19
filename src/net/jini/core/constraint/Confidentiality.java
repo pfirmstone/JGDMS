@@ -18,7 +18,10 @@
 
 package net.jini.core.constraint;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the confidentiality of message contents.
@@ -29,6 +32,7 @@ import java.io.Serializable;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class Confidentiality
 				implements InvocationConstraint, Serializable
 {
@@ -65,10 +69,20 @@ public final class Confidentiality
     private Confidentiality(boolean val) {
 	this.val = val;
     }
-
+    
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException
+     */
+    public Confidentiality(GetArg arg) throws IOException{
+	this(arg.get("val", true));
+    }
+    
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	return val ? "Confidentiality.YES" : "Confidentiality.NO";
     }
@@ -77,7 +91,7 @@ public final class Confidentiality
      * Canonicalize so that <code>==</code> can be used.
      * @return true for YES, false for NO.
      */
-    private Object readResolve() {
+    public Object readResolve() {
 	return val ? YES : NO;
     }
 }
