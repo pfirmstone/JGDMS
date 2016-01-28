@@ -88,11 +88,15 @@ final class EntryRep implements Serializable, Cloneable {
     
     
     private static boolean check(GetArg arg) throws IOException{
-	EntryClass eclass = (EntryClass) arg.get("eclass", null); // Throws ClassCastException
-	if (eclass == null) throw new InvalidObjectException("eclass cannot be null");
-	String codebase = (String) arg.get("codebase", null); // Throws ClassCastException
-	Object [] fields = (Object[]) arg.get("fields", null); // Throws ClassCastException
-	if (fields == null) throw new InvalidObjectException("fields array cannot be null");
+	EntryClass eclass = GetArg.notNull(
+	    arg.get("eclass", null, EntryClass.class), 
+	    "eclass cannot be null"
+	); 
+	String codebase = arg.get("codebase", null, String.class); 
+	Object [] fields = GetArg.notNull(
+	    arg.get("fields", null, Object[].class), 
+	    "fields array cannot be null"
+	); 
 	return true;
     }
     
@@ -101,9 +105,9 @@ final class EntryRep implements Serializable, Cloneable {
     }
     
     private EntryRep(GetArg arg, boolean check) throws IOException{
-	eclass = (EntryClass) arg.get("eclass", null);
-	codebase = (String) arg.get("codebase", null);
-	fields = ((Object[]) arg.get("fields", null)).clone();
+	eclass = arg.get("eclass", null, EntryClass.class);
+	codebase = arg.get("codebase", null, String.class);
+	fields = GetArg.copy(arg.get("fields", null, Object[].class));
 	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
     }
     

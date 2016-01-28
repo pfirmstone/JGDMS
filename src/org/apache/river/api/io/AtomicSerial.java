@@ -38,6 +38,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import net.jini.core.transaction.server.NestableServerTransaction;
 import net.jini.io.ObjectStreamContext;
 
 /**
@@ -182,8 +183,10 @@ public @interface AtomicSerial {
 	    } catch (InvocationTargetException ex) {
 		Throwable e = ex.getCause();
 		if (e instanceof InvalidObjectException) throw (InvalidObjectException) e;
+		if (e instanceof IOException) throw (IOException) e;
+		if (e instanceof RuntimeException) throw (RuntimeException) e;
 		InvalidObjectException ioe = new InvalidObjectException(
-		    "Validation of invariants failed during construction: " + type);
+		    "Construction failed: " + type);
 		ioe.initCause(ex);
 		throw ioe;
 	    } catch (IllegalAccessException ex) {
@@ -463,7 +466,7 @@ public @interface AtomicSerial {
          */
         public abstract <T> T get(String name, T val, Class<T> type) 
 		throws IOException;
-    }
+	}
     
 }
 

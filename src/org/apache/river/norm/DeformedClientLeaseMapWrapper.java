@@ -81,7 +81,7 @@ class DeformedClientLeaseMapWrapper extends AbstractLeaseMap {
 	try {
 	    l.renew(d);
 	} catch (LeaseException e) {
-	    final Map<Lease, Exception> m = new HashMap<Lease, Exception>(1);
+	    final Map<Lease, Throwable> m = new HashMap<Lease, Throwable>(1);
 	    m.put(l, e);
 	    throw new LeaseMapException(e.getMessage(), m); 
 	} 

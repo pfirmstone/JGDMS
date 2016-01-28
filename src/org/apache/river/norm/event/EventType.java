@@ -18,23 +18,23 @@
 package org.apache.river.norm.event;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
-import net.jini.core.event.UnknownEventException;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
-
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.constants.ThrowableConstants;
 import org.apache.river.logging.Levels;
 import org.apache.river.thread.RetryTask;
 import org.apache.river.thread.WakeupManager;
-import java.util.concurrent.ExecutorService;
-import net.jini.io.MarshalledInstance;
 
 /**
  * Representation of an event type the supports a single registrant.
@@ -51,6 +51,7 @@ import net.jini.io.MarshalledInstance;
 // of control entering at one time.
 // Before we make this a general utility we have to re-think the locking
 // strategy.
+@AtomicSerial
 public class EventType implements Serializable {
     private static final long serialVersionUID = 2;
 
@@ -146,7 +147,35 @@ public class EventType implements Serializable {
 	this.evID = evID;
 	setLastSequenceNumber(0);
 	setListener(listener, handback);
-    }    
+    } 
+    
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    public EventType(GetArg arg) throws IOException{
+	this(arg.get("marshalledListener", null, MarshalledObject.class),
+	     arg.get("handback", null, MarshalledObject.class),
+	     arg.get("registrationNumber", 0L),
+	     arg.get("lastSeqNum", 0L),
+	     arg.get("evID", 0L)
+	);
+    }
+    
+    private EventType(MarshalledObject marshalledListener, MarshalledObject handback,
+	    long registrationNumber, long lastSeqNum, long evID)
+    {
+	this.marshalledListener = marshalledListener;
+	this.handback = handback;
+	this.registrationNumber = registrationNumber;
+	this.lastSeqNum = lastSeqNum;
+	this.evID = evID;
+    }
+    
+    private synchronized void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
 
     /** Utility method to null out listener */
     private void clearListener() {

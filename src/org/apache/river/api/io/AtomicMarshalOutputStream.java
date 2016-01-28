@@ -248,6 +248,7 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	public Object replaceObject(Object obj) throws IOException {
 	    numObjectsCached++;
 	    if (obj.getClass().isAnnotationPresent(AtomicSerial.class)){} // Ignore
+	    // REMIND: stateless objects, eg EmptySet?
 	    else if (obj instanceof Byte) obj = new ByteSerializer((Byte) obj);
 	    else if (obj instanceof Short) obj = new ShortSerializer((Short) obj);
 	    else if (obj instanceof Integer) obj = new IntSerializer((Integer) obj);

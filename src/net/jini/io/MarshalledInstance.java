@@ -104,14 +104,18 @@ public class MarshalledInstance implements Serializable {
     static final long serialVersionUID = -5187033771082433496L;
     
     private static boolean check(GetArg arg) throws IOException{
-	byte [] objBytes = (byte[]) arg.get("objBytes", null);
-	byte [] locBytes = (byte[]) arg.get("locBytes", null);
+	byte [] objBytes = arg.get("objBytes", null, byte[].class);
+	byte [] locBytes = arg.get("locBytes", null, byte[].class);
 	int hash = arg.get("hash", 0);
 	if ((objBytes == null) && ((hash != 13) || (locBytes != null)))
 	    throw new InvalidObjectException("Bad hash or annotation");
 	int h = 0;
-	for (int i = 0; i < objBytes.length; i++) {
-	    h = 31 * h + objBytes[i];
+	if (objBytes == null){
+	    h = 13;
+	} else {
+	    for (int i = 0; i < objBytes.length; i++) {
+		h = 31 * h + objBytes[i];
+	    }
 	}
 	if (h != hash) throw new InvalidObjectException("Bad hash or annotation");
 	return true;
@@ -122,8 +126,8 @@ public class MarshalledInstance implements Serializable {
     }
     
     private MarshalledInstance( boolean check, GetArg arg) throws IOException {
-	objBytes = (byte[]) arg.get("objBytes", null);
-	locBytes = (byte[]) arg.get("locBytes", null);
+	objBytes = arg.get("objBytes", null, byte[].class);
+	locBytes = arg.get("locBytes", null, byte[].class);
 	hash = arg.get("hash", 0);
     }
     

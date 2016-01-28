@@ -17,9 +17,12 @@
  */
 package net.jini.core.transaction.server;
 
-import net.jini.core.transaction.*;
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import net.jini.core.transaction.*;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
 /**
@@ -35,6 +38,7 @@ import java.rmi.RemoteException;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class ServerTransaction implements Transaction, java.io.Serializable {
     static final long serialVersionUID = 4552277137549765374L;
 
@@ -48,6 +52,13 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
      * @serial
      */
     public final long id;
+    
+    public ServerTransaction(GetArg arg) throws IOException{
+	this(GetArg.notNull(arg.get("mgr", null, TransactionManager.class), 
+		"TransactionManager cannot be null"),
+	     arg.get("id", 0L)
+	);
+    }
 
     /**
      * Simple constructor.  Clients should not call this directly, but

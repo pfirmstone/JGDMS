@@ -30,6 +30,7 @@ import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
@@ -53,6 +54,11 @@ public class MarshalledWrapper implements Serializable {
 	    integrity = integrityEnforced(input);
 	}
 	
+    }
+    
+    @ReadInput
+    static ReadObject read(){
+	return new RO();
     }
 
     private static final long serialVersionUID = 2L;
@@ -128,7 +134,7 @@ public class MarshalledWrapper implements Serializable {
     }
     
     public MarshalledWrapper(GetArg arg) throws IOException {
-	this(check(arg.get("instance", null, MarshalledInstance.class)),
+	this(validate(arg.get("instance", null, MarshalledInstance.class)),
 		((RO) arg.getReader()).integrity);
     }
     
@@ -140,6 +146,13 @@ public class MarshalledWrapper implements Serializable {
     private static MarshalledInstance check( MarshalledInstance instance){
 	if (instance == null) {
 	    throw new NullPointerException();
+	}
+	return instance;
+    }
+    
+    private static MarshalledInstance validate(MarshalledInstance instance) throws InvalidObjectException{
+	if (instance == null) {
+	    throw new InvalidObjectException("null instance");
 	}
 	return instance;
     }

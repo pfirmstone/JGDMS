@@ -48,7 +48,6 @@ public class DiscoveryProtocolException extends IOException {
      * @param cause Throwable that caused the exception.
      */
     public DiscoveryProtocolException(String message, Throwable cause) {
-	super(message);
-	initCause(cause);
+	super(message, cause);
     }
 }

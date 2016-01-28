@@ -25,6 +25,7 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -89,25 +90,36 @@ class ThrowableSerializer implements Serializable {
 	return result;
     }
     
+    private static final Class[] stparams = new Class[]{String.class, Throwable.class};
+    private static final Class[] separams = new Class[]{String.class, Exception.class};
+    private static final Class[] tsparams = new Class[]{Throwable.class, String.class};
+    private static final Class[] sparam = new Class[]{String.class};
+    
     static Throwable init(Class<? extends Throwable> clas, String message, Throwable cause) throws IOException {
 	Throwable result;
 	try {
-	    try {
-		Constructor c = clas.getConstructor( new Class[]{String.class, Throwable.class});
-		result = (Throwable) c.newInstance(new Object[]{message, cause});
-		return result;
-	    } catch (NoSuchMethodException ex){} // Ignore
-	    try {
-		Constructor c = clas.getConstructor( new Class[]{Throwable.class, String.class});
-		result = (Throwable) c.newInstance(new Object[]{cause, message});
-		return result;
-	    } catch (NoSuchMethodException ex){} // Ignore
-	    Constructor c = clas.getConstructor( new Class[]{String.class});
-	    result = (Throwable) c.newInstance(new Object[]{message});
-	    if (cause != null) result.initCause(cause);
-	    return result;
-	} catch (NoSuchMethodException ex) {
-	    throw throIO(ex);
+	    Constructor [] cons = clas.getConstructors();
+	    for (int i = 0, l = cons.length; i < l; i++){
+		Class [] params = cons[i].getParameterTypes();
+		if (Arrays.equals(params, stparams))
+		    return (Throwable) cons[i].newInstance(new Object[]{message, cause});
+		if (Exception.class.isInstance(cause) && Arrays.equals(params, separams))
+		    return (Throwable) cons[i].newInstance(new Object[]{message,(Exception) cause});
+		if (Arrays.equals(params, tsparams))
+		    return (Throwable) cons[i].newInstance(new Object[]{cause, message});
+		if (Arrays.equals(params, sparam)){
+		    result = (Throwable) cons[i].newInstance(new Object[]{message});
+		    if (cause != null && !RemoteException.class.isAssignableFrom(clas)){
+			try {
+			    result.initCause(cause);
+			} catch (IllegalStateException e){
+			    throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
+			}
+		    }
+		    return result;
+		}
+	    }
+	    throw throIO(new InstantiationException("No suitable constructor found for class " + clas));
 	} catch (SecurityException ex) {
 	    throw throIO(ex);
 	} catch (InstantiationException ex) {

@@ -18,14 +18,6 @@
 
 package net.jini.jeri.http;
 
-import org.apache.river.jeri.internal.http.ConnectionTimer;
-import org.apache.river.jeri.internal.http.HttpClientConnection;
-import org.apache.river.jeri.internal.http.HttpClientManager;
-import org.apache.river.jeri.internal.http.HttpClientSocketFactory;
-import org.apache.river.jeri.internal.http.HttpSettings;
-import org.apache.river.jeri.internal.runtime.Util;
-import org.apache.river.logging.Levels;
-import org.apache.river.logging.LogUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
@@ -60,6 +52,16 @@ import net.jini.jeri.Endpoint;
 import net.jini.jeri.OutboundRequest;
 import net.jini.jeri.OutboundRequestIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.jeri.internal.http.ConnectionTimer;
+import org.apache.river.jeri.internal.http.HttpClientConnection;
+import org.apache.river.jeri.internal.http.HttpClientManager;
+import org.apache.river.jeri.internal.http.HttpClientSocketFactory;
+import org.apache.river.jeri.internal.http.HttpSettings;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 
 /**
  * An implementation of the {@link Endpoint} abstraction that uses HTTP
@@ -101,11 +103,12 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @see HttpServerEndpoint
  * @since 2.0
  **/
+@AtomicSerial
 public final class HttpEndpoint
     implements Endpoint, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -7094180943307123931L;
-
+    
     /** set of canonical instances */
     private static final Map internTable = new WeakHashMap();
 
@@ -781,6 +784,22 @@ public final class HttpEndpoint
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
+	check(host, port);
+    }
+    
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    public HttpEndpoint(GetArg arg) throws IOException{
+	this(arg.get("host", null, String.class),
+	     arg.get("port", 0),
+	     arg.get("sf", null, SocketFactory.class)
+	);
+    }
+    
+    private static String check(String host, int port) throws InvalidObjectException{
 	if (host == null) {
 	    throw new InvalidObjectException("null host");
 	}
@@ -788,7 +807,13 @@ public final class HttpEndpoint
 	    throw new InvalidObjectException(
 	        "port number out of range: " + port);
 	}
+	return host;
     }
+
+    private HttpEndpoint(SocketFactory sf, String host, int port) throws InvalidObjectException{
+	this(check(host,port), port, sf);
+    }
+    
 
     /**
      * Returns current HTTP system property settings.
@@ -847,13 +872,13 @@ public final class HttpEndpoint
 	    } catch (UnknownHostException uhe) {
 		try {
 		    /*
-		     * Creating the InetSocketAddress attempts to
-		     * resolve the host again; in J2SE 5.0, there is a
+		     * Calling the InetSocketAddress constructor attempts to
+		     * resolve the host again; since J2SE 5.0, there is a
 		     * factory method for creating an unresolved
 		     * InetSocketAddress directly.
 		     */
 		    return connectToSocketAddress(
-			new InetSocketAddress(host, port), distilled);
+			InetSocketAddress.createUnresolved(host, port), distilled);
 		} catch (IOException e) {
 		    if (logger.isLoggable(Levels.FAILED)) {
 			LogUtil.logThrow(logger, Levels.FAILED,

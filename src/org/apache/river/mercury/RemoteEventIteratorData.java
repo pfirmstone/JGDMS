@@ -18,16 +18,20 @@
 
 package org.apache.river.mercury;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
-
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Simple struct to hold the <code>Uuid</code> for a new
  * <code>RemoteEventIterator</code> instance and the first batch of
  * data. 
  */
+@AtomicSerial
 class RemoteEventIteratorData implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -37,15 +41,25 @@ class RemoteEventIteratorData implements Serializable {
     final Uuid uuid;
 
     /** Initial set of entries */
-    final Collection events;
+    final Collection<RemoteEventData> events;
 
     /**
      * Creates a new RemoteEventIteratorData instance.
      * @param uuid value of <code>uuid</code> field.
      * @param events value of <code>events</code> field.
      */
-    RemoteEventIteratorData(Uuid uuid, Collection events) {
+    RemoteEventIteratorData(Uuid uuid, Collection<RemoteEventData> events) {
 	this.uuid = uuid;
 	this.events = events;
+    }
+    
+    RemoteEventIteratorData(GetArg arg) throws IOException{
+	this(arg.get("uuid", null, Uuid.class),
+	     GetArg.copyCol(
+		 arg.get("events", null, Collection.class),
+		 new ArrayList<RemoteEventData>(),
+		 RemoteEventData.class
+	     )
+	);
     }
 }

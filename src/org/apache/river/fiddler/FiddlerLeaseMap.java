@@ -191,8 +191,8 @@ class FiddlerLeaseMap extends AbstractIDLeaseMap<FiddlerLease> {
                 dur
                 );
         long now = System.currentTimeMillis();
-        HashMap<Lease,Exception> emap = (results.exceptions != null) ?
-                         new HashMap<Lease,Exception>(2 * results.exceptions.length + 1) : null;
+        HashMap<Lease,Throwable> emap = (results.exceptions != null) ?
+                         new HashMap<Lease,Throwable>(2 * results.exceptions.length + 1) : null;
         i = 0;
         int j = 0;
         for (Iterator<FiddlerLease> iter = keys.iterator(); iter.hasNext(); i++) {
@@ -249,7 +249,7 @@ class FiddlerLeaseMap extends AbstractIDLeaseMap<FiddlerLease> {
             return;
         }
         i = 0;
-        Map<Lease,Exception> emap = new HashMap<Lease,Exception>(13);
+        Map<Lease,Throwable> emap = new HashMap<Lease,Throwable>(13);
         for (Iterator<FiddlerLease> iter = leases.iterator(); iter.hasNext(); i++) {
             FiddlerLease ls = iter.next();
             Exception ex = exceptions[i];

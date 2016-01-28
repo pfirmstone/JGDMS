@@ -60,7 +60,7 @@ public class InternalMailboxException extends RuntimeException {
      * @param ex the cause.
      */
     public InternalMailboxException(String str, Throwable ex) {
-	super(str);
+	super(str, ex);
 	nestedException = ex;
     }
 

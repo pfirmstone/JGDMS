@@ -102,8 +102,8 @@ class RegistrarLeaseMap extends AbstractIDLeaseMap<RegistrarLease> {
         //TODO finish below, watch out for results.
         RenewResults results = server.renewLeases(regIDs, leaseIDs, durations);
         long now = System.currentTimeMillis();
-        Map<Lease,Exception> emap = (results.exceptions != null) ?
-                       new HashMap<Lease,Exception>(2 * results.exceptions.length + 1) : null;
+        Map<Lease,Throwable> emap = (results.exceptions != null) ?
+                       new HashMap<Lease,Throwable>(2 * results.exceptions.length + 1) : null;
         i = 0;
         int j = 0;
         for (Iterator<RegistrarLease> iter = leases.iterator(); iter.hasNext(); i++) {
@@ -141,7 +141,7 @@ class RegistrarLeaseMap extends AbstractIDLeaseMap<RegistrarLease> {
                 );
         if (exceptions == null) return;
         i = 0;
-        Map<Lease,Exception> emap = new HashMap<Lease,Exception>(exceptions.length);
+        Map<Lease,Throwable> emap = new HashMap<Lease,Throwable>(exceptions.length);
         for (Iterator<RegistrarLease> iter = leases.iterator(); iter.hasNext(); i++) {
             Lease ls = (Lease)iter.next();
             Exception ex = exceptions[i];

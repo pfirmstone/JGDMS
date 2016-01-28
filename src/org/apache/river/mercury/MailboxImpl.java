@@ -2269,7 +2269,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        "getRemoteEventsDo", new Object[] {uuid});
 	}
 
-        ArrayList events = new ArrayList();
+        ArrayList<RemoteEventData> events = new ArrayList<RemoteEventData>();
 
         // Note: the following method will throw a ThrowThis exception
         // if the registration is invalid (i.e. expired or non-existent)

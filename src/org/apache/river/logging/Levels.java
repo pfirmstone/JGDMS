@@ -30,6 +30,8 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
 * Defines additional {@link Level} values.
@@ -78,6 +80,7 @@ public class Levels {
     * Defines a class that has the same data format as the Level class, to
     * permit creating the serialized form of a Level instance.
     */
+    @AtomicSerial
     private static final class LevelData implements Serializable {
         private static final long serialVersionUID = -8176160795706313070L;
         private final String name;
@@ -91,6 +94,25 @@ public class Levels {
             this.resourceBundleName = resourceBundleName;
             this.localizedLevelName = resourceBundleName == null ? name : null;
         }
+	
+	private LevelData(String name,
+			  int value,
+			  String resourceBundleName,
+			  String localizedLevelName)
+	{
+	    this.name = name;
+	    this.value = value;
+	    this.resourceBundleName = resourceBundleName;
+	    this.localizedLevelName = localizedLevelName;
+	}
+	
+	public LevelData(GetArg arg) throws IOException{
+	    this(arg.get("name", null, String.class),
+		 arg.get("value", 0),
+		 arg.get("resourceBundleName", null, String.class),
+		 arg.get("localizedLevelName", null, String.class)
+	    );
+	}
     }
 
     /**

@@ -17,10 +17,13 @@
  */
 package net.jini.core.transaction;
 
-import net.jini.core.transaction.server.NestableTransactionManager;
+import java.io.IOException;
+import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
-import java.rmi.RemoteException;
+import net.jini.core.transaction.server.NestableTransactionManager;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Interface for classes representing nestable transactions returned by
@@ -38,6 +41,7 @@ import java.rmi.RemoteException;
 public interface NestableTransaction extends Transaction {
 
     /** Class that holds return values from create methods. */
+    @AtomicSerial
     public static class Created implements java.io.Serializable {
 	static final long serialVersionUID = -2979247545926318953L;
 
@@ -62,6 +66,12 @@ public interface NestableTransaction extends Transaction {
 	    this.transaction = transaction;
 	    this.lease = lease;
         }
+	
+	public Created(GetArg arg) throws IOException{
+	    this(arg.get("transaction", null, NestableTransaction.class),
+		 arg.get("lease", null, Lease.class)
+	    );
+	}
         
         // inherit javadoc
         public String toString() {

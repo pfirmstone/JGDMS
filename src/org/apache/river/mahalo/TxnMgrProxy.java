@@ -98,7 +98,7 @@ class TxnMgrProxy implements TransactionManager, Administrable, Serializable,
     }
     
     TxnMgrProxy (GetArg arg) throws IOException {
-	this(check(arg), (Uuid) arg.get("proxyID", null));
+	this(check(arg), arg.get("proxyID", null, Uuid.class));
     }
     
     private static TxnManager check(TxnManager txnMgr, Uuid id){

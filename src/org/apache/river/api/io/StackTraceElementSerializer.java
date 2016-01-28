@@ -79,8 +79,7 @@ class StackTraceElementSerializer implements Serializable {
 		"declaring class cannot be null"),
 	    GetArg.notNull(arg.get("methodName", null, String.class),
 		    "method name cannot be null"),
-	    GetArg.notNull(arg.get("fileName", null, String.class), 
-		    "file name cannot be null"),
+	    arg.get("fileName", null, String.class),
 	    arg.get("lineNumber", 0)
 	);
     }

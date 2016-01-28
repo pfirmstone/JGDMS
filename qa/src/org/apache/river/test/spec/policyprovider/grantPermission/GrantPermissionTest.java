@@ -553,10 +553,13 @@ public class GrantPermissionTest extends AbstractTestBase {
 	if (! gp01.implies(gp03)) {
             throw new TestException("gp01 doesn't imply gp03");
         }
-
-	if (gp03.implies(gp01)) {
-            throw new TestException("gp03 incorrectly implies gp01");
-        }
+//  This test relies on GrantPermission not being able to resolve the permission,
+//  by making an assumption about the policy provider being loaded into
+//  the extension ClassLoader.  In Java 9 the extension ClassLoader won't
+//  be available to policy providers.
+//	if (gp03.implies(gp01)) {
+//            throw new TestException("gp03 incorrectly implies gp01");
+//        }
 //            checkEquals(ga, true);
 //            checkImplies(ga, true);
 

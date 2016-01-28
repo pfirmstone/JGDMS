@@ -17,9 +17,12 @@
  */
 package net.jini.core.transaction.server;
 
-import net.jini.core.transaction.*;
-import net.jini.core.lease.LeaseDeniedException;
+import java.io.IOException;
 import java.rmi.RemoteException;
+import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.transaction.*;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Class implementing the <code>NestableTransaction</code> interface, for use
@@ -34,6 +37,7 @@ import java.rmi.RemoteException;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class NestableServerTransaction extends ServerTransaction
 				       implements NestableTransaction
 {
@@ -44,6 +48,16 @@ public class NestableServerTransaction extends ServerTransaction
      * @serial
      */
     public final NestableServerTransaction parent;
+    
+    public NestableServerTransaction(GetArg arg) throws IOException{
+	super(check(arg));
+	this.parent = arg.get("parent", null, NestableServerTransaction.class);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	arg.get("parent", null, NestableServerTransaction.class);
+	return arg;
+    }
 
     /**
      * Simple constructor.  Clients should not call this directly, but

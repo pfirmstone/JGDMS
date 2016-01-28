@@ -25,6 +25,8 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * An immutable aggregation of constraints into a set of requirements and a
@@ -43,6 +45,7 @@ import java.util.Set;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class InvocationConstraints implements Serializable {
     private static final long serialVersionUID = -3363161199079334224L;
 
@@ -88,6 +91,55 @@ public final class InvocationConstraints implements Serializable {
      * based on relative time.
      */
     private transient int rel = 0;
+    
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    public InvocationConstraints(GetArg arg) throws IOException{
+	this(arg.get("reqs", null, InvocationConstraint[].class),
+	     arg.get("prefs", null, InvocationConstraint[].class),
+	     true
+	);
+    }
+    
+    /**
+     * AtomicSerial private constructor.
+     * @param reqs
+     * @param prefs
+     * @param serial
+     * @throws InvalidObjectException 
+     */
+    private InvocationConstraints(InvocationConstraint[] reqs, 
+				  InvocationConstraint[] prefs,
+				  boolean serial) throws InvalidObjectException
+    {
+	verify(reqs);
+	verify(prefs);
+	for (int i = prefs.length; --i >= 0; ) {
+	    if (Constraint.contains(reqs, reqs.length, prefs[i])) {
+		throw new InvalidObjectException(
+			  "cannot create constraint with redundant elements");
+	    }
+	}
+    }
+    
+    /**
+     * AtomicSerial private constructor.
+     * @param serial
+     * @param reqs
+     * @param prefs 
+     */
+    private InvocationConstraints(boolean serial,
+				  InvocationConstraint[] reqs, 
+				  InvocationConstraint[] prefs)
+    {
+	this.reqs = reqs;
+	this.prefs = prefs;
+	setRelative(reqs, REL_REQS);
+	setRelative(prefs, REL_REQS);
+    }
 
     /**
      * Creates an instance that has the first constraint, <code>req</code>,

@@ -17,14 +17,19 @@
  */
 package net.jini.entry;
 
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
+import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Thrown from methods that normally return a collection of {@link
@@ -36,21 +41,22 @@ import net.jini.core.entry.UnusableEntryException;
  * @since 2.1
  * @see UnusableEntryException 
  */
-public class UnusableEntriesException extends Exception {
+@AtomicSerial
+public class UnusableEntriesException extends AtomicException {
     private static final long serialVersionUID = 1L;
 
     /** 
      * The entries that could be unmarshalled 
      * @serial
      */
-    private final Collection entries;
+    private final Collection<Entry> entries;
 
     /**
      * Exceptions detailing why certain entries could not
      * be unmarshalled.
      * @serial
      */
-    private final Collection exceptions;
+    private final Collection<UnusableEntryException> exceptions;
 
     /**
      * Constructs an <code>UnusableEntriesException</code> with
@@ -84,14 +90,20 @@ public class UnusableEntriesException extends Exception {
      *                <code>null</code> 
      */
     public UnusableEntriesException(String     s, 
-				    Collection entries, 
-				    Collection exceptions)
+				    Collection<Entry> entries, 
+				    Collection<UnusableEntryException> exceptions)
     { 
-	super(s);
-
-	if (entries == null) {
-	    this.entries = Collections.EMPTY_SET;
-	} else {
+	this(s, 
+	    entries, 
+	    new ArrayDeque<UnusableEntryException>(exceptions),// Doesn't allow null elements.
+	    check(entries, exceptions)
+	);
+    }
+    
+    private static boolean check(Collection<Entry> entries, 
+				 Collection<UnusableEntryException> exceptions)
+    {
+	if(entries != null) {
 	    for (Iterator i=entries.iterator(); i.hasNext();) {
 		final Object e = i.next();
 		if (e == null)
@@ -103,20 +115,62 @@ public class UnusableEntriesException extends Exception {
                         "entries contains a value which is not an entry");
 		}
 	    }
-
-	    this.entries = entries;
 	}
+	if (exceptions == null)
+	    throw new IllegalArgumentException("exceptions field is null");
+
+	if (exceptions.isEmpty())
+	    throw new IllegalArgumentException(
+		"exceptions field contains an empty collection");
         Iterator i = exceptions.iterator();
-        if (i == null)
-		throw new 
-		    NullPointerException("exceptions contains a null value");
 	while (i.hasNext()) {
 	    if (!(i.next() instanceof UnusableEntryException)) {
 		throw new IllegalArgumentException("exceptions contains " +
 		    "a value which is not an UnusableEntryException");
 	    }
 	}
+	return true;
+    }
+    
+    private UnusableEntriesException(String     s, 
+				    Collection<Entry> entries, 
+				    Collection<UnusableEntryException> exceptions,
+				    boolean check)
+    { 
+	super(s);
+	this.entries = entries == null || entries.isEmpty()?  
+		Collections.emptySet(): 
+		Collections.unmodifiableCollection(
+			new ArrayList<Entry>(entries)
+		);
+	this.exceptions = 
+		Collections.unmodifiableCollection(exceptions);
+    }
+    
+    private UnusableEntriesException(GetArg arg,
+				     Collection<Entry> entries,
+				     Collection<UnusableEntryException> exceptions) 
+	    throws IOException
+    {
+	super(arg);
+	this.entries = entries.isEmpty() ? Collections.emptySet(): entries;
 	this.exceptions = exceptions;
+    } 
+    
+    public UnusableEntriesException(GetArg arg) throws IOException{
+	this(arg, 
+	     arg.get("entries", null, Collection.class),
+	     Collections.unmodifiableCollection(
+		 GetArg.copyCol(
+		     GetArg.notNull(
+			 arg.get("exceptions", null, Collection.class),
+			 "exceptions field is null"
+		     ), 
+		     new ArrayDeque<UnusableEntryException>(), // Doesn't allow null elements.
+		     UnusableEntryException.class
+		 )
+	     )
+	);
     }
 
     /**
@@ -191,7 +245,7 @@ public class UnusableEntriesException extends Exception {
      * @return a {@link Collection} of {@link Entry}
      *         instances that could be unmarshalled 
      */
-    public Collection getEntries() {
+    public Collection<Entry> getEntries() {
 	return entries;
     }
 
@@ -204,7 +258,7 @@ public class UnusableEntriesException extends Exception {
      *         instances with one element for each {@link Entry} that
      *         that could not be unmarshalled 
      */
-    public Collection getUnusableEntryExceptions() {
+    public Collection<UnusableEntryException> getUnusableEntryExceptions() {
 	return exceptions;
     }
 }

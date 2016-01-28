@@ -18,9 +18,12 @@
 
 package net.jini.jeri.ssl;
 
+import java.io.IOException;
+import java.io.Serializable;
 import net.jini.core.constraint.Confidentiality;
 import net.jini.core.constraint.InvocationConstraint;
-import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint that, if confidentiality of message contents is
@@ -46,6 +49,7 @@ import java.io.Serializable;
  * @see SslTrustVerifier
  * @since 2.0
  */
+@AtomicSerial
 public final class ConfidentialityStrength
     implements InvocationConstraint, Serializable
 {
@@ -97,6 +101,10 @@ public final class ConfidentialityStrength
     private final boolean value;
 
     /* -- Methods -- */
+    
+    public ConfidentialityStrength(GetArg arg) throws IOException{
+	this(arg.get("value", true));
+    }
 
     /**
      * Simple constructor.

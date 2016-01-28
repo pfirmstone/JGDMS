@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix;
 
-import org.apache.river.proxy.ConstrainableProxyUtil;
+import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -31,6 +31,9 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 
 /**
  * A subclass of <code>AID</code> that implements the {@link
@@ -68,6 +71,7 @@ final class ConstrainableAID extends AID
     /** the client constraints */
     private final MethodConstraints constraints;
 
+    @AtomicSerial
     static final class State implements Serializable {
 	private static final long serialVersionUID = 1673734348880788487L;
 	private final Activator activator;
@@ -79,10 +83,23 @@ final class ConstrainableAID extends AID
 	    this.uid = uid;
 	    this.constraints = constraints;
 	}
+	
+	public State(GetArg arg) throws IOException{
+	    this(validate(arg),
+		 arg.get("uid", null, UID.class),
+		 arg.get("constraints", null, MethodConstraints.class));
+	}
+	
+	private static Activator validate(GetArg arg) throws IOException{
+	    Activator activator = arg.get("activator", null, Activator.class);
+	    ConstrainableProxyUtil.verifyConsistentConstraints(
+		    arg.get("constraints", null, MethodConstraints.class),
+		    activator, 
+		    methodMapping);
+	    return activator;
+	}
 
 	private Object readResolve() throws InvalidObjectException {
-	    ConstrainableProxyUtil.verifyConsistentConstraints(
-		constraints, activator, methodMapping);
 	    return new ConstrainableAID(activator, uid, constraints);
 	}
     }
@@ -93,6 +110,7 @@ final class ConstrainableAID extends AID
      *
      * @since 2.0
      **/
+    @AtomicSerial
     static final class Verifier implements TrustVerifier, Serializable {
 	private static final long serialVersionUID = 570158651966790233L;
 
@@ -120,6 +138,22 @@ final class ConstrainableAID extends AID
 				"activator must implement TrustEquivalence");
 	    }
 	    this.activator = (RemoteMethodControl) activator;
+	}
+	
+	private Verifier(RemoteMethodControl activator){
+	    this.activator = activator;
+	}
+	
+	public Verifier(GetArg arg) throws IOException{
+	    this(validate(arg.get("activator", null, RemoteMethodControl.class)));
+	}
+	
+	private static RemoteMethodControl validate(RemoteMethodControl activator) throws InvalidObjectException{
+	    if (!(activator instanceof TrustEquivalence)) {
+		throw new InvalidObjectException(
+				"activator must implement TrustEquivalence");
+	    }
+	    return activator;
 	}
 
 	/**
@@ -176,7 +210,12 @@ final class ConstrainableAID extends AID
 			     UID uid,
 			     MethodConstraints constraints)
     {
-	super(activator, uid);
+	super(check(activator), uid);
+	this.constraints = constraints;
+    }
+    
+    private static Activator check(Activator activator)
+    {
 	if (!(activator instanceof RemoteMethodControl)) {
 	    throw new IllegalArgumentException(
 		"activator not RemoteMethodControl instance");
@@ -184,7 +223,7 @@ final class ConstrainableAID extends AID
 	    throw new IllegalArgumentException(
 		"activator not TrustEquivalence instance");
 	}
-	this.constraints = constraints;
+	return activator;
     }
 
     /** Returns an iterator that yields the activator. */

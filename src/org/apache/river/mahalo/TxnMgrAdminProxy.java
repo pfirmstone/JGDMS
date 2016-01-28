@@ -90,11 +90,11 @@ class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
     }
 
     TxnMgrAdminProxy(GetArg arg) throws IOException{
-	this(check(arg),(Uuid) arg.get("proxyID", null) );
+	this(check(arg), arg.get("proxyID", null, Uuid.class));
     }
     
     private static TxnManager check(GetArg arg) throws IOException{
-	TxnManager server = (TxnManager) arg.get("server", null);
+	TxnManager server = arg.get("server", null, TxnManager.class);
 	Uuid proxyID = (Uuid) arg.get("proxyID", null);
     
 	/* Verify server */

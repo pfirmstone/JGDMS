@@ -18,7 +18,10 @@
 
 package net.jini.lookup;
 
+import java.io.IOException;
 import net.jini.core.lookup.ServiceItem;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * The <code>ServiceDiscoveryEvent</code> class encapsulates the
@@ -34,6 +37,7 @@ import net.jini.core.lookup.ServiceItem;
  *
  * @see ServiceDiscoveryManager
  */
+@AtomicSerial
 public class ServiceDiscoveryEvent extends java.util.EventObject {
     private static final long serialVersionUID = -4654412297235019084L;
 
@@ -128,15 +132,24 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
     {
         super(source);
 	if(preEventItem != null)
-	    this.preEventItem = new ServiceItem(preEventItem.serviceID,
-					    preEventItem.service,
-					    preEventItem.attributeSets);
+	    this.preEventItem = preEventItem.clone();
         else this.preEventItem = null;
 	if(postEventItem != null)
-	    this.postEventItem = new ServiceItem(postEventItem.serviceID,
-					     postEventItem.service,
-					     postEventItem.attributeSets);
+	    this.postEventItem = postEventItem.clone();
         else this.postEventItem = null;
+    }
+    
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    public ServiceDiscoveryEvent(GetArg arg) throws IOException{
+	// source cannot be null in the constructor, but it is after 
+	// deserialization because it is transient.
+	this(Boolean.TRUE, arg.get("preEventItem", null, ServiceItem.class),
+		arg.get("postEventItem", null, ServiceItem.class), false);
+	source = null;
     }
 
     /**
@@ -167,7 +180,7 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      */
     public ServiceItem getPreEventServiceItem() 
     {
-	return preEventItem;
+	return preEventItem.clone();
     }
 
     /**
@@ -197,7 +210,7 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      */
     public ServiceItem getPostEventServiceItem() 
     {
-	return postEventItem;
+	return postEventItem.clone();
     }
 	
 }

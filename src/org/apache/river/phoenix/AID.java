@@ -35,7 +35,6 @@ import org.apache.river.proxy.MarshalledWrapper;
  * 
  * @since 2.0
  */
-@AtomicSerial
 class AID extends ActivationID {
     private static final long serialVersionUID = 681896091039721074L;
 
@@ -69,12 +68,6 @@ class AID extends ActivationID {
 	this.activator = activator;
 	this.uid = uid;
     }
-    
-    public AID(GetArg arg) throws IOException{
-	this(arg.get("activator", null, Activator.class),
-	     arg.get("uid", null, UID.class));
-    }
-
 
     /**
      * Activate the object corresponding to this instance.

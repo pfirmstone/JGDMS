@@ -18,9 +18,12 @@
 
 package net.jini.lease;
 
+import java.io.IOException;
 import java.util.EventObject;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Event generated when a <code>LeaseRenewalManager</code> cannot renew
@@ -75,6 +78,7 @@ import net.jini.core.lease.LeaseException;
  * @see LeaseListener
  * @see EventObject
  */
+@AtomicSerial
 public class LeaseRenewalEvent extends EventObject {
     private static final long serialVersionUID = -626399341646348302L;
 
@@ -83,21 +87,21 @@ public class LeaseRenewalEvent extends EventObject {
      *
      * @serial
      */
-    private Lease lease;
+    private final Lease lease;
 
     /**
      * The desired expiration of the failed lease.
      *
      * @serial
      */
-    private long expiration;
+    private final long expiration;
 
     /**
      * The exception that caused the failure, if any.
      *
      * @serial
      */
-    private Throwable ex;
+    private final Throwable ex;
 
     /** 
      * Constructs an instance of this class with the specified state.
@@ -121,6 +125,14 @@ public class LeaseRenewalEvent extends EventObject {
 	this.lease = lease;
 	this.expiration = expiration;
 	this.ex = ex;
+    }
+    
+    public LeaseRenewalEvent(GetArg arg) throws IOException{
+	this(null, 
+	     arg.get("lease", null, Lease.class), 
+	     arg.get("expiration", 0L),
+	     arg.get("ex", null, Throwable.class)
+	);
     }
 
     /** 

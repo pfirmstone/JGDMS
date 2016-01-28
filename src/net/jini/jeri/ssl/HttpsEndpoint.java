@@ -18,13 +18,6 @@
 
 package net.jini.jeri.ssl;
 
-import org.apache.river.jeri.internal.http.HttpClientConnection;
-import org.apache.river.jeri.internal.http.HttpClientManager;
-import org.apache.river.jeri.internal.http.HttpClientSocketFactory;
-import org.apache.river.jeri.internal.http.HttpSettings;
-import org.apache.river.logging.Levels;
-import org.apache.river.thread.Executor;
-import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
@@ -91,6 +84,15 @@ import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.security.AuthenticationPermission;
 import net.jini.security.Security;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.jeri.internal.http.HttpClientConnection;
+import org.apache.river.jeri.internal.http.HttpClientManager;
+import org.apache.river.jeri.internal.http.HttpClientSocketFactory;
+import org.apache.river.jeri.internal.http.HttpSettings;
+import org.apache.river.logging.Levels;
+import org.apache.river.thread.Executor;
+import org.apache.river.thread.GetThreadPoolAction;
 
 /**
  * An implementation of {@link Endpoint} that uses HTTPS (HTTP over TLS/SSL) to
@@ -337,6 +339,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *      the first request).
  * </ul>
  */
+@AtomicSerial
 public final class HttpsEndpoint
     implements Endpoint, Serializable, TrustEquivalence
 {
@@ -400,7 +403,12 @@ public final class HttpsEndpoint
      *	       <code>null</code>
      */
     public static HttpsEndpoint getInstance(String serverHost, int port) {
-	return new HttpsEndpoint(serverHost, port, null);
+	try {
+	    return new HttpsEndpoint(false, serverHost, port, null);
+	} catch (InvalidObjectException e){
+	    throw new Error("Unreachable");
+	}
+	
     }
 
     /**
@@ -420,9 +428,27 @@ public final class HttpsEndpoint
     public static HttpsEndpoint getInstance(
 	String serverHost, int port, SocketFactory socketFactory)
     {
-	return new HttpsEndpoint(serverHost, port, socketFactory);
+	try {
+	    return new HttpsEndpoint(false, serverHost, port, socketFactory);
+	} catch (InvalidObjectException e){
+	    throw new Error("Unreachable");
+	}
     }
 
+    /** Creates an instance of this class. */
+    private HttpsEndpoint(boolean atomicSerial,
+			  String serverHost,
+			  int port,
+			  SocketFactory socketFactory) throws InvalidObjectException
+    {
+	this(atomicSerial ? 
+		validate(serverHost, port):
+		check(serverHost, port),
+	     port, 
+	     socketFactory
+	);
+    }
+    
     /** Creates an instance of this class. */
     private HttpsEndpoint(
 	String serverHost, int port, SocketFactory socketFactory)
@@ -649,12 +675,33 @@ public final class HttpsEndpoint
 	int port = fields.get("port", 0);
 	SocketFactory socketFactory =
 	    (SocketFactory) fields.get("socketFactory", null);
+	validate(serverHost, port);
+	impl = new HttpsEndpointImpl(this, serverHost, port, socketFactory);
+    }
+    
+    public HttpsEndpoint(GetArg arg) throws IOException{
+	this(true,
+	     arg.get("serverHost", null, String.class),
+	     arg.get("port", 0),
+	     arg.get("socketFactory", null, SocketFactory.class));
+    }
+    
+    private static String validate(String serverHost, int port) throws InvalidObjectException{
 	if (serverHost == null) {
 	    throw new InvalidObjectException("serverHost cannot be null");
 	} else if  (port <= 0 || port > 0xFFFF) {
 	    throw new InvalidObjectException("Invalid port: " + port);
 	}
-	impl = new HttpsEndpointImpl(this, serverHost, port, socketFactory);
+	return serverHost;
+    }
+    
+    private static String check(String serverHost, int port){
+	if (serverHost == null) {
+	    throw new NullPointerException("serverHost cannot be null");
+	} else if  (port <= 0 || port > 0xFFFF) {
+	    throw new IllegalArgumentException("Invalid port: " + port);
+	}
+	return serverHost;
     }
 
     /** Returns current HTTP system property settings. */

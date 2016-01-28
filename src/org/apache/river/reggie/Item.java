@@ -133,15 +133,16 @@ final class Item implements Serializable, Cloneable {
      * @throws NullPointerException
      */
     private static boolean check(GetArg arg) throws IOException{
-	ServiceID serviceID = (ServiceID) arg.get("serviceID", null); // Throws ClassCastException
+	ServiceID serviceID = arg.get("serviceID", null, ServiceID.class);
 	// serviceID is assigned by Reggie if null.
-	ServiceType serviceType = (ServiceType) arg.get("serviceType", null); // Throws ClassCastException
+	ServiceType serviceType = arg.get("serviceType", null, ServiceType.class);
 	// serviceType allowed to be null
-	String codebase = (String) arg.get("codebase", null); // Throws ClassCastException
+	String codebase = arg.get("codebase", null, String.class);
 	// codebase allowed to be null
-	MarshalledWrapper service = (MarshalledWrapper) arg.get("service", null); // Throws ClassCastException
-	if (service == null) throw new NullPointerException();
-	EntryRep[] attributeSets = (EntryRep[]) arg.get("attributeSets", null); // Throws ClassCastException
+	MarshalledWrapper service = GetArg.notNull(
+		arg.get("service", null, MarshalledWrapper.class), 
+		"service cannot be null");
+	EntryRep[] attributeSets = arg.get("attributeSets", null, EntryRep[].class);
 	// attributeSets can be null and can contain null
 	return true;
     }
@@ -158,13 +159,11 @@ final class Item implements Serializable, Cloneable {
     
     private Item(GetArg arg, boolean check) throws IOException{
 	super(); // instance has been created here.
-	serviceID = (ServiceID) arg.get("serviceID", null);
-	serviceType = (ServiceType) arg.get("serviceType", null);
-	codebase = (String) arg.get("codebase", null);
-	service = (MarshalledWrapper) arg.get("service", null);
-	EntryRep [] attributeSets = ((EntryRep[]) arg.get("attributeSets", null));
-	if (attributeSets != null) attributeSets = attributeSets.clone();
-	this.attributeSets = attributeSets;
+	serviceID = arg.get("serviceID", null, ServiceID.class);
+	serviceType = arg.get("serviceType", null, ServiceType.class);
+	codebase = arg.get("codebase", null, String.class);
+	service = arg.get("service", null, MarshalledWrapper.class);
+	attributeSets = GetArg.copy(arg.get("attributeSets", null, EntryRep[].class));
 //	attribSets = Arrays.asList(attributeSets);
     }
 

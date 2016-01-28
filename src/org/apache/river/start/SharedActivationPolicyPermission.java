@@ -82,11 +82,10 @@ public final class SharedActivationPolicyPermission extends Permission
      * Constructor that creates a 
      * <code>SharedActivationPolicyPermission</code> with the specified name.
      * Delegates <code>policy</code> to supertype.
+     * @param policy
      */
     public SharedActivationPolicyPermission(String policy) {
-	//TBD - check for null args
-	super(policy);
-	policyPermission = init(policy);
+	this(policy, init(policy));
     }
 
     /**
@@ -97,9 +96,12 @@ public final class SharedActivationPolicyPermission extends Permission
      * argument is currently ignored.
      */
     public SharedActivationPolicyPermission(String policy, String action) {
-	//TBD - check for null args
+	this(policy, init(policy));
+    }
+    
+    private SharedActivationPolicyPermission(String policy, Permission policyPermission){
 	super(policy);
-	policyPermission = init(policy);
+	this.policyPermission = policyPermission;
     }
 
 //    /**
@@ -135,7 +137,7 @@ public final class SharedActivationPolicyPermission extends Permission
     /**
      * Contains common code to all constructors.
      */
-    private Permission init(final String policy) {
+    private static Permission init(final String policy) {
 	/*
 	 * In order to leverage the <code>FilePermission</code> logic
 	 * we need to make sure that forward slashes ("/"), in 
