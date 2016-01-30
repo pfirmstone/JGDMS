@@ -15,11 +15,7 @@ grant {
 };
 
 grant {
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.share.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.impl.norm.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.lease.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.landlord.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.norm.*";
+    permission net.jini.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test
     permission org.apache.river.phoenix.ExecPermission "/bin/javax";

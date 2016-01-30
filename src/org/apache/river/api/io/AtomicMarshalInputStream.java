@@ -57,11 +57,14 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.net.URL;
-import java.rmi.MarshalledObject;
 import java.rmi.activation.ActivationGroupID;
+import java.security.AccessControlContext;
+import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
+import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -137,6 +140,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     
     static final int FIELD_IS_NOT_RESOLVED = -1;
     static final int FIELD_IS_ABSENT = -2;
+    
+    private static final Permission EXTERNALIZABLE = new DeSerializationPermission("EXTERNALIZABLE");
+    private static final Permission ATOMIC = new DeSerializationPermission("ATOMIC");
+    private static final Permission MARSHALLED = new DeSerializationPermission("MARSHALLED");
+    private static final Permission PROXY = new DeSerializationPermission("PROXY");
 
     // If the receiver has already read & not consumed a TC code
     private boolean hasPushbackTC;
@@ -453,6 +461,29 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
             }
             // Only TC_RESET falls through
         } while (true);
+    }
+    
+    private void readyPrimitiveData() throws IOException{
+	byte tc = nextTC();
+	switch (tc) {
+	    case TC_BLOCKDATA:
+//				System.out.println("TC_BLOCKDATA");
+		primitiveData = new ByteArrayInputStream(readBlockData());
+		break;
+	    case TC_BLOCKDATALONG:
+//				System.out.println("TC_BLOCKDATALONG");
+		primitiveData = new ByteArrayInputStream(
+			readBlockDataLong());
+		break;
+	    case TC_RESET:
+//				System.out.println("TC_RESET");
+		resetState();
+		break;
+	    default:
+		if (tc >= 0 && (tc < TC_BASE || tc > TC_MAX)) {
+		    throw new StreamCorruptedException("invalid type code: " + tc);
+		}
+	}
     }
 
     /**
@@ -2187,7 +2218,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     private Object readNewObject(boolean unshared, boolean discard)
             throws OptionalDataException, ClassNotFoundException, IOException {
         ObjectStreamClassContainer classDesc = readClassDesc();
-
+	
         if (classDesc == null) {
             throw new InvalidClassException(Messages.getString("luni.C1")); //$NON-NLS-1$
         }
@@ -2198,7 +2229,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         // conflicts with the newer class
 	boolean wasExternalizable = classDesc.wasExternalizable();
 	boolean wasSerializable = classDesc.wasSerializable();
-	boolean atomicSerialOrDiscard = true;
+	boolean atomicOrDiscard = true;
 	
         // Maybe we should cache the values above in classDesc ? It may be the
         // case that when reading classDesc we may need to read more stuff
@@ -2207,15 +2238,21 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         Object result = null, registeredResult = null;
         if (objectClass != null) {
 	    if (objectClass.isAnnotationPresent(AtomicSerial.class)){
-		
+		classDesc.deSerializationPermitted(ATOMIC);
 		registerObjectRead(null, newHandle, unshared);
-		result = instantiateAtomically(classDesc, false);
+		result = instantiateAtomicSerialOrDiscard(classDesc, false);
+		registerObjectRead(result, newHandle, unshared);
+		registeredResult = result;
+	    } else if (objectClass.isAnnotationPresent(AtomicExternal.class)){
+		classDesc.deSerializationPermitted(ATOMIC);
+		registerObjectRead(null, newHandle, unshared);
+		result = instantiateAtomicExternal(classDesc);
 		registerObjectRead(result, newHandle, unshared);
 		registeredResult = result;
 	    } else if (Externalizable.class.isAssignableFrom(objectClass)){
 		try {
-		    atomicSerialOrDiscard = false;
-		    classDesc.deSerializationPermitted(); // Permission check
+		    atomicOrDiscard = false;
+		    classDesc.deSerializationPermitted(EXTERNALIZABLE); // Permission check
 		    result = objectClass.newInstance();
 		    registerObjectRead(null, newHandle, unshared);
 		    registeredResult = result;
@@ -2226,7 +2263,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		}
 	    } else if (discard){
 		registerObjectRead(Reference.DISCARDED, newHandle, unshared);
-		instantiateAtomically(classDesc, discard);
+		instantiateAtomicSerialOrDiscard(classDesc, discard);
 		return null;
 	    } else if (Serializable.class.isAssignableFrom(objectClass)) {
 		// Serializable not fully supported, this retreived the 
@@ -2236,15 +2273,20 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 //                constructor = accessor.getMethodID(resolveConstructorClass(objectClass, wasSerializable, wasExternalizable), null, new Class[0]);
 //                classDesc.setConstructor(constructor);
 //            }
+		if (classDesc.isProxy()){
+		    classDesc.deSerializationPermitted(PROXY);
+		} else {
+		    classDesc.deSerializationPermitted(null);
+		}
 		try {
 		    result = classDesc.newInstance(); // Best effort construction using child class constructor
-		    if (result instanceof Throwable) // Clear stack trace.
-			((Throwable) result).setStackTrace(new StackTraceElement[0]);
-		    atomicSerialOrDiscard = false;
+//		    if (result instanceof Throwable) // Clear stack trace.
+//			((Throwable) result).setStackTrace(new StackTraceElement[0]);
+		    atomicOrDiscard = false;
 		} catch (Exception ex){
 		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
 		    registerObjectRead(Reference.DISCARDED, newHandle, unshared);
-		    instantiateAtomically(classDesc, true);
+		    instantiateAtomicSerialOrDiscard(classDesc, true);
 		    return null;
 		}
 		// Circular links may occur here
@@ -2257,7 +2299,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         } else {
             result = null;
         }
-	if (!atomicSerialOrDiscard) {
+	if (!atomicOrDiscard) {
 	    try {
 		// This is how we know what to do in defaultReadObject. And it is
 		// also used by defaultReadObject to check if it was called from an
@@ -2270,29 +2312,10 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		if (wasExternalizable) {
 //		    System.out.println("Externalizable");
 		    boolean blockData = classDesc.hasBlockData();
-		    if (!blockData) {
-			primitiveData = input;
+		    if (blockData) {
+			readyPrimitiveData();
 		    } else {
-			byte tc = nextTC();
-			switch (tc) {
-			    case TC_BLOCKDATA:
-//				System.out.println("TC_BLOCKDATA");
-				primitiveData = new ByteArrayInputStream(readBlockData());
-				break;
-			    case TC_BLOCKDATALONG:
-//				System.out.println("TC_BLOCKDATALONG");
-				primitiveData = new ByteArrayInputStream(
-					readBlockDataLong());
-				break;
-			    case TC_RESET:
-//				System.out.println("TC_RESET");
-				resetState();
-				break;
-			    default:
-				if (tc >= 0 && (tc < TC_BASE || tc > TC_MAX)) {
-				    throw new StreamCorruptedException("invalid type code: " + tc);
-				}
-			}
+			primitiveData = input;
 		    }
 		    if (mustResolve) {
 			Externalizable extern = (Externalizable) result;
@@ -2339,7 +2362,31 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         return result;
     }
     
-    private Object instantiateAtomically(final ObjectStreamClassContainer classDesc, boolean discard) 
+    
+    
+    private Object instantiateAtomicExternal(ObjectStreamClassContainer classDesc) throws IOException, ClassNotFoundException{
+	Externalizable extern = null;
+	boolean blockData = classDesc.hasBlockData();
+	if (blockData) {
+	    readyPrimitiveData();
+	} else {
+	    primitiveData = input;
+	}
+	if (mustResolve) {
+	    extern = (Externalizable) 
+		AtomicExternal.Factory.instantiate(classDesc.forClass(), this);
+	}
+	if (blockData) {
+	    // Similar to readHierarchy. Anything not read by
+	    // readExternal has to be consumed here
+	    discardData();
+	} else {
+	    primitiveData = emptyStream;
+	}
+	return extern;
+    }
+    
+    private Object instantiateAtomicSerialOrDiscard(final ObjectStreamClassContainer classDesc, boolean discard) 
 	    throws IOException, ClassNotFoundException, InvalidClassException, InvalidObjectException 
     {
 //	System.out.println("Instantiate Atomicly");
@@ -2966,8 +3013,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     }
     
     static class ObjectStreamClassContainer{
-	private static final ProtectionDomain unprivilegedContext = 
-	    new ProtectionDomain(new CodeSource(null,(Certificate[]) null), null);
 	static final ConcurrentMap<Class<?>,ObjectStreamClassContainer> lookup = new ConcurrentHashMap<Class<?>,ObjectStreamClassContainer>();
 	final ObjectStreamField [] empty;
  	ObjectStreamClass localClass;
@@ -2982,12 +3027,18 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	Method readObjectNoDataMethod;
 	Constructor constructor;
 	Object [] constructorParams;
+	AccessControlContext context;
 	
 	ObjectStreamClassContainer(){
 	    empty = new ObjectStreamField[0];
 	}
 	
-	ObjectStreamClassContainer(final ObjectStreamClass localClass, ObjectStreamClass deserializedClass, ObjectStreamClassInformation osci, int handle, boolean isProxy){
+	ObjectStreamClassContainer( final ObjectStreamClass localClass,
+				    ObjectStreamClass deserializedClass,
+				    ObjectStreamClassInformation osci,
+				    int handle,
+				    boolean isProxy)
+	{
 	    this();
 	    this.localClass = localClass;
 	    this.deserializedClass = deserializedClass;
@@ -2996,7 +3047,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    this.isProxy = isProxy;
 	}
 	
-	protected boolean deSerializationPermitted() {
+	protected void deSerializationPermitted(Permission perm) {
 	    if (readObjectNoDataMethod == null){ //Ok if there's no data.
 		// Check all classes in heirarchy for absence of data (stateless object)
 		// Not worried about primitive fields, might as well be stateless.
@@ -3006,29 +3057,56 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 			&& osc.hasBlockExternalData == false 
 			&& osc.numObjFields == 0){
 		    if (superClass != null) {
+			if (superClass.readObjectNoDataMethod != null) break;
 			osc = superClass.osci;
 			superClass = superClass.superClass;
 		    } else {
-			return true; // If there's no data and no object fields don't worry about checking.
+			return; // If there's no data and no object fields don't worry about checking.
 		    }
 		}
+	    } 
+	    if (perm == null) throw new AccessControlException("DeSerialization is not permitted");
+	    if (context != null) {
+		context.checkPermission(perm);
+	    } else {
+		context = AccessController.doPrivileged(
+		    new PrivilegedAction<AccessControlContext>(){
+
+			@Override
+			public AccessControlContext run() {
+			    List<ProtectionDomain> domains 
+				    = new ArrayList<ProtectionDomain>();
+			    Class clazz = forClass();
+			    while (clazz != null){
+				domains.add(clazz.getProtectionDomain());
+				clazz = clazz.getSuperclass();
+			    }
+			    return new AccessControlContext(
+				domains.toArray(
+				    new ProtectionDomain[domains.size()]
+				)
+			    );
+			}
+		    
+		    }
+		);
+		context.checkPermission(perm);
 	    }
-	    String name = getName();
-	    if (name.startsWith("[L") && name.endsWith(";")){//object array
-		int l = name.length();
-		String clName = name.substring(2, l - 1);
-		name = clName;
-	    }
-	    //TODO: consider whether to simplify DeSerializationPermission
-	    // to one that is granted to a ProtectionDomain.
-	    return unprivilegedContext.implies(
-		new DeSerializationPermission(name));
+	    
+//	    String name = getName();
+//	    if (name.startsWith("[L") && name.endsWith(";")){//object array
+//		int l = name.length();
+//		String clName = name.substring(2, l - 1);
+//		name = clName;
+//	    }
+	    
 	}
 	
 	@Override
 	public String toString(){
 	    String clas = "unresolved";
-	    if (osci != null && osci.fullyQualifiedClassName != null ) clas = osci.fullyQualifiedClassName;
+	    if (osci != null && osci.fullyQualifiedClassName != null ) clas =
+		    osci.fullyQualifiedClassName;
 	    if (localClass != null) clas = localClass.toString();
 	    return super.toString() + " Class: " + clas;
 	}
@@ -3065,11 +3143,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	}
 
 	Object newInstance() throws IOException{
-	    // Now we ask for permission, this includes a lot of exception classes
-	    deSerializationPermitted();
-	    if (!isProxy){
-		// Special construction cases - none at present
-	    }
 	    if (constructor == null){
 		boolean isCollections = false;
 		String classname = resolvedClass.getName();

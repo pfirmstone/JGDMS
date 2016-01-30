@@ -21,52 +21,50 @@ package org.apache.river.api.io;
 import java.security.BasicPermission;
 
 /**
- * Permission that when granted, allows de-serialization of Serializable 
- * object classes outside the trusted set defined in MarshalInputStream.
+ * Permission that when granted, allows de-serialization of an object.
+ * Only the protection domains of each class in an object hierarchy are tested,
+ * prior to construction.  Any parameter objects have already been checked.
  * <p>
- * During de-serialization of
- * Serializable objects, no domains representing the remote caller are 
- * present in the execution context, increasing the likelihood of privilege
- * escalation, for that reason, this security check is only performed
- * from unprivileged context, before de-serialization of an object occurs.
+ * DeSerializationPermission is different to other permissions, where other 
+ * Permissions guard something, and all domains on the call stack must have
+ * the Permission, DeSerializationPermission is only checked against the 
+ * domains representing the class hierarchy of an object about to be 
+ * de-serialized.  It is about trusting the classes of the object to check
+ * all invariants while reading a stream from an untrusted source.  This also
+ * allows a developer to utilize libraries, while minimizing the available
+ * classes that can participate in atomic de-serialization.
  * <p>
- * Granting this permission means we have audited and trust the class
- * source code to perform de-serialization safely.
+ * There are only four types:
+ * <li>
+ * ATOMIC
+ * EXTERNALIZABLE
+ * MARSHALLED
+ * PROXY
+ * </li>
+ *<p>
+ * Permissions should only be granted to domains that are trusted to read in a
+ * serial stream from an untrusted data source.
  * <p>
- * Only system wide grants have any effect, this permission cannot be granted
- * to a codebase, Signer or Subject Principal.
+ * No permission is required for stateless objects that implement Serializable.
  * <p>
- * Implementations of {@link org.apache.river.api.io.Portable} that do NOT
- * implement Serializable are exempted from this security check as they are
- * created with unprivileged execution context.  Portable objects are sill 
- * subjected to a {@link net.jini.loader.RemoteClassLoadingPermission} security
- * check.  Objects with downloaded
- * code that is also Serializable will have to pass both security checks.
- * <p>
- * Users who want to disable this security check should use a wildcard "*" grant 
- * statement in their security policy file:
- * <p>
- * <code>
- * grant{ <br>
- *	permission net.jini.io.DeSerializationPermission "*";
- * };
- * </code>
- * <p>
- * <p>
- * Uses BasicPermission hierarchical naming conventions and wild card rules.
- * 
- * TODO: consider whether DeSerializationPermission should be simpler, as
- * an ordinary Permission that is granted to a ProtectionDomain, since this would
- * allow dynamic grants to smart proxies after authentication, and not just
- * assume that all instances of @AtomicSerial are indeed safe.
+ * MARSHALLED allows any Serialized object to be transferred over a stream,
+ * this is used to compare the serial form of objects, however because
+ * MarshalledObject allows any Serializable class to be deserialized, it 
+ * would be unsafe to unmarshal a MarshalledObject instance, so this
+ * permission should only be granted for cases where MarshalledObject is not 
+ * unmarshalled.
  * 
  * @author peter
  * @since 3.0.0
  */
 public class DeSerializationPermission extends BasicPermission {
 
-    public DeSerializationPermission(String fullyQualifiedClassName) {
-	super(fullyQualifiedClassName);
+    /**
+     *
+     * @param type
+     */
+    public DeSerializationPermission(String type) {
+	super(type);
     }
 
 }

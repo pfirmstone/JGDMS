@@ -76,16 +76,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-io-marshalinputst
 // needed by various proxies
 
 grant { 
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.share.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.impl.norm.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.lease.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.landlord.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.norm.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.loader.util.classes.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.lookupservice.service.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.lookupservice.attribute.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.reggie.*";
-    permission net.jini.io.DeSerializationPermission "org.apache.river.lookup.entry.BasicServiceType";
+    permission net.jini.io.DeSerializationPermission "ATOMIC";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
     permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}-", "read";
