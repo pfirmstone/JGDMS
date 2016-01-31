@@ -3095,20 +3095,30 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	}
 	
 	protected void deSerializationPermitted(Permission perm) {
-	    if (readObjectNoDataMethod == null){ //Ok if there's no data.
+	    if (!hasReadObjectNoData() && !hasReadObject()){ //Ok if there's no data.
 		// Check all classes in heirarchy for absence of data (stateless object)
 		// Not worried about primitive fields, might as well be stateless.
 		ObjectStreamClassInformation osc = osci;
 		ObjectStreamClassContainer superClass = this.superClass;
-		while ( osc != null && osc.hasWriteObjectData == false 
+		CHECK_SAFE: while ( osc != null 
+			&& osc.hasWriteObjectData == false 
 			&& osc.hasBlockExternalData == false 
-			&& osc.numObjFields == 0){
+			&& osc.numObjFields == 0)
+		{
+		    // Double check all fields are primitives.
+		    ObjectStreamField[] fields = osc.fields;
+		    if (fields != null){
+			for (int i = 0, l = fields.length; i < l; i++){
+			    if (!fields[i].isPrimitive()) break CHECK_SAFE ;
+			}
+		    }
 		    if (superClass != null) {
-			if (superClass.readObjectNoDataMethod != null) break;
+			if (superClass.hasReadObjectNoData() 
+				|| superClass.hasReadObject()) break CHECK_SAFE;
 			osc = superClass.osci;
 			superClass = superClass.superClass;
 		    } else {
-			return; // If there's no data and no object fields don't worry about checking.
+			return; // If there's no data and no object fields therefore safe.
 		    }
 		}
 	    } 
@@ -3139,14 +3149,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		);
 		context.checkPermission(perm);
 	    }
-	    
-//	    String name = getName();
-//	    if (name.startsWith("[L") && name.endsWith(";")){//object array
-//		int l = name.length();
-//		String clName = name.substring(2, l - 1);
-//		name = clName;
-//	    }
-	    
 	}
 	
 	@Override
