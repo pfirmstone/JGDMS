@@ -63,13 +63,11 @@ import java.rmi.activation.ActivationGroupID;
 import java.security.AccessControlContext;
 import java.security.AccessControlException;
 import java.security.AccessController;
-import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -2249,6 +2247,12 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		result = instantiateAtomicExternal(classDesc);
 		registerObjectRead(result, newHandle, unshared);
 		registeredResult = result;
+	    } else if (Proxy.isProxyClass(objectClass)){ // Dynamically Generated Proxy
+		classDesc.deSerializationPermitted(PROXY);
+		registerObjectRead(null, newHandle, unshared);
+		result = instantiateProxy(classDesc);
+		registerObjectRead(result, newHandle, unshared);
+		registeredResult = result;
 	    } else if (Externalizable.class.isAssignableFrom(objectClass)){
 		try {
 		    atomicOrDiscard = false;
@@ -2273,11 +2277,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 //                constructor = accessor.getMethodID(resolveConstructorClass(objectClass, wasSerializable, wasExternalizable), null, new Class[0]);
 //                classDesc.setConstructor(constructor);
 //            }
-		if (classDesc.isProxy()){
-		    classDesc.deSerializationPermitted(PROXY);
-		} else {
-		    classDesc.deSerializationPermitted(null);
-		}
+		
+		classDesc.deSerializationPermitted(null);
 		try {
 		    result = classDesc.newInstance(); // Best effort construction using child class constructor
 //		    if (result instanceof Throwable) // Clear stack trace.
@@ -2384,6 +2385,52 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    primitiveData = emptyStream;
 	}
 	return extern;
+    }
+    
+    private Object instantiateProxy(final ObjectStreamClassContainer classDesc) throws IOException, ClassNotFoundException{
+	List<ObjectStreamClassContainer> streamClassList 
+		= new ArrayList<ObjectStreamClassContainer>();
+        ObjectStreamClassContainer nextStreamClass = classDesc;
+        while (nextStreamClass != null) {
+            streamClassList.add(0, nextStreamClass);
+	    nextStreamClass = nextStreamClass.getSuperDesc();
+        }
+	int size = streamClassList.size();
+	Map<Class,GetField> fields = new HashMap<Class,GetField>(size);
+	for (ObjectStreamClassContainer streamClass : streamClassList) {
+	    ObjectStreamClass cls = streamClass.deserializedClass != null ? 
+		    streamClass.deserializedClass : 
+		    streamClass.localClass;
+	    GetField field = readFields(cls);
+	    // We don't support direct stream access
+	    // so we have to discard this data.
+	    if (streamClass.hasWriteObjectData()) discardData();
+	    Class c = streamClass.forClass();
+	    if (c != null) {
+		fields.put(c, field);
+	    } else {
+		throw new ClassNotFoundException(streamClass.osci.fullyQualifiedClassName);
+	    }
+	}
+	GetField proxyFields = fields.get(Proxy.class);
+	Object handler = proxyFields.get("h", null); //All dynamically generated proxy's utilise this field.
+	if (handler instanceof InvocationHandler){
+	    try {
+		return classDesc.constructor.newInstance(new Object[]{handler});
+	    } catch (InstantiationException ex) {
+		throw new IOException("unable to instantiate", ex);
+	    } catch (IllegalAccessException ex) {
+		throw new SecurityException("instantiation denied", ex);
+	    } catch (IllegalArgumentException ex) {
+		InvalidObjectException e = new InvalidObjectException("invalid argument");
+		e.initCause(ex);
+		throw e;
+	    } catch (InvocationTargetException ex) {
+		throw new IOException("Unable to construct", ex.getTargetException());
+	    }
+	} else {
+	    throw new InvalidObjectException("InvocationHander for proxy must be an instance of InvocationHander and non null");
+	}
     }
     
     private Object instantiateAtomicSerialOrDiscard(final ObjectStreamClassContainer classDesc, boolean discard) 

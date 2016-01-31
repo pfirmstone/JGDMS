@@ -37,7 +37,7 @@ grant {
  * except "getClassLoader" permission
  */ 
 grant { 
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.loader.util.classes.*";
+    permission org.apache.river.DeSerializationPermission "ATOMIC";
 //    permissiom java.lang.RuntimePermission "getClassLoader";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "getPolicy";

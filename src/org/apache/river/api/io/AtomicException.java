@@ -25,7 +25,11 @@ import java.io.ObjectStreamField;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
- *
+ * Although most Throwable classes are serialized over AtomicMarshalOutputStream,
+ * only Throwable's fields are transferred.  If an Exception needs to serialize
+ * additional state, then AtomicException provides an abstract superclass,
+ * that serializes Throwable's fields for convenience.
+ * 
  * @author peter
  */
 @AtomicSerial

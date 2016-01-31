@@ -29,6 +29,7 @@ import java.io.ObjectStreamException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.security.AccessController;
+import java.security.Guard;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
@@ -40,6 +41,7 @@ import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.DeSerializationPermission;
 
 /*
  * Implementation note: This class uses the helper class
@@ -79,6 +81,8 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 public class MarshalledInstance implements Serializable {
+    
+    private static final Guard unmarshall = new DeSerializationPermission("MARSHALL");
 
     /**
      * @serial Bytes of serialized representation.  If <code>objBytes</code> is
@@ -285,7 +289,7 @@ public class MarshalledInstance implements Serializable {
      *        contained in this <code>MarshalledInstance</code>
      */
     public java.rmi.MarshalledObject convertToMarshalledObject() {
-
+	unmarshall.checkGuard(null);
 	// To create a java.rmi.MarshalledObject with previously
 	// serialized data we first create a private
 	// net.jini.io.MarshalledObject with the

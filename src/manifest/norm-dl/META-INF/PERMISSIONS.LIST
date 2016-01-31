@@ -16,6 +16,7 @@
 # limitations under the License.
 #*/
 (java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.norm" "")
+(org.apache.river.api.io.DeSerializationPermission "ATOMIC")
 # Required for JRMP
 (java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy" "")
 

@@ -76,7 +76,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-io-marshalinputst
 // needed by various proxies
 
 grant { 
-    permission net.jini.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
     permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}-", "read";

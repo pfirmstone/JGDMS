@@ -11,5 +11,5 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
 };
 
 grant {
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.lookupservice.attribute.*";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };

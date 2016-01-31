@@ -16,7 +16,7 @@
 # limitations under the License.
 #*/
 (java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement" "read")
-(net.jini.io.DeSerializationPermission "org.apache.river.reggie.*")
+(org.apache.river.api.io.DeSerializationPermission "ATOMIC")
 # Required for JRMP
 (java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy" "")
 

@@ -26,7 +26,7 @@ grant {
  * except SocketPermission to "*:1024-"
  */ 
 grant { 
-    permission net.jini.io.DeSerializationPermission "org.apache.river.test.spec.loader.util.classes.*";
+    permission org.apache.river.DeSerializationPermission "ATOMIC";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "getPolicy";
 

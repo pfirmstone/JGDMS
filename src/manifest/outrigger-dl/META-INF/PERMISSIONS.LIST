@@ -17,6 +17,7 @@
 #*/
 (java.util.PropertyPermission "org.apache.river.outrigger.maxServerQueryTimeout" "read")
 (java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.outrigger" "")
+(org.apache.river.api.io.DeSerializationPermission "ATOMIC")
 # Required for JRMP
 (java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy" "")
 
