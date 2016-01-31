@@ -38,7 +38,6 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import net.jini.core.transaction.server.NestableServerTransaction;
 import net.jini.io.ObjectStreamContext;
 
 /**
@@ -98,8 +97,8 @@ public @interface AtomicSerial {
      
     
     /**
-     * ReadObject that can be used to read stream data and Objects written
-     * to the stream bywriteObject.
+     * ReadObject that can be used to read in data and Objects written
+     * to the stream by writeObject() methods.
      * 
      * @see  ReadInput
      */
@@ -198,6 +197,15 @@ public @interface AtomicSerial {
 	    }
 	}
 	
+	/**
+	 * Convenience method to test retrieval of a new ReadObject instance from
+	 * a class static method annotated with @ReadInput
+	 * 
+	 * @see ReadInput
+	 * @param streamClass
+	 * @return
+	 * @throws IOException 
+	 */
 	public static ReadObject streamReader( final Class<?> streamClass) throws IOException {
 	    if (streamClass == null) throw new NullPointerException();
 	    try {

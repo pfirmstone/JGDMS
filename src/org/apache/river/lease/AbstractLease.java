@@ -90,6 +90,13 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
 	return val;
     }
     
+    /**
+     * @serialData
+     * AtomicSerial constructor.
+     * @see AtomicSerial
+     * @param arg
+     * @throws IOException 
+     */
     public AbstractLease(GetArg arg) throws IOException{
 	this(arg, checkExpiration(arg));
     }

@@ -26,17 +26,14 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
  * @author peter
  */
 @AtomicSerial
-public class URISerializer implements Serializable {
+class URISerializer implements Serializable {
    private static final long serialVersionUID = 1L;
     
     /**

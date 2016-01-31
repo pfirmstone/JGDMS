@@ -273,7 +273,7 @@
         <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
         <property name="javadoc.spec.doc-title" value="${product.title} Specification-only API Documentation"/>
         <property name="javadoc.spec.win-title" value="${javadoc.spec.doc-title}"/>
-        <property name="javadoc.source" value="6" />
+        <property name="javadoc.source" value="8" />
 
         <path id="javadoc.sourcepath">
             <pathelement path="${src.dir}"/>

@@ -35,7 +35,12 @@ import java.util.Set;
 import net.jini.io.MarshalOutputStream;
 
 /**
- *
+ * This AtomicMarshalOutputStream, replaces a number of Java Object's in the stream 
+ * with Serializer's that ordinarily would not be deserializable by 
+ * AtomicMarshalInputStream or would not be safe to be deserialized, this 
+ * includes, but is not limited to Java Collections classes, Throwable 
+ * subclasses and object versions of primitive values.
+ * 
  * @author peter
  */
 public class AtomicMarshalOutputStream extends MarshalOutputStream {

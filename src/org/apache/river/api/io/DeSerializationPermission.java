@@ -35,24 +35,22 @@ import java.security.BasicPermission;
  * classes that can participate in atomic de-serialization.
  * <p>
  * There are only four types:
- * <li>
- * ATOMIC
- * EXTERNALIZABLE
- * MARSHALLED
- * PROXY
- * </li>
+ * <li>ATOMIC</li>
+ * <li>EXTERNALIZABLE</li>
+ * <li>MARSHALLED</li>
+ * <li>PROXY</li>
  *<p>
  * Permissions should only be granted to domains that are trusted to read in a
  * serial stream from an untrusted data source.
  * <p>
  * No permission is required for stateless objects that implement Serializable.
  * <p>
- * MARSHALLED allows any Serialized object to be transferred over a stream,
- * this is used to compare the serial form of objects, however because
- * MarshalledObject allows any Serializable class to be deserialized, it 
- * would be unsafe to unmarshal a MarshalledObject instance, so this
- * permission should only be granted for cases where MarshalledObject is not 
- * unmarshalled.
+ * MARSHALLED - MarshalledObject allows any Serialized object to be transferred
+ * over a stream, it is often used to compare the serial form of objects, 
+ * however because MarshalledObject allows any Serializable class to be 
+ * deserialized, it would be unsafe to unmarshal a MarshalledObject instance,
+ * so this permission should only be granted for cases where MarshalledObject
+ * is not unmarshalled.
  * 
  * @author peter
  * @since 3.0.0
@@ -60,8 +58,12 @@ import java.security.BasicPermission;
 public class DeSerializationPermission extends BasicPermission {
 
     /**
-     *
-     * @param type
+     * 
+     * @param type one of the following 
+     * <li>ATOMIC</li>
+     * <li>EXTERNALIZABLE</li>
+     * <li>MARSHALLED</li>
+     * <li>PROXY</li>
      */
     public DeSerializationPermission(String type) {
 	super(type);
