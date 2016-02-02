@@ -1428,8 +1428,7 @@ public class BasicInvocationHandler
 		}
 	    }
 	    UnexpectedException wrapper =
-		new UnexpectedException("unexpected exception");
-	    wrapper.detail = t;
+		new UnexpectedException("unexpected exception", (Exception) t);
 	    t = wrapper;
 	}
 	return t;

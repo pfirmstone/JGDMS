@@ -273,8 +273,9 @@ public class EMSFT extends EMSTestBase implements TimeConstants {
 				  + "an expired registration");
 	} catch (ServerException e) {
 	    logger.log(Level.INFO, "Caught ServerException");
-	    if (e.detail == null || 
-		!(e.detail instanceof NoSuchObjectException)) {
+	    Throwable detail = e.getCause();
+	    if (detail == null || 
+		!(detail instanceof NoSuchObjectException)) {
 		throw new TestException("Unexpected exception", e);
 	    }
 	}

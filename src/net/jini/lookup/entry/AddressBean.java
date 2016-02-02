@@ -17,6 +17,7 @@
  */
 package net.jini.lookup.entry;
 
+import java.beans.ConstructorProperties;
 import java.io.Serializable;
 import net.jini.core.entry.Entry;
 
@@ -45,6 +46,20 @@ public class AddressBean implements EntryBean, Serializable {
      */
     public AddressBean() {
 	assoc = new Address();
+    }
+    
+    @ConstructorProperties({"street", "organization", "organizationalunit",
+	"locality", "stateOrProvince", "postalCode", "country"})
+    public AddressBean(String street,
+	    String organization,
+	    String organizationalUnit,
+	    String locality,
+	    String stateOrProvince,
+	    String postalCode,
+	    String country)
+    {
+	assoc = new Address(street, organization, organizationalUnit, 
+		locality, stateOrProvince, postalCode, country);
     }
 
     /**

@@ -17,17 +17,18 @@
 
 package org.apache.river.api.io;
 
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
-import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  *
  * @author peter
  */
-@AtomicSerial
-class ByteSerializer implements Serializable {
+@AtomicExternal
+class ByteSerializer implements Externalizable {
     private static final long serialVersionUID = 1L;
     
     private final byte b;
@@ -36,11 +37,37 @@ class ByteSerializer implements Serializable {
 	this.b = b;
     }
     
-    public ByteSerializer(GetArg arg) throws IOException{
-	this(arg.get("b", (byte)0));
+    public ByteSerializer(ObjectInput in) throws IOException{
+	this(in.readByte());
+//	this(arg.get("b", (byte)0));
     }
     
     Object readResolve() throws ObjectStreamException {
 	return b;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+	out.writeByte(b);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (o == this) return true;
+	if (!(o instanceof ByteSerializer)) return false;
+	ByteSerializer that = (ByteSerializer) o;
+	return that.b == b;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 5;
+	hash = 11 * hash + this.b;
+	return hash;
     }
 }

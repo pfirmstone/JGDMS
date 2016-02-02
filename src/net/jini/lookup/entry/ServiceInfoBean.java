@@ -17,6 +17,7 @@
  */
 package net.jini.lookup.entry;
 
+import java.beans.ConstructorProperties;
 import java.io.Serializable;
 import net.jini.core.entry.Entry;
 
@@ -43,6 +44,28 @@ public class ServiceInfoBean implements EntryBean, Serializable {
      */
     public ServiceInfoBean() {
 	assoc = new ServiceInfo();
+    }
+    
+    /**
+     * 
+     * @since 3.1
+     * @param name
+     * @param manufacturer
+     * @param vendor
+     * @param version
+     * @param model
+     * @param serialNumber
+     */
+    @ConstructorProperties({"name", "manufacturer", "vendor", 
+			    "version", "model", "serialNumber"})
+    public ServiceInfoBean( String name, 
+			    String manufacturer, 
+			    String vendor, 
+			    String version, 
+			    String model, 
+			    String serialNumber)
+    {
+	assoc = new ServiceInfo(name, manufacturer, vendor, version, model, serialNumber);
     }
 
     /**

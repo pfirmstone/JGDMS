@@ -17,16 +17,18 @@
 
 package org.apache.river.api.io;
 
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 
 /**
  *
  * @author peter
  */
-@AtomicSerial
-class CharSerializer implements Serializable {
+@AtomicExternal
+class CharSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private final char c;
@@ -35,11 +37,36 @@ class CharSerializer implements Serializable {
 	this.c = c;
     }
     
-    public CharSerializer(AtomicSerial.GetArg arg) throws IOException{
-	this(arg.get("c", (char)0));
+    public CharSerializer(ObjectInput in) throws IOException{
+	this(in.readChar());
     }
     
     Object readResolve() throws ObjectStreamException {
 	return c;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+	out.writeChar(c);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (o == this) return true;
+	if (!(o instanceof CharSerializer)) return false;
+	CharSerializer that = (CharSerializer) o;
+	return that.c == c;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 3;
+	hash = 53 * hash + this.c;
+	return hash;
     }
 }

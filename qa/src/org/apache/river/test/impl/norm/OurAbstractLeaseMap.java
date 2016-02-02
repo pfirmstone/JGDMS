@@ -17,6 +17,7 @@
  */
 package org.apache.river.test.impl.norm;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.AbstractSet;
 import java.util.Collection;
@@ -25,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Lifted from org.apache.river.lease.AbstractLeaseMap so we can have a codebase
@@ -36,6 +39,7 @@ import net.jini.core.lease.LeaseMap;
  * canContainKey, renewAll, and cancelAll, and serialization of any subclass
  * state.
  */
+@AtomicSerial
 abstract class OurAbstractLeaseMap implements LeaseMap, Serializable {
     /**
      * Map from Lease to Long(duration), where all leases have the same
@@ -51,6 +55,14 @@ abstract class OurAbstractLeaseMap implements LeaseMap, Serializable {
      */
     protected OurAbstractLeaseMap(Lease lease, long duration) {
 	this(new java.util.HashMap(13), lease, duration);
+    }
+    
+    protected OurAbstractLeaseMap(GetArg arg) throws IOException{
+	this(new java.util.HashMap(arg.get("map", null, Map.class)));
+    }
+    
+    private OurAbstractLeaseMap(Map map){
+	this.map = map;
     }
 
     /**

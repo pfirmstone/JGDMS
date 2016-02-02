@@ -17,7 +17,10 @@
  */
 package org.apache.river.reggie;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.proxy.CodebaseProvider;
 
 /**
@@ -26,6 +29,7 @@ import org.apache.river.proxy.CodebaseProvider;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class ServiceTypeBase implements Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -47,6 +51,11 @@ class ServiceTypeBase implements Serializable {
     public ServiceTypeBase(ServiceType type, String codebase) {
 	this.type = type;
 	this.codebase = codebase;
+    }
+    
+    public ServiceTypeBase(GetArg arg) throws IOException{
+	this(arg.get("type", null, ServiceType.class),
+	    arg.get("codebase", null, String.class));
     }
 
     /** Sets the codebase to the codebase of the given class. */

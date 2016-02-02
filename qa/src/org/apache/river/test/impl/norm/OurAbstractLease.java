@@ -17,11 +17,13 @@
  */
 package org.apache.river.test.impl.norm;
 
-import net.jini.core.lease.*;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.rmi.RemoteException;
+import net.jini.core.lease.*;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Lifted from org.apache.river.lease.AbstractLease so we can have a codebase
@@ -33,6 +35,7 @@ import java.rmi.RemoteException;
  * createLeaseMap, canBatch, hashCode, equals, and serialization of
  * any subclass state.
  */
+@AtomicSerial
 public abstract class OurAbstractLease implements Lease, java.io.Serializable {
 
     private static final long serialVersionUID = -9067179156916102052L;
@@ -51,6 +54,15 @@ public abstract class OurAbstractLease implements Lease, java.io.Serializable {
     /** Construct a relative-format lease. */
     protected OurAbstractLease(long expiration) {
 	this.expiration = expiration;
+    }
+    
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    protected OurAbstractLease(GetArg arg) throws IOException{
+	this(arg.get("serialFormat", Lease.DURATION));
     }
 
     /** Return the lease expiration. */

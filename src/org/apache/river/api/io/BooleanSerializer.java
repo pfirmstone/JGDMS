@@ -17,15 +17,18 @@
 
 package org.apache.river.api.io;
 
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 
 /**
  *
  * @author peter
  */
-class BooleanSerializer implements Serializable {
+@AtomicExternal
+class BooleanSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private final boolean b;
@@ -34,11 +37,37 @@ class BooleanSerializer implements Serializable {
 	this.b = b;
     }
     
-    public BooleanSerializer(AtomicSerial.GetArg arg) throws IOException{
-	this(arg.get("b", false));
+    public BooleanSerializer(ObjectInput in) throws IOException{
+	this(in.readBoolean());
+//	this(arg.get("b", false));
     }
     
     Object readResolve() throws ObjectStreamException {
 	return b;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+	out.writeBoolean(b);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	throw new UnsupportedOperationException("Not supported");
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (o == this) return true;
+	if (!(o instanceof BooleanSerializer)) return false;
+	BooleanSerializer that = (BooleanSerializer) o;
+	return that.b == b;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 3;
+	hash = 17 * hash + (this.b ? 1 : 0);
+	return hash;
     }
 }

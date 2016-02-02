@@ -17,16 +17,18 @@
 
 package org.apache.river.api.io;
 
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 
 /**
  *
  * @author peter
  */
-@AtomicSerial
-class DoubleSerializer implements Serializable {
+@AtomicExternal
+class DoubleSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private final double d;
@@ -35,11 +37,36 @@ class DoubleSerializer implements Serializable {
 	this.d = d;
     }
     
-    public DoubleSerializer(AtomicSerial.GetArg arg) throws IOException{
-	this(arg.get("d", 0.0));
+    public DoubleSerializer(ObjectInput in) throws IOException{
+	this(in.readDouble());
     }
     
     Object readResolve() throws ObjectStreamException {
 	return d;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+	out.writeDouble(d);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (o == this) return true;
+	if (!(o instanceof DoubleSerializer)) return false;
+	DoubleSerializer that = (DoubleSerializer) o;
+	return that.d == d;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 3;
+	hash = 19 * hash + (int) (Double.doubleToLongBits(this.d) ^ (Double.doubleToLongBits(this.d) >>> 32));
+	return hash;
     }
 }

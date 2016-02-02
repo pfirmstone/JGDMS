@@ -141,7 +141,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     
     private static final Permission EXTERNALIZABLE = new DeSerializationPermission("EXTERNALIZABLE");
     private static final Permission ATOMIC = new DeSerializationPermission("ATOMIC");
-    private static final Permission MARSHALLED = new DeSerializationPermission("MARSHALLED");
+    private static final Permission ENTRY = new DeSerializationPermission("ENTRY");
     private static final Permission PROXY = new DeSerializationPermission("PROXY");
 
     // If the receiver has already read & not consumed a TC code
@@ -2277,8 +2277,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 //                constructor = accessor.getMethodID(resolveConstructorClass(objectClass, wasSerializable, wasExternalizable), null, new Class[0]);
 //                classDesc.setConstructor(constructor);
 //            }
-		
-		classDesc.deSerializationPermitted(null);
+		if (net.jini.core.entry.Entry.class.isAssignableFrom(objectClass)){
+		    classDesc.deSerializationPermitted(ENTRY);
+		} else {
+		    classDesc.deSerializationPermitted(null);
+		}
 		try {
 		    result = classDesc.newInstance(); // Best effort construction using child class constructor
 //		    if (result instanceof Throwable) // Clear stack trace.
@@ -3095,6 +3098,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	}
 	
 	protected void deSerializationPermitted(Permission perm) {
+	    if (context != null && perm != null) context.checkPermission(perm);
 	    if (!hasReadObjectNoData() && !hasReadObject()){ //Ok if there's no data.
 		// Check all classes in heirarchy for absence of data (stateless object)
 		// Not worried about primitive fields, might as well be stateless.
@@ -3122,10 +3126,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		    }
 		}
 	    } 
-	    if (perm == null) throw new AccessControlException("DeSerialization is not permitted");
-	    if (context != null) {
-		context.checkPermission(perm);
-	    } else {
+	    if (perm == null) throw new AccessControlException("DeSerialization is not permitted: " + osci);    
+	    if (context == null) {
 		context = AccessController.doPrivileged(
 		    new PrivilegedAction<AccessControlContext>(){
 
@@ -3751,7 +3753,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 			b.append("Field name: ")
 			.append(fields[i].getName())
 			.append(endLine)
-			.append("Field type: ")
+			.append("Field Type Code: ")
 			.append(fields[i].getTypeCode())
 			.append(endLine)
 			.append("Field offset: ")

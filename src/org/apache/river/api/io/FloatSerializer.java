@@ -17,16 +17,18 @@
 
 package org.apache.river.api.io;
 
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 
 /**
  *
  * @author peter
  */
-@AtomicSerial
-class FloatSerializer implements Serializable {
+@AtomicExternal
+class FloatSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private final float f;
@@ -35,11 +37,36 @@ class FloatSerializer implements Serializable {
 	this.f = f;
     }
     
-    public FloatSerializer(AtomicSerial.GetArg arg) throws IOException{
-	this(arg.get("f", 0F));
+    public FloatSerializer(ObjectInput in) throws IOException{
+	this(in.readFloat());
     }
     
     Object readResolve() throws ObjectStreamException {
 	return f;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+	out.writeFloat(f);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (o == this) return true;
+	if (!(o instanceof FloatSerializer)) return false;
+	FloatSerializer that = (FloatSerializer) o;
+	return that.f == f;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 3;
+	hash = 37 * hash + Float.floatToIntBits(this.f);
+	return hash;
     }
 }

@@ -82,13 +82,13 @@ class URISerializer implements Serializable {
     public boolean equals(Object obj){
 	if (this == obj) return true;
 	if (!(obj instanceof URISerializer)) return false;
-	return (uriExternalForm.equals(((URISerializer) obj).uriExternalForm));
+	return (uri.equals(((URISerializer) obj).uri));
     }
 
     @Override
     public int hashCode() {
 	int hash = 7;
-	hash = 13 * hash + Objects.hashCode(this.uriExternalForm);
+	hash = 13 * hash + Objects.hashCode(this.uri);
 	return hash;
     }
     

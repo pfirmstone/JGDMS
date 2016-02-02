@@ -17,7 +17,10 @@
  */
 package org.apache.river.reggie;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.proxy.CodebaseProvider;
 
 /**
@@ -26,6 +29,7 @@ import org.apache.river.proxy.CodebaseProvider;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class EntryClassBase implements Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -47,6 +51,12 @@ class EntryClassBase implements Serializable {
     public EntryClassBase(EntryClass eclass, String codebase) {
 	this.eclass = eclass;
 	this.codebase = codebase;
+    }
+    
+    public EntryClassBase(GetArg arg) throws IOException{
+	this(arg.get("eclass", null, EntryClass.class),
+	    arg.get("codebase", null, String.class)
+	);
     }
 
     /** Sets the codebase to the codebase of the given class. */

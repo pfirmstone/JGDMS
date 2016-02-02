@@ -17,16 +17,18 @@
 
 package org.apache.river.api.io;
 
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 
 /**
  *
  * @author peter
  */
-@AtomicSerial
-class LongSerializer implements Serializable {
+@AtomicExternal
+class LongSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private final long l;
@@ -35,11 +37,36 @@ class LongSerializer implements Serializable {
 	this.l = l;
     }
     
-    public LongSerializer(AtomicSerial.GetArg arg) throws IOException{
-	this(arg.get("l", 0L));
+    public LongSerializer(ObjectInput in) throws IOException{
+	this(in.readLong());
     }
     
     Object readResolve() throws ObjectStreamException {
 	return l;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+	out.writeLong(l);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (o == this) return true;
+	if (!(o instanceof LongSerializer)) return false;
+	LongSerializer that = (LongSerializer) o;
+	return that.l == l;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 7;
+	hash = 17 * hash + (int) (this.l ^ (this.l >>> 32));
+	return hash;
     }
 }

@@ -25,6 +25,7 @@ import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.rmi.server.UID;
+import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
@@ -78,5 +79,20 @@ class UIDSerializer implements Serializable {
     
     Object readResolve() throws ObjectStreamException {
 	return uid;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (o == this) return true;
+	if (!(o instanceof UIDSerializer)) return false;
+	UIDSerializer that = (UIDSerializer) o;
+	return uid.equals(that.uid);
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 7;
+	hash = 23 * hash + Objects.hashCode(this.uid);
+	return hash;
     }
 }

@@ -17,21 +17,20 @@
  */
 package org.apache.river.test.impl.norm;
 
-import net.jini.core.lease.*;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.rmi.RemoteException;
-import java.util.Map;
-import java.util.Iterator;
-import java.util.HashMap;
 import java.util.ConcurrentModificationException;
-
-import net.jini.config.Configuration;
-import net.jini.export.Exporter;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.security.TrustVerifier;
-import net.jini.core.constraint.RemoteMethodControl;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.lease.*;
+import net.jini.security.proxytrust.ProxyTrust;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Implementaion of <code>LeaseMap</code> for <code>TestLease</code>.
@@ -39,6 +38,7 @@ import net.jini.core.constraint.MethodConstraints;
  * @see LandlordLease
  * @see net.jini.core.lease.LeaseMap
  */
+@AtomicSerial
 class TestLeaseMap extends OurAbstractLeaseMap implements RemoteMethodControl {
     /**
      * Home which this map will talk to.
@@ -60,6 +60,20 @@ class TestLeaseMap extends OurAbstractLeaseMap implements RemoteMethodControl {
     TestLeaseMap(LeaseBackEnd home, Lease lease, long duration) {
 	super(lease, duration);
 	this.home = home;
+    }
+    
+    public TestLeaseMap(GetArg arg) throws IOException{
+	super(check(arg));
+	home = arg.get("home", null, LeaseBackEnd.class);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	LeaseBackEnd home = arg.get("home", null, LeaseBackEnd.class);
+	if (!(home instanceof RemoteMethodControl)) throw new 
+	    InvalidObjectException("LeaseBackEnd must be an instance of RemoteMethodControl");
+	if (!(home instanceof ProxyTrust)) throw new InvalidObjectException(
+		"LeaseBackEnd must be an instance of ProxyTrust");
+	return arg;
     }
 
     // inherit doc comment

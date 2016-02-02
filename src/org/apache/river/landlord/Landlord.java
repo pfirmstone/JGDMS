@@ -17,6 +17,7 @@
  */
 package org.apache.river.landlord;
 
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
@@ -25,6 +26,7 @@ import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /** 
  * Interface that granters of leases must implement in order to work
@@ -113,9 +115,10 @@ public interface Landlord extends Remote {
      * Simple class that holds return values of
      * the {@link Landlord#renewAll Landlord.renewAll} method.
      */
+    @AtomicSerial
     public class RenewResults implements java.io.Serializable {
 	static final long serialVersionUID = 2L;
-
+	//TODO: getter methods.
 	/**
 	 * For each cookie passed to {@link Landlord#renewAll renewAll},
 	 * <code>granted[i]</code> is the granted lease time, or -1 if the
@@ -158,6 +161,11 @@ public interface Landlord extends Remote {
 	public RenewResults(long[] granted, Exception[] denied) {
 	    this.granted = granted;
 	    this.denied = denied;
+	}
+	
+	public RenewResults(GetArg arg) throws IOException, CloneNotSupportedException{
+	    this((arg.get("granted", null, long[].class).clone()),
+		GetArg.copy(arg.get("denied", null, Exception[].class)));
 	}
     }
 }

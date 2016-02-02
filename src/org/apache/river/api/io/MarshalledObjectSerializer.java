@@ -33,8 +33,6 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 class MarshalledObjectSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
     
-    private static final Guard guard = new DeSerializationPermission("MARSHALLED");
-    
     private final MarshalledInstance instance;
     
     MarshalledObjectSerializer(MarshalledObject obj){
@@ -50,7 +48,6 @@ class MarshalledObjectSerializer implements Serializable {
     }
     
     private static MarshalledInstance check(MarshalledInstance mi){
-	guard.checkGuard(null);
 	return mi;
     }
     

@@ -118,8 +118,9 @@ public class EMSST2_PULL extends EMSTestBase implements TimeConstants {
 	    throw new TestException("Able to interact with expired registration");
 	} catch (ServerException e) {
 	    logger.log(Level.INFO, "Caught a ServerException", e);
-	    if (e.detail == null ||
-		!(e.detail instanceof NoSuchObjectException)) {
+	    Throwable detail = e.getCause();
+	    if (detail == null ||
+		!(detail instanceof NoSuchObjectException)) {
 		    throw new TestException("Unexpected ServerException", e);
 	    }
 	}

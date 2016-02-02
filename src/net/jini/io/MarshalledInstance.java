@@ -82,7 +82,7 @@ import org.apache.river.api.io.DeSerializationPermission;
 @AtomicSerial
 public class MarshalledInstance implements Serializable {
     
-    private static final Guard unmarshall = new DeSerializationPermission("MARSHALL");
+    private static final Guard UNMARSHAL = new DeSerializationPermission("MARSHALL");
 
     /**
      * @serial Bytes of serialized representation.  If <code>objBytes</code> is
@@ -122,6 +122,7 @@ public class MarshalledInstance implements Serializable {
 	    }
 	}
 	if (h != hash) throw new InvalidObjectException("Bad hash or annotation");
+	UNMARSHAL.checkGuard(null);
 	return true;
     }
     
@@ -289,7 +290,6 @@ public class MarshalledInstance implements Serializable {
      *        contained in this <code>MarshalledInstance</code>
      */
     public java.rmi.MarshalledObject convertToMarshalledObject() {
-	unmarshall.checkGuard(null);
 	// To create a java.rmi.MarshalledObject with previously
 	// serialized data we first create a private
 	// net.jini.io.MarshalledObject with the

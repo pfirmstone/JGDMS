@@ -17,11 +17,6 @@
  */
 package org.apache.river.test.spec.lookupservice;
 
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.test.spec.lookupservice.ServiceLeaseOverrideProvider;
-import org.apache.river.test.spec.lookupservice.attribute.Attr;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
@@ -50,6 +45,13 @@ import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.io.MarshalledInstance;
 import net.jini.lookup.entry.ServiceType;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.test.spec.lookupservice.ServiceLeaseOverrideProvider;
+import org.apache.river.test.spec.lookupservice.attribute.Attr;
 
 /** Provides useful constants and utility methods and classes for all 
  *  classes of the Lookup component of the Jini System. Each field and 
@@ -86,6 +88,7 @@ public class QATestUtils {
      *  events received from the lookup service are the events expected; 
      *  based on the templates used to register event notification requests.
      */
+    @AtomicSerial
     public static class SrvcAttrTuple implements Serializable
     {
         static final long serialVersionUID = -8254953323094761933L;
@@ -100,6 +103,16 @@ public class QATestUtils {
         private ServiceItem[] srvcItems ;
         /** @serial */
         private Entry[][] attrs;
+	
+	public SrvcAttrTuple(GetArg arg) throws IOException, CloneNotSupportedException{
+	    this(GetArg.copy(arg.get("srvcItems", null, ServiceItem[].class)),
+		GetArg.deepCopy(arg.get("attrs", null, Entry[][].class)),
+		arg.get("srvcObj", null),
+		arg.get("attrObj", null),
+		arg.get("transition", 0)
+	    );
+	}
+
 
         /** Creates a SrvcAttrTuple with the given transition value.
          *  @param srvcItems the array of registered service items
@@ -174,7 +187,7 @@ public class QATestUtils {
             this.attrObj    = attrObj;
             this.transition = 0;
         }
-
+	
         /** Sets this tuple equal to the given tuple
          *  @param tuple the SrvcAttrTuple to set this tuple equal to
          */
