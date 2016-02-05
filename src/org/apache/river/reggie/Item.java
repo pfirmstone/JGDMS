@@ -37,6 +37,7 @@ import net.jini.core.lookup.ServiceItem;
 import net.jini.security.Security;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * An Item contains the fields of a ServiceItem packaged up for
@@ -139,7 +140,7 @@ final class Item implements Serializable, Cloneable {
 	// serviceType allowed to be null
 	String codebase = arg.get("codebase", null, String.class);
 	// codebase allowed to be null
-	MarshalledWrapper service = GetArg.notNull(
+	MarshalledWrapper service = Valid.notNull(
 		arg.get("service", null, MarshalledWrapper.class), 
 		"service cannot be null");
 	EntryRep[] attributeSets = arg.get("attributeSets", null, EntryRep[].class);
@@ -163,7 +164,7 @@ final class Item implements Serializable, Cloneable {
 	serviceType = arg.get("serviceType", null, ServiceType.class);
 	codebase = arg.get("codebase", null, String.class);
 	service = arg.get("service", null, MarshalledWrapper.class);
-	attributeSets = GetArg.copy(arg.get("attributeSets", null, EntryRep[].class));
+	attributeSets = Valid.copy(arg.get("attributeSets", null, EntryRep[].class));
 //	attribSets = Arrays.asList(attributeSets);
     }
 

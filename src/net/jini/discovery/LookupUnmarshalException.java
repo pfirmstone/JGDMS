@@ -27,6 +27,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * When unmarshalling an instance of <code>MarshalledObject</code>, different
@@ -239,9 +240,9 @@ public class LookupUnmarshalException extends AtomicException {
      */
     public LookupUnmarshalException(GetArg arg) throws IOException{
 	this(arg, 
-	     GetArg.copy(arg.get("registrars", null, ServiceRegistrar[].class)),
-	     GetArg.copy(arg.get("marshalledRegistrars", null, MarshalledObject[].class)),
-	     GetArg.copy(arg.get("exceptions", null, Throwable[].class))
+	     Valid.copy(arg.get("registrars", null, ServiceRegistrar[].class)),
+	     Valid.copy(arg.get("marshalledRegistrars", null, MarshalledObject[].class)),
+	     Valid.copy(arg.get("exceptions", null, Throwable[].class))
 	);
     }
     

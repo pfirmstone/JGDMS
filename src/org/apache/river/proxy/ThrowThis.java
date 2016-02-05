@@ -22,6 +22,7 @@ import java.rmi.RemoteException;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * The semi-official way for remote methods on registration objects
@@ -69,7 +70,7 @@ public class ThrowThis extends AtomicException {
     }
     
     private static GetArg check(GetArg arg) throws IOException{
-	GetArg.notNull(arg.get("toThrow", null, RemoteException.class),
+	Valid.notNull(arg.get("toThrow", null, RemoteException.class),
 		"RemoteException cannot be null");
 	return arg;
     }

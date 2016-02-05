@@ -26,6 +26,7 @@ import java.util.Map;
 import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Event object passed (via either the <code>DiscoveryListener</code>
@@ -90,7 +91,7 @@ public class DiscoveryEvent extends EventObject {
     public DiscoveryEvent(GetArg arg) throws IOException{
 	this(arg.get("source",null),
 	     check(arg.get("groups", null, Map.class)),
-	     GetArg.copy(arg.get("regs", null, ServiceRegistrar[].class))
+	     Valid.copy(arg.get("regs", null, ServiceRegistrar[].class))
 	);
     }
     
@@ -99,7 +100,7 @@ public class DiscoveryEvent extends EventObject {
 	if (groups == null) return null; // groups ok to be null.
 	Map<ServiceRegistrar, String[]> result 
 		= new HashMap<ServiceRegistrar, String[]>(groups.size());
-	GetArg.copyMap(groups, result, ServiceRegistrar.class, String[].class);
+	Valid.copyMap(groups, result, ServiceRegistrar.class, String[].class);
 	// check that all ServiceRegistrar
 	return result;
     }

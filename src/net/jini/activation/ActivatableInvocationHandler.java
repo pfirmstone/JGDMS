@@ -58,6 +58,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 import org.apache.river.jeri.internal.runtime.Util;
 import org.apache.river.logging.Levels;
 
@@ -186,7 +187,7 @@ public final class ActivatableInvocationHandler
     }
     
     public ActivatableInvocationHandler(GetArg arg) throws IOException {
-	this(GetArg.notNull(arg.get("id", null, ActivationID.class), "id is null"),
+	this(Valid.notNull(arg.get("id", null, ActivationID.class), "id is null"),
 		arg.get("uproxy",null, Remote.class),
 		checkConstraints(arg.get("uproxy", null, Remote.class), arg.get("clientConstraints", null, MethodConstraints.class)));
     }

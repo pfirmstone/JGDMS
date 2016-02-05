@@ -1264,17 +1264,17 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}
     }
 
-    // inherit javadoc from parent
-    public Map cancelAll(Uuid[] cookies) throws RemoteException 
-    {
-        readyState.check();
-	concurrentObj.writeLock();
-	try {
-	    return cancelAllDo(cookies);
-        } finally {
-	    concurrentObj.writeUnlock();
-	}
-    }
+//    // inherit javadoc from parent
+//    public Map cancelAll(Uuid[] cookies) throws RemoteException 
+//    {
+//        readyState.check();
+//	concurrentObj.writeLock();
+//	try {
+//	    return cancelAllDo(cookies);
+//        } finally {
+//	    concurrentObj.writeUnlock();
+//	}
+//    }
 
     //////////////////////////////////
     // DestroyAdmin methods
@@ -1981,7 +1981,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	final RenewResults rslt = LandlordUtil.renewAll(localLandlord,
 							cookie,	extension);
 
-	if(rslt.denied == null)  {
+	if(rslt.noneDenied())  {
 	    if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
                 LEASE_LOGGER.log(Level.FINEST, 
 	            "Batch renew totally successful");

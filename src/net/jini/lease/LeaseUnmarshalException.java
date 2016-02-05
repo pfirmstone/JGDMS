@@ -24,6 +24,7 @@ import net.jini.core.lease.Lease;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Exception thrown when a lease renewal set can't unmarshal one or more
@@ -216,11 +217,11 @@ public class LeaseUnmarshalException extends AtomicException {
     {
 	super(validateSerial(arg));
 	unmarshalledLeases 
-	    = GetArg.copy(arg.get("unmarshalledLeases", null, Lease[].class));
+	    = Valid.copy(arg.get("unmarshalledLeases", null, Lease[].class));
 	stillMarshalledLeases 
-	    = GetArg.copy(arg.get("stillMarshalledLeases", null, MarshalledObject[].class));
+	    = Valid.copy(arg.get("stillMarshalledLeases", null, MarshalledObject[].class));
 	exceptions 
-	    = GetArg.copy(arg.get("exceptions", null, Throwable[].class));
+	    = Valid.copy(arg.get("exceptions", null, Throwable[].class));
     }
     
     private static GetArg validateSerial(GetArg arg) throws IOException{

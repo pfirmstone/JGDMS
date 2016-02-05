@@ -43,6 +43,7 @@ import net.jini.config.Configuration;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Class used to create a shared activation group. 
@@ -189,9 +190,9 @@ public class SharedActivationGroupDescriptor
     
     SharedActivationGroupDescriptor(GetArg arg) throws IOException{
 	this(
-		GetArg.notNull(arg.get("policy", null, String.class), "Policy cannot be null"),
-		GetArg.notNull(arg.get("classpath", null, String.class), "Classpath cannot be null"),
-		GetArg.notNull(arg.get("log",null, String.class), "log cannot be null"),
+		Valid.notNull(arg.get("policy", null, String.class), "Policy cannot be null"),
+		Valid.notNull(arg.get("classpath", null, String.class), "Classpath cannot be null"),
+		Valid.notNull(arg.get("log",null, String.class), "log cannot be null"),
 		arg.get("serverCommand", null, String.class),
 		arg.get("serverOptions", null, String[].class),
 		arg.get("serverProperties", null, String[].class),

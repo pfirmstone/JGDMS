@@ -36,6 +36,7 @@ import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * This class is a proxy to backend servers for simulations of activatable
@@ -61,8 +62,8 @@ public class LookupSimulatorProxy implements LookupSimulatorProxyInterface {
     }//end constructor
 
     public LookupSimulatorProxy(GetArg arg)throws IOException{
-	this (GetArg.notNull(arg.get("server", null, LookupSimulator.class), "null server"),
-	      GetArg.notNull(arg.get("serviceID", null, ServiceID.class), "null serviceID"));
+	this (Valid.notNull(arg.get("server", null, LookupSimulator.class), "null server"),
+	      Valid.notNull(arg.get("serviceID", null, ServiceID.class), "null serviceID"));
     }
 
     /* Administrable */

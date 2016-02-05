@@ -75,9 +75,9 @@ class StackTraceElementSerializer implements Serializable {
      * @throws IOException 
      */
     public StackTraceElementSerializer(GetArg arg) throws IOException{
-	this(GetArg.notNull(arg.get("declaringClass", null, String.class),
+	this(Valid.notNull(arg.get("declaringClass", null, String.class),
 		"declaring class cannot be null"),
-	    GetArg.notNull(arg.get("methodName", null, String.class),
+	    Valid.notNull(arg.get("methodName", null, String.class),
 		    "method name cannot be null"),
 	    arg.get("fileName", null, String.class),
 	    arg.get("lineNumber", 0)

@@ -47,6 +47,7 @@ import net.jini.io.MarshalledInstance;
 import net.jini.lookup.entry.ServiceType;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.TestException;
@@ -105,8 +106,8 @@ public class QATestUtils {
         private Entry[][] attrs;
 	
 	public SrvcAttrTuple(GetArg arg) throws IOException, CloneNotSupportedException{
-	    this(GetArg.copy(arg.get("srvcItems", null, ServiceItem[].class)),
-		GetArg.deepCopy(arg.get("attrs", null, Entry[][].class)),
+	    this(Valid.copy(arg.get("srvcItems", null, ServiceItem[].class)),
+		Valid.deepCopy(arg.get("attrs", null, Entry[][].class)),
 		arg.get("srvcObj", null),
 		arg.get("attrObj", null),
 		arg.get("transition", 0)

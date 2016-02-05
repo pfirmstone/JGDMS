@@ -31,6 +31,7 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.AdvisoryDynamicPermissions;
 
 /**
@@ -552,7 +553,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
 	this(arg.get("verify", true),
 	     arg.get("methodConstraintsSpecified", true),
 	     arg.get("methodConstraints", null, MethodConstraints.class),
-	     GetArg.copy(arg.get("permissions", null, Permission[].class))
+	     Valid.copy(arg.get("permissions", null, Permission[].class))
 	);
     }
     

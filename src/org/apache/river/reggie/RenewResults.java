@@ -17,7 +17,11 @@
  */
 package org.apache.river.reggie;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /*
  * RenewResults contains the return values of a renewLeases call on the
@@ -27,6 +31,7 @@ import java.io.Serializable;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class RenewResults implements Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -53,5 +58,10 @@ class RenewResults implements Serializable {
     public RenewResults(long[] durations, Exception[] exceptions) {
 	this.durations = durations;
 	this.exceptions = exceptions;
+    }
+    
+    public RenewResults(GetArg arg) throws IOException{
+	this(Valid.copy(arg.get("durations", null, long[].class)),
+		Valid.copy(arg.get("exceptions", null, Exception[].class)));
     }
 }

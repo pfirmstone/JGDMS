@@ -30,6 +30,7 @@ import net.jini.core.entry.UnusableEntryException;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Thrown from methods that normally return a collection of {@link
@@ -161,8 +162,8 @@ public class UnusableEntriesException extends AtomicException {
 	this(arg, 
 	     arg.get("entries", null, Collection.class),
 	     Collections.unmodifiableCollection(
-		 GetArg.copyCol(
-		     GetArg.notNull(
+		 Valid.copyCol(
+		     Valid.notNull(
 			 arg.get("exceptions", null, Collection.class),
 			 "exceptions field is null"
 		     ), 

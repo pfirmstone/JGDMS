@@ -185,21 +185,20 @@ public class LandlordLeaseMap extends AbstractIDLeaseMap {
 	int d = 0;
         int len = cookiesA.length;
 	for (int i = 0; i < len; i++) {
-	    if (results.granted[i] != -1) {
-		long newExp = now + results.granted[i];
+	    if (results.getGranted(i) != -1) {
+		long newExp = now + results.getGranted(i);
 		if (newExp < 0) // Overflow, set to Long.MAX_VALUE
 		    newExp = Long.MAX_VALUE;
 		    
 		leasesA[i].setExpiration(newExp);
 	    } else {
 		if (bad == null) {
-		    bad = new HashMap(results.denied.length +
-				      results.denied.length / 2);
+		    bad = new HashMap();
 		}
 		Object badTime = remove(leasesA[i]);   // remove from this map
 		if (badTime == null)		      // better be in there
 		    throw new ConcurrentModificationException();
-		bad.put(leasesA[i], results.denied[d++]);// add to "bad" map
+		bad.put(leasesA[i], results.getDenied(d++));// add to "bad" map
 	    }
 	}
 

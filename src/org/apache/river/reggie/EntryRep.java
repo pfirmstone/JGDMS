@@ -34,6 +34,7 @@ import java.util.List;
 import net.jini.core.entry.Entry;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * An EntryRep contains the fields of an Entry packaged up for
@@ -88,12 +89,12 @@ final class EntryRep implements Serializable, Cloneable {
     
     
     private static boolean check(GetArg arg) throws IOException{
-	EntryClass eclass = GetArg.notNull(
+	EntryClass eclass = Valid.notNull(
 	    arg.get("eclass", null, EntryClass.class), 
 	    "eclass cannot be null"
 	); 
 	String codebase = arg.get("codebase", null, String.class); 
-	Object [] fields = GetArg.notNull(
+	Object [] fields = Valid.notNull(
 	    arg.get("fields", null, Object[].class), 
 	    "fields array cannot be null"
 	); 
@@ -107,7 +108,7 @@ final class EntryRep implements Serializable, Cloneable {
     private EntryRep(GetArg arg, boolean check) throws IOException{
 	eclass = arg.get("eclass", null, EntryClass.class);
 	codebase = arg.get("codebase", null, String.class);
-	fields = GetArg.copy(arg.get("fields", null, Object[].class));
+	fields = Valid.copy(arg.get("fields", null, Object[].class));
 	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
     }
     

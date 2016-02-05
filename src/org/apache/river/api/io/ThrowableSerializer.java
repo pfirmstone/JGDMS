@@ -74,7 +74,7 @@ class ThrowableSerializer implements Serializable {
     }
     
     private static Throwable check(GetArg arg) throws IOException{
-	Class<? extends Throwable> clas = GetArg.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
+	Class<? extends Throwable> clas = Valid.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
 	String message = arg.get("message", null, String.class);
 	Throwable cause = arg.get("cause", null, Throwable.class);
 	StackTraceElement[] stack = arg.get("stack", null, StackTraceElement[].class);

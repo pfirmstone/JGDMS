@@ -23,6 +23,7 @@ import java.rmi.RemoteException;
 import net.jini.core.transaction.*;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 
 /**
@@ -54,7 +55,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
     public final long id;
     
     public ServerTransaction(GetArg arg) throws IOException{
-	this(GetArg.notNull(arg.get("mgr", null, TransactionManager.class), 
+	this(Valid.notNull(arg.get("mgr", null, TransactionManager.class), 
 		"TransactionManager cannot be null"),
 	     arg.get("id", 0L)
 	);

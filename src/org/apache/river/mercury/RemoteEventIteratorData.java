@@ -25,6 +25,7 @@ import java.util.Collection;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Simple struct to hold the <code>Uuid</code> for a new
@@ -55,7 +56,7 @@ class RemoteEventIteratorData implements Serializable {
     
     RemoteEventIteratorData(GetArg arg) throws IOException{
 	this(arg.get("uuid", null, Uuid.class),
-	     GetArg.copyCol(
+	     Valid.copyCol(
 		 arg.get("events", null, Collection.class),
 		 new ArrayList<RemoteEventData>(),
 		 RemoteEventData.class

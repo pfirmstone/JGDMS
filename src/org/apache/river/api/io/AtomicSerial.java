@@ -267,154 +267,16 @@ public @interface AtomicSerial {
     public static abstract class GetArg extends ObjectInputStream.GetField 
 					implements ObjectStreamContext {
 	
-	private static Method clone;
 	private static Guard enableSubclassImplementation 
 		= new SerializablePermission("enableSubclassImplementation");
 	
-	static {
-	    try {
-		clone = AccessController.doPrivileged(new PrivilegedExceptionAction<Method>(){
-		    
-		    @Override
-		    public Method run() throws Exception {
-			return Object.class.getDeclaredMethod("clone", new Class [0]);
-		    }
-		    
-		});
-	    } catch (PrivilegedActionException ex) {
-		Exception cause = ex.getException();
-		if (cause instanceof SecurityException) throw (SecurityException) cause;
-		throw new Error(cause);
-	    }
-	}
+	
 
 	private static boolean check() {
 	    enableSubclassImplementation.checkGuard(null);
 	    return true;
 	}
 	
-	/**
-	 * Convenience method to create a shallow copy of an array
-	 * if non null.
-	 * 
-	 * Since arrays are mutable, an attacker can retain a reference
-	 * to a de-serialized array, that allows an attacker to mutate that
-	 * array.
-	 * 
-	 * @param <T> type
-	 * @param arry that will be cloned.
-	 * @return A clone of arry, or null if arry is null.
-	 */
-	public static <T> T[] copy(T[] arry){
-	    if (arry == null) return null;
-	    return arry.clone();
-	}
-	
-	/**
-	 * Convenience method to perform a deep copy of an array containing
-	 * Cloneable objects
-	 * 
-	 * @param <T>
-	 * @param arry - may be null or contain null elements.
-	 * @return A deep clone of arry, or null if arry is null.
-	 * @throws CloneNotSupportedException 
-	 */
-	public static <T extends Cloneable> T[] deepCopy(T[] arry) throws CloneNotSupportedException{
-	    if (arry == null) return null;
-	    T[] cpy = copy(arry);
-	    for (int i = 0, l = cpy.length; i < l; i++){
-		cpy[i] = copy(cpy[i]);
-	    }
-	    return cpy;
-	}
-	
-	/**
-	 * Convenience method to copy Cloneable objects.
-	 * 
-	 * Instances of java.util.Collection will be replaced in the stream
-	 * by a safe limited functionality immutable Collection instance 
-	 * that must be passed to a collection instance constructor.
-	 * 
-	 * @param <T>
-	 * @param obj
-	 * @return a clone of obj if non null, otherwise null;
-	 * @throws CloneNotSupportedException 
-	 */
-	public static <T extends Cloneable> T copy(T obj) throws CloneNotSupportedException{
-	    if (obj == null) return null;
-	    try {
-		return (T) clone.invoke(obj, (Object) null);
-	    } catch (IllegalAccessException ex) {
-		throw thro(ex);
-	    } catch (IllegalArgumentException ex) {
-		throw thro(ex);
-	    } catch (InvocationTargetException ex) {
-		throw thro(ex);
-	    }
-	}
-	
-	private static CloneNotSupportedException thro(Throwable cause) {
-	    CloneNotSupportedException ex = new CloneNotSupportedException("Clone unsuccessful");
-	    ex.initCause(cause);
-	    return ex;
-	}
-	
-	/**
-	 * Convenience method to check that an object is non null.
-	 * @param <T>
-	 * @param obj
-	 * @param message reason for exception.
-	 * @return obj if non null.
-	 * @throws InvalidObjectException with a NullPointerException as its cause.
-	 */
-	public static <T> T notNull(T obj, String message) throws InvalidObjectException {
-	    if (obj != null) return obj;
-	    InvalidObjectException ex 
-		    = new InvalidObjectException(message);
-	    ex.initCause(new NullPointerException("Object was null"));
-	    throw ex;
-	}
-	
-	/**
-	 * Convenience method to copy and type check all keys and values from
-	 * the source map, into the destination map.
-	 * 
-	 * @param <T> Map or subtype.
-	 * @param <K> key type.
-	 * @param <V> value type.
-	 * @param source any map containing unchecked keys and values.
-	 * @param destination a map into which checked values and keys are to be copied.
-	 * @param key Class of key to type check.
-	 * @param val Class of value to type check.
-	 * @return the populated destination map.
-	 * @throws ClassCastException
-	 * @throws NullPointerException if any parameter is null.
-	 */
-	public static <T extends Map<K,V>,K,V> T copyMap(T source, T destination, Class<K> key, Class<V> val)
-	{
-	    Map<K,V> typeCheckedView = Collections.checkedMap(destination, key, val);
-	    typeCheckedView.putAll(source);
-	    return destination;
-	}
-	
-	/**
-	 * Convenience method to copy and type check all elements from the
-	 * source collection, into the destination collection.
-	 * 
-	 * @param <T> Collection or subtype.
-	 * @param <E> Element type.
-	 * @param source Collection containing unchecked elements.
-	 * @param destination Empty Collection to populate with checked elements.
-	 * @param type
-	 * @return the populated destination collection.
-	 * @throws ClassCastException
-	 * @throws NullPointerException if any parameter is null.
-	 */
-	public static <T extends Collection<E>, E> T copyCol( T source, T destination, Class<E> type){  
-	    Collection typeCheckedView = Collections.checkedCollection(destination, type);
-	    typeCheckedView.addAll(source);
-	    return destination;
-	}
 	
 	protected GetArg() {
 	    this(check());

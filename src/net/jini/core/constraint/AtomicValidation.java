@@ -18,11 +18,6 @@
 
 package net.jini.core.constraint;
 
-import java.io.IOException;
-import java.io.Serializable;
-import org.apache.river.api.io.AtomicSerial;
-import org.apache.river.api.io.AtomicSerial.GetArg;
-
 /**
  * Represents an invariant constraint on {@link ObjectInput} and 
  * {@link ObjectOutput}, covering data transmitted in band as part
@@ -44,58 +39,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @since 3.0
  */
-@AtomicSerial
-public final class AtomicValidation implements InvocationConstraint, Serializable {
-    private static final long serialVersionUID = 1L;
-
-    /**
-     * Detect when message contents (both requests and replies) have been
-     * altered by third parties, and if detected, refuse to process the
-     * message and throw an exception. The mechanisms used to maintain
-     * integrity are not specified by this constraint.
-     */
-    public static final AtomicValidation YES = new AtomicValidation(true);
-    /**
-     * Do not detect when message contents have been altered by third parties.
-     * Normally this constraint should not be used, as many secure
-     * communication mechanisms have integrity mechanisms that cannot be
-     * disabled.
-     */
-    public static final AtomicValidation NO = new AtomicValidation(false);
-
-    /**
-     * <code>true</code> for <code>YES</code>, <code>false</code> for
-     * <code>NO</code>
-     *
-     * @serial
-     */
-    private final boolean val;
-
-    /**
-     * Simple constructor.
-     *
-     * @param val <code>true</code> for <code>YES</code>, <code>false</code>
-     * for <code>NO</code>
-     */
-    private AtomicValidation(boolean val) {
-	this.val = val;
-    }
-    
-    AtomicValidation(GetArg arg) throws IOException {
-	this(arg.get("val", true));
-    }
-
-    /**
-     * Returns a string representation of this object.
-     */
-    public String toString() {
-	return val ? "Integrity.YES" : "Integrity.NO";
-    }
-
-    /**
-     * Canonicalize so that <code>==</code> can be used.
-     */
-    private Object readResolve() {
-	return val ? YES : NO;
-    }
+public enum AtomicValidation implements InvocationConstraint {
+    YES, 
+    NO
 }

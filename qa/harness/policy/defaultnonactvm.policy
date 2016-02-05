@@ -128,4 +128,5 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
 
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
 };

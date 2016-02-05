@@ -31,6 +31,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * An exception generated when a LeaseMap renewAll or cancelAll call
@@ -74,8 +75,8 @@ public class LeaseMapException extends LeaseException {
      */
     public LeaseMapException(GetArg arg) throws IOException{
 	this(arg,
-	     GetArg.copyMap( //Defensive copy of exceptionMap into new HashMap
-		 GetArg.notNull(
+	     Valid.copyMap( //Defensive copy of exceptionMap into new HashMap
+		 Valid.notNull(
 		     arg.get("exceptionMap", null, Map.class),
 		     "exceptionMap is null"
 		 ), 

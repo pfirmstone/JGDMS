@@ -10,6 +10,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
+grant { 
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
 // Grants required for later versions of jdk1.7 for classes that override
 // ObjectOutputStream, unfortunately the way this is implemented it isn't 
 // possible to perform as a privileged action from the overriding class.
