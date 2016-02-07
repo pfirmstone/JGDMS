@@ -24,6 +24,12 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -162,15 +168,31 @@ class ReferenceProcessor<T> implements ReferenceQueuingFactory<T, Referrer<T>> {
         
         public void run() {
             long time = System.nanoTime();
-            synchronized (lock){
-                Iterator it = col.iterator();
-                while (it.hasNext()){
-                    Object r = it.next();
-                    if (r instanceof TimeBomb) {
-                        ((TimeBomb)r).updateClock(time);
-                    }
-                }
-            }
+	    if (lock instanceof ConcurrentMap ||
+		lock instanceof ConcurrentSkipListSet ||
+		lock instanceof CopyOnWriteArrayList ||
+		lock instanceof CopyOnWriteArraySet ||
+		lock instanceof ConcurrentLinkedQueue ||
+		lock instanceof ConcurrentLinkedDeque) 
+	    {
+		Iterator it = col.iterator();
+		while (it.hasNext()){
+		    Object r = it.next();
+		    if (r instanceof TimeBomb) {
+			((TimeBomb)r).updateClock(time);
+		    }
+		}
+	    } else {
+		synchronized (lock){
+		    Iterator it = col.iterator();
+		    while (it.hasNext()){
+			Object r = it.next();
+			if (r instanceof TimeBomb) {
+			    ((TimeBomb)r).updateClock(time);
+			}
+		    }
+		}
+	    }
         }
         
     }
