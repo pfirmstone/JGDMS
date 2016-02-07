@@ -1686,12 +1686,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         ServiceRegistration reg = (ServiceRegistration)regByID.get(regID); 
 	if(reg == null) { // either expired or never existed
 	    throw new ThrowThis( 
-		new NoSuchObjectException("Not managing requested " +
-	            "registration object"));
+		new NoSuchObjectException(
+		    "Not managing requested registration object"
+		)
+	    );
 	} else if(!ensureCurrent(reg)) { // check validity
 	    throw new ThrowThis( 
-		new NoSuchObjectException("Requested registration object" +
-		    "has expired"));
+		new NoSuchObjectException(
+		    "Requested registration object has expired"
+		)
+	    );
 	}
 	// Must be a valid registration at this point
         if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
@@ -4749,10 +4753,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} else if (e instanceof Error) {
 	    throw (Error) e;
 	} else {
-	    IllegalStateException ise =
-		new IllegalStateException(e.getMessage());
-	    ise.initCause(e);
-	    throw ise;
+	    throw new IllegalStateException(e.getMessage(), e);
 	}
     }
     

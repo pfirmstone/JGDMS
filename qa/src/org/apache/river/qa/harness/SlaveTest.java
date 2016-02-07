@@ -26,13 +26,12 @@ import java.net.Socket;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.logging.Logger;
+import java.util.List;
 import java.util.logging.Level;
-
+import java.util.logging.Logger;
+import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
-import javax.security.auth.Subject;
-
 import net.jini.config.Configuration;
 import org.apache.river.api.security.CombinerSecurityManager;
 
@@ -124,7 +123,7 @@ public class SlaveTest {
      * @param request the <code>SlaveRequest</code> to send
      */
     public static void broadcast(SlaveRequest request) {
-	ArrayList hostList = QAConfig.getConfig().getHostList();
+	List hostList = QAConfig.getConfig().getHostList();
 	if (hostList.size() < 2) {
 	    return;
 	}
@@ -148,11 +147,11 @@ public class SlaveTest {
      *        zero or negative, this method returns immediately
      */ 
     public static void waitForSlaveDeath(int timeout) {
-	ArrayList hostList = QAConfig.getConfig().getHostList();
+	List hostList = QAConfig.getConfig().getHostList();
 	if (hostList.size() < 2) {
 	    return;
 	}
-	ArrayList slaveList = new ArrayList();
+	List slaveList = new ArrayList();
 	for (int i = 1; i < hostList.size(); i++) {
 	    slaveList.add(hostList.get(i));
 	}

@@ -1642,10 +1642,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         } else if (e instanceof Error) {
             throw (Error) e;
         } else {
-            IllegalStateException ise =
-                new IllegalStateException(e.getMessage());
-            ise.initCause(e);
-            throw ise;
+            throw new IllegalStateException(e.getMessage(), e);
         }
     }
     

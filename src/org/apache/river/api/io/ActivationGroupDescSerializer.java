@@ -80,12 +80,13 @@ class ActivationGroupDescSerializer implements Serializable {
 	    arg.get("className", null, String.class), 
 	    arg.get("location", null, String.class),
 	    arg.get("data", null, MarshalledObject.class),
-	    getProperties(arg), null)
+	    getProperties(arg), 
+	    arg.get("cmdEnv", null, CommandEnvironment.class))
 	);
     }
     
     private static Properties getProperties(GetArg arg) throws IOException{
-	Map properties = arg.get("properties", null, Map.class);
+	Map properties = arg.get("properties", null, Properties.class);
 	Properties prop = new Properties();
 	Set<Map.Entry> set = properties.entrySet();
 	Iterator<Map.Entry> it = set.iterator();

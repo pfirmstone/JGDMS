@@ -19,13 +19,15 @@
 package org.apache.river.qa.harness;
 
 
-import java.io.Serializable;
-import java.rmi.MarshalledObject;
+import java.io.IOException;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveRequest</code> to start a service.
  */
+@AtomicSerial
 class StartServiceRequest implements SlaveRequest {
 
     /** the service name */
@@ -43,6 +45,11 @@ class StartServiceRequest implements SlaveRequest {
     StartServiceRequest(String serviceName, int count) {
 	this.serviceName = serviceName;
 	this.count = count;
+    }
+    
+    StartServiceRequest(GetArg arg) throws IOException{
+	this(arg.get("serviceName", null, String.class),
+	     arg.get("count", 0));
     }
 
     /**

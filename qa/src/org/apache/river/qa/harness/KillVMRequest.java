@@ -19,13 +19,15 @@
 package org.apache.river.qa.harness;
 
 import java.io.IOException;
-import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveTestRequest</code> used to kill the activation group of a 
  * service.
  */
+@AtomicSerial
 class KillVMRequest implements SlaveRequest {
 
     /** 
@@ -51,7 +53,14 @@ class KillVMRequest implements SlaveRequest {
 	    throw new TestException("Unexpected exception", e);
 	}
     }
+    
+    public KillVMRequest(GetArg arg) throws IOException{
+	this(arg.get("marshalledProxy", null, MarshalledInstance.class));
+    }
 
+    private KillVMRequest(MarshalledInstance marshalledProxy){
+	this.marshalledProxy = marshalledProxy;
+    }
     /**
      * Execute the request. The proxy is unwrapped and the local
      * AdminManager is called to kill the activation group vm.

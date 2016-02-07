@@ -268,11 +268,10 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 		 * there appear to be a few screw cases and
 		 * IllegalArgumentException seems appropriate.
 		 */
-		final IllegalArgumentException iae =
-		    new IllegalArgumentException("Couldn't access field " + 
-						 field);
-		iae.initCause(e);
-		throw throwRuntime(iae);
+		throw throwRuntime(
+		    new IllegalArgumentException("Couldn't access field " 
+			    + field, e)
+		);
 	    }
 
 	    if (fieldValue == null) {

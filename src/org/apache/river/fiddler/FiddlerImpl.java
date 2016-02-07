@@ -3471,9 +3471,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
                 throw new ThrowThis
-                        (new NoSuchObjectException("Invalid registration "
-                                                   +"ID on call to "
-                                                   +"getRegistrars() method"));
+                        (new NoSuchObjectException(
+		"Invalid registration ID on call to getRegistrars() method"));
             }//endif
             Collection mVals = (regInfo.discoveredRegsMap).values(); 
             return ( (MarshalledObject[])(mVals).toArray
@@ -3532,10 +3531,11 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                            (new NoSuchObjectException("Invalid registration "
-                                                       +"ID on call to "
-                                                       +"getGroups() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+			"Invalid registration ID on call to getGroups() method"
+		    )
+		);
             }//endif
             String[] groups = null;
             if(regInfo.groups == null) {
@@ -3600,10 +3600,11 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                        (new NoSuchObjectException("Invalid registration "
-                                                   +"ID on call to "
-                                                   +"getLocators() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+			"Invalid registration ID on call to getLocators() method"
+		    )
+		);
             }//endif
             return (LookupLocator[])(regInfo.locators).toArray
                                   (new LookupLocator[regInfo.locators.size()]);
@@ -3701,22 +3702,21 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                        (new NoSuchObjectException("Invalid registration "
-                                                   +"ID on call to "
-                                                   +"addGroups() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+			"Invalid registration ID on call to addGroups() method"
+		    )
+		);
             }//endif
             /* Check the input for validity */
             if(groups == null) { // asking that all groups be added
-                throw new NullPointerException(" on call to addGroups() "
-                                               +"method, cannot add "
-                                               +"'ALL_GROUPS' (the null set) "
-                                               +"to a registration's set of "
-                                               +"groups to discover");
+                throw new NullPointerException(
+" on call to addGroups() method, cannot add 'ALL_GROUPS' (the null set) to a registration's set of groups to discover"
+		);
             } else if(containsNullElement(groups)) { // null element
-                throw new NullPointerException(" on call to addGroups() "
-                                               +"method, at least one null "
-                                               +"element in groups parameter");
+                throw new NullPointerException(
+" on call to addGroups() method, at least one null element in groups parameter"
+		);
             } else if (regInfo.groups == null) { // all groups being discovered
                 throw new UnsupportedOperationException
                                               (" on call to addGroups() "
@@ -3798,16 +3798,17 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                        (new NoSuchObjectException("Invalid registration "
-                                                   +"ID on call to "
-                                                   +"setGroups() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+			"Invalid registration ID on call to setGroups() method"
+		    )
+		);
             }//endif
             /* Check the input for validity */
             if(containsNullElement(groups)) { // null element
-                throw new NullPointerException(" on call to setGroups() "
-                                               +"method, at least one null "
-                                               +"element in groups parameter");
+                throw new NullPointerException(
+" on call to setGroups() method, at least one null element in groups parameter"
+		);
             } else if ((groups == null) && (regInfo.groups == null)) {
                 /* null input, but already set to ALL groups; do nothing */
                 return;
@@ -3898,29 +3899,25 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                        (new NoSuchObjectException("Invalid registration "
-                                                   +"ID on call to "
-                                                   +"removeGroups() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+		    "Invalid registration ID on call to removeGroups() method"
+		    )
+		);
             }//endif
             /* Check the input for validity */
             if(groups == null) { // asking that all groups be removed
-                throw new NullPointerException(" on call to removeGroups() "
-                                               +"method, cannot remove "
-                                               +"'ALL_GROUPS' (the null set) "
-                                               +"from a registration's set of "
-                                               +"groups to discover");
+                throw new NullPointerException(
+" on call to removeGroups() method, cannot remove 'ALL_GROUPS' (the null set) from a registration's set of groups to discover"
+		);
             } else if(containsNullElement(groups)) { // null element
-                throw new NullPointerException(" on call to removeGroups() "
-                                               +"method, at least one null "
-                                               +"element in groups parameter");
+                throw new NullPointerException(
+" on call to removeGroups() method, at least one null element in groups parameter"
+		);
             } else if (regInfo.groups == null) { // all groups being discovered
-                throw new UnsupportedOperationException
-                                            (" on call to removeGroups() "
-                                             +"method, cannot remove a set of"
-                                             +"groups from a set already "
-                                             +"configured for 'ALL_GROUPS' "
-                                             +"(the null set)");
+                throw new UnsupportedOperationException(
+" on call to removeGroups() method, cannot remove a set of groups from a set already configured for 'ALL_GROUPS' (the null set)"
+		);
             }//endif
             /* Remove the requested groups */
             removeGroupsDo(regInfo, groups);
@@ -4010,21 +4007,21 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                        (new NoSuchObjectException("Invalid registration "
-                                                   +"ID on call to "
-                                                   +"addLocators() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+			"Invalid registration ID on call to addLocators() method"
+		    )
+		);
             }//endif
             /* Check the input for validity */
             if(locators == null) {
-                throw new NullPointerException(" on call to addLocators() "
-                                               +"method, cannot add null "
-                                               +"to a registration's set of "
-                                               +"locators to discover");
+                throw new NullPointerException(
+" on call to addLocators() method, cannot add null to a registration's set of locators to discover"
+		);
             } else if(containsNullElement(locators)) { // null element
-                throw new NullPointerException(" on call to addLocators() "
-                                             +"method, at least one null "
-                                             +"element in locators parameter");
+                throw new NullPointerException(
+" on call to addLocators() method, at least one null element in locators parameter"
+		);
             }//endif(locators == null)
             /* Augment the current set of locators with the input set */
             addLocatorsDo(regInfo, locators);
@@ -4098,21 +4095,21 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                        (new NoSuchObjectException("Invalid registration "
-                                                   +"ID on call to "
-                                                   +"setLocators() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+			"Invalid registration ID on call to setLocators() method"
+		    )
+		);
             }//endif
             /* Check the input for validity */
             if(locators == null) {
-                throw new NullPointerException(" on call to setLocators() "
-                                               +"method, cannot replace a "
-                                               +"registration's current set "
-                                               +"of locators with null");
+                throw new NullPointerException(
+" on call to setLocators() method, cannot replace a registration's current set of locators with null"
+		);
             } else if(containsNullElement(locators)) { // null element
-                throw new NullPointerException(" on call to setLocators() "
-                                             +"method, at least one null "
-                                             +"element in locators parameter");
+                throw new NullPointerException(
+" on call to setLocators() method, at least one null element in locators parameter"
+		);
             }//endif(locators == null)
             setLocatorsDo(regInfo, locators);
             addLogRecord(new LocsSetInRegistrationLogObj
@@ -4184,21 +4181,21 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                       (new NoSuchObjectException("Invalid registration "
-                                                  +"ID on call to "
-                                                  +"removeLocators() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+		    "Invalid registration ID on call to removeLocators() method"
+		    )
+		);
             }//endif
             /* Check the input for validity */
             if(locators == null) {
-                throw new NullPointerException(" on call to removeLocators() "
-                                               +"method, cannot remove null "
-                                               +"from a registration's set of "
-                                               +"locators to discover");
+                throw new NullPointerException(
+" on call to removeLocators() method, cannot remove null from a registration's set of locators to discover"
+		);
             } else if(containsNullElement(locators)) { // null element
-                throw new NullPointerException(" on call to removeLocators() "
-                                             +"method, at least one null "
-                                             +"element in locators parameter");
+                throw new NullPointerException(
+" on call to removeLocators() method, at least one null element in locators parameter"
+		);
             }//endif(locators == null)
             /* Remove the requested set of locators from the current set */
             removeLocatorsDo(regInfo, locators);
@@ -4262,15 +4259,16 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             RegistrationInfo regInfo
                    = (RegistrationInfo)(registrationByID.get(registrationID));
             if(regInfo == null) {
-                throw new ThrowThis
-                            (new NoSuchObjectException("Invalid registration "
-                                                       +"ID on call to "
-                                                       +"discard() method"));
+                throw new ThrowThis(
+		    new NoSuchObjectException(
+			"Invalid registration ID on call to discard() method"
+		    )
+		);
             }//endif
             if(registrar == null) {
-                throw new NullPointerException(" on call to discard() "
-                                               +"method, null input for "
-                                               +"registrar to discard");
+                throw new NullPointerException(
+		" on call to discard() method, null input for registrar to discard"
+		);
             }//endif
             if( regIsElementOfRegSet(registrar,discoveryMgr.getRegistrars()) ){
                 /* This must be the first discard request for this registrar 

@@ -66,9 +66,7 @@ public class MuxClient extends Mux {
     public OutboundRequest newRequest()	throws IOException {
 	synchronized (muxLock) {
 	    if (muxDown) {
-		IOException ioe = new IOException(muxDownMessage);
-		ioe.initCause(muxDownCause);
-		throw ioe;
+		throw new IOException(muxDownMessage, muxDownCause);
 	    }
 	    int sessionID = busySessions.nextClearBit(0);
 	    if (sessionID > Mux.MAX_SESSION_ID) {
@@ -96,9 +94,7 @@ public class MuxClient extends Mux {
     public int requestsInProgress() throws IOException {
 	synchronized (muxLock) {
 	    if (muxDown) {
-		IOException ioe = new IOException(muxDownMessage);
-		ioe.initCause(muxDownCause);
-		throw ioe;
+		throw new IOException(muxDownMessage, muxDownCause);
 	    }
 	    return busySessions.cardinality();
 	}

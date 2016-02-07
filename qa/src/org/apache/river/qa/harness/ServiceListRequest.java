@@ -18,7 +18,6 @@
 
 package org.apache.river.qa.harness;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 

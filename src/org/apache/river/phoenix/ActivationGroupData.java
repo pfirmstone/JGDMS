@@ -18,7 +18,10 @@
 
 package org.apache.river.phoenix;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Initialization data for {@link ActivationGroupImpl}, to control the
@@ -29,6 +32,7 @@ import java.io.Serializable;
  * 
  * @since 2.0
  */
+@AtomicSerial
 public class ActivationGroupData implements Serializable {
     private static final long serialVersionUID = 1135616886784731068L;
 
@@ -47,6 +51,10 @@ public class ActivationGroupData implements Serializable {
      */
     public ActivationGroupData(String[] config) {
 	this.config = (config == null ? null : (String[]) config.clone());
+    }
+    
+    public ActivationGroupData(GetArg arg) throws IOException{
+	this(arg.get("config", null, String[].class));
     }
 
     /**

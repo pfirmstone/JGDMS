@@ -48,6 +48,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  * 
  * @since 2.0
  **/
+@AtomicSerial //To prevent replacement by serializer in stream constructor not implemented.
 final class ConstrainableAID extends AID
 	implements RemoteMethodControl, TrustEquivalence
 {

@@ -17,16 +17,16 @@
  */
 package org.apache.river.test.spec.lookupservice;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.river.qa.harness.OverrideProvider;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.OverrideProvider;
-import java.util.ArrayList;
 
 public class ServiceLeaseOverrideProvider implements OverrideProvider {
 
     private long serviceLeaseDuration;
     private long eventLeaseDuration;
-    ArrayList list;
 
     public ServiceLeaseOverrideProvider(QAConfig sysConfig, 
         long serviceLeaseDuration, long eventLeaseDuration) 
@@ -34,9 +34,9 @@ public class ServiceLeaseOverrideProvider implements OverrideProvider {
         this.serviceLeaseDuration = serviceLeaseDuration;
         this.eventLeaseDuration = eventLeaseDuration;
     }
-
+    
     public String[] getOverrides(QAConfig config, String servicePrefix, int index) throws TestException {
-        list = new ArrayList();
+        List list = new ArrayList();
 	// servicePrefix may be null for test overrides
         if ("net.jini.core.lookup.ServiceRegistrar".equals(servicePrefix)) {
             list.add("org.apache.river.reggie.minMaxServiceLease");

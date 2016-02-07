@@ -17,6 +17,7 @@
 
 package org.apache.river.api.io;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
@@ -25,7 +26,9 @@ import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URL;
 import java.rmi.MarshalledObject;
+import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationGroupDesc;
+import java.rmi.activation.ActivationGroupID;
 import java.rmi.server.UID;
 import java.security.Permission;
 import java.util.Collection;
@@ -271,8 +274,11 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    else if (obj instanceof URL) obj = new URLSerializer((URL) obj);
 	    else if (obj instanceof URI) obj = new URISerializer((URI) obj);
 	    else if (obj instanceof UID) obj = new UIDSerializer((UID) obj);
+	    else if (obj instanceof File) obj = new FileSerializer((File) obj);
 	    else if (obj instanceof MarshalledObject) obj = new MarshalledObjectSerializer((MarshalledObject) obj);
 	    else if (obj instanceof ActivationGroupDesc) obj = new ActivationGroupDescSerializer((ActivationGroupDesc) obj);
+	    else if (obj instanceof ActivationGroupID) obj = new ActivationGroupIDSerializer((ActivationGroupID) obj);
+	    else if (obj instanceof ActivationDesc) obj = new ActivationDescSerializer((ActivationDesc) obj);
 	    else if (obj instanceof ActivationGroupDesc.CommandEnvironment) 
 		obj = new ActivationGroupDescSerializer.CmdEnv((ActivationGroupDesc.CommandEnvironment) obj);
 	    else if (obj instanceof StackTraceElement) obj = new StackTraceElementSerializer((StackTraceElement) obj);

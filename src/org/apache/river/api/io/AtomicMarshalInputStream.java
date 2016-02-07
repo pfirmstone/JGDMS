@@ -59,7 +59,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.net.URL;
-import java.rmi.activation.ActivationGroupID;
 import java.security.AccessControlContext;
 import java.security.AccessControlException;
 import java.security.AccessController;
@@ -2109,7 +2108,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     protected Object replaceObject(Object o) throws IOException, ClassNotFoundException{
 	return o;
     }
-
+    
     /**
      * Write a new handle describing a cyclic reference from the stream.
      * 
@@ -3179,7 +3178,6 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    if (clas == Short.TYPE) return (short)0;
 	    if (clas == Double.TYPE) return (double) 0.0;
 	    if (clas == Float.TYPE) return (float) 0.0;
-	    if (clas == ActivationGroupID.class) return new ActivationGroupID(null);
 	    if (collectionsClass){ // Collections classes don't allow null parameters.
 		if (clas == Object[].class) return new Object[0];
 		if (clas == Collection.class || clas == List.class) return Collections.emptyList();

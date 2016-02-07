@@ -4108,8 +4108,7 @@ public class OutriggerServerImpl
 	    String msg, Throwable t, Logger logger)
 	throws NoSuchObjectException
     {
-	final NoSuchObjectException nsoe = new NoSuchObjectException(msg);
-	nsoe.initCause(t);
+	final NoSuchObjectException nsoe = new net.jini.export.NoSuchObjectException(msg, t);
 	logger.log(Levels.FAILED, msg, nsoe);
 	throw nsoe;
     }

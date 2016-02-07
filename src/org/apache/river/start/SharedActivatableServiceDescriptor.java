@@ -17,27 +17,27 @@
  */
 package org.apache.river.start;
 
-import net.jini.export.ServiceProxyAccessor;
-import org.apache.river.config.Config;
-
-import net.jini.config.Configuration;
-import net.jini.security.BasicProxyPreparer;
-import net.jini.security.ProxyPreparer;
-
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
+import java.rmi.MarshalledObject;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
-import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.config.Configuration;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
+import net.jini.security.BasicProxyPreparer;
+import net.jini.security.ProxyPreparer;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.config.Config;
 
 /**
  * Class used to launch shared, activatable services. 
@@ -233,7 +233,7 @@ import net.jini.io.MarshalledInstance;
  * @since 2.0
  *
  */
-
+@AtomicSerial
 public class SharedActivatableServiceDescriptor 
     extends NonActivatableServiceDescriptor
 {
@@ -304,6 +304,28 @@ public class SharedActivatableServiceDescriptor
         }//end constructor
     }//end class Created
 
+    public SharedActivatableServiceDescriptor(GetArg arg) throws IOException{
+	this(arg,
+	    arg.get("sharedGroupLog", null, String.class),
+	    arg.get("restart", false),
+	    arg.get("host", null, String.class),
+	    arg.get("port", 0)
+	);
+    }
+    
+    private SharedActivatableServiceDescriptor(GetArg arg,
+						String sharedGroupLog,
+						// Optional Args,      
+						boolean restart,
+						String host,
+						int port) throws IOException
+    {
+	super(arg);
+	this.sharedGroupLog = sharedGroupLog;
+	this.restart = restart;
+	this.host = host;
+	this.port = port;
+    }
     
     /**
      * Convenience constructor. Equivalent to calling this 

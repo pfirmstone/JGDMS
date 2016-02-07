@@ -20,10 +20,6 @@ package org.apache.river.qa.harness;
 
 import java.lang.reflect.Constructor;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
 
 import org.apache.river.tool.ClassServer;
 

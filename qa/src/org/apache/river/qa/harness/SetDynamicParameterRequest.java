@@ -18,12 +18,15 @@
 
 package org.apache.river.qa.harness;
 
-import java.io.Serializable;
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveTestRequest</code> which sets a dynamic parameter
  * on the slave.
  */
+@AtomicSerial
 class SetDynamicParameterRequest implements SlaveRequest {
 
     /** the name of the parameter */
@@ -41,6 +44,11 @@ class SetDynamicParameterRequest implements SlaveRequest {
     public SetDynamicParameterRequest(String name, String value) {
 	this.name = name;
 	this.value = value;
+    }
+    
+    public SetDynamicParameterRequest(GetArg arg) throws IOException{
+	this(arg.get("name", null, String.class),
+	    arg.get("value", null, String.class));
     }
 
     /**

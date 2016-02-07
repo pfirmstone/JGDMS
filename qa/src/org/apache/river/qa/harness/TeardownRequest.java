@@ -18,10 +18,6 @@
 
 package org.apache.river.qa.harness;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.rmi.MarshalledObject;
-
 /**
  * A <code>SlaveRequest</code> to perform cleanup and exit the VM.
  */

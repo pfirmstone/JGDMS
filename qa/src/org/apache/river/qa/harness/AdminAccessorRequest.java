@@ -19,15 +19,16 @@
 package org.apache.river.qa.harness;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveRequest</code> which calls an admin accessor method
  * on the slave host and returns the accessor value.
  */
+@AtomicSerial
 class AdminAccessorRequest implements SlaveRequest {
 
     /** the service proxy who's admin is to be access */
@@ -52,6 +53,18 @@ class AdminAccessorRequest implements SlaveRequest {
 	} catch (IOException e) {
 	    throw new RuntimeException("Marshalling problem", e);
 	}
+	this.methodName = methodName;
+    }
+    
+    AdminAccessorRequest(GetArg arg) throws IOException{
+	this(
+	    arg.get("methodName", null, String.class),
+	    arg.get("marshalledServiceRef", null, MarshalledInstance.class)
+	);
+    }
+    
+    private AdminAccessorRequest(String methodName, MarshalledInstance marshalledServiceRef){
+	this.marshalledServiceRef = marshalledServiceRef;
 	this.methodName = methodName;
     }
 

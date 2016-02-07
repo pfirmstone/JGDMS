@@ -276,9 +276,9 @@ public class EMSFT extends EMSTestBase implements TimeConstants {
 	    Throwable detail = e.getCause();
 	    if (detail == null || 
 		!(detail instanceof NoSuchObjectException)) {
-		throw new TestException("Unexpected exception", e);
+		    throw new TestException("Unexpected exception", e);
+		}
 	    }
-	}
 	assertCount(myRel, myRelCount);
 	assertCount(myRel2, myRelCount2);
     }

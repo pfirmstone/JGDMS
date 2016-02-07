@@ -42,6 +42,7 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * The <code>ListenerProxy</code> class implements the 
@@ -90,15 +91,15 @@ class ListenerProxy implements RemoteEventListener, Serializable, ReferentUuid {
     }
 
     ListenerProxy(GetArg arg) throws IOException {
-	this(check(arg), (Uuid) arg.get("registrationID", null));
-    }
-    
-    private static MailboxBackEnd check(GetArg arg) throws IOException {
-	MailboxBackEnd server = (MailboxBackEnd) arg.get("server", null);
-	if (server == null) throw new InvalidObjectException("server cannot be null");
-	Uuid registrationID = (Uuid) arg.get("registrationID", null);
-	if (registrationID == null) throw new InvalidObjectException("uuid cannot be null");
-	return server;
+	this(Valid.notNull(
+		arg.get("server", null, MailboxBackEnd.class),
+		"server cannot be null"
+	    ), 
+	    Valid.notNull(
+		    arg.get("registrationID", null, Uuid.class), 
+		    "registrationID cannot be null"
+	    )
+	);
     }
 
     /** Simple constructor */

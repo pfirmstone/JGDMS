@@ -18,10 +18,10 @@
 
 package org.apache.river.qa.harness;
 
-import java.io.File;
 import java.io.EOFException;
-import java.io.InputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -32,12 +32,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.List;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.jar.JarFile;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A 'harness' which accepts work requests from a master over
@@ -136,7 +137,7 @@ class SlaveHarness {
      * @throws TestException on connection timeout
      */
     static void connect() throws TestException {
-	ArrayList hostList = QAConfig.getConfig().getHostList();
+	List hostList = QAConfig.getConfig().getHostList();
 	if (hostList.size() < 2) {
 	    return;
 	}

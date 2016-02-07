@@ -279,8 +279,7 @@ abstract class Request {
 			done(true);
 		    }
 		    outState = INVALID;
-		    outException = new IOException("stream invalid");
-		    outException.initCause(cause);
+		    outException = new IOException("stream invalid", cause);
 		}
 		throw outException;
 	    }

@@ -58,6 +58,13 @@ public class Valid {
 	if (type.isInstance(o)) return (T) o;
 	throw new InvalidObjectException("Argument must be an instance of " + type);
     }
+    
+    public static <T> T hasClass(Class<T> type, Object o) throws InvalidObjectException{
+	if (o == null) return null;
+	if (type == null) throw new IllegalArgumentException("type cannot be null");
+	if (type.equals(o.getClass())) return (T) o;
+	throw new InvalidObjectException("Argument must be an instance of " + type);
+    }
 
     /**
      * Convenience method to copy and type check all elements from the
@@ -103,6 +110,24 @@ public class Valid {
 	InvalidObjectException ex = new InvalidObjectException(message);
 	ex.initCause(new NullPointerException("Object was null"));
 	throw ex;
+    }
+    
+    /**
+     * Checks all elements in an array for null values, if the arry parameter
+     * is not null.
+     * 
+     * @param <T>
+     * @param arry the array
+     * @param message the message for the InvalidObjectException
+     * @return the array or null if arry is null.
+     * @throws InvalidObjectException if array contains null elements.
+     */
+    public static <T> T[] nullElement(T[] arry, String message) throws InvalidObjectException{
+	if (arry == null) return null;
+	for (int i = 0, l = arry.length; i < l; i++){
+	    if (arry[i] == null) throw new InvalidObjectException(message);
+	}
+	return arry;
     }
 
     /**

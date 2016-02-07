@@ -18,15 +18,7 @@
 
 package org.apache.river.start;
 
-import org.apache.river.api.util.Startable;
-import net.jini.export.ProxyAccessor;
-import net.jini.id.Uuid;
-import net.jini.id.UuidFactory;
-import net.jini.loader.pref.PreferredClassLoader;
-import net.jini.security.policy.DynamicPolicy;
-import net.jini.security.policy.DynamicPolicyProvider;
-import net.jini.security.policy.PolicyFileProvider;
-
+import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
@@ -43,18 +35,29 @@ import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.security.AccessController;
 import java.security.AllPermission;
-import java.security.cert.Certificate;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
+import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.export.ProxyAccessor;
+import net.jini.id.Uuid;
+import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.loader.LoadClass;
+import net.jini.loader.pref.PreferredClassLoader;
+import net.jini.security.policy.DynamicPolicy;
+import net.jini.security.policy.DynamicPolicyProvider;
+import net.jini.security.policy.PolicyFileProvider;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
+import org.apache.river.api.util.Startable;
 
 /**
  * A wrapper for activatable objects, providing separation of the import
@@ -231,6 +234,7 @@ public class ActivateWrapper implements Remote, Serializable {
      * descriptor gets stored as the <code>MarshalledObject</code> 
      * initialization data in the <code>ActivationDesc</code>.
      */
+    @AtomicSerial
     public static class ActivateDesc implements Serializable {
 
         private static final long serialVersionUID = 2L;
@@ -261,6 +265,17 @@ public class ActivateWrapper implements Remote, Serializable {
          * @serial
 	 */
 	public final MarshalledObject data;
+	
+	public ActivateDesc(GetArg arg) throws IOException
+	{
+	    this(arg.get("className", null, String.class),
+		    Valid.nullElement(arg.get("importLocation", null, URL[].class),
+			    "importLocation cannot contain null elements"),
+		    Valid.nullElement(arg.get("exportLocation", null, URL[].class),
+			    "exportLocation cannot contain null elements"),
+		    arg.get("policy", null, String.class),
+		    arg.get("data", null, MarshalledObject.class));
+	}
 
 	/**
 	 * Trivial constructor.
@@ -271,10 +286,9 @@ public class ActivateWrapper implements Remote, Serializable {
 			    String policy,
 			    MarshalledObject data)
 	{
-//TODO - clone non-String objects?
 	    this.className = className;
-	    this.importLocation = importLocation;
-	    this.exportLocation = exportLocation;
+	    this.importLocation = Valid.copy(importLocation);
+	    this.exportLocation = Valid.copy(exportLocation);
 	    this.policy = policy;
 	    this.data = data;
 	}

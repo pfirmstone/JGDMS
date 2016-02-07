@@ -35,6 +35,7 @@ import org.apache.river.proxy.MarshalledWrapper;
  * 
  * @since 2.0
  */
+@AtomicSerial //To prevent replacement by serializer in stream constructor not implemented.
 class AID extends ActivationID {
     private static final long serialVersionUID = 681896091039721074L;
 

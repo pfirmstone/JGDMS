@@ -565,7 +565,7 @@ public class Util {
 	    throw new ExceptionInInitializerError(
 			new IOException(
 			     "problem getting resources: " +
-			     prohibitedProxyInterfacesResource).initCause(e));
+			     prohibitedProxyInterfacesResource, e));
 	}
 	while (resources.hasMoreElements()) {
 	    URL url = (URL) resources.nextElement();
@@ -612,7 +612,7 @@ public class Util {
 		}
 	    } catch (IOException e) {
 		throw new ExceptionInInitializerError(
-		      new IOException("problem reading " + url).initCause(e));
+		      new IOException("problem reading " + url, e));
 	    }
 	}
 	return names;

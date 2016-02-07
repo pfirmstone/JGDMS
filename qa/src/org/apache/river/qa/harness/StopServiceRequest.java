@@ -19,14 +19,15 @@
 package org.apache.river.qa.harness;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveRequest</code> to stop a service previously started
  * on the slave.
  */
+@AtomicSerial
 class StopServiceRequest implements SlaveRequest {
 
     /** the service proxy wrapped in a <code>MarshalledInstance</code> */
@@ -45,6 +46,14 @@ class StopServiceRequest implements SlaveRequest {
 	} catch (IOException e) {
 	    throw new RuntimeException("Marshalling problem", e);
 	}
+    }
+    
+    StopServiceRequest(GetArg arg) throws IOException{
+	this(arg.get("marshalledServiceRef", null, MarshalledInstance.class));
+    }
+    
+    private StopServiceRequest(MarshalledInstance marshalledServiceRef){
+	this.marshalledServiceRef = marshalledServiceRef;
     }
 
     /**

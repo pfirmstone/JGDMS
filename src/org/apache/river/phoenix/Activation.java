@@ -18,10 +18,6 @@
 
 package org.apache.river.phoenix;
 
-import org.apache.river.proxy.BasicProxyTrustVerifier;
-import org.apache.river.proxy.MarshalledWrapper;
-import org.apache.river.reliableLog.LogHandler;
-import org.apache.river.reliableLog.ReliableLog;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,6 +62,7 @@ import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -94,7 +91,14 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.CombinerSecurityManager;
+import org.apache.river.proxy.BasicProxyTrustVerifier;
+import org.apache.river.proxy.MarshalledWrapper;
+import org.apache.river.reliableLog.LogHandler;
+import org.apache.river.reliableLog.ReliableLog;
 
 /**
  * Phoenix main class.
@@ -103,6 +107,7 @@ import org.apache.river.api.security.CombinerSecurityManager;
  * 
  * @since 2.0
  */
+@AtomicSerial
 class Activation implements Serializable {
     private static final long serialVersionUID = -6825932652725866242L;
     private static final String PHOENIX = "org.apache.river.phoenix";
@@ -128,20 +133,20 @@ class Activation implements Serializable {
     }
 
     /** maps activation id uid to its respective group id */
-    private final Map<UID,ActivationGroupID> idTable = new HashMap<UID,ActivationGroupID>();
+    private final Map<UID,ActivationGroupID> idTable;
     /** maps group id to its GroupEntry groups */
-    private final Map<ActivationGroupID,GroupEntry> groupTable = new HashMap<ActivationGroupID,GroupEntry>();
+    private final Map<ActivationGroupID,GroupEntry> groupTable;
     
     /** login context */
     private transient LoginContext login;
     /** number of simultaneous group exec's */
     private transient int groupSemaphore;
     /** counter for numbering groups */
-    private transient int groupCounter = 0;
+    private transient int groupCounter;
     /** persistent store */
     private transient ReliableLog log;
     /** number of log updates since last log snapshot */
-    private transient int numUpdates = 0;
+    private transient int numUpdates;
     /** take log snapshot after this many updates */
     private transient int snapshotInterval;
     /** the default java command for groups */
@@ -184,7 +189,7 @@ class Activation implements Serializable {
     private transient ProxyPreparer groupPreparer;
     private transient GroupOutputHandler outputHandler;
     /** true if shutdown has been called */
-    private volatile boolean shuttingDown = false;
+    private volatile boolean shuttingDown;
     /** Runtime shutdown hook */
     private transient Thread shutdownHook;
     /** Non-null if phoenix was started by the service starter */
@@ -196,6 +201,44 @@ class Activation implements Serializable {
      * snapshot is taken during the first incarnation of phoenix.
      */
     private Activation() {
+	this.groupTable = new HashMap<ActivationGroupID,GroupEntry>();
+	this.idTable = new HashMap<UID,ActivationGroupID>();
+	this.shuttingDown = false;
+	this.numUpdates = 0;
+	this.groupCounter = 0;
+        ReadWriteLock rwl = new ReentrantReadWriteLock();
+        readLock = rwl.readLock();
+        writeLock = rwl.writeLock();
+        signal = writeLock.newCondition();
+        exported = writeLock.newCondition();
+        unexported = writeLock.newCondition();
+    }
+    
+    Activation(GetArg arg) throws IOException{
+	this(
+	    Valid.copyMap(
+		arg.get("idTable", null, Map.class),
+		new HashMap<UID,ActivationGroupID>(),
+		UID.class,
+		ActivationGroupID.class
+	    ),
+	    Valid.copyMap(
+		arg.get("groupTable", null, Map.class),
+		new HashMap<ActivationGroupID,GroupEntry>(),
+		ActivationGroupID.class, 
+		GroupEntry.class
+	    )
+	);
+    }
+    
+    private Activation(Map<UID,ActivationGroupID> idTable,
+			Map<ActivationGroupID,GroupEntry> groupTable)
+    {
+	this.idTable = idTable;
+	this.groupTable = groupTable;
+	this.shuttingDown = false;
+	this.numUpdates = 0;
+	this.groupCounter = 0;
         ReadWriteLock rwl = new ReentrantReadWriteLock();
         readLock = rwl.readLock();
         writeLock = rwl.writeLock();
@@ -499,7 +542,7 @@ class Activation implements Serializable {
             writeLock.lock();
             try {
 		addLogRecord(new LogRegisterGroup(id, desc));
-                groupTable.put(id, new GroupEntry(id, desc));
+                groupTable.put(id, new GroupEntry(id, desc, Activation.this));
             } finally {
                 writeLock.unlock();
             }
@@ -876,7 +919,8 @@ class Activation implements Serializable {
      * complete Activation system is written out as a log update, the
      * point of having updates is nullified.  
      */
-    private class GroupEntry implements Serializable {
+    @AtomicSerial
+    private static class GroupEntry implements Serializable {
 	
 	private static final long serialVersionUID = 7222464070032993304L;
 	private static final int MAX_TRIES = 2;
@@ -885,29 +929,77 @@ class Activation implements Serializable {
 	private static final int TERMINATE = 2;
 	private static final int TERMINATING = 3;
         
+	Activation activation;
 	ActivationGroupDesc desc;
 	final ActivationGroupID groupID;
-	long incarnation = 0;
-	Map<UID,ObjectEntry> objects = new HashMap<UID,ObjectEntry>(11);
-	HashSet<UID> restartSet = new HashSet<UID>();
+	long incarnation;
+	Map<UID,ObjectEntry> objects;
+	Set<UID> restartSet;
 	
-	transient ActivationInstantiator group = null;
-	transient int status = NORMAL;
-	transient long waitTime = 0;
-	transient String groupName = null;
-	transient volatile Process child = null;
-	transient volatile boolean removed = false;
-	transient Watchdog watchdog = null;
+	transient ActivationInstantiator group;
+	transient int status;
+	transient long waitTime;
+	transient String groupName;
+	transient volatile Process child;
+	transient volatile boolean removed;
+	transient Watchdog watchdog;
 	
-	GroupEntry(ActivationGroupID groupID, ActivationGroupDesc desc) {
+	GroupEntry(ActivationGroupID groupID, ActivationGroupDesc desc, Activation activation) {
+	    this.removed = false;
+	    this.child = null;
+	    this.groupName = null;
+	    this.waitTime = 0;
+	    this.status = NORMAL;
+	    this.group = null;
+	    this.watchdog = null;
+	    this.incarnation = 0;
+	    this.restartSet = new HashSet<UID>();
+	    this.objects = new HashMap<UID,ObjectEntry>(11);
 	    this.groupID = groupID;
 	    this.desc = desc;
+	    this.activation = activation;
+	}
+	
+	GroupEntry(GetArg arg) throws IOException{
+	    this(
+		    arg.get("desc", null, ActivationGroupDesc.class),
+		    arg.get("groupID", null, ActivationGroupID.class),
+		    arg.get("incarnation", 0L),
+		    arg.get("objects", null, Map.class),
+		    arg.get("restartSet", null, Set.class),
+		    Valid.notNull(
+			arg.get("activation", null, Activation.class),
+			"activation cannot be null"
+		    )
+	    );
+	}
+	
+	private GroupEntry(ActivationGroupDesc desc,
+		ActivationGroupID groupID,
+		long incarnation,
+		Map<UID,ObjectEntry> objects,
+		Set<UID> restartSet,
+		Activation activation)
+	{
+	    this.removed = false;
+	    this.child = null;
+	    this.groupName = null;
+	    this.waitTime = 0;
+	    this.status = NORMAL;
+	    this.group = null;
+	    this.watchdog = null;
+	    this.desc = desc;
+	    this.groupID = groupID;
+	    this.incarnation = incarnation;
+	    this.objects = objects;
+	    this.restartSet = restartSet;
+	    this.activation = activation;
 	}
 
         
 	void restartServices() {
 	    Iterator<UID> iter = null;
-            readLock.lock();
+            activation.readLock.lock();
             try {
                 if (restartSet.isEmpty()) return;
                 /*
@@ -919,14 +1011,14 @@ class Activation implements Serializable {
 
                 iter = new HashSet<UID>(restartSet).iterator();
             } finally {
-                readLock.unlock();
+                activation.readLock.unlock();
             }
 	    while (iter.hasNext()) {
 		UID uid = iter.next();
 		try {
 		    activate(uid, true);
 		} catch (Exception e) {
-		    if (shuttingDown) {
+		    if (activation.shuttingDown) {
 			return;
 		    }
 		    logger.log(Level.WARNING, "unable to restart service", e);
@@ -952,7 +1044,7 @@ class Activation implements Serializable {
 	    
 	    group = inst;
 	    status = NORMAL;
-	    signal.signalAll();
+	    activation.signal.signalAll();
 	}
 
 	private void checkRemoved() throws UnknownGroupException {
@@ -976,21 +1068,21 @@ class Activation implements Serializable {
     	    throws ActivationException
 	{
 	    checkRemoved();
-            if (addRecord) addLogRecord(new LogRegisterObject(uid, desc));
-            objects.put(uid, new ObjectEntry(desc));
+            if (addRecord) activation.addLogRecord(new LogRegisterObject(uid, desc));
+            objects.put(uid, new ObjectEntry(desc, activation));
             if (desc.getRestartMode()) restartSet.add(uid);
-            idTable.put(uid, groupID);
+            activation.idTable.put(uid, groupID);
 	}
 
 	void unregisterObject(UID uid, boolean addRecord)
     	    throws ActivationException
 	{
             ObjectEntry objEntry = getObjectEntry(uid);
-            if (addRecord) addLogRecord(new LogUnregisterObject(uid));
+            if (addRecord) activation.addLogRecord(new LogUnregisterObject(uid));
             objEntry.removed();
             objects.remove(uid);
             if (objEntry.desc.getRestartMode()) restartSet.remove(uid);
-            idTable.remove(uid);
+            activation.idTable.remove(uid);
 	}
 	
 	Map<ActivationID,ActivationDesc> getActivatableObjects() {
@@ -1000,7 +1092,7 @@ class Activation implements Serializable {
                  iter.hasNext(); )
             {
                 Map.Entry<UID,ObjectEntry> ent = iter.next();
-                map.put(getAID(ent.getKey()),ent.getValue().desc);
+                map.put(activation.getAID(ent.getKey()),ent.getValue().desc);
             }
             return map;
 	}
@@ -1009,14 +1101,14 @@ class Activation implements Serializable {
     	   throws ActivationException
 	{
 	    checkRemoved();
-            if (addRecord) addLogRecord(new LogUnregisterGroup(groupID));
+            if (addRecord) activation.addLogRecord(new LogUnregisterGroup(groupID));
             removed = true;
             for (Iterator<Map.Entry<UID,ObjectEntry>> iter = objects.entrySet().iterator();
                  iter.hasNext(); )
             {
                 Map.Entry<UID,ObjectEntry> ent = iter.next();
                 UID uid = ent.getKey();
-                idTable.remove(uid);
+                activation.idTable.remove(uid);
                 ObjectEntry objEntry = ent.getValue();
                 objEntry.removed();
             }
@@ -1032,7 +1124,7 @@ class Activation implements Serializable {
 	    throws ActivationException
 	{
             ObjectEntry objEntry = getObjectEntry(uid);
-            if (addRecord) addLogRecord(new LogUpdateDesc(uid, desc));
+            if (addRecord) activation.addLogRecord(new LogUpdateDesc(uid, desc));
             ActivationDesc oldDesc = objEntry.desc;
             objEntry.desc = desc;
             if (desc.getRestartMode()) restartSet.add(uid);
@@ -1053,7 +1145,7 @@ class Activation implements Serializable {
     	    throws ActivationException
 	{
 	    checkRemoved();
-            if (addRecord) addLogRecord(new LogUpdateGroupDesc(id, desc));
+            if (addRecord) activation.addLogRecord(new LogUpdateGroupDesc(id, desc));
             ActivationGroupDesc oldDesc = this.desc;
             this.desc = desc;
             return oldDesc;
@@ -1102,7 +1194,7 @@ class Activation implements Serializable {
 		watchdog.dispose();
 		watchdog = null;
 		status = NORMAL;
-		signal.signalAll();
+		activation.signal.signalAll();
 	    }
 	}
 
@@ -1110,8 +1202,8 @@ class Activation implements Serializable {
 	    if (child != null && status != TERMINATING) {
 		child.destroy();
 		status = TERMINATING;
-		waitTime = System.currentTimeMillis() + groupTimeout;
-		signal.signalAll();
+		waitTime = System.currentTimeMillis() + activation.groupTimeout;
+		activation.signal.signalAll();
 	    }
 	}
 
@@ -1129,7 +1221,7 @@ class Activation implements Serializable {
 			long now = System.currentTimeMillis();
 			if (waitTime > now) {
 			    try {
-				signal.await(waitTime - now, TimeUnit.MILLISECONDS);
+				activation.signal.await(waitTime - now, TimeUnit.MILLISECONDS);
 			    } catch (InterruptedException ee) {
 			    }
 			    continue;
@@ -1141,7 +1233,7 @@ class Activation implements Serializable {
 		    return;
 		case CREATING:
 		    try {
-			signal.await();
+			activation.signal.await();
 		    } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
 		    }
@@ -1178,7 +1270,7 @@ class Activation implements Serializable {
 		boolean failure = false;
 		// look up object to activate
 		ObjectEntry objEntry;
-                writeLock.lock();
+                activation.writeLock.lock();
                 try {
                     objEntry = getObjectEntry(uid);
                     // if not forcing activation, return cached stub
@@ -1187,7 +1279,7 @@ class Activation implements Serializable {
                     inst = getInstantiator(groupID);
                     curIncarnation = incarnation;
                 } finally {
-                    writeLock.unlock();
+                    activation.writeLock.unlock();
                 }
                 // activate object
                 try {
@@ -1215,12 +1307,12 @@ class Activation implements Serializable {
                 if (groupInactive) {
                     // group has failed; mark inactive
                     try {
-                        writeLock.lock();
+                        activation.writeLock.lock();
                         try {
-                            getGroupEntry(groupID)
+                            activation.getGroupEntry(groupID)
                                     .inactiveGroup(curIncarnation,failure);
                         } finally {
-                            writeLock.unlock();
+                            activation.writeLock.unlock();
                         }
                     } catch (UnknownGroupException e) {
                         // not a problem
@@ -1252,9 +1344,9 @@ class Activation implements Serializable {
 	    checkRemoved();
 	    boolean acquired = false;
 	    try {
-		groupName = Pstartgroup();
+		groupName = activation.Pstartgroup();
 		acquired = true;
-		String[] argv = activationArgs(desc);
+		String[] argv = activation.activationArgs(desc);
 		if (logger.isLoggable(Level.FINE)) {
 		    logger.log(Level.FINE, "{0} exec {1}",
 			       new Object[]{groupName, Arrays.asList(argv)});
@@ -1265,8 +1357,8 @@ class Activation implements Serializable {
 		    ++incarnation;
 		    watchdog = new Watchdog();
 		    watchdog.start();
-                    addLogRecord(new LogGroupIncarnation(id, incarnation));
-		    outputHandler.handleOutput(id, desc, incarnation,
+                    activation.addLogRecord(new LogGroupIncarnation(id, incarnation));
+		    activation.outputHandler.handleOutput(id, desc, incarnation,
 					       groupName,
 					       child.getInputStream(),
 					       child.getErrorStream());
@@ -1278,11 +1370,11 @@ class Activation implements Serializable {
 		    if (gd.getClassName() == null) {
 			MarshalledObject data = gd.getData();
 			if (data == null) {
-			    data = groupData;
+			    data = activation.groupData;
 			}
 			String loc = gd.getLocation();
 			if (loc == null) {
-			    loc = groupLocation;
+			    loc = activation.groupLocation;
 			}
 			gd = new ActivationGroupDesc(
 				"org.apache.river.phoenix.ActivationGroupImpl",
@@ -1307,9 +1399,9 @@ class Activation implements Serializable {
 		}
 		try {
 		    long now = System.currentTimeMillis();
-		    long stop = now + groupTimeout;
+		    long stop = now + activation.groupTimeout;
 		    do {
-			signal.await(stop - now, TimeUnit.MILLISECONDS);
+			activation.signal.await(stop - now, TimeUnit.MILLISECONDS);
 			if (group != null) {
 			    return group;
 			}
@@ -1324,7 +1416,7 @@ class Activation implements Serializable {
 					    "timeout creating child process");
 	    } finally {
 		if (acquired) {
-		    Vstartgroup();
+		    activation.Vstartgroup();
 		}
 	    }
 	}
@@ -1365,7 +1457,7 @@ class Activation implements Serializable {
 		}
                 boolean interrupted;
 		boolean restart = false;
-                writeLock.lock();
+                activation.writeLock.lock();
                 try {
 		    if (shouldQuit) return;
 		    canInterrupt = false;
@@ -1375,12 +1467,12 @@ class Activation implements Serializable {
 		     * reset the entry before activating objects
 		     */
 		    if (groupIncarnation == incarnation) {
-			restart = shouldRestart && !shuttingDown;
+			restart = shouldRestart && !activation.shuttingDown;
 			reset();
 			childGone();
 		    }
                 } finally {
-                    writeLock.unlock();
+                    activation.writeLock.unlock();
                 }
                 /*
                  * Activate those objects that require restarting
@@ -1455,28 +1547,37 @@ class Activation implements Serializable {
 	return (realArgv);
     }
 
-    private class ObjectEntry implements Serializable {
+    @AtomicSerial
+    private static class ObjectEntry implements Serializable {
 	private static final long serialVersionUID = -808474359039620126L;
+	
+	private final Activation activation;
 	/** descriptor for object */
 	ActivationDesc desc;
 	/** the stub (if active) */
 	transient MarshalledWrapper stub = null;
 	transient boolean removed = false;
-
-	ObjectEntry(ActivationDesc desc) {
+	
+	ObjectEntry(ActivationDesc desc, Activation activation) {
 	    this.desc = desc;
+	    this.activation = activation;
+	}
+	
+	ObjectEntry(GetArg arg) throws IOException{
+	    this(arg.get("desc", null, ActivationDesc.class),
+		 arg.get("activation", null, Activation.class));
 	}
 
-	MarshalledWrapper activate(UID uid,
-						boolean force,
-						ActivationInstantiator inst)
+	MarshalledWrapper activate( UID uid,
+				    boolean force,
+				    ActivationInstantiator inst)
     	    throws RemoteException, ActivationException
 	{
 	    /* stub could be set to null by a concurrent group reset */
             MarshalledWrapper nstub;
             ActivationID id;
             ActivationDesc descriptor;
-            readLock.lock();
+            activation.readLock.lock();
             try {
                 nstub = stub;
                 if (removed) {
@@ -1484,20 +1585,20 @@ class Activation implements Serializable {
                 } else if (!force && nstub != null) {
                     return nstub;
                 }
-                id = getAID(uid);
+                id = activation.getAID(uid);
                 descriptor = desc;
             } finally {
-                readLock.unlock();
+                activation.readLock.unlock();
             }
 	    MarshalledInstance marshalledProxy =
 		new MarshalledInstance(inst.newInstance(id, descriptor));
             nstub = new MarshalledWrapper(marshalledProxy);
-            writeLock.lock();
+            activation.writeLock.lock();
             try {
                 stub = nstub;
                 return nstub;
             } finally {
-                writeLock.unlock();
+                activation.writeLock.unlock();
             }
 	}
 	
@@ -1697,7 +1798,7 @@ class Activation implements Serializable {
             try {
                 // modify state directly
                 // can't ask a nonexistent GroupEntry to register itself
-                act.groupTable.put(id, act.new GroupEntry(id, desc));
+                act.groupTable.put(id, new GroupEntry(id, desc, act));
                 return state;
             } finally {
                 act.writeLock.unlock();

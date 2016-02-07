@@ -18,8 +18,6 @@
 
 package org.apache.river.start;
 
-import net.jini.export.ServiceProxyAccessor;
-import org.apache.river.config.Config;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -36,6 +34,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.export.ProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.loader.LoadClass;
 import net.jini.security.BasicProxyPreparer;
@@ -43,7 +42,11 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
 import net.jini.security.policy.PolicyFileProvider;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 import org.apache.river.api.util.Startable;
+import org.apache.river.config.Config;
 
 /**
  * Class used to launch shared, non-activatable, in-process 
@@ -174,7 +177,7 @@ import org.apache.river.api.util.Startable;
  * @since 2.0
  */
 // TODO - add discussion about how to provide a service's proxy
-
+@AtomicSerial
 public class NonActivatableServiceDescriptor
     implements ServiceDescriptor, Serializable
 {
@@ -238,7 +241,7 @@ public class NonActivatableServiceDescriptor
     protected transient boolean descCreated = false;
     
     /** Lock object for <code>descCreated</code> flag */
-    protected final Object descCreatedLock = new Lock();
+    protected final Object descCreatedLock;
     
     private static LifeCycle NoOpLifeCycle = 
         new LifeCycle() { // default, no-op object
@@ -320,6 +323,7 @@ public class NonActivatableServiceDescriptor
 	LifeCycle lifeCycle,
         ProxyPreparer preparer)
     {
+	this.descCreatedLock = new Lock();
         if (exportCodebase == null || policy == null ||
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(
@@ -335,6 +339,16 @@ public class NonActivatableServiceDescriptor
 	    (lifeCycle == null)?NoOpLifeCycle:lifeCycle;
         this.servicePreparer = preparer;    
     }
+    
+    public NonActivatableServiceDescriptor(GetArg arg) throws IOException{
+	this(Valid.notNull(arg.get("codebase", null, String.class), "export codebase cannot be null"),
+	    Valid.notNull(arg.get("policy", null, String.class), "policy cannot be null"),
+	    Valid.notNull(arg.get("classpath", null, String.class), "import codebase cannot be null"),
+	    Valid.notNull(arg.get("implClassName", null, String.class), "implementation cannot be null"),
+	    arg.get("serverConfigArgs", null, String[].class),
+	    null, null
+	);
+    }
 
     public NonActivatableServiceDescriptor(
 	// Required Args
@@ -347,6 +361,7 @@ public class NonActivatableServiceDescriptor
 	LifeCycle lifeCycle,
         ProxyPreparer preparer)
     {
+	this.descCreatedLock = new Lock();
         if (exportCodebase == null || policy == null ||
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(

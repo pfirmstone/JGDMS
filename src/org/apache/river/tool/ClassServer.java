@@ -306,9 +306,7 @@ public class ClassServer extends Thread implements Startable {
         try {
             server.bind(new InetSocketAddress(port));
         } catch( BindException be ) {
-            IOException ioe = new IOException( "failure to bind to port: "+port );
-            ioe.initCause(be);
-            throw ioe ;
+            throw new IOException( "failure to bind to port: "+port, be );
         }
 	if (!trees) {
             map = null;

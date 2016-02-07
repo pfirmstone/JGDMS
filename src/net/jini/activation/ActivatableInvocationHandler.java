@@ -1122,7 +1122,7 @@ public final class ActivatableInvocationHandler
 	} catch (RemoteException e) {
 	    throw new ConnectIOException("activation failed", e);
 	} catch (UnknownObjectException e) {
-	    throw new NoSuchObjectException("object not registered");
+	    throw new net.jini.export.NoSuchObjectException("object not registered", e);
 	} catch (ActivationException e) {
 	    throw new ActivateFailedException("activation failed", e);
 	} 

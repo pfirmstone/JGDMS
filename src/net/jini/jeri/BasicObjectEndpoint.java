@@ -481,7 +481,7 @@ public final class BasicObjectEndpoint
             }
 	    // REMIND: Do we want to read a server-supplied reason string?
             if (ex != null){
-                return new NoSuchObjectException("no such object in table, input stream close threw IOException: " + ex);
+                return new net.jini.export.NoSuchObjectException("no such object in table, input stream close threw IOException: ", ex);
             }
 	    return new NoSuchObjectException("no such object in table");
 
