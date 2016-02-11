@@ -42,7 +42,7 @@ class ByteSerializer implements Externalizable {
 //	this(arg.get("b", (byte)0));
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Byte readResolve() throws ObjectStreamException {
 	return b;
     }
 

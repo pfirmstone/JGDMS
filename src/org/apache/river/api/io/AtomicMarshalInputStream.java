@@ -18,7 +18,6 @@
 package org.apache.river.api.io;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -29,12 +28,10 @@ import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.NotActiveException;
 import java.io.NotSerializableException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectInputValidation;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
-import static java.io.ObjectStreamClass.NO_FIELDS;
 import java.io.ObjectStreamConstants;
 import static java.io.ObjectStreamConstants.TC_LONGSTRING;
 import static java.io.ObjectStreamConstants.TC_NULL;
@@ -43,7 +40,6 @@ import static java.io.ObjectStreamConstants.TC_STRING;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
-import java.io.OutputStream;
 import java.io.PushbackInputStream;
 import java.io.Serializable;
 import java.io.SerializablePermission;
@@ -58,35 +54,22 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
-import java.net.URL;
-import java.security.AccessControlContext;
-import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.NavigableSet;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalInputStream;
-import net.jini.io.ObjectStreamContext;
 import org.apache.river.api.io.AtomicSerial.Factory;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
@@ -96,31 +79,35 @@ import org.apache.river.impl.Messages;
 /**
  * ObjectInputStream hardened against DOS attack.
  * 
- * Not supported:
-   private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
-   object graphs with circular references.
-   Object construction using the first non serializable superclass zero
-   arg constructor.
- 
- Supported:
-   Classes annotated with @AtomicSerial, that provide a single GetArg parameter 
-   constructor and throw IOException.
-   String's, arrays, enums, primitive values.
-   Classes that have a zero arg constructor and have been granted DeSerializationPermission
-   A minimial set of pre defined Java platform classes that don't conform to
-   these rules but have been audited for invariant security.
-   The Serialization stream protocol.
-
- Informational:
-   Collection, List Set, SortedSet, Map and SortedMap, are replaced in
-   AtomicObjectOutputStream with immutable implementations that guard
-   against denial of service attacks.  These collections are not intended
-   to be used in de-serialized form, other than for passing as an argument
-   to create a new collection.  Collections should be type checked during
-   validation before a superclass constructor is called.
-   AtomicMarshalInputStream is restricted to caching 2^13 objects, the
-   stream must be reset prior to exceeding this number or a 
-   StreamCorruptedException will be thrown.
+ *    Not supported:
+ *      private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
+ *      object graphs with circular references.
+ *      Object construction using the first non serializable superclass zero
+ *      arg constructor.
+ *
+ *    Supported:
+ *      Classes annotated with @AtomicSerial, that provide a single GetArg parameter 
+ *      constructor and throw IOException.
+ *      String's, arrays, enums, primitive values.
+ *      Classes that have a zero arg constructor and have been granted DeSerializationPermission
+ *      A minimial set of pre defined Java platform classes that don't conform to
+ *      these rules but have been audited for invariant security.
+ *      The Serialization stream protocol.
+ *
+ *    Informational:
+ *      Collection, List Set, SortedSet, Map and SortedMap, are replaced in
+ *      AtomicObjectOutputStream with immutable implementations that guard
+ *      against denial of service attacks.  These collections are not intended
+ *      to be used in de-serialized form, other than for passing as an argument
+ *      to create a new collection.  Collections should be type checked during
+ *      validation before a superclass constructor is called.
+ *      AtomicMarshalInputStream is restricted to caching 2^16 objects, and a total combined
+ *      array length of Integer.MAX_VALUE - 8, for all arrays, the
+ *      stream must be reset prior to exceeding these limits or a 
+ *      StreamCorruptedException will be thrown and control will return to the caller.
+ * 
+ *	JVM arguments should be adjusted to ensure that an OOME will not be thrown
+ *	if these limits are reached.
  *
  * @author peter
  */
@@ -130,7 +117,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
             new byte[0]);
     
     // These two settings are to prevent DOS attacks.
-    private static final long MAX_COMBINED_ARRAY_LEN = 4194304L;
+    private static final long MAX_COMBINED_ARRAY_LEN = Integer.MAX_VALUE - 8;
     private static final int MAX_OBJECT_CACHE = 65664;
     
     private static final Class [] EMPTY_CONSTRUCTOR_PARAM_TYPES = new Class[0];
@@ -859,10 +846,10 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                 return readNewClassDesc(false);
             case TC_ARRAY:
 //		System.out.println("TC_ARRAY");
-                return readNewArray(false);
+                return readNewArray(false, null);
             case TC_OBJECT:
 //		System.out.println("TC_OBJECT");
-                return readNewObject(false, discard);
+                return readNewObject(false, discard, null);
             case TC_STRING:
 //		System.out.println("TC_STRING");
                 return readNewString(false);
@@ -904,7 +891,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      *             If the class corresponding to the object being read could not
      *             be found.
      */
-    private Object readNonPrimitiveContent(boolean unshared)
+    private Object readNonPrimitiveContent(boolean unshared, Class type)
             throws ClassNotFoundException, IOException {
 //	System.out.println("readNonPrimitiveContent");
         checkReadPrimitiveTypes();
@@ -912,41 +899,55 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    throw new StreamCorruptedException("unexpected block data");
         }
         do {
+	    Object result;
             byte tc = nextTC();
             switch (tc) {
                 case TC_CLASS:
 //		    System.out.println("TC_CLASS");
-                    return readNewClass(unshared);
+		    return readNewClass(unshared);
                 case TC_CLASSDESC:
 //		    System.out.println("TC_CLASSDESC");
                     return readNewClassDesc(unshared);
                 case TC_ARRAY:
 //		    System.out.println("TC_ARRAY");
-                    return readNewArray(unshared);
+                    return readNewArray(unshared, type);
                 case TC_OBJECT:
 //		    System.out.println("TC_OBJECT");
-                    return readNewObject(unshared, false);
+                    return readNewObject(unshared, false, type);
                 case TC_STRING:
+		    if (type != null && !type.equals(String.class)){
+			throw new InvalidObjectException("Was expecting " + type + " but got a string");
+		    }
 //		    System.out.println("TC_STRING");
                     return readNewString(unshared);
                 case TC_LONGSTRING:
+		    if (type != null && !type.equals(String.class)){
+			throw new InvalidObjectException("Was expecting " + type + " but got a long string");
+		    }
 //		    System.out.println("TC_LONGSTRING");
                     return readNewLongString(unshared);
                 case TC_ENUM:
 //		    System.out.println("TC_ENUM");
-                    return readEnum(unshared);
+                    result = readEnum(unshared);
+		    if (type != null && !type.isInstance(result)) throw new InvalidObjectException("Was expecting " + type + " but got: "+  result );
+		    return result;
                 case TC_REFERENCE:
 //		    System.out.println("TC_REFERENCE");
                     if (unshared) {
                         readNewHandle();
                         throw new InvalidObjectException(Messages.getString("luni.BE")); //$NON-NLS-1$
                     }
-                    return readCyclicReference();
+                    result = readCyclicReference();
+		    if (type != null && type.isInstance(result));
+		    return result;
                 case TC_NULL:
 //		    System.out.println("TC_NULL");
                     return null;
                 case TC_EXCEPTION:
 //		    System.out.println("TC_EXCEPTION");
+		    if (type != null && type.isAssignableFrom(Exception.class))
+			throw new InvalidObjectException("Was expecting " + type 
+				+ " but got an Exception");
                     Exception exc = readException();
                     throw new WriteAbortedException(Messages.getString("luni.BD"), exc); //$NON-NLS-1$
                 case TC_RESET:
@@ -1032,7 +1033,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         // WARNING - the grammar says it is a Throwable, but the
         // WriteAbortedException constructor takes an Exception. So, we read an
         // Exception from the stream
-        Exception exc = (Exception) readObject(false);
+        Exception exc = (Exception) readObject(false, Exception.class);
 
         // We reset the receiver's state (the grammar has "reset" in normal
         // font)
@@ -1067,7 +1068,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	}
 //	System.out.println("readFields called");
 	EmulatedFieldsForLoading result 
-	    = new EmulatedFieldsForLoading(currentClass.deserializedClass);
+	    = new EmulatedFieldsForLoading(currentClass.getDeserializedClass());
 	readFieldValues(result);
 	return result;
     }
@@ -1106,28 +1107,28 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         ObjectSlot[] slots = emulatedFields.emulatedFields()
                 .slots();
         for (ObjectSlot element : slots) {
-            element.defaulted = false;
-            Class<?> type = element.field.getType();
+            element.setDefaulted(false);
+            Class<?> type = element.getField().getType();
             if (type == Integer.TYPE) {
-		element.intValue = input.readInt();
+		element.setIntValue(input.readInt());
             } else if (type == Byte.TYPE) {
-                element.byteValue = input.readByte();
+                element.setByteValue(input.readByte());
             } else if (type == Character.TYPE) {
-                element.charValue = input.readChar();
+                element.setCharValue(input.readChar());
             } else if (type == Short.TYPE) {
-                element.shortValue = input.readShort();
+                element.setShortValue(input.readShort());
             } else if (type == Boolean.TYPE) {
-                element.booleanValue = input.readBoolean();
+                element.setBooleanValue(input.readBoolean());
             } else if (type == Long.TYPE) {
-                element.longValue = input.readLong();
+                element.setLongValue(input.readLong());
             } else if (type == Float.TYPE) {
-                element.floatValue = input.readFloat();
+                element.setFloatValue(input.readFloat());
             } else if (type == Double.TYPE) {
-                element.doubleValue = input.readDouble();
+                element.setDoubleValue(input.readDouble());
             } else {
                 // Either array or Object
                 try {
-                    element.fieldValue = readObject(false);
+                    element.setFieldValue(readObject(false, null));
                 } catch (ClassNotFoundException cnf) {
                     // WARNING- Not sure this is the right thing to do. Write
                     // test case.
@@ -1135,7 +1136,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                 } catch (StreamCorruptedException e){
 		    StringBuilder b = new StringBuilder(200);
 		    b.append("Unable to read field: ");
-		    b.append(element.field.getName());
+		    b.append(element.getField().getName());
 		    b.append(" of type: ");
 		    b.append(type);
 		    b.append("\n");
@@ -1147,7 +1148,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		} catch (EOFException e){
 		    StringBuilder b = new StringBuilder(200);
 		    b.append("Unable to read field: ");
-		    b.append(element.field.getName());
+		    b.append(element.getField().getName());
 		    b.append(" of type: ");
 		    b.append(type);
 		    b.append("\n");
@@ -1193,8 +1194,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
             throws OptionalDataException, ClassNotFoundException, IOException {
         // Now we must read all fields and assign them to the receiver
 //	System.out.println("readFieldValues called");
-        ObjectStreamField[] fields = classDesc.getFields();
-        fields = (null == fields ? new ObjectStreamField[0] : fields);
+	ObjectStreamClass lclass = ObjectStreamClass.lookup(classDesc.forClass());
+        ObjectStreamField[] dfields = classDesc.getFields();
+        dfields = (null == dfields ? new ObjectStreamField[0] : dfields);
         final Class<?> declaringClass = classDesc.forClass();
         if (declaringClass == null && mustResolve) {
             throw new ClassNotFoundException(classDesc.getName());
@@ -1202,8 +1204,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	
 
 //	System.out.println("Declaring class" + declaringClass);
-        for (final ObjectStreamField fieldDesc : fields) {
-	    
+        for (int i = 0, l = dfields.length; i < l; i++) {
+	    final ObjectStreamField dfield = dfields[i];
             // get associated Field 
 //            long fieldID = fieldDesc.getFieldID(accessor, declaringClass);
 	    Field f = null;
@@ -1213,8 +1215,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		@Override
 		public Field run() {
 		    try {
-			return fieldDesc == null || declaringClass == null ?  null : 
-				declaringClass.getDeclaredField(fieldDesc.getName());
+			return dfield == null || declaringClass == null ?  null : 
+				declaringClass.getDeclaredField(dfield.getName());
 		    } catch (NoSuchFieldException ex) {
 			return null;
 		    } catch (SecurityException ex) {
@@ -1227,41 +1229,47 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    if (f != null) exists = true;
 //	    if (fieldDesc != null) System.out.println("Field: " + fieldDesc + " is primitive " + fieldDesc.isPrimitive());
             // Code duplication starts, just because Java is typed
-            if (fieldDesc != null && fieldDesc.isPrimitive()) {
+            if (dfield != null && dfield.isPrimitive()) {
                IOException ex = AccessController.doPrivileged(
 		       new SetPrimitiveFieldAction(
 			       obj,
 			       input,
 			       f,
 			       exists,
-			       fieldDesc.getTypeCode()
+			       dfields[i].getTypeCode()
 		       )
 	       );
 	       if (ex != null) throw ex;
             } else {
                 // Object type (array included).
-                String fieldName = fieldDesc == null ? null :
-			fieldDesc.getName();
+                String fieldName = dfield == null ? null :
+			dfield.getName();
                 boolean setBack = false;
-                if (mustResolve && fieldDesc == null) {
+                if (mustResolve && dfield == null) {
                     setBack = true;
                     mustResolve = false;
                 }
                 Object toSet = null;
-		if (fieldDesc != null && !fieldDesc.isPrimitive()){
+		if (dfield != null && !dfield.isPrimitive()){
 		    try {
-			if (fieldDesc.isUnshared()) {
-			    toSet = readUnshared();
+			// Local field descriptor.
+			ObjectStreamField streamField = lclass.getField(fieldName);
+			// Class type is Object.class for deserialized fields
+			// therefore we must use the local descriptor.
+			Class fieldType = streamField == null ? null : streamField.getType();
+			// However if the local field isn't defined we can't check it.
+			if (dfield.isUnshared()) {
+			    toSet = readObject(true, fieldType);
 			} else {
-			    toSet = readObject(false);
+			    toSet = readObject(false, fieldType);
 			}
 		    } catch (EOFException e){
 			StringBuilder b = new StringBuilder(200);
 			b.append("Exception thrown with attemting to read field: ");
-			b.append(fieldDesc);
+			b.append(dfield);
 			b.append("\n");
 			b.append("Within fields: ");
-			b.append(Arrays.asList(fields));
+			b.append(Arrays.asList(dfields));
 			b.append("\n");
 			b.append("Class name: ");
 			b.append(classDesc.getName());
@@ -1274,11 +1282,12 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                 if (setBack) {
                     mustResolve = true;
                 }
-                if (fieldDesc != null) {
+                if (dfield != null) {
                     if (toSet != null) {
                         Class<?> fieldType = getFieldClass(obj, fieldName);
                         Class<?> valueType = toSet.getClass();
                         if (fieldType != null) {
+			    // Redundant check, but harmless.
                             if (!fieldType.isAssignableFrom(valueType)) {
                                 throw new ClassCastException(Messages.getString(
                                     "luni.C0", new String[] { //$NON-NLS-1$
@@ -1630,8 +1639,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         try {
             if (readMethod != null) {
                 // We have to be able to fetch its value, even if it is private
-                AccessController.doPrivileged(new PriviAction<Object>(
-                        readMethod));
+//                AccessController.doPrivileged(new PriviAction<Object>(
+//                        readMethod));
                 try {
 //		    System.out.println("Invoking readObject");
                     readMethod.invoke(object, new Object[] { this });
@@ -1734,13 +1743,18 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      * @throws OptionalDataException
      *             If optional data could not be found when reading the array.
      */
-    private Object readNewArray(boolean unshared) throws OptionalDataException,
+    private Object readNewArray(boolean unshared, Class type) throws OptionalDataException,
             ClassNotFoundException, IOException {
         ObjectStreamClassContainer classDesc = readClassDesc();
 //	System.out.println("readNewArray");
         if (classDesc == null) {
             throw new InvalidClassException(Messages.getString("luni.C1")); //$NON-NLS-1$
         }
+	if (type != null && !type.isAssignableFrom(classDesc.forClass())) 
+	    throw new InvalidObjectException(
+		    "expecting " + type + "in stream, but got " 
+			    + classDesc.forClass()
+	    );
 
         int newHandle = nextHandle();
 	// Array size
@@ -1816,7 +1830,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		    //      We can implement writing elements through fast-path,
 		    //      without setting up the context (see readObject()) for 
 		    //      each element with public API
-		    objectArray[i] = readObject(false);
+		    objectArray[i] = readObject(false, null);
 		}
 	    } catch (EOFException e){
 		EOFException ex = new EOFException(
@@ -1988,8 +2002,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         try {
 //            newClassDesc.setClass(resolveClass(newClassDesc));
 	    Class<?> c = objectInputStreamCompat ? 
-			    superResolveClass(newClassDesc.deserializedClass) 
-			    :resolveClass(newClassDesc.deserializedClass);
+			    superResolveClass(newClassDesc.getDeserializedClass()) 
+			    :resolveClass(newClassDesc.getDeserializedClass());
 	    c = replaceClass(c);
             // Check SUIDs & base name of the class
             verifyAndInit(newClassDesc,c);
@@ -2066,7 +2080,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         registerObjectRead(classDescriptorContainer, handle, unshared);
 	info.readFields(this);
 	newClassDesc = ObjectStreamClassInformation.convert(info);
-	classDescriptorContainer.deserializedClass = newClassDesc;
+	classDescriptorContainer.setDeserializedClass(newClassDesc);
         return classDescriptorContainer;
     }
 
@@ -2097,7 +2111,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         registerObjectRead(container, descriptorHandle, false);
 	info.readFields(this);
 	newClassDesc = ObjectStreamClassInformation.convert(info);
-	container.deserializedClass = newClassDesc;
+	container.setDeserializedClass(newClassDesc);
         return newClassDesc;
     }
     
@@ -2212,13 +2226,30 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      * @throws ClassNotFoundException
      *             If a class for one of the objects could not be found
      */
-    private Object readNewObject(boolean unshared, boolean discard)
+    private Object readNewObject(boolean unshared, boolean discard, Class type)
             throws OptionalDataException, ClassNotFoundException, IOException {
         ObjectStreamClassContainer classDesc = readClassDesc();
 	
         if (classDesc == null) {
             throw new InvalidClassException(Messages.getString("luni.C1")); //$NON-NLS-1$
         }
+	if (type != null){
+	    if (!type.isAssignableFrom(classDesc.forClass())){
+		if (classDesc.hasMethodReadResolve()) { 
+		    if(!type.isAssignableFrom(classDesc.getReadResolveReturnType())){
+			throw new InvalidObjectException(
+			    "expecting " + type + " in stream, but got " 
+					+ classDesc.forClass()
+			);
+		    }
+		} else {
+		    throw new InvalidObjectException(
+			"expecting " + type + " in stream, but got " 
+				    + classDesc.forClass()
+		    );
+		}
+	    }
+	}
         int newHandle = nextHandle();
 
         // Note that these values come from the Stream, and in fact it could be
@@ -2400,9 +2431,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	int size = streamClassList.size();
 	Map<Class,GetField> fields = new HashMap<Class,GetField>(size);
 	for (ObjectStreamClassContainer streamClass : streamClassList) {
-	    ObjectStreamClass cls = streamClass.deserializedClass != null ? 
-		    streamClass.deserializedClass : 
-		    streamClass.localClass;
+	    ObjectStreamClass cls = streamClass.getDeserializedClass() != null ? 
+		    streamClass.getDeserializedClass() : 
+		    streamClass.getLocalClass();
 	    GetField field = readFields(cls);
 	    // We don't support direct stream access
 	    // so we have to discard this data.
@@ -2411,14 +2442,14 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    if (c != null) {
 		fields.put(c, field);
 	    } else {
-		throw new ClassNotFoundException(streamClass.osci.fullyQualifiedClassName);
+		throw new ClassNotFoundException(streamClass.getOsci().getFullyQualifiedClassName());
 	    }
 	}
 	GetField proxyFields = fields.get(Proxy.class);
 	Object handler = proxyFields.get("h", null); //All dynamically generated proxy's utilise this field.
 	if (handler instanceof InvocationHandler){
 	    try {
-		return classDesc.constructor.newInstance(new Object[]{handler});
+		return classDesc.getConstructor().newInstance(new Object[]{handler});
 	    } catch (InstantiationException ex) {
 		throw new IOException("unable to instantiate", ex);
 	    } catch (IllegalAccessException ex) {
@@ -2452,7 +2483,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	Map<Class,GetField> fields = new HashMap<Class,GetField>(size);
 	Map<Class,ReadObject> readers = new HashMap<Class,ReadObject>(size);
 	for (ObjectStreamClassContainer streamClass : streamClassList) {
-	    GetField field = readFields(streamClass.deserializedClass);
+	    GetField field = readFields(streamClass.getDeserializedClass());
 	    // AtomicSerial doesn't support direct stream access
 	    // so we have to discard this data.
 	    // Discarded data may be referenced elsewhere in the stream
@@ -2469,7 +2500,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		fields.put(c, field);
 	    } else {
 		if (streamClass.hasWriteObjectData()) discardData();
-		throw new ClassNotFoundException(streamClass.osci.fullyQualifiedClassName);
+		throw new ClassNotFoundException(streamClass.getOsci().getFullyQualifiedClassName());
 	    }
 	}
 	GetArg arg = new GetArgImpl(fields, readers, this);
@@ -2587,7 +2618,33 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     @Override
     protected final Object readObjectOverride() throws OptionalDataException,
             ClassNotFoundException, IOException {
-	return readObject(false);
+	return readObject(false, null);
+    }
+    
+    /**
+     * Reads the tc object from the source stream. In this case,
+     * the Object will only be read from the stream if the type matches.
+     * 
+     * If the stream type doesn't match, AtomicMarshalInputStream will check
+     * if the class has a readResolve method and check its return type,
+     * if neither match the expected type, an InvalidObjectException
+     * will be thrown.
+     * 
+     * If no exception is thrown, then AtomicMarshalInputStream will proceed
+     * and deserialize the object.
+     * 
+     * @param <T>
+     * @param type
+     * @return the new object read.
+     * @throws ClassNotFoundException
+     *             if the class of one of the objects in the object graph cannot
+     *             be found.
+     * @throws IOException
+     *             if an error occurs while reading from the source stream.
+     * @see ObjectOutputStream#writeUnshared
+     */
+    public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
+	return (T) readObject(false, type);
     }
 
     /**
@@ -2603,10 +2660,27 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      */
     @Override
     public Object readUnshared() throws IOException, ClassNotFoundException {
-	return readObject(true);
+	return readObject(true, null);
+    }
+    
+    /**
+     * Reads the tc unshared object from the source stream.  In this case,
+     * the Object will only be read from the stream if the type matches.
+     * 
+     * @param type the Class of the object to be read.
+     * @return the new object read.
+     * @throws ClassNotFoundException
+     *             if the class of one of the objects in the object graph cannot
+     *             be found.
+     * @throws IOException
+     *             if an error occurs while reading from the source stream.
+     * @see ObjectOutputStream#writeUnshared
+     */
+    public <T> T readUnshared(Class<T> type) throws IOException, ClassNotFoundException {
+	return (T) readObject(true, type);
     }
 
-    private Object readObject(boolean unshared) throws OptionalDataException,
+    private Object readObject(boolean unshared, Class type) throws OptionalDataException,
             ClassNotFoundException, IOException {
         boolean restoreInput = (primitiveData == input);
         if (restoreInput) {
@@ -2641,7 +2715,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     //		);
             }
 
-            result = readNonPrimitiveContent(unshared);
+            result = readNonPrimitiveContent(unshared, type);
             if (restoreInput) {
                 primitiveData = input;
             }
@@ -3061,596 +3135,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         }
     }
     
-    static class ObjectStreamClassContainer{
-	static final ConcurrentMap<Class<?>,ObjectStreamClassContainer> lookup = new ConcurrentHashMap<Class<?>,ObjectStreamClassContainer>();
-	final ObjectStreamField [] empty;
- 	ObjectStreamClass localClass;
-	ObjectStreamClass deserializedClass;
-	ObjectStreamClassInformation osci;
-	ObjectStreamClassContainer superClass;
-	int handle;
-	boolean isProxy;
-	Class<?> resolvedClass;
-	Method readObjectMethod;
-	Method readResolveMethod;
-	Method readObjectNoDataMethod;
-	Constructor constructor;
-	Object [] constructorParams;
-	AccessControlContext context;
-	
-	ObjectStreamClassContainer(){
-	    empty = new ObjectStreamField[0];
-	}
-	
-	ObjectStreamClassContainer( final ObjectStreamClass localClass,
-				    ObjectStreamClass deserializedClass,
-				    ObjectStreamClassInformation osci,
-				    int handle,
-				    boolean isProxy)
-	{
-	    this();
-	    this.localClass = localClass;
-	    this.deserializedClass = deserializedClass;
-	    this.osci = osci;
-	    this.handle = handle;
-	    this.isProxy = isProxy;
-	}
-	
-	protected void deSerializationPermitted(Permission perm) {
-	    if (context != null && perm != null) context.checkPermission(perm);
-	    if (!hasReadObjectNoData() && !hasReadObject()){ //Ok if there's no data.
-		// Check all classes in heirarchy for absence of data (stateless object)
-		// Not worried about primitive fields, might as well be stateless.
-		ObjectStreamClassInformation osc = osci;
-		ObjectStreamClassContainer superClass = this.superClass;
-		CHECK_SAFE: while ( osc != null 
-			&& osc.hasWriteObjectData == false 
-			&& osc.hasBlockExternalData == false 
-			&& osc.numObjFields == 0)
-		{
-		    // Double check all fields are primitives.
-		    ObjectStreamField[] fields = osc.fields;
-		    if (fields != null){
-			for (int i = 0, l = fields.length; i < l; i++){
-			    if (!fields[i].isPrimitive()) break CHECK_SAFE ;
-			}
-		    }
-		    if (superClass != null) {
-			if (superClass.hasReadObjectNoData() 
-				|| superClass.hasReadObject()) break CHECK_SAFE;
-			osc = superClass.osci;
-			superClass = superClass.superClass;
-		    } else {
-			return; // If there's no data and no object fields therefore safe.
-		    }
-		}
-	    } 
-	    if (perm == null) throw new AccessControlException("DeSerialization is not permitted: " + osci);    
-	    if (context == null) {
-		context = AccessController.doPrivileged(
-		    new PrivilegedAction<AccessControlContext>(){
-
-			@Override
-			public AccessControlContext run() {
-			    List<ProtectionDomain> domains 
-				    = new ArrayList<ProtectionDomain>();
-			    Class clazz = forClass();
-			    while (clazz != null){
-				domains.add(clazz.getProtectionDomain());
-				clazz = clazz.getSuperclass();
-			    }
-			    return new AccessControlContext(
-				domains.toArray(
-				    new ProtectionDomain[domains.size()]
-				)
-			    );
-			}
-		    
-		    }
-		);
-		context.checkPermission(perm);
-	    }
-	}
-	
-	@Override
-	public String toString(){
-	    String clas = "unresolved";
-	    if (osci != null && osci.fullyQualifiedClassName != null ) clas =
-		    osci.fullyQualifiedClassName;
-	    if (localClass != null) clas = localClass.toString();
-	    return super.toString() + " Class: " + clas;
-	}
-	
-	/**
-	 * 
-	 * @param clas
-	 * @return
-	 * @throws IOException 
-	 */
-	Object newParamInstance(Class<?> clas, boolean collectionsClass) throws IOException {
-	    // Special cases, all others must be null or we 
-	    // can affect object equality with nasty unexpected bugs.
-	    if (clas == Integer.TYPE) return 0;
-	    if (clas == Long.TYPE) return (long) 0;
-	    if (clas == Boolean.TYPE) return false;
-	    if (clas == Byte.TYPE) return (byte)0;
-	    if (clas == Character.TYPE) return (char) 0;
-	    if (clas == Short.TYPE) return (short)0;
-	    if (clas == Double.TYPE) return (double) 0.0;
-	    if (clas == Float.TYPE) return (float) 0.0;
-	    if (collectionsClass){ // Collections classes don't allow null parameters.
-		if (clas == Object[].class) return new Object[0];
-		if (clas == Collection.class || clas == List.class) return Collections.emptyList();
-		if (clas == Set.class || clas == SortedSet.class || clas == NavigableSet.class){
-		    return Collections.emptyNavigableSet();
-		}
-		if (clas == Map.class || clas == SortedMap.class || clas == NavigableMap.class){
-		    return Collections.emptyNavigableMap();
-		}
-	    }
-	    return null;
-	}
-
-	Object newInstance() throws IOException{
-	    if (constructor == null){
-		boolean isCollections = false;
-		String classname = resolvedClass.getName();
-		if (classname.equals("java.util.Arrays$ArrayList")) isCollections = true;
-		if (classname.startsWith("java.util.Collections")) isCollections = true;
-		System.out.println("Finding constructor for class " + resolvedClass);
-		Constructor [] ctors = getConstructors(resolvedClass);
-		for (int i = 0, l = ctors.length; i < l; i++){
-		    int count;
-		    count = ctors[i].getParameterCount();
-		    Class [] ptypes = ctors[i].getParameterTypes();
-		    try {
-			Object [] prams = new Object [count];
-			for (int j = 0; j < count; j++){
-			    // we could try harder, but this will do for now.
-			    prams [j] = newParamInstance(ptypes [j], isCollections);
-			}
-//			ctors[i].setAccessible(true);
- 			Object result = ctors[i].newInstance(prams);
-//			System.out.println("Successfully created instance " + result);
-			// Now we know it works, record it.
-			constructor = ctors[i];
-			constructorParams = prams;
-			return result;
-		    } catch (InstantiationException ex) {
-//			Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, resolvedClass.getCanonicalName(), ex);
-		    } catch (IllegalAccessException ex) {
-//			Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, resolvedClass.getCanonicalName(), ex);
-		    } catch (IllegalArgumentException ex) {
-//			Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, resolvedClass.getCanonicalName(), ex);
-		    } catch (InvocationTargetException ex) {
-//			Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, resolvedClass.getCanonicalName(), ex);
-		    } catch (Exception ex) {
-//			Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, resolvedClass.getCanonicalName(), ex);
-		    }
-		}
-	    }
-	    try {
-		if (constructor == null) throw new InvalidObjectException("constructor is null: " + resolvedClass.getCanonicalName());
-		return constructor.newInstance(constructorParams);
-	    } catch (InstantiationException ex) {
-		throw new IOException("Unable to crate",ex);
-	    } catch (IllegalAccessException ex) {
-		throw new IOException(ex);
-	    } catch (IllegalArgumentException ex) {
-		throw new IOException(ex);
-	    } catch (InvocationTargetException ex) {
-		throw new IOException(ex);
-	    } catch (NullPointerException ex){
-//		System.out.println("Unable to find a suitable constructor for class " + resolvedClass);
-		InvalidObjectException e = new InvalidObjectException("Cannot create instance of " + resolvedClass);
-		e.initCause(ex);
-		throw e;
-	    }
-	    
-	}
-	
-	Constructor [] getConstructors(final Class clas){
-	    return AccessController.doPrivileged(new PrivilegedAction<Constructor []>(){
-		@Override
-		public Constructor [] run() {
-		    try {
-			Constructor [] ctors = clas.getDeclaredConstructors();
-			for (int i = 0, l = ctors.length; i < l; i++){
-			    ctors [i].setAccessible(true);
-			}
-			return ctors;
-			
-		    } catch (SecurityException ex) {
-			Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-		    }
-		    return null;
-		}
-	    });
-	}
-	
-	boolean hasWriteObjectData(){
-	    if (osci != null) return osci.hasWriteObjectData;
-	    return false;
-	}
-
-	boolean hasReadObject(){
-	    return readObjectMethod != null;
-	}
-
-	void invokeReadObject(Object o, ObjectInputStream in) throws IOException, ClassNotFoundException{
-	    Object [] params = {in};
-	    try {
-		readObjectMethod.invoke(o, params);
-	    } catch (IllegalAccessException ex) {
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    } catch (IllegalArgumentException ex) {
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    } catch (InvocationTargetException ex) {
-		Throwable t = ex.getTargetException();
-		if (t instanceof IOException) throw (IOException) t;
-		if (t instanceof ClassNotFoundException) throw (ClassNotFoundException) t;
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    }
-	}
-
-	Object invokeReadResolve(Object o) throws ObjectStreamException{
-	    try {
-		if (readResolveMethod == null){		    
-		    readResolveMethod = getReadResolveMethod(o.getClass());
-		    if (readResolveMethod == null) return o;
-		}
-		return readResolveMethod.invoke(o, (Object[]) null);
-	    } catch (IllegalAccessException ex) {
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    } catch (IllegalArgumentException ex) {
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    } catch (InvocationTargetException ex) {
-		Throwable target = ex.getTargetException();
-		if (target instanceof ObjectStreamException) {
-		    throw (ObjectStreamException) target;
-		} else if (target instanceof Error) {
-		    throw (Error) target;
-		} else {
-		    throw (RuntimeException) target;
-		}
-	    }
-	    return null;
-	}
-
-	void invokeReadObjectNoData(Object o) throws InvalidObjectException{
-	    try {
-		readObjectMethod.invoke(o, (Object[]) null);
-	    } catch (IllegalAccessException ex) {
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    } catch (IllegalArgumentException ex) {
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    } catch (InvocationTargetException ex) {
-		Throwable t = ex.getTargetException();
-		if (t instanceof InvalidObjectException) throw (InvalidObjectException) t;
-		Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-	    }
-	}
-
-	boolean hasMethodReadResolve(){
-	    return readResolveMethod != null ? true : resolvedClass == URL.class;
-	}
-
-	boolean hasReadObjectNoData(){
-	    return readObjectNoDataMethod != null;
-	}
-	
-	Method getPrivateInstanceMethod(final Class<?> c, 
-		final String methodName,
-		final Class<?>[] parameters,
-		final Class<?> returnType )
-	{
-	    return AccessController.doPrivileged(new PrivilegedAction<Method>(){
-		@Override
-		public Method run() {
-		    try {
-			Method m = c.getDeclaredMethod(methodName, parameters);
-			int modifiers = m.getModifiers();
-			if (Modifier.isPrivate(modifiers) 
-				&& !Modifier.isStatic(modifiers) 
-				&& returnType.equals(m.getReturnType())){
-			    m.setAccessible(true);
-			    return m;
-			}
-		    } catch (NoSuchMethodException e){ // TODO: Log
-		    } catch (SecurityException e){} // TODO: Log
-		    return null;
-		}
-	    });
-	}
-
-	void setClass(final Class<?> c){
-	    resolvedClass = c;
-	    readResolveMethod = getReadResolveMethod(c);
-	    Class[] params = {ObjectInputStream.class};
-	    readObjectMethod = getPrivateInstanceMethod(c, "readObject", params, Object.class );
-	    readObjectNoDataMethod = getPrivateInstanceMethod(c, "readObjectNoData", null, Void.TYPE);
-	    
-	    putInMap();
-	}
-
-	Method getReadResolveMethod(final Class<?> c){
-	    return AccessController.doPrivileged(new PrivilegedAction<Method>(){
-
-		@Override
-		public Method run() {
-		    String name = "readResolve";
-		    Method m = null;
-		    int modifiers = 0;
-		    Class cm = c;
-		    int count = 0;
-		    do {
-			try {
-			    m = cm.getDeclaredMethod(name, (Class[]) null);
-			    modifiers = m.getModifiers();
-			    m.setAccessible(true);
-			    if (Modifier.isStatic(count) || !Object.class.equals(m.getReturnType())){
-				cm = cm.getSuperclass();
-				count ++;
-				continue;
-			    } 
-			    break;
-			} catch (NoSuchMethodException ex) {
-			    cm = cm.getSuperclass();
-			    count++;
-			} 
-		    } while (cm != null);
-		    if (m == null) return null;
-		    boolean privt = Modifier.isPrivate(modifiers);
-		    boolean prted = Modifier.isProtected(modifiers);
-		    boolean pub = Modifier.isPublic(modifiers);
-
-		    if (count == 0){
-			return m;
-		    } else {
-			if (pub || prted) return m;
-			if (!privt && !prted && !pub){ // Check package access.
-			    if (c.getPackage().equals(cm.getPackage()) 
-				    && c.getClassLoader() == cm.getClassLoader()){
-				return m;
-			    }
-			}
-		    }
-		    return null;
-		}
-	    });
-
-	}
-
-	@Override
-	public int hashCode() {
-	    int hash = 3;
-	    hash = 11 * hash + handle;
-	    return hash;
-	}
-	
-	@Override
-	public boolean equals(Object o){
-	    if (!(o instanceof ObjectStreamClassContainer )) return false;
-	    ObjectStreamClassContainer that = (ObjectStreamClassContainer) o;
-	    return this.handle == that.handle;
-	}
-	
-	void putInMap(){
-	    lookup.putIfAbsent(forClass(), this);
-	}
-	
-	void setLocalClassDescriptor(ObjectStreamClass descriptor){
-	    localClass = descriptor;
-	    if (isProxy){
-		constructor = AccessController.doPrivileged(new PrivilegedAction<Constructor>(){
-		    @Override
-		    public Constructor run() {
-			try {
-			    Class [] params = {InvocationHandler.class};
-			    Constructor constructor = localClass.forClass().getDeclaredConstructor(params);
-			    constructor.setAccessible(true);
-			    return constructor;
-			} catch (NoSuchMethodException ex) {
-			    Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-			} catch (SecurityException ex) {
-			    Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-			}
-			return null;
-		    }
-		});
-		constructorParams = new Object[1];
-		constructorParams [0] = new InvocationHandler(){
-
-		    @Override
-		    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-			Method m = Object.class.getMethod("toString", (Class[]) null);
-			if (m.equals(method)) return "java.lang.reflect.Proxy";
-			throw new UnsupportedOperationException("Serializable field hasn't been set");
-		    }
-		     
-		};
-	    }
-	}
-	
-	ObjectStreamClassContainer getSuperDesc(){
-	    return superClass;
-	}
-	
-	
-	Class<?> forClass(){
-	    if (resolvedClass != null) return resolvedClass;
-	    if (deserializedClass != null) {
-		Class <?> clz = deserializedClass.forClass();
-		if (clz != null) return clz;
-	    }
-	    return localClass != null ? localClass.forClass() : null;
-	}
-	
-	String getName(){
-	    if (osci != null) return osci.fullyQualifiedClassName;
-	    if (localClass != null) return localClass.forClass().getName();
-	    return forClass().getName();
-	}
-	
-	boolean wasSerializable(){
-	    if (osci != null) return osci.serializable;
-	    return false;
-	}
-	
-	boolean wasExternalizable(){
-	    if (osci != null) return osci.externalizable;
-	    return false;
-	}
-	
-	boolean hasBlockData(){
-	    if (osci != null) return osci.hasBlockExternalData;
-	    return false;
-	}
-	
-	boolean isProxy(){
-	    return isProxy;
-	}
-	
-	long getSerialVersionUID(){
-	    if (osci !=null) return osci.serialVer;
-	    return -1L;
-	}
-	
-	ObjectStreamField [] getFields(){
-	    if (deserializedClass != null) deserializedClass.getFields();
-	    if (osci != null) return osci.fields;
-	    if (localClass != null) return localClass.getFields();
-	    return empty;
-	}
-
-	private void setSuperclass(ObjectStreamClassContainer readClassDesc) {
-	    superClass = readClassDesc;
-	}
-	
-    }
     
-    /**
-     * Dummy security manager providing access to getClassContext method.
-     */
-    private static class ClassContextAccess extends SecurityManager {
-	/**
-	 * Returns caller's caller class.
-	 */
-	Class caller() {
-	    return getClassContext()[2];
-	}
-    }
     
-    private static final ClassContextAccess context 
-	    = AccessController.doPrivileged(
-    new PrivilegedAction<ClassContextAccess>(){
-
-	@Override
-	public ClassContextAccess run() {
-	    return new ClassContextAccess();
-	}
-	
-    });
     
-    private static class GetArgImpl extends AtomicSerial.GetArg {
-	final Map<Class,GetField> classFields;
-	final Map<Class,ReadObject> readers;
-	final ObjectInput in;
-	
-	GetArgImpl(Map<Class,GetField> args, Map<Class,ReadObject> readers, ObjectInput in){
-	    super(false); // Avoids permission check.
-	    classFields = args;
-	    this.readers = readers;
-	    this.in = in;
-	}
-
-	@Override
-	public ObjectStreamClass getObjectStreamClass() {
-	    return classFields.get(context.caller()).getObjectStreamClass();
-	}
-
-	@Override
-	public boolean defaulted(String name) throws IOException {
-	    return classFields.get(context.caller()).defaulted(name);
-	}
-
-	@Override
-	public boolean get(String name, boolean val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public byte get(String name, byte val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public char get(String name, char val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public short get(String name, short val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public int get(String name, int val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public long get(String name, long val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public float get(String name, float val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public double get(String name, double val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-
-	@Override
-	public Object get(String name, Object val) throws IOException {
-	    return classFields.get(context.caller()).get(name, val);
-	}
-	
-	@Override
-	public <T> T get(String name, T val, Class<T> type) throws IOException {
-	    // T will be replaced by Object by the compilers erasure.
-	    T result = (T) classFields.get(context.caller()).get(name, val);
-	    if (type.isInstance(result)) return result;
-	    if (result == null) return null;
-	    InvalidObjectException e = new InvalidObjectException("Input validation failed");
-	    e.initCause(new ClassCastException("Attempt to assign object of incompatible type"));
-	    throw e;
-	}
-
-	@Override
-	public Collection getObjectStreamContext() {
-	    if (in instanceof ObjectStreamContext) 
-		return ((ObjectStreamContext)in).getObjectStreamContext();
-	    return Collections.emptyList();
-	}
-
-	@Override
-	public Class[] serialClasses() {
-	    return classFields.keySet().toArray(new Class[classFields.size()]);
-	}
-
-	@Override
-	public ReadObject getReader() { //TODO capture any Exceptions and rethrow here.
-//	    Class c = context.caller();
-//	    System.out.println("CALLER: " + c);
-//	    System.out.println(readers);
-	    return readers.get(context.caller());
-	}
-	
-    }
     
     public static enum Reference { CIRCULAR, UNSHARED, DISCARDED }
     
@@ -3668,1432 +3155,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         return !(typecode == '[' || typecode == 'L');
     }
     
-    /**
-     * This class is a container for ObjectStreamClass information
-     * contained in an ObjectInputStream, 
-     * 
-     */
-    private static class ObjectStreamClassInformation {
-	/**
-	 * The resulting class descriptor is not fully functional; it can only be used
-	 * as input to the ObjectInputStream.resolveClass() and
-	 * ObjectStreamClass.initNonProxy() methods.
-	 */
-	static ObjectStreamClass convert(ObjectStreamClassInformation o) 
-		throws IOException, ClassNotFoundException {
-	    ByteArrayOutputStream bao = new ByteArrayOutputStream();
-	    ObjectOutputStream dao = new ObjectOutputStream(bao);
-	    o.write(dao, true);
-	    dao.flush();
-	    byte [] bytes = bao.toByteArray();
-	    ClassDescriptorConversionObjectInputStream pois 
-		    = new ClassDescriptorConversionObjectInputStream(new ByteArrayInputStream(bytes));
-	    return pois.readClassDescriptor();
-	}
-
-	static ObjectStreamClassInformation convert(ObjectStreamClass o) 
-		throws IOException, ClassNotFoundException{
-	    ByteArrayOutputStream bao = new ByteArrayOutputStream();
-	    ClassDescriptorConversionObjectOutputStream coos = new ClassDescriptorConversionObjectOutputStream(bao);
-	    coos.writeClassDescriptor(o);
-	    coos.flush();
-	    byte [] bytes = bao.toByteArray();
-	    ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes));
-	    ObjectStreamClassInformation result = new ObjectStreamClassInformation();
-	    result.read(in);
-	    result.readFields(in);
-	    return result;
-	}
-
-	/** handle value representing null */
-	private static final int NULL_HANDLE = -1;
-
-	String fullyQualifiedClassName;
-	long serialVer;
-	boolean externalizable;
-	boolean serializable;
-	boolean hasWriteObjectData;
-	boolean hasBlockExternalData;
-	boolean isEnum;
-	ObjectStreamField[] fields;
-	boolean hasHandle;
-	int handle;
-	private int primDataSize;
-	private int numObjFields;
-
-
-
-	@Override
-	public String toString(){
-	    String endLine = "\n";
-	    StringBuilder b = new StringBuilder(512);
-	    b.append("Name: ")
-	    .append(fullyQualifiedClassName)
-	    .append(endLine)
-	    .append("Externalizable? ")
-	    .append(externalizable)
-	    .append(endLine)
-	    .append("Serializable? ")
-	    .append(serializable)
-	    .append(endLine)
-	    .append("Has writeObject() data? ")
-	    .append(hasWriteObjectData)
-	    .append(endLine)
-	    .append("Has block external data? ")
-	    .append(hasBlockExternalData)
-	    .append(endLine)
-	    .append("Is Enum? ")
-	    .append(isEnum)
-	    .append(endLine);
-	    if (fields != null){
-		for (int i = 0, l = fields.length; i < l; i++){
-		    if (fields[i] != null){
-			b.append("Field name: ")
-			.append(fields[i].getName())
-			.append(endLine)
-			.append("Field Type Code: ")
-			.append(fields[i].getTypeCode())
-			.append(endLine)
-			.append("Field offset: ")
-			.append(fields[i].getOffset())
-			.append(endLine);
-		    }
-		}
-	    }
-	    b.append("Has Handle? ")
-	    .append(hasHandle)
-	    .append(endLine)
-	    .append("Handle: ")
-	    .append(handle)
-	    .append(endLine)
-	    .append("Primitive data size: ")
-	    .append(primDataSize)
-	    .append(endLine)
-	    .append("Number of Object fields: ")
-	    .append(numObjFields)
-	    .append(endLine);
-	    return b.toString();
-	}
-
-	/**
-	 * Writes class descriptor information to given DataOutputStream.
-	 */
-	void write(ObjectOutputStream out, boolean replaceHandleWithObject) throws IOException {
-	    out.writeUTF(fullyQualifiedClassName);
-	    out.writeLong(serialVer);
-
-	    byte flags = 0;
-	    if (externalizable) {
-		flags |= ObjectStreamConstants.SC_EXTERNALIZABLE;
-		flags |= ObjectStreamConstants.SC_BLOCK_DATA; // Stream protocol version 1 isn't supported.
-	    } else if (serializable) {
-		flags |= ObjectStreamConstants.SC_SERIALIZABLE;
-	    }
-	    if (hasWriteObjectData) {
-		flags |= ObjectStreamConstants.SC_WRITE_METHOD;
-	    }
-	    if (isEnum) {
-		flags |= ObjectStreamConstants.SC_ENUM;
-	    }
-	    out.writeByte(flags);
-
-	    out.writeShort(fields.length);
-	    for (int i = 0, l = fields.length; i < l; i++) {
-		ObjectStreamField f = fields[i];
-		out.writeByte(f.getTypeCode());
-		out.writeUTF(f.getName());
-		if (!f.isPrimitive()) {
-		    String typeString = f.getTypeString();
-		    if (typeString == null) {
-			out.writeByte(TC_NULL);
-		    } else if (hasHandle && !replaceHandleWithObject) {
-			out.writeByte(TC_REFERENCE);
-			out.writeInt(handle);
-		    } else {
-			out.writeByte(TC_STRING);
-			out.writeUTF(typeString);
-		    }
-		}
-	    }
-	}
-
-	/**
-	 * Reads non-proxy class descriptor information from given DataInputStream. 
-	 */
-	void read(ObjectInputStream in)
-		throws IOException, ClassNotFoundException {
-//    	System.out.println("read in class descriptor");
-	    fullyQualifiedClassName = in.readUTF();
-	    if (fullyQualifiedClassName.length() == 0) {
-		// luni.07 = The stream is corrupted
-		throw new IOException(Messages.getString("luni.07")); //$NON-NLS-1$
-	    }
-	    serialVer = in.readLong();
-	    byte flags = in.readByte();
-	    hasWriteObjectData
-		    = ((flags & ObjectStreamConstants.SC_WRITE_METHOD) != 0);
-	    hasBlockExternalData
-		    = ((flags & ObjectStreamConstants.SC_BLOCK_DATA) != 0);
-	    externalizable
-		    = ((flags & ObjectStreamConstants.SC_EXTERNALIZABLE) != 0);
-	    boolean sflag
-		    = ((flags & ObjectStreamConstants.SC_SERIALIZABLE) != 0);
-	    if (externalizable && sflag) {
-		throw new InvalidClassException(
-			fullyQualifiedClassName, "serializable and externalizable flags conflict");
-	    }
-	    serializable = externalizable || sflag;
-	    isEnum = ((flags & ObjectStreamConstants.SC_ENUM) != 0);
-	    if (isEnum && serialVer != 0L) {
-		throw new InvalidClassException(fullyQualifiedClassName,
-			"enum descriptor has non-zero serialVersionUID: " + serialVer);
-	    }
-	}
-
-	/**
-	 * Reads a collection of field descriptors (name, type name, etc) for the
-	 * class descriptor {@code cDesc} (an {@code ObjectStreamClass})
-	 * 
-	 * @param cDesc
-	 *            The class descriptor (an {@code ObjectStreamClass})
-	 *            for which to write field information
-	 * 
-	 * @throws IOException
-	 *             If an IO exception happened when reading the field
-	 *             descriptors.
-	 * @throws ClassNotFoundException
-	 *             If a class for one of the field types could not be found
-	 * 
-	 * @see #readObject()
-	 */
-    //    private void readFieldDescriptors(ObjectStreamClass cDesc)
-    //            throws ClassNotFoundException, IOException {
-    //        short numFields = input.readShort();
-    //        ObjectStreamField[] fields = new ObjectStreamField[numFields];
-    //
-    //        // We set it now, but each element will be inserted in the array further
-    //        // down
-    //        cDesc.setLoadFields(fields);
-    //
-    //        // Check ObjectOutputStream.writeFieldDescriptors
-    //        for (short i = 0; i < numFields; i++) {
-    //            char typecode = (char) input.readByte();
-    //            String fieldName = input.readUTF();
-    //            boolean isPrimType = isPrimitiveType(typecode);
-    //            String classSig;
-    //            if (isPrimType) {
-    //                classSig = String.valueOf(typecode);
-    //            } else {
-    //                // The spec says it is a UTF, but experience shows they dump
-    //                // this String using writeObject (unlike the field name, which
-    //                // is saved with writeUTF).
-    //                // And if resolveObject is enabled, the classSig may be modified
-    //                // so that the original class descriptor cannot be read
-    //                // properly, so it is disabled.
-    //                boolean old = enableResolve;
-    //                try {
-    //                    enableResolve = false;
-    //                    classSig = (String) readObject();
-    //                } finally {
-    //                    enableResolve = old;
-    //                }
-    //            }
-    //            
-    //            classSig = formatClassSig(classSig);
-    //            ObjectStreamField f = new ObjectStreamField(classSig, fieldName);
-    //            fields[i] = f;
-    //        }
-    //    }
-
-	/*
-	 * Format the class signature for ObjectStreamField, for example,
-	 * "[L[Ljava.lang.String;;" is converted to "[Ljava.lang.String;"
-	 */
-    //    private static String formatClassSig(String classSig) {
-    //        int start = 0;
-    //        int end = classSig.length();
-    //
-    //        if (end <= 0) {
-    //            return classSig;
-    //        }
-    //
-    //        while (classSig.startsWith("[L", start) //$NON-NLS-1$
-    //                && classSig.charAt(end - 1) == ';') {
-    //            start += 2;
-    //            end--;
-    //        }
-    //
-    //        if (start > 0) {
-    //            start -= 2;
-    //            end++;
-    //            return classSig.substring(start, end);
-    //        }
-    //        return classSig;
-    //    }
-	void readFields(ObjectInputStream in) throws IOException{
-//    	System.out.println("readFields");
-	    int numFields = in.readShort();
-	    if (isEnum && numFields != 0) {
-		throw new InvalidClassException(fullyQualifiedClassName,
-			"enum descriptor has non-zero field count: " + numFields);
-	    }
-	    fields = ((numFields > 0)
-		    ? new ObjectField[numFields] : NO_FIELDS);
-	    for (int i = 0; i < numFields; i++) {
-		char tcode = (char) in.readByte();
-		String fname = in.readUTF();
-		String signature = null;
-		if ((tcode == 'L') || (tcode == '[')) {
-
-		    byte streamConstant = (in instanceof AtomicMarshalInputStream) 
-			    ? ((AtomicMarshalInputStream)in).nextTC() : in.readByte();
-		    switch (streamConstant) {
-			case TC_NULL:
-//    			System.out.println("TC_NULL");
-			    break;
-			case TC_REFERENCE:
-//    			System.out.println("TC_REFERENCE");
-			    if (in instanceof AtomicMarshalInputStream){
-				signature = (String) ((AtomicMarshalInputStream) in).readCyclicReference();
-			    } else {
-				throw new StreamCorruptedException("TC_REFERENCE is not supported for this stream");
-			    }
-			    break;
-			case TC_STRING:
-//    			System.out.println("TC_STRING");
-			    if (in instanceof AtomicMarshalInputStream){
-				signature = (String) ((AtomicMarshalInputStream) in).readNewString(isEnum);
-			    } else {
-				signature = in.readUTF();
-			    }
-			    break;
-			case TC_LONGSTRING:
-//    			System.out.println("TC_LONGSTRING");
-			    if (in instanceof AtomicMarshalInputStream){
-				signature = (String) ((AtomicMarshalInputStream) in).readNewLongString(isEnum);
-			    } else {
-				throw new UnsupportedOperationException("Cannot read long UTF string from this stream");
-			    }
-			default:
-			    throw new StreamCorruptedException("Stream failed in ObjectStreamClass descriptor");
-		    }
-		} else {
-		    signature = new String(new char[]{tcode});
-		}
-		try {
-		    fields[i] = new ObjectField(fname, signature, false);
-		} catch (RuntimeException e) {
-		    IOException ex = new InvalidClassException(fullyQualifiedClassName,
-			    "invalid descriptor for field " + fname);
-		    ex.initCause(e);
-		    throw ex;
-		}
-	    }
-	    primDataSize = 0;
-	    numObjFields = 0;
-	    int firstObjIndex = -1;
-
-	    for (int i = 0, l = fields.length; i < l; i++) {
-		ObjectField f = (ObjectField) fields[i];
-		switch (f.getTypeCode()) {
-		    case 'Z':
-		    case 'B':
-			f.setOffset(primDataSize++);
-			break;
-
-		    case 'C':
-		    case 'S':
-			f.setOffset(primDataSize);
-			primDataSize += 2;
-			break;
-
-		    case 'I':
-		    case 'F':
-			f.setOffset(primDataSize);
-			primDataSize += 4;
-			break;
-
-		    case 'J':
-		    case 'D':
-			f.setOffset(primDataSize);
-			primDataSize += 8;
-			break;
-
-		    case '[':
-		    case 'L':
-			f.setOffset(numObjFields++);
-			if (firstObjIndex == -1) {
-			    firstObjIndex = i;
-			}
-			break;
-
-		    default:
-			throw new InternalError();
-		}
-	    }
-	    if (firstObjIndex != -1
-		    && firstObjIndex + numObjFields != fields.length) {
-		throw new InvalidClassException(fullyQualifiedClassName, "illegal field order");
-	    }
-	}
-
-	static class ObjectField extends ObjectStreamField {
-
-	    private final Field field;
-	    private boolean unshared;
-
-	    static String checkName(String name) {
-		if (name == null) {
-		    throw new NullPointerException();
-		}
-		return name;
-	    }
-
-	    ObjectField(String name, Class<?> type) {
-		this(name, type, false);
-	    }
-
-	    ObjectField(String name, Class<?> type, boolean unshared) {
-		super(checkName(name), type, unshared);
-		field = null;
-		this.unshared = unshared;
-	    }
-
-	    static Class<?> getType(String signature) {
-		if (signature ==  null) throw new IllegalArgumentException("illegal signature, cannot be null");
-		switch (signature.charAt(0)) {
-		    case 'B':
-			return Byte.TYPE;
-		    case 'C':
-			return Character.TYPE;
-		    case 'D':
-			return Double.TYPE;
-		    case 'F':
-			return Float.TYPE;
-		    case 'I':
-			return Integer.TYPE;
-		    case 'J':
-			return Long.TYPE;
-		    case 'L':
-		    case '[':
-			return Object.class;
-		    case 'S':
-			return Short.TYPE;
-		    case 'Z':
-			return Boolean.TYPE;
-		    default:
-			throw new IllegalArgumentException("illegal signature: " + signature);
-		}
-	    }
-
-	    /**
-	     * Creates an ObjectField representing a field with the given name,
-	     * signature and unshared setting.
-	     */
-	    ObjectField(String name, String signature, boolean unshared) {
-		this(name, getType(signature), unshared);
-	    }
-
-	    static Class<?> type(Class<?> ftype, boolean showType) {
-		return (showType || ftype.isPrimitive()) ? ftype : Object.class;
-	    }
-
-	    /**
-	     * Creates an ObjectField representing the given field with the
-	     * specified unshared setting. For compatibility with the behavior of
-	     * earlier serialization implementations, a "showType" parameter is
-	     * necessary to govern whether or not a getType() call on this
-	     * ObjectField (if non-primitive) will return Object.class (as opposed
-	     * to a more specific reference type).
-	     */
-	    ObjectField(Field field, boolean unshared, boolean showType) {
-		this(field.getName(), type(field.getType(), showType), unshared);
-	    }
-
-	    /**
-	     * Returns field represented by this ObjectStreamField, or null if
-	     * ObjectStreamField is not associated with an actual field.
-	     */
-	    Field getField() {
-		return field;
-	    }
-
-	    /**
-	     * Returns boolean value indicating whether or not the serializable
-	     * field represented by this ObjectStreamField instance is unshared.
-	     *
-	     * @return {@code true} if this field is unshared
-	     *
-	     * @since 1.4
-	     */
-	    @Override
-	    public boolean isUnshared() {
-		return unshared;
-	    }
-
-	    void setUnshared(boolean unshared) {
-		this.unshared = unshared;
-	    }
-
-	    @Override
-	    public void setOffset(int offset) {
-		super.setOffset(offset);
-	    }
-
-    //	void resolve(ClassLoader loader) {
-    //	    String typeString = getTypeString();
-    //	    if (typeString == null && isPrimitive()){
-    //		// primitive type declared in a serializable class
-    //		typeString = String.valueOf(getTypeCode());
-    //	    }
-    //
-    //	    if (typeString.length() == 1) {
-    //		if (defaultResolve()) {
-    //		    return;
-    //		}
-    //	    }
-    //
-    //	    String className = typeString.replace('/', '.');
-    //	    if (className.charAt(0) == 'L') {
-    //		// remove L and ;
-    //		className = className.substring(1, className.length() - 1);
-    //	    }
-    //	    try {
-    //		Class<?> cl = Class.forName(className, false, loader);
-    //		type = (cl.getClassLoader() == null) ? cl
-    //			: new WeakReference<Class<?>>(cl);
-    //	    } catch (ClassNotFoundException e) {
-    //		// Ignored
-    //	    }
-    //	}
-    //	/**
-    //	 * Resolves typeString into type. Returns true if the type is primitive
-    //	 * and false otherwise.
-    //	 */
-    //	private boolean defaultResolve() {
-    //	    String typeString = getTypeString();
-    //	    switch (typeString.charAt(0)) {
-    //		case 'I':
-    //		    type = Integer.TYPE;
-    //		    return true;
-    //		case 'B':
-    //		    type = Byte.TYPE;
-    //		    return true;
-    //		case 'C':
-    //		    type = Character.TYPE;
-    //		    return true;
-    //		case 'S':
-    //		    type = Short.TYPE;
-    //		    return true;
-    //		case 'Z':
-    //		    type = Boolean.TYPE;
-    //		    return true;
-    //		case 'J':
-    //		    type = Long.TYPE;
-    //		    return true;
-    //		case 'F':
-    //		    type = Float.TYPE;
-    //		    return true;
-    //		case 'D':
-    //		    type = Double.TYPE;
-    //		    return true;
-    //		default:
-    //		    type = Object.class;
-    //		    return false;
-    //	    }
-    //	}
-	}
-
-	static class ClassDescriptorConversionObjectInputStream extends ObjectInputStream{
-	    ClassDescriptorConversionObjectInputStream(InputStream input) throws IOException{
-		super(input);
-	    }
-
-	    @Override
-	    public ObjectStreamClass readClassDescriptor() 
-		    throws IOException, ClassNotFoundException{
-		return super.readClassDescriptor();
-	    }
-	}
-
-	static class ClassDescriptorConversionObjectOutputStream extends ObjectOutputStream{
-	    ClassDescriptorConversionObjectOutputStream(OutputStream output) throws IOException{
-		super(output);
-	    }
-
-	    @Override
-	    public void writeClassDescriptor(ObjectStreamClass o) throws IOException{
-		super.writeClassDescriptor(o);
-	    }
-	}
-    }
     
-    // A slot is a field plus its value
-    static class ObjectSlot {
-
-	// Field descriptor
-	ObjectStreamField field;
-
-	// Actual value this emulated field holds
-	Object fieldValue;
-
-	boolean booleanValue;
-	byte byteValue;
-	char charValue;
-	short shortValue;
-	int intValue;
-	long longValue;
-	float floatValue;
-	double doubleValue;
-
-	// If this field has a default value (true) or something has been
-	// assigned (false)
-	boolean defaulted = true;
-
-	/**
-	 * Returns the descriptor for this emulated field.
-	 * 
-	 * @return the field descriptor
-	 */
-	public ObjectStreamField getField() {
-	    return field;
-	}
-
-	/**
-	 * Returns the value held by this emulated field.
-	 * 
-	 * @return the field value
-	 */
-	public Object getFieldValue() {
-	    return fieldValue;
-	}
-    }
     
-    static class EmulatedFields {
-
-	// The collection of slots the receiver represents
-	private ObjectSlot[] slotsToSerialize;
-
-	private ObjectStreamField[] declaredFields;
-
-	/**
-	 * Constructs a new instance of EmulatedFields.
-	 * 
-	 * @param fields
-	 *            an array of ObjectStreamFields, which describe the fields to
-	 *            be emulated (names, types, etc).
-	 * @param declared
-	 *            an array of ObjectStreamFields, which describe the declared
-	 *            fields.
-	 */
-	public EmulatedFields(
-		ObjectStreamField[] declared) {
-	    super();
-	    // We assume the slots are already sorted in the right shape for dumping
-	    buildSlots(declared);
-	    declaredFields = declared;
-	}
-
-	/**
-	 * Build emulated slots that correspond to emulated fields. A slot is a
-	 * field descriptor (ObjectStreamField) plus the actual value it holds.
-	 * 
-	 * @param fields
-	 *            an array of ObjectStreamField, which describe the fields to be
-	 *            emulated (names, types, etc).
-	 */
-	private void buildSlots(ObjectStreamField[] fields) {
-	    slotsToSerialize = new ObjectSlot[fields.length];
-	    for (int i = 0; i < fields.length; i++) {
-		ObjectSlot s = new ObjectSlot();
-		slotsToSerialize[i] = s;
-		s.field = fields[i];
-	    }
-	    // We assume the slots are already sorted in the right shape for dumping
-	}
-
-	/**
-	 * Returns {@code true} indicating the field called {@code name} has not had
-	 * a value explicitly assigned and that it still holds a default value for
-	 * its type, or {@code false} indicating that the field named has been
-	 * assigned a value explicitly.
-	 * 
-	 * @param name
-	 *            the name of the field to test.
-	 * @return {@code true} if {@code name} still holds its default value,
-	 *         {@code false} otherwise
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if {@code name} is {@code null}
-	 */
-	public boolean defaulted(String name) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, null);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted;
-	}
-
-	/**
-	 * Finds and returns an ObjectSlot that corresponds to a field named {@code
-	 * fieldName} and type {@code fieldType}. If the field type {@code
-	 * fieldType} corresponds to a primitive type, the field type has to match
-	 * exactly or {@code null} is returned. If the field type {@code fieldType}
-	 * corresponds to an object type, the field type has to be compatible in
-	 * terms of assignment, or null is returned. If {@code fieldType} is {@code
-	 * null}, no such compatibility checking is performed and the slot is
-	 * returned.
-	 * 
-	 * @param fieldName
-	 *            the name of the field to find
-	 * @param fieldType
-	 *            the type of the field. This will be used to test
-	 *            compatibility. If {@code null}, no testing is done, the
-	 *            corresponding slot is returned.
-	 * @return the object slot, or {@code null} if there is no field with that
-	 *         name, or no compatible field (relative to {@code fieldType})
-	 */
-	private ObjectSlot findSlot(String fieldName, Class<?> fieldType) {
-	    boolean isPrimitive = fieldType != null && fieldType.isPrimitive();
-
-	    for (int i = 0; i < slotsToSerialize.length; i++) {
-		ObjectSlot slot = slotsToSerialize[i];
-		if (slot.field.getName().equals(fieldName)) {
-		    if (isPrimitive) {
-			// Looking for a primitive type field. Types must match
-			// *exactly*
-			if (slot.field.getType() == fieldType) {
-			    return slot;
-			}
-		    } else {
-			// Looking for a non-primitive type field.
-			if (fieldType == null) {
-			    return slot; // Null means we take anything
-			}
-			// Types must be compatible (assignment)
-			if (slot.field.getType().isAssignableFrom(fieldType)) {
-			    return slot;
-			}
-		    }
-		}
-	    }
-
-	    if (declaredFields != null) {
-		for (int i = 0; i < declaredFields.length; i++) {
-		    ObjectStreamField field = declaredFields[i];
-		    if (field.getName().equals(fieldName)) {
-			if (isPrimitive ? field.getType() == fieldType
-				: fieldType == null
-					|| field.getType().isAssignableFrom(
-						fieldType)) {
-			    ObjectSlot slot = new ObjectSlot();
-			    slot.field = field;
-			    slot.defaulted = true;
-			    return slot;
-			}
-		    }
-		}
-	    }
-	    return null;
-	}
-
-	/**
-	 * Finds and returns the byte value of a given field named {@code name}
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public byte get(String name, byte defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Byte.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.byteValue;
-	}
-
-	/**
-	 * Finds and returns the char value of a given field named {@code name} in the
-	 * receiver. If the field has not been assigned any value yet, the default
-	 * value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public char get(String name, char defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Character.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.charValue;
-	}
-
-	/**
-	 * Finds and returns the double value of a given field named {@code name}
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public double get(String name, double defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Double.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.doubleValue;
-	}
-
-	/**
-	 * Finds and returns the float value of a given field named {@code name} in
-	 * the receiver. If the field has not been assigned any value yet, the
-	 * default value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public float get(String name, float defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Float.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.floatValue;
-	}
-
-	/**
-	 * Finds and returns the int value of a given field named {@code name} in the
-	 * receiver. If the field has not been assigned any value yet, the default
-	 * value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public int get(String name, int defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Integer.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.intValue;
-	}
-
-	/**
-	 * Finds and returns the long value of a given field named {@code name} in the
-	 * receiver. If the field has not been assigned any value yet, the default
-	 * value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public long get(String name, long defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Long.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.longValue;
-	}
-
-	/**
-	 * Finds and returns the Object value of a given field named {@code name} in
-	 * the receiver. If the field has not been assigned any value yet, the
-	 * default value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public Object get(String name, Object defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, null);
-	    // if not initialized yet, we give the default value
-	    if (slot == null || slot.field.getType().isPrimitive()) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.fieldValue;
-	}
-
-	/**
-	 * Finds and returns the short value of a given field named {@code name} in
-	 * the receiver. If the field has not been assigned any value yet, the
-	 * default value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public short get(String name, short defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Short.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.shortValue;
-	}
-
-	/**
-	 * Finds and returns the boolean value of a given field named {@code name} in
-	 * the receiver. If the field has not been assigned any value yet, the
-	 * default value {@code defaultValue} is returned instead.
-	 * 
-	 * @param name
-	 *            the name of the field to find.
-	 * @param defaultValue
-	 *            return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, the default
-	 *         value otherwise.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public boolean get(String name, boolean defaultValue)
-		throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Boolean.TYPE);
-	    // if not initialized yet, we give the default value
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    return slot.defaulted ? defaultValue : slot.booleanValue;
-	}
-
-	/**
-	 * Find and set the byte value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, byte value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Byte.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.byteValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the char value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, char value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Character.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.charValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the double value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, double value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Double.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.doubleValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the float value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, float value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Float.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.floatValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the int value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, int value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Integer.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.intValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the long value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, long value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Long.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.longValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the Object value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, Object value) throws IllegalArgumentException {
-	    Class<?> valueClass = null;
-	    if (value != null) {
-		valueClass = value.getClass();
-	    }
-	    ObjectSlot slot = findSlot(name, valueClass);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.fieldValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the short value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, short value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Short.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.shortValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Find and set the boolean value of a given field named {@code name} in the
-	 * receiver.
-	 * 
-	 * @param name
-	 *            the name of the field to set.
-	 * @param value
-	 *            new value for the field.
-	 * 
-	 * @throws IllegalArgumentException
-	 *             if the corresponding field can not be found.
-	 */
-	public void put(String name, boolean value) throws IllegalArgumentException {
-	    ObjectSlot slot = findSlot(name, Boolean.TYPE);
-	    if (slot == null) {
-		throw new IllegalArgumentException();
-	    }
-	    slot.booleanValue = value;
-	    slot.defaulted = false; // No longer default value
-	}
-
-	/**
-	 * Return the array of ObjectSlot the receiver represents.
-	 * 
-	 * @return array of ObjectSlot the receiver represents.
-	 */
-	public ObjectSlot[] slots() {
-	    return slotsToSerialize;
-	}
-    }
     
-    static class EmulatedFieldsForLoading extends GetField {
-	// The class descriptor with the declared fields the receiver emulates
-	private final ObjectStreamClass streamClass;
-
-	// The actual representation, with a more powerful API (set&get)
-	private final EmulatedFields emulatedFields;
-
-	/**
-	 * Constructs a new instance of EmulatedFieldsForLoading.
-	 * 
-	 * @param streamClass
-	 *            an ObjectStreamClass, defining the class for which to emulate
-	 *            fields.
-	 */
-	EmulatedFieldsForLoading(ObjectStreamClass streamClass) {
-	    super();
-	    this.streamClass = streamClass;
-	    emulatedFields = new EmulatedFields(streamClass.getFields()); // Get Fields copies, consider not copying for efficiency?
-	}
-
-	/**
-	 * Return a boolean indicating if the field named <code>name</code> has
-	 * been assigned a value explicitly (false) or if it still holds a default
-	 * value for the type (true) because it hasn't been assigned to yet.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to test
-	 * @return <code>true</code> if the field holds it default value,
-	 *         <code>false</code> otherwise.
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public boolean defaulted(String name) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.defaulted(name);
-	}
-
-	/**
-	 * Return the actual EmulatedFields instance used by the receiver. We have
-	 * the actual work in a separate class so that the code can be shared. The
-	 * receiver has to be of a subclass of GetField.
-	 * 
-	 * @return array of ObjectSlot the receiver represents.
-	 */
-	EmulatedFields emulatedFields() {
-	    return emulatedFields;
-	}
-
-	/**
-	 * Find and return the byte value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public byte get(String name, byte defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the char value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public char get(String name, char defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the double value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public double get(String name, double defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the float value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public float get(String name, float defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the int value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public int get(String name, int defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the long value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public long get(String name, long defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the Object value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public Object get(String name, Object defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the short value of a given field named <code>name</code>
-	 * in the receiver. If the field has not been assigned any value yet, the
-	 * default value <code>defaultValue</code> is returned instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public short get(String name, short defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Find and return the boolean value of a given field named
-	 * <code>name</code> in the receiver. If the field has not been assigned
-	 * any value yet, the default value <code>defaultValue</code> is returned
-	 * instead.
-	 * 
-	 * @param name
-	 *            A String, the name of the field to find
-	 * @param defaultValue
-	 *            Return value in case the field has not been assigned to yet.
-	 * @return the value of the given field if it has been assigned, or the
-	 *         default value otherwise
-	 * 
-	 * @throws IOException
-	 *             If an IO error occurs
-	 * @throws IllegalArgumentException
-	 *             If the corresponding field can not be found.
-	 */
-	@Override
-	public boolean get(String name, boolean defaultValue) throws IOException,
-		IllegalArgumentException {
-	    return emulatedFields.get(name, defaultValue);
-	}
-
-	/**
-	 * Return the class descriptor for which the emulated fields are defined.
-	 * 
-	 * @return ObjectStreamClass The class descriptor for which the emulated
-	 *         fields are defined.
-	 */
-	@Override
-	public ObjectStreamClass getObjectStreamClass() {
-	    return streamClass;
-	}
-    }
 }

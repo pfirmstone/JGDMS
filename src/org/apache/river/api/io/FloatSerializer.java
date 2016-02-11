@@ -41,7 +41,7 @@ class FloatSerializer implements Externalizable {
 	this(in.readFloat());
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Float readResolve() throws ObjectStreamException {
 	return f;
     }
 

@@ -51,7 +51,7 @@ class MarshalledObjectSerializer implements Serializable {
 	return mi;
     }
     
-    Object readResolve() throws ObjectStreamException {
+    MarshalledObject readResolve() throws ObjectStreamException {
 	return instance.convertToMarshalledObject();
     }
 }

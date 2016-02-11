@@ -72,6 +72,11 @@ class ActivationGroupDescSerializer implements Serializable {
 	actGroupDesc = agd;
     }
     
+    /**
+     * TODO: Parsing className, location, permission and restrictions
+     * @param arg
+     * @throws IOException 
+     */
     ActivationGroupDescSerializer(GetArg arg) throws IOException {
 	this( 
 	    new ActivationGroupDesc(
@@ -143,6 +148,11 @@ class ActivationGroupDescSerializer implements Serializable {
 	    this.env = env;
 	}
 	
+	/**
+	 * TODO: Parsing command path, filters, permission and restrictions
+	 * @param arg
+	 * @throws IOException 
+	 */
 	CmdEnv(GetArg arg) throws IOException{
 	    this( new CommandEnvironment(
 		    arg.get("cmdPath", null, String.class),

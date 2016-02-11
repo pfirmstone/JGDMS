@@ -160,7 +160,7 @@ class ThrowableSerializer implements Serializable {
 	return Objects.deepEquals(suppressed, that.suppressed);
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Throwable readResolve() throws ObjectStreamException {
 	return throwable;
     }
     

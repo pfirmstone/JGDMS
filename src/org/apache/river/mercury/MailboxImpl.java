@@ -1264,17 +1264,17 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}
     }
 
-//    // inherit javadoc from parent
-//    public Map cancelAll(Uuid[] cookies) throws RemoteException 
-//    {
-//        readyState.check();
-//	concurrentObj.writeLock();
-//	try {
-//	    return cancelAllDo(cookies);
-//        } finally {
-//	    concurrentObj.writeUnlock();
-//	}
-//    }
+    // inherit javadoc from parent
+    public Map cancelAll(Uuid[] cookies) throws RemoteException 
+    {
+        readyState.check();
+	concurrentObj.writeLock();
+	try {
+	    return cancelAllDo(cookies);
+        } finally {
+	    concurrentObj.writeUnlock();
+	}
+    }
 
     //////////////////////////////////
     // DestroyAdmin methods

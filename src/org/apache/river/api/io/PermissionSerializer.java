@@ -257,7 +257,7 @@ final class PermissionSerializer implements Serializable {
 	return Objects.equals(targetActions, that.targetActions);
     }
 	
-    Object readResolve() throws ObjectStreamException {
+    Permission readResolve() throws ObjectStreamException {
 	return permission;
     }
     

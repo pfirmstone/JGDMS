@@ -41,7 +41,7 @@ class LongSerializer implements Externalizable {
 	this(in.readLong());
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Long readResolve() {
 	return l;
     }
 

@@ -1105,20 +1105,20 @@ class TxnManagerImpl /*extends RemoteServer*/
      * @see org.apache.river.landlord.LeasedResource
      * @see org.apache.river.mahalo.LeaseManager
      */
-//    public Map cancelAll(Uuid[] cookies) {
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//            operationsLogger.entering(
-//		TxnManagerImpl.class.getName(), "cancelAll");
-//	}
-//        readyState.check();
-//
-//	Map results = LandlordUtil.cancelAll(this, cookies);
-//        if (operationsLogger.isLoggable(Level.FINER)) {
-//            operationsLogger.exiting(
-//		TxnManagerImpl.class.getName(), "cancelAll");
-//	}
-//	return results;
-//    }
+    public Map cancelAll(Uuid[] cookies) {
+        if (operationsLogger.isLoggable(Level.FINER)) {
+            operationsLogger.entering(
+		TxnManagerImpl.class.getName(), "cancelAll");
+	}
+        readyState.check();
+
+	Map results = LandlordUtil.cancelAll(this, cookies);
+        if (operationsLogger.isLoggable(Level.FINER)) {
+            operationsLogger.exiting(
+		TxnManagerImpl.class.getName(), "cancelAll");
+	}
+	return results;
+    }
 
     // local methods
 

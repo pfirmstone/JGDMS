@@ -363,10 +363,10 @@ class OutriggerServerWrapper
 	return delegate.renewAll(cookies, durations);
     }
 
-//    public Map cancelAll(Uuid[] cookies) throws RemoteException {
-//	gate();
-//	return delegate.cancelAll(cookies);
-//    }
+    public Map cancelAll(Uuid[] cookies) throws RemoteException {
+	gate();
+	return delegate.cancelAll(cookies);
+    }
 
     public Object getServiceProxy() throws RemoteException {
 	gate();

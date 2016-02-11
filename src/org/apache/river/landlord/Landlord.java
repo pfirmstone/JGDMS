@@ -116,20 +116,20 @@ public interface Landlord extends Remote {
      *         exception describing the failure.  
      * @throws RemoteException if a communications failure occurs
      */
-    public default java.util.Map<Uuid,UnknownLeaseException> cancelAll(Uuid[] cookies) throws RemoteException 
-    {
-	Map<Uuid,UnknownLeaseException> map = null;
-	for (int i = 0, count = cookies.length; i < count; i++) {
-	    try {
-		cancel(cookies[i]);
-	    } catch (UnknownLeaseException e) {
-		if (map == null)
-		    map = new java.util.HashMap<Uuid,UnknownLeaseException>();
-		map.put(cookies[i], e);
-	    }
-	}
-	return map;
-    }
+    public java.util.Map cancelAll(Uuid[] cookies) throws RemoteException; 
+//    {
+//	Map<Uuid,UnknownLeaseException> map = null;
+//	for (int i = 0, count = cookies.length; i < count; i++) {
+//	    try {
+//		cancel(cookies[i]);
+//	    } catch (UnknownLeaseException e) {
+//		if (map == null)
+//		    map = new java.util.HashMap<Uuid,UnknownLeaseException>();
+//		map.put(cookies[i], e);
+//	    }
+//	}
+//	return map;
+//    }
 
     /** 
      * Simple class that holds return values of
@@ -139,7 +139,7 @@ public interface Landlord extends Remote {
      * for security reasons.
      */
     @AtomicSerial
-    public class RenewResults implements java.io.Serializable {
+    public static class RenewResults implements java.io.Serializable {
 	static final long serialVersionUID = 2L;
 	/**
 	 * For each cookie passed to {@link Landlord#renewAll renewAll},

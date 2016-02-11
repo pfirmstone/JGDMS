@@ -92,7 +92,7 @@ class URISerializer implements Serializable {
 	return hash;
     }
     
-    Object readResolve() throws ObjectStreamException {
+    URI readResolve() throws ObjectStreamException {
 	return uri;
     }
     

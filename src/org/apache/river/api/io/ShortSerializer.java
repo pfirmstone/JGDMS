@@ -41,7 +41,7 @@ class ShortSerializer implements Externalizable {
 	this(in.readShort());
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Short readResolve() throws ObjectStreamException {
 	return s;
     }
 

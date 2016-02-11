@@ -105,7 +105,7 @@ class StackTraceElementSerializer implements Serializable {
 	return hash;
     }
     
-    Object readResolve() throws ObjectStreamException {
+    StackTraceElement readResolve() throws ObjectStreamException {
 	return stackTraceElement;
     }
     

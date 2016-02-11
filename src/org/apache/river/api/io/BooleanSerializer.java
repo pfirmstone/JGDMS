@@ -42,7 +42,7 @@ class BooleanSerializer implements Externalizable {
 //	this(arg.get("b", false));
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Boolean readResolve() throws ObjectStreamException {
 	return b;
     }
 

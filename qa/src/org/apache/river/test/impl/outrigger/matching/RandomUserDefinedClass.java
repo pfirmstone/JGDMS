@@ -17,6 +17,10 @@
  */
 package org.apache.river.test.impl.outrigger.matching;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 
 /**
  *
@@ -24,15 +28,23 @@ package org.apache.river.test.impl.outrigger.matching;
  *
  * @author John W. F. McClain
  */
+@AtomicSerial
 class RandomUserDefinedClass implements java.io.Serializable {
-    public int aInt;
-    private float aFloat;
-    private String aString;
+    private final int aInt;
+    private final float aFloat;
+    private final String aString;
 
     RandomUserDefinedClass(int i, float f, String s) {
         aInt = i;
         aFloat = f;
         aString = s;
+    }
+    
+    public RandomUserDefinedClass(GetArg arg) throws IOException{
+	this(arg.get("aInt", 0),
+	     arg.get("aFloat", 0.0f),
+	     arg.get("aString", null, String.class)
+	);
     }
 
     String aMethod() {

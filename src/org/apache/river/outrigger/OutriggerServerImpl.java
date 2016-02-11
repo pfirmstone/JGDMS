@@ -1775,10 +1775,10 @@ public class OutriggerServerImpl
     }
 
     // purposefully inherit doc comment
-//    public Map cancelAll(Uuid[] cookies) {
-//	leaseLogger.entering("OutriggerServerImpl", "cancelAll");
-//	return LandlordUtil.cancelAll(this, cookies);	    
-//    }
+    public Map cancelAll(Uuid[] cookies) {
+	leaseLogger.entering("OutriggerServerImpl", "cancelAll");
+	return LandlordUtil.cancelAll(this, cookies);	    
+    }
 
 
     public Object read(EntryRep tmpl, Transaction txn, long timeout,

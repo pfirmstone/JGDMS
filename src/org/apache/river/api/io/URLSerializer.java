@@ -80,7 +80,7 @@ class URLSerializer implements Serializable {
 	return hash;
     }
     
-    Object readResolve() throws ObjectStreamException {
+    URL readResolve() throws ObjectStreamException {
 	return url;
     }
     

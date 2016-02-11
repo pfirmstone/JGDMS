@@ -41,7 +41,7 @@ class DoubleSerializer implements Externalizable {
 	this(in.readDouble());
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Double readResolve() throws ObjectStreamException {
 	return d;
     }
 

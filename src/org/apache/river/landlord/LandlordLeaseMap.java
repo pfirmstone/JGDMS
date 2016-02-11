@@ -18,16 +18,19 @@
 package org.apache.river.landlord;
 
 import java.rmi.RemoteException;
-import java.util.Map;
-import java.util.Iterator;
-import java.util.HashMap;
 import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
-import net.jini.id.Uuid;
+import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.ReferentUuid;
+import net.jini.id.Uuid;
+import org.apache.river.api.io.Valid;
 import org.apache.river.lease.AbstractIDLeaseMap;
 
 /**
@@ -111,7 +114,7 @@ public class LandlordLeaseMap extends AbstractIDLeaseMap {
 
     // inherit doc comment
     public void cancelAll() throws LeaseMapException, RemoteException {
-        final Map rslt;
+        Map rslt;
 	List<Uuid> cookies;
         List<LandlordLease> leases;
         cookies = new LinkedList<Uuid>();
@@ -129,6 +132,7 @@ public class LandlordLeaseMap extends AbstractIDLeaseMap {
 	    // Everything worked out, normal return
 	    return;
 	} else {
+	    rslt = Valid.copyMap(rslt, new HashMap(rslt.size()), Uuid.class, UnknownLeaseException.class); // In case the map was serialized.
             LandlordLease[] leasesA = leases.toArray(new LandlordLease[leases.size()]);
 	    // Some the leases could not be canceled, generate a
 	    // LeaseMapException

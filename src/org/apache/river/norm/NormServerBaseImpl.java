@@ -1162,12 +1162,12 @@ abstract class NormServerBaseImpl
 	return LandlordUtil.renewAll(this, cookies, extensions);
     }
 
-//    // Inherit java doc from super type
-//    public Map cancelAll(Uuid[] cookies) {
-//	ready.check();
-//	/* Cookie types checked in individual cancel calls */
-//	return LandlordUtil.cancelAll(this, cookies);	    
-//    }
+    // Inherit java doc from super type
+    public Map cancelAll(Uuid[] cookies) {
+	ready.check();
+	/* Cookie types checked in individual cancel calls */
+	return LandlordUtil.cancelAll(this, cookies);	    
+    }
 
     ////////////////////////////////////////////////
     // Methods and classes needed by PersistentStore

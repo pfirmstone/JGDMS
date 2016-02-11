@@ -77,7 +77,7 @@ class UIDSerializer implements Serializable {
 	uid.write(stream);
     }
     
-    Object readResolve() throws ObjectStreamException {
+    UID readResolve() throws ObjectStreamException {
 	return uid;
     }
     

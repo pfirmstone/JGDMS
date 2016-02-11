@@ -20,6 +20,7 @@ package net.jini.core.transaction;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
+import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
@@ -30,6 +31,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class TimeoutExpiredException extends TransactionException {
     static final long serialVersionUID = 3918773760682958000L;
     

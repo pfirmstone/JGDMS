@@ -48,7 +48,7 @@ class FileSerializer implements Serializable{
 	this(arg.get("path", null, URI.class));
     }
     
-    Object readResolve() {
+    File readResolve() {
 	return file;
     }
     

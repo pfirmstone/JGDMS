@@ -58,7 +58,7 @@ class PropertiesSerializer implements Serializable {
 	return p;
     }
     
-     Object readResolve() throws ObjectStreamException {
+    Properties readResolve() throws ObjectStreamException {
 	return p;
     }
     

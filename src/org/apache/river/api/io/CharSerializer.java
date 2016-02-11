@@ -41,7 +41,7 @@ class CharSerializer implements Externalizable {
 	this(in.readChar());
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Character readResolve() throws ObjectStreamException {
 	return c;
     }
 

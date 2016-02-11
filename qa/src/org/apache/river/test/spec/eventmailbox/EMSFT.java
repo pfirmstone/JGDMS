@@ -274,9 +274,8 @@ public class EMSFT extends EMSTestBase implements TimeConstants {
 	} catch (ServerException e) {
 	    logger.log(Level.INFO, "Caught ServerException");
 	    Throwable detail = e.getCause();
-	    if (detail == null || 
-		!(detail instanceof NoSuchObjectException)) {
-		    throw new TestException("Unexpected exception", e);
+	    if (!(detail instanceof NoSuchObjectException)) {
+		    throw new TestException("Unexpected exception: ", detail);
 		}
 	    }
 	assertCount(myRel, myRelCount);

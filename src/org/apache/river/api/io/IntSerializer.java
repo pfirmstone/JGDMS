@@ -41,7 +41,7 @@ class IntSerializer implements Externalizable {
 	this(in.readInt());
     }
     
-    Object readResolve() throws ObjectStreamException {
+    Integer readResolve() throws ObjectStreamException {
 	return i;
     }
 
