@@ -331,7 +331,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      *             if a security manager is installed and it denies subclassing
      *             this class.
      */
-    protected AtomicMarshalInputStream(InputStream input,
+    public AtomicMarshalInputStream(InputStream input,
 			      ClassLoader defaultLoader,
 			      boolean verifyCodebaseIntegrity,
 			      ClassLoader verifierLoader,
@@ -2234,9 +2234,15 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
             throw new InvalidClassException(Messages.getString("luni.C1")); //$NON-NLS-1$
         }
 	if (type != null){
-	    if (!type.isAssignableFrom(classDesc.forClass())){
-		if (classDesc.hasMethodReadResolve()) { 
-		    if(!type.isAssignableFrom(classDesc.getReadResolveReturnType())){
+	    Class c = classDesc.forClass();
+	    if (!type.isAssignableFrom(c)){
+		if (classDesc.hasMethodReadResolve() && 
+		    c.isAnnotationPresent(Serializer.class)) 
+		{ 
+		    if(!type.isAssignableFrom(
+			    ((Serializer)c.getAnnotation(
+				    Serializer.class)).replaceObType()))
+		    {
 			throw new InvalidObjectException(
 			    "expecting " + type + " in stream, but got " 
 					+ classDesc.forClass()

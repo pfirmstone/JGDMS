@@ -336,6 +336,12 @@ public @interface AtomicSerial {
          */
         public abstract <T> T get(String name, T val, Class<T> type) 
 		throws IOException;
+	
+	public abstract GetArg validateInvariants(  String[] fields, 
+						    Class[] types,
+						    boolean[] nonNull) 
+							throws IOException;	  
+	
 	}
     
 }

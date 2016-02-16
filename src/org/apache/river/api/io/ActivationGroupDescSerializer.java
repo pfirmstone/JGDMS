@@ -38,6 +38,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @author peter
  */
+@Serializer(replaceObType = ActivationGroupDesc.class)
 @AtomicSerial
 class ActivationGroupDescSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -51,7 +52,7 @@ class ActivationGroupDescSerializer implements Serializable {
 	    new ObjectStreamField("className", String.class),
 	    new ObjectStreamField("location", String.class),
 	    new ObjectStreamField("data", MarshalledObject.class),
-	    new ObjectStreamField("properties", Map.class),
+	    new ObjectStreamField("properties", Properties.class),
 	    new ObjectStreamField("cmdEnv", CommandEnvironment.class)
 		
 	};
@@ -59,7 +60,7 @@ class ActivationGroupDescSerializer implements Serializable {
     final String className;
     final String location;
     final MarshalledObject data;
-    final Map properties;
+    final Properties properties;
     final CommandEnvironment cmdEnv;
     final ActivationGroupDesc actGroupDesc;
     
@@ -105,7 +106,8 @@ class ActivationGroupDescSerializer implements Serializable {
     }
     
     Object readResolve() throws ObjectStreamException {
-	return actGroupDesc;
+	if (actGroupDesc != null) return actGroupDesc;
+	return new ActivationGroupDesc(className, location, data, properties, cmdEnv);
     }
     
     /**
@@ -161,7 +163,8 @@ class ActivationGroupDescSerializer implements Serializable {
 	}
 	
 	Object readResolve() throws ObjectStreamException {
-	    return env;
+	    if (env != null) return env;
+	    return new CommandEnvironment(cmdPath, argv);
 	}
 
 	/**

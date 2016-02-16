@@ -27,21 +27,24 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Double.class)
 @AtomicExternal
 class DoubleSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
-    private final double d;
+    private double d;
     
-    DoubleSerializer(double d){
+    DoubleSerializer(Double d){
 	this.d = d;
     }
+    
+    DoubleSerializer(){}
     
     public DoubleSerializer(ObjectInput in) throws IOException{
 	this(in.readDouble());
     }
     
-    Double readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return d;
     }
 
@@ -52,7 +55,7 @@ class DoubleSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	d = in.readDouble();
     }
     
     @Override

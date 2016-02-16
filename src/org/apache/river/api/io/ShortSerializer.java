@@ -27,21 +27,24 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Short.class)
 @AtomicExternal
 class ShortSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
-    private final short s;
+    private short s;
     
-    ShortSerializer(short s){
+    ShortSerializer(Short s){
 	this.s = s;
     }
+    
+    ShortSerializer(){}
     
     public ShortSerializer(ObjectInput in) throws IOException{
 	this(in.readShort());
     }
     
-    Short readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return s;
     }
 
@@ -52,7 +55,7 @@ class ShortSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	s = in.readShort();
     }
     
     @Override

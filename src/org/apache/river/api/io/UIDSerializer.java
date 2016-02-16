@@ -18,66 +18,46 @@
 
 package org.apache.river.api.io;
 
+import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
-import java.io.ObjectStreamClass;
+import java.io.ObjectOutput;
 import java.io.ObjectStreamException;
-import java.io.ObjectStreamField;
-import java.io.Serializable;
 import java.rmi.server.UID;
 import java.util.Objects;
-import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.api.io.AtomicSerial.ReadInput;
-import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
- *
+ * 
  * @author peter
  */
-@AtomicSerial
-class UIDSerializer implements Serializable {
+@Serializer(replaceObType = UID.class)
+@AtomicExternal
+class UIDSerializer implements Externalizable {
     private static final long serialVersionUID = 1L;
-    
-    /**
-     * By defining serial persistent fields, we don't need to use transient fields.
-     * All fields can be final and this object becomes immutable.
-     */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	    ObjectStreamClass.NO_FIELDS;
-    
-    
-    private final UID uid;
-    
-    @ReadInput
-    static ReadObject get(){
-	return new RO();
+  
+    private UID uid;
+   
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+	uid.write(out);
     }
-    
-    static class RO implements ReadObject {
-	
-	UID uid;
 
-	@Override
-	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
-	    uid = UID.read(input); //Only reads primitive values, thus safe.
-	}
-	
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+	uid = UID.read(in);
     }
+    
+    public UIDSerializer(){}
     
     UIDSerializer(UID uid){
 	this.uid = uid;
     }
     
-    public UIDSerializer(GetArg arg){
-	this(((RO)arg.getReader()).uid);
+    public UIDSerializer(ObjectInput in) throws IOException{
+	this(UID.read(in));
     }
     
-    private void writeObject(java.io.ObjectOutputStream stream)
-     throws IOException {
-	uid.write(stream);
-    }
-    
-    UID readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return uid;
     }
     

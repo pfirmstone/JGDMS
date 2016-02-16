@@ -20,6 +20,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @author peter
  */
+@Serializer(replaceObType = Properties.class)
 @AtomicSerial
 class PropertiesSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -58,7 +59,7 @@ class PropertiesSerializer implements Serializable {
 	return p;
     }
     
-    Properties readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return p;
     }
     

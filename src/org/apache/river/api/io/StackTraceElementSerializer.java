@@ -30,6 +30,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @author peter
  */
+@Serializer(replaceObType = StackTraceElement.class)
 @AtomicSerial
 class StackTraceElementSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -105,8 +106,9 @@ class StackTraceElementSerializer implements Serializable {
 	return hash;
     }
     
-    StackTraceElement readResolve() throws ObjectStreamException {
-	return stackTraceElement;
+    Object readResolve() throws ObjectStreamException {
+	if (stackTraceElement != null) return stackTraceElement;
+	return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
     }
     
     /**

@@ -24,10 +24,12 @@ import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import net.jini.core.lookup.ServiceMatches;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * A Matches contains the fields of a ServiceMatches packaged up for
@@ -58,29 +60,12 @@ class Matches implements Serializable {
      * @serial
      */
     private final int totalMatches;
-
-    private static boolean check(GetArg arg) throws IOException{
-	List items = (List) arg.get("items", null); // Throws ClassCastException
-	int totalMatches = arg.get("totalMatches", 0);
-	if (items != null){
-	    int len = items.size();
-	    List l = Collections.checkedList(new ArrayList<Item>(len), Item.class);
-	    l.addAll(items); // Throws ClassCastException
-
-	    if (totalMatches != len) throw new InvalidObjectException("wrong number of matches");
-	}
-	return true;
-    }
     
     Matches(GetArg arg) throws IOException{
-	this(arg,check(arg));
-    }
-    
-    private Matches(GetArg arg, boolean check) throws IOException{
-	List l = (List) arg.get("items", null);
-	if (l != null) items = new ArrayList(l) ;
-	else items = null;
-	totalMatches = arg.get("totalMatches", 0);
+	this(Valid.copyCol(arg.get("items", null, List.class),
+			   new LinkedList<Item>(),
+			   Item.class),
+	    arg.get("totalMatches",0));
     }
 
     /** Simple constructor. */

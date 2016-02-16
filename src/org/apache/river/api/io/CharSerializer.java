@@ -27,21 +27,24 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Character.class)
 @AtomicExternal
 class CharSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
-    private final char c;
+    private char c;
     
-    CharSerializer(char c){
+    CharSerializer(Character c){
 	this.c = c;
     }
+    
+    public CharSerializer(){}
     
     public CharSerializer(ObjectInput in) throws IOException{
 	this(in.readChar());
     }
     
-    Character readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return c;
     }
 
@@ -52,7 +55,7 @@ class CharSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	c = in.readChar();
     }
     
     @Override

@@ -23,6 +23,7 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -31,6 +32,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @author peter
  */
+@Serializer(replaceObType=URL.class)
 @AtomicSerial
 class URLSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -80,10 +82,11 @@ class URLSerializer implements Serializable {
 	return hash;
     }
     
-    URL readResolve() throws ObjectStreamException {
-	return url;
+    Object readResolve() throws ObjectStreamException, MalformedURLException {
+	if (url != null) return url;
+	return new URL(null, urlExternalForm);
     }
-    
+   
     /**
      * @serialData 
      * @param out

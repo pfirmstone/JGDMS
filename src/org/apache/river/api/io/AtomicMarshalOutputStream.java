@@ -22,20 +22,27 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URL;
 import java.rmi.MarshalledObject;
 import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationGroupDesc;
+import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.server.UID;
 import java.security.Permission;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.io.MarshalOutputStream;
+import org.apache.river.api.io.ActivationGroupDescSerializer.CmdEnv;
 
 /**
  * This AtomicMarshalOutputStream, replaces a number of Java Object's in the stream 
@@ -222,6 +229,7 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
     
     private static final class DelegateObjectOutputStream extends ObjectOutputStream {
     
+	final Map<Class,Class> serializers;
 	final AtomicMarshalOutputStream aout;
 	int numObjectsCached = 0;
 	final boolean objectOutputStreamMode;
@@ -231,6 +239,26 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    super(out);
 	    this.aout = aout;
 	    this.objectOutputStreamMode = objectOutputStreamMode;
+	    this.serializers = new HashMap<Class,Class>(24);
+	    serializers.put(Byte.class, ByteSerializer.class);
+	    serializers.put(Short.class, ShortSerializer.class);
+	    serializers.put(Integer.class, IntSerializer.class);
+	    serializers.put(Long.class, LongSerializer.class);
+	    serializers.put(Double.class, DoubleSerializer.class);
+	    serializers.put(Float.class, FloatSerializer.class);
+	    serializers.put(Character.class, CharSerializer.class);
+	    serializers.put(Boolean.class, BooleanSerializer.class);
+	    serializers.put(Properties.class, PropertiesSerializer.class);
+	    serializers.put(URL.class, URLSerializer.class);
+	    serializers.put(URI.class, URISerializer.class);
+	    serializers.put(UID.class, UIDSerializer.class);
+	    serializers.put(File.class, FileSerializer.class);
+	    serializers.put(MarshalledObject.class, MarshalledObjectSerializer.class);
+	    serializers.put(ActivationGroupDesc.class, ActivationGroupDescSerializer.class);
+	    serializers.put(ActivationGroupID.class, ActivationGroupIDSerializer.class);
+	    serializers.put(ActivationDesc.class, ActivationDescSerializer.class);
+	    serializers.put(CommandEnvironment.class, CmdEnv.class);
+	    serializers.put(StackTraceElement.class, StackTraceElementSerializer.class);
 	}
 	
 	    @Override
@@ -256,32 +284,33 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	@Override
 	public Object replaceObject(Object obj) throws IOException {
 	    numObjectsCached++;
-	    if (obj.getClass().isAnnotationPresent(AtomicSerial.class)){} // Ignore
+	    Class c = obj.getClass();
+	    Class s = serializers.get(c);
+	    if (c.isAnnotationPresent(AtomicSerial.class)){} // Ignore
+	    else if (c.isAnnotationPresent(AtomicExternal.class)){} // Ignore
 	    // REMIND: stateless objects, eg EmptySet?
-	    else if (obj instanceof Byte) obj = new ByteSerializer((Byte) obj);
-	    else if (obj instanceof Short) obj = new ShortSerializer((Short) obj);
-	    else if (obj instanceof Integer) obj = new IntSerializer((Integer) obj);
-	    else if (obj instanceof Long) obj = new LongSerializer((Long) obj);
-	    else if (obj instanceof Double) obj = new DoubleSerializer((Double) obj);
-	    else if (obj instanceof Float) obj = new FloatSerializer((Float) obj);
-	    else if (obj instanceof Character) obj = new CharSerializer((Character) obj);
-	    else if (obj instanceof Boolean) obj = new BooleanSerializer((Boolean) obj);
-	    else if (obj instanceof Properties) obj = new PropertiesSerializer((Properties) obj);//Before Map
+	    else if (s != null){
+		try {
+		    Constructor constructor = s.getDeclaredConstructor(c);
+		    return constructor.newInstance(obj);
+		} catch (NoSuchMethodException ex) {
+		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		} catch (SecurityException ex) {
+		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		} catch (InstantiationException ex) {
+		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		} catch (IllegalAccessException ex) {
+		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		} catch (IllegalArgumentException ex) {
+		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		} catch (InvocationTargetException ex) {
+		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		}
+	    }
 	    else if (obj instanceof Map) obj = new MapSerializer((Map) obj);
 	    else if (obj instanceof Set) obj = new SetSerializer((Set) obj);
 	    else if (obj instanceof Collection) obj = new ListSerializer((Collection) obj);
 	    else if (obj instanceof Permission) obj = new PermissionSerializer((Permission) obj);
-	    else if (obj instanceof URL) obj = new URLSerializer((URL) obj);
-	    else if (obj instanceof URI) obj = new URISerializer((URI) obj);
-	    else if (obj instanceof UID) obj = new UIDSerializer((UID) obj);
-	    else if (obj instanceof File) obj = new FileSerializer((File) obj);
-	    else if (obj instanceof MarshalledObject) obj = new MarshalledObjectSerializer((MarshalledObject) obj);
-	    else if (obj instanceof ActivationGroupDesc) obj = new ActivationGroupDescSerializer((ActivationGroupDesc) obj);
-	    else if (obj instanceof ActivationGroupID) obj = new ActivationGroupIDSerializer((ActivationGroupID) obj);
-	    else if (obj instanceof ActivationDesc) obj = new ActivationDescSerializer((ActivationDesc) obj);
-	    else if (obj instanceof ActivationGroupDesc.CommandEnvironment) 
-		obj = new ActivationGroupDescSerializer.CmdEnv((ActivationGroupDesc.CommandEnvironment) obj);
-	    else if (obj instanceof StackTraceElement) obj = new StackTraceElementSerializer((StackTraceElement) obj);
 	    else if (obj instanceof Throwable) obj = new ThrowableSerializer((Throwable) obj);
 	    if (enableReplaceObject) return aout.replaceObject(obj);
 	    return obj;

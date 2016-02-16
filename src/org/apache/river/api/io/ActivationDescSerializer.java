@@ -20,6 +20,7 @@ package org.apache.river.api.io;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
@@ -30,6 +31,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 /**
  * Serializes ActivationDesc
  */
+@Serializer(replaceObType = ActivationDesc.class)
 @AtomicSerial
 class ActivationDescSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -77,7 +79,7 @@ class ActivationDescSerializer implements Serializable {
 	);
     }
     
-    Object readResolve(){
+    Object readResolve() throws ObjectStreamException {
 	return actDesc;
     }
     

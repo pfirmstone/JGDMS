@@ -27,13 +27,16 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Integer.class)
 @AtomicExternal
 class IntSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
-    private final int i;
+    private int i;
     
-    IntSerializer(int i){
+    IntSerializer(){}
+    
+    IntSerializer(Integer i){
 	this.i = i;
     }
     
@@ -41,7 +44,7 @@ class IntSerializer implements Externalizable {
 	this(in.readInt());
     }
     
-    Integer readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return i;
     }
 
@@ -52,7 +55,7 @@ class IntSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	i = in.readInt();
     }
     
     @Override

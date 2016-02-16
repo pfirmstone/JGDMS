@@ -27,13 +27,16 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Float.class)
 @AtomicExternal
 class FloatSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
-    private final float f;
+    private float f;
     
-    FloatSerializer(float f){
+    FloatSerializer(){}
+    
+    FloatSerializer(Float f){
 	this.f = f;
     }
     
@@ -41,7 +44,7 @@ class FloatSerializer implements Externalizable {
 	this(in.readFloat());
     }
     
-    Float readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return f;
     }
 
@@ -52,7 +55,7 @@ class FloatSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	f = in.readFloat();
     }
     
     @Override

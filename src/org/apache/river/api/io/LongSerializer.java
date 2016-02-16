@@ -27,13 +27,16 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Long.class)
 @AtomicExternal
 class LongSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
-    private final long l;
+    private long l;
     
-    LongSerializer(long l){
+    LongSerializer(){}
+    
+    LongSerializer(Long l){
 	this.l = l;
     }
     
@@ -41,7 +44,7 @@ class LongSerializer implements Externalizable {
 	this(in.readLong());
     }
     
-    Long readResolve() {
+    Object readResolve() throws ObjectStreamException {
 	return l;
     }
 
@@ -52,7 +55,7 @@ class LongSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	l = in.readLong();
     }
     
     @Override

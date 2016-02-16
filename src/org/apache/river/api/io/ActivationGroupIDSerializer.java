@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectOutputStream.PutField;
+import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -39,6 +40,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * Doesn't work for subclasses.
  * 
  */
+@Serializer(replaceObType = java.rmi.activation.ActivationGroupID.class)
 @AtomicSerial
 class ActivationGroupIDSerializer implements Serializable {
     
@@ -78,9 +80,20 @@ class ActivationGroupIDSerializer implements Serializable {
     }
     
     private /*transient*/ final java.rmi.activation.ActivationGroupID resolve;
+    private final ActivationSystem system;
+    private final UID uid;
     
     ActivationGroupIDSerializer(java.rmi.activation.ActivationGroupID resolve){
 	this.resolve = resolve;
+	system = resolve.getSystem();
+	// REMIND: shouldn't throw exception here
+	try {
+	    uid = (UID) uidField.get(resolve);
+	} catch (IllegalArgumentException ex) {
+	    throw new IllegalArgumentException(ex);
+	} catch (IllegalAccessException ex) {
+	    throw new IllegalArgumentException(ex);
+	}
     }
     
     ActivationGroupIDSerializer(GetArg arg) throws IOException{
@@ -119,20 +132,15 @@ class ActivationGroupIDSerializer implements Serializable {
 	return actGroupID;
     }
     
-    Object readResolve(){
-	return resolve;
+    Object readResolve() throws ObjectStreamException {
+	if (resolve != null) return resolve;
+	return check(system, uid, uidField);
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
 	PutField pf = out.putFields();
-	pf.put("system", resolve.getSystem());
-	try {
-	    pf.put("uid", uidField.get(resolve));
-	} catch (IllegalArgumentException ex) {
-	    throw new IOException("unable to write uid field to stream", ex);
-	} catch (IllegalAccessException ex) {
-	    throw new IOException("unable to write uid field to stream", ex);
-	}
+	pf.put("system", system);
+	pf.put("uid", uid);
 	out.writeFields();
     }
     

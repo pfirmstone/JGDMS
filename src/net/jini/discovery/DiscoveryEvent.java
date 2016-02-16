@@ -19,7 +19,6 @@ package net.jini.discovery;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.Collections;
 import java.util.EventObject;
 import java.util.HashMap;
 import java.util.Map;
@@ -52,7 +51,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    private volatile ServiceRegistrar[] regs;
+    private final ServiceRegistrar[] regs;
 
     /**
      * Map from the registrars of this event to the groups in which each
@@ -60,7 +59,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    private volatile Map<ServiceRegistrar, String[]> groups;
+    private final Map<ServiceRegistrar, String[]> groups;
 
     /**
      * Construct a new <code>DiscoveryEvent</code> object, with the given
@@ -91,7 +90,7 @@ public class DiscoveryEvent extends EventObject {
     public DiscoveryEvent(GetArg arg) throws IOException{
 	this(arg.get("source",null),
 	     check(arg.get("groups", null, Map.class)),
-	     Valid.copy(arg.get("regs", null, ServiceRegistrar[].class))
+	     Valid.copy(Valid.notNull(arg.get("regs", null, ServiceRegistrar[].class), "regs cannot be null"))
 	);
     }
     
@@ -145,18 +144,9 @@ public class DiscoveryEvent extends EventObject {
         return groups != null ? new HashMap<ServiceRegistrar, String[]>(groups) : null;
     }
     
-    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream oin) throws IOException, ClassNotFoundException{
         oin.defaultReadObject();
-        regs = regs.clone();
-        Map<ServiceRegistrar, String[]> groupClone;
-        Map<ServiceRegistrar, String[]> typeCheckedGroups;
-        if (groups != null) {
-            groupClone = new HashMap<ServiceRegistrar, String[]>(groups.size());
-            typeCheckedGroups = Collections.checkedMap(groupClone, ServiceRegistrar.class, String[].class);
-            typeCheckedGroups.putAll(groups);
-            groups = groupClone;
-        }
-            
+	Valid.notNull(regs, "regs cannot be null");
+        check(groups);
     }
 }

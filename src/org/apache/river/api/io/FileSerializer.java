@@ -20,6 +20,7 @@ package org.apache.river.api.io;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Objects;
@@ -29,6 +30,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @author peter
  */
+@Serializer(replaceObType = File.class)
 @AtomicSerial
 class FileSerializer implements Serializable{
     
@@ -48,8 +50,9 @@ class FileSerializer implements Serializable{
 	this(arg.get("path", null, URI.class));
     }
     
-    File readResolve() {
-	return file;
+    Object readResolve() throws ObjectStreamException {
+	if (file != null) return file;
+	return new File(path);
     }
     
     @Override

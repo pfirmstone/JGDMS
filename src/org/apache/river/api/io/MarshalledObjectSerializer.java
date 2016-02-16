@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
-import java.security.Guard;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -29,6 +28,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @author peter
  */
+@Serializer(replaceObType = MarshalledObject.class)
 @AtomicSerial
 class MarshalledObjectSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -51,7 +51,7 @@ class MarshalledObjectSerializer implements Serializable {
 	return mi;
     }
     
-    MarshalledObject readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return instance.convertToMarshalledObject();
     }
 }

@@ -50,6 +50,7 @@ import org.apache.river.impl.Messages;
  * 
  * @author peter
  */
+@Serializer(replaceObType = Permission.class)
 @AtomicSerial
 final class PermissionSerializer implements Serializable {
     
@@ -257,7 +258,7 @@ final class PermissionSerializer implements Serializable {
 	return Objects.equals(targetActions, that.targetActions);
     }
 	
-    Permission readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return permission;
     }
     

@@ -24,6 +24,7 @@ import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * The base class or superclass for remote events.
@@ -117,13 +118,11 @@ public class RemoteEvent extends java.util.EventObject {
     private final MarshalledObject handback;
 
     private static Object check(GetArg arg) throws IOException {
-	Object source = arg.get("source", null);
-	if (source == null) throw new NullPointerException();
+	Object source = Valid.notNull(arg.get("source", null),"source cannot be null");
 	arg.get("eventID", 0L);
 	long seqNum = arg.get("seqNum", -1L);
 	if (seqNum < 0) throw new InvalidObjectException("seqNum may have overflowed, less than zero");
-	Object handback = arg.get("handback", null); // Type check
-	if (handback != null && !(handback instanceof MarshalledObject)) throw new ClassCastException();
+	arg.get("handback", null, MarshalledObject.class); // Type check
 	return source;
     }
     

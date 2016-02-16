@@ -27,22 +27,25 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Boolean.class)
 @AtomicExternal
 class BooleanSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
-    private final boolean b;
+    private boolean b;
     
-    BooleanSerializer(boolean b){
+    BooleanSerializer(Boolean b){
 	this.b = b;
     }
+    
+    public BooleanSerializer(){}
     
     public BooleanSerializer(ObjectInput in) throws IOException{
 	this(in.readBoolean());
 //	this(arg.get("b", false));
     }
     
-    Boolean readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return b;
     }
 
@@ -53,7 +56,7 @@ class BooleanSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported");
+	b = in.readBoolean();
     }
     
     @Override

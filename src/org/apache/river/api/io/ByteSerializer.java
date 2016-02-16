@@ -27,22 +27,25 @@ import java.io.ObjectStreamException;
  *
  * @author peter
  */
+@Serializer(replaceObType = Byte.class)
 @AtomicExternal
 class ByteSerializer implements Externalizable {
     private static final long serialVersionUID = 1L;
     
-    private final byte b;
+    private byte b;
     
-    ByteSerializer(byte b){
+    ByteSerializer(Byte b){
 	this.b = b;
     }
+    
+    ByteSerializer(){}
     
     public ByteSerializer(ObjectInput in) throws IOException{
 	this(in.readByte());
 //	this(arg.get("b", (byte)0));
     }
     
-    Byte readResolve() throws ObjectStreamException {
+    Object readResolve() throws ObjectStreamException {
 	return b;
     }
 
@@ -53,7 +56,7 @@ class ByteSerializer implements Externalizable {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-	throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+	b = in.readByte();
     }
     
     @Override

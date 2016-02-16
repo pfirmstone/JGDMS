@@ -32,6 +32,7 @@ import java.util.Objects;
  *
  * @author peter
  */
+@Serializer(replaceObType = URI.class)
 @AtomicSerial
 class URISerializer implements Serializable {
    private static final long serialVersionUID = 1L;
@@ -92,8 +93,9 @@ class URISerializer implements Serializable {
 	return hash;
     }
     
-    URI readResolve() throws ObjectStreamException {
-	return uri;
+    Object readResolve() throws ObjectStreamException, IOException {
+	if (uri != null) return uri;
+	return check(uriExternalForm);
     }
     
     /**

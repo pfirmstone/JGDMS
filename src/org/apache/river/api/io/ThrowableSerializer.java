@@ -19,6 +19,8 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
@@ -28,12 +30,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  *
  * @author peter
  */
+@Serializer(replaceObType = Throwable.class)
 @AtomicSerial
 class ThrowableSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -50,6 +55,8 @@ class ThrowableSerializer implements Serializable {
 	    new ObjectStreamField("stack", StackTraceElement[].class),
 	    new ObjectStreamField("suppressed", Throwable[].class)
 	};
+    
+    private static final Logger logger = Logger.getLogger("org.apache.river.api.io.ThrowableSerializer");
     
     private final /*transient*/ Throwable throwable;
     private final Class<? extends Throwable> clazz;
@@ -75,8 +82,13 @@ class ThrowableSerializer implements Serializable {
     
     private static Throwable check(GetArg arg) throws IOException{
 	Class<? extends Throwable> clas = Valid.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
+	logger.log(Level.FINER, "deserializing {0}", clas);
 	String message = arg.get("message", null, String.class);
 	Throwable cause = arg.get("cause", null, Throwable.class);
+	if (cause == null) {
+	    logger.finer("cause is null");
+	    System.err.println("cause is null");
+	}
 	StackTraceElement[] stack = arg.get("stack", null, StackTraceElement[].class);
 	Throwable[] suppressed = arg.get("suppressed", null, Throwable[].class);
 	Throwable result = init(clas, message, cause);
@@ -92,6 +104,7 @@ class ThrowableSerializer implements Serializable {
     
     private static final Class[] stparams = new Class[]{String.class, Throwable.class};
     private static final Class[] separams = new Class[]{String.class, Exception.class};
+    private static final Class[] serparams = new Class[]{String.class, Error.class};
     private static final Class[] tsparams = new Class[]{Throwable.class, String.class};
     private static final Class[] sparam = new Class[]{String.class};
     
@@ -100,21 +113,33 @@ class ThrowableSerializer implements Serializable {
 	try {
 	    Constructor [] cons = clas.getConstructors();
 	    for (int i = 0, l = cons.length; i < l; i++){
-		Class [] params = cons[i].getParameterTypes();
-		if (Arrays.equals(params, stparams))
-		    return (Throwable) cons[i].newInstance(new Object[]{message, cause});
-		if (Exception.class.isInstance(cause) && Arrays.equals(params, separams))
+		Class [] params = cons[i].getParameterTypes();		
+		if (Exception.class.isInstance(cause) && Arrays.equals(params, separams)){
 		    return (Throwable) cons[i].newInstance(new Object[]{message,(Exception) cause});
-		if (Arrays.equals(params, tsparams))
+		}
+		if (Error.class.isInstance(cause) && Arrays.equals(params, serparams)){
+		    return (Throwable) cons[i].newInstance(new Object[]{message,(Error) cause});
+		}
+		if (Arrays.equals(params, stparams)){
+		    return (Throwable) cons[i].newInstance(new Object[]{message, cause});
+		    
+		}
+		if (Arrays.equals(params, tsparams)){
 		    return (Throwable) cons[i].newInstance(new Object[]{cause, message});
+		    
+		}
 		if (Arrays.equals(params, sparam)){
 		    result = (Throwable) cons[i].newInstance(new Object[]{message});
-		    if (cause != null && !RemoteException.class.isAssignableFrom(clas)){
-			try {
-			    result.initCause(cause);
-			} catch (IllegalStateException e){
-			    throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
-			}
+		    if (cause != null){
+			if (RemoteException.class.isAssignableFrom(clas)){
+			    ((RemoteException) result).detail = cause;
+			} else {
+			    try {
+				result.initCause(cause);
+			    } catch (IllegalStateException e){
+				throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
+			    }
+			} 
 		    }
 		    return result;
 		}
@@ -160,8 +185,24 @@ class ThrowableSerializer implements Serializable {
 	return Objects.deepEquals(suppressed, that.suppressed);
     }
     
-    Throwable readResolve() throws ObjectStreamException {
-	return throwable;
+    Object readResolve() throws ObjectStreamException {
+	if (throwable != null) return throwable;
+	Throwable result;
+	try {
+	    result = init(clazz, message, cause);
+	} catch (IOException ex) {
+	    InvalidObjectException e = new InvalidObjectException("unable to resolve");
+	    e.initCause(ex);
+	    throw e;
+	}
+	if (stack != null) result.setStackTrace(stack);
+	// Only adds suppressed if enabled by Throwable protected constructor.
+	if (suppressed != null){ // compat with serial form of Throwable before Java 1.7
+	    for (int i = 0, l = suppressed.length; i < l; i++){
+		result.addSuppressed(suppressed[i]);
+	    }
+	}
+	return result;
     }
     
     /**
@@ -178,6 +219,5 @@ class ThrowableSerializer implements Serializable {
 	pf.put("suppressed", suppressed);
 	out.writeFields();
     }
-    
     
 }
