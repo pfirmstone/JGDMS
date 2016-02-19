@@ -96,20 +96,14 @@ class DiscoveryV2 extends Discovery {
      * null.
      */
     static DiscoveryV2 getInstance(ClassLoader loader) {
-	if (loader == null) {
-	    loader = getContextClassLoader();
-	}
-	DiscoveryV2 disco;
-	synchronized (instances) {
-            disco = null;
-            Reference<DiscoveryV2> softDisco = instances.get(loader);
-            if (softDisco != null) {
-                disco = softDisco.get();
-            }
-	}
-	if (disco == null) {
-	    disco = new DiscoveryV2(getProviders(loader));
-	    synchronized (instances) {
+	if (loader == null) loader = getContextClassLoader();
+	DiscoveryV2 disco = null;
+	Reference<DiscoveryV2> softDisco;
+	synchronized (instances) { // Atomic
+            softDisco = instances.get(loader);
+	    if (softDisco != null) disco = softDisco.get();
+	    if (disco == null) {
+		disco = new DiscoveryV2(getProviders(loader));
 		instances.put(loader, new SoftReference<DiscoveryV2>(disco));
 	    }
 	}
