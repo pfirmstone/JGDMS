@@ -18,8 +18,6 @@
 
 package net.jini.jeri;
 
-import org.apache.river.jeri.internal.runtime.Util;
-import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,7 +49,7 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import net.jini.core.constraint.AtomicValidation;
+import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
@@ -63,10 +61,13 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 
 
 /**
@@ -150,6 +151,10 @@ public class BasicInvocationHandler
      **/
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicInvocationHandler");
+    
+    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
+	= AccessController.doPrivileged(new GetBooleanAction(
+		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
 
     /** size of the method constraint cache (per instance) */
     private static final int CACHE_SIZE = 3;
@@ -558,7 +563,7 @@ public class BasicInvocationHandler
 	     * interface that also declares a method with the same
 	     * signature as RemoteMethodControl.setConstraints (this
 	     * case does seem less unlikely).  It seems that to cover
-	     * all cases, we should we testing the signature (name and
+	     * all cases, we should be testing the signature (name and
 	     * parameter types) of the method directly.
 	     */
 	    return invokeRemoteMethodControlMethod(proxy, method, args);
@@ -781,9 +786,9 @@ public class BasicInvocationHandler
 		InvocationConstraint c = (InvocationConstraint) i.next();
 		if (c == Integrity.YES) {
 		    integrity = true;
-		} else if ( c == AtomicValidation.YES){
+		} else if ( c == AtomicInputValidation.YES){
 		    atomicValidation = true;
-		} else if (!(c instanceof Integrity) && !(c instanceof AtomicValidation)) {
+		} else if (!(c instanceof Integrity) && !(c instanceof AtomicInputValidation)) {
 		    throw new UnsupportedConstraintException(
 			"cannot satisfy unfulfilled constraint: " + c);
 		}
@@ -802,7 +807,7 @@ public class BasicInvocationHandler
 		    if (c == Integrity.YES) {
 			integrity = true;
 //			break;	// no need to examine preferences further
-		    } else if (c == AtomicValidation.YES){
+		    } else if (c == AtomicInputValidation.YES){
 			atomicValidation = true;
 		    }
 		    // NYI: support ConstraintAlternatives containing Integrity
@@ -1073,12 +1078,13 @@ public class BasicInvocationHandler
 		public MarshalOutputStream run() throws Exception {
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
-			    ((AtomicValidationEnforcement) o).enforced()){
-	return new MarshalOutputStream(out, unmodContext);
-    }
+			    ((AtomicValidationEnforcement) o).enforced())
+			{
+			    return new AtomicMarshalOutputStream(out, unmodContext);
+			}
 		    }
+		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) return new MarshalOutputStream(out, unmodContext);
 		    return new AtomicMarshalOutputStream(out, unmodContext);
-							  
 		}
 		
 	    });
@@ -1160,11 +1166,12 @@ public class BasicInvocationHandler
 				   unmodContext);
 			}
 		    }
-//		    return new MarshalInputStream(
-//					request.getResponseInputStream(),
-//					proxyLoader, integrity, proxyLoader,
-//					unmodContext);
-		    return (MarshalInputStream) AtomicMarshalInputStream.create(
+		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) 
+			return new MarshalInputStream(
+					request.getResponseInputStream(),
+					proxyLoader, integrity, proxyLoader,
+					unmodContext);
+		    else return AtomicMarshalInputStream.create(
 					request.getResponseInputStream(),
 					proxyLoader, integrity, proxyLoader,
 					unmodContext);

@@ -70,29 +70,25 @@ abstract class Utilities {
      * communication.
      */
     private static final String[] ANONYMOUS_KEY_EXCHANGE_ALGORITHMS = {
-	"ECDH_anon",
+	"ECDH_anon", //These are not safe from mitm attack
 	"DH_anon"
     };
 
     /** The names of JSSE key exchange algorithms that use RSA keys. */
     private static final String[] RSA_KEY_EXCHANGE_ALGORITHMS = {
-	"ECDHE_RSA",
-	"ECDH_RSA",
-	"DHE_RSA",
-	"DH_RSA",
+	"ECDHE_RSA", //Only emepheral DH safe from mitm attack.
+	"DHE_RSA", //Only emepheral DH safe from mitm attack.
 	"RSA",
     };
 
     /** The names of JSSE key exchange algorithms that use DSA keys. */
     private static final String[] DSA_KEY_EXCHANGE_ALGORITHMS = {
-	"DHE_DSS",
-	"DH_DSS"
+	"DHE_DSS" //Only emepheral DH safe from mitm attack.
     };
 
     /** The names of JSSE key exchange algorithms that use DSA keys. */
     private static final String[] ECDSA_KEY_EXCHANGE_ALGORITHMS = {
-	"ECDHE_ECDSA",
-	"ECDH_ECDSA"
+	"ECDHE_ECDSA" //Only emepheral DH safe from mitm attack.
     };
     
     /**
@@ -101,13 +97,9 @@ abstract class Utilities {
      */
     private static final String[] SUPPORTED_KEY_EXCHANGE_ALGORITHMS = {
 	"ECDHE_ECDSA",
-	"ECDH_ECDSA",
 	"DHE_DSS",
-	"DH_DSS",
 	"ECDHE_RSA",
-	"ECDH_RSA",
 	"DHE_RSA",
-	"DH_RSA",
 	"RSA",
 	"ECDH_anon",
 	"DH_anon"
@@ -124,8 +116,6 @@ abstract class Utilities {
 
     /** The names of cipher algorithms that do strong encryption */
     private static final String[] STRONG_ENCRYPTION_CIPHERS = {
-	"AES_256_CBC",
-	"AES_128_CBC",
 	"AES_256_GCM",
 	"AES_128_GCM"
     };
@@ -900,9 +890,12 @@ abstract class Utilities {
     static boolean permittedKeyAlgorithm(String keyAlgorithm,
 					 int permittedKeyAlgorithms)
     {
-	if (permittedKeyAlgorithms == ANY_KEY_ALGORITHM) {
-	    return true;
-	} else if ("DSA".equals(keyAlgorithm)) {
+	// Don't permit any, as that subjects endpoints to mitm attacks on weaker
+	// key excange protocols.
+//	if (permittedKeyAlgorithms == ANY_KEY_ALGORITHM) {
+//	    return true;
+//	} else 
+	if ("DSA".equals(keyAlgorithm)) {
 	    return (permittedKeyAlgorithms & DSA_KEY_ALGORITHM) != 0;
 	} else if ("ECDSA".equals(keyAlgorithm)) {
 	    return (permittedKeyAlgorithms & ECDSA_KEY_ALGORITHM) != 0;

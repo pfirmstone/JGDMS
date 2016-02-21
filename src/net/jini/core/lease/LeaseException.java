@@ -20,6 +20,7 @@ package net.jini.core.lease;
 
 import java.io.IOException;
 import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /** 
@@ -29,6 +30,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class LeaseException extends AtomicException {
 
     private static final long serialVersionUID = -7902272546257490469L;

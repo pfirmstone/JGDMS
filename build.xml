@@ -806,6 +806,8 @@
             <arg value="org.apache.river.lookup.entry.BasicServiceType"/>
             <arg value="org.apache.river.resource.ServiceConfigurationError"/>
             <arg value="net.jini.export.ServiceProxyAccessor"/>
+            <arg value="net.jini.export.ServiceIDAccessor"/>
+            <arg value="net.jini.export.ServiceAttributesAccessor"/>
             <arg value="net.jini.discovery.LookupDiscoveryRegistration"/>
             <arg value="net.jini.discovery.LookupDiscoveryService"/>
             <arg value="net.jini.discovery.LookupUnmarshalException"/>

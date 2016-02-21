@@ -118,6 +118,9 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.JoinManager;
 import net.jini.discovery.LookupDiscovery;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.thread.NamedThreadFactory;
 
@@ -155,7 +158,8 @@ See recoverSnapshot() for exact details of what gets retrieved.
 */
 
 class MailboxImpl implements MailboxBackEnd, TimeConstants, 
-    ServerProxyTrust, ProxyAccessor, Startable
+    ServerProxyTrust, ProxyAccessor, Startable,
+    ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
  
 {
 
@@ -2564,7 +2568,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}
     }
 
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	return getLookupAttributes();
+    }
 
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return new ServiceID(serviceID.getMostSignificantBits(),
+		serviceID.getLeastSignificantBits());
+    }
 
     /**
      * The notifieR thread.  This thread is responsible for delivering events

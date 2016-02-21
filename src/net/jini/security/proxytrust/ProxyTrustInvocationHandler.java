@@ -49,6 +49,7 @@ import org.apache.river.jeri.internal.runtime.Util;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@Deprecated
 @AtomicSerial
 public final class ProxyTrustInvocationHandler
 		 implements InvocationHandler, TrustEquivalence, Serializable

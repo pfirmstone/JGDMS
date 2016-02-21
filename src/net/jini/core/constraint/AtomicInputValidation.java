@@ -39,7 +39,7 @@ package net.jini.core.constraint;
  *
  * @since 3.0
  */
-public enum AtomicValidation implements InvocationConstraint {
+public enum AtomicInputValidation implements InvocationConstraint {
     YES, 
     NO
 }

@@ -21,7 +21,6 @@ package net.jini.url.httpmd;
 import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogManager;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;

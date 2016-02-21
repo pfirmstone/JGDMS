@@ -19,7 +19,6 @@ package net.jini.core.lookup;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 import org.apache.river.api.io.AtomicSerial;
@@ -68,12 +67,6 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      * @serial
      */
     public Entry[] attributeSetTemplates;
-    /**
-     * Client invocation constraints.
-     * 
-     * @serial
-     */
-    public InvocationConstraints clientConstraints;
     
     /**
      * Constructor for @AtomicSerial, note that any instances of this
@@ -91,8 +84,7 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
 	 */
 	this(arg == null ? null: arg.get("serviceID", null, ServiceID.class),
 	    arg == null? null: arg.get("serviceTypes", null, Class[].class),
-	    arg == null? null: arg.get("attributeSetTemplates", null, Entry[].class),
-	    arg == null? null: arg.get("clientConstraints", null, InvocationConstraints.class)
+	    arg == null? null: arg.get("attributeSetTemplates", null, Entry[].class)
 	);
     }
     
@@ -106,18 +98,11 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      */
     public ServiceTemplate(ServiceID serviceID,
 			   Class[] serviceTypes,
-			   Entry[] attrSetTemplates) {
-	this(serviceID, serviceTypes, attrSetTemplates, null);
-    }
-    
-    public ServiceTemplate(ServiceID serviceID,
-			   Class[] serviceTypes,
-			   Entry[] attrSetTemplates,
-			   InvocationConstraints clientConstraints) {
+			   Entry[] attrSetTemplates) 
+    {
 	this.serviceID = serviceID;
 	this.serviceTypes = serviceTypes;
 	this.attributeSetTemplates = attrSetTemplates;
-	this.clientConstraints = clientConstraints;
     }
     
     /**
@@ -157,7 +142,7 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      * <code>ServiceTemplate</code>
      */
     public String toString() {
-	StringBuffer sBuffer = new StringBuffer();
+	StringBuilder sBuffer = new StringBuilder();
 	sBuffer.append(
 	       getClass().getName()).append(
 	       "[serviceID=").append(

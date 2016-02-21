@@ -44,7 +44,6 @@ import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
-import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
@@ -52,7 +51,6 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,7 +64,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
-import net.jini.core.constraint.AtomicValidation;
+import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
@@ -160,6 +158,10 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
  * </table>
  **/
 public class BasicInvocationDispatcher implements InvocationDispatcher {
+    
+    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
+	= AccessController.doPrivileged(new GetBooleanAction(
+		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
 
     /** Marshal stream protocol version. */
     static final byte VERSION = 0x01;
@@ -658,9 +660,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		requirements.add(Integrity.YES);
 		sc = new InvocationConstraints(requirements, sc.preferences());
 	    }
-	    if (atomicValidation && !sc.requirements().contains(AtomicValidation.YES)){
+	    if (atomicValidation && !sc.requirements().contains(AtomicInputValidation.YES)){
 		Collection requirements = new LinkedList(sc.requirements());
-		requirements.add(AtomicValidation.YES);
+		requirements.add(AtomicInputValidation.YES);
 		sc = new InvocationConstraints(requirements, sc.preferences());
 	    }
 	    InvocationConstraints unfulfilled = request.checkConstraints(sc);
@@ -671,8 +673,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		if (c instanceof Integrity) {
 		    if (!integrity && c == Integrity.YES) 
 			unsupportedConstraint(c);
-		} else if (c instanceof AtomicValidation) {
-		    if (!atomicValidation && c == AtomicValidation.YES) 
+		} else if (c instanceof AtomicInputValidation) {
+		    if (!atomicValidation && c == AtomicInputValidation.YES) 
 			unsupportedConstraint(c);
 		} else {
 		    unsupportedConstraint(c);
@@ -846,18 +848,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				    request.getRequestInputStream(),
 				   streamLoader, integrity,
 				   streamLoader, unmodContext);
-	in.useCodebaseAnnotations();
-	return in;
+			    in.useCodebaseAnnotations();
+			    return in;
 
-    }
+			}
 		    }
-		    //	in = new MarshalInputStream(request.getRequestInputStream(),
-		    //				   streamLoader, integrity,
-		    //				   streamLoader, unmodContext);
-		    in = (MarshalInputStream) AtomicMarshalInputStream.create(
+		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) {
+		    	in = new MarshalInputStream(request.getRequestInputStream(),
+		    				   streamLoader, integrity,
+		    				   streamLoader, unmodContext);
+		    } else {
+			in = AtomicMarshalInputStream.create(
 			    request.getRequestInputStream(),
 			    streamLoader, integrity,
 			    streamLoader, unmodContext);
+		    }
 		    in.useCodebaseAnnotations();
 		    return in;
 		}
@@ -917,15 +922,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		
 		@Override
 		public ObjectOutputStream run() throws IOException {
-	OutputStream out = request.getResponseOutputStream();
-	Collection unmodContext = Collections.unmodifiableCollection(context);
+		    OutputStream out = request.getResponseOutputStream();
+		    Collection unmodContext = Collections.unmodifiableCollection(context);
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
 				((AtomicValidationEnforcement) o).enforced()){
 			    return new AtomicMarshalOutputStream(out, unmodContext);
-    }
+			}
 		    }
-		    //	return new MarshalOutputStream(out, unmodContext);
+		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) return new MarshalOutputStream(out, unmodContext);
 		    return new AtomicMarshalOutputStream(out, unmodContext);
 		}
 							  

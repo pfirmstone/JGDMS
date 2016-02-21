@@ -18,9 +18,6 @@
 
 package org.apache.river.fiddler;
 
-import org.apache.river.config.Config;
-import org.apache.river.fiddler.FiddlerImpl.LocalLogHandler;
-import org.apache.river.reliableLog.ReliableLog;
 import java.io.IOException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroup;
@@ -52,6 +49,9 @@ import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.config.Config;
+import org.apache.river.fiddler.FiddlerImpl.LocalLogHandler;
+import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.thread.NamedThreadFactory;
 
 /**

@@ -75,6 +75,8 @@ interface Registrar
      * @see net.jini.core.lookup.ServiceRegistrar#lookup
      */
     Matches lookup(Template tmpl, int maxMatches) throws RemoteException;
+    
+    Object [] lookUp(Template tmpl, int maxProxys) throws RemoteException;
 
     /**
      * Registers for event notification.

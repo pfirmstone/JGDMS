@@ -18,9 +18,6 @@
 
 package net.jini.jeri;
 
-import org.apache.river.jeri.internal.runtime.DgcClient;
-import org.apache.river.jeri.internal.runtime.Util;
-import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -52,6 +49,10 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.Valid;
+import org.apache.river.jeri.internal.runtime.DgcClient;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 
 /**
  * References a remote object with an {@link Endpoint Endpoint} for
@@ -278,9 +279,9 @@ public final class BasicObjectEndpoint
      * @throws IOException 
      */
     BasicObjectEndpoint(GetArg arg) throws IOException {
-	this(checkSerial((Endpoint) arg.get("ep", null), (Uuid) arg.get("id", null)),
-	    (Endpoint) arg.get("ep", null),
-	    (Uuid)arg.get("id", null),
+	this(true,
+	    Valid.notNull(arg.get("ep", null, Endpoint.class), "null endpoint"),
+	    Valid.notNull(arg.get("id", null, Uuid.class), "null object identifier"),
 	    arg.get("dgc", false)
 	); // Invariants are checked and final fields frozen.
 	/*

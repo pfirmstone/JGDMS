@@ -100,6 +100,7 @@ import org.apache.river.api.io.AtomicMarshalInputStream;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@Deprecated
 public class ProxyTrustVerifier implements TrustVerifier {
 
     private static final Logger logger =

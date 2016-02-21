@@ -65,11 +65,8 @@ public final class ConfidentialityStrength
      * cipher suites with the following cipher algorithms:
      *
      * <ul>
-     * <li> 3DES_EDE_CBC
-     * <li> AES_128_CBC
-     * <li> AES_256_CBC
-     * <li> IDEA_CBC
-     * <li> RC4_128
+     * <li> AES_128_GCM
+     * <li> AES_256_GCM
      * </ul>
      */
     public static final ConfidentialityStrength STRONG =
@@ -83,10 +80,10 @@ public final class ConfidentialityStrength
      * cipher suites with the following cipher algorithms:
      *
      * <ul>
-     * <li> DES40_CBC
-     * <li> DES_CBC
-     * <li> RC2_CBC_40
-     * <li> RC4_40
+     * <li> AES_128_CBC
+     * <li> AES_256_CBC
+     * <li> 3DES_EDE_CBC
+     * <li> RC4_128
      * </ul>
      */
     public static final ConfidentialityStrength WEAK =

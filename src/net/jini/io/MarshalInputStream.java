@@ -24,8 +24,6 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
 import java.rmi.server.RMIClassLoaderSpi;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -223,6 +221,8 @@ public class MarshalInputStream
 	if (context == null || in == null) throw new NullPointerException();
 	// SecurityException's propagate, cause them to be thrown prior to
 	// superclass instantiation.
+	// Should we bother?  ObjectInputStream is susceptable to a finalizer
+	// attack.
 //	AccessController.doPrivileged(new PrivilegedAction<Object>() {
 //	    @Override
 //	    public Object run() {

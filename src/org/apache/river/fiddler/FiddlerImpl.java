@@ -17,21 +17,6 @@
  */
 package org.apache.river.fiddler;
 
-import org.apache.river.config.Config;
-import org.apache.river.constants.ThrowableConstants;
-import org.apache.river.constants.TimeConstants;
-import org.apache.river.constants.VersionConstants;
-import org.apache.river.logging.Levels;
-import org.apache.river.lookup.entry.BasicServiceType;
-import org.apache.river.lookup.entry.LookupAttributes;
-import org.apache.river.proxy.ThrowThis;
-import org.apache.river.reliableLog.LogHandler;
-import org.apache.river.reliableLog.ReliableLog;
-import org.apache.river.start.LifeCycle;
-import org.apache.river.thread.InterruptedStatusThread;
-import org.apache.river.thread.ReadersWriter;
-import org.apache.river.thread.ReadersWriter.ConcurrentLockException;
-import org.apache.river.thread.ReadyState;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
@@ -48,7 +33,6 @@ import java.rmi.RemoteException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
-import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -73,15 +57,12 @@ import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
-
-import net.jini.activation.ActivationExporter;
 import net.jini.activation.ActivationGroup;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.NoSuchEntryException;
-
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
@@ -99,23 +80,17 @@ import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.RemoteDiscoveryEvent;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
-
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.InvocationLayerFactory;
-import net.jini.jeri.ServerEndpoint;
-import net.jini.jeri.tcp.TcpServerEndpoint;
-
 import net.jini.lookup.JoinManager;
 import net.jini.lookup.entry.Comment;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.entry.Status;
 import net.jini.lookup.entry.StatusType;
-
-import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
@@ -125,6 +100,21 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.util.Startable;
+import org.apache.river.config.Config;
+import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.constants.TimeConstants;
+import org.apache.river.constants.VersionConstants;
+import org.apache.river.logging.Levels;
+import org.apache.river.lookup.entry.BasicServiceType;
+import org.apache.river.lookup.entry.LookupAttributes;
+import org.apache.river.proxy.ThrowThis;
+import org.apache.river.reliableLog.LogHandler;
+import org.apache.river.reliableLog.ReliableLog;
+import org.apache.river.start.LifeCycle;
+import org.apache.river.thread.InterruptedStatusThread;
+import org.apache.river.thread.ReadersWriter;
+import org.apache.river.thread.ReadersWriter.ConcurrentLockException;
+import org.apache.river.thread.ReadyState;
 
 /**
  * This class is the server side of an implementation of the lookup
@@ -161,7 +151,8 @@ import org.apache.river.api.util.Startable;
  *
  * @author Sun Microsystems, Inc.
  */
-class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable {
+class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable,
+	ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor {
 
     /* Name of this component; used in config entry retrieval and the logger.*/
     static final String COMPONENT_NAME = "org.apache.river.fiddler";
@@ -186,6 +177,35 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                                                               ".registration");
     static final Logger persistLogger      = Logger.getLogger(COMPONENT_NAME+
                                                               ".persist");
+
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	readyState.check();
+        concurrentObj.readLock();
+        try {
+            Entry[] result = thisServicesAttrs.clone();
+	    for (int i = 0, l = result.length; i < l; i++){
+		if (result[i] instanceof CloneableEntry){
+		   result[i] = ((CloneableEntry)result[i]).clone();
+		}
+	    }
+	    return result;
+        } finally {
+            concurrentObj.readUnlock();
+        }
+    }
+
+    @Override
+    public ServiceID serviceID() throws IOException {
+	readyState.check();
+        concurrentObj.readLock();
+        try {
+	    return serviceID;
+	} finally {
+            concurrentObj.readUnlock();
+        }
+    }
+    
     /** Data structure - associated with a <code>ServiceRegistrar</code> -
      *  containing the <code>LookupLocator</code> and the member groups of
      *  the registrar

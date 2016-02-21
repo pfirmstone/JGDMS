@@ -112,6 +112,9 @@ import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -165,7 +168,8 @@ import org.apache.river.thread.SynchronousExecutors;
  * @author Sun Microsystems, Inc.
  *
  */
-class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Startable {
+class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Startable,
+	ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor{
 
     /** Maximum minMax lease duration for both services and events */
     private static final long MAX_LEASE = 1000L * 60 * 60 * 24 * 365 * 1000;
@@ -606,6 +610,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         loginContext = init.loginContext;
         unicastDiscoveryHost = init.unicastDiscoveryHost;
         config = init.config;
+    }
+
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	return getLookupAttributes();
+    }
+
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return myServiceID;
     }
 
     /** A service item registration record. */
@@ -3206,7 +3220,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    concurrentObj.readUnlock();
 	}
     }
-
+    
+    // This method's javadoc is inherited from an interface of this class
+    public Object [] lookUp(Template tmpl, int maxProxys)
+	throws NoSuchObjectException
+    {	
+	concurrentObj.readLock();
+	try {
+	    return lookupDo(tmpl, maxProxys).getProxys();
+	} finally {
+	    concurrentObj.readUnlock();
+	}
+    }
+    
     // This method's javadoc is inherited from an interface of this class
     public EventRegistration notify(Template tmpl,
 				    int transitions,

@@ -89,6 +89,9 @@ import org.apache.river.api.util.Startable;
 import org.apache.river.thread.InterruptedStatusThread;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.loader.ClassLoading;
 
 /**
@@ -98,7 +101,9 @@ import net.jini.loader.ClassLoading;
  * @author Sun Microsystems, Inc.
  */
 abstract class NormServerBaseImpl
-    implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor, Startable
+    implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor,
+	Startable, ServiceProxyAccessor, ServiceAttributesAccessor,
+	ServiceIDAccessor
 {
     /** Current version of log format */
     private static final int CURRENT_LOG_VERSION = 2;
@@ -300,6 +305,17 @@ abstract class NormServerBaseImpl
 
 	// Add the lease to the set
 	add(set, leaseToRenew, membershipDuration, renewDuration); 
+    }
+
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return new ServiceID(serverUuid.getMostSignificantBits(),
+			    serverUuid.getLeastSignificantBits());
+    }
+
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	return getLookupAttributes();
     }
 
     /**

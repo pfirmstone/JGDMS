@@ -17,7 +17,6 @@
  */
 package org.apache.river.reggie;
 
-import org.apache.river.proxy.MarshalledWrapper;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInput;
@@ -25,9 +24,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
+import java.lang.reflect.Proxy;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.admin.Administrable;
@@ -41,14 +43,18 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * A RegistrarProxy is a proxy for a registrar.  Clients only see instances
@@ -159,6 +165,22 @@ class RegistrarProxy
 	throws RemoteException
     {
 	return server.lookup(new Template(tmpl), maxMatches).get();
+    }
+    
+    public Object [] lookUp(
+	    ServiceTemplate tmpl, int maxProxies) throws RemoteException
+    {
+	Object [] proxys = server.lookUp(new Template(tmpl), maxProxies);
+	List result = new ArrayList(proxys.length);
+	for (int i = 0, l = proxys.length; i < l; i++){
+	    if(!(proxys[i] instanceof RemoteMethodControl)) continue;
+	    if(!(proxys[i] instanceof TrustEquivalence)) continue;
+	    if(!(proxys[i] instanceof ServiceProxyAccessor)) continue;
+	    if(!(proxys[i] instanceof ServiceAttributesAccessor)) continue;
+	    if(!Proxy.isProxyClass(proxys[i].getClass())) continue;
+	    result.add(proxys[i]);
+	}
+	return result.toArray();
     }
 
     // Inherit javadoc

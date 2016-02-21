@@ -87,7 +87,6 @@ class ThrowableSerializer implements Serializable {
 	Throwable cause = arg.get("cause", null, Throwable.class);
 	if (cause == null) {
 	    logger.finer("cause is null");
-	    System.err.println("cause is null");
 	}
 	StackTraceElement[] stack = arg.get("stack", null, StackTraceElement[].class);
 	Throwable[] suppressed = arg.get("suppressed", null, Throwable[].class);
@@ -187,6 +186,7 @@ class ThrowableSerializer implements Serializable {
     
     Object readResolve() throws ObjectStreamException {
 	if (throwable != null) return throwable;
+	// The following is for standard java serialization, as throwable will be null.
 	Throwable result;
 	try {
 	    result = init(clazz, message, cause);

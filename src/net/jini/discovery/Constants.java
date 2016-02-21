@@ -27,8 +27,8 @@ import org.apache.river.action.GetBooleanAction;
  * multicast discovery protocols.
  * <p>
  * The following properties if set, provide support for IPv6:
- * <li>net.jini.discovery.IPv6=TRUE<\li>
- * <li>net.jini.discovery.GLOBAL_ANNOUNCE=TRUE<\li>
+ * <li>net.jini.discovery.IPv6=TRUE
+ * <li>net.jini.discovery.GLOBAL_ANNOUNCE=TRUE
  * <p>
  * Note that support for global announcement must be specifically set to
  * be enabled.  There is no support for global request, for obvious reasons.
@@ -41,13 +41,15 @@ public class Constants {
     /**
      * If true IPv6 has been enabled.
      */
-    public static final Boolean IPv6 = AccessController.doPrivileged(new GetBooleanAction("net.jini.discovery.IPv6"));
+    public static final Boolean IPv6 = AccessController.doPrivileged(
+	    new GetBooleanAction("net.jini.discovery.IPv6"));
     
     /**
      * If true and IPv6 is also true, the announcement protocol will 
      * propagate over global networks.
      */
-    public static final Boolean GLOBAL_ANNOUNCE = AccessController.doPrivileged(new GetBooleanAction("net.jini.discovery.GLOBAL_ANNOUNCE"));
+    public static final Boolean GLOBAL_ANNOUNCE = AccessController.doPrivileged(
+	    new GetBooleanAction("net.jini.discovery.GLOBAL_ANNOUNCE"));
     /**
      * The address of the multicast group over which the multicast
      * request protocol takes place.

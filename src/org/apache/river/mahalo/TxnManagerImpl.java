@@ -90,6 +90,9 @@ import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
@@ -108,8 +111,9 @@ import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
  */
 class TxnManagerImpl /*extends RemoteServer*/
     implements TxnManager, LeaseExpirationMgr.Expirer,
-	       LogRecovery, TxnSettler, org.apache.river.constants.TimeConstants,
-               LocalLandlord, ServerProxyTrust, ProxyAccessor, Startable
+	    LogRecovery, TxnSettler, org.apache.river.constants.TimeConstants,
+	    LocalLandlord, ServerProxyTrust, ProxyAccessor, Startable,
+	    ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
 {
     /** Logger for (successful) service startup message */
     static final Logger startupLogger = 
@@ -1236,6 +1240,17 @@ class TxnManagerImpl /*extends RemoteServer*/
  
     /** Maximum delay for unexport attempts */
     private final static long MAX_UNEXPORT_DELAY = 2 * MINUTES;
+
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	return getLookupAttributes();
+    }
+
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return new ServiceID(topUuid.getMostSignificantBits(), 
+		topUuid.getLeastSignificantBits());
+    }
   
     /**
      * Termination thread code.  We do this in a separate thread to

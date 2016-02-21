@@ -104,6 +104,12 @@ public class MarshalledInstance implements Serializable {
      * @see #hashCode
      */  
     private final int hash;
+    
+    /**
+     * @serial indicates whether the object contained within is compatible
+     * with AtomicObjectInputStream.
+     */
+    private final boolean atomic;
 
     static final long serialVersionUID = -5187033771082433496L;
     
@@ -134,6 +140,11 @@ public class MarshalledInstance implements Serializable {
 	objBytes = arg.get("objBytes", null, byte[].class);
 	locBytes = arg.get("locBytes", null, byte[].class);
 	hash = arg.get("hash", 0);
+	boolean atomic = false;
+	try {
+	    atomic = arg.get("atomic", false);
+	} catch (IOException e){}// Ignore field doesn't exist.
+	this.atomic = atomic;
     }
     
     /**
@@ -178,6 +189,7 @@ public class MarshalledInstance implements Serializable {
 	    hash = 13;		// null hash for java.rmi.MarshalledObject
             objBytes = null;
             locBytes = null;
+	    atomic = false;
 	    return;
 	}
 	final ByteArrayOutputStream bout = new ByteArrayOutputStream();
@@ -192,13 +204,13 @@ public class MarshalledInstance implements Serializable {
 			if (context != null){
 			    for (Object o : context){
 				if (o instanceof AtomicValidationEnforcement &&
-					!((AtomicValidationEnforcement)o).enforced())
+					((AtomicValidationEnforcement)o).enforced())
 				{
-				    return new MarshalledInstanceOutputStream(bout, lout, context);
+				    return new AtomicMarshalledInstanceOutputStream(bout, lout, context);
 				}
 			    }
 			}
-			return new AtomicMarshalledInstanceOutputStream(bout, lout, context);
+			return new MarshalledInstanceOutputStream(bout, lout, context);
 		    }
 		}
 	    );
@@ -230,6 +242,8 @@ public class MarshalledInstance implements Serializable {
 	    h = 31 * h + objBytes[i];
 	}
 	hash = h;
+	if (out instanceof AtomicMarshalOutputStream) atomic = true;
+	else atomic = false;
     }
 
     /**
@@ -276,6 +290,7 @@ public class MarshalledInstance implements Serializable {
 	objBytes = privateMO.objBytes;
 	locBytes = privateMO.locBytes;
 	hash = privateMO.hash;
+	atomic = false;
     }
     
     /**
@@ -429,20 +444,20 @@ public class MarshalledInstance implements Serializable {
 			if (context != null){
 			    for (Object o : context){
 				if (o instanceof AtomicValidationEnforcement &&
-					!((AtomicValidationEnforcement)o).enforced())
+					((AtomicValidationEnforcement)o).enforced())
 				{
-				    return new MarshalledInstanceInputStream(
+				    return new AtomicMarshalledInstanceInputStream(
 					bin, 
 					lin,
-					      defaultLoader,
-					      verifyCodebaseIntegrity,
-					      verifierLoader,
+					defaultLoader,
+					verifyCodebaseIntegrity,
+					verifierLoader,
 					ctext
 				    );
 				}
 			    }
 			}
-			return new AtomicMarshalledInstanceInputStream(
+			return new MarshalledInstanceInputStream(
 			    bin, 
 			    lin,
 			    defaultLoader,
@@ -522,6 +537,16 @@ public class MarshalledInstance implements Serializable {
      */
     public int hashCode() {
 	return hash;
+    }
+    
+    /**
+     * If true this MarshalledObject can be deserialized with an AtomicInputValidation
+     * constraint.
+     * 
+     * @return 
+     */
+    public boolean atomic() {
+	return atomic;
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {

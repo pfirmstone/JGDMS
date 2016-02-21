@@ -29,14 +29,12 @@ import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
-import java.security.CodeSource;
 import java.security.Permission;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
-import net.jini.io.MarshalledInstance;
 import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 
@@ -57,6 +55,7 @@ import net.jini.security.TrustVerifier;
  * @see net.jini.jeri.ProxyTrustILFactory
  * @since 2.0
  */
+@Deprecated
 public class ProxyTrustExporter implements Exporter {
     /** Permission required to use class loader of main proxy's class */
     private static final Permission loaderPermission =
@@ -317,9 +316,7 @@ public class ProxyTrustExporter implements Exporter {
 	/** Create an instance registered with queue */
 	WeakRef(Remote impl) {
 	    super(impl, queue);
-	    this.boot = impl instanceof ServerSmartProxyAccessor ? 
-		    new SmartProxyAccessorImpl(this):
-		    new ProxyTrustImpl(this);
+	    this.boot = new ProxyTrustImpl(this);
 	}
 
 	/** Clear both references */
@@ -373,24 +370,5 @@ public class ProxyTrustExporter implements Exporter {
 	    }
 	    return impl.getProxyVerifier();
 	}
-    }
-    
-    /** SmartProxyAccessor impl class */
-    private static class SmartProxyAccessorImpl extends ProxyTrustImpl 
-						    implements SmartProxyAccessor {
-
-	public SmartProxyAccessorImpl(Reference ref) {
-	    super(ref);
-}
-
-	@Override
-	public Object getSmartProxy() throws IOException {
-	    ServerSmartProxyAccessor impl = (ServerSmartProxyAccessor) ref.get();
-	    if (impl == null) {
-		throw new UnsupportedOperationException("impl is gone");
-	    }
-	    return impl.getSmartProxy();
-	}
-	
     }
 }

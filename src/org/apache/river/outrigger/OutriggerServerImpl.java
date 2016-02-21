@@ -103,6 +103,9 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 
 /**
  * A basic implementation of a JavaSpaces<sup>TM</sup> 
@@ -151,7 +154,8 @@ import net.jini.core.transaction.server.TransactionConstants;
  */
 public class OutriggerServerImpl 
     implements OutriggerServer, TimeConstants, LocalLandlord, Recover,
-	       ServerProxyTrust, Startable
+	       ServerProxyTrust, Startable, ServiceProxyAccessor,
+	       ServiceAttributesAccessor, ServiceIDAccessor
 {	
     /**
      * Component name we use to find items in the configuration and loggers.
@@ -801,6 +805,17 @@ public class OutriggerServerImpl
             thrown = null;
             context = null;
         }
+    }
+
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	return getLookupAttributes();
+    }
+
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return new ServiceID(topUuid.getMostSignificantBits(),
+			    topUuid.getLeastSignificantBits());
     }
 
     private static class InitHolder {
