@@ -25,7 +25,7 @@ public class FakeRemoteImpl implements Remote {
     Object fakeMethodReturn;
     Throwable fakeMethodException;
 
-    public Object fakeMethod(Object o) throws Throwable {
+    public synchronized Object fakeMethod(Object o) throws Throwable {
         Logger logger = Logger.getLogger("org.apache.river.qa.harness.test");
         logger.entering(getClass().getName(),"fakeMethod(Object:" + o + ")");
 
@@ -36,10 +36,10 @@ public class FakeRemoteImpl implements Remote {
         }
     }
 
-    public void setFakeMethodReturn(Object o) {
+    public synchronized void setFakeMethodReturn(Object o) {
         fakeMethodReturn = o;
     }
-    public void setFakeMethodException(Throwable r) {
+    public synchronized void setFakeMethodException(Throwable r) {
         fakeMethodException = r;
     }
 

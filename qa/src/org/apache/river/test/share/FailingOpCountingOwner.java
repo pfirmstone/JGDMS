@@ -62,7 +62,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * @throws LeaseDeniedException if it wants to
      * @throws UnknownLeaseException if it wants to
      */
-    public Object renew(long extension)
+    public synchronized Object renew(long extension)
         throws LeaseDeniedException, UnknownLeaseException {
 	
 	++renewCalls;
@@ -77,7 +77,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * of one of these types.
      * @throws UnknownLeaseException if it wants to     
      */
-    public Throwable cancel() {
+    public synchronized Throwable cancel() {
 
 	++cancelCalls;
 	return super.cancel();
@@ -90,7 +90,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * directly simulate a runtime/remote exception and/or error using
      * this method.
      */
-    public long batchRenew(long extension) throws UnknownLeaseException,
+    public synchronized long batchRenew(long extension) throws UnknownLeaseException,
                                                   LeaseDeniedException {
 
 	++batchRenewCalls;
@@ -102,7 +102,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * Note owner can not directly simulate a runtime/remote exception
      * and/or error using this method.
      */
-    public void batchCancel()  {
+    public synchronized void batchCancel()  {
 	++batchCancelCalls;
 	super.batchCancel();
     }
@@ -113,7 +113,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * @return the number of times the renew method has been called.
      * 
      */
-    public long getRenewCalls() { 
+    public synchronized long getRenewCalls() { 
 	return renewCalls;
     }
 
@@ -123,7 +123,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * @return the number of times the cancel method has been called.
      * 
      */
-    public long getCancelCalls() { 
+    public synchronized long getCancelCalls() { 
 	return cancelCalls;
     }
 
@@ -133,7 +133,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * @return the number of times the batchRenew method has been called.
      * 
      */
-    public long getBatchRenewCalls() { 
+    public synchronized long getBatchRenewCalls() { 
 	return batchRenewCalls;
     }
 
@@ -143,7 +143,7 @@ public class FailingOpCountingOwner extends FailingOwner {
      * @return the number of times the batchCancel method has been called.
      * 
      */
-    public long getBatchCancelCalls() { 
+    public synchronized long getBatchCancelCalls() { 
 	return batchCancelCalls;
     }
 

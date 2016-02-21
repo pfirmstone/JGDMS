@@ -17,37 +17,36 @@
  */
 package org.apache.river.test.spec.jeri.basicinvocationdispatcher;
 
-import java.util.logging.Level;
-
-import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-
-import net.jini.jeri.BasicInvocationDispatcher;
-import net.jini.io.MarshalInputStream;
-import net.jini.security.TrustVerifier;
-import net.jini.security.proxytrust.ServerProxyTrust;
-import net.jini.security.proxytrust.ProxyTrust;
-
-import org.apache.river.test.spec.jeri.util.FakeBasicInvocationDispatcher;
-import org.apache.river.test.spec.jeri.util.FakeInboundRequest;
-import org.apache.river.test.spec.jeri.util.FakeServerCapabilities;
-import org.apache.river.test.spec.jeri.util.FakeInvocationHandler;
-import org.apache.river.test.spec.jeri.util.FakeArgument;
-import org.apache.river.test.spec.jeri.util.FakeTrustVerifier;
-import org.apache.river.test.spec.jeri.util.Util;
-
-import java.util.Collection;
-import java.util.ArrayList;
-import java.lang.reflect.Proxy;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.logging.Level;
+import net.jini.io.MarshalInputStream;
+
+import net.jini.jeri.BasicInvocationDispatcher;
+import net.jini.security.TrustVerifier;
+import net.jini.security.proxytrust.ProxyTrust;
+import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.io.AtomicMarshalInputStream;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.test.spec.jeri.util.FakeArgument;
+import org.apache.river.test.spec.jeri.util.FakeBasicInvocationDispatcher;
+import org.apache.river.test.spec.jeri.util.FakeInboundRequest;
+import org.apache.river.test.spec.jeri.util.FakeInvocationHandler;
+import org.apache.river.test.spec.jeri.util.FakeServerCapabilities;
+import org.apache.river.test.spec.jeri.util.FakeTrustVerifier;
+import org.apache.river.test.spec.jeri.util.Util;
 
 /**
  * <pre>
@@ -157,7 +156,7 @@ public class Dispatch_NormalReturnTest extends QATestEnvironment implements Test
         public TrustVerifier getProxyVerifier()       throws RemoteException;
     }
 
-    private Collection methodCollection(Class[] c) {
+    private static Collection methodCollection(Class[] c) {
         Collection ret = new ArrayList();
         for (int i = 0; i < c.length; i++) {
             Method[] m = c[i].getDeclaredMethods();
@@ -169,7 +168,7 @@ public class Dispatch_NormalReturnTest extends QATestEnvironment implements Test
     }
 
     // inherit javadoc
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         // construct infrastructure needed by test
         counter = 1;
         context = new ArrayList();
@@ -190,7 +189,7 @@ public class Dispatch_NormalReturnTest extends QATestEnvironment implements Test
     }
 
     // inherit javadoc
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
         // i: int method arg
         // iclass: int.class
         // o: Object method arg
@@ -397,7 +396,7 @@ public class Dispatch_NormalReturnTest extends QATestEnvironment implements Test
      * @param returnObject the object that should be returned from
      *        the method call
      */
-    private void initTestCase(Method method, Object[] args, 
+    private synchronized void initTestCase(Method method, Object[] args, 
         Object returnObject) throws IOException
     {
         handler.init(null,method,args,returnObject);
@@ -428,7 +427,8 @@ public class Dispatch_NormalReturnTest extends QATestEnvironment implements Test
         // read returned object
         Object returned = null;
         try {
-            MarshalInputStream mis = new MarshalInputStream(
+	    // MarshalInputStream can read AtomicMarshalOutputStream
+            ObjectInputStream mis = new MarshalInputStream(
                 response, null, false, null, new ArrayList());
             returned = unmarshalValue(method.getReturnType(), mis);
             assertion(mis.read() == -1);
@@ -454,27 +454,27 @@ public class Dispatch_NormalReturnTest extends QATestEnvironment implements Test
      *
      * @return an object of type <code>type</code>
      */
-    Object unmarshalValue(Class type, MarshalInputStream in)
+    static Object unmarshalValue(Class type, ObjectInput in)
         throws IOException, ClassNotFoundException
     {
         if (type == void.class) {
             return null;
         } else if (type == int.class) {
-            return new Integer(in.readInt());
+            return in.readInt();
         } else if (type == boolean.class) {
-            return new Boolean(in.readBoolean());
+            return in.readBoolean();
         } else if (type == byte.class) {
-            return new Byte(in.readByte());
+            return in.readByte();
         } else if (type == char.class) {
-            return new Character(in.readChar());
+            return in.readChar();
         } else if (type == short.class) {
-            return new Short(in.readShort());
+            return in.readShort();
         } else if (type == long.class) {
-            return new Long(in.readLong());
+            return in.readLong();
         } else if (type == float.class) {
-            return new Float(in.readFloat());
+            return in.readFloat();
         } else if (type == double.class) {
-            return new Double(in.readDouble());
+            return in.readDouble();
         } else {
             return in.readObject();
         }

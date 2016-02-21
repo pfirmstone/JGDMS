@@ -17,13 +17,16 @@
  */
 package org.apache.river.test.impl.norm;
 
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.security.proxytrust.ProxyTrust;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Interface that grators of test leases implement so the test lease proxy
@@ -87,6 +90,7 @@ public interface LeaseBackEnd extends Remote, ProxyTrust {
     public Throwable cancelAll(int[] ids)
 	throws LeaseMapException, RemoteException;
 
+    @AtomicSerial
     class RenewResults implements java.io.Serializable {
 	/**
 	 * For each id passed to <code>renewAll</code>,
@@ -130,6 +134,11 @@ public interface LeaseBackEnd extends Remote, ProxyTrust {
 	public RenewResults(long[] granted, Throwable[] denied) {
 	    this.granted = granted;
 	    this.denied = denied;
+	}
+	
+	public RenewResults(GetArg arg) throws IOException{
+	    this(arg.get("granted", null, long[].class),
+		 arg.get("denied", null, Throwable[].class));
 	}
     }
 }

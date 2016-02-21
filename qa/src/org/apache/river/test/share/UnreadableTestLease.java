@@ -22,6 +22,8 @@ package org.apache.river.test.share;
 // java.io
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * UnreadableTestLease isA TestLease that will throw an IOException
@@ -29,6 +31,7 @@ import java.io.ObjectInputStream;
  *
  * @author Steven Harris - SMI Software Development 
  */
+@AtomicSerial
 public class UnreadableTestLease extends TestLease {
     
     private static boolean failMode = false;
@@ -36,6 +39,20 @@ public class UnreadableTestLease extends TestLease {
     // javadoc purposefully inherited from parent class
     public UnreadableTestLease(int id, LeaseBackEnd home, long expiration) {
 	super(id, home, expiration);
+    }
+    
+    public UnreadableTestLease(GetArg arg) throws IOException{
+	super(check(arg));
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	if (failMode) {
+	    TestLease lease = new TestLease(arg);
+	    String message = "UnreadableTestLease: deserialization refused! " +
+		"Lease id = " + lease.id();
+	    throw new IOException(message);
+	}
+	return arg;
     }
     
     /**

@@ -18,20 +18,40 @@
 package org.apache.river.test.spec.io.util;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A serializable object that throws a specified exception
  * in it's readObject method.
  */
+@AtomicSerial
 public class FakeObject implements Serializable {
 
     private Throwable readObjectException;
 
     public FakeObject(Throwable ro_exc) {
         readObjectException = ro_exc;
+    }
+    
+    public FakeObject(GetArg arg) throws IOException, ClassNotFoundException{
+	readObjectException = arg.get("readObjectException", null, Throwable.class);
+	if (readObjectException != null) {
+            if (readObjectException instanceof IOException) {
+                throw (IOException) readObjectException;
+            } else if (readObjectException instanceof ClassNotFoundException) {
+                throw (ClassNotFoundException) readObjectException;
+            } else if (readObjectException instanceof RuntimeException) {
+                throw (RuntimeException) readObjectException;
+            } else if (readObjectException instanceof Error) {
+                throw (Error) readObjectException;
+            } else {
+                throw new AssertionError();
+            }
+        }
     }
 
     public boolean equals(Object obj) {

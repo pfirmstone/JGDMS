@@ -17,38 +17,25 @@
  */
 package org.apache.river.test.impl.norm;
 
-import java.util.logging.Level;
 
-import java.io.Serializable;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
-
+import java.io.InvalidObjectException;
+import java.io.Serializable;
 import java.rmi.RemoteException;
-
-import java.util.Map;
-import java.util.Set;
-import java.util.Iterator;
-
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
-import net.jini.core.lease.LeaseException;
-import net.jini.core.lease.LeaseDeniedException;
-import net.jini.core.lease.UnknownLeaseException;
-
-import net.jini.config.Configuration;
-import net.jini.export.Exporter;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.security.TrustVerifier;
-import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.security.TrustVerifier;
+import net.jini.security.proxytrust.ProxyTrust;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
 /**
  * A lease implementation that is completely local for use in some of the 
  * QA test for the LeaseRenewalService
  */
+@AtomicSerial
 class ConstrainableFailingLocalLease extends FailingLocalLease 
                                      implements RemoteMethodControl 
 {
@@ -71,6 +58,20 @@ class ConstrainableFailingLocalLease extends FailingLocalLease
     {
 	super(initExp, renewLimit, bundle, id, count);
 	this.pt = pt;
+    }
+    
+    ConstrainableFailingLocalLease(GetArg arg) throws IOException{
+	super(check(arg));
+	pt = arg.get("pt", null, ProxyTrustImpl.class);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	ProxyTrustImpl pt = arg.get("pt", null, ProxyTrustImpl.class);
+	if (!(pt instanceof ProxyTrust)) 
+	    throw new InvalidObjectException("pt must be instance of ProxyTrust");
+	if (!(pt instanceof RemoteMethodControl)) 
+	    throw new InvalidObjectException("pt must be instance of RemoteMethodControl");
+	return arg;
     }
 
     protected class IteratorImpl implements ProxyTrustIterator {

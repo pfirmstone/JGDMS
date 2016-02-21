@@ -18,18 +18,10 @@
 
 package org.apache.river.qa.harness;
 
-import java.io.IOException;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.io.File;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -57,10 +49,10 @@ public abstract class QATestEnvironment implements TestEnvironment {
     /** Keeps track of leases for automatic cancellation when test ends. */
     private final Collection<Lease> leaseArray = new ArrayList<Lease>();//access must be synchronized
     /** The admin manager for managing services */
-    private volatile AdminManager manager;
+    private AdminManager manager;
 
     /** The config object for accessing the test environment */
-    private volatile QAConfig config;
+    private QAConfig config;
 
     /** 
      * Mostly mimics the behavior of the assert keyword. 
@@ -99,7 +91,7 @@ public abstract class QATestEnvironment implements TestEnvironment {
      *
      * @return the harness QAConfig <code>object</code>
      */
-    public QAConfig getConfig() {
+    public synchronized QAConfig getConfig() {
 	return config;
     }
 
@@ -125,7 +117,7 @@ public abstract class QATestEnvironment implements TestEnvironment {
      * 
      * @throws Exception if any failure occurs during construct  
      */
-    public Test construct(QAConfig config) throws Exception {
+    public synchronized Test construct(QAConfig config) throws Exception {
 	int delayTime = 
 	    config.getIntConfigVal("org.apache.river.qa.harness.startDelay", 0);
 	if (delayTime > 0) {
@@ -247,7 +239,7 @@ public abstract class QATestEnvironment implements TestEnvironment {
 		    try {
 			Thread.sleep(5000); // give it time to flush
 		    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
+			Thread.currentThread().interrupt();
 		    }
 		}
 	    }
@@ -257,7 +249,7 @@ public abstract class QATestEnvironment implements TestEnvironment {
     /**
      * @return the manager
      */
-    protected AdminManager getManager() {
+    protected synchronized AdminManager getManager() {
             return manager;
     }
 
