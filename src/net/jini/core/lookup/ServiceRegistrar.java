@@ -19,7 +19,6 @@ package net.jini.core.lookup;
 
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
@@ -133,8 +132,9 @@ public interface ServiceRegistrar {
      * ServiceProxyAccessor and ServiceAttributesAccessor.  The bootstrap proxy
      * is used as a token to authenticate the service, prior to dynamically 
      * granting permissions, local attribute filtering and ultimately
-     * download of the service proxy codebase and unmarshalling of the service 
-     * proxy.
+     * download of the service proxy codebase and unmarshalling of a service 
+     * smart proxy.  Only in the case of a smart proxy, will the Bootstrap proxy
+     * implement ServiceCodebaseAccessor, which is an optional interface.
      * 
      * For this method to be secure, the client must use {@link AtomicInputValidation},
      * {@link ConfidentialityStrength, ConfidentialityStrength#STRONG} and
@@ -148,6 +148,7 @@ public interface ServiceRegistrar {
      * @see net.jini.core.constraint.RemoteMethodControl
      * @see net.jini.export.ServiceProxyAccessor
      * @see net.jini.export.ServiceAttributesAccessor
+     * @see net.jini.export.ServiceCodebaseAccessor
      */
     default Object [] lookUp(
 	    ServiceTemplate tmpl, int maxProxies) throws RemoteException

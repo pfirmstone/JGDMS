@@ -42,6 +42,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.export.ProxyAccessor;
 import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceCodebaseAccessor;
 import net.jini.export.ServiceIDAccessor;
 import net.jini.export.ServiceProxyAccessor;
 import net.jini.jeri.BasicInvocationHandler;
@@ -98,6 +99,21 @@ final class Item implements Serializable, Cloneable {
      */
     private static final Class[] bootStrapProxyInterfaces = 
 	{
+	    ServiceProxyAccessor.class, 
+	    ServiceAttributesAccessor.class,
+	    ServiceIDAccessor.class,
+	    RemoteMethodControl.class,
+	    TrustEquivalence.class
+	};
+    
+    /**
+     * The bootstrap proxy for smart proxy's must be limited to the following
+     * interfaces, in case additional interfaces implemented by the proxy
+     * aren't available remotely.
+     */
+    private static final Class[] bootStrapSmartProxyInterfaces = 
+	{
+	    ServiceCodebaseAccessor.class,
 	    ServiceProxyAccessor.class, 
 	    ServiceAttributesAccessor.class,
 	    ServiceIDAccessor.class,
@@ -201,7 +217,7 @@ final class Item implements Serializable, Cloneable {
 	if (bootstrapProxy != null) {
 //	    Security.verifyObjectTrust(arg, null, context);
 	    if (Proxy.isProxyClass(bootstrapProxy.getClass()))
-	    return tv.isTrustedObject(Proxy.getInvocationHandler(arg), null);
+	    return tv.isTrustedObject(bootstrapProxy, null);
 //	    return Proxy.isProxyClass(bootstrapProxy.getClass());
 	}
 	return true;
@@ -260,13 +276,17 @@ final class Item implements Serializable, Cloneable {
 	    ) 
 	{
 	    Class proxyClass = proxy.getClass();
-	    if (Proxy.isProxyClass(proxyClass)){
+	    if (Proxy.isProxyClass(proxyClass) && tv.isTrustedObject(proxy, null)){
 		// REMIND: InvocationHandler must be available locally, for now
 		// it must be an instance of BasiceInvocationHandler.
 		InvocationHandler h = Proxy.getInvocationHandler(proxy);
-		if (BasicInvocationHandler.class == h.getClass())
+		if (proxy instanceof ServiceCodebaseAccessor){
 		    bootstrapProxy = (Proxy) 
-			Proxy.newProxyInstance(null, bootStrapProxyInterfaces, h);
+			Proxy.newProxyInstance(null, bootStrapSmartProxyInterfaces, h);
+		} else {
+		    bootstrapProxy = (Proxy) 
+			Proxy.newProxyInstance(null, bootStrapProxyInterfaces, h);		    
+		}
 	    }
 	}
 	serviceID = item.serviceID;
