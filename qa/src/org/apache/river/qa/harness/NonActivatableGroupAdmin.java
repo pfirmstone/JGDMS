@@ -20,11 +20,11 @@ package org.apache.river.qa.harness;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Field;
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
+import net.jini.io.MarshalledInstance;
 
 /**
  * An <code>Admin</code> which manages a <code>NonActivatableGroup</code>.
@@ -106,7 +106,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      * based on the service properties associated with this group. A VM is
      * exec'd, and an object is read from the child process
      * <code>System.err</code> stream which is expected to be a
-     * <code>MarshalledObject</code> containing the serialized proxy for the
+     * <code>MarshalledInstance</code> containing the serialized proxy for the
      * <code>NonActivatableGroup</code> instance provided by that VM. No further
      * input is read from the child <code>System.err.</code> It is assumed that
      * the child will write any output originally destined to
@@ -169,7 +169,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
                 outPipe.start();
                 proxyStream = new ObjectInputStream(process.getErrorStream());
                 proxy = (NonActivatableGroup)
-                        ((MarshalledObject) proxyStream.readObject()).get();
+                        ((MarshalledInstance) proxyStream.readObject()).get(false);
             } catch (IOException e) {
                 // Clean up.
                 process.destroy();
@@ -230,7 +230,8 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 	    timeout.cancel();
 	} catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-	    logger.log(Level.INFO, "Nonactivatable group process did not exit");
+	    process.destroy();
+	    logger.log(Level.INFO, "Nonactivatable group process did not exit, attempting to destroy");
 	}
     }
 

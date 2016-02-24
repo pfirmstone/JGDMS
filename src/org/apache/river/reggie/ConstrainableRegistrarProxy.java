@@ -20,6 +20,7 @@ package org.apache.river.reggie;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import net.jini.admin.Administrable;
@@ -32,6 +33,8 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * RegistrarProxy subclass that supports constraints.
@@ -39,13 +42,14 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class ConstrainableRegistrarProxy
     extends RegistrarProxy implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
 
     /** Mappings between ServiceRegistrar and Registrar methods */
-    private static final Method[] methodMappings = {
+    static final Method[] methodMappings = {
 	Util.getMethod(ServiceRegistrar.class, "getEntryClasses",
 		       new Class[]{ ServiceTemplate.class }),
 	Util.getMethod(Registrar.class, "getEntryClasses",
@@ -99,6 +103,19 @@ final class ConstrainableRegistrarProxy
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
+    private static GetArg check(GetArg arg) throws IOException{
+	RegistrarProxy sup = new RegistrarProxy(arg);
+	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+	    constraints, sup.server, methodMappings);
+	return arg;
+    }
+    
+    ConstrainableRegistrarProxy(GetArg arg) throws IOException{
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
+    
     /**
      * Creates new ConstrainableRegistrarProxy with given server reference,
      * service ID and client constraints.
@@ -131,6 +148,10 @@ final class ConstrainableRegistrarProxy
      */
     private ProxyTrustIterator getProxyTrustIterator() {
 	return new SingletonProxyTrustIterator(server);
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
     }
 
     /**

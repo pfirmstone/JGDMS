@@ -19,7 +19,6 @@ package org.apache.river.mahalo;
 
 import org.apache.river.logging.Levels;
 import org.apache.river.mahalo.log.ClientLog;
-import org.apache.river.thread.TaskManager;
 import org.apache.river.thread.WakeupManager;
 import java.rmi.RemoteException;
 import java.util.concurrent.ExecutorService;

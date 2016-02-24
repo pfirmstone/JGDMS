@@ -21,6 +21,7 @@ package org.apache.river.discovery;
 import java.io.IOException;
 import java.util.Arrays;
 import net.jini.core.lookup.ServiceID;
+import net.jini.io.UnsupportedConstraintException;
 
 /**
  * Class representing the values in a multicast request.

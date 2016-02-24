@@ -18,7 +18,6 @@
 
 package net.jini.security.proxytrust;
 
-import org.apache.river.jeri.internal.runtime.Util;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -28,8 +27,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
-import java.rmi.Remote;
 import net.jini.core.constraint.RemoteMethodControl;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.jeri.internal.runtime.Util;
 
 /**
  * Invocation handler for remote objects, supporting proxy trust verification
@@ -48,6 +49,8 @@ import net.jini.core.constraint.RemoteMethodControl;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@Deprecated
+@AtomicSerial
 public final class ProxyTrustInvocationHandler
 		 implements InvocationHandler, TrustEquivalence, Serializable
 {
@@ -81,6 +84,35 @@ public final class ProxyTrustInvocationHandler
     public ProxyTrustInvocationHandler(RemoteMethodControl main,
 				       ProxyTrust boot)
     {
+	this(main, boot, check(main, boot));
+    }
+    
+    public ProxyTrustInvocationHandler(GetArg arg) throws InvalidObjectException, IOException
+    {
+	this(true,
+	     arg.get("main", null, RemoteMethodControl.class),
+	     arg.get("boot", null, ProxyTrust.class)
+	);
+    }
+    
+    private ProxyTrustInvocationHandler(boolean atomicSerial,
+					RemoteMethodControl main,
+				        ProxyTrust boot) throws InvalidObjectException
+    {
+	this(main, boot, verify(main, boot));
+    }
+    
+    private ProxyTrustInvocationHandler(RemoteMethodControl main,
+					ProxyTrust boot,
+					boolean check)
+    {
+	this.main = main;
+	this.boot = boot;
+    }
+    
+    private static boolean check(RemoteMethodControl main,
+			 ProxyTrust boot)
+    {
 	if (main == null || boot == null) {
 	    throw new NullPointerException("arguments cannot be null");
 	} else if (!(main instanceof TrustEquivalence)) {
@@ -93,10 +125,9 @@ public final class ProxyTrustInvocationHandler
 	    throw new IllegalArgumentException(
 			   "bootstrap proxy must implement TrustEquivalence");
 	}
-	this.main = main;
-	this.boot = boot;
+	return true;
     }
-
+  
     /**
      * Executes the specified method with the specified arguments on the
      * specified proxy, and returns the return value, if any.
@@ -332,6 +363,12 @@ public final class ProxyTrustInvocationHandler
 	throws IOException, ClassNotFoundException
     {
 	s.defaultReadObject();
+	verify(main, boot);
+    }
+      
+    private static boolean verify(RemoteMethodControl main,
+				  ProxyTrust boot) throws InvalidObjectException
+    {
 	if (!(main instanceof TrustEquivalence)) {
 	    throw new InvalidObjectException(
 			   "main proxy must implement TrustEquivalence");
@@ -342,5 +379,7 @@ public final class ProxyTrustInvocationHandler
 	    throw new InvalidObjectException(
 			   "bootstrap proxy must implement TrustEquivalence");
 	}
+	return true;
     }
+
 }

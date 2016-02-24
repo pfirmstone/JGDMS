@@ -19,13 +19,14 @@
 package net.jini.core.constraint;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.security.Principal;
 import java.util.Collection;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the client, such that if the client
@@ -54,6 +55,7 @@ import java.util.Set;
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0
  */
+@AtomicSerial
 public final class ClientMaxPrincipalType
 				implements InvocationConstraint, Serializable
 {
@@ -83,8 +85,26 @@ public final class ClientMaxPrincipalType
      * {@link java.security.Principal} as a superinterface
      */
     public ClientMaxPrincipalType(Class clazz) {
+	this(check(clazz), true);
+    }
+    
+    public ClientMaxPrincipalType(GetArg arg) throws IOException{
+	this(verify(arg.get("classes", null, Class[].class)), true);
+    }
+    
+    private static Class[] check(Class clazz){
 	Constraint.verify(clazz);
-	classes = new Class[]{clazz};
+	return new Class[]{clazz};
+    }
+    
+    private static Class[] verify(Class[] classes) throws InvalidObjectException{
+	classes = classes.clone();
+	Constraint.verify(classes);
+	return classes;
+    }
+    
+    private ClientMaxPrincipalType(Class[] clazzs, boolean check){
+	classes = clazzs;
     }
 
     /**
@@ -106,7 +126,7 @@ public final class ClientMaxPrincipalType
      * any element is <code>null</code>
      */
     public ClientMaxPrincipalType(Class[] classes) {
-	this.classes = Constraint.reduce(classes, true);
+	this(Constraint.reduce(classes, true), true);
     }
 
     /**
@@ -128,7 +148,7 @@ public final class ClientMaxPrincipalType
      * any element is <code>null</code>
      */
     public ClientMaxPrincipalType(Collection c) {
-	classes = Constraint.reduce(c, true);
+	this(Constraint.reduce(c, true), true);
     }
 
     /**
@@ -177,6 +197,9 @@ public final class ClientMaxPrincipalType
      * any class is <code>null</code>, a primitive type, array type, or
      * <code>final</code> class that does not have <code>Principal</code> as
      * a superinterface, or if any class is assignable to any other class
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

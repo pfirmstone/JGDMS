@@ -18,9 +18,12 @@
 
 package net.jini.jeri.ssl;
 
+import java.io.IOException;
+import java.io.Serializable;
 import net.jini.core.constraint.Confidentiality;
 import net.jini.core.constraint.InvocationConstraint;
-import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint that, if confidentiality of message contents is
@@ -46,6 +49,7 @@ import java.io.Serializable;
  * @see SslTrustVerifier
  * @since 2.0
  */
+@AtomicSerial
 public final class ConfidentialityStrength
     implements InvocationConstraint, Serializable
 {
@@ -61,11 +65,8 @@ public final class ConfidentialityStrength
      * cipher suites with the following cipher algorithms:
      *
      * <ul>
-     * <li> 3DES_EDE_CBC
-     * <li> AES_128_CBC
-     * <li> AES_256_CBC
-     * <li> IDEA_CBC
-     * <li> RC4_128
+     * <li> AES_128_GCM
+     * <li> AES_256_GCM
      * </ul>
      */
     public static final ConfidentialityStrength STRONG =
@@ -79,10 +80,10 @@ public final class ConfidentialityStrength
      * cipher suites with the following cipher algorithms:
      *
      * <ul>
-     * <li> DES40_CBC
-     * <li> DES_CBC
-     * <li> RC2_CBC_40
-     * <li> RC4_40
+     * <li> AES_128_CBC
+     * <li> AES_256_CBC
+     * <li> 3DES_EDE_CBC
+     * <li> RC4_128
      * </ul>
      */
     public static final ConfidentialityStrength WEAK =
@@ -97,6 +98,10 @@ public final class ConfidentialityStrength
     private final boolean value;
 
     /* -- Methods -- */
+    
+    public ConfidentialityStrength(GetArg arg) throws IOException{
+	this(arg.get("value", true));
+    }
 
     /**
      * Simple constructor.

@@ -198,8 +198,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	synchronized (mux.muxLock) {
 	    IOFuture future = new IOFuture();
 	    if (mux.muxDown) {
-		IOException ioe = new IOException(mux.muxDownMessage);
-		ioe.initCause(mux.muxDownCause);
+		IOException ioe = new IOException(mux.muxDownMessage, mux.muxDownCause);
 		future.done(ioe);
 		return future;
 	    }
@@ -372,8 +371,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	    while (!notifyQueue.isEmpty()) {
 		notifyQueue.removeFirst();
 		IOFuture future = (IOFuture) notifyQueue.removeFirst();
-		IOException ioe = new IOException(mux.muxDownMessage);
-		ioe.initCause(mux.muxDownCause);
+		IOException ioe = new IOException(mux.muxDownMessage, mux.muxDownCause);
 		future.done(ioe);
 	    }
 	}

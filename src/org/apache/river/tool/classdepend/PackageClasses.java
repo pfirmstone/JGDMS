@@ -107,10 +107,8 @@ public class PackageClasses {
 		try {
 		    jarFile = new JarFile(file);
 		} catch (IOException e) {
-		    IOException e2 = new IOException(
-			"Problem accessing file or directory: " + file);
-		    e2.initCause(e);
-		    throw e2;
+		    throw new IOException(
+			"Problem accessing file or directory: " + file, e);
 		}
 		try {
 		    for (Enumeration entries = jarFile.entries();

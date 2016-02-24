@@ -18,6 +18,10 @@
 
 package org.apache.river.mahalo;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * A <code>LogRecord</code> which encapsulates a participant being
  * instructed to vote.
@@ -25,10 +29,15 @@ package org.apache.river.mahalo;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class PrepareRecord extends ParticipantModRecord {
     static final long serialVersionUID = 7771643811455951474L;
 
     PrepareRecord(ParticipantHandle part, int result) {
 	super(part, result);
     }
+    
+    PrepareRecord(GetArg arg) throws IOException {
+	super(arg);
+}
 }

@@ -17,27 +17,24 @@
  */
 package org.apache.river.mercury;
 
-import org.apache.river.landlord.LeasedResource;
-import net.jini.id.Uuid;
-import net.jini.security.ProxyPreparer;
-
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Condition;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.core.event.UnknownEventException;
+import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
+import net.jini.security.ProxyPreparer;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
+import org.apache.river.landlord.LeasedResource;
 
 /**
  * The <tt>ServiceRegistration</tt> class serves as the server-side abstraction
@@ -50,6 +47,7 @@ import net.jini.io.MarshalledInstance;
  *
  * @since 1.1
  */
+@AtomicSerial
 class ServiceRegistration implements LeasedResource, Comparable, Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -79,13 +77,13 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     /** The marshalled form of the client-provided notification target.
      * @serialField 
      */
-    private MarshalledObject marshalledEventTarget = null; 
+    private MarshalledObject marshalledEventTarget; 
 
     /** Event log iterator. */
     // This field is transient because event state info is persisted
     // separately from the registration state info. It is (re)constructed
     // upon service initialization.
-    private transient EventLogIterator eventIterator = null;
+    private transient EventLogIterator eventIterator;
 
     /** 
      * Map of collected <tt>EventID</tt>'s that resulted in an 
@@ -105,7 +103,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * be able to handle these events.
      * @serialField 
      */
-    private final Map unknownEvents = new ConcurrentHashMap();
+    private final Map<EventID,UnknownEventException> unknownEvents;
 
     /** 
      * Unique identifier object for the currently enabled 
@@ -125,9 +123,33 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     
     private transient volatile Condition iteratorCondition;
 
+    public ServiceRegistration(GetArg arg) throws IOException{
+	this(arg.get("cookie", null, Uuid.class),
+	    arg.get("eventIterator", null, EventLogIterator.class),
+	    arg.get("iteratorCondition", null, Condition.class),
+	    Valid.copyMap(
+		arg.get("unknownEvents", null, Map.class),
+		new ConcurrentHashMap<EventID,UnknownEventException>(),
+		EventID.class, 
+		UnknownEventException.class
+	    ),
+	    arg.get("marshalledEventType", null, MarshalledObject.class)
+	);
+    }
 
     /** Convenience constructor */
     public ServiceRegistration(Uuid cookie, EventLogIterator eventIterator, Condition iteratorCondition) {
+	this(cookie, eventIterator, iteratorCondition, new ConcurrentHashMap<EventID,UnknownEventException>(), null);
+    }
+    
+    private ServiceRegistration(Uuid cookie, 
+	    EventLogIterator eventIterator, 
+	    Condition iteratorCondition,
+	    Map<EventID,UnknownEventException> unknownEvents,
+	    MarshalledObject marshalledEventTarget)
+    {
+	this.marshalledEventTarget = marshalledEventTarget;
+	this.unknownEvents = unknownEvents;
         this.cookie = cookie;
         this.eventIterator = eventIterator;
         this.iteratorCondition = iteratorCondition;
@@ -309,9 +331,4 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
 	        }
 	    }
     }
-    
-    /* Stateless serializable lock */
-    private static final class Lock implements Serializable {
-        private static final long serialVersionUID = 1L;
     }
-}

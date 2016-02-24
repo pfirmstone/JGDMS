@@ -10,6 +10,11 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
+
+grant { 
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
 grant {
         permission java.lang.RuntimePermission
               "accessClassInPackage.sun.util.logging.resources";

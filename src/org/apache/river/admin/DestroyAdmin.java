@@ -39,6 +39,7 @@ public interface DestroyAdmin {
      * finish before proceeding to destroy itself. Once this method has been
      * called, the service can, but need not, reject all other (in-progress
      * and subsequent) remote calls to the service.
+     * @throws java.rmi.RemoteException
      */
     void destroy() throws java.rmi.RemoteException;
 }

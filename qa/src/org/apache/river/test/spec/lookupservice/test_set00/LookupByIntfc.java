@@ -60,7 +60,7 @@ public class LookupByIntfc extends QATestRegistrar {
      *  which each element contains one of the interfaces, implemented
      *  by the corresponding service, from the set of test interfaces.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         int indx;
         Class sClass;
@@ -116,7 +116,7 @@ public class LookupByIntfc extends QATestRegistrar {
      *        of objects returned equals the expected set of corresponding
      *        service items.
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	logger.log(Level.FINE, "in run() method.");
 	ServiceMatches intfcM = null;
 

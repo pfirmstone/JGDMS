@@ -104,17 +104,19 @@ import java.io.ObjectInputStream;
  * @since 2.0
  */
 public class AccessPermission extends Permission {
+    //@AtomicSerial is not implemented because PermissionSerializer will use
+    // the single arg constructor.
     private static final long serialVersionUID = 7269818741475881138L;
 
     /**
      * The interface name, or null if wildcarded.
      */
-    private transient String iface;
+    private /*final*/ transient String iface;
     /**
      * The name of the method, with prefix or suffix '*' permitted,
      * or null if wildcarded.
      */
-    private transient String method;
+    private /*final*/ transient String method;
 
     /**
      * Creates an instance with the specified target name.
@@ -125,14 +127,20 @@ public class AccessPermission extends Permission {
      * the syntax specified in the comments at the beginning of this class
      */
     public AccessPermission(String name) {
-	super(name);
-	init(name);
+	this(name,validate(name));
     }
-
+    
+    private AccessPermission(String name, String[] args){
+	super(name);
+	iface = args[0];
+	method = args[1];
+    }
+    //TODO: Fix construction, susceptible to finalizer attack.
     /**
      * Parses the target name and initializes the transient fields.
      */
-    private void init(String name) {
+    private static String[] validate(String name) {
+	String iface = null, method = null;
 	if (name == null) {
 	    throw new NullPointerException("name cannot be null");
 	} else if (name.length() == 0) {
@@ -151,6 +159,7 @@ public class AccessPermission extends Permission {
 	} else if (method != null && !validMethod(method)) {
 	    throw new IllegalArgumentException("invalid method name");
 	}
+	return new String[]{iface, method};
     }
 
     /**
@@ -238,10 +247,11 @@ public class AccessPermission extends Permission {
     }
 
     /**
-     * Returns <code>true</code> if the specified object is an instance
+     * @return <code>true</code> if the specified object is an instance
      * of the same class as this permission and has the same target name
      * as this permission; returns <code>false</code> otherwise.
      */
+    @Override
     public boolean equals(Object obj) {
 	if (obj == this) {
 	    return true;
@@ -252,15 +262,17 @@ public class AccessPermission extends Permission {
     }
 
     /**
-     * Returns a hash code value for this object.
+     * @return a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	return getName().hashCode();
     }
 
-    /**
-     * Returns the empty string.
+    /** 
+     * @return an empty string.
      */
+    @Override
     public String getActions() {
 	return "";
     }
@@ -279,7 +291,9 @@ public class AccessPermission extends Permission {
 	s.defaultReadObject();
 	Exception cause;
 	try {
-	    init(getName());
+	    String[] result = validate(getName());
+	    iface = result[0];
+	    method = result[1];
 	    return;
 	} catch (NullPointerException e) {
 	    cause = e;

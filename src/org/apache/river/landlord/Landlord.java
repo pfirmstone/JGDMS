@@ -17,13 +17,18 @@
  */
 package org.apache.river.landlord;
 
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.Map;
 import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /** 
  * Interface that granters of leases must implement in order to work
@@ -96,25 +101,46 @@ public interface Landlord extends Remote {
      * cancelAll} method is called.  Should cancel the lease that is
      * associated with each element of <code>cookies</code>
      * 
+     * This method is now default, because it is unsafe to return a Map
+     * that has been serialized, without having its invariants checked during
+     * deserialization.  A gadget attack could utilize the map to contain
+     * other objects.
+     * 
      * @param cookies an array of <code>Uuid</code>s, each universally and 
      *                uniquely identifying a lease granted by this
      *                <code>Landlord</code>
      * @return If all the leases specified in the <code>cookies</code>
-     *         could be cancelled return <code>null</code>.  Otherwise,
+     *         could be canceled return <code>null</code>.  Otherwise,
      *         return a <code>Map</code> that for each failed cancel
      *         attempt maps the corresponding cookie object to an
      *         exception describing the failure.  
      * @throws RemoteException if a communications failure occurs
      */
-    public java.util.Map cancelAll(Uuid[] cookies) throws RemoteException;
+    public java.util.Map cancelAll(Uuid[] cookies) throws RemoteException; 
+//    {
+//	Map<Uuid,UnknownLeaseException> map = null;
+//	for (int i = 0, count = cookies.length; i < count; i++) {
+//	    try {
+//		cancel(cookies[i]);
+//	    } catch (UnknownLeaseException e) {
+//		if (map == null)
+//		    map = new java.util.HashMap<Uuid,UnknownLeaseException>();
+//		map.put(cookies[i], e);
+//	    }
+//	}
+//	return map;
+//    }
 
     /** 
      * Simple class that holds return values of
      * the {@link Landlord#renewAll Landlord.renewAll} method.
+     * 
+     * The API of this class has changed, in a non backward compatible manner
+     * for security reasons.
      */
-    public class RenewResults implements java.io.Serializable {
+    @AtomicSerial
+    public static class RenewResults implements java.io.Serializable {
 	static final long serialVersionUID = 2L;
-
 	/**
 	 * For each cookie passed to {@link Landlord#renewAll renewAll},
 	 * <code>granted[i]</code> is the granted lease time, or -1 if the
@@ -124,7 +150,7 @@ public interface Landlord extends Remote {
 	 * @see #denied
 	 * @serial
 	 */
-	public final long[] granted;
+	private final long[] granted;
 
 	/**
 	 * The <code>i</code><sup><i>th</i></sup> -1 in <code>granted</code>
@@ -133,7 +159,7 @@ public interface Landlord extends Remote {
 	 *
 	 * @serial
 	 */
-	public final Exception[] denied;
+	private final Exception[] denied;
 
 	/**
 	 * Create a <code>RenewResults</code> object setting the field
@@ -155,8 +181,53 @@ public interface Landlord extends Remote {
 	 * @param denied	the value for the field <code>denied</code>
 	 */
 	public RenewResults(long[] granted, Exception[] denied) {
-	    this.granted = granted;
-	    this.denied = denied;
+	    this.granted = granted.clone();
+	    this.denied = Valid.copy(denied);
+	}
+	
+	public RenewResults(GetArg arg) throws IOException, CloneNotSupportedException{
+	    this(Valid.notNull(arg.get("granted", null, long[].class), "granted cannot be null"),
+		arg.get("denied", null, Exception[].class));
+	}
+	
+	/**
+	 * For each cookie passed to {@link Landlord#renewAll renewAll},
+	 * <code>getGranted(i)</code> is the granted lease time, or -1 if the
+	 * renewal for that lease generated an exception.  If there was
+	 * an exception, the exception is held in <code>denied</code>.
+	 * 
+	 * @param i the array element location corresponding to the cookie passed
+	 * to to {@link Landlord#renewAll renewAll}
+	 * @return the granted lease time  corresponding to index i of the
+	 * cookie passed to {@link Landlord#renewAll renewAll}.
+	 */
+	public long getGranted(int i){
+	    return granted[i];
+	}
+	
+	/**
+	 * For each cookie passed to {@link Landlord#renewAll renewAll},
+	 * <code>getGranted(i)</code> is the granted lease time, or -1 if the
+	 * renewal for that lease generated an exception.  If there was
+	 * an exception, the exception is held in <code>getDenied(i)</code> 
+	 * at index i, corresponding to the cookies array.
+	 * 
+	 * @param i the array element location corresponding to the cookie passed
+	 * to to {@link Landlord#renewAll renewAll}
+	 * @return the denied exception corresponding to the locations
+	 * of i in the lease time array.
+	 */
+	public Exception getDenied(int i){
+	    if (denied == null) return null;
+	    return denied[i];
+	}
+	
+	/**
+	 * 
+	 * @return true if no lease renewals were denied.
+	 */
+	public boolean noneDenied(){
+	    return denied == null;
 	}
     }
 }

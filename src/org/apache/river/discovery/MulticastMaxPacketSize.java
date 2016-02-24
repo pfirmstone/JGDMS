@@ -23,6 +23,8 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the size (in bytes) of multicast packets used in
@@ -36,6 +38,7 @@ import net.jini.core.constraint.InvocationConstraint;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class MulticastMaxPacketSize
     implements InvocationConstraint, Serializable
 {
@@ -60,10 +63,22 @@ public final class MulticastMaxPacketSize
      * {@link #MIN_MAX_PACKET_SIZE}.
      */
     public MulticastMaxPacketSize(int size) {
+	this(size, check(size));
+    }
+    
+    MulticastMaxPacketSize(GetArg arg) throws IOException {
+	this(arg.get("size",0));
+    }
+    
+    private MulticastMaxPacketSize(int size, boolean check){
+	this.size = size;
+    }
+    
+    private static boolean check(int size){
 	if (size < MIN_MAX_PACKET_SIZE) {
 	    throw new IllegalArgumentException("invalid size");
 	}
-	this.size = size;
+	return true;
     }
 
     /**

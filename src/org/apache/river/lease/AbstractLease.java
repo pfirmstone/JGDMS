@@ -20,6 +20,7 @@ package org.apache.river.lease;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.RemoteException;
@@ -27,6 +28,10 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * A base class for implementing lease objects.  This class takes care of
@@ -38,6 +43,7 @@ import net.jini.id.Uuid;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 public abstract class AbstractLease implements Lease, java.io.Serializable {
 
     private static final long serialVersionUID = -9067179156916102052L;
@@ -56,6 +62,50 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
      * @serial
      */
     protected volatile int serialFormat = Lease.DURATION;
+
+    /**
+     * Called reflectively by AtomicSerial serializer framework.
+     * @return 
+     */
+    @ReadInput
+    private static ReadObject getRO(){
+	return new RO();
+    }
+    
+    private static long checkExpiration(GetArg arg) throws IOException{
+	int serialFormat = arg.get("serialFormat", Lease.DURATION);
+	RO r = (RO)arg.getReader();
+	if (r.readNotCalled) throw new InvalidObjectException("ReadObject wasn't called");
+	long val = r.val;
+	if (serialFormat == Lease.DURATION) {
+	    long dur = val;
+	    val += System.currentTimeMillis();
+	    // If we add two positive numbers, and the result is negative,
+	    // we must have overflowed, so use Long.MAX_VALUE
+	    if (val < 0 && dur > 0) 
+		val = Long.MAX_VALUE;
+	} else if (serialFormat != Lease.ABSOLUTE) {
+	    throw new InvalidObjectException("invalid serial format");
+	}
+	return val;
+    }
+    
+    /**
+     * @serialData
+     * AtomicSerial constructor.
+     * @see AtomicSerial
+     * @param arg
+     * @throws IOException 
+     */
+    public AbstractLease(GetArg arg) throws IOException{
+	this(arg, checkExpiration(arg));
+    }
+    
+    private AbstractLease(GetArg arg, long expiration) throws IOException{
+	serialFormat = arg.get("serialFormat", Lease.DURATION);
+	this.expiration = expiration;
+    }
+
 
     /** Construct a relative-format lease. */
     protected AbstractLease(long expiration) {
@@ -152,5 +202,17 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
 	    throw new InvalidObjectException("invalid serial format");
 	}
 	expiration = val;
+    }
+    
+    private static class RO implements ReadObject{
+	
+	long val;
+	boolean readNotCalled = true;
+
+	@Override
+	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
+	    val = stream.readLong();
+	    readNotCalled = false;
+}
     }
 }

@@ -18,20 +18,12 @@
 
 package org.apache.river.test.spec.servicediscovery;
 
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.test.share.BaseQATest;
-import org.apache.river.test.share.DiscoveryServiceUtil;
-import org.apache.river.test.share.GroupsUtil;
-import org.apache.river.test.share.LocatorsUtil;
 import java.io.IOException;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
 import java.util.logging.Level;
 import net.jini.admin.Administrable;
 import net.jini.config.ConfigurationException;
@@ -53,6 +45,15 @@ import net.jini.lookup.ServiceDiscoveryEvent;
 import net.jini.lookup.ServiceDiscoveryListener;
 import net.jini.lookup.ServiceDiscoveryManager;
 import net.jini.lookup.ServiceItemFilter;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.test.share.BaseQATest;
+import org.apache.river.test.share.DiscoveryServiceUtil;
+import org.apache.river.test.share.GroupsUtil;
+import org.apache.river.test.share.LocatorsUtil;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -110,6 +111,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      *  lookup services; each of which is expected to be discovered by the
      *  ServiceDiscoveryManager. 
      */
+    @AtomicSerial
     public static class TestService implements Serializable, Administrable,
                                                TestServiceInterface
     {
@@ -117,6 +119,11 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
         public TestService(int i) {
             this.i = i;
         }//end constructor
+	
+	public TestService(GetArg arg) throws IOException{
+	    this(arg.get("i", 0));
+	}
+	
         public boolean equals(Object obj) {
             try {
                 if ( this == obj ) {
@@ -142,10 +149,16 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      *  added problem" that occurs when a service does not define a
      *  "good" equals() method and multiple lookup services are used.
      */
+    @AtomicSerial
     public static class TestServiceBadEquals extends TestService {
         public TestServiceBadEquals(int i) {
             super(i);
         }//end constructor
+	
+	public TestServiceBadEquals(GetArg arg) throws IOException{
+	    super(arg);
+	}
+	
         public boolean equals(Object obj) {
             if ( this == obj ) return true;
             return false;

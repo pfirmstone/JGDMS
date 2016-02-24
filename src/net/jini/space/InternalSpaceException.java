@@ -58,7 +58,7 @@ public class InternalSpaceException extends RuntimeException {
      * @param ex a nested exception
      */
     public InternalSpaceException(String str, Throwable ex) {
-	super(str);
+	super(str, ex);
 	nestedException = ex;
     }
 
@@ -74,6 +74,7 @@ public class InternalSpaceException extends RuntimeException {
      * Print the stack trace of this exception, plus that of the nested
      * exception, if any.
      */
+    @Override
     public void printStackTrace(PrintStream out) {
 	super.printStackTrace(out);
 	if (nestedException != null) {
@@ -86,6 +87,7 @@ public class InternalSpaceException extends RuntimeException {
      * Print the stack trace of this exception, plus that of the nested
      * exception, if any.
      */
+    @Override
     public void printStackTrace(PrintWriter out) {
 	super.printStackTrace(out);
 	if (nestedException != null) {

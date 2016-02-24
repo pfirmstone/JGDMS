@@ -18,14 +18,11 @@
 
 package net.jini.jeri.tcp;
 
-import org.apache.river.action.GetBooleanAction;
-import org.apache.river.jeri.internal.runtime.Util;
-import org.apache.river.logging.Levels;
-import org.apache.river.logging.LogUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.ref.Reference;
@@ -57,6 +54,12 @@ import net.jini.jeri.connection.ConnectionEndpoint;
 import net.jini.jeri.connection.ConnectionManager;
 import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 
 /**
  * An implementation of the {@link Endpoint} abstraction that uses TCP
@@ -84,6 +87,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @see TcpServerEndpoint
  * @since 2.0
  **/
+@AtomicSerial
 public final class TcpEndpoint
     implements Endpoint, TrustEquivalence, Serializable
 {
@@ -152,7 +156,7 @@ public final class TcpEndpoint
      * <code>null</code>
      **/
     public static TcpEndpoint getInstance(String host, int port) {
-	return intern(new TcpEndpoint(host, port, null));
+	return intern(new TcpEndpoint(host, check(host, port), null));
     }
 
     /**
@@ -182,7 +186,7 @@ public final class TcpEndpoint
     public static TcpEndpoint getInstance(String host, int port,
 					  SocketFactory sf)
     {
-	return intern(new TcpEndpoint(host, port, sf));
+	return intern(new TcpEndpoint(host, check(host,port), sf));
     }
 
     /**
@@ -210,18 +214,43 @@ public final class TcpEndpoint
 	}
     }
 
+    private static int checkSerial(String host, int port) throws InvalidObjectException{
+	try {
+	    return check(host, port);
+	} catch (RuntimeException e){
+	    InvalidObjectException ex = 
+		    new InvalidObjectException("Invariants not satisfed: " 
+			    + e.getMessage());
+	    ex.initCause(e);
+	    throw ex;
+	}
+    }
+    
     /**
-     * Constructs a new instance.
-     **/
-    private TcpEndpoint(String host, int port, SocketFactory sf) {
+     *  Invariant checks.
+     */
+    private static int check(String host, int port){
 	if (host == null) {
-	    throw new NullPointerException();
+	    throw new NullPointerException("null hostname");
 	}
 	if (port < 1 || port > 0xFFFF) {
 	    throw new IllegalArgumentException(
 	        "port number out of range: " + port);
 	}
+	return port;
+    }
 
+    TcpEndpoint(GetArg arg) throws IOException {
+	this(arg.get("host", null, String.class),
+	    checkSerial(arg.get("host", null, String.class), arg.get("port", 0)),
+	    arg.get("sf", null, SocketFactory.class)
+	);
+    }
+
+    /**
+     * Constructs a new instance.
+     **/
+    private TcpEndpoint(String host, int port, SocketFactory sf) {
 	this.host = host;
 	this.port = port;
 	this.sf = sf;
@@ -484,6 +513,10 @@ public final class TcpEndpoint
 	    (sf != null ? "," + sf : "") + "]";
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
     /**
      * @throws InvalidObjectException if the host name is
      * <code>null</code> or if the port number is out of the range
@@ -493,14 +526,8 @@ public final class TcpEndpoint
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
-	if (host == null) {
-	    throw new InvalidObjectException("null host");
+	checkSerial(host, port);
 	}
-	if (port < 1 || port > 0xFFFF) {
-	    throw new InvalidObjectException(
-	        "port number out of range: " + port);
-	}
-    }
 
     /**
      * OutboundRequestHandle implementation.

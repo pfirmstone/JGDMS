@@ -118,6 +118,9 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.JoinManager;
 import net.jini.discovery.LookupDiscovery;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.thread.NamedThreadFactory;
 
@@ -155,7 +158,8 @@ See recoverSnapshot() for exact details of what gets retrieved.
 */
 
 class MailboxImpl implements MailboxBackEnd, TimeConstants, 
-    ServerProxyTrust, ProxyAccessor, Startable
+    ServerProxyTrust, ProxyAccessor, Startable,
+    ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
  
 {
 
@@ -1686,12 +1690,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         ServiceRegistration reg = (ServiceRegistration)regByID.get(regID); 
 	if(reg == null) { // either expired or never existed
 	    throw new ThrowThis( 
-		new NoSuchObjectException("Not managing requested " +
-	            "registration object"));
+		new NoSuchObjectException(
+		    "Not managing requested registration object"
+		)
+	    );
 	} else if(!ensureCurrent(reg)) { // check validity
 	    throw new ThrowThis( 
-		new NoSuchObjectException("Requested registration object" +
-		    "has expired"));
+		new NoSuchObjectException(
+		    "Requested registration object has expired"
+		)
+	    );
 	}
 	// Must be a valid registration at this point
         if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
@@ -1981,7 +1989,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	final RenewResults rslt = LandlordUtil.renewAll(localLandlord,
 							cookie,	extension);
 
-	if(rslt.denied == null)  {
+	if(rslt.noneDenied())  {
 	    if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
                 LEASE_LOGGER.log(Level.FINEST, 
 	            "Batch renew totally successful");
@@ -2269,7 +2277,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        "getRemoteEventsDo", new Object[] {uuid});
 	}
 
-        ArrayList events = new ArrayList();
+        ArrayList<RemoteEventData> events = new ArrayList<RemoteEventData>();
 
         // Note: the following method will throw a ThrowThis exception
         // if the registration is invalid (i.e. expired or non-existent)
@@ -2560,7 +2568,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}
     }
 
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	return getLookupAttributes();
+    }
 
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return new ServiceID(serviceID.getMostSignificantBits(),
+		serviceID.getLeastSignificantBits());
+    }
 
     /**
      * The notifieR thread.  This thread is responsible for delivering events
@@ -4749,10 +4766,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	} else if (e instanceof Error) {
 	    throw (Error) e;
 	} else {
-	    IllegalStateException ise =
-		new IllegalStateException(e.getMessage());
-	    ise.initCause(e);
-	    throw ise;
+	    throw new IllegalStateException(e.getMessage(), e);
 	}
     }
     

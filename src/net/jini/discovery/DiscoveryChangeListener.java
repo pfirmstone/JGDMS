@@ -20,12 +20,12 @@ package net.jini.discovery;
 /**
  * This interface must be implemented by entities that wish to receive
  * notification of the following events.
- * <p>
+ * <ul>
  *   <li> discovery of new lookup services
  *   <li> re-discovery of previously discovered but discarded lookup services
  *   <li> discard of previously discovered lookup services
  *   <li> changes in the member groups of previously discovered lookup services
- * <p>
+ * </ul>
  *
  * @author Sun Microsystems, Inc.
  *

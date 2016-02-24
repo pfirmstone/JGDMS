@@ -37,6 +37,7 @@ grant {
  * except "getClassLoader" permission
  */ 
 grant { 
+    permission org.apache.river.DeSerializationPermission "ATOMIC";
 //    permissiom java.lang.RuntimePermission "getClassLoader";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "getPolicy";

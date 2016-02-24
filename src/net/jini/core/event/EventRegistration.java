@@ -19,8 +19,12 @@
 package net.jini.core.event;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import net.jini.core.lease.Lease;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A utility class for use as a return value for event-interest registration
@@ -42,7 +46,8 @@ import net.jini.core.lease.Lease;
  *
  * @since 1.0
  */
-public class EventRegistration implements java.io.Serializable {
+@AtomicSerial
+public final class EventRegistration implements java.io.Serializable {
 
     private static final long serialVersionUID = 4055207527458053347L;
 
@@ -73,6 +78,29 @@ public class EventRegistration implements java.io.Serializable {
      * @serial
      */
     private final long seqNum;
+
+    private static boolean check(GetArg arg) throws IOException{
+	arg.get("eventID", 0L);
+	Object source = arg.get("source", null);
+	if (source == null) throw new InvalidObjectException("source cannot be null");
+	Object lease = arg.get("lease", null);
+	if (!(lease instanceof Lease)) throw new InvalidObjectException(
+		"lease cannot be null and must be an instance of Lease");
+	long seqNum = arg.get("seqNum", 0L);
+	if (seqNum < 0) throw new InvalidObjectException("seqNum must be greater than zero, possible overflow");
+	return true;
+    }
+    
+    private EventRegistration(boolean check, GetArg arg) throws IOException{
+	eventID = arg.get("eventID", 0L);
+	source = arg.get("source", null);
+	lease = (Lease) arg.get("lease", null);
+	seqNum = arg.get("seqNum", 0L);
+    }
+    
+    public EventRegistration(GetArg arg) throws IOException{
+	this(check(arg), arg);
+    }
 
     /**
      * Constructs an <tt>EventRegistration</tt> object.
@@ -140,12 +168,16 @@ public class EventRegistration implements java.io.Serializable {
 	return seqNum;
     }
     
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+    
     /**
      * Default read object, in case of future evolution.
      * @serial
-     * @param in
-     * @throws IOException
-     * @throws ClassNotFoundException 
+     * @param in ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException{
         in.defaultReadObject();

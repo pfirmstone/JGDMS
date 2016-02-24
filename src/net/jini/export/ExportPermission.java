@@ -29,7 +29,7 @@ import java.security.BasicPermission;
  *
  * <p>
  * The possible target names are:
- * <table summary "Describes permission target names and what they allow"
+ * <table summary="Describes permission target names and what they allow"
  * border=1 cellpadding=5 width="100%">
  * <tr>
  * <th>Permission Target Name</th>

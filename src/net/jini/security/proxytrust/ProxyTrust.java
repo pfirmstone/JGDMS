@@ -44,6 +44,7 @@ import net.jini.security.TrustVerifier;
  * 
  * @since 2.0
  */
+@Deprecated
 public interface ProxyTrust extends Remote {
 
     /**

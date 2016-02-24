@@ -86,7 +86,7 @@ import net.jini.security.SecurityContext;
  * not empty (see below).  If the implementation weakly references the
  * remote object and the weak reference is cleared, the remote object
  * becomes effectively unexported.
- *
+ * </p>
  * <p>Enabling DGC is not advisable in some circumstances.  DGC should
  * not be enabled for a remote object exported with a well known
  * object identifier.  Enabling DGC with a secure remote object is
@@ -97,38 +97,38 @@ import net.jini.security.SecurityContext;
  * requests without a client subject, so even if DGC is enabled in the
  * case where such a transport provider is used, DGC will be effectively
  * disabled on the client side.
- *
+ * </p>
  * <p>Multiple remote objects can be exported on the same server endpoint,
  * and the same remote object can be exported multiple times on different
  * server endpoints with the only restriction being that a given pair of
  * object identifier and listen endpoint (derived from the server endpoint)
  * can only have one active export at any given time.
- * 
+ * </p>
  * <p>Two instances of this class are equal only if they are references to
  * the same (<code>==</code>) object.
- * 
+ * </p>
  * <p>The server endpoint is not transmitted in the remote reference; only the
  * derived client endpoint is transmitted.
- *
+ * </p>
  * <p>Remote objects exported with instances of this class can call {@link
  * ServerContext#getServerContextElement
  * ServerContext.getServerContextElement}, passing the class {@link
  * ClientSubject} to obtain the authenticated identity of the client (if
  * any) for an incoming remote call, or passing the class {@link
  * ClientHost} to obtain the address of the client host.
- * 
+ * </p>
  * <p>For remote objects exported with instances of this class, there is no
  * automatic replacement of the proxy for the remote object during
  * marshalling; either the proxy must be passed explicitly, or the remote
  * object implementation class must be serializable and have a
  * <code>writeReplace</code> method that returns its proxy.
- *
- * <h4>Distributed Garbage Collection</h4>
- *
+ * </p>
+ * <h1>Distributed Garbage Collection</h1>
+ * <p>
  * The <code>BasicJeriExporter</code> class acts as the server-side
  * DGC implementation for all remote objects exported with DGC enabled
  * using its instances.
- *
+ * </p>
  * <p>An entity known as the <i>DGC client</i> tracks the existence
  * and reachability of live remote references
  * (<code>BasicObjectEndpoint</code> instances that participate in

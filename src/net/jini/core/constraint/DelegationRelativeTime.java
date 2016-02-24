@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on delegation, such that if delegation is permitted,
@@ -60,6 +62,7 @@ import java.io.Serializable;
  * @see DelegationAbsoluteTime
  * @since 2.0
  */
+@AtomicSerial
 public final class DelegationRelativeTime
 			implements RelativeTimeConstraint, Serializable
 {
@@ -117,6 +120,52 @@ public final class DelegationRelativeTime
 	this.minStop = minStop;
 	this.maxStop = maxStop;
     }
+    
+    private DelegationRelativeTime(long minStart,
+				   long maxStart,
+				   long minStop,
+				   long maxStop,
+				   boolean check) throws InvalidObjectException
+    {
+	this(validate(minStart, maxStart, minStop, maxStop),
+		minStart, maxStart, minStop, maxStop);
+    }
+    
+    private DelegationRelativeTime(boolean check,
+				   long minStart,
+				   long maxStart,
+				   long minStop,
+				   long maxStop)
+    {
+	this.minStart = minStart;
+	this.maxStart = maxStart;
+	this.minStop = minStop;
+	this.maxStop = maxStop;
+    }
+    
+    
+    
+    public DelegationRelativeTime(GetArg arg) throws IOException{
+	this(arg.get("minStart", 0L),
+	     arg.get("maxStart", 0L),
+	     arg.get("minStop", 0L),
+	     arg.get("maxStop", 0L),
+	     true);
+    }
+    
+    private static boolean validate(long minStart,
+				   long maxStart,
+				   long minStop,
+				   long maxStop) throws InvalidObjectException
+    {
+	if (minStart > maxStart || maxStart > minStop || minStop > maxStop ||
+	    minStop < 0)
+	{
+	    throw new InvalidObjectException("invalid durations");
+	}
+	return true;
+    }
+	
 
     /**
      * Returns the minimum start duration in milliseconds.
@@ -229,6 +278,9 @@ public final class DelegationRelativeTime
      * than <code>maxStart</code>, or <code>maxStart</code> is greater than
      * <code>minStop</code>, or <code>minStop</code> is greater than
      * <code>maxStop</code>, or <code>minStop</code> is less than zero
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

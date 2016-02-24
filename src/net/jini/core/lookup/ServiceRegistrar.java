@@ -17,10 +17,12 @@
  */
 package net.jini.core.lookup;
 
-import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
-import net.jini.core.event.*;
+import java.rmi.RemoteException;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Defines the interface to the lookup service.  The interface is not a
@@ -81,7 +83,7 @@ public interface ServiceRegistrar {
      * @param leaseDuration requested lease duration, in milliseconds
      * @return a ServiceRegistration in this lookup service for the specified 
      *         service item
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     ServiceRegistration register(ServiceItem item, long leaseDuration)
 	throws RemoteException;
@@ -96,7 +98,7 @@ public interface ServiceRegistrar {
      * @param tmpl template to match
      * @return an object that represents a service that matches the 
      *         specified template
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     Object lookup(ServiceTemplate tmpl) throws RemoteException;
 
@@ -116,10 +118,43 @@ public interface ServiceRegistrar {
      *         items matching the template, plus the total number of items
      *         that match the template.  The return value is never null, and
      *         the returned items array is only null if maxMatches is zero.
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
+    @Deprecated
     ServiceMatches lookup(ServiceTemplate tmpl, int maxMatches)
 	throws RemoteException;
+    
+    /**
+     * Returns an array with a maximum length of maxProxies, containing bootstrap
+     * proxies matching the template with service proxies that are likely to 
+     * be compatible with the clients constraints. 
+     * Bootstrap proxies returned are instances of RemoteMethodControl,
+     * ServiceProxyAccessor and ServiceAttributesAccessor.  The bootstrap proxy
+     * is used as a token to authenticate the service, prior to dynamically 
+     * granting permissions, local attribute filtering and ultimately
+     * download of the service proxy codebase and unmarshalling of a service 
+     * smart proxy.  Only in the case of a smart proxy, will the Bootstrap proxy
+     * implement ServiceCodebaseAccessor, which is an optional interface.
+     * 
+     * For this method to be secure, the client must use {@link AtomicInputValidation},
+     * {@link ConfidentialityStrength, ConfidentialityStrength#STRONG} and
+     * {@link Integrity}
+     * 
+     * @param tmpl
+     * @param maxProxies
+     * @return an array of bootstrap proxies, that implement 
+     * RemoteMethodControl, ServiceProxyAccessor and ServiceAttributesAccessor
+     * @throws RemoteException 
+     * @see net.jini.core.constraint.RemoteMethodControl
+     * @see net.jini.export.ServiceProxyAccessor
+     * @see net.jini.export.ServiceAttributesAccessor
+     * @see net.jini.export.ServiceCodebaseAccessor
+     */
+    default Object [] lookUp(
+	    ServiceTemplate tmpl, int maxProxies) throws RemoteException
+    {
+	throw new UnsupportedOperationException("Lookup service doesn't support secure lookup");
+    }
 
     /**
      * An event is sent when the changed item matches the template before
@@ -161,14 +196,51 @@ public interface ServiceRegistrar {
      * @param leaseDuration requested lease duration
      * @return an EventRegistration object to the entity that registered the
      *         specified remote listener
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
+    @Deprecated
     EventRegistration notify(ServiceTemplate tmpl,
 			     int transitions,
 			     RemoteEventListener listener,
 			     MarshalledObject handback,
 			     long leaseDuration)
 	throws RemoteException;
+    
+    /**
+     * Registers for event notification.  The registration is leased; the
+     * lease expiration request is not exact.  The registration is persistent
+     * across restarts (crashes) of the lookup service until the lease expires
+     * or is cancelled.  The event ID in the returned EventRegistration is
+     * unique at least with respect to all other active event registrations
+     * in this lookup service with different service templates or transitions.
+     * <p>
+     * While the event registration is in effect, a ServiceEvent is sent to
+     * the specified listener whenever a register, lease cancellation or
+     * expiration, or attribute change operation results in an item changing
+     * state in a way that satisfies the template and transition combination.
+     *
+     * @param tmpl template to match
+     * @param transitions bitwise OR of any non-empty set of transition values
+     * @param listener listener to send events to
+     * @param handback object to include in every ServiceEvent generated
+     * @param leaseDuration requested lease duration
+     * @return an EventRegistration object to the entity that registered the
+     *         specified remote listener
+     * @throws java.rmi.RemoteException if a connection problem occurs.
+     */
+    default EventRegistration notiFy(ServiceTemplate tmpl,
+				    int transitions,
+				    RemoteEventListener listener,
+				    MarshalledInstance handback,
+				    long leaseDuration) throws RemoteException {
+	return notify(
+	    tmpl,
+	    transitions, 
+	    listener, 
+	    handback == null? null : handback.convertToMarshalledObject(),
+	    leaseDuration
+	);
+    }
 
     /**
      * Looks at all service items that match the specified template, finds
@@ -184,7 +256,7 @@ public interface ServiceRegistrar {
      * @param tmpl template to match
      * @return an array of entry Classes (attribute sets) for every service 
      *         that matches the specified template
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     Class[] getEntryClasses(ServiceTemplate tmpl) throws RemoteException;
 
@@ -209,7 +281,7 @@ public interface ServiceRegistrar {
      *         
      * @throws NoSuchFieldException field does not name a field of the
      *         entry template
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     Object[] getFieldValues(ServiceTemplate tmpl, int setIndex, String field)
 	throws NoSuchFieldException, RemoteException;
@@ -231,7 +303,7 @@ public interface ServiceRegistrar {
      *
      * @return an array of Classes of all services that either match the
      *         specified template or match the specified prefix 
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a connection problem occurs.
      */
     Class[] getServiceTypes(ServiceTemplate tmpl, String prefix)
 	throws RemoteException;
@@ -253,7 +325,7 @@ public interface ServiceRegistrar {
      *
      * @return a LookupLocator that can be used for unicast discovery of
      *         the lookup service, if necessary.
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a connection problem occurs.
      */
     LookupLocator getLocator() throws RemoteException;
 
@@ -263,7 +335,7 @@ public interface ServiceRegistrar {
      *
      * @return a String array of groups that this lookup service is currently
      *         a member of.
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException when a connection problem occurs.
      */
     String[] getGroups() throws RemoteException;
 }

@@ -61,7 +61,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
 		      String superName, String[] interfaces)
     {
 	if (signature == null) {
-	    addNameInternal(superName);
+	    addNameInternal(superName, false);
 	    addNames(interfaces);
 	} else {
 	    addSignature(signature);
@@ -111,14 +111,14 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
     {
 	/* XXX: Do we need to consider inner classes?
          * Yes the old ClassDep tool includes them */
-        addNameInternal(outerName);
-	addNameInternal(name);
+        addNameInternal(outerName, false);
+	addNameInternal(name, false);
         super.visitInnerClass(name, outerName, innerName, access);
     }
 
    /* -- Utilities -- */
 
-    private  void addNameInternal(String name) {
+    private  void addNameInternal(String name, boolean transientField) {
         if (name != null) {
 	    addName(name.replace('/', '.'));
 	}
@@ -129,7 +129,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
             int l = names.length;
 	    for (int i = 0; i < l; i++) {
                 String name = names[i];
-		addNameInternal(name);
+		addNameInternal(name, false);
 	    }
 	}
     }
@@ -153,7 +153,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
                 addType(t.getElementType());
                 break;
             case Type.OBJECT:
-                addNameInternal(t.getClassName());
+                addNameInternal(t.getClassName(), false);
                 break;
         }
     }
@@ -224,7 +224,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
             if (desc.charAt(0) == '[') {
                 addDesc(desc);
             } else {
-                addNameInternal(desc);
+                addNameInternal(desc, false);
             }
             super.visitTypeInsn(opcode, desc);
         }
@@ -233,7 +233,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
         public void visitFieldInsn(int opcode, String owner, String name,
                                    String desc)
         {
-            addNameInternal(owner);
+            addNameInternal(owner, false);
             addDesc(desc);
             super.visitFieldInsn(opcode, owner, name, desc);
         }
@@ -258,7 +258,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
             Matcher match = arrayOfObjects.matcher(owner);
             while (match.find()){
                 String object = match.group(1);
-                addNameInternal(object);
+                addNameInternal(object, false);
             } 
             addMethodDesc(desc);
             super.visitMethodInsn(opcode, owner, name, desc, itf);
@@ -292,7 +292,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
         public void visitTryCatchBlock(Label start, Label end, Label handler,
                                        String type)
         {
-            addNameInternal(type);
+            addNameInternal(type, false);
             super.visitTryCatchBlock(start, end, handler, type);
         }
     }
@@ -315,7 +315,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
         
         @Override
         public void visitClassType(String name) { 
-            addNameInternal(name);
+            addNameInternal(name, false);
             super.visitClassType(name);
         }
         

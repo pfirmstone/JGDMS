@@ -53,7 +53,7 @@ class StoreException extends Exception {
      * @param ex root cause for the exception, may be <code>null</code>
      */
     StoreException(String str, Throwable ex) {
-	super(str);
+	super(str, ex);
 	nestedException = ex;
     }
 

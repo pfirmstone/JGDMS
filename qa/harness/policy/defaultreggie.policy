@@ -9,3 +9,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
+
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};

@@ -26,8 +26,13 @@ import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.security.Permission;
 import java.util.Collections;
+import java.util.logging.Logger;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
+import org.apache.river.api.security.AdvisoryDynamicPermissions;
 
 /**
  * A <code>ProxyPreparer</code> for verifying that proxies are trusted,
@@ -54,7 +59,9 @@ import net.jini.core.constraint.RemoteMethodControl;
  *
  * <li> Grant permissions, to prepare a trusted proxy received with integrity
  * protection from a trusted source that supplies appropriate constraints, if
- * the proxy needs permission grants.
+ * the proxy needs permission grants.  Permissions may be 
+ * either passed explicitly via a constructor or if null may be advised by the
+ * proxy using {@link AdvisoryDynamicPermissions}
  *
  * <li> Do nothing, to use as a default when retrieving an optional
  * configuration entry, or to prepare a non-secure proxy. </ul>
@@ -62,6 +69,7 @@ import net.jini.core.constraint.RemoteMethodControl;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public class BasicProxyPreparer implements ProxyPreparer, Serializable {
 
     private static final long serialVersionUID = 4439691869768577046L;
@@ -114,7 +122,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * Permissions to grant to proxies, or an empty array if no permissions
      * should be granted. The value is always non-<code>null</code>.
      */
-    protected final Permission[] permissions;
+    private final Permission[] permissions;
 
     /**
      * Creates a proxy preparer that specifies not to verify proxies, grant
@@ -139,10 +147,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      *	       <code>null</code> and any of its elements are <code>null</code>
      */
     public BasicProxyPreparer(boolean verify, Permission[] permissions) {
-	this.verify = verify;
-	methodConstraintsSpecified = false;
-	methodConstraints = null;
-	this.permissions = checkPermissions(permissions);
+	this(verify, false, null, checkPermissions(permissions), false);
     }
 
     /* Copies the argument, if needed, and checks for null elements. */
@@ -176,10 +181,20 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
 			      MethodConstraints methodConstraints,
 			      Permission[] permissions)
     {
+	this(verify, true, methodConstraints, checkPermissions(permissions), false);
+    }
+    
+    private BasicProxyPreparer( boolean verify,
+				boolean methodConstraintsSpecified,
+				MethodConstraints methodConstraints,
+				Permission[] permissions,
+				boolean atomicSerialcheck)
+    {
+	super();
 	this.verify = verify;
-	this.methodConstraintsSpecified = true;
+	this.methodConstraintsSpecified = methodConstraintsSpecified;
 	this.methodConstraints = methodConstraints;
-	this.permissions = checkPermissions(permissions);
+	this.permissions = permissions;
     }
 
     /**
@@ -220,11 +235,14 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * Subclasses may wish to override this method, for example, to grant
      * permissions that depend on principal constraints found on the proxy.
      *
+     * Note if no permissions have been specified, this method attempts to 
+     * detect any advisory permissions.
+     *
      * @param proxy the proxy being prepared
      * @return the permissions to grant to the proxy
      */
     protected Permission[] getPermissions(Object proxy) {
-	return permissions;
+	return permissions.clone();
     }
 
     /**
@@ -239,6 +257,10 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * call succeeds, returns the result of calling {@link #setConstraints
      * setConstraints} with <code>proxy</code>. <p>
      *
+     * Note the {@link #grant grant} call will only dynamically grant 
+     * permissions if the current context has the relevant GrantPermission's 
+     * in a security policy file.
+     *
      * Subclasses may wish to override this method, for example, to perform
      * additional operations, typically calling the default implementation via
      * <code>super</code>.
@@ -252,6 +274,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * @see #grant grant
      * @see #setConstraints setConstraints
      */
+    @Override
     public Object prepareProxy(Object proxy) throws RemoteException {
 	if (proxy == null) {
 	    throw new NullPointerException("Proxy cannot be null");
@@ -337,6 +360,19 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
 		    "Dynamic permission grants are not supported");
 		se.initCause(e);
 		throw se;
+	    }
+	} else {
+	    ClassLoader loader = proxy.getClass().getClassLoader();
+	    if (loader instanceof AdvisoryDynamicPermissions) {
+		perms = ((AdvisoryDynamicPermissions) loader).getPermissions();
+		if (perms.length > 0){
+		    try {
+			Security.grant(proxy.getClass(), perms);
+		    } catch (UnsupportedOperationException e) {
+			Logger.getLogger("net.jini.security")
+				.config("Local configuration doesn't allow advisory dynamic permission grants, consider using a DynamicPolicy provider");
+	}
+    }
 	    }
 	}
     }
@@ -500,6 +536,40 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
 	throws IOException, ClassNotFoundException
     {
 	s.defaultReadObject();
+	validate(
+	    methodConstraintsSpecified,
+	    methodConstraints,
+	    permissions
+	);
+    }
+    
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    public BasicProxyPreparer(GetArg arg) throws IOException
+    {
+	this(arg.get("verify", true),
+	     arg.get("methodConstraintsSpecified", true),
+	     arg.get("methodConstraints", null, MethodConstraints.class),
+	     Valid.copy(arg.get("permissions", null, Permission[].class))
+	);
+    }
+    
+    private BasicProxyPreparer( boolean verify,
+				boolean methodConstraintsSpecified,
+				MethodConstraints methodConstraints,
+				Permission[] permissions) throws InvalidObjectException
+    {
+	this(verify, methodConstraintsSpecified, methodConstraints, permissions,
+		validate(methodConstraintsSpecified, methodConstraints, permissions));
+    }
+    
+    private static boolean validate(boolean methodConstraintsSpecified,
+				MethodConstraints methodConstraints,
+				Permission[] permissions) throws InvalidObjectException
+    {
 	if (!methodConstraintsSpecified && methodConstraints != null) {
 	    throw new InvalidObjectException(
 		"Method constraints not specified but not null");
@@ -512,6 +582,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
 		throw new InvalidObjectException("Permission cannot be null");
 	    }
 	}
+	return true;
     }
 
     /**

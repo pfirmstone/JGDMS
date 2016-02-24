@@ -18,7 +18,10 @@
 
 package net.jini.lookup;
 
+import java.io.IOException;
 import net.jini.core.lookup.ServiceItem;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * The <code>ServiceDiscoveryEvent</code> class encapsulates the
@@ -34,6 +37,7 @@ import net.jini.core.lookup.ServiceItem;
  *
  * @see ServiceDiscoveryManager
  */
+@AtomicSerial
 public class ServiceDiscoveryEvent extends java.util.EventObject {
     private static final long serialVersionUID = -4654412297235019084L;
 
@@ -50,36 +54,37 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
     private final ServiceItem postEventItem;
 
     /**
+     * <p>
      * The constructor of <code>ServiceDiscoveryEvent</code> takes
-     * three arguments:
-     * 
+     * three arguments:</p>
+     * <ul>
      * <li>An instance of <code>Object</code> corresponding to the
      * instance of <code>LookupCache</code> from which the given event
      * originated</li>
-     * <p>
+     * 
      * <li>A <code>ServiceItem</code> reference representing the state
      * of the service (associated with the given event) prior to the
      * occurrence of the event</li>
-     * <p>
+     * 
      * <li>A <code>ServiceItem</code> reference representing the state
      * of the service after the occurrence of the event</li>
-     * 
+     * </ul>
      * <p>
      * If <code>null</code> is passed as the source parameter for the
      * constructor, a <code>NullPointerException</code> will be thrown.
-     * <p>
+     * </p><p>
      * Depending on the nature of the discovery event, a null reference
      * may be passed as one or the other of the remaining parameters, but
      * never both. If <code>null</code> is passed as both the
      * <code>preEventItem </code>and the <code>postEventItem</code>
      * parameters, a <code>NullPointerException</code> will be thrown.
-     * <p>
+     * </p><p>
      * Note that the constructor will not modify the contents of either
      * <code>ServiceItem</code> argument. Doing so can result in
      * unpredictable and undesirable effects on future processing by the
      * <code>ServiceDiscoveryManager</code>. That is why the effects of any
      * such modification to the contents of either input parameter are
-     * undefined.
+     * undefined.</p>
      *
      * @param source an instance of <code>Object</code> corresponding 
      * 			to the instance of <code>LookupCache</code> from 
@@ -94,7 +99,7 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      *  		representing the state of the service after the 
      * 			occurrence of the event.
      *
-     * @throws <code>NullPointerException</code> if <code>null</code> is 
+     * @throws NullPointerException if <code>null</code> is 
      *			passed as the source parameter for the constructor, 
      * 			or if <code>null</code> is passed as both the 
      * 			<code>preEventItem </code>and the 
@@ -127,15 +132,24 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
     {
         super(source);
 	if(preEventItem != null)
-	    this.preEventItem = new ServiceItem(preEventItem.serviceID,
-					    preEventItem.service,
-					    preEventItem.attributeSets);
+	    this.preEventItem = preEventItem.clone();
         else this.preEventItem = null;
 	if(postEventItem != null)
-	    this.postEventItem = new ServiceItem(postEventItem.serviceID,
-					     postEventItem.service,
-					     postEventItem.attributeSets);
+	    this.postEventItem = postEventItem.clone();
         else this.postEventItem = null;
+    }
+    
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    public ServiceDiscoveryEvent(GetArg arg) throws IOException{
+	// source cannot be null in the constructor, but it is after 
+	// deserialization because it is transient.
+	this(Boolean.TRUE, arg.get("preEventItem", null, ServiceItem.class),
+		arg.get("postEventItem", null, ServiceItem.class), false);
+	source = null;
     }
 
     /**
@@ -166,7 +180,7 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      */
     public ServiceItem getPreEventServiceItem() 
     {
-	return preEventItem;
+	return preEventItem.clone();
     }
 
     /**
@@ -196,7 +210,7 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      */
     public ServiceItem getPostEventServiceItem() 
     {
-	return postEventItem;
+	return postEventItem.clone();
     }
 	
 }

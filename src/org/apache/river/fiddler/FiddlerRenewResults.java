@@ -17,6 +17,10 @@
  */
 package org.apache.river.fiddler;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /*
  * This class acts as a data structure in which the results of renewal 
  * attempts made in the method <code>FiddlerImpl.renewLeases</code> are
@@ -29,6 +33,7 @@ package org.apache.river.fiddler;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class FiddlerRenewResults implements java.io.Serializable {
 
     private static final long serialVersionUID = 6793222607079853307L;
@@ -64,4 +69,10 @@ class FiddlerRenewResults implements java.io.Serializable {
         this.durations  = durations;
         this.exceptions = exceptions;
     }
+    
+    FiddlerRenewResults(GetArg arg) throws IOException {
+	this(((long[])(arg.get("durations", new long[0]))).clone(),
+	    ( arg.get("exceptions", null) == null ?
+		(Exception[])null : (Exception[])arg.get("exceptions", null)));
+}
 }

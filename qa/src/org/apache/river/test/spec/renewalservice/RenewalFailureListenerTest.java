@@ -21,7 +21,7 @@ package org.apache.river.test.spec.renewalservice;
 import java.util.logging.Level;
 
 // java.rmi
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 // net.jini
 import net.jini.core.event.EventRegistration;
@@ -163,11 +163,11 @@ public class RenewalFailureListenerTest extends AbstractLeaseRenewalServiceTest 
 	lrm.renewFor(prepareLease(set.getRenewalSetLease()), Long.MAX_VALUE, null);
 
 	// create a handback object
-	MarshalledObject handback = new MarshalledObject(new Integer(99));
+	MarshalledInstance handback = new MarshalledInstance(new Integer(99));
 
 	// register listener to receive events
 	EventRegistration evReg = 
-	    set.setRenewalFailureListener(rrl, handback);
+	    set.setRenewalFailureListener(rrl, handback.convertToMarshalledObject());
 	evReg = prepareRegistration(evReg);
 
 	// create a lease that will fail to renew
@@ -226,7 +226,7 @@ public class RenewalFailureListenerTest extends AbstractLeaseRenewalServiceTest 
 	/* TESTING ASSERTION #2
 	   the handback object is the one we expect. */
 	RemoteEvent[] events = rrl.getEvents();
-	MarshalledObject mObj = events[0].getRegistrationObject();
+	MarshalledInstance mObj = new MarshalledInstance(events[0].getRegistrationObject());
 	if (handback.equals(mObj) == false) {
 	    String message = "Assertion #2 failed ...\n" +
 		"Handback object does not match original.";
@@ -252,7 +252,7 @@ public class RenewalFailureListenerTest extends AbstractLeaseRenewalServiceTest 
 	logger.log(Level.FINE, "Created Set with lease duration of " +
 			  "Lease.FOREVER.");
 	try {
-	    evReg = set.setRenewalFailureListener(null, handback);
+	    evReg = set.setRenewalFailureListener(null, handback.convertToMarshalledObject());
 	    evReg = prepareRegistration(evReg);
 	    if (rstUtil.isValidExpWarnEventReg(evReg, set) == false) {
 		String message = "Assertion #4 failed ...\n" +

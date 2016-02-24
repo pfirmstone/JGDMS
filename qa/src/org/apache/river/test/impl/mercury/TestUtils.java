@@ -22,7 +22,7 @@ import org.apache.river.qa.harness.TestException;
 
 import java.io.IOException;
 import java.lang.ClassNotFoundException;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
 import java.rmi.Remote;
 import net.jini.event.MailboxRegistration;
@@ -42,8 +42,8 @@ public class TestUtils {
     {
 	// Hack to keep reference to impl in object table
 	// UnicastRemoteObject.toStub() doesn't work
-        MarshalledObject mo = new MarshalledObject(o);
-	return mo.get();
+        MarshalledInstance mo = new MarshalledInstance(o);
+	return mo.get(false);
     }
 
     public static TestGenerator createGenerator(AdminManager manager) 

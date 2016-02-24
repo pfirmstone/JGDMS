@@ -30,8 +30,11 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /** Defines a trust verifier for the smart proxies of a Norm server. */
+@AtomicSerial
 final class ProxyVerifier implements Serializable, TrustVerifier {
     private static final long serialVersionUID = 2;
 
@@ -60,6 +63,10 @@ final class ProxyVerifier implements Serializable, TrustVerifier {
      *	       TrustEquivalence}
      */
     ProxyVerifier(NormServer serverProxy, Uuid serverUuid) {
+	this(serverProxy, serverUuid, check(serverProxy, serverUuid));
+    }
+    
+    private static boolean check(NormServer serverProxy, Uuid serverUuid){
 	if (!(serverProxy instanceof RemoteMethodControl)) {
 	    throw new UnsupportedOperationException(
 		"Verifier requires service proxy to implement " +
@@ -69,6 +76,28 @@ final class ProxyVerifier implements Serializable, TrustVerifier {
 		"Verifier requires service proxy to implement " +
 		"TrustEquivalence");
 	}
+	return true;
+    }
+    
+    ProxyVerifier(GetArg arg) throws IOException {
+	this((NormServer) arg.get("serverProxy", null),
+	    (Uuid) arg.get("serverUuid", null),
+	    check(arg));
+    }
+    
+    private static boolean check(GetArg arg) throws IOException {
+	NormServer serverProxy = (NormServer) arg.get("serverProxy", null);
+	Uuid serverUuid = (Uuid) arg.get("serverUuid", null);
+	try {
+	    return check(serverProxy, serverUuid);
+	} catch(UnsupportedOperationException e){
+	    InvalidObjectException ex = new InvalidObjectException("invariants unsatisfied");
+	    ex.initCause(e);
+	    throw ex;
+	}
+    }
+    
+    private ProxyVerifier(NormServer serverProxy, Uuid serverUuid, boolean check){
 	this.serverProxy = (RemoteMethodControl) serverProxy;
 	this.serverUuid = serverUuid;
     }

@@ -19,6 +19,7 @@
 package net.jini.core.constraint;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
@@ -26,6 +27,7 @@ import java.io.Serializable;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the server, such that if the server
@@ -73,6 +75,20 @@ public final class ServerMinPrincipal
      * The principals.
      */
     private final Principal[] principals;
+    
+    public ServerMinPrincipal(GetArg arg) throws IOException{
+	this(validate(arg.get("principals", null, Principal[].class)), true);
+    }
+    
+    private static Principal[] validate(Principal[] p) throws InvalidObjectException{
+	p = p.clone();
+	Constraint.verify(p);
+	return p;
+    }
+    
+    private ServerMinPrincipal(Principal[] p, boolean serial){
+	principals = p;
+    }
 
     /**
      * Creates a constraint containing the specified principal.  This
@@ -170,6 +186,9 @@ public final class ServerMinPrincipal
      * @throws java.io.InvalidObjectException if there are no principals,
      * or any principal is <code>null</code>, or if there are duplicate
      * principals
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

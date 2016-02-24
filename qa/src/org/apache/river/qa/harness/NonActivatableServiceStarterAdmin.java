@@ -20,13 +20,14 @@ package org.apache.river.qa.harness;
 
 import java.io.IOException;
 import java.rmi.ConnectException;
-import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
+import net.jini.io.MarshalledInstance;
 
 /**
  * An admin for a nonactivatable service which passes a request to
@@ -158,7 +159,7 @@ public class NonActivatableServiceStarterAdmin extends AbstractServiceAdmin
 	}
         //XXX temporary work-around for jrmp dgc problem
 	try {
-	    serviceRef = new MarshalledObject(serviceRef).get();
+	    serviceRef = new MarshalledInstance(serviceRef).get(false);
         } catch (IOException e) {
 	    throw new TestException("Problem unmarshalling proxy", e);
         } catch (ClassNotFoundException e) {

@@ -36,7 +36,7 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.entry.Entry;
 import net.jini.core.lease.UnknownLeaseException;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.StubNotFoundException;
 import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
@@ -75,7 +75,7 @@ public class NotifyOnComboAttrAddNull extends QATestRegistrar {
                 evntVec.add(srvcEvnt);
                 try {
                     QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
-                                          (srvcEvnt.getRegistrationObject().get());
+                                          (new MarshalledInstance(srvcEvnt.getRegistrationObject()).get(false));
 
                     receivedTuples.add(new QATestUtils.SrvcAttrTuple
                                                        (srvcItems,addAttrs,
@@ -243,10 +243,10 @@ public class NotifyOnComboAttrAddNull extends QATestRegistrar {
 		proxy.notify(tmpl[i][j],
 			     transitionMask,
 			     listener,
-			     new MarshalledObject
+			     new MarshalledInstance
 				 (new QATestUtils.SrvcAttrTuple
 				     (srvcItems[nSrvcsPerClass*i].service,
-				      addAttrs[j][0])),
+				      addAttrs[j][0])).convertToMarshalledObject(),
 			     Long.MAX_VALUE);
 	    }
 	}

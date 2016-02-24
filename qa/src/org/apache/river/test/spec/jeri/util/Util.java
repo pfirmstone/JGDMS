@@ -17,16 +17,16 @@
  */
 package org.apache.river.test.spec.jeri.util;
 
-import net.jini.io.MarshalOutputStream;
-import net.jini.io.MarshalInputStream;
-
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutput;
 import java.lang.reflect.Method;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import net.jini.io.MarshalInputStream;
+import net.jini.io.MarshalOutputStream;
 
 public class Util {
 
@@ -172,7 +172,7 @@ public class Util {
      * written to the stream using the appropriate primitive
      * write method.
      */
-    public static void marshalValue(Object value, MarshalOutputStream out)
+    public static void marshalValue(Object value, ObjectOutput out)
         throws IOException
     {
         if (value == null) {

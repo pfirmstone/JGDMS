@@ -17,6 +17,12 @@
  */
 package net.jini.core.transaction;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 
 /**
  * Exception thrown when a transaction timeout has expired.
@@ -25,15 +31,29 @@ package net.jini.core.transaction;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class TimeoutExpiredException extends TransactionException {
     static final long serialVersionUID = 3918773760682958000L;
+    
+    /**
+     * By defining serial persistent fields, we don't need to use transient fields.
+     * All fields can be final and this object becomes immutable.
+     * 
+     * In earlier versions the extra fields will duplicate those of Throwable,
+     * so only ref id's will be sent, the objects these fields refer to will
+     * only be sent once.
+     */
+    private static final ObjectStreamField[] serialPersistentFields = 
+	{
+	    new ObjectStreamField("committed", Boolean.TYPE)
+	}; 
 
     /**
      * True if the transaction committed before the timeout.
      *
      * @serial
      */
-    public boolean committed;
+    public final boolean committed;
 
     /**
      * Constructs an instance with no detail message.
@@ -53,5 +73,26 @@ public class TimeoutExpiredException extends TransactionException {
     public TimeoutExpiredException(String desc, boolean committed) {
         super(desc);
         this.committed = committed;
+    }
+    
+     /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    public TimeoutExpiredException(GetArg arg) throws IOException{
+	super(check(arg));
+	committed = arg.get("committed", false);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	arg.get("committed", false); // Check committed field exists
+	return arg;
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	ObjectOutputStream.PutField pf = out.putFields();
+	pf.put("committed", committed);
+	out.writeFields();
     }
 }

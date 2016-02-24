@@ -27,14 +27,17 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.lang.ref.Reference;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.net.InetAddress;
 import java.net.URL;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationID;
+import java.rmi.server.ServerNotActiveException;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -45,10 +48,10 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.net.InetAddress;
-import java.rmi.server.ServerNotActiveException;
 import javax.security.auth.Subject;
+import net.jini.core.constraint.InvocationConstraint;
 import net.jini.export.ServerContext;
+import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientHost;
 import net.jini.io.context.ClientSubject;
 import net.jini.io.context.ContextPermission;
@@ -67,7 +70,8 @@ public class Util {
     private static TableCache methodToHash_TableCache = new TableCache(true);
     
     /** cache of valid proxy remote methods */
-    private static Map proxyRemoteMethodCache = new WeakHashMap();
+    private static Map<Class,Reference<WeakIdentityMap<Method,Boolean>>> proxyRemoteMethodCache 
+	    = new WeakHashMap<Class,Reference<WeakIdentityMap<Method,Boolean>>>();
 
     /** parameter types for activatable constructor or activate method */
     private static Class[] paramTypes = {
@@ -499,12 +503,12 @@ public class Util {
      * any superinterface of c has its name in prohibitedProxyInterfaces.
      */
     public static void checkProxyRemoteMethod(Class c, Method m) {
-	WeakIdentityMap map;
+	WeakIdentityMap<Method,Boolean> map;
 	synchronized (proxyRemoteMethodCache) {
 	    SoftReference ref = (SoftReference) proxyRemoteMethodCache.get(c);
 	    map = (ref == null) ? null : (WeakIdentityMap) ref.get();
 	    if (map == null && ref != null) {
-		map = new WeakIdentityMap();
+		map = new WeakIdentityMap<Method,Boolean>();
 		proxyRemoteMethodCache.put(c, new SoftReference(map));
 	    }
 	}
@@ -515,7 +519,7 @@ public class Util {
 		    (SoftReference) proxyRemoteMethodCache.get(c);
 		map = (ref == null) ? null : (WeakIdentityMap) ref.get();
 		if (map == null) {
-		    map = new WeakIdentityMap();
+		    map = new WeakIdentityMap<Method,Boolean>();
 		    proxyRemoteMethodCache.put(c, new SoftReference(map));
 		}
 	    }
@@ -561,7 +565,7 @@ public class Util {
 	    throw new ExceptionInInitializerError(
 			new IOException(
 			     "problem getting resources: " +
-			     prohibitedProxyInterfacesResource).initCause(e));
+			     prohibitedProxyInterfacesResource, e));
 	}
 	while (resources.hasMoreElements()) {
 	    URL url = (URL) resources.nextElement();
@@ -608,7 +612,7 @@ public class Util {
 		}
 	    } catch (IOException e) {
 		throw new ExceptionInInitializerError(
-		      new IOException("problem reading " + url).initCause(e));
+		      new IOException("problem reading " + url, e));
 	    }
 	}
 	return names;
@@ -730,11 +734,12 @@ public class Util {
 	context.add(new ClientSubjectImpl(s));
     }
 
-    public static void populateContext(Collection context, boolean integrity) {
+    public static void populateContext(Collection context, boolean integrity, boolean atomic) {
 	if (context == null) {
 	    throw new NullPointerException("context is null");
 	}
 	context.add(new IntegrityEnforcementImpl(integrity));
+	context.add(new AtomicValidationEnforcementImpl(atomic));
     }
 
     private static class ClientHostImpl
@@ -770,6 +775,20 @@ public class Util {
 	    this.integrity = integrity;
 	}
 	public boolean integrityEnforced() { return integrity; }
+    }
+
+    private static class AtomicValidationEnforcementImpl implements AtomicValidationEnforcement {
+	
+	private final boolean atomic;
+	public AtomicValidationEnforcementImpl(boolean atomic){
+	    this.atomic = atomic;
+	}
+
+	@Override
+	public boolean enforced() {
+	    return atomic;
+	}
+	
     }
 
     public static InetAddress getClientHost() throws ServerNotActiveException {

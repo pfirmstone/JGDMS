@@ -54,8 +54,8 @@ public abstract class AbstractLeaseMap implements LeaseMap {
     /**
      * Default to using a small HashMap.  It is assumed that
      * canContainKey(lease) is true.
-     * @param lease
-     * @param duration  
+     * @param lease Lease
+     * @param duration in milliseconds.
      */
     protected AbstractLeaseMap(Lease lease, long duration) {
 	this(new ConcurrentHashMap(13), lease, duration);
@@ -64,7 +64,9 @@ public abstract class AbstractLeaseMap implements LeaseMap {
     /**
      * Provide a map of your choice.  It is assumed that
      * canContainKey(lease) is true.
-     * @param map 
+     * @param map underlying implementation to be wrapped.
+     * @param lease Lease
+     * @param duration in milliseconds.
      */
     protected AbstractLeaseMap(Map map, Lease lease, long duration) {
         if (map instanceof ConcurrentMap) {
@@ -78,7 +80,7 @@ public abstract class AbstractLeaseMap implements LeaseMap {
     }
 
     /** Check that the key is valid for this map
-     * @param key 
+     * @param key to be type checked
      */
     protected void checkKey(Object key) {
 	if (!canContainKey(key)) {
@@ -88,7 +90,7 @@ public abstract class AbstractLeaseMap implements LeaseMap {
     }
 
     /** Check that the value is a Long
-     * @param value 
+     * @param value to be type checked.
      */
     protected static void checkValue(Object value) {
 	if (!(value instanceof java.lang.Long)) {

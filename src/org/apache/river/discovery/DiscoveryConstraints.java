@@ -52,11 +52,11 @@ public class DiscoveryConstraints {
     static {
 	try {
 	    multicastRequestMethod = DiscoveryConstraints.class.getMethod(
-		"multicastRequest", null);
+		"multicastRequest", (Class<?>[]) null);
 	    multicastAnnouncementMethod = DiscoveryConstraints.class.getMethod(
-		"multicastAnnouncement", null);
+		"multicastAnnouncement", (Class<?>[]) null);
 	    unicastDiscoveryMethod = DiscoveryConstraints.class.getMethod(
-		"unicastDiscovery", null);
+		"unicastDiscovery", (Class<?>[]) null);
 	} catch (NoSuchMethodException e) {
 	    throw new AssertionError(e);
 	}
@@ -69,7 +69,7 @@ public class DiscoveryConstraints {
     }
 
     private final InvocationConstraints unfulfilled;
-    private final Set protocolVersions;
+    private final Set<DiscoveryProtocolVersion> protocolVersions;
     private final int preferredProtocolVersion;
     private final ConnectionAbsoluteTime connectionAbsoluteTime;
     private final MulticastMaxPacketSize maxPacketSize;
@@ -165,8 +165,8 @@ public class DiscoveryConstraints {
 	    getUnfulfilled(constraints.requirements()),
 	    getUnfulfilled(constraints.preferences()));
 
-	ConstraintReducer cr = 
-	    new ConstraintReducer(DiscoveryProtocolVersion.class);
+	ConstraintReducer<DiscoveryProtocolVersion> cr = 
+	    new ConstraintReducer<DiscoveryProtocolVersion>(DiscoveryProtocolVersion.class);
 	protocolVersions = cr.reduce(
 	    new InvocationConstraints(constraints.requirements(), null));
 	if (!protocolVersions.isEmpty() &&
@@ -177,29 +177,24 @@ public class DiscoveryConstraints {
 	}
 	preferredProtocolVersion = chooseProtocolVersion(
 	    protocolVersions, cr.reduce(constraints), unfulfilled);
-
-	Set s = new MulticastMaxPacketSizeReducer().reduce(constraints);
-	maxPacketSize = s.isEmpty() ? 
-	    null : (MulticastMaxPacketSize) getElement(s);
-
-	s = new ConstraintReducer(
+	Set<MulticastMaxPacketSize> mmps 
+	    = new MulticastMaxPacketSizeReducer().reduce(constraints);
+	maxPacketSize = mmps.isEmpty() ? null : getElement(mmps);
+	Set<MulticastTimeToLive> mttl 
+	    = new ConstraintReducer<MulticastTimeToLive>(
 	    MulticastTimeToLive.class).reduce(constraints);
-	timeToLive = s.isEmpty() ? null : (MulticastTimeToLive) getElement(s);
-
-	s = new ConstraintReducer(
+	timeToLive = mttl.isEmpty() ? null : getElement(mttl);
+	Set<UnicastSocketTimeout> ust 
+	    = new ConstraintReducer<UnicastSocketTimeout>(
 	    UnicastSocketTimeout.class).reduce(constraints);
-	socketTimeout = s.isEmpty() ? 
-	    null : (UnicastSocketTimeout) getElement(s);
-	
-	InvocationConstraints absConstraints =
-	    new InvocationConstraints(
+	socketTimeout = ust.isEmpty() ? null : getElement(ust);
+	InvocationConstraints absConstraints 
+	    = new InvocationConstraints(
 		constraints.requirements(),
 		constraints.preferences()).makeAbsolute();
-	s = new ConnectionAbsoluteTimeReducer().reduce(absConstraints);
-	
-	connectionAbsoluteTime = s.isEmpty() ?
-				    null :
-				    (ConnectionAbsoluteTime) getElement(s);
+	Set<ConnectionAbsoluteTime> cat 
+		= new ConnectionAbsoluteTimeReducer().reduce(absConstraints);
+	connectionAbsoluteTime = cat.isEmpty() ? null : getElement(cat);
 	int hash = 7;
 	hash = 41 * hash + (this.unfulfilled != null ? this.unfulfilled.hashCode() : 0);
 	hash = 41 * hash + this.protocolVersions.hashCode();
@@ -332,15 +327,15 @@ public class DiscoveryConstraints {
      * containing alternatives of mixed type; however, it should never result
      * in false negatives.
      */
-    private static class ConstraintReducer {
+    private static class ConstraintReducer<T extends InvocationConstraint> {
 
-	private final Class targetClass;
+	private final Class<T> targetClass;
 
 	/**
 	 * Creates reducer that operates on instances of the given constraint
 	 * class.
 	 */
-	ConstraintReducer(Class targetClass) {
+	ConstraintReducer(Class<T> targetClass) {
 	    this.targetClass = targetClass;
 	}
 	
@@ -350,10 +345,11 @@ public class DiscoveryConstraints {
 	 * constraints of the target class are specified.  Throws
 	 * UnsupportedConstraintException if the constraints conflict.
 	 */
-	Set reduce(InvocationConstraints constraints)
+	@SuppressWarnings("unchecked")
+	Set<T> reduce(InvocationConstraints constraints)
 	    throws UnsupportedConstraintException
 	{
-	    Set reduced = reduce(null, constraints.requirements(), true);
+	    Set<T> reduced = reduce(null, constraints.requirements(), true);
 	    reduced = reduce(reduced, constraints.preferences(), false);
 	    return (reduced != null) ? reduced : Collections.EMPTY_SET;
 	}
@@ -368,25 +364,25 @@ public class DiscoveryConstraints {
 	 * implementation of this method returns the intersection of the two
 	 * sets.
 	 */
-	Set reduce0(Set reduced, Set toReduce) {
+	Set<T> reduce0(Set<T> reduced, Set<T> toReduce) {
 	    return (reduced != null) ? intersect(reduced, toReduce) : toReduce;
 	}
 
-	private Set reduce(Set reduced, Set constraints, boolean required)
+	@SuppressWarnings("unchecked")
+	private Set<T> reduce(Set<T> reduced, Set<InvocationConstraint> constraints, boolean required)
 	    throws UnsupportedConstraintException
 	{
-	    for (Iterator i = constraints.iterator(); i.hasNext(); ) {
-		InvocationConstraint c = (InvocationConstraint) i.next();
-
-		Set toReduce = Collections.EMPTY_SET;
+	    for (Iterator<InvocationConstraint> i = constraints.iterator(); i.hasNext(); ) {
+		InvocationConstraint c = i.next();
+		Set<T> toReduce = Collections.EMPTY_SET;
 		if (targetClass.isInstance(c)) {
-		    toReduce = Collections.singleton(c);
+		    toReduce = Collections.singleton((T) c);
 		} else if (c instanceof ConstraintAlternatives) {
 		    toReduce = getTargetInstances(
 			((ConstraintAlternatives) c).elements());
 		}
 		if (!toReduce.isEmpty()) {
-		    Set s = reduce0(reduced, toReduce);
+		    Set<T> s = reduce0(reduced, toReduce);
 		    if (!s.isEmpty()) {
 			reduced = s;
 		    } else if (required) {
@@ -398,15 +394,16 @@ public class DiscoveryConstraints {
 	    return reduced;
 	}
 
-	private Set getTargetInstances(Set set) {
-	    Set instances = Collections.EMPTY_SET;
-	    for (Iterator i = set.iterator(); i.hasNext(); ) {
-		Object obj = i.next();
+	@SuppressWarnings("unchecked")
+	private Set<T> getTargetInstances(Set<InvocationConstraint> set) {
+	    Set<T> instances = Collections.EMPTY_SET;
+	    for (Iterator<InvocationConstraint> i = set.iterator(); i.hasNext(); ) {
+		InvocationConstraint obj = i.next();
 		if (targetClass.isInstance(obj)) {
 		    if (instances.isEmpty()) {
-			instances = new HashSet();
+			instances = new HashSet<T>();
 		    }
-		    instances.add(obj);
+		    instances.add((T) obj);
 		}
 	    }
 	    return instances;
@@ -418,15 +415,15 @@ public class DiscoveryConstraints {
      * a max value. Subclasses only have to handle returning the value of the
      * constraint and creating a constraint given an input value.
      */
-    private abstract static class MaxValueReducer 
-	extends ConstraintReducer
+    private abstract static class MaxValueReducer<T extends InvocationConstraint> 
+	extends ConstraintReducer<T>
     {
-	MaxValueReducer(Class targetClass) {
+	MaxValueReducer(Class<T> targetClass) {
 	    super(targetClass);
 	}
 
 	abstract long getValue(InvocationConstraint ic);
-	abstract InvocationConstraint getConstraintInstance(long value);
+	abstract T getConstraintInstance(long value);
 	
 	/*
 	 * Reduces the alternatives in toReduce to the maximum value and then
@@ -436,33 +433,36 @@ public class DiscoveryConstraints {
 	 * getConstraintInstance to finally return the actual instance given
 	 * the reduced value that has been determined as above.
 	 */
-	Set reduce0(Set reduced, Set toReduce) {
+	@Override
+	Set<T> reduce0(Set<T> reduced, Set<T> toReduce) {
 	    long value = 0;
-	    for (Iterator i = toReduce.iterator(); i.hasNext(); ) {
+	    for (Iterator<T> i = toReduce.iterator(); i.hasNext(); ) {
 		value = Math.max(
-		    value, getValue((InvocationConstraint) i.next()));
+		    value, getValue( i.next()));
 	    }
 	    if (reduced != null) {
 		value = Math.min(
 		    value,
-		    getValue((InvocationConstraint) getElement(reduced)));
+		    getValue( getElement(reduced)));
 	    }
-	    return Collections.singleton(getConstraintInstance(value));
+	    return Collections.singleton((T) getConstraintInstance(value));
 	}
     }
     
     private static class MulticastMaxPacketSizeReducer 
-	extends MaxValueReducer
+	extends MaxValueReducer<MulticastMaxPacketSize>
     {
 	MulticastMaxPacketSizeReducer() {
 	    super(MulticastMaxPacketSize.class);
 	}
 	
+	@Override
 	long getValue(InvocationConstraint maxPacketSize) {
 	    return ((MulticastMaxPacketSize) maxPacketSize).getSize();
 	}
 	
-	InvocationConstraint getConstraintInstance(long value) {
+	@Override
+	MulticastMaxPacketSize getConstraintInstance(long value) {
 	    if (value > Integer.MAX_VALUE) {
 		// Shouldnt really happen as we are only dealing with
 		// MulticasatMaxPacketSize constraints which are int
@@ -472,27 +472,29 @@ public class DiscoveryConstraints {
 	}
     }
         
-    private static class ConnectionAbsoluteTimeReducer extends MaxValueReducer {
+    private static class ConnectionAbsoluteTimeReducer extends MaxValueReducer<ConnectionAbsoluteTime> {
 	ConnectionAbsoluteTimeReducer() {
 	    super(ConnectionAbsoluteTime.class);
 	}
 	
+	@Override
 	long getValue(InvocationConstraint absTime) {
 	    return ((ConnectionAbsoluteTime) absTime).getTime();
 	}
 	
-	InvocationConstraint getConstraintInstance(long value) {
+	@Override
+	ConnectionAbsoluteTime getConstraintInstance(long value) {
 	    return new ConnectionAbsoluteTime(value);
 	}
     }
 
-    private static Set getUnfulfilled(Set constraints) {
-	Set unfulfilled = new HashSet(constraints.size());
-	for (Iterator i = constraints.iterator(); i.hasNext(); ) {
-	    InvocationConstraint c = (InvocationConstraint) i.next();
+    private static Set<InvocationConstraint> getUnfulfilled(Set<InvocationConstraint> constraints) {
+	Set<InvocationConstraint> unfulfilled = new HashSet<InvocationConstraint>(constraints.size());
+	for (Iterator<InvocationConstraint> i = constraints.iterator(); i.hasNext(); ) {
+	    InvocationConstraint c = i.next();
 	    if (c instanceof ConstraintAlternatives) {
-		Set s = ((ConstraintAlternatives) c).elements();
-		Set u = getUnfulfilled(s);
+		Set<InvocationConstraint> s = ((ConstraintAlternatives) c).elements();
+		Set<InvocationConstraint> u = getUnfulfilled(s);
 		if (u.size() == s.size()) {
 		    unfulfilled.add(c);
 		}
@@ -509,32 +511,34 @@ public class DiscoveryConstraints {
 	return unfulfilled;
     }
 
-    private static int chooseProtocolVersion(Set protocolVersions,
-					     Set protocolVersionPrefs,
+    private static int chooseProtocolVersion(Set<DiscoveryProtocolVersion> protocolVersions,
+					     Set<DiscoveryProtocolVersion> protocolVersionPrefs,
 					     InvocationConstraints unfulfilled)
     {
 	DiscoveryProtocolVersion bias = unfulfilled.isEmpty() ? 
 	    DiscoveryProtocolVersion.ONE : DiscoveryProtocolVersion.TWO;
 	Set[] sets = { protocolVersionPrefs, protocolVersions };
 	for (int i = 0, l = sets.length; i < l; i++) {
-	    Set s = sets[i];
+	    @SuppressWarnings("unchecked")
+	    Set<DiscoveryProtocolVersion> s = sets[i];
 	    if (s.contains(bias)) {
 		return bias.getVersion();
 	    }
 	    if (!(s = intersect(s, supportedProtocols)).isEmpty()) {
-		return ((DiscoveryProtocolVersion) getElement(s)).getVersion();
+		return ( getElement(s)).getVersion();
 	    }
 	}
 	return bias.getVersion();
     }
 
-    private static Set intersect(Set s1, Set s2) {
-	Set intersection = Collections.EMPTY_SET;
-	for (Iterator i = s1.iterator(); i.hasNext(); ) {
-	    Object obj = i.next();
+    private static <T> Set<T> intersect(Set<T> s1, Set s2) {
+	@SuppressWarnings("unchecked")
+	Set<T> intersection = Collections.EMPTY_SET;
+	for (Iterator<T> i = s1.iterator(); i.hasNext(); ) {
+	    T obj = i.next();
 	    if (s2.contains(obj)) {
 		if (intersection.isEmpty()) {
-		    intersection = new HashSet();
+		    intersection = new HashSet<T>();
 		}
 		intersection.add(obj);
 	    }
@@ -542,7 +546,7 @@ public class DiscoveryConstraints {
 	return intersection;
     }
 
-    private static Object getElement(Set s) {
+    private static <T> T getElement(Set<T> s) {
 	return s.iterator().next();
     }
 }

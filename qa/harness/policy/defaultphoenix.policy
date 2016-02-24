@@ -32,6 +32,11 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
 
 };
 
+
+grant { 
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
 grant {
       permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test

@@ -18,14 +18,19 @@
 package org.apache.river.qa.harness;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Properties;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /** 
  * A string processing class which performs pre-defined substitutions on an
@@ -52,11 +57,12 @@ import java.util.logging.Logger;
  * parameter resolution is done recursively. No attempt is made to
  * detect or recover from recursion loops.
  */
+@AtomicSerial
 class Resolver implements Serializable {
 
     private final static Logger logger = Logger.getLogger("org.apache.river.qa.harness");
     private final QAConfig config;
-    private final HashMap tokenMap = new HashMap();
+    private final Map<String, String> tokenMap;
 
     /** 
      * Construct an instance of a <code>Resolver</code>.
@@ -64,7 +70,24 @@ class Resolver implements Serializable {
      * @param config the configuration object provided by the test suite.
      */
     Resolver(QAConfig config) {
+	this.tokenMap = new HashMap<String, String>();
         this.config = config;
+    }
+    
+    Resolver(GetArg arg) throws IOException{
+	this(arg.get("config", null, QAConfig.class),
+	     Valid.copyMap(
+		arg.get("tokenMap", null, Map.class),
+		new HashMap<String, String>(),
+		String.class,
+		String.class
+	     )
+	);
+    }
+    
+    private Resolver(QAConfig config, Map<String,String> tokenMap){
+	this.config = config;
+	this.tokenMap = tokenMap;
     }
 
     void setToken(String token, String value) {

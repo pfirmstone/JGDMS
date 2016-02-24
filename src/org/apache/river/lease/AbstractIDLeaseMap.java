@@ -18,9 +18,6 @@
 
 package org.apache.river.lease;
 
-import org.apache.river.concurrent.RC;
-import org.apache.river.concurrent.Ref;
-import org.apache.river.concurrent.Referrer;
 import java.util.AbstractMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,6 +26,10 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
 import org.apache.river.lease.ID;
 
 /**

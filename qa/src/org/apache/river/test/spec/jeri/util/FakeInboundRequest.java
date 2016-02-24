@@ -17,24 +17,19 @@
  */
 package org.apache.river.test.spec.jeri.util;
 
-import net.jini.jeri.InboundRequest;
-import net.jini.core.constraint.InvocationConstraints;
-import net.jini.io.UnsupportedConstraintException;
-import net.jini.io.MarshalOutputStream;
-
-import org.apache.river.test.spec.jeri.util.Util;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.io.OutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.logging.Logger;
-import java.util.logging.Level;
-import java.util.Collection;
+import java.io.InputStream;
+import java.io.ObjectOutput;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.logging.Logger;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.io.MarshalOutputStream;
+import net.jini.io.UnsupportedConstraintException;
+import net.jini.jeri.InboundRequest;
 
 /**
  * A fake implementation of the <code>InboundRequest</code>
@@ -98,17 +93,17 @@ public class FakeInboundRequest implements InboundRequest {
         requestInput = new ByteArrayInputStream(requestOutput.toByteArray());
     }
 
-    public void setCheckConstraintsException(Throwable t) {
+    public synchronized void setCheckConstraintsException(Throwable t) {
         checkConstraintsException = t;
     }
-    public void setCheckConstraintsReturn(InvocationConstraints ic) {
+    public synchronized void setCheckConstraintsReturn(InvocationConstraints ic) {
         checkConstraintsReturn = ic;
     }
 
     /**
      * No-op implementation of interface method.
      */
-    public void checkPermissions() {
+    public synchronized void checkPermissions() {
         logger.entering(getClass().getName(),"checkPermissions");
     }
 
@@ -117,7 +112,7 @@ public class FakeInboundRequest implements InboundRequest {
      * is null and checkConstraintsReturn is null, 
      * InvocationConstraints.EMPTY is returned.
      */
-    public InvocationConstraints checkConstraints(
+    public synchronized InvocationConstraints checkConstraints(
         InvocationConstraints constraints) 
         throws UnsupportedConstraintException
     {
@@ -140,14 +135,14 @@ public class FakeInboundRequest implements InboundRequest {
     /**
      * No-op implementation of interface method.
      */
-    public void populateContext(Collection context) {
+    public synchronized void populateContext(Collection context) {
         logger.entering(getClass().getName(),"populateContext");
     }
 
     /**
      * No-op implementation of interface method.
      */
-    public void abort() {
+    public synchronized void abort() {
         logger.entering(getClass().getName(),"abort");
         try { 
             getRequestInputStream().close();
@@ -161,7 +156,7 @@ public class FakeInboundRequest implements InboundRequest {
     /**
      * Indicated whether or not the abort() method was called.
      */
-    public boolean isAbortCalled() {
+    public synchronized boolean isAbortCalled() {
         return abortCalled;
     }
 
@@ -170,7 +165,7 @@ public class FakeInboundRequest implements InboundRequest {
      * 
      * @return the request input stream
      */
-    public InputStream getRequestInputStream() {
+    public synchronized InputStream getRequestInputStream() {
         logger.entering(getClass().getName(),"getRequestInputStream");
         return requestInput;
     }
@@ -180,7 +175,7 @@ public class FakeInboundRequest implements InboundRequest {
      * 
      * @return the reponse Output stream
      */
-    public OutputStream getResponseOutputStream() {
+    public synchronized OutputStream getResponseOutputStream() {
         logger.entering(getClass().getName(),"getResponseOutputStream");
         return responseOutput;
     }
@@ -191,7 +186,7 @@ public class FakeInboundRequest implements InboundRequest {
      * 
      * @return the reponse Output stream dumped to a ByteArrayInputStream.
      */
-    public ByteArrayInputStream getResponseStream() {
+    public synchronized ByteArrayInputStream getResponseStream() {
         logger.entering(getClass().getName(),"getResponseStream");
         return (responseOutput == null ? null :
             new ByteArrayInputStream(responseOutput.toByteArray()));

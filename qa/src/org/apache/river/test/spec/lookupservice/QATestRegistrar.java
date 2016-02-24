@@ -17,31 +17,29 @@
  */
 package org.apache.river.test.spec.lookupservice;
 
-import java.util.ArrayList;
-import net.jini.core.entry.Entry;
-import net.jini.core.lease.*;
-import net.jini.core.lookup.*;
-import net.jini.core.event.RemoteEventListener;
-import net.jini.core.event.EventRegistration;
-import net.jini.admin.Administrable;
 import java.io.File;
-import java.io.Serializable;
 import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.logging.Level;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.QATestEnvironment;
-
+import net.jini.admin.Administrable;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.core.entry.Entry;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.*;
+import net.jini.core.lookup.*;
 import net.jini.export.Exporter;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-
+import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
-
 import org.apache.river.qa.harness.TestException;
 
 /** Besides providing implementations for the abstract methods of the 
@@ -456,6 +454,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
 
 	// Receive Lookup proxy
 	proxy = getManager().startLookupService();
+	proxy = (ServiceRegistrar) config.prepare("test.reggiePreparer", proxy);
 	// Receive admin proxy fro Lookup
 	adminProxy = ((Administrable)proxy).getAdmin();
 	adminProxy = config.prepare("test.reggieAdminPreparer",adminProxy);

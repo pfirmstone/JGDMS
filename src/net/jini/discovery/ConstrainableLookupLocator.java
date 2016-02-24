@@ -18,15 +18,12 @@
 
 package net.jini.discovery;
 
-import org.apache.river.discovery.Discovery;
-import org.apache.river.discovery.DiscoveryConstraints;
-import org.apache.river.discovery.UnicastResponse;
 import org.apache.river.discovery.UnicastSocketTimeout;
-import org.apache.river.discovery.internal.MultiIPDiscovery;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;
@@ -34,6 +31,8 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * <code>LookupLocator</code> subclass which supports constraint operations
@@ -90,10 +89,16 @@ import net.jini.core.lookup.ServiceRegistrar;
  * 120000 milliseconds unless one was explicitly specified using the {@link
  * #getRegistrar(int)} method.
  */
+@AtomicSerial
 public final class ConstrainableLookupLocator
     extends LookupLocator implements RemoteMethodControl
 {
     private static final long serialVersionUID = 7061417093114347317L;
+    private static final ObjectStreamField[] serialPersistentFields = 
+    { 
+        /** @serialField client side MethodConstraints for Unicast discovery */
+        new ObjectStreamField("constraints", MethodConstraints.class)
+    };
 
     private static final Method getRegistrarMethod;
     private static final Method getRegistrarTimeoutMethod;
@@ -140,6 +145,17 @@ public final class ConstrainableLookupLocator
     {
 	super(url);
 	this.constraints = constraints;
+    }
+
+    private static GetArg check(GetArg arg) throws IOException{
+	// Checks type invariant, REMIND: Can HotSpot optimise out the cast?
+	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	return arg;
+    }
+    
+    public ConstrainableLookupLocator(GetArg arg) throws IOException {
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
     }
 
     /**
@@ -209,7 +225,7 @@ public final class ConstrainableLookupLocator
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
-     * @throws java.lang.ClassNotFoundException
+     * @throws java.lang.ClassNotFoundException if class not found.
      */
     @Override
     public ServiceRegistrar getRegistrar()
@@ -230,7 +246,7 @@ public final class ConstrainableLookupLocator
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
-     * @throws java.lang.ClassNotFoundException
+     * @throws java.lang.ClassNotFoundException if class not found.
      */
     @Override
     public ServiceRegistrar getRegistrar(int timeout)
@@ -262,5 +278,9 @@ public final class ConstrainableLookupLocator
     public MethodConstraints getConstraints() {
 	return constraints;
     }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+}
 
 }

@@ -18,7 +18,10 @@
 
 package net.jini.core.constraint;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on authentication of the server to the client.
@@ -54,6 +57,7 @@ import java.io.Serializable;
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0
  */
+@AtomicSerial
 public final class ServerAuthentication
 				implements InvocationConstraint, Serializable
 {
@@ -79,6 +83,10 @@ public final class ServerAuthentication
      * @serial
      */
     private final boolean val;
+    
+    public ServerAuthentication(GetArg arg) throws IOException{
+	this(arg.get("val", true));
+    }
 
     /**
      * Simple constructor.
@@ -99,6 +107,7 @@ public final class ServerAuthentication
 
     /**
      * Canonicalize so that <code>==</code> can be used.
+     * @return true for YES, false for NO.
      */
     private Object readResolve() {
 	return val ? YES : NO;

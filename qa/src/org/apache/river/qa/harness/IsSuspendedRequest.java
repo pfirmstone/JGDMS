@@ -18,17 +18,13 @@
 
 package org.apache.river.qa.harness;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.rmi.MarshalledObject;
-
 public class IsSuspendedRequest implements InboundAutotRequest {
 
     public Object doRequest(QAConfig config, AdminManager manager) 
 	throws Exception 
     {
-	Boolean b = new Boolean(false);
+	Boolean b = Boolean.FALSE;
 	// defensive programming - config should never be null
-	return (config == null) ? b : new Boolean(config.isSuspended());
+	return (config == null) ? b : Boolean.valueOf(config.isSuspended());
     }
 }

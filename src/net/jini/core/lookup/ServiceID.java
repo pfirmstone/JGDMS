@@ -18,10 +18,14 @@
 
 package net.jini.core.lookup;
 
-import java.io.Serializable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A universally unique identifier (UUID) for registered services.
@@ -56,6 +60,7 @@ import java.io.IOException;
  * @author Sun Microsystems, Inc.
  * @since 1.0
  */
+@AtomicSerial
 public final class ServiceID implements Serializable {
 
     private static final long serialVersionUID = -7803375959559762239L;
@@ -72,6 +77,24 @@ public final class ServiceID implements Serializable {
      * @serial
      */
     private final long leastSig;
+
+    private static long mostSig(GetArg arg) throws IOException{
+	long mostSig = arg.get("mostSig", 0L);
+//	if (mostSig == 0L) 
+//	    throw new InvalidObjectException("mostSig not allowed to be 0L");
+	return mostSig;
+    }
+    
+    private static long leastSig(GetArg arg) throws IOException{
+	long leastSig = arg.get("leastSig", 0L);
+//	if (leastSig == 0L) 
+//	    throw new InvalidObjectException("leastSig not allowed to be 0L");
+	return leastSig;
+    }
+    
+    ServiceID(GetArg arg) throws IOException{
+	this(mostSig(arg), leastSig(arg));
+    }
 
     /**
      * Simple constructor.
@@ -159,4 +182,8 @@ public final class ServiceID implements Serializable {
 	long hi = 1L << (digits * 4);
 	return Long.toHexString(hi | (val & (hi - 1))).substring(1);
     }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+}
 }

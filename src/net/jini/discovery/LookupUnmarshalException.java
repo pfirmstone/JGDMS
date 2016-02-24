@@ -18,12 +18,16 @@
 
 package net.jini.discovery;
 
-import net.jini.core.lookup.ServiceRegistrar;
-
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
+import net.jini.core.lookup.ServiceRegistrar;
+import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * When unmarshalling an instance of <code>MarshalledObject</code>, different
@@ -49,7 +53,7 @@ import java.rmi.MarshalledObject;
  * <code>ServiceRegistrar</code> instances in which each element is the
  * result of a successful unmarshalling attempt, a set of marshalled instances
  * of <code>ServiceRegistrar</code> in which each element could not be
- * successfully unmarshalled, and a set of exceptions (<code>IOException<code>,
+ * successfully unmarshalled, and a set of exceptions (<code>IOException</code>,
  * <code>ClassNotFoundException</code>, or some unchecked exception) in which
  * each element corresponds to one of the unmarshalling failures.
  * <p>
@@ -68,7 +72,8 @@ import java.rmi.MarshalledObject;
  *
  * @see net.jini.core.lookup.ServiceRegistrar
  */
-public class LookupUnmarshalException extends Exception {
+@AtomicSerial
+public class LookupUnmarshalException extends AtomicException {
 
     private static final long serialVersionUID = 2956893184719950537L;
 
@@ -80,7 +85,7 @@ public class LookupUnmarshalException extends Exception {
      *
      * @serial
      */
-    private ServiceRegistrar[] registrars = null;
+    private final ServiceRegistrar[] registrars;
 
     /**
      * Array containing the set of <code>ServiceRegistrar</code> instances
@@ -89,7 +94,7 @@ public class LookupUnmarshalException extends Exception {
      *
      * @serial
      */
-    private MarshalledObject[] marshalledRegistrars = null;
+    private final MarshalledObject[] marshalledRegistrars;
 
     /**
      * Array containing the set of exceptions that occurred during the
@@ -100,13 +105,13 @@ public class LookupUnmarshalException extends Exception {
      * the set of still-to-be-unmarshalled <code>ServiceRegistrar</code>
      * instances. That is, the element of this set corresponding to index i
      * should be an instance of the exception that occurred while attempting
-     * to unmarshal the element at index i of <code>marshalledRegistrars<code>.
+     * to unmarshal the element at index i of <code>marshalledRegistrars</code>.
      * This set should not be <code>null</code> and should contain at least
      * one element.
      *
      * @serial
      */
-    private Throwable[] exceptions = null;
+    private final Throwable[] exceptions;
 
     /**
      * Constructs a new instance of <code>LookupUnmarshalException</code>.
@@ -150,9 +155,20 @@ public class LookupUnmarshalException extends Exception {
                                     MarshalledObject[] marshalledRegistrars,
                                     Throwable[]        exceptions) 
     {
-        super();
-        init(registrars,marshalledRegistrars,exceptions);
+        this(registrars, marshalledRegistrars, exceptions,
+	     check(registrars, marshalledRegistrars, exceptions));
     }//end constructor
+    
+    private LookupUnmarshalException(ServiceRegistrar[] registrars,
+                                    MarshalledObject[]  marshalledRegistrars,
+                                    Throwable[]         exceptions,
+				    boolean		check)
+    {
+	super();
+	this.registrars = registrars != null ? registrars.clone(): null;
+	this.marshalledRegistrars = marshalledRegistrars.clone();
+	this.exceptions = exceptions.clone();
+    }
 
     /**
      * Constructs a new instance of <code>LookupUnmarshalException</code>.
@@ -200,22 +216,123 @@ public class LookupUnmarshalException extends Exception {
                                     Throwable[]        exceptions, 
                                     String             message) 
     {
-        super(message);
-        init(registrars,marshalledRegistrars,exceptions);
+	this(registrars, marshalledRegistrars, exceptions, message,
+	    check(registrars,marshalledRegistrars,exceptions));
     }//end constructor
+    
+    private LookupUnmarshalException(ServiceRegistrar[] registrars,
+                                    MarshalledObject[] marshalledRegistrars,
+                                    Throwable[]        exceptions, 
+                                    String             message,
+				    boolean		check)
+    {
+	super(message);
+	this.registrars = registrars != null ? registrars.clone() : null;
+	this.marshalledRegistrars = marshalledRegistrars.clone();
+	this.exceptions = exceptions.clone();
+	
+    }
 
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    public LookupUnmarshalException(GetArg arg) throws IOException{
+	this(arg, 
+	     Valid.copy(arg.get("registrars", null, ServiceRegistrar[].class)),
+	     Valid.copy(arg.get("marshalledRegistrars", null, MarshalledObject[].class)),
+	     Valid.copy(arg.get("exceptions", null, Throwable[].class))
+	);
+    }
+    
+    /**
+     * Validate state.
+     * @param arg
+     * @param registrars
+     * @param marshalledRegistrars
+     * @param exceptions
+     * @throws IOException 
+     */
+    private LookupUnmarshalException(GetArg arg,
+				    ServiceRegistrar[] registrars,
+                                    MarshalledObject[] marshalledRegistrars,
+                                    Throwable[]        exceptions) throws IOException
+    {
+	this(arg, registrars, marshalledRegistrars, exceptions,
+		validate(registrars, marshalledRegistrars, exceptions));
+    }
+    
+    /**
+     * Invariants have been checked, let superclass check, then assign fields.
+     * @param arg
+     * @param registrars
+     * @param marshalledRegistrars
+     * @param exceptions
+     * @param check
+     * @throws IOException 
+     */
+    private LookupUnmarshalException(GetArg arg,
+				    ServiceRegistrar[] registrars,
+                                    MarshalledObject[] marshalledRegistrars,
+                                    Throwable[]        exceptions,
+				    boolean	       check) throws IOException
+    {
+	super(arg); // Super has to check it's invariants.
+	this.registrars = registrars;
+	this.marshalledRegistrars = marshalledRegistrars;
+	this.exceptions = exceptions;
+    }
+    
+    /**
+     * validation of serial form.
+     * @param registrars
+     * @param marshalledRegistrars
+     * @param exceptions
+     * @return
+     * @throws InvalidObjectException 
+     */
+    private static boolean validate(ServiceRegistrar[] registrars,
+                                    MarshalledObject[] marshalledRegistrars,
+                                    Throwable[]        exceptions) throws InvalidObjectException
+    {
+    
+	if(marshalledRegistrars == null) {
+            throw new InvalidObjectException
+                            ("LookupUnmarshalException.readObject "
+                             +"failure - marshalledRegistrars field is null");
+        }//endif
+        if(exceptions == null) {
+            throw new InvalidObjectException
+                                      ("LookupUnmarshalException.readObject "
+                                       +"failure - exceptions field is null");
+        }//endif
+        if(marshalledRegistrars.length == 0) {
+            throw new InvalidObjectException
+                             ("LookupUnmarshalException.readObject "
+                              +"failure - marshalledRegistrars.length == 0");
+        }//endif
+        if(exceptions.length != marshalledRegistrars.length) {
+            throw new InvalidObjectException
+                           ("LookupUnmarshalException.readObject failure - "
+                            +"exceptions.length ("+exceptions.length
+                            +") is not equal to marshalledRegistrars.length "
+                            +"("+marshalledRegistrars.length+")");
+	}
+	return true;
+    }
+    
     /**
      * Accessor method that returns an array consisting of instances of 
      * <code>ServiceRegistrar</code>, where each element of the array
-     * corresponds to a successfully unmarshalled object. Note that the
-     * same array is returned on each invocation of this method; that is,
-     * a copy is not made.
+     * corresponds to a successfully unmarshalled object. Note that a copy
+     * is returned on each invocation of this method.
      *
      * @return array of instances of <code>ServiceRegistrar</code>, where
      *         each element corresponds to a successfully unmarshalled object.
      */
     public ServiceRegistrar[] getRegistrars() {
-        return registrars;
+        return registrars != null ? registrars.clone(): null;
     }//end getRegistrars
 
     /**
@@ -223,44 +340,44 @@ public class LookupUnmarshalException extends Exception {
      * <code>MarshalledObject</code>, where each element of the array is a
      * marshalled instance of the <code>ServiceRegistrar</code> interface,
      * and corresponds to an object that could not be successfully
-     * unmarshalled. Note that the same array is returned on each invocation
-     * of this method; that is, a copy is not made.
+     * unmarshalled. Note that a copy is returned on each invocation
+     * of this method.
      *
      * @return array of marshalled instances of <code>ServiceRegistrar</code>,
      *         where each element corresponds to an object in which failure
      *         occurred while attempting to unmarshal the object.
      */
     public MarshalledObject[] getMarshalledRegistrars() {
-        return marshalledRegistrars;
+        return marshalledRegistrars.clone();
     }//end getMarshalledRegistrars
 
     /**
      * Accessor method that returns an array consisting of instances of 
      * <code>Throwable</code>, where each element of the array corresponds
      * to one of the exceptions that occurred during the unmarshalling
-     * process. Note that the same array is returned on each invocation
-     * of this method; that is, a copy is not made.
+     * process. Note that a copy is returned on each invocation
+     * of this method.
      * <p>
      * Each element in the return set should be an instance of
      * <code>IOException</code>, <code>ClassNotFoundException</code>, or
      * some unchecked exception. Additionally, there should be a one-to-one
      * correspondence between each element in the array returned by this method
-     * and the array returned by the <code>getMarshalledRegistrars<code>
+     * and the array returned by the <code>getMarshalledRegistrars</code>
      * method. That is, the i-th element of the set returned by this method
      * should be an instance of the exception that occurred while attempting
      * to unmarshal the i-th element of the set returned by the method
      * <code>getMarshalledRegistrars</code>.
-     *
+     * </p>
      * @return array of instances of <code>Throwable</code>, where each element
      *         corresponds to one of the exceptions that occurred during
      *         the unmarshalling process.
      */
     public Throwable[] getExceptions() {
-        return exceptions;
+        return exceptions.clone();
     }//end getExceptions
 
     /**
-     * Initializes the abstract state of this class.
+     * Checks the state of this class prior to constructing
      *
      * @param registrars           Array containing the set of instances of
      *                             <code>ServiceRegistrar</code> that were
@@ -282,7 +399,7 @@ public class LookupUnmarshalException extends Exception {
      *         <code>exceptions</code> parameter has zero length; or when the
      *         lengths of those two parameters are not equal.
      */
-    private void init(ServiceRegistrar[] registrars,
+    private static boolean check(ServiceRegistrar[] registrars,
                       MarshalledObject[] marshalledRegistrars,
                       Throwable[]        exceptions) {
         /* Verify the input arguments */
@@ -303,17 +420,20 @@ public class LookupUnmarshalException extends Exception {
                             +") is not equal to marshalledRegistrars.length "
                             +"("+marshalledRegistrars.length+")");
         }//endif
-        this.registrars           = registrars;
-        this.marshalledRegistrars = marshalledRegistrars;
-        this.exceptions           = exceptions;
-    }//end init
+        return true;
+    }//end check
+    
+    private void writeObject(ObjectOutputStream out) throws IOException 
+    {
+	out.defaultWriteObject();
+    }
 
     /** 
      * When an instance of this class is deserialized, this method is
      * automatically invoked. This implementation of this method validates
      * the state of the deserialized instance.
      *
-     * @throws <code>InvalidObjectException</code> if the state of the
+     * @throws InvalidObjectException if the state of the
      *         deserialized instance of this class is found to be invalid.
      */
     private void readObject(ObjectInputStream s)  
@@ -321,28 +441,7 @@ public class LookupUnmarshalException extends Exception {
     {
         s.defaultReadObject();
         /* Verify marshalledRegistrars and exceptions fields */
-        if(marshalledRegistrars == null) {
-            throw new InvalidObjectException
-                            ("LookupUnmarshalException.readObject "
-                             +"failure - marshalledRegistrars field is null");
-        }//endif
-        if(exceptions == null) {
-            throw new InvalidObjectException
-                                      ("LookupUnmarshalException.readObject "
-                                       +"failure - exceptions field is null");
-        }//endif
-        if(marshalledRegistrars.length == 0) {
-            throw new InvalidObjectException
-                             ("LookupUnmarshalException.readObject "
-                              +"failure - marshalledRegistrars.length == 0");
-        }//endif
-        if(exceptions.length != marshalledRegistrars.length) {
-            throw new InvalidObjectException
-                           ("LookupUnmarshalException.readObject failure - "
-                            +"exceptions.length ("+exceptions.length
-                            +") is not equal to marshalledRegistrars.length "
-                            +"("+marshalledRegistrars.length+")");
-        }//endif
+        validate(registrars, marshalledRegistrars, exceptions);
 
     }//end readObject
 

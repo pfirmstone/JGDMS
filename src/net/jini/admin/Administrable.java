@@ -30,7 +30,7 @@ public interface Administrable {
      *
      * @return an object that implements whatever administration interfaces
      *         are appropriate for the particular service.
-     * @throws java.rmi.RemoteException
+     * @throws java.rmi.RemoteException if a communication issue occurs.
      * @see JoinAdmin
      */
     Object getAdmin() throws java.rmi.RemoteException;

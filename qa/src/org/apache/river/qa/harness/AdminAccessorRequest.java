@@ -19,25 +19,27 @@
 package org.apache.river.qa.harness;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveRequest</code> which calls an admin accessor method
  * on the slave host and returns the accessor value.
  */
+@AtomicSerial
 class AdminAccessorRequest implements SlaveRequest {
 
     /** the service proxy who's admin is to be access */
-    MarshalledObject marshalledServiceRef;
+    MarshalledInstance marshalledServiceRef;
 
     /** the name of the accessor method to call */
     String methodName;
 
     /**
      * Construct the request for the given method and proxy. The
-     * proxy is wrapped in a <code>MarshalledObject</code> so
+     * proxy is wrapped in a <code>MarshalledInstance</code> so
      * that the codebase will be retained.
      *
      * @param methodName the name of the admin accessor method to call
@@ -47,10 +49,22 @@ class AdminAccessorRequest implements SlaveRequest {
      */
     AdminAccessorRequest(String methodName, Object serviceRef) {
 	try {
-	    marshalledServiceRef = new MarshalledObject(serviceRef);
+	    marshalledServiceRef = new MarshalledInstance(serviceRef);
 	} catch (IOException e) {
 	    throw new RuntimeException("Marshalling problem", e);
 	}
+	this.methodName = methodName;
+    }
+    
+    AdminAccessorRequest(GetArg arg) throws IOException{
+	this(
+	    arg.get("methodName", null, String.class),
+	    arg.get("marshalledServiceRef", null, MarshalledInstance.class)
+	);
+    }
+    
+    private AdminAccessorRequest(String methodName, MarshalledInstance marshalledServiceRef){
+	this.marshalledServiceRef = marshalledServiceRef;
 	this.methodName = methodName;
     }
 
@@ -65,7 +79,7 @@ class AdminAccessorRequest implements SlaveRequest {
     public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
 	AdminManager manager = slaveTest.getAdminManager();
 	AbstractServiceAdmin admin = 
-            (AbstractServiceAdmin) manager.getAdmin(marshalledServiceRef.get());
+            (AbstractServiceAdmin) manager.getAdmin(marshalledServiceRef.get(false));
 	Method accessor = admin.getClass().getMethod(methodName, null);
 	return accessor.invoke(admin, null);
     }

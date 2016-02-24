@@ -18,7 +18,6 @@
 
 package org.apache.river.discovery;
 
-import org.apache.river.collection.WeakIdentityMap;
 import org.apache.river.logging.Levels;
 import org.apache.river.resource.Service;
 import java.io.DataInputStream;
@@ -40,9 +39,11 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.constraint.InvocationConstraints;
@@ -82,11 +83,12 @@ class DiscoveryV2 extends Discovery {
 	providerTypes = t;
     }
 
-    private static final WeakIdentityMap instances = new WeakIdentityMap();
+    private static final Map<ClassLoader,Reference<DiscoveryV2>> instances 
+	    = new WeakHashMap<ClassLoader,Reference<DiscoveryV2>>();
     private static final Logger logger =
 	Logger.getLogger(DiscoveryV2.class.getName());
 
-    private final Map[] formatIdMaps;
+    private final Map<Long,DiscoveryFormatProvider>[] formatIdMaps;
 
     /**
      * Returns DiscoveryV2 instance which uses providers loaded from the given
@@ -94,21 +96,15 @@ class DiscoveryV2 extends Discovery {
      * null.
      */
     static DiscoveryV2 getInstance(ClassLoader loader) {
-	if (loader == null) {
-	    loader = getContextClassLoader();
-	}
-	DiscoveryV2 disco;
-	synchronized (instances) {
-            disco = null;
-            Reference softDisco = (Reference) instances.get(loader);
-            if (softDisco != null) {
-                disco = (DiscoveryV2) softDisco.get();
-            }
-	}
-	if (disco == null) {
-	    disco = new DiscoveryV2(getProviders(loader));
-	    synchronized (instances) {
-		instances.put(loader, new SoftReference(disco));
+	if (loader == null) loader = getContextClassLoader();
+	DiscoveryV2 disco = null;
+	Reference<DiscoveryV2> softDisco;
+	synchronized (instances) { // Atomic
+            softDisco = instances.get(loader);
+	    if (softDisco != null) disco = softDisco.get();
+	    if (disco == null) {
+		disco = new DiscoveryV2(getProviders(loader));
+		instances.put(loader, new SoftReference<DiscoveryV2>(disco));
 	    }
 	}
 	if (logger.isLoggable(Level.FINEST)) {
@@ -121,6 +117,7 @@ class DiscoveryV2 extends Discovery {
     /**
      * Returns DiscoveryV2 instance which uses the given providers.
      */
+    @SuppressWarnings("unchecked")
     static DiscoveryV2 getInstance(MulticastRequestEncoder[] mre,
 				   MulticastRequestDecoder[] mrd,
 				   MulticastAnnouncementEncoder[] mae,
@@ -128,7 +125,7 @@ class DiscoveryV2 extends Discovery {
 				   UnicastDiscoveryClient[] udc,
 				   UnicastDiscoveryServer[] uds)
     {
-	List[] providers = new List[NUM_PROVIDER_TYPES];
+	List<DiscoveryFormatProvider>[] providers = new List[NUM_PROVIDER_TYPES];
 	providers[MULTICAST_REQUEST_ENCODER] = asList(mre);
 	providers[MULTICAST_REQUEST_DECODER] = asList(mrd);
 	providers[MULTICAST_ANNOUNCEMENT_ENCODER] = asList(mae);
@@ -142,13 +139,15 @@ class DiscoveryV2 extends Discovery {
 	return disco;
     }
 
-    private DiscoveryV2(List[] providers) {
+    @SuppressWarnings("unchecked")
+    private DiscoveryV2(List<DiscoveryFormatProvider>[] providers) {
 	formatIdMaps = new Map[NUM_PROVIDER_TYPES];
-	for (int i = 0; i < formatIdMaps.length; i++) {
+	for (int i = 0, l = formatIdMaps.length; i < l; i++) {
 	    formatIdMaps[i] = makeFormatIdMap(providers[i]);
 	}
     }
 
+    @Override
     public EncodeIterator encodeMulticastRequest(
 					final MulticastRequest request,
 					final int maxPacketSize,
@@ -162,13 +161,14 @@ class DiscoveryV2 extends Discovery {
 
 	return new EncodeIterator() {
 
-	    private final Iterator entries = 
+	    private final Iterator<Map.Entry<Long,DiscoveryFormatProvider>> entries = 
 		formatIdMaps[MULTICAST_REQUEST_ENCODER].entrySet().iterator();
 
+	    @Override
 	    public DatagramPacket[] next() throws IOException {
 		// fetch next encoder, format ID
-		Map.Entry ent = (Map.Entry) entries.next();
-		long fid = ((Long) ent.getKey()).longValue();
+		Map.Entry<Long,DiscoveryFormatProvider> ent = entries.next();
+		long fid = ent.getKey().longValue();
 		MulticastRequestEncoder mre =
 		    (MulticastRequestEncoder) ent.getValue();
 
@@ -188,12 +188,14 @@ class DiscoveryV2 extends Discovery {
 		return db.getDatagrams();
 	    }
 
+	    @Override
 	    public boolean hasNext() {
 		return entries.hasNext();
 	    }
 	};
     }
 
+    @Override
     public MulticastRequest decodeMulticastRequest(
 					DatagramPacket packet,
 					InvocationConstraints constraints,
@@ -260,6 +262,7 @@ class DiscoveryV2 extends Discovery {
 	return req;
     }
 
+    @Override
     public MulticastRequest decodeMulticastRequest(DatagramPacket packet,
                                         InvocationConstraints constraints,
                                         ClientSubjectChecker checker)
@@ -269,6 +272,7 @@ class DiscoveryV2 extends Discovery {
         return decodeMulticastRequest(packet, constraints, checker, false);
     }
     
+    @Override
     public EncodeIterator encodeMulticastAnnouncement(
 				      final MulticastAnnouncement announcement,
 				      final int maxPacketSize,
@@ -282,14 +286,15 @@ class DiscoveryV2 extends Discovery {
 
 	return new EncodeIterator() {
 
-	    private final Iterator entries = 
+	    private final Iterator<Map.Entry<Long,DiscoveryFormatProvider>> entries = 
 		formatIdMaps[
 		    MULTICAST_ANNOUNCEMENT_ENCODER].entrySet().iterator();
 
+	    @Override
 	    public DatagramPacket[] next() throws IOException {
 		// fetch next encoder, format ID
-		Map.Entry ent = (Map.Entry) entries.next();
-		long fid = ((Long) ent.getKey()).longValue();
+		Map.Entry<Long,DiscoveryFormatProvider> ent = entries.next();
+		long fid = ent.getKey().longValue();
 		MulticastAnnouncementEncoder mae =
 		    (MulticastAnnouncementEncoder) ent.getValue();
 
@@ -309,12 +314,14 @@ class DiscoveryV2 extends Discovery {
 		return db.getDatagrams();
 	    }
 
+	    @Override
 	    public boolean hasNext() {
 		return entries.hasNext();
 	    }
 	};
     }
 
+    @Override
     public MulticastAnnouncement decodeMulticastAnnouncement(
 					DatagramPacket packet,
 					InvocationConstraints constraints,
@@ -380,6 +387,7 @@ class DiscoveryV2 extends Discovery {
 	return ann;
     }
 
+    @Override
     public MulticastAnnouncement decodeMulticastAnnouncement(
 					DatagramPacket packet,
 					InvocationConstraints constraints)
@@ -389,6 +397,7 @@ class DiscoveryV2 extends Discovery {
 	return decodeMulticastAnnouncement(packet, constraints, false);
     }
     
+    @Override
     public UnicastResponse doUnicastDiscovery(
 					Socket socket,
 					InvocationConstraints constraints,
@@ -404,11 +413,11 @@ class DiscoveryV2 extends Discovery {
 	}
 
 	// determine set of acceptable formats to propose
-	Map udcMap = formatIdMaps[UNICAST_DISCOVERY_CLIENT];
-	Set fids = new LinkedHashSet();
+	Map<Long,DiscoveryFormatProvider> udcMap = formatIdMaps[UNICAST_DISCOVERY_CLIENT];
+	Set<Long> fids = new LinkedHashSet<Long>();
 	Exception ex = null;
-	for (Iterator i = udcMap.entrySet().iterator(); i.hasNext(); ) {
-	    Map.Entry ent = (Map.Entry) i.next();
+	for (Iterator<Map.Entry<Long,DiscoveryFormatProvider>> i = udcMap.entrySet().iterator(); i.hasNext(); ) {
+	    Map.Entry<Long,DiscoveryFormatProvider> ent = i.next();
 	    UnicastDiscoveryClient udc = 
 		(UnicastDiscoveryClient) ent.getValue();
 	    try {
@@ -448,8 +457,8 @@ class DiscoveryV2 extends Discovery {
 
 	// write proposed format IDs
 	outBuf.putShort((short) fids.size());
-	for (Iterator i = fids.iterator(); i.hasNext(); ) {
-	    outBuf.putLong(((Long) i.next()).longValue());
+	for (Iterator<Long> i = fids.iterator(); i.hasNext(); ) {
+	    outBuf.putLong( i.next().longValue());
 	}
 
 	OutputStream out = socket.getOutputStream();
@@ -491,6 +500,7 @@ class DiscoveryV2 extends Discovery {
 	return resp;
     }
 
+    @Override
     public void handleUnicastDiscovery(UnicastResponse response,
 				       Socket socket,
 				       InvocationConstraints constraints,
@@ -522,7 +532,7 @@ class DiscoveryV2 extends Discovery {
 	// select format provider
 	UnicastDiscoveryServer uds = null;
 	long fid = NULL_FORMAT_ID;
-	Map udsMap = formatIdMaps[UNICAST_DISCOVERY_SERVER];
+	Map<Long,DiscoveryFormatProvider> udsMap = formatIdMaps[UNICAST_DISCOVERY_SERVER];
 	while (inBuf.hasRemaining()) {
 	    fid = inBuf.getLong();
 	    UnicastDiscoveryServer s = 
@@ -565,37 +575,41 @@ class DiscoveryV2 extends Discovery {
 	}
     }
 
+    @Override
     public String toString() {
 	// REMIND: cache string?
-	List l = new ArrayList(NUM_PROVIDER_TYPES);
+	Collection<DiscoveryFormatProvider> l = new LinkedList<DiscoveryFormatProvider>();
 	for (int i = 0; i < NUM_PROVIDER_TYPES; i++) {
-	    l.add(formatIdMaps[i].values());
+	    l.addAll(formatIdMaps[i].values());
 	}
 	return "DiscoveryV2" + l;
     }
 
     private static ClassLoader getContextClassLoader() {
-	return (ClassLoader) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
+	return AccessController.doPrivileged(
+	    new PrivilegedAction<ClassLoader>() {
+		@Override
+		public ClassLoader run() {
 		    return Thread.currentThread().getContextClassLoader();
 		}
 	    });
     }
 
-    private static List[] getProviders(final ClassLoader ldr) {
-	return (List[]) AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
-		List[] providers = new List[NUM_PROVIDER_TYPES];
+    private static List<DiscoveryFormatProvider>[] getProviders(final ClassLoader ldr) {
+	return AccessController.doPrivileged(new PrivilegedAction<List<DiscoveryFormatProvider>[]>() {
+	    @Override
+	    @SuppressWarnings("unchecked")
+	    public List<DiscoveryFormatProvider>[] run() {
+		List<DiscoveryFormatProvider>[] providers = new List[NUM_PROVIDER_TYPES];
 		for (int i = 0; i < providers.length; i++) {
-		    providers[i] = new ArrayList();
+		    providers[i] = new ArrayList<DiscoveryFormatProvider>();
 		}
-		Iterator iter = Service.providers(
+		Iterator<DiscoveryFormatProvider> iter = Service.providers(
 		    DiscoveryFormatProvider.class, ldr);
 		while (iter.hasNext()) {
-		    Object obj = iter.next();
+		    DiscoveryFormatProvider obj = iter.next();
 		    boolean used = false;
-		    for (int i = 0; i < providerTypes.length; i++) {
+		    for (int i = 0, l = providerTypes.length; i < l; i++) {
 			if (providerTypes[i].isInstance(obj)) {
 			    providers[i].add(obj);
 			    used = true;
@@ -612,10 +626,10 @@ class DiscoveryV2 extends Discovery {
 	});
     }
 
-    private static Map makeFormatIdMap(List providers) {
-	Map map = new LinkedHashMap();
-	for (Iterator i = providers.iterator(); i.hasNext(); ) {
-	    DiscoveryFormatProvider p = (DiscoveryFormatProvider) i.next();
+    private static Map<Long,DiscoveryFormatProvider> makeFormatIdMap(List<DiscoveryFormatProvider> providers) {
+	Map<Long,DiscoveryFormatProvider> map = new LinkedHashMap<Long,DiscoveryFormatProvider>();
+	for (Iterator<DiscoveryFormatProvider> i = providers.iterator(); i.hasNext(); ) {
+	    DiscoveryFormatProvider p = i.next();
 	    Long fid = Long.valueOf(computeFormatID(p.getFormatName()));
 	    if (map.keySet().contains(fid)) {
 		logger.log(Level.WARNING,
@@ -646,8 +660,10 @@ class DiscoveryV2 extends Discovery {
 	}
     }
 
-    private static List asList(Object[] a) {
-	return (a != null) ? Arrays.asList(a) : Collections.EMPTY_LIST;
+    @SuppressWarnings("unchecked")
+    private static List<DiscoveryFormatProvider> asList(DiscoveryFormatProvider[] a) {
+	return (a != null) ? Arrays.asList(a) 
+		: (List<DiscoveryFormatProvider>) Collections.EMPTY_LIST;
     }
 
     /**
@@ -657,7 +673,7 @@ class DiscoveryV2 extends Discovery {
 
 	private static final int TRIM_THRESHOLD = 512;
 
-	private final List datagrams = new ArrayList();
+	private final List<DatagramInfo> datagrams = new ArrayList<DatagramInfo>();
 	private final InetAddress addr;
 	private final int maxPacketSize;
 	private final byte packetType;
@@ -674,6 +690,7 @@ class DiscoveryV2 extends Discovery {
 	    this.formatId = formatId;
 	}
 
+	@Override
 	public ByteBuffer newBuffer() {
 	    DatagramInfo di = new DatagramInfo();
 	    datagrams.add(di);

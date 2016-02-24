@@ -17,15 +17,18 @@
  */
 package org.apache.river.norm.event;
 
-import org.apache.river.thread.WakeupManager;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.thread.NamedThreadFactory;
+import org.apache.river.thread.WakeupManager;
 
 /**
  * Factory class for <code>EventType</code> objects.  All
@@ -38,6 +41,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * @see EventType 
  * @see EventType#restoreTransientState
  */
+@AtomicSerial
 public class EventTypeGenerator implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -45,27 +49,18 @@ public class EventTypeGenerator implements Serializable {
      * Next event ID.
      * @serial
      */
-    private long nextEvID = 1;
+    private long nextEvID;
 
     /**
      * ExecutorService used to send events
      */
-    private transient ExecutorService taskManager = 
-            new ThreadPoolExecutor(
-                    10,
-                    10, /* Ignored */
-                    15,
-                    TimeUnit.SECONDS, 
-                    new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
-                    new NamedThreadFactory("EventTypeGenerator", false)
-            );
+    private transient ExecutorService taskManager;
 
     /**
      * Wakeup manager used by the event sending tasks to schedule 
      * retries.
      */
-    private transient WakeupManager wakeupManager = 
-	new WakeupManager(new WakeupManager.ThreadDesc(null, false));
+    private transient WakeupManager wakeupManager;
 
     /**
      * Create a new <code>EventType</code> object.  The event ID for
@@ -153,18 +148,56 @@ public class EventTypeGenerator implements Serializable {
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
     {
-	// fill in the object from the stream 
-	in.defaultReadObject();
+	synchronized(this){
+	    // fill in the object from the stream 
+	    in.defaultReadObject();
 
-	taskManager = new ThreadPoolExecutor(
-                    10,
-                    10, /* Ignored */
-                    15,
-                    TimeUnit.SECONDS, 
-                    new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
-                    new NamedThreadFactory("EventTypeGenerator", false)
-        );
-	wakeupManager = 
-	    new WakeupManager(new WakeupManager.ThreadDesc(null, false));    
+	    taskManager = new ThreadPoolExecutor(
+			10,
+			10, /* Ignored */
+			15,
+			TimeUnit.SECONDS, 
+			new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
+			new NamedThreadFactory("EventTypeGenerator", false)
+	    );
+	    wakeupManager = 
+		new WakeupManager(new WakeupManager.ThreadDesc(null, false));   
+	}
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException{
+	synchronized(this){
+	    out.defaultWriteObject();
+	}
+    }
+    
+    public EventTypeGenerator(GetArg arg) throws IOException{
+	this(arg.get("nextEvID", 1L));
+    }
+    
+    private EventTypeGenerator(long nextEvID){
+	this.nextEvID = nextEvID;
+	this.wakeupManager = new WakeupManager(new WakeupManager.ThreadDesc(null, false));
+	this.taskManager = new ThreadPoolExecutor(
+		10,
+		10, /* Ignored */
+		15,
+		TimeUnit.SECONDS,
+		new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
+		new NamedThreadFactory("EventTypeGenerator", false)
+	);
+    }
+    
+    public EventTypeGenerator(){
+	this.nextEvID = 1;
+	this.wakeupManager = new WakeupManager(new WakeupManager.ThreadDesc(null, false));
+	this.taskManager = new ThreadPoolExecutor(
+		10,
+		10, /* Ignored */
+		15,
+		TimeUnit.SECONDS,
+		new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
+		new NamedThreadFactory("EventTypeGenerator", false)
+	);
     }
 }

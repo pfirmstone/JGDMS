@@ -24,9 +24,7 @@ import net.jini.jeri.ssl.HttpsServerEndpoint;
 import net.jini.jeri.ssl.SslServerEndpoint;
 import net.jini.jeri.kerberos.KerberosServerEndpoint;
 import javax.net.ssl.SSLContext;
-import java.security.AccessController;
 import javax.net.ssl.SSLServerSocketFactory;
-import javax.security.auth.Subject;
 import org.apache.river.test.impl.end2end.jssewrapper.ServerEndpointWrapper;
 
 /**
@@ -160,7 +158,7 @@ class ProviderManager implements Constants {
     static void installProviders() {
         SSLContext c;
         try {
-            c = SSLContext.getInstance("TLS", "SunJSSE");
+            c = SSLContext.getInstance("TLSv1.2", "SunJSSE");
             c.init(null,null,null);
         } catch (Exception e) {
             throw new TestException("Failed to get suites", e);
@@ -169,7 +167,7 @@ class ProviderManager implements Constants {
         String[] suites = f.getSupportedCipherSuites();
         strong = false;
         for (int i = suites.length ; --i >= 0; ) {
-            if (suites[i].equals("SSL_RSA_WITH_RC4_128_SHA")) {
+            if (suites[i].equals("TLS_RSA_WITH_AES_256_GCM_SHA")) {
                 strong = true;
                 break;
             }

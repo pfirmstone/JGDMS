@@ -130,7 +130,7 @@ public class ThrowableConstants {
 		return BAD_OBJECT;	    
 	    }
 
-	    final Throwable detail = re.detail;
+	    final Throwable detail = re.getCause();
 	    if (detail == null)
 		return INDEFINITE;
 	    	    

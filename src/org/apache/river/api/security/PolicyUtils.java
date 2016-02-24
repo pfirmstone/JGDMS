@@ -468,7 +468,7 @@ import org.apache.river.api.net.Uri;
      * @param targetActions actions of expected Permission instance
      * @return a new Permission instance
      * @throws IllegalArgumentException if no suitable constructor found
-     * @throws Exception any exception thrown by Constructor.newInstance()
+     * @throws InstantiationException any exception thrown by Constructor.newInstance()
      */
     static Permission instantiatePermission(Class<?> targetType,
             String targetName, String targetActions)

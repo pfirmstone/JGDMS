@@ -30,38 +30,42 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
-* Defines additional {@link Level} values. <p>
-* <p/>
+* Defines additional {@link Level} values.
+* <p>
 * See the {@link LogManager} class for one way to use the <code>FAILED</code>
 * and <code>HANDLED</code> logging levels in standard logging configuration
-* files.
+* files.</p>
 *
 * @since 2.0
 */
 public class Levels {
 
     /**
+    * <p>
     * <code>FAILED</code> is a message level indicating that a facility has
-    * experienced a failure that it will reflect to its caller. <p>
-    * <p/>
+    * experienced a failure that it will reflect to its caller. </p>
+    * <p>
     * <code>FAILED</code> messages are intended to provide users with
     * information about failures produced by internal components in order to
     * assist with debugging problems in systems with multiple components. This
-    * level is initialized to <code>600</code>.
+    * level is initialized to <code>600</code>.</p>
     */
     public static final Level FAILED = createLevel("FAILED", 600, null);
 
     /**
+     * <p>
     * <code>HANDLED</code> is a message level indicating that a facility has
     * detected a failure that it will take steps to handle without reflecting
-    * the failure to its caller. <p>
-    * <p/>
+    * the failure to its caller. </p>
+    * <p>
     * <code>HANDLED</code> messages are intended to provide users with
     * information about failures detected by internal components in order to
     * assist with debugging problems in systems with multiple components. This
-    * level is initialized to <code>550</code>.
+    * level is initialized to <code>550</code>.</p>
     */
     public static final Level HANDLED = createLevel("HANDLED", 550, null);
 
@@ -76,6 +80,7 @@ public class Levels {
     * Defines a class that has the same data format as the Level class, to
     * permit creating the serialized form of a Level instance.
     */
+    @AtomicSerial
     private static final class LevelData implements Serializable {
         private static final long serialVersionUID = -8176160795706313070L;
         private final String name;
@@ -89,6 +94,25 @@ public class Levels {
             this.resourceBundleName = resourceBundleName;
             this.localizedLevelName = resourceBundleName == null ? name : null;
         }
+	
+	private LevelData(String name,
+			  int value,
+			  String resourceBundleName,
+			  String localizedLevelName)
+	{
+	    this.name = name;
+	    this.value = value;
+	    this.resourceBundleName = resourceBundleName;
+	    this.localizedLevelName = localizedLevelName;
+	}
+	
+	public LevelData(GetArg arg) throws IOException{
+	    this(arg.get("name", null, String.class),
+		 arg.get("value", 0),
+		 arg.get("resourceBundleName", null, String.class),
+		 arg.get("localizedLevelName", null, String.class)
+	    );
+	}
     }
 
     /**

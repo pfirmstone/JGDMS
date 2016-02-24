@@ -19,24 +19,22 @@
 package org.apache.river.test.impl.end2end.e2etest;
 
 /* Java imports */
+import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.jeri.BasicJeriExporter;
+import java.rmi.server.ServerNotActiveException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import javax.security.auth.Subject;
-
-import java.rmi.server.ServerNotActiveException;
-
-import net.jini.io.context.ClientSubject;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.ServerContext;
-
-import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
+import net.jini.io.MarshalledInstance;
+import net.jini.io.context.ClientSubject;
+import net.jini.jeri.BasicJeriExporter;
 
 /**
  * The invocation handler for the interface. This provides the
@@ -132,8 +130,8 @@ class ServiceHandler implements InvocationHandler, Constants {
             try {
                 return Subject.doAsPrivileged(
                     ProviderManager.getSubjectProvider().getServerSubject(),
-                    new PrivilegedExceptionAction() {
-                        public Object run() throws RemoteException,
+                    new PrivilegedExceptionAction<MarshalledInstance>() {
+                        public MarshalledInstance run() throws RemoteException,
                             NotBoundException {
                             return service.serverProxy();
                         }

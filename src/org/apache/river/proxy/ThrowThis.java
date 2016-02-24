@@ -17,7 +17,12 @@
  */
 package org.apache.river.proxy;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
+import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * The semi-official way for remote methods on registration objects
@@ -44,7 +49,8 @@ import java.rmi.RemoteException;
  * @see java.rmi.NoSuchObjectException
  * @see java.rmi.ServerException 
  */
-public class ThrowThis extends Exception {
+@AtomicSerial
+public class ThrowThis extends AtomicException {
     private static final long serialVersionUID = 956456443698267251L;
 
     /**
@@ -52,6 +58,22 @@ public class ThrowThis extends Exception {
      * @serial
      */
     final private RemoteException toThrow;
+    
+    /**
+     * AtomicSerial
+     * @param arg
+     * @throws IOException 
+     */
+    public ThrowThis(GetArg arg) throws IOException{
+	super(check(arg));
+	toThrow = arg.get("toThrow", null, RemoteException.class);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	Valid.notNull(arg.get("toThrow", null, RemoteException.class),
+		"RemoteException cannot be null");
+	return arg;
+    }
 
     /**
      * Simple constructor
@@ -77,6 +99,7 @@ public class ThrowThis extends Exception {
 
     /**
      * Throw the <code>RemoteException</code> the server wants thrown
+     * @throws java.rmi.RemoteException when called.
      */
     public void throwRemoteException() throws RemoteException {
 	throw toThrow;

@@ -18,16 +18,19 @@
 package org.apache.river.landlord;
 
 import java.rmi.RemoteException;
-import java.util.Map;
-import java.util.Iterator;
-import java.util.HashMap;
 import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
-import net.jini.id.Uuid;
+import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.ReferentUuid;
+import net.jini.id.Uuid;
+import org.apache.river.api.io.Valid;
 import org.apache.river.lease.AbstractIDLeaseMap;
 
 /**
@@ -111,7 +114,7 @@ public class LandlordLeaseMap extends AbstractIDLeaseMap {
 
     // inherit doc comment
     public void cancelAll() throws LeaseMapException, RemoteException {
-        final Map rslt;
+        Map rslt;
 	List<Uuid> cookies;
         List<LandlordLease> leases;
         cookies = new LinkedList<Uuid>();
@@ -129,6 +132,7 @@ public class LandlordLeaseMap extends AbstractIDLeaseMap {
 	    // Everything worked out, normal return
 	    return;
 	} else {
+	    rslt = Valid.copyMap(rslt, new HashMap(rslt.size()), Uuid.class, UnknownLeaseException.class); // In case the map was serialized.
             LandlordLease[] leasesA = leases.toArray(new LandlordLease[leases.size()]);
 	    // Some the leases could not be canceled, generate a
 	    // LeaseMapException
@@ -185,21 +189,20 @@ public class LandlordLeaseMap extends AbstractIDLeaseMap {
 	int d = 0;
         int len = cookiesA.length;
 	for (int i = 0; i < len; i++) {
-	    if (results.granted[i] != -1) {
-		long newExp = now + results.granted[i];
+	    if (results.getGranted(i) != -1) {
+		long newExp = now + results.getGranted(i);
 		if (newExp < 0) // Overflow, set to Long.MAX_VALUE
 		    newExp = Long.MAX_VALUE;
 		    
 		leasesA[i].setExpiration(newExp);
 	    } else {
 		if (bad == null) {
-		    bad = new HashMap(results.denied.length +
-				      results.denied.length / 2);
+		    bad = new HashMap();
 		}
 		Object badTime = remove(leasesA[i]);   // remove from this map
 		if (badTime == null)		      // better be in there
 		    throw new ConcurrentModificationException();
-		bad.put(leasesA[i], results.denied[d++]);// add to "bad" map
+		bad.put(leasesA[i], results.getDenied(d++));// add to "bad" map
 	    }
 	}
 

@@ -27,6 +27,7 @@ grant {
  * except SocketPermission to "*:1024-"
  */ 
 grant { 
+    permission org.apache.river.DeSerializationPermission "ATOMIC";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "getPolicy";
 
@@ -40,7 +41,7 @@ grant {
     permission java.lang.RuntimePermission "setIO";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
-    permission java.net.SocketPermission "*", "listen,resolve";
+    permission java.net.SocketPermission "*", "accept,listen,resolve";
     permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
     permission javax.security.auth.AuthPermission "doAs";
 

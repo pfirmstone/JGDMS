@@ -17,11 +17,22 @@
  */
 package org.apache.river.reggie;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lookup.ServiceMatches;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceProxyAccessor;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * A Matches contains the fields of a ServiceMatches packaged up for
@@ -35,6 +46,7 @@ import net.jini.core.lookup.ServiceMatches;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class Matches implements Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -44,16 +56,23 @@ class Matches implements Serializable {
      *
      * @serial
      */
-    private final List items;
+    private final List<Item> items;
     /**
      * ServiceMatches.totalMatches
      *
      * @serial
      */
     private final int totalMatches;
+    
+    Matches(GetArg arg) throws IOException{
+	this(Valid.copyCol(arg.get("items", null, List.class),
+			   new LinkedList<Item>(),
+			   Item.class),
+	    arg.get("totalMatches",0));
+    }
 
     /** Simple constructor. */
-    public Matches(List items, int totalMatches) {
+    public Matches(List<Item> items, int totalMatches) {
 	this.items = items;
 	this.totalMatches = totalMatches;
     }
@@ -62,4 +81,22 @@ class Matches implements Serializable {
     ServiceMatches get() throws RemoteException {
 	return new ServiceMatches(Item.toServiceItem(items), totalMatches);
     }
+    
+    Object [] getProxys() {
+	List result = new ArrayList(totalMatches);
+	Iterator<Item> it = items.iterator();
+	while (it.hasNext()) {
+	    Object proxy = it.next().getProxy();
+	    if(!(proxy instanceof RemoteMethodControl)) continue;
+	    if(!(proxy instanceof ServiceProxyAccessor)) continue;
+	    if(!(proxy instanceof ServiceAttributesAccessor)) continue;
+	    if(!Proxy.isProxyClass(proxy.getClass())) continue;
+	    result.add(proxy);
+	}
+	return result.toArray();
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+}
 }

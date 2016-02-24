@@ -18,7 +18,10 @@
 
 package net.jini.core.constraint;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the integrity of message contents, covering not
@@ -44,7 +47,7 @@ import java.io.Serializable;
  * references bundled resources (because there is no way to determine the
  * signers of a resource). A better technique is to use codebase URLs that
  * provide content integrity, such as
- * <a href=../../url/httpmd/package-summary.html#package_description">HTTPMD</a>
+ * <a href="../../url/httpmd/package-summary.html#package_description">HTTPMD</a>
  * or HTTPS URLs. If integrity-protecting codebase URLs are used, and the URLs
  * themselves are sent as part of the integrity-protected in-band data, the
  * result is complete object integrity. Because out-of-band communication is
@@ -62,6 +65,7 @@ import java.io.Serializable;
  * Security.verifyCodebaseIntegrity
  * @since 2.0
  */
+@AtomicSerial
 public final class Integrity implements InvocationConstraint, Serializable {
     private static final long serialVersionUID = 418483423937969897L;
 
@@ -98,6 +102,10 @@ public final class Integrity implements InvocationConstraint, Serializable {
 	this.val = val;
     }
 
+    Integrity(GetArg arg) throws IOException {
+	this(arg.get("val", true));
+    }
+
     /**
      * Returns a string representation of this object.
      */
@@ -107,6 +115,7 @@ public final class Integrity implements InvocationConstraint, Serializable {
 
     /**
      * Canonicalize so that <code>==</code> can be used.
+     * @return true for YES, false for NO.
      */
     private Object readResolve() {
 	return val ? YES : NO;

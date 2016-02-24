@@ -18,105 +18,85 @@
 
 package org.apache.river.test.impl.joinmanager;
 
+import org.apache.river.config.Config;
+import org.apache.river.config.ConfigUtil;
+import org.apache.river.logging.Levels;
+import org.apache.river.proxy.ConstrainableProxyUtil;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
+import net.jini.export.ServiceProxyAccessor;
+import org.apache.river.start.SharedActivatableServiceDescriptor;
+import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
+import org.apache.river.start.SharedActivationGroupDescriptor;
+import org.apache.river.start.SharedGroup;
+import org.apache.river.test.spec.joinmanager.AbstractBaseTest;
+import java.io.File;
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.rmi.MarshalledObject;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import java.rmi.activation.ActivationException;
+import java.rmi.activation.ActivationID;
+import java.rmi.activation.ActivationSystem;
+import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
 import java.util.logging.Level;
 
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.test.spec.joinmanager.AbstractBaseTest;
-
-import net.jini.discovery.DiscoveryGroupManagement;
-import net.jini.discovery.LookupDiscoveryManager;
-import net.jini.lookup.JoinManager;
-import net.jini.lookup.ServiceDiscoveryManager;
-
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
+import net.jini.activation.ActivationExporter;
+import net.jini.activation.ActivationGroup;
+import net.jini.config.Configuration;
+import net.jini.config.ConfigurationException;
+import net.jini.config.ConfigurationProvider;
+import net.jini.config.NoSuchEntryException;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
-
 import net.jini.core.lease.Lease;
-
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
-
-
-import org.apache.river.proxy.ConstrainableProxyUtil;
-
+import net.jini.discovery.DiscoveryGroupManagement;
+import net.jini.discovery.LookupDiscoveryManager;
+import net.jini.export.Exporter;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
-
-import net.jini.security.TrustVerifier;
-
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-import net.jini.security.proxytrust.TrustEquivalence;
-
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-
-import java.io.InvalidObjectException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
-
-import java.rmi.Remote;
-import java.rmi.RemoteException;
-
-import java.lang.reflect.Method;
-
-import java.util.ArrayList;
-
-
-import org.apache.river.start.ServiceProxyAccessor;
-import org.apache.river.start.SharedActivationGroupDescriptor;
-import org.apache.river.start.SharedActivatableServiceDescriptor;
-import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
-import org.apache.river.start.SharedGroup;
-
-import org.apache.river.config.Config;
-import org.apache.river.config.ConfigUtil;
-import org.apache.river.logging.Levels;
-import org.apache.river.qa.harness.Test;
-import org.apache.river.api.util.Startable;
-
-import net.jini.activation.ActivationExporter;
-import net.jini.activation.ActivationGroup;
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationProvider;
-import net.jini.config.ConfigurationException;
-import net.jini.config.NoSuchEntryException;
-import net.jini.export.Exporter;
-import net.jini.export.ProxyAccessor;
 import net.jini.id.UuidFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.tcp.TcpServerEndpoint;
-
+import net.jini.lookup.JoinManager;
+import net.jini.lookup.ServiceDiscoveryManager;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.TrustVerifier;
+import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.ServerProxyTrust;
-
+import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import net.jini.security.proxytrust.TrustEquivalence;
 import net.jini.url.httpmd.HttpmdUtil;
-
-import java.io.File;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.ActivationException;
-import java.rmi.MarshalledObject;
-import java.rmi.server.ExportException;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.List;
-import java.util.StringTokenizer;
-
-import javax.security.auth.Subject;
-import javax.security.auth.login.LoginContext;
-import javax.security.auth.login.LoginException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.util.Startable;
 
 /**
  * This class verifies that the current implementation of the 
@@ -1437,6 +1417,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 
     }//end class RemoteTestServiceImpl
 
+    @AtomicSerial
     static class TestServiceProxy implements TestServiceInterface,
                                              ReferentUuid, Serializable
     {
@@ -1470,6 +1451,20 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             this.val = val;
             this.renewDur = renewDur;
         }//end constructor
+
+	TestServiceProxy(GetArg arg) throws IOException {
+	    this(notNull(arg.get("innerProxy", null, RemoteTestServiceInterface.class),
+	       "TestServiceProxy.readObject failure - innerProxy field is null" ),
+		notNull(arg.get("proxyID", null, Uuid.class),
+		"TestServiceProxy.readObject failure - proxyID field is null"),
+		arg.get("val", 0),
+		arg.get("renewDur", 0L));
+	}
+	
+	private static <T> T notNull(T arg, String message) throws IOException {
+	    if (arg == null) throw new InvalidObjectException(message);
+	    return arg;
+	}
 
         @Override
         public int getVal() {
@@ -1523,6 +1518,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                                      +"deserialize TestServiceProxy instance");
         }//end readObjectNoData
 
+	@AtomicSerial
         static final class ConstrainableTestServiceProxy
                                                  extends    TestServiceProxy
                                                  implements RemoteMethodControl
@@ -1550,6 +1546,22 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                       proxyID, val, renewDur);
                 this.methodConstraints = methodConstraints;
             }//end constructor
+
+	    ConstrainableTestServiceProxy(GetArg arg) throws IOException {
+		super(check(arg));
+		methodConstraints = (MethodConstraints) arg.get("methodConstraints", null);
+	    }
+	    
+	    private static GetArg check(GetArg arg) throws IOException {
+		TestServiceProxy tsp = new TestServiceProxy(arg);
+		MethodConstraints methodConstraints =  
+		    arg.get("methodConstraints", null, MethodConstraints.class);
+		ConstrainableProxyUtil.verifyConsistentConstraints
+                                                       (methodConstraints,
+                                                        tsp.innerProxy,
+                                                        methodMapArray);
+		return arg;
+	    }
 
             private static RemoteTestServiceInterface constrainServer
                                       ( RemoteTestServiceInterface innerProxy,
@@ -1605,23 +1617,39 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         }//end getMethod
     }//end class ServiceProxy
 
+    @AtomicSerial
     final static class ProxyVerifier implements Serializable, TrustVerifier {
         private static final long serialVersionUID = 1L;
         private final RemoteMethodControl innerProxy;
         private final Uuid proxyID;
         ProxyVerifier(RemoteTestServiceInterface innerProxy, Uuid proxyID) {
-            if( !(innerProxy instanceof RemoteMethodControl) ) {
-                throw new UnsupportedOperationException
-                         ("cannot construct verifier - canonical inner "
-                          +"proxy is not an instance of RemoteMethodControl");
-            } else if( !(innerProxy instanceof TrustEquivalence) ) {
-                throw new UnsupportedOperationException
-                             ("cannot construct verifier - canonical inner "
-                              +"proxy is not an instance of TrustEquivalence");
-            }//endif
+	    this(check(innerProxy, RemoteMethodControl.class, 
+		    "cannot construct verifier - canonical inner "
+		    + "proxy is not an instance of RemoteMethodControl"
+		    ),
+		check(proxyID, TrustEquivalence.class, 
+		    "cannot construct verifier - canonical inner "
+		      +"proxy is not an instance of TrustEquivalence"
+		    ),
+		true
+	    );
+        }//end constructor
+	
+	private ProxyVerifier(RemoteTestServiceInterface innerProxy,
+		Uuid proxyID, boolean check) {
             this.innerProxy = (RemoteMethodControl)innerProxy;
             this.proxyID = proxyID;
-        }//end constructor
+	}
+
+	ProxyVerifier(GetArg arg) throws IOException {
+	    this(arg.get("innerProxy", null, RemoteTestServiceInterface.class),
+		    arg.get("proxyID", null, Uuid.class));
+	} 
+	
+	private static <T> T check(T arg, Class<?> c, String message) {
+	    if (!c.isInstance(arg)) throw new UnsupportedOperationException(message); 
+	    return arg;
+	}
 
         @Override
         public boolean isTrustedObject(Object obj,

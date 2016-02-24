@@ -66,6 +66,8 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
+import org.apache.river.api.io.AtomicMarshalInputStream;
+import org.apache.river.api.io.AtomicMarshalOutputStream;
 
 /**
  * Provides utility methods for plaintext data operations.
@@ -423,7 +425,10 @@ public class Plaintext {
 	    }
 
 	    // write LUS proxy
-	    new ObjectOutputStream(out).writeObject(
+	    // Note this instance is compatible with ObjectOutputStream,
+	    // it doesn't write annotations, it isn't compatible with
+	    // MarshalOutputStream
+	    new AtomicMarshalOutputStream(out, context, true).writeObject(
 		new MarshalledInstance(response.getRegistrar(), context));
 	} catch (RuntimeException e) {
 	    throw new DiscoveryProtocolException(null, e);
@@ -458,8 +463,14 @@ public class Plaintext {
 	    }
 
 	    // read LUS proxy
-	    MarshalledInstance mi = 
-		(MarshalledInstance) new ObjectInputStream(in).readObject();
+	    MarshalledInstance mi = (MarshalledInstance) 
+		AtomicMarshalInputStream.createObjectInputStream(
+			in,
+			defaultLoader,
+			verifyCodebaseIntegrity,
+			verifierLoader,
+			context
+		).readObject();
 	    ServiceRegistrar reg = (ServiceRegistrar) mi.get(
 		defaultLoader,
 		verifyCodebaseIntegrity,

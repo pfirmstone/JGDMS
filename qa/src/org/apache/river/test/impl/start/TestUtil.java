@@ -17,15 +17,14 @@
  */
 package org.apache.river.test.impl.start;
 
-import org.apache.river.qa.harness.QAConfig;
-
-import org.apache.river.start.ServiceStarter;
-import org.apache.river.start.SharedGroup;
-
-import java.io.*;
-import java.rmi.*;
-import java.rmi.activation.*;
-
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.PrintWriter;
+import java.rmi.MarshalledObject;
+import java.rmi.activation.ActivationGroupID;
 
 public class TestUtil {
 

@@ -18,30 +18,32 @@
 
 package org.apache.river.start;
 
-import net.jini.config.Configuration;
-
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
+import java.rmi.MarshalledObject;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationSystem;
-import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.logging.Logger;
 import java.util.Properties;
+import java.util.logging.Logger;
+import net.jini.config.Configuration;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Class used to create a shared activation group. 
@@ -58,7 +60,7 @@ import net.jini.io.MarshalledInstance;
  *
  * @since 2.0
  */
-
+@AtomicSerial
 public class SharedActivationGroupDescriptor 
     implements ServiceDescriptor, Serializable
 {
@@ -152,7 +154,7 @@ public class SharedActivationGroupDescriptor
      *     array must have an even number of elements.
      * @param host hostname of desired activation system. If <code>null</code>,
      *     defaults to the localhost.  
-     * @param port port of desired activation system. If value is <= 0, then
+     * @param port port of desired activation system. If value is &lt;= 0, then
      *     defaults to  
      *     {@link java.rmi.activation.ActivationSystem#SYSTEM_PORT 
      *     ActivationSystem.SYSTEM_PORT}.
@@ -185,7 +187,20 @@ public class SharedActivationGroupDescriptor
 	    this.port = port;
 	}
     }
-	    
+    
+    SharedActivationGroupDescriptor(GetArg arg) throws IOException{
+	this(
+		Valid.notNull(arg.get("policy", null, String.class), "Policy cannot be null"),
+		Valid.notNull(arg.get("classpath", null, String.class), "Classpath cannot be null"),
+		Valid.notNull(arg.get("log",null, String.class), "log cannot be null"),
+		arg.get("serverCommand", null, String.class),
+		arg.get("serverOptions", null, String[].class),
+		arg.get("serverProperties", null, String[].class),
+		arg.get("host", null, String.class),
+		arg.get("port", 0)
+	);
+    }
+ 
     /**
      * Policy accessor method.
      *

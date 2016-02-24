@@ -26,3 +26,9 @@ org.apache.river.discovery.x500.sha1withdsa.Client
 org.apache.river.discovery.x500.sha1withdsa.Server
 org.apache.river.discovery.x500.sha1withrsa.Client
 org.apache.river.discovery.x500.sha1withrsa.Server
+org.apache.river.discovery.x500.sha256withdsa.Client
+org.apache.river.discovery.x500.sha256withdsa.Server
+org.apache.river.discovery.x500.sha512withecdsa.Client
+org.apache.river.discovery.x500.sha512withecdsa.Server
+org.apache.river.discovery.x500.sha512withrsa.Client
+org.apache.river.discovery.x500.sha512withrsa.Server

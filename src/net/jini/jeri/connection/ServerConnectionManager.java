@@ -58,7 +58,7 @@ import net.jini.jeri.RequestDispatcher;
  * <code>net.jini.jeri.connection.ServerConnectionManager</code> to
  * log information at the following levels:
  *
- * <p><table summary="Describes what is logged by
+ * <table summary="Describes what is logged by
  * ServerConnectionManager to its logger at various logging levels"
  * border=1 cellpadding=5>
  *
@@ -75,8 +75,8 @@ import net.jini.jeri.RequestDispatcher;
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.connection.mux</code> to log information at the
  * following levels:
- *
- * <p><table summary="Describes what is logged by
+ * </p>
+ * <table summary="Describes what is logged by
  * ServerConnectionManager to the mux logger at various logging
  * levels" border=1 cellpadding=5>
  *

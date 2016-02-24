@@ -18,7 +18,10 @@
 
 package net.jini.core.constraint;
 
+import java.io.IOException;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on delegation from the client to the server.
@@ -44,6 +47,7 @@ import java.io.Serializable;
  * @see net.jini.export.ServerContext
  * @since 2.0
  */
+@AtomicSerial
 public final class Delegation implements InvocationConstraint, Serializable {
     private static final long serialVersionUID = -8636854709107393245L;
 
@@ -82,6 +86,10 @@ public final class Delegation implements InvocationConstraint, Serializable {
     private Delegation(boolean val) {
 	this.val = val;
     }
+    
+    public Delegation(GetArg arg) throws IOException{
+	this(arg.get("val", false));
+    }
 
     /**
      * Returns a string representation of this object.
@@ -92,8 +100,9 @@ public final class Delegation implements InvocationConstraint, Serializable {
 
     /**
      * Canonicalize so that <code>==</code> can be used.
+     * @return true for YES, false for NO.
      */
-    private Object readResolve() {
+    public Object readResolve() {
 	return val ? YES : NO;
     }
 }

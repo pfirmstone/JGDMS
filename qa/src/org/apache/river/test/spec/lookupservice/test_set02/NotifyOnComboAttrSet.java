@@ -19,33 +19,24 @@ package org.apache.river.test.spec.lookupservice.test_set02;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 
-import java.util.logging.Level;
-import org.apache.river.qa.harness.TestException;
-
 import org.apache.river.test.spec.lookupservice.QATestRegistrar;
 import org.apache.river.test.spec.lookupservice.QATestUtils;
 import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceEvent;
-import net.jini.core.lookup.ServiceItem;
-import net.jini.core.lookup.ServiceRegistration;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceTemplate;
-import net.jini.core.event.EventRegistration;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.logging.Level;
+import net.jini.core.entry.Entry;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
-import net.jini.core.entry.Entry;
-import net.jini.core.lease.UnknownLeaseException;
-import java.rmi.MarshalledObject;
-import java.rmi.StubNotFoundException;
-import java.rmi.RemoteException;
-import java.rmi.NoSuchObjectException;
-import java.util.Vector;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import net.jini.core.lookup.ServiceEvent;
+import net.jini.core.lookup.ServiceItem;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.ServiceRegistration;
+import net.jini.core.lookup.ServiceTemplate;
+import net.jini.io.MarshalledInstance;
 
 /** This class is used to verify that after using templates containing a 
  *  combination of service types and attributes with Non-Null fields to
@@ -75,7 +66,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
                 evntVec.add(srvcEvnt);
                 try {
                     QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
-                                          (srvcEvnt.getRegistrationObject().get());
+                                          (new MarshalledInstance(srvcEvnt.getRegistrationObject()).get(false));
 
                     receivedTuples.add(new QATestUtils.SrvcAttrTuple
                                                        (srvcItems,tmplAttrs,
@@ -93,7 +84,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
     protected QATestUtils.SrvcAttrTuple[][][] newState;
     protected List expectedTuples = new ArrayList(2850);
     protected List receivedTuples = new ArrayList(2850);
-    protected List<ServiceEvent> evntVec = new ArrayList<ServiceEvent>(2850);
+    protected Collection<ServiceEvent> evntVec = new ConcurrentSkipListSet<ServiceEvent>(new RemoteEventComparator());
 
     private ServiceItem[] srvcItems;
     private ServiceItem[] srvcsForEquals;
@@ -262,10 +253,10 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
 		proxy.notify(tmpl[i][j],
 			     transitionMask,
 			     listener,
-			     new MarshalledObject
+			     new MarshalledInstance
 				 (new QATestUtils.SrvcAttrTuple
 				     (srvcItems[nSrvcsPerClass*i].service,
-				      tmplAttrs[j][0])),
+				      tmplAttrs[j][0])).convertToMarshalledObject(),
 			     Long.MAX_VALUE);
 	    }
 	}
@@ -298,7 +289,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
 	}
 	QATestUtils.verifyEventTuples
 	    (receivedTuples,expectedTuples,maxNMsToWaitForEvents,SHOW_TIMINGS, this);
-        Collections.sort(evntVec, new RemoteEventComparator());
+//        Collections.sort(evntVec, new RemoteEventComparator());
 	QATestUtils.verifyEventItems(evntVec);
     }
 

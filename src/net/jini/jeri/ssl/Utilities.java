@@ -70,45 +70,39 @@ abstract class Utilities {
      * communication.
      */
     private static final String[] ANONYMOUS_KEY_EXCHANGE_ALGORITHMS = {
-	"DH_anon",
-	"DH_anon_EXPORT"
+	"ECDH_anon", //These are not safe from mitm attack
+	"DH_anon"
     };
 
     /** The names of JSSE key exchange algorithms that use RSA keys. */
     private static final String[] RSA_KEY_EXCHANGE_ALGORITHMS = {
-	"DHE_RSA",
-	"DHE_RSA_EXPORT",
-	"DH_RSA",
-	"DH_RSA_EXPORT",
+	"ECDHE_RSA", //Only emepheral DH safe from mitm attack.
+	"DHE_RSA", //Only emepheral DH safe from mitm attack.
 	"RSA",
-	"RSA_EXPORT"
     };
 
     /** The names of JSSE key exchange algorithms that use DSA keys. */
     private static final String[] DSA_KEY_EXCHANGE_ALGORITHMS = {
-	"DHE_DSS",
-	"DHE_DSS_EXPORT",
-	"DH_DSS",
-	"DH_DSS_EXPORT"
+	"DHE_DSS" //Only emepheral DH safe from mitm attack.
     };
 
+    /** The names of JSSE key exchange algorithms that use DSA keys. */
+    private static final String[] ECDSA_KEY_EXCHANGE_ALGORITHMS = {
+	"ECDHE_ECDSA" //Only emepheral DH safe from mitm attack.
+    };
+    
     /**
      * The names of all the JSSE key exchange algorithms supported by this
      * provider.
      */
     private static final String[] SUPPORTED_KEY_EXCHANGE_ALGORITHMS = {
-	"DH_anon",
-	"DH_anon_EXPORT",
-	"DHE_RSA",
-	"DHE_RSA_EXPORT",
-	"DH_RSA",
-	"DH_RSA_EXPORT",
-	"RSA",
-	"RSA_EXPORT",
+	"ECDHE_ECDSA",
 	"DHE_DSS",
-	"DHE_DSS_EXPORT",
-	"DH_DSS",
-	"DH_DSS_EXPORT"
+	"ECDHE_RSA",
+	"DHE_RSA",
+	"RSA",
+	"ECDH_anon",
+	"DH_anon"
     };	
 
     /**
@@ -122,25 +116,18 @@ abstract class Utilities {
 
     /** The names of cipher algorithms that do strong encryption */
     private static final String[] STRONG_ENCRYPTION_CIPHERS = {
-	"3DES_EDE_CBC",
-	"AES_128_CBC",
-	"AES_256_CBC",
-	"IDEA_CBC",
-	"RC4_128"
+	"AES_256_GCM",
+	"AES_128_GCM"
     };
 
     /** The names of all cipher algorithms supported by this provider. */
     private static final String[] SUPPORTED_ENCRYPTION_CIPHERS = {
-	"3DES_EDE_CBC",
-	"AES_128_CBC",
 	"AES_256_CBC",
-	"DES40_CBC",
-	"DES_CBC",
-	"IDEA_CBC",
-	"NULL",
-	"RC2_CBC_40",
+	"AES_128_CBC",
+	"AES_256_GCM",
+	"AES_128_GCM",
 	"RC4_128",
-	"RC4_40"
+	"3DES_EDE_CBC"
     };
 
     /** Client logger */
@@ -172,6 +159,12 @@ abstract class Utilities {
      * are permitted.
      */
     static final int RSA_KEY_ALGORITHM = 1 << 1;
+    
+    /**
+     * Or'ed into the value returned by getPermittedKeyAlgorithms when ECDSA keys
+     * are permitted.
+     */
+    static final int ECDSA_KEY_ALGORITHM = 1 << 2;
 
     /** Stores SSL contexts and auth managers. */
     private static final WeakSoftTable sslContextMap = new WeakSoftTable();
@@ -224,7 +217,7 @@ abstract class Utilities {
 
     /** The secure socket protocol used with JSSE. */
     private static final String sslProtocol = (String) Security.doPrivileged(
-	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLS"));
+	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.2"));
 
     /** Permission needed to access the current subject. */
     static final AuthPermission getSubjectPermission =
@@ -828,7 +821,7 @@ abstract class Utilities {
 
     /**
      * Returns the key algorithm for the specified cipher suite, one of "RSA",
-     * "DSA", or "NULL".  Throws an IllegalArgumentException if the algorithm
+     * "DSA", "ECDSA" or "NULL".  Throws an IllegalArgumentException if the algorithm
      * is not recognized. <p>
      *
      * The key algorithm is specified by the key exchange algorithm.
@@ -839,6 +832,8 @@ abstract class Utilities {
 	    return "RSA";
 	} else if (position(alg, DSA_KEY_EXCHANGE_ALGORITHMS) != -1) {
 	    return "DSA";
+	} else if (position(alg, ECDSA_KEY_EXCHANGE_ALGORITHMS) != -1){
+	    return "ECDSA";
 	} else if (position(alg, ANONYMOUS_KEY_EXCHANGE_ALGORITHMS) != -1) {
 	    return "NULL";
 	} else {
@@ -874,6 +869,12 @@ abstract class Utilities {
 	    return (client)
 		? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM
 		: DSA_KEY_ALGORITHM;
+	} else if (keyAlgorithm.equals("ECDSA")) {
+	    /* For this suit the server must use a ECDSA key , but the client
+	     * may use either an RSA, DSA or ECDSA key. */
+	    return (client)
+		? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM | ECDSA_KEY_ALGORITHM
+		: ECDSA_KEY_ALGORITHM;
 	} else if (keyAlgorithm.equals("NULL")) {
 	    return 0;
 	} else {
@@ -889,10 +890,15 @@ abstract class Utilities {
     static boolean permittedKeyAlgorithm(String keyAlgorithm,
 					 int permittedKeyAlgorithms)
     {
-	if (permittedKeyAlgorithms == ANY_KEY_ALGORITHM) {
-	    return true;
-	} else if ("DSA".equals(keyAlgorithm)) {
+	// Don't permit any, as that subjects endpoints to mitm attacks on weaker
+	// key excange protocols.
+//	if (permittedKeyAlgorithms == ANY_KEY_ALGORITHM) {
+//	    return true;
+//	} else 
+	if ("DSA".equals(keyAlgorithm)) {
 	    return (permittedKeyAlgorithms & DSA_KEY_ALGORITHM) != 0;
+	} else if ("ECDSA".equals(keyAlgorithm)) {
+	    return (permittedKeyAlgorithms & ECDSA_KEY_ALGORITHM) != 0;
 	} else if ("RSA".equals(keyAlgorithm)) {
 	    return (permittedKeyAlgorithms & RSA_KEY_ALGORITHM) != 0;
 	} else {

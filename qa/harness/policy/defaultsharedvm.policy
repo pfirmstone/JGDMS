@@ -22,6 +22,7 @@ grant {
       permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test
       permission org.apache.river.phoenix.ExecPermission "/bin/javax";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
@@ -124,6 +125,24 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}norm.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultnorm.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}reggie.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultreggie.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger.jar" {

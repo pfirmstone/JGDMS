@@ -19,6 +19,7 @@
 package net.jini.core.constraint;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
@@ -26,6 +27,8 @@ import java.io.Serializable;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the client, such that if the client
@@ -54,6 +57,7 @@ import java.util.Set;
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0
  */
+@AtomicSerial
 public final class ClientMaxPrincipal
 				implements InvocationConstraint, Serializable
 {
@@ -70,6 +74,19 @@ public final class ClientMaxPrincipal
      * The principals.
      */
     private final Principal[] principals;
+    
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    public ClientMaxPrincipal(GetArg arg) throws IOException {
+	this(check(arg.get("principals", null, Principal[].class)), true);
+    }
+    
+    private ClientMaxPrincipal(Principal[] principals, boolean check){
+	this.principals = principals;
+    }
 
     /**
      * Creates a constraint containing the specified principal.  This
@@ -80,10 +97,20 @@ public final class ClientMaxPrincipal
      * @throws NullPointerException if the argument is <code>null</code>
      */
     public ClientMaxPrincipal(Principal p) {
+	this(check(p), true);
+    }
+    
+    private static Principal[] check(Principal p){
 	if (p == null) {
 	    throw new NullPointerException("principal cannot be null");
 	}
-	principals = new Principal[]{p};
+	return new Principal[]{p};
+    }
+    
+    private static Principal [] check(Principal[] p) throws InvalidObjectException{
+	p = p.clone();
+	Constraint.verify(p);
+	return p;
     }
 
     /**
@@ -98,7 +125,7 @@ public final class ClientMaxPrincipal
      * any element is <code>null</code>
      */
     public ClientMaxPrincipal(Principal[] principals) {
-	this.principals = Constraint.reduce(principals);
+	this(Constraint.reduce(principals), true);
     }
 
     /**
@@ -114,7 +141,7 @@ public final class ClientMaxPrincipal
      * any element is <code>null</code>
      */
     public ClientMaxPrincipal(Collection c) {
-	principals = Constraint.reduce(c);
+	this(Constraint.reduce(c), true);
     }
 
     /**
@@ -167,6 +194,9 @@ public final class ClientMaxPrincipal
      * @throws java.io.InvalidObjectException if there are no principals,
      * or any principal is <code>null</code>, or if there are duplicate
      * principals
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

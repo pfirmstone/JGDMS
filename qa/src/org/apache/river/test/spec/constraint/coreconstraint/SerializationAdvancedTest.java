@@ -26,7 +26,7 @@ import org.apache.river.qa.harness.TestException;
 import java.util.logging.Level;
 
 // java.rmi
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 // Davis packages
 import net.jini.core.constraint.ClientAuthentication;
@@ -77,10 +77,10 @@ import net.jini.core.constraint.InvocationConstraint;
  *   In each test case the following steps are performed:
  *   - {@link net.jini.core.constraint.InvocationConstraint} object is
  *     serialized and then deserialized; it's performed with creation
- *     of a {@link java.rmi.MarshalledObject} that contains a byte stream
+ *     of a {@link java.rmi.MarshalledInstance} that contains a byte stream
  *     with the serialized representation of the
  *     {@link net.jini.core.constraint.InvocationConstraint} object given
- *     to its constructor; then {@link java.rmi.MarshalledObject#get()} method
+ *     to its constructor; then {@link java.rmi.MarshalledInstance#get()} method
  *     returns a new copy of the original object, as deserialized from the
  *     contained byte stream,
  *   - the obtained object is compared with another using == and != operators.
@@ -268,8 +268,8 @@ public class SerializationAdvancedTest extends SerializationTest {
         logger.log(Level.FINE, "deserialization ...");
 
         try {
-            MarshalledObject mObj = new MarshalledObject(ic_init);
-            ic_after = (InvocationConstraint) mObj.get();
+            MarshalledInstance mObj = new MarshalledInstance(ic_init);
+            ic_after = (InvocationConstraint) mObj.get(false);
         } catch (Exception e) {
             logger.log(Level.FINE, e + "has been thrown while serialization or"
                     + "subsequent deserialization of " + ic_init);

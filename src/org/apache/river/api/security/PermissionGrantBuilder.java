@@ -85,24 +85,26 @@ public abstract class PermissionGrantBuilder {
     public static final int CODESOURCE_CERTS = 4;
     
     /**
+     * <p>
      * The PermissionGrant generated will imply the ProtectionDomain run as
      * a Subject with all Principals (when applicable) and
      * CodeSource that has the Certificates and URI RFC3986 location as specified.
+     * </p>
      * <p>
      * The outcome of URI comparison is similar to 
-     * {@link CodeSource#implies(CodeSource)}.
+     * {@link CodeSource#implies(CodeSource)}.</p>
      * <p>
      * DNS lookup is avoided for security and performance reasons,
      * DNS is not authenticated and therefore cannot be trusted.  Doing so,
      * could allow an attacker to use DNS Cache poisoning to escalate
-     * Permission, by imitating a URL with privilege, such as AllPermission.
+     * Permission, by imitating a URL with privilege, such as AllPermission.</p>
      * <p>
      * CodeSource URL are converted to URI and normalized according
-     * to {@link http://www.ietf.org/rfc/rfc3986.txt} RFC3986 before being 
-     * compared as Strings.
+     * to <a href="http://www.ietf.org/rfc/rfc3986.txt">RFC3986</a> before being 
+     * compared as Strings.</p>
      * <p>
      * A URI based PermissionGrant "implies" a specified {@link ProtectionDomain} if:
-     * <P>
+     * </P>
      * <ol>
      * <li> The {@link ProtectionDomain}'s <i>{@link CodeSource}</i> is not null.
      * <li> All {@link Principal}'s, if defined in the {@link PermissionGrant} are present in the 
@@ -116,7 +118,6 @@ public abstract class PermissionGrantBuilder {
      *    are defined by the PermissionGrant.
      * <li> For any {@link URI} in a PermissionGrant, checks are made in the 
      * following order:
-     * <p>
      *   <ol>
      *     <li>  Any null {@link URI} implies any 
      *           {@link ProtectionDomain} that contains a non null
@@ -199,9 +200,10 @@ public abstract class PermissionGrantBuilder {
      * Sets the context of the PermissionGrant to on of the static final 
      * fields in this class.
      * 
-     * @param context
+     * @param context value of a static field defined in this builder.
      * @return PermissionGrantBuilder
-     * @throws IllegalStateException 
+     * @throws IllegalStateException if context out of range of static fields 
+     * defined in this builder.
      */
     public abstract PermissionGrantBuilder context(int context) throws IllegalStateException;
     
@@ -210,7 +212,7 @@ public abstract class PermissionGrantBuilder {
      * calling multiple times.
      * 
      * @param path - RFC3986 compliant URI or null.
-     * @return 
+     * @return PermissinoGrantBuilder
      */
     public abstract PermissionGrantBuilder uri(String path);
     /**
@@ -218,15 +220,14 @@ public abstract class PermissionGrantBuilder {
      * from the Class for use in the PermissionGrantBuilder.  The ClassLoader
      * and ProtectionDomain are weakly referenced, when collected any 
      * created PermissionGrant affected will be voided.
-     * @param cl
+     * @param cl Class used to determine the ProtectionDomain to be
+     * used for PermissionGrant.
      * @return PermissionGrantBuilder.
-     * @throws URISyntaxException - this exception may be swallowed if a URI
-     * grant is not required.
      */
     public abstract PermissionGrantBuilder clazz(Class cl);
     /**
      * Sets the Certificate[] a CodeSource must have to receive the PermissionGrant.
-     * @param certs
+     * @param certs Certificates
      * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder certificates(Certificate[] certs);
@@ -234,13 +235,13 @@ public abstract class PermissionGrantBuilder {
      * Sets the Principal[] that a Subject must have to be entitled to receive
      * the PermissionGrant.
      * 
-     * @param pals
+     * @param pals Principals.
      * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder principals(Principal[] pals);
     /**
      * Specifies Permission's to be granted.
-     * @param perm
+     * @param perm Permissions.
      * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder permissions(Permission[] perm);
@@ -270,7 +271,8 @@ public abstract class PermissionGrantBuilder {
 
     /**
      * 
-     * @param domain
+     * 
+     * @param domain WeakReference containing ProtectionDomain
      * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder setDomain(WeakReference<ProtectionDomain> domain);

@@ -17,13 +17,19 @@
  */
 package org.apache.river.test.share;
 
-import org.apache.river.qa.harness.QAConfig;
-import net.jini.core.lease.*;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.RemoteException;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.UnknownLeaseException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * Lifted from org.apache.river.lease.AbstractLease so we can have a codebase
@@ -35,6 +41,7 @@ import java.rmi.RemoteException;
  * createLeaseMap, canBatch, hashCode, equals, and serialization of
  * any subclass state.
  */
+@AtomicSerial
 public abstract class OurAbstractLease implements Lease,
 						  Serializable
 {
@@ -50,11 +57,47 @@ public abstract class OurAbstractLease implements Lease,
      *
      * @serial
      */
-    protected int serialFormat = Lease.DURATION;
+    protected int serialFormat;
+    
+    @ReadInput
+    static ReadObject getRO(){
+	return new RO();
+    }
+    
+    private static class RO implements ReadObject {
+	long expiration;
+
+	@Override
+	public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+	    expiration = input.readLong();
+	}
+	
+    }
+    
+    public OurAbstractLease(GetArg arg) throws IOException{
+	this(((RO)arg.getReader()).expiration, 
+		arg.get("serialFormat", Lease.DURATION)
+	);
+    }
+    
+    // For AtomicSerial
+    private OurAbstractLease(long expiration, int serialFormat){
+	if (serialFormat == Lease.DURATION) {
+	    expiration += System.currentTimeMillis();
+
+	    // We added two positive numbers, so if the result is negative
+	    // we must have overflowed, truncate to Long.MAX_VALUE
+	    if (expiration < 0) 
+		expiration = Long.MAX_VALUE;
+	}
+	this.expiration = expiration;
+	this.serialFormat = serialFormat;
+    }
 
     /** Construct a relative-format lease. */
     protected OurAbstractLease(long expiration) {
 	this.expiration = expiration;
+	serialFormat = Lease.DURATION;
     }
 
     /** Return the lease expiration. */

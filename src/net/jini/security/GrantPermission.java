@@ -84,31 +84,31 @@ import net.jini.security.policy.DynamicPolicy;
  * permissions in the default security policy file; it is listed below using
  * the same grammar notation employed by <i>The Java(TM) Language
  * Specification</i>:
- * <pre>
- * <i>Target</i>:
- *   <i>DelimiterDeclaration</i><sub>opt</sub> <i>Permissions</i> ;<sub>opt</sub>
- *   
- * <i>DelimiterDeclaration</i>:
- *   delim = <i>DelimiterCharacter</i>
- *   
- * <i>Permissions</i>:
- *   <i>Permission</i>
- *   <i>Permissions</i> ; <i>Permission</i>
- *   
- * <i>Permission</i>:
- *   <i>PermissionClassName</i>
- *   <i>PermissionClassName Name</i>
- *   <i>PermissionClassName Name</i> , <i>Actions</i>
- *   
- * <i>PermissionClassName</i>:
- *   <i>ClassName</i>
- *   
- * <i>Name</i>:
- *   <i>DelimitedString</i>
- *   
- * <i>Actions</i>:
- *   <i>DelimitedString</i>
- * </pre>
+ * <div>
+ * <i>Target</i>:<br>
+ * &nbsp;&nbsp;<i>DelimiterDeclaration</i><sub>opt</sub> <i>Permissions</i> ;<sub>opt</sub><br>
+ * <br>
+ * <i>DelimiterDeclaration</i>:<br>
+ * &nbsp;&nbsp;delim = <i>DelimiterCharacter</i><br>
+ * <br>
+ * <i>Permissions</i>:<br>
+ * &nbsp;&nbsp;<i>Permission</i><br>
+ * &nbsp;&nbsp;<i>Permissions</i> ; <i>Permission</i><br>
+ * <br>
+ * <i>Permission</i>:<br>
+ * &nbsp;&nbsp;<i>PermissionClassName</i><br>
+ * &nbsp;&nbsp;<i>PermissionClassName Name</i><br>
+ * &nbsp;&nbsp;<i>PermissionClassName Name</i> , <i>Actions</i><br>
+ * <br>
+ * <i>PermissionClassName</i>:<br>
+ * &nbsp;&nbsp;<i>ClassName</i><br>
+ * <br>
+ * <i>Name</i>:<br>
+ * &nbsp;&nbsp;<i>DelimitedString</i><br>
+ * <br>
+ * <i>Actions</i>:<br>
+ * &nbsp;&nbsp;<i>DelimitedString</i><br>
+ * </div>
  * The production for <i>ClassName</i> is the same as that used in <i>The
  * Java Language Specification</i>.  <i>DelimiterCharacter</i> can be any
  * unquoted non-whitespace character other than ';' (single and
@@ -157,7 +157,7 @@ import net.jini.security.policy.DynamicPolicy;
  * @since 2.0
  */
 public final class GrantPermission extends Permission {
-
+    //@AtomicSerial is not necessary, PermissionSerializer is ok.
     private static final long serialVersionUID = 4668259055340724280L;
     
     private static final Class[] PARAMS0 = {};
@@ -178,8 +178,7 @@ public final class GrantPermission extends Permission {
      * @throws	IllegalArgumentException if unable to parse target name
      */
     public GrantPermission(String name) {
-	super(name);
-	initFromName(name);
+	this(name, initFromName(name), false);
     }
     
     /**
@@ -203,14 +202,22 @@ public final class GrantPermission extends Permission {
      * 		element of <code>permissions</code> array is <code>null</code>
      */
     public GrantPermission(Permission[] permissions) {
-	super(constructName(permissions = (Permission[]) permissions.clone()));
-	grants = flatten(permissions);
-	for (int i = 0; i < permissions.length; i++) {
+	this(constructName(permissions), flatten(permissions), unserializable(permissions));
+    }
+    
+    private GrantPermission(String name, Permission[] grants, boolean unserializable){
+	super(name);
+	this.unserializable = unserializable;
+	this.grants = grants;
+    }
+    
+    private static boolean unserializable(Permission[] permissions){
+	for (int i = 0, l = permissions.length; i < l; i++) {
 	    if (permissions[i] instanceof UnresolvedPermission) {
-		unserializable = true;
-		return;
+		return true;
 	    }
 	}
+	return false;
     }
     
     /**
@@ -364,7 +371,7 @@ public final class GrantPermission extends Permission {
     {
 	in.defaultReadObject();
 	try {
-	    initFromName(getName());
+	    grants = initFromName(getName());
 	} catch (RuntimeException e) {
 	    if (e instanceof NullPointerException ||
 		e instanceof IllegalArgumentException)
@@ -384,7 +391,7 @@ public final class GrantPermission extends Permission {
      * misformatted, or specifies an invalid permission class.  Throws a
      * SecurityException if access to the class is not permitted.
      */
-    private void initFromName(String name) {
+    private static Permission[] initFromName(String name) {
 	PermissionInfo[] pia = parsePermissions(name);
 	ArrayList l = new ArrayList();
 	for (int i = 0; i < pia.length; i++) {
@@ -442,7 +449,7 @@ public final class GrantPermission extends Permission {
 	    throw new IllegalArgumentException(
 		"uninstantiable permission class: " + cl);
 	}
-	grants = flatten((Permission[]) l.toArray(new Permission[l.size()]));
+	return flatten((Permission[]) l.toArray(new Permission[l.size()]));
     }
 
     /**
@@ -558,22 +565,32 @@ public final class GrantPermission extends Permission {
      * of permissions.
      */
     private static String constructName(Permission[] pa) {
-	StringBuffer sb = new StringBuffer(60);
-	for (int i = 0; i < pa.length; i++) {
+	StringBuilder sb = new StringBuilder(60);
+	for (int i = 0, l = pa.length; i < l; i++) {
 	    Permission p = pa[i];
 	    if (p instanceof UnresolvedPermission) {
-		sb.append(p).append("; ");
+		sb.append(p)
+		  .append("; ");
 	    } else {
 		Class cl = p.getClass();
 		int nargs = maxConsArgs(cl);
 		String t = cl.getName(), n = p.getName(), a = p.getActions();
 		if (nargs == 2 && a != null) {
 		    // REMIND: handle null name?
-		    sb.append(t + " " + quote(n) + ", " + quote(a) + "; ");
+		    sb.append(t)
+		      .append(" ")
+		      .append(quote(n))
+		      .append(", ")
+		      .append(quote(a))
+		      .append("; ");
 		} else if (nargs >= 1 && n != null) {
-		    sb.append(t + " " + quote(n) + "; ");
+		    sb.append(t)
+		      .append(" ")
+		      .append(quote(n))
+		      .append("; ");
 		} else {
-		    sb.append(t + "; ");
+		    sb.append(t)
+		      .append("; ");
 		}
 	    }
 	}

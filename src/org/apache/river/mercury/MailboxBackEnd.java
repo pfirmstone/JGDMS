@@ -19,7 +19,7 @@ package org.apache.river.mercury;
 
 import org.apache.river.landlord.Landlord;
 import org.apache.river.proxy.ThrowThis;
-import org.apache.river.start.ServiceProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 
 
 import java.rmi.RemoteException;

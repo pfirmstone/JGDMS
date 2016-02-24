@@ -18,9 +18,6 @@
 
 package net.jini.activation;
 
-import org.apache.river.action.GetBooleanAction;
-import org.apache.river.jeri.internal.runtime.Util;
-import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -58,6 +55,12 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.security.Security;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
+import org.apache.river.jeri.internal.runtime.Util;
+import org.apache.river.logging.Levels;
 
 /**
  * An invocation handler for activatable remote objects.  If the client
@@ -121,6 +124,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *
  * </table>
  **/
+@AtomicSerial
 public final class ActivatableInvocationHandler
     implements InvocationHandler, TrustEquivalence, Serializable
 {
@@ -181,6 +185,12 @@ public final class ActivatableInvocationHandler
 	    throw new AssertionError(nsme);
 	}
     }
+    
+    public ActivatableInvocationHandler(GetArg arg) throws IOException {
+	this(Valid.notNull(arg.get("id", null, ActivationID.class), "id is null"),
+		arg.get("uproxy",null, Remote.class),
+		checkConstraints(arg.get("uproxy", null, Remote.class), arg.get("clientConstraints", null, MethodConstraints.class)));
+    }
 
     /**
      * Creates an instance with the specified activation identifier, a
@@ -218,6 +228,16 @@ public final class ActivatableInvocationHandler
 	    }
 	}
     }
+    
+    private static MethodConstraints checkConstraints(Remote uproxy, MethodConstraints clientConstraints)
+	    throws InvalidObjectException 
+    {
+	if (!hasConsistentConstraints(uproxy, clientConstraints)) {
+		throw new InvalidObjectException(
+		    "inconsistent constraints between underlying proxy and invocation handler");
+	    }
+	return clientConstraints;
+    }
 
     /**
      * Returns true if the constraints on the underlying proxy (if it
@@ -225,18 +245,16 @@ public final class ActivatableInvocationHandler
      * constraints of this invocation handler, or if the underlying proxy
      * does not implement RemoteMethodControl.
      */
-    private boolean hasConsistentConstraints() {
-        synchronized (this){
-            if (uproxy instanceof RemoteMethodControl) {
-                MethodConstraints uproxyConstraints =
-                    ((RemoteMethodControl) uproxy).getConstraints();
-                return (clientConstraints == null ?
-                        uproxyConstraints == null :
-                        clientConstraints.equals(uproxyConstraints));
-            } else {
-                return true;
-            }
-        }
+    private static boolean hasConsistentConstraints(Remote uproxy, MethodConstraints clientConstraints) {
+	if (uproxy instanceof RemoteMethodControl) {
+	    MethodConstraints uproxyConstraints =
+		((RemoteMethodControl) uproxy).getConstraints();
+	    return (clientConstraints == null ?
+		    uproxyConstraints == null :
+		    clientConstraints.equals(uproxyConstraints));
+	} else {
+	    return true;
+	}
     }
     
     /**
@@ -282,7 +300,7 @@ public final class ActivatableInvocationHandler
      *
      * <p>If the specified method is one of the following
      * <code>java.lang.Object</code> methods, it will be processed as follows:
-     * <p><ul>
+     * </p><ul>
      * <li>{@link Object#equals equals}: returns
      * <code>true</code> if the argument is an
      * instance of a dynamically generated {@link Proxy}
@@ -326,7 +344,7 @@ public final class ActivatableInvocationHandler
      * duration of the remote invocation, including any activation that may
      * occur.
      *
-     * <p><ul>
+     * </p><ul>
      * <li>If the underlying proxy is non-<code>null</code>, the method is
      * invoked as follows:
      *
@@ -362,7 +380,7 @@ public final class ActivatableInvocationHandler
      * exception is thrown to the caller, otherwise the exception is thrown
      * directly.
      *
-     * <p><li>If the underlying proxy is <code>null</code> or if the
+     * </p><li>If the underlying proxy is <code>null</code> or if the
      * reflective invocation does not throw an exception to the caller as
      * described above:
      * <ul>
@@ -1104,7 +1122,7 @@ public final class ActivatableInvocationHandler
 	} catch (RemoteException e) {
 	    throw new ConnectIOException("activation failed", e);
 	} catch (UnknownObjectException e) {
-	    throw new NoSuchObjectException("object not registered");
+	    throw new net.jini.export.NoSuchObjectException("object not registered", e);
 	} catch (ActivationException e) {
 	    throw new ActivateFailedException("activation failed", e);
 	} 
@@ -1179,6 +1197,10 @@ public final class ActivatableInvocationHandler
      * <code>null</code>, or if the underlying proxy implements {@link
      * RemoteMethodControl} and the constraints on the underlying proxy are
      * not equivalent to this invocation handler's constraints
+     * 
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      **/
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException
@@ -1187,10 +1209,7 @@ public final class ActivatableInvocationHandler
 	if (id == null) {
 	    throw new InvalidObjectException("id is null");
 	} else {
-	    if (!hasConsistentConstraints()) {
-		throw new InvalidObjectException(
-		    "inconsistent constraints between underlying proxy and invocation handler");
-	    }
+	    checkConstraints(uproxy, clientConstraints);
 	}
     }
 

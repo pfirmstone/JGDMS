@@ -21,6 +21,7 @@ package org.apache.river.discovery;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.io.UnsupportedConstraintException;
 
 /**
  * Interface implemented by classes which decode multicast request data

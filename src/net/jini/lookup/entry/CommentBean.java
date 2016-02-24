@@ -17,6 +17,7 @@
  */
 package net.jini.lookup.entry;
 
+import java.beans.ConstructorProperties;
 import java.io.Serializable;
 import net.jini.core.entry.Entry;
 
@@ -43,6 +44,11 @@ public class CommentBean implements EntryBean, Serializable {
      */
     public CommentBean() {
 	assoc = new Comment();
+    }
+    
+    @ConstructorProperties({"comment"})
+    public CommentBean(String comment){
+	assoc = new Comment(comment);
     }
 
     /**

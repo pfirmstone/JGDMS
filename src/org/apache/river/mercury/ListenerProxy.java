@@ -19,15 +19,6 @@ package org.apache.river.mercury;
 
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.proxy.ThrowThis;
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.id.ReferentUuid;
-import net.jini.id.ReferentUuids;
-import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-import net.jini.security.TrustVerifier;
-
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -38,9 +29,20 @@ import java.rmi.RemoteException;
 
 import javax.security.auth.Subject;
 
-import net.jini.core.event.RemoteEventListener;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.RemoteEvent;
+import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.UnknownEventException;
+import net.jini.id.ReferentUuid;
+import net.jini.id.ReferentUuids;
+import net.jini.id.Uuid;
+import net.jini.security.TrustVerifier;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * The <code>ListenerProxy</code> class implements the 
@@ -52,7 +54,7 @@ import net.jini.core.event.UnknownEventException;
  *
  * @since 1.1
  */
-
+@AtomicSerial
 class ListenerProxy implements RemoteEventListener, Serializable, ReferentUuid {
 
     private static final long serialVersionUID = 2L;
@@ -79,6 +81,8 @@ class ListenerProxy implements RemoteEventListener, Serializable, ReferentUuid {
      * @param server the server's listener proxy
      */
     static ListenerProxy create(Uuid id, MailboxBackEnd server) {
+	if (server == null || id == null)
+            throw new IllegalArgumentException("Cannot accept null arguments");
         if (server instanceof RemoteMethodControl) {
             return new ConstrainableListenerProxy(server, id, null);
         } else {
@@ -86,10 +90,20 @@ class ListenerProxy implements RemoteEventListener, Serializable, ReferentUuid {
         }
     }
 
+    ListenerProxy(GetArg arg) throws IOException {
+	this(Valid.notNull(
+		arg.get("server", null, MailboxBackEnd.class),
+		"server cannot be null"
+	    ), 
+	    Valid.notNull(
+		    arg.get("registrationID", null, Uuid.class), 
+		    "registrationID cannot be null"
+	    )
+	);
+    }
+
     /** Simple constructor */
     private ListenerProxy(MailboxBackEnd ref, Uuid regID) {
-        if (ref == null || regID == null)
-            throw new IllegalArgumentException("Cannot accept null arguments");
         server = ref;
         registrationID = regID;
     }
@@ -179,6 +193,7 @@ class ListenerProxy implements RemoteEventListener, Serializable, ReferentUuid {
 
 
     /** A subclass of ListenerProxy that implements RemoteMethodControl. */
+    @AtomicSerial
     final static class ConstrainableListenerProxy extends ListenerProxy
         implements RemoteMethodControl
     {
@@ -207,6 +222,22 @@ class ListenerProxy implements RemoteEventListener, Serializable, ReferentUuid {
             this.methodConstraints = methodConstraints;
         }
 
+	ConstrainableListenerProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	    methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
+	}
+
+	private static GetArg check(GetArg arg) throws IOException {
+	    ListenerProxy lp = new ListenerProxy(arg);
+	    MethodConstraints methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
+	    /* Verify the server and its constraints */
+            ConstrainableProxyUtil.verifyConsistentConstraints(methodConstraints,
+                                                        lp.server,
+                                                        methodMap1);
+	    return arg;
+	}
         /**
          * Returns a copy of the server proxy with the specified client
          * constraints and methods mapping.

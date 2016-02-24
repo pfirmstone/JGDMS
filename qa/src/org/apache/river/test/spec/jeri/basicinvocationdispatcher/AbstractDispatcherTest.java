@@ -17,40 +17,37 @@
  */
 package org.apache.river.test.spec.jeri.basicinvocationdispatcher;
 
-import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-
-import net.jini.io.MarshalInputStream;
-
-import org.apache.river.test.spec.jeri.util.FakeInboundRequest;
-import org.apache.river.test.spec.jeri.util.FakeBasicInvocationDispatcher;
-import org.apache.river.test.spec.jeri.util.FakeServerCapabilities;
-import org.apache.river.test.spec.jeri.util.FakeRemoteImpl;
-import org.apache.river.test.spec.jeri.util.FakeArgument;
-import org.apache.river.test.spec.jeri.util.Util;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
+import java.rmi.RemoteException;
 import java.rmi.ServerError;
 import java.rmi.ServerException;
 import java.rmi.UnmarshalException;
-import java.rmi.RemoteException;
+import java.util.ArrayList;
+import org.apache.river.api.io.AtomicMarshalInputStream;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.test.spec.jeri.util.FakeBasicInvocationDispatcher;
+import org.apache.river.test.spec.jeri.util.FakeInboundRequest;
+import org.apache.river.test.spec.jeri.util.FakeRemoteImpl;
+import org.apache.river.test.spec.jeri.util.FakeServerCapabilities;
+import org.apache.river.test.spec.jeri.util.Util;
 
 public abstract class AbstractDispatcherTest extends QATestEnvironment implements Test {
 
-    protected int counter;
-    protected ByteArrayInputStream response;
-    protected ArrayList context;
-    protected FakeInboundRequest request;
-    protected FakeRemoteImpl impl;
-    protected long methodHash;
-    protected Method fakeMethod;
-    protected FakeBasicInvocationDispatcher dispatcher;
-    protected Object[] nullArgs;
+    protected volatile int counter;
+    protected volatile ByteArrayInputStream response;
+    protected volatile ArrayList context;
+    protected volatile FakeInboundRequest request;
+    protected volatile FakeRemoteImpl impl;
+    protected volatile long methodHash;
+    protected volatile Method fakeMethod;
+    protected volatile FakeBasicInvocationDispatcher dispatcher;
+    protected volatile Object[] nullArgs;
 
     public Test construct(QAConfig sysConfig) throws Exception {
         // construct infrastructure needed by test
@@ -96,7 +93,7 @@ public abstract class AbstractDispatcherTest extends QATestEnvironment implement
     {
         Throwable caught = null;
         try {
-            MarshalInputStream marshalledResponse = new MarshalInputStream(
+            ObjectInputStream marshalledResponse = new AtomicMarshalInputStream(
                 response, null, false, null, new ArrayList());
             caught = (Throwable) marshalledResponse.readObject();
             assertion(marshalledResponse.read() == -1);
@@ -140,7 +137,7 @@ public abstract class AbstractDispatcherTest extends QATestEnvironment implement
     {
         Throwable caught = null;
         try {
-            MarshalInputStream marshalledResponse = new MarshalInputStream(
+            ObjectInputStream marshalledResponse = new AtomicMarshalInputStream(
                 response, null, false, null, new ArrayList());
             caught = (Throwable) marshalledResponse.readObject();
             assertion(marshalledResponse.read() == -1);

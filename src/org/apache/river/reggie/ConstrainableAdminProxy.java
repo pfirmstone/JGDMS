@@ -17,20 +17,16 @@
  */
 package org.apache.river.reggie;
 
-import org.apache.river.admin.DestroyAdmin;
-import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.lang.reflect.Method;
-import net.jini.admin.JoinAdmin;
+import java.io.ObjectOutputStream;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
-import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * AdminProxy subclass that supports constraints.
@@ -38,94 +34,26 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class ConstrainableAdminProxy
     extends AdminProxy implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
 
-    /** Mappings between public admin methods and Registrar methods */
-    private static final Method[] methodMappings = {
-	Util.getMethod(DiscoveryAdmin.class, "addMemberGroups",
-		       new Class[]{ String[].class }),
-	Util.getMethod(DiscoveryAdmin.class, "addMemberGroups",
-		       new Class[]{ String[].class }),
-
-	Util.getMethod(DiscoveryAdmin.class, "getMemberGroups", new Class[0]),
-	Util.getMethod(DiscoveryAdmin.class, "getMemberGroups", new Class[0]),
-
-	Util.getMethod(DiscoveryAdmin.class, "getUnicastPort", new Class[0]),
-	Util.getMethod(DiscoveryAdmin.class, "getUnicastPort", new Class[0]),
-
-	Util.getMethod(DiscoveryAdmin.class, "removeMemberGroups",
-		       new Class[]{ String[].class }),
-	Util.getMethod(DiscoveryAdmin.class, "removeMemberGroups",
-		       new Class[]{ String[].class }),
-
-	Util.getMethod(DiscoveryAdmin.class, "setMemberGroups",
-		       new Class[]{ String[].class }),
-	Util.getMethod(DiscoveryAdmin.class, "setMemberGroups",
-		       new Class[]{ String[].class }),
-
-	Util.getMethod(DiscoveryAdmin.class, "setUnicastPort",
-		       new Class[]{ int.class }),
-	Util.getMethod(DiscoveryAdmin.class, "setUnicastPort",
-		       new Class[]{ int.class }),
-
-	Util.getMethod(JoinAdmin.class, "addLookupAttributes",
-		       new Class[]{ Entry[].class }),
-	Util.getMethod(JoinAdmin.class, "addLookupAttributes",
-		       new Class[]{ Entry[].class }),
-
-	Util.getMethod(JoinAdmin.class, "addLookupGroups",
-		       new Class[]{ String[].class }),
-	Util.getMethod(JoinAdmin.class, "addLookupGroups",
-		       new Class[]{ String[].class }),
-
-	Util.getMethod(JoinAdmin.class, "addLookupLocators",
-		       new Class[]{ LookupLocator[].class }),
-	Util.getMethod(JoinAdmin.class, "addLookupLocators",
-		       new Class[]{ LookupLocator[].class }),
-
-	Util.getMethod(JoinAdmin.class, "getLookupAttributes", new Class[0]),
-	Util.getMethod(JoinAdmin.class, "getLookupAttributes", new Class[0]),
-
-	Util.getMethod(JoinAdmin.class, "getLookupGroups", new Class[0]),
-	Util.getMethod(JoinAdmin.class, "getLookupGroups", new Class[0]),
-
-	Util.getMethod(JoinAdmin.class, "getLookupLocators", new Class[0]),
-	Util.getMethod(JoinAdmin.class, "getLookupLocators", new Class[0]),
-
-	Util.getMethod(JoinAdmin.class, "modifyLookupAttributes",
-		       new Class[]{ Entry[].class, Entry[].class }),
-	Util.getMethod(JoinAdmin.class, "modifyLookupAttributes",
-		       new Class[]{ Entry[].class, Entry[].class }),
-
-	Util.getMethod(JoinAdmin.class, "removeLookupGroups",
-		       new Class[]{ String[].class }),
-	Util.getMethod(JoinAdmin.class, "removeLookupGroups",
-		       new Class[]{ String[].class }),
-
-	Util.getMethod(JoinAdmin.class, "removeLookupLocators",
-		       new Class[]{ LookupLocator[].class }),
-	Util.getMethod(JoinAdmin.class, "removeLookupLocators",
-		       new Class[]{ LookupLocator[].class }),
-
-	Util.getMethod(JoinAdmin.class, "setLookupGroups",
-		       new Class[]{ String[].class }),
-	Util.getMethod(JoinAdmin.class, "setLookupGroups",
-		       new Class[]{ String[].class }),
-
-	Util.getMethod(JoinAdmin.class, "setLookupLocators",
-		       new Class[]{ LookupLocator[].class }),
-	Util.getMethod(JoinAdmin.class, "setLookupLocators",
-		       new Class[]{ LookupLocator[].class }),
-
-	Util.getMethod(DestroyAdmin.class, "destroy", new Class[0]),
-	Util.getMethod(DestroyAdmin.class, "destroy", new Class[0])
-    };
-
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
+
+    private static GetArg check(GetArg arg) throws IOException{
+	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	AdminProxy sup = new AdminProxy(arg);
+	verifyConsistentConstraints(constraints, sup.server);
+	return arg;
+    }
+    
+    ConstrainableAdminProxy(GetArg arg) throws IOException{
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
 
     /**
      * Creates new ConstrainableAdminProxy with given server reference, service
@@ -136,8 +64,7 @@ final class ConstrainableAdminProxy
 			    MethodConstraints constraints)
     {
 	super((Registrar) ((RemoteMethodControl) server).setConstraints(
-		  ConstrainableProxyUtil.translateConstraints(
-		      constraints, methodMappings)),
+		  translateConstraints(constraints)),
 	      registrarID);
 	this.constraints = constraints;
     }
@@ -160,6 +87,10 @@ final class ConstrainableAdminProxy
 	return new SingletonProxyTrustIterator(server);
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
     /**
      * Verifies that the client constraints for this proxy are consistent with
      * those set on the underlying server ref.
@@ -168,7 +99,6 @@ final class ConstrainableAdminProxy
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
-	ConstrainableProxyUtil.verifyConsistentConstraints(
-	    constraints, server, methodMappings);
+	verifyConsistentConstraints(constraints, server);
     }
 }

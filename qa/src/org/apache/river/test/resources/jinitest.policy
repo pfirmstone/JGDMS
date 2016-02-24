@@ -15,6 +15,9 @@ grant {
 };
 
 grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test
     permission org.apache.river.phoenix.ExecPermission "/bin/javax";

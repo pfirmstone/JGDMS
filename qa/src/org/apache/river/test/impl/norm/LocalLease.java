@@ -17,42 +17,39 @@
  */
 package org.apache.river.test.impl.norm;
 
-import java.io.Serializable;
+import org.apache.river.qa.harness.QAConfig;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
-
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.rmi.RemoteException;
-
+import java.rmi.server.ExportException;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.Iterator;
-
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
-import net.jini.core.lease.LeaseException;
-import net.jini.core.lease.LeaseDeniedException;
-import net.jini.core.lease.UnknownLeaseException;
-
 import net.jini.config.Configuration;
-import net.jini.export.Exporter;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.security.proxytrust.ServerProxyTrust;
-import net.jini.security.TrustVerifier;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.constraint.MethodConstraints;
-
-import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.qa.harness.QAConfig;
-import java.rmi.server.ExportException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.LeaseException;
+import net.jini.core.lease.LeaseMap;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.export.Exporter;
+import net.jini.security.TrustVerifier;
+import net.jini.security.proxytrust.ProxyTrust;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * A lease implementation that is completely local for use in some of the 
  * QA test for the LeaseRenewalService
  */
+@AtomicSerial
 class LocalLease implements Lease, Serializable {
     /** 
      * Expiration time of the lease 
@@ -85,8 +82,6 @@ class LocalLease implements Lease, Serializable {
      */
     private long id;
 
-    private ProxyTrustImpl pt = getProxyTrust();
-    
     private static ProxyTrustImpl getProxyTrust() {
         ProxyTrustImpl proxy = new ProxyTrustImpl();
         try {
@@ -151,6 +146,42 @@ class LocalLease implements Lease, Serializable {
 	this.renewLimit = renewLimit;
 	this.bundle = bundle;
 	this.id = id;
+    }
+
+    LocalLease(long renewLimit,
+		long bundle,
+		int serialFormat,
+		long id,
+		long expiration)
+    {
+	this.renewLimit = renewLimit;
+	this.bundle = bundle;
+	this.serialFormat = serialFormat;
+	this.id = id;
+	if (serialFormat == Lease.DURATION) {
+	    boolean canOverflow = (expiration > 0);
+	    expiration += System.currentTimeMillis();
+
+	    // If we added two positive numbers and if the result is negative
+	    // we must have overflowed, truncate to Long.MAX_VALUE. Otherwise,
+	    // if the result is negative must have underflowed, set to zero.
+	    if (expiration < 0) {
+		if (canOverflow) {
+		    expiration = Long.MAX_VALUE;
+		} else {
+		    expiration = 0;
+		}
+	    }
+	}
+	this.expiration = expiration;
+    }
+    
+    LocalLease(GetArg arg) throws IOException {
+	this(arg.get("renewLimit", 0L),
+	    arg.get("bundle", 0L),
+	    arg.get("serialFormat", 0),
+	    arg.get("id", 0L),
+	    ((RO)arg.getReader()).expiration);
     }
 
     // Inherit java doc from super type
@@ -253,6 +284,22 @@ class LocalLease implements Lease, Serializable {
 		}
 	    }
 	}
+    }
+
+    @ReadInput
+    private static ReadObject getRO(){
+	return new RO();
+    }
+
+    private static class RO implements ReadObject {
+
+	long expiration;
+	
+	@Override
+	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
+	    expiration = stream.readLong();
+	}
+	
     }
 
 
@@ -364,11 +411,20 @@ class LocalLease implements Lease, Serializable {
 	}
     }
 
+    @AtomicSerial
     public static class ProxyTrustImpl
 	implements ProxyTrust, ServerProxyTrust, Serializable
     {
 	private ProxyTrust proxy;
-        private Exporter exporter;
+        private transient Exporter exporter;
+
+	ProxyTrustImpl(GetArg arg) throws IOException {
+	    this(arg.get("proxy", null, ProxyTrust.class));
+	}
+	
+	private ProxyTrustImpl(ProxyTrust proxy) {
+	    this.proxy = proxy;
+	}
 
 	public ProxyTrustImpl() {
 	    try {

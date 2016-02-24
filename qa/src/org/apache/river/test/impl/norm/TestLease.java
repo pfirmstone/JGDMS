@@ -17,18 +17,21 @@
  */
 package org.apache.river.test.impl.norm;
 
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
-
-import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Lease class use by renwal service tests when they don't want to use
  * <code>LocalLease</code>.
  */
+@AtomicSerial
 public class TestLease extends OurAbstractLease {
     /** 
      * id of the lease
@@ -54,6 +57,18 @@ public class TestLease extends OurAbstractLease {
 	super(expiration);
 	this.id   = id;
 	this.home = home;
+    }
+    
+    public TestLease(GetArg arg) throws IOException{
+	super(check(arg));
+	id = arg.get("id", 0);
+	home = arg.get("home", null, LeaseBackEnd.class);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	arg.get("id", 0);
+	arg.get("home", null, LeaseBackEnd.class);
+	return arg;
     }
 
     // Implementation of the Lease interface

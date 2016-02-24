@@ -125,8 +125,9 @@ public class EMSLCT_PULL extends EMSTestBase implements TimeConstants {
 	        events[i] = myGen.generateEvent(evtReg.getID(), 3);
 	    }
 	} catch (ServerException se) {
-	    if (se.detail != null &&
-	        se.detail instanceof NoSuchObjectException) {
+	    Throwable detail = se.getCause();
+	    if (detail != null &&
+	        detail instanceof NoSuchObjectException) {
 		// can safely ignore this since we expect
 		// that the registration has expired.
 	        logger.log(Level.INFO, "Caught NoSuchObjectException - expected");

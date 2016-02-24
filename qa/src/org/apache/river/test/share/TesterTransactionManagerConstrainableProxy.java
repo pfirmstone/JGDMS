@@ -28,16 +28,18 @@ import javax.security.auth.Subject;
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
-import net.jini.core.discovery.LookupLocator;
 import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * RegistrarProxy subclass that supports constraints.
@@ -45,6 +47,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class TesterTransactionManagerConstrainableProxy
     extends TesterTransactionManagerProxy implements RemoteMethodControl
 {
@@ -64,6 +67,16 @@ final class TesterTransactionManagerConstrainableProxy
     {
 	super((TransactionManager) ((RemoteMethodControl) server).setConstraints(constraints), sid);
 	this.constraints = constraints;
+    }
+
+    TesterTransactionManagerConstrainableProxy(GetArg arg) throws IOException {
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	arg.get("constraints", null, MethodConstraints.class);
+	return arg;
     }
 
     // javadoc inherited from RemoteMethodControl.setConstraints

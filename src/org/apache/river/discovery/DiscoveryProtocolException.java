@@ -35,6 +35,7 @@ public class DiscoveryProtocolException extends IOException {
     /**
      * Constructs a new <code>DiscoveryProtocolException</code> with the
      * specified detail message.
+     * @param message detail string.
      */
     public DiscoveryProtocolException(String message) {
 	super(message);
@@ -43,9 +44,10 @@ public class DiscoveryProtocolException extends IOException {
     /**
      * Constructs a new <code>DiscoveryProtocolException</code> with the
      * specified detail message and cause.
+     * @param message detail string
+     * @param cause Throwable that caused the exception.
      */
     public DiscoveryProtocolException(String message, Throwable cause) {
-	super(message);
-	initCause(cause);
+	super(message, cause);
     }
 }

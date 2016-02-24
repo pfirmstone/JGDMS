@@ -18,15 +18,8 @@
 
 package org.apache.river.norm;
 
-import org.apache.river.admin.DestroyAdmin;
-import net.jini.admin.Administrable;
-import net.jini.admin.JoinAdmin;
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
 import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.jeri.BasicJeriExporter;
-import net.jini.lease.LeaseRenewalService;
-import net.jini.lease.LeaseRenewalSet;
 import net.jini.security.AccessPermission;
 
 /**

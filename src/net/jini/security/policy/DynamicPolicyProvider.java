@@ -114,7 +114,7 @@ import org.apache.river.api.security.RevocablePolicy;
  * <p>This is different to the behaviour of the previous Jini 2.0
  * DynamicPolicyProvider implementation where dynamically granted Permissions
  * could escape into the ProtectionDomain's private PermissionCollection.
- * /p>
+ * </p>
  * <p>
  * It is thus recommended that Static policy files only be used for setting
  * up your privileged code and use UmbrellaGrantPermission's and grant 

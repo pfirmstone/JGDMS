@@ -17,6 +17,10 @@
  */
 package net.jini.core.lookup;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * An instance of this class is used for the return value when looking up
  * multiple items in the lookup service.
@@ -28,6 +32,7 @@ package net.jini.core.lookup;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class ServiceMatches implements java.io.Serializable {
 
     private static final long serialVersionUID = -5518280843537399398L;
@@ -44,6 +49,22 @@ public class ServiceMatches implements java.io.Serializable {
      * @serial
      */
     public final int totalMatches;
+
+    /**
+     * {@link AtomicSerial} convenience constructor.
+     * 
+     * Since this class is mutable it should be cloned during deserialization.
+     * 
+     * @param arg
+     * @throws IOException 
+     */
+    public ServiceMatches(GetArg arg) throws IOException {
+	// The only invariant is the ServiceItem[] type check, which is done
+	// before super() is called.
+	// arg can be null, required to pass ToStringTest legacy test.
+	this(arg == null? null: arg.get("items", null, ServiceItem[].class),
+	     arg == null? 0: arg.get("totalMatches", 0));
+    }
 
     /**
      * Simple constructor.

@@ -20,15 +20,13 @@ package org.apache.river.reggie;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.lang.reflect.Method;
+import java.io.ObjectOutputStream;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.entry.Entry;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceRegistration;
-import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Registration subclass that supports constraints.
@@ -36,56 +34,50 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class ConstrainableRegistration
     extends Registration implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
 
-    /** Mappings between ServiceRegistration and Registrar methods */
-    private static final Method[] methodMappings = {
-	Util.getMethod(ServiceRegistration.class, "addAttributes",
-		       new Class[]{ Entry[].class }),
-	Util.getMethod(Registrar.class, "addAttributes",
-		       new Class[]{ ServiceID.class, Uuid.class,
-				    EntryRep[].class }),
-
-	Util.getMethod(ServiceRegistration.class, "modifyAttributes",
-		       new Class[]{ Entry[].class, Entry[].class }),
-	Util.getMethod(Registrar.class, "modifyAttributes",
-		       new Class[]{ ServiceID.class, Uuid.class,
-				    EntryRep[].class, EntryRep[].class }),
-
-	Util.getMethod(ServiceRegistration.class, "setAttributes",
-		       new Class[]{ Entry[].class }),
-	Util.getMethod(Registrar.class, "setAttributes",
-		       new Class[]{ ServiceID.class, Uuid.class,
-				    EntryRep[].class }),
-    };
-
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
+
+    private static GetArg check(GetArg arg) throws IOException {
+	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	Registration reg = new Registration(arg);
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+	    constraints, reg.server, methodMappings);
+	return arg;
+    }
+   
+    ConstrainableRegistration(GetArg arg) throws IOException {
+	super(check(arg));
+	constraints = (MethodConstraints) arg.get("constraints", null);
+    }
 
     /**
      * Creates new ConstrainableRegistration with given server reference,
      * service lease and client constraints.
      */
-    ConstrainableRegistration(Registrar server,
+    ConstrainableRegistration(  Registrar server,
 			      ServiceLease lease,
-			      MethodConstraints constraints)
+				MethodConstraints constraints,
+				boolean setConstraints)
     {
-	super((Registrar) ((RemoteMethodControl) server).setConstraints(
-		  ConstrainableProxyUtil.translateConstraints(
-		      constraints, methodMappings)),
-	      lease);
+	super( setConstraints ? (Registrar) ((RemoteMethodControl) server).setConstraints(
+		  translateConstraints(constraints)): server,lease);
 	this.constraints = constraints;
     }
 
     // javadoc inherited from RemoteMethodControl.setConstraints
+    @Override
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-	return new ConstrainableRegistration(server, lease, constraints);
+	return new ConstrainableRegistration(server, lease, constraints, true);
     }
 
     // javadoc inherited from RemoteMethodControl.getConstraints
+    @Override
     public MethodConstraints getConstraints() {
 	return constraints;
     }
@@ -96,6 +88,10 @@ final class ConstrainableRegistration
      */
     private ProxyTrustIterator getProxyTrustIterator() {
 	return new SingletonProxyTrustIterator(server);
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
     }
 
     /**

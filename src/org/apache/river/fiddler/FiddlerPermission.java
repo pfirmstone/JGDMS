@@ -50,6 +50,7 @@ public class FiddlerPermission extends AccessPermission {
     /**
      * Creates an instance of this class having the specified target name.
      *
+     * @param name specified target name.
      * @throws NullPointerException if the given target name is
      *         <code>null</code>.
      * @throws IllegalArgumentException if the given target name does not

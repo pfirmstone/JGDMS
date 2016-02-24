@@ -19,15 +19,37 @@ package net.jini.discovery;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.AccessController;
+import org.apache.river.action.GetBooleanAction;
 
 /**
  * A holder class for constants that pertain to the unicast and
  * multicast discovery protocols.
+ * <p>
+ * The following properties if set, provide support for IPv6:
+ * <li>net.jini.discovery.IPv6=TRUE
+ * <li>net.jini.discovery.GLOBAL_ANNOUNCE=TRUE
+ * <p>
+ * Note that support for global announcement must be specifically set to
+ * be enabled.  There is no support for global request, for obvious reasons.
  *
  * @author Sun Microsystems, Inc.
  *
  */
 public class Constants {
+    
+    /**
+     * If true IPv6 has been enabled.
+     */
+    public static final Boolean IPv6 = AccessController.doPrivileged(
+	    new GetBooleanAction("net.jini.discovery.IPv6"));
+    
+    /**
+     * If true and IPv6 is also true, the announcement protocol will 
+     * propagate over global networks.
+     */
+    public static final Boolean GLOBAL_ANNOUNCE = AccessController.doPrivileged(
+	    new GetBooleanAction("net.jini.discovery.GLOBAL_ANNOUNCE"));
     /**
      * The address of the multicast group over which the multicast
      * request protocol takes place.
@@ -57,14 +79,19 @@ public class Constants {
      * multicast request protocol takes place.
      * @return the address of the multicast group over which the
      *         multicast request protocol takes place
-     * @throws UnknownHostException 
+     * @throws UnknownHostException if no IP address for the host could
+     * be found.
      */
     public static final InetAddress getRequestAddress()
 	throws UnknownHostException
     {
         synchronized (LOCK){
             if (requestAddress != null) return requestAddress;
-            requestAddress = InetAddress.getByName("224.0.1.85");
+	    if (IPv6) {
+		requestAddress = InetAddress.getByName("FF05::156");
+	    } else {
+		requestAddress = InetAddress.getByName("224.0.1.85");
+	    }
             return requestAddress;
         }
     }
@@ -75,13 +102,21 @@ public class Constants {
      * multicast announcement protocol takes place.
      * @return the address of the multicast group over which the
      *         multicast announcement protocol takes place.
-     * @throws UnknownHostException
+     * @throws UnknownHostException if no IP address for the host could
+     * be found.
      */
     public static final InetAddress getAnnouncementAddress()
 	throws UnknownHostException
     {
         synchronized (LOCK){
             if (announcementAddress != null) return announcementAddress;
+	    if (IPv6){
+		if (GLOBAL_ANNOUNCE) {
+		    announcementAddress = InetAddress.getByName("FF0X::155");
+		} else {
+		    announcementAddress = InetAddress.getByName("FF05::155");
+		}
+	    }
             announcementAddress = InetAddress.getByName("224.0.1.84");
             return announcementAddress;
         }

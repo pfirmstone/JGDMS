@@ -18,6 +18,11 @@
 
 package net.jini.core.lease;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /** 
  * Generic superclass for specific lease exceptions. 
  *
@@ -25,7 +30,8 @@ package net.jini.core.lease;
  *
  * @since 1.0
  */
-public class LeaseException extends Exception {
+@AtomicSerial
+public class LeaseException extends AtomicException {
 
     private static final long serialVersionUID = -7902272546257490469L;
 
@@ -44,5 +50,9 @@ public class LeaseException extends Exception {
      */
     public LeaseException(String reason) {
 	super(reason);
+    }
+    
+    public LeaseException(GetArg arg) throws IOException {
+	super(arg);
     }
 }

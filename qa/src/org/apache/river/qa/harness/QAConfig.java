@@ -17,9 +17,6 @@
  */
 package org.apache.river.qa.harness;
 
-import org.apache.river.start.ClassLoaderUtil;
-import org.apache.river.system.CommandLine.BadInvocationException;
-import org.apache.river.system.MultiCommandLine;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -29,28 +26,25 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-
 import java.net.InetAddress;
 import java.net.MalformedURLException;
-import java.net.UnknownHostException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
+import java.net.UnknownHostException;
 import java.rmi.RemoteException;
-
+import java.rmi.activation.ActivationException;
+import java.rmi.activation.ActivationGroup;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.logging.Logger;
-import java.util.logging.Level;
+import java.util.List;
 import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.Random;
@@ -58,21 +52,27 @@ import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.jar.JarFile;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
-
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.discovery.LookupLocator;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.discovery.LookupLocator;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.export.Exporter;
-import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.RFC3986URLClassLoader;
+import org.apache.river.start.ClassLoaderUtil;
+import org.apache.river.system.CommandLine.BadInvocationException;
+import org.apache.river.system.MultiCommandLine;
 
 /**
  * This class represents the environment for tests running in
@@ -182,7 +182,8 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *<tr> <td> FINE <td>any calls to <code>logDebugText</code>
  *</table> <p>
  */
-public class QAConfig implements Serializable {
+@AtomicSerial
+public final class QAConfig implements Serializable {
 
     /** static ref for access by utils which don't accept a config arg */
     private static QAConfig harnessConfig;
@@ -200,26 +201,20 @@ public class QAConfig implements Serializable {
     /** A unique string which is used to generate unique group names. */
     private String uniqueString;
 
-    /** the name of the configurator class */
-    private String configuratorClassName = null;
-
     /** the configuration override providers */
-    private ArrayList overrideProviders = new ArrayList();
+    private List overrideProviders;
 
     /** the failure analyzers */
-    private ArrayList failureAnalyzers = new ArrayList();
-
-    /** The number of configurations to cycle through */
-    private int configurationCount = -1;
+    private List failureAnalyzers;
 
     /** Properties obtained from the user configuration file. */
     private Properties configProps;
 
     /** properties obtained from the configuration group file */
-    private Properties configSetProps = new Properties();
+    private Properties configSetProps;
 
     /** Properties obtained from qaDefaults.properties. */
-    private Properties defaultProps = new Properties();
+    private Properties defaultProps;
 
     /** The test <code>Configuration</code> object, not serializable*/
     private transient Configuration configuration;
@@ -228,7 +223,7 @@ public class QAConfig implements Serializable {
     private TestDescription td;
 
     /** Dynamic properties set on-the-fly by tests. */
-    private Properties dynamicProps = new Properties();
+    private Properties dynamicProps;
 
     /** Override properties, for cmd lines with non-default install props */
     private Properties propertyOverrides = null;
@@ -246,13 +241,10 @@ public class QAConfig implements Serializable {
     private String trackKey;
 
     /** The set of hosts participating in this test run */
-    private ArrayList hostList = new ArrayList();
+    private List<String> hostList;
 
     /** The host index memory for the uniformrandom selection policy */
-    private ArrayList selectedIndexes;
-
-    /** Flag controlling use of IP address or host names during resolution */
-    private boolean useAddress = false;
+    private List selectedIndexes;
 
     /** The resolver */
     private Resolver resolver;
@@ -292,6 +284,92 @@ public class QAConfig implements Serializable {
     private int testIndex = 0;
 
     private String resumeMessage;
+    
+    public QAConfig(GetArg arg) throws IOException{
+	this(arg.get("uniqueString", null, String.class),
+	    arg.get("overrideProviders", null, List.class),
+	    arg.get("failureAnalyzers", null, List.class),
+	    arg.get("configProps", null, Properties.class),
+	    arg.get("configSetProps", null, Properties.class),
+	    arg.get("defaultProps", null, Properties.class),
+	    arg.get("td", null, TestDescription.class),
+	    arg.get("dynamicProps", null, Properties.class),
+	    arg.get("propertyOverrides", null, Properties.class),
+	    arg.get("args", null, String[].class),
+	    arg.get("configTags", null, String[].class),
+	    arg.get("currentTag", null, String.class),
+	    arg.get("trackKey", null, String.class),
+	    arg.get("hostList", null, List.class),
+	    arg.get("selectedIndexes", null, List.class),
+	    arg.get("resolver", null, Resolver.class),
+	    arg.get("testJar", null, String.class),
+	    arg.get("harnessJar", null, String.class),
+	    arg.get("searchList", null, String[].class),
+	    arg.get("testSuspended", false),
+	    arg.get("hostIndex", 0),
+	    arg.get("passCount", 0),
+	    arg.get("callAutot", false),
+	    arg.get("testTotal", 0),
+	    arg.get("testIndex", 0),
+	    arg.get("resumeMessage", null, String.class)
+	);
+    }
+    
+    private QAConfig(
+	    String uniqueString,
+	    List overrideProviders,
+	    List failureAnalyzers,
+	    Properties configProps,
+	    Properties configSetProps,
+	    Properties defaultProps,
+	    TestDescription td,
+	    Properties dynamicProps,
+	    Properties propertyOverrides,
+	    String[] args,
+	    String[] configTags,
+	    String currentTag,
+	    String trackKey,
+	    List hostList,
+	    List selectedIndexes,
+	    Resolver resolver,
+	    String testJar,
+	    String harnessJar,
+	    String[] searchList,
+	    boolean testSuspended,
+	    int hostIndex,
+	    int passCount,
+	    boolean callAutot,
+	    int testTotal,
+	    int testIndex,
+	    String resumeMessage)
+    {
+	this.uniqueString = uniqueString;
+	this.overrideProviders = overrideProviders;
+	this.failureAnalyzers = failureAnalyzers;
+	this.configProps = configProps;
+	this.configSetProps = configSetProps;
+	this.defaultProps = defaultProps;
+	this.td = td;
+	this.dynamicProps = dynamicProps;
+	this.propertyOverrides = propertyOverrides;
+	this.args = args;
+	this.configTags = configTags;
+	this.currentTag = currentTag;
+	this.trackKey = trackKey;
+	this.hostList = hostList;
+	this.selectedIndexes = selectedIndexes;
+	this.resolver = resolver;
+	this.testJar = testJar;
+	this.harnessJar = harnessJar;
+	this.searchList = searchList;
+	this.testSuspended = testSuspended;
+	this.hostIndex = hostIndex;
+	this.passCount = passCount;
+	this.callAutot = callAutot;
+	this.testTotal = testTotal;
+	this.testIndex = testIndex;
+	this.resumeMessage = resumeMessage;
+    }
 
     /**
      * Static accessor for the config instance.
@@ -383,6 +461,12 @@ public class QAConfig implements Serializable {
      *
      */
     public QAConfig(String[] args) throws TestException {
+	this.hostList = new ArrayList();
+	this.dynamicProps = new Properties();
+	this.defaultProps = new Properties();
+	this.configSetProps = new Properties();
+	this.failureAnalyzers = new ArrayList();
+	this.overrideProviders = new ArrayList();
 	this.args = args;
 	resolver = new Resolver(this);
 	configProps = loadProperties(args[0]);
@@ -2699,7 +2783,7 @@ public class QAConfig implements Serializable {
      *
      * @return the host list
      */
-    public ArrayList getHostList() {
+    public List getHostList() {
 	return hostList;
     }
 

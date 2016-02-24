@@ -47,9 +47,8 @@ import org.apache.river.system.FileSystem;
  * <li><a href="#logging">Logging</a>
  * </ul>
  *
- * <a name="configEntries">
+ * <a name="configEntries"></a>
  * <h3>Configuring DestroySharedGroup</h3>
- * </a>
  *
  * This implementation of <code>DestroySharedGroup</code> supports the
  * following configuration entries, with component
@@ -59,15 +58,15 @@ import org.apache.river.system.FileSystem;
  *          entry"
  *          border="0" cellpadding="2">
  *     <tr valign="top">
- *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *       activationSystemPreparer</code></font>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *       <th scope="col">&#X2022;
+ *       <th scope="col" align="left" colspan="2"><code>
+ *       activationSystemPreparer</code>
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>
  *         new {@link net.jini.security.BasicProxyPreparer}()</code>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Description: <td> The proxy preparer for the proxy for the
  *       activation system. The value should not be <code>null</code>. This
  *       entry is obtained at service start and restart. This entry is only
@@ -83,14 +82,14 @@ import org.apache.river.system.FileSystem;
  *   <table summary="Describes the loginContext configuration entry"
  *     border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *   loginContext</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *   loginContext</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link javax.security.auth.login.LoginContext}
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>null</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> If not <code>null</code>, specifies the JAAS
  *     login context to use for performing a JAAS login and supplying the
  *     {@link javax.security.auth.Subject} to use when running the
@@ -100,34 +99,33 @@ import org.apache.river.system.FileSystem;
  * <table summary="Describes the serviceDestructors configuration entry"
  *	  border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *	 serviceDestructors</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *	 serviceDestructors</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link ServiceDescriptor}[]
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: no default
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> Array of service descriptors to start.
  * </table>
  *
  *
- *<a name="logging">
+ *<a name="logging"></a>
  *<h3>Loggers and Logging Levels</h3>
- *</a>
- *
+ *<p>
  *The DestroySharedGroup service implementation uses the {@link
  *java.util.logging.Logger}, named 
  * <code>org.apache.river.start.service.starter</code>. 
  *The following table describes the
  *type of information logged as well as the levels of information logged.
- *<p>
+ *</p>
  *
  *  <table border="1" cellpadding="5"
  *	 summary="Describes logging performed by service.starter at different
  *	 logging levels">
  *
- *  <caption halign="center" valign="top"><b><code>
+ *  <caption><b><code>
  *	   org.apache.river.start.service.starter</code></b></caption>
  *
  *  <tr> <th scope="col"> Level <th scope="col"> Description

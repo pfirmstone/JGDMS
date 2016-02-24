@@ -18,16 +18,20 @@
 
 package org.apache.river.qa.harness;
 
-import java.io.Serializable;
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveTestRequest</code> which registers an override provider
  * on the slave.
  */
+@AtomicSerial
 class AddOverrideProviderRequest implements SlaveRequest {
+    private static final long serialVersionUID = 1L;
 
     /** the override provider */
-    private OverrideProvider provider;
+    private final OverrideProvider provider;
 
     /**
      * Construct the request.
@@ -36,6 +40,10 @@ class AddOverrideProviderRequest implements SlaveRequest {
      */
     public AddOverrideProviderRequest(OverrideProvider provider) {
 	this.provider = provider;
+    }
+    
+    public AddOverrideProviderRequest(GetArg arg) throws IOException{
+	this(arg.get("provider", null, OverrideProvider.class));
     }
 
     /**

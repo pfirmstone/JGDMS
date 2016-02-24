@@ -17,13 +17,16 @@
  */
 package net.jini.space;
 
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.event.RemoteEvent;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>RemoteEvent</code> marking the transition of an
@@ -39,6 +42,7 @@ import net.jini.core.event.RemoteEvent;
  * @see JavaSpace05
  * @since 2.1 
  */
+@AtomicSerial
 public abstract class AvailabilityEvent extends RemoteEvent {
     private static final long serialVersionUID = 1L;
 
@@ -50,6 +54,36 @@ public abstract class AvailabilityEvent extends RemoteEvent {
      * @serial 
      */
     private final boolean visibilityTransition;
+
+    private static boolean check(GetArg arg) throws IOException{
+	// If this class is not in the heirarchy of classes the stream
+	// may have been tampered with, see the Serialization Specification
+	// section 3.5, this is equivalent to readObjectNoData().
+	Class [] serialClasses = arg.serialClasses();
+	for (Class serialClass : serialClasses){
+	    if (serialClass.equals(AvailabilityEvent.class)){
+		RemoteEvent sup = new RemoteEvent(arg);
+		if (sup.getSource() == null)
+		    throw new InvalidObjectException("null source reference");
+		if (!(sup.getSource() instanceof JavaSpace)) 
+		    throw new InvalidObjectException("source is not a JavaSpace");
+		return arg.get("visibilityTransition", false);
+	    }
+	}
+	throw new InvalidObjectException(
+		"AvailabilityEvent should always have data");
+    }
+    
+    private AvailabilityEvent(GetArg arg, boolean visibilityTransition) throws IOException{
+	super(arg);
+	this.visibilityTransition = visibilityTransition;
+    }
+    
+    protected AvailabilityEvent(GetArg arg) throws IOException {
+	this(arg, check(arg));
+    }
+    
+    
 
     /**
      * Create a new <code>AvailabilityEvent</code> instance.
@@ -71,6 +105,10 @@ public abstract class AvailabilityEvent extends RemoteEvent {
     {
 	super(source, eventID, seqNum, handback);
 	this.visibilityTransition = visibilityTransition;
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
     }
 
     /**

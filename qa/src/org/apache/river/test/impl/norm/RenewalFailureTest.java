@@ -28,7 +28,7 @@ import java.io.PrintWriter;
 import java.io.IOException;
 import java.io.InvalidClassException;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
@@ -133,9 +133,9 @@ public class RenewalFailureTest extends TestBase implements Test {
 	// Register for failure events
 	final OurListener listener = new OurListener();
         listener.export();
-	final MarshalledObject handback = new MarshalledObject(new Long(347));
+	final MarshalledInstance handback = new MarshalledInstance(new Long(347));
 	EventRegistration reg = 
-	    set.setRenewalFailureListener(listener, handback);
+	    set.setRenewalFailureListener(listener, handback.convertToMarshalledObject());
 	reg = prepareNormEventRegistration(reg);
 
 	if (!set.equals(reg.getSource())) 
@@ -275,7 +275,7 @@ public class RenewalFailureTest extends TestBase implements Test {
 	private EventRegistration registation;
 
 	/** Handback object we expect to see */
-	private MarshalledObject handback;
+	private MarshalledInstance handback;
 
 	/** Set to a discriptive non-null value if there is an error */
 	private String rslt = null;
@@ -289,7 +289,7 @@ public class RenewalFailureTest extends TestBase implements Test {
 	/** 
 	 * Set the registion and handback so we can do basic error checking
 	 */
-	private void setRegInfo(EventRegistration er, MarshalledObject hb) {
+	private void setRegInfo(EventRegistration er, MarshalledInstance hb) {
 	    registation = er;
 	    handback = hb;
 	}

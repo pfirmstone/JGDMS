@@ -17,11 +17,16 @@
  */
 package org.apache.river.test.impl.norm;
 
-import net.jini.core.lease.*;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.rmi.RemoteException;
+import net.jini.core.lease.*;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * Lifted from org.apache.river.lease.AbstractLease so we can have a codebase
@@ -33,6 +38,7 @@ import java.rmi.RemoteException;
  * createLeaseMap, canBatch, hashCode, equals, and serialization of
  * any subclass state.
  */
+@AtomicSerial
 public abstract class OurAbstractLease implements Lease, java.io.Serializable {
 
     private static final long serialVersionUID = -9067179156916102052L;
@@ -51,6 +57,43 @@ public abstract class OurAbstractLease implements Lease, java.io.Serializable {
     /** Construct a relative-format lease. */
     protected OurAbstractLease(long expiration) {
 	this.expiration = expiration;
+    }
+    
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    protected OurAbstractLease(GetArg arg) throws IOException{
+	this( expiration(((RO)arg.getReader()).expiration,
+		arg.get("serialFormat", Lease.DURATION)),
+		arg.get("serialFormat", Lease.DURATION)
+	);
+    }
+    
+    private static long expiration(long expiration, int serialFormat){
+	if (serialFormat == Lease.DURATION) {
+	    boolean canOverflow = (expiration > 0);
+	    expiration += System.currentTimeMillis();
+
+	    // If we added two positive numbers, and the result is negative
+	    // we must have overflowed, truncate to Long.MAX_VALUE. If we
+	    // added a negative to a positive and the result is negative we
+	    // must have underflowed, so limit to zero.
+	    if (expiration < 0) {
+		if (canOverflow) {
+		    expiration = Long.MAX_VALUE;
+	        } else {
+	            expiration = 0;
+	        }
+	    }
+	}
+	return expiration;
+    }
+    
+    private OurAbstractLease(long expiration, int serialFormat){
+	this.expiration = expiration;
+	this.serialFormat = serialFormat;
     }
 
     /** Return the lease expiration. */
@@ -125,5 +168,20 @@ public abstract class OurAbstractLease implements Lease, java.io.Serializable {
 	        }
 	    }
 	}
+    }
+    
+    @ReadInput
+    static ReadObject getRO(){
+	return new RO();
+    }
+    
+    private static class RO implements ReadObject {
+	long expiration;
+
+	@Override
+	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
+	    expiration = stream.readLong();
+	}
+	
     }
 }

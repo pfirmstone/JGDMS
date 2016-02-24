@@ -91,7 +91,7 @@ public class SunJrmpExporter implements Exporter {
     }
 
     /**
-     * @throws java.rmi.server.ExportException
+     * @throws java.rmi.server.ExportException {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */

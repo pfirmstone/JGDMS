@@ -19,7 +19,6 @@ package org.apache.river.test.impl.start;
 
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.start.LifeCycle;
-import org.apache.river.start.ServiceProxyAccessor;
 import org.apache.river.api.util.Startable;
 
 import net.jini.config.Configuration;
@@ -31,24 +30,13 @@ import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.TrustVerifier;
-import net.jini.security.proxytrust.ServerProxyTrust;
-
-import net.jini.core.event.RemoteEvent;
-import net.jini.core.event.UnknownEventException;
-import net.jini.core.event.RemoteEventListener;
 
 import java.rmi.activation.ActivationID;
 import java.rmi.MarshalledObject;
-import java.rmi.Remote;
-import java.rmi.RemoteException;
-import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Collections;
-import java.util.Map;
-import java.util.HashMap;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;

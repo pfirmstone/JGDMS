@@ -161,7 +161,7 @@ import net.jini.security.policy.PolicyInitializationException;
  * <dt>alias: <i>name </i>
  * <dd>Denotes substitution of a KeyStore alias. Namely, if a KeyStore has an
  * X.509 certificate associated with the specified name, then replaced by
- * <i>javax.security.auth.x500.X500Principal &quot; <i>DN </i>&quot; </i>
+ * <code>javax.security.auth.x500.X500Principal &quot; <i>DN </i>&quot; </code>
  * string, where <i>DN </i> is a certificate's subject distinguished name.
  * </dl>
  * <br>
@@ -216,6 +216,7 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     /**
      * Default constructor, equivalent to
      * <code>ConcurrentPolicyFile(new DefaultPolicyParser())</code>.
+     * @throws net.jini.security.policy.PolicyInitializationException in instantiation unsuccessful
      */
     public ConcurrentPolicyFile() throws PolicyInitializationException {
         this(new DefaultPolicyParser(), new PermissionComparator());

@@ -18,8 +18,6 @@
 
 package org.apache.river.jeri.internal.runtime;
 
-import org.apache.river.jeri.internal.runtime.ObjectTable.NoSuchObject;
-import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -32,8 +30,6 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,6 +46,10 @@ import net.jini.jeri.InboundRequest;
 import net.jini.jeri.InvocationDispatcher;
 import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerCapabilities;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.io.AtomicMarshalInputStream;
+import org.apache.river.jeri.internal.runtime.ObjectTable.NoSuchObject;
+import org.apache.river.logging.Levels;
 
 /**
  *
@@ -58,6 +58,11 @@ import net.jini.jeri.ServerCapabilities;
 public class DgcRequestDispatcher implements RequestDispatcher {
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicJeriExporter");
+    
+    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
+	= AccessController.doPrivileged(new GetBooleanAction(
+		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
+
 
     private static final Collection<Method> dgcDispatcherMethods =
             new ArrayList<Method>(2);
@@ -112,10 +117,17 @@ public class DgcRequestDispatcher implements RequestDispatcher {
                         throws IOException
                     {
                         ClassLoader loader = getClassLoader();
-                        return new MarshalInputStream(
-                            request.getRequestInputStream(),
-                            loader, integrity, loader,
-                            Collections.unmodifiableCollection(context));
+			if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET){
+			    return new MarshalInputStream(
+				request.getRequestInputStream(),
+				loader, integrity, loader,
+				Collections.unmodifiableCollection(context));
+			} else {
+			    return AtomicMarshalInputStream.create(
+				request.getRequestInputStream(),
+				loader, integrity, loader,
+				Collections.unmodifiableCollection(context));
+			}
                         // useStreamCodebases() not invoked
                     }
                 };

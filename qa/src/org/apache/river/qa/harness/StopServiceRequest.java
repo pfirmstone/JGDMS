@@ -19,17 +19,19 @@
 package org.apache.river.qa.harness;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveRequest</code> to stop a service previously started
  * on the slave.
  */
+@AtomicSerial
 class StopServiceRequest implements SlaveRequest {
 
-    /** the service proxy wrapped in a <code>MarshalledObject</code> */
-    final MarshalledObject marshalledServiceRef;
+    /** the service proxy wrapped in a <code>MarshalledInstance</code> */
+    final MarshalledInstance marshalledServiceRef;
 
     /**
      * Construct the request. Wrap the given proxy in a 
@@ -40,10 +42,18 @@ class StopServiceRequest implements SlaveRequest {
      */
     StopServiceRequest(Object serviceRef) {
 	try {
-	    marshalledServiceRef = new MarshalledObject(serviceRef);
+	    marshalledServiceRef = new MarshalledInstance(serviceRef);
 	} catch (IOException e) {
 	    throw new RuntimeException("Marshalling problem", e);
 	}
+    }
+    
+    StopServiceRequest(GetArg arg) throws IOException{
+	this(arg.get("marshalledServiceRef", null, MarshalledInstance.class));
+    }
+    
+    private StopServiceRequest(MarshalledInstance marshalledServiceRef){
+	this.marshalledServiceRef = marshalledServiceRef;
     }
 
     /**
@@ -57,7 +67,7 @@ class StopServiceRequest implements SlaveRequest {
      * @throws Exception if an exception is thrown stopping the service
      */
     public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
-	slaveTest.getAdminManager().destroyService(marshalledServiceRef.get());
+	slaveTest.getAdminManager().destroyService(marshalledServiceRef.get(false));
 	return null;
     }
 }

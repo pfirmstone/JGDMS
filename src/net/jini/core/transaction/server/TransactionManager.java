@@ -17,11 +17,14 @@
  */
 package net.jini.core.transaction.server;
 
-import net.jini.core.transaction.*;
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseDeniedException;
+import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.transaction.*;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * The interface used for managers of the two-phase commit protocol for
@@ -38,6 +41,7 @@ import java.rmi.RemoteException;
  */
 public interface TransactionManager extends Remote, TransactionConstants {
     /** Class that holds return values from create methods. */
+    @AtomicSerial
     public static class Created implements java.io.Serializable {
 	static final long serialVersionUID = -4233846033773471113L;
 
@@ -52,6 +56,17 @@ public interface TransactionManager extends Remote, TransactionConstants {
 	 * @serial
 	 */
         public final Lease lease;
+	
+	/**
+	 * AtomicSerial constructor
+	 * @param arg
+	 * @throws IOException 
+	 */
+	public Created(GetArg arg) throws IOException{
+	    this(arg.get("id", 0L),
+		 arg.get("lease", null, Lease.class)
+	    );
+	}
 
 	/**
 	 * Simple constructor.

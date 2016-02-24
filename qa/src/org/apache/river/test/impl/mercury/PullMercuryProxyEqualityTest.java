@@ -19,7 +19,7 @@ package org.apache.river.test.impl.mercury;
 
 import java.util.logging.Level;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.ServerException;
@@ -78,16 +78,16 @@ public class PullMercuryProxyEqualityTest extends EMSTestBase implements TimeCon
 	RemoteEventListener listener1_dup = null;
 
         // Get Duplicate references
-	MarshalledObject marshObj01 = new MarshalledObject(mb1);
-	mb1_dup = (PullEventMailbox)marshObj01.get();
-	marshObj01 = new MarshalledObject(admin1);
-	admin1_dup = marshObj01.get();
-	marshObj01 = new MarshalledObject(mr1);
-	mr1_dup = (MailboxPullRegistration)marshObj01.get();
-	marshObj01 = new MarshalledObject(mrl1);
-	mrl1_dup = (Lease)marshObj01.get();
-	marshObj01 = new MarshalledObject(listener1);
-	listener1_dup = (RemoteEventListener)marshObj01.get();
+	MarshalledInstance marshObj01 = new MarshalledInstance(mb1);
+	mb1_dup = (PullEventMailbox)marshObj01.get(false);
+	marshObj01 = new MarshalledInstance(admin1);
+	admin1_dup = marshObj01.get(false);
+	marshObj01 = new MarshalledInstance(mr1);
+	mr1_dup = (MailboxPullRegistration)marshObj01.get(false);
+	marshObj01 = new MarshalledInstance(mrl1);
+	mrl1_dup = (Lease)marshObj01.get(false);
+	marshObj01 = new MarshalledInstance(listener1);
+	listener1_dup = (RemoteEventListener)marshObj01.get(false);
 	
         // check top-level proxies
         if (!proxiesEqual(mb1, mb1_dup)) {

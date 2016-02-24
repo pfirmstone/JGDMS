@@ -21,7 +21,6 @@ package net.jini.url.httpmd;
 import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogManager;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -61,7 +60,7 @@ import java.util.logging.Logger;
  * letters and numbers, as well as the following characters:
  *
  * <pre>
- * - _ . ~ * ' ( ) : @ & + $ ,
+ * - _ . ~ * ' ( ) : @ &amp; + $ ,
  * </pre> <p>
  *
  * The value specifies the name of the {@link MessageDigest} algorithm to
@@ -77,10 +76,10 @@ import java.util.logging.Logger;
  * ASCII letters and numbers, as well as the following characters:
  *
  * <pre>
- * - _ . ~ * ' ( ) : @ & = + $ ,
+ * - _ . ~ * ' ( ) : @ &amp; = + $ ,
  * </pre> <p>
  *
- * Here are some examples of HTTPMD URLs: <p> <ul>
+ * Here are some examples of HTTPMD URLs: </p> <ul>
  *
  * <li> An absolute URL: <br>
  *      <code>
@@ -101,16 +100,15 @@ import java.util.logging.Logger;
  * @since 2.0
  *
  * @org.apache.river.impl <!-- Implementation Specifics -->
- *
+ * <p>
  * This implementation of HTTPMD URLs uses the {@link Logger} named
  * <code>net.jini.url.httpmd</code> to log information at the following logging
- * levels: <p>
+ * levels: </p>
  *
  * <table border="1" cellpadding="5" summary="Describes logging performed
  *	  by the HTTPMD URL handler at different logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
- *	    net.jini.url.httpmd</code></b></caption>
+ * <caption><b><code>net.jini.url.httpmd</code></b></caption>
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *

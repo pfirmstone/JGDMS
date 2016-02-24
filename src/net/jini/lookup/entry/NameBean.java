@@ -17,6 +17,7 @@
  */
 package net.jini.lookup.entry;
 
+import java.beans.ConstructorProperties;
 import java.io.Serializable;
 import net.jini.core.entry.Entry;
 
@@ -42,6 +43,11 @@ public class NameBean implements EntryBean, Serializable {
      */
     public NameBean() {
 	assoc = new Name();
+    }
+    
+    @ConstructorProperties({"name"})
+    public NameBean(String name){
+	assoc = new Name(name);
     }
 
     /**

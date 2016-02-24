@@ -172,10 +172,8 @@ public class JoinState extends LogHandler implements SubStore {
                     log = new ReliableLog(dir.getCanonicalPath(), this);
                     log.recover();
                 } catch (IOException e) {
-                    IOException e2 = new IOException(
-                        "Log is corrupted: " + e.getMessage());
-                    e2.initCause(e);
-                    throw e2;
+                    throw new IOException(
+                        "Log is corrupted: " + e.getMessage(), e);
                 }
             }
             if (!recoveredData) {
@@ -217,10 +215,8 @@ public class JoinState extends LogHandler implements SubStore {
                 joinMgr = new JoinManager(service, attributes, serviceID, dm, lrm,
                                           config);
             } catch (IOException e) {
-                IOException e2 = new IOException(
-                    "Problem starting JoinManager: " + e.getMessage());
-                e2.initCause(e2);
-                throw e2;
+                throw new IOException(
+                    "Problem starting JoinManager: " + e.getMessage(), e);
             }
         
             // For now we are treating the state of the

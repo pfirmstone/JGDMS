@@ -17,7 +17,7 @@
  */
 package org.apache.river.test.impl.start;
 
-import org.apache.river.start.ServiceProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
 
 import net.jini.security.proxytrust.ServerProxyTrust;
 

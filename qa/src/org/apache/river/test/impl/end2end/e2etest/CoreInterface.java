@@ -18,7 +18,7 @@
 
 package org.apache.river.test.impl.end2end.e2etest;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
@@ -55,5 +55,5 @@ public interface CoreInterface extends Remote {
      *
      * @throws RemoteException if a communication failure occurs
      */
-    public MarshalledObject newProxy() throws RemoteException;
+    public MarshalledInstance newProxy() throws RemoteException;
 }

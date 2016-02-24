@@ -26,7 +26,7 @@ import org.apache.river.qa.harness.TestException;
 
 import java.lang.reflect.Constructor;
 import java.rmi.RemoteException;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 import net.jini.core.lease.Lease;
 import net.jini.core.event.RemoteEvent;
@@ -163,20 +163,20 @@ public class RemoveExactlyOneTest extends TestBase implements Test {
 	failureListener = new BaseListener(failureFails?throwThis:null);
         failureListener.export();
 
-	MarshalledObject handback = new MarshalledObject(new Long(3));
+	MarshalledInstance handback = new MarshalledInstance(new Long(3));
 	logger.log(Level.FINER, "setting expiration warning listener");
 	EventRegistration reg =
 	    set.setExpirationWarningListener(warningListener, 
-		eventWaitFor - whenWarning, handback); 
+		eventWaitFor - whenWarning, handback.convertToMarshalledObject()); 
 	logger.log(Level.FINER, "preparing returned registration");
         reg = prepareNormEventRegistration(reg);
 	logger.log(Level.FINER, "completing initialization of listener");
 	warningListener.setRegInfo(reg, handback);
 
 	handback = null;
-	reg = set.setRenewalFailureListener(failureListener, handback); 
+	reg = set.setRenewalFailureListener(failureListener, null); 
 	reg = prepareNormEventRegistration(reg);
-	failureListener.setRegInfo(reg, handback);
+	failureListener.setRegInfo(reg, null);
 
 	// Create and add lease that will cause failure
 	long now = System.currentTimeMillis();
@@ -231,7 +231,7 @@ public class RemoveExactlyOneTest extends TestBase implements Test {
 	protected EventRegistration registation;
 
 	/** Handback object we expect to see */
-	private MarshalledObject handback;
+	private MarshalledInstance handback;
 
 	/** Set to a discriptive non-null value if there is an error */
 	private String rslt = null;
@@ -256,7 +256,7 @@ public class RemoveExactlyOneTest extends TestBase implements Test {
 	/** 
 	 * Set the registion and handback so we can do basic error checking
 	 */
-	private void setRegInfo(EventRegistration er, MarshalledObject hb) {
+	private void setRegInfo(EventRegistration er, MarshalledInstance hb) {
 	    registation = er;
 	    handback = hb;
 	}

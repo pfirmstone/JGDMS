@@ -17,14 +17,18 @@
  */
 package org.apache.river.test.impl.norm;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
-import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.UnknownLeaseException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Subclass of LocalLease that after a preset number of deserilizations
  * sets the expiration to 0
  */
+@AtomicSerial
 class FailingLocalLease extends LocalLease {
     /**
      * How many deseriailzations to allow setting expiration to 0
@@ -47,6 +51,16 @@ class FailingLocalLease extends LocalLease {
     {
 	super(initExp, renewLimit, bundle, id);
 	untilFailure = count;
+    }
+    
+    FailingLocalLease(GetArg arg) throws IOException{
+	super(check(arg));
+	untilFailure = arg.get("untilFailure", 0L);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	arg.get("untilFailure", 0L);
+	return arg;
     }
 	    
     /**

@@ -17,9 +17,9 @@
  */
 package org.apache.river.reggie;
 
-import org.apache.river.lease.AbstractLease;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -29,6 +29,11 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.ID;
 
 /**
@@ -37,6 +42,7 @@ import org.apache.river.lease.ID;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
 
     private static final long serialVersionUID = 2L;
@@ -58,6 +64,36 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<
      */
     final Uuid leaseID;
 
+    /**
+     * Called reflectively by AtomicSerial serializer framework.
+     * @return 
+     */
+    @ReadInput
+    private static ReadObject getRO(){
+	return new RO();
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	Registrar server = (Registrar) arg.get("server", null);
+	Uuid leaseID = (Uuid) arg.get("leaseID", null);
+	RO r = (RO) arg.getReader();
+	if (server == null) {
+	    throw new InvalidObjectException("null server");
+	} else if (leaseID == null) {
+	    throw new InvalidObjectException("null leaseID");
+	}
+	return arg;
+    }
+    
+    RegistrarLease(GetArg arg) throws IOException{
+	super(check(arg));
+	server = (Registrar) arg.get("server", null);
+	leaseID = (Uuid) arg.get("leaseID", null);
+	registrarID = ((RO) arg.getReader()).registrarID;
+    }
+
+
+
     /** Simple constructor. */
     RegistrarLease(Registrar server,
 		   ServiceID registrarID,
@@ -68,9 +104,11 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<
 	this.server = server;
 	this.registrarID = registrarID;
 	this.leaseID = leaseID;
+	this.expiration = expiration;
     }
 
     /** Creates a lease map. */
+    @Override
     public LeaseMap<? extends Lease,Long> createLeaseMap(long duration) {
 	return new RegistrarLeaseMap(this, duration);
     }
@@ -79,22 +117,26 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<
      * Two leases can be batched if they are both RegistrarLeases and
      * have the same server.
      */
+    @Override
     public boolean canBatch(Lease lease) {
 	return (lease instanceof RegistrarLease &&
 		registrarID.equals(((RegistrarLease) lease).registrarID));
     }
 
     /** Returns the lease Uuid. */
+    @Override
     public Uuid getReferentUuid() {
 	return leaseID;
     }
 
     /** Returns the lease Uuid's hash code. */
+    @Override
     public int hashCode() {
 	return leaseID.hashCode();
     }
 
     /** Returns true if lease Uuids match, false otherwise. */
+    @Override
     public boolean equals(Object obj) {
 	return ReferentUuids.compare(this, obj);
     }
@@ -106,6 +148,7 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<
      * 
      * @return String
      */
+    @Override
     public String toString() {
 	String className = getClass().getName();
 	return className + "[registrar=" + registrarID + " " + server
@@ -124,6 +167,7 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<
 	return registrarID;
     }
     
+    @Override
     public Uuid identity(){
         return leaseID;
     }
@@ -160,6 +204,17 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<
 	} else if (leaseID == null) {
 	    throw new InvalidObjectException("null leaseID");
 	}
+    }
+
+    private static class RO implements ReadObject{
+	
+	ServiceID registrarID;
+
+	@Override
+	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
+	    registrarID = new ServiceID(in);
+	}
+	
     }
 
     /**

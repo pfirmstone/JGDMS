@@ -17,19 +17,23 @@
  */
 package org.apache.river.test.impl.reliability;
 
-import java.rmi.MarshalledObject;
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.logging.Logger;
-import java.util.logging.Level;
-import java.net.InetAddress;
 import java.lang.reflect.Constructor;
 
+import java.net.InetAddress;
+import java.rmi.MarshalledObject;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.qa.harness.SlaveRequest;
 import org.apache.river.qa.harness.SlaveTest;
 
 /**
  * A <code>SlaveRequest</code> to start an ApplicationServer.
  */
+@AtomicSerial
 class StartApplicationServerRequest implements SlaveRequest {
 
     private String registryHost;
@@ -45,6 +49,10 @@ class StartApplicationServerRequest implements SlaveRequest {
      */
     StartApplicationServerRequest(String registryHost) {
 	this.registryHost = registryHost;
+    }
+    
+    StartApplicationServerRequest(GetArg arg) throws IOException{
+	this(arg.get("registryHost", null, String.class));
     }
 
     /**

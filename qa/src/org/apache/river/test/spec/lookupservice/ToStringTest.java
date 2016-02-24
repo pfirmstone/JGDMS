@@ -41,12 +41,12 @@ public class ToStringTest implements LegacyTest {
 
     private QAConfig config = null;
 
-    public Test construct(QAConfig config) {
+    public synchronized Test construct(QAConfig config) {
         this.config = config;
         return this;
     }
 
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
         boolean testFailed = false;
         Object[] obj = ObjectFactory.create(new Class[]{ServiceTemplate.class,
             ServiceItem.class, ServiceMatches.class});

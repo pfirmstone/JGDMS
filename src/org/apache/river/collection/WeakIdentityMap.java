@@ -18,6 +18,7 @@
 
 package org.apache.river.collection;
 
+import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Collection;
@@ -31,26 +32,31 @@ import java.util.Map;
  *
  * @since 2.0
  */
-public class WeakIdentityMap {
+public class WeakIdentityMap<K,V> {
 
     // REMIND: optimize implementation (clone new java.util.WeakHashMap?)
 
-    private final Map map = new HashMap();
-    private final ReferenceQueue queue = new ReferenceQueue();
+    private final Map<Key<K>,V> map = new HashMap<Key<K>,V>();
+    private final ReferenceQueue<K> queue = new ReferenceQueue<K>();
 
     /**
      * Associates value with given key, returning value previously associated
      * with key, or null if none.
+     * @param key
+     * @param value
+     * @return 
      */
-    public Object put(Object key, Object value) {
+    public V put(K key, V value) {
 	processQueue();
 	return map.put(Key.create(key, queue), value);
     }
 
     /**
      * Returns value associated with given key, or null if none.
+     * @param key
+     * @return 
      */
-    public Object get(Object key) {
+    public V get(Object key) {
 	processQueue();
 	return map.get(Key.create(key, null));
     }
@@ -58,16 +64,19 @@ public class WeakIdentityMap {
     /**
      * Removes association for given key, returning value previously associated
      * with key, or null if none.
+     * @param key
+     * @return 
      */
-    public Object remove(Object key) {
+    public V remove(Object key) {
 	processQueue();
 	return map.remove(Key.create(key, null));
     }
 
     /**
      * Returns collection containing all values currently held in this map.
+     * @return 
      */
-    public Collection values() {
+    public Collection<V> values() {
 	processQueue();
 	return map.values();
     }
@@ -81,32 +90,32 @@ public class WeakIdentityMap {
     }
 
     private void processQueue() {
-	Key k;
-	while ((k = (Key) queue.poll()) != null) {
+	Reference<? extends K> k;
+	    while ((k = queue.poll()) != null) {
 	    map.remove(k);
 	}
     }
 
-    private static class Key extends WeakReference {
+    private static class Key<T> extends WeakReference<T> {
 
 	private final int hash;
 
-	static Key create(Object k, ReferenceQueue q) {
+	static <T> Key<T> create(T k, ReferenceQueue<T> q) {
 	    if (k == null) {
 		return null;
 	    } else if (q == null) {
-		return new Key(k);
+		return new Key<T>(k);
 	    } else {
-		return new Key(k, q);
+		return new Key<T>(k, q);
 	    }
 	}
 
-	private Key(Object k) {
+	private Key(T k) {
 	    super(k);
 	    hash = System.identityHashCode(k);
 	}
 
-	private Key(Object k, ReferenceQueue q) {
+	private Key(T k, ReferenceQueue<T> q) {
 	    super(k, q);
 	    hash = System.identityHashCode(k);
 	}

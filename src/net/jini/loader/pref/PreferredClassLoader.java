@@ -18,11 +18,13 @@
 
 package net.jini.loader.pref;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
@@ -32,6 +34,7 @@ import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.security.AccessControlContext;
+import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -48,12 +51,16 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
+import net.jini.loader.RemoteClassLoadingPermission;
 import org.apache.river.api.net.RFC3986URLClassLoader;
+import org.apache.river.api.security.AdvisoryDynamicPermissions;
+import org.apache.river.api.security.AdvisoryPermissionParser;
 
 /**
  * A class loader that supports preferred classes.
@@ -228,7 +235,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  * @since 2.0
  **/
 public class PreferredClassLoader extends RFC3986URLClassLoader
-    implements ClassAnnotation
+    implements ClassAnnotation, AdvisoryDynamicPermissions
 {
     /**
      * well known name of resource that contains the preferred list in
@@ -261,6 +268,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 
     private static final Permission downloadPermission =
 	new DownloadPermission();
+    private final Permission[] advisoryPermissions;
 
     /**
      * Creates a new <code>PreferredClassLoader</code> that loads
@@ -407,10 +415,11 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
          */
         IOException except = null;
         PreferredResources pref = null;
+	Permission [] perms = null;
 	if (firstURL != null) {
             try {
                 pref = AccessController.doPrivileged(
-                    new PreferredResourcesPrivilegedExceptionAction(firstURL)
+                    new PreferredResourcesPrivilegedExceptionAction(firstURL, jarHandler)
                 );
             } catch (PrivilegedActionException ex) {
                 Exception e = ex.getException();
@@ -420,9 +429,17 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
                     except = new IOException(e);
                 }
             }
+	    /*
+	    * Use parent ClassLoader, if permission is not visible from parent
+	    * it will remain unresolved and later be resolved by the policy provider.
+	    */
+	    perms = AccessController.doPrivileged(
+		new PreferredPermissionsPrivilegedAction(
+			urls, jarHandler, parent));
 	}
         exceptionWhileLoadingPreferred = except;
         preferredResources = pref;
+	advisoryPermissions = perms;
         this.permissions = new LinkedList<Permission>();
         Enumeration<Permission> en = permissions.elements();
         while(en.hasMoreElements()){
@@ -443,7 +460,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	} else if (urls.length == 1) {
 	    return urls[0].toExternalForm();
 	} else {
-	    StringBuffer path = new StringBuffer(urls[0].toExternalForm());
+	    StringBuilder path = new StringBuilder(urls[0].toExternalForm());
 	    for (int i = 1; i < urls.length; i++) {
 		path.append(' ');
 		path.append(urls[i].toExternalForm());
@@ -499,9 +516,10 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 
 	AccessControlContext acc = getLoaderAccessControlContext(urls);
 	/* Use privileged status to return a new class loader instance */
-	return (PreferredClassLoader)
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
+	return
+	    AccessController.doPrivileged(new PrivilegedAction<PreferredClassLoader>() {
+		@Override
+		public PreferredClassLoader run() {
 		    return new PreferredFactoryClassLoader(urls, parent,
 			exportAnnotation, requireDlPerm);
 		}
@@ -524,10 +542,10 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * existence of a preferred list relative to the specified URL
      * cannot be definitely determined.
      **/
-    private InputStream getPreferredInputStream(URL firstURL)
+    private static InputStream getPreferredInputStream(URL firstURL, String resource, URLStreamHandler jarHandler)
 	throws IOException
     {
-	URL prefListURL = null;
+	URL prefListURL;
 	try {
 	    URL baseURL;	// base URL to load PREF_NAME relative to
 	    if (firstURL.getFile().endsWith("/")) { // REMIND: track 4915051
@@ -550,13 +568,13 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 		 * retrieve the preferred list using a "jar:" URL, like
 		 * URLClassLoader uses to load resources from a JAR file.
 		 */
-		if (jarExists(firstURL)) {
-		    baseURL = getBaseJarURL(firstURL);
+		if (jarExists(firstURL, jarHandler)) {
+		    baseURL = getBaseJarURL(firstURL, jarHandler);
 		} else {
 		    return null;
 		}
 	    }
-	    prefListURL = new URL(baseURL, PREF_NAME);
+	    prefListURL = new URL(baseURL, resource);
 	    URLConnection preferredConnection =
 		getPreferredConnection(prefListURL, false);
 	    if (preferredConnection != null) {
@@ -592,7 +610,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * re-determine the jar's existence on subsequent downloads of the
      * jar in potentially different preferred class loaders.
      */
-    private boolean jarExists(URL firstURL) throws IOException {
+    private static boolean jarExists(URL firstURL, URLStreamHandler jarHandler) throws IOException {
 	boolean exists;
         
 	synchronized (existSet) {
@@ -610,7 +628,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	     */
             URL baseURL = null;
 	    try {
-                baseURL = getBaseJarURL(firstURL);
+                baseURL = getBaseJarURL(firstURL, jarHandler);
 		((JarURLConnection) baseURL.openConnection()).getManifest();
 		exists = true;
 	    } catch (IOException e) {
@@ -644,14 +662,15 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * URLStreamHandlerFactory, then the returned URL will have a
      * URLStreamHandler that was created by the factory.
      **/
-    private URL getBaseJarURL(final URL url) throws MalformedURLException {
+    private static URL getBaseJarURL(final URL url, final URLStreamHandler jarHandler) throws MalformedURLException {
 	if (jarHandler == null) {
 	    return new URL("jar", "", -1, url + "!/");
 	} else {
 	    try {
-		return (URL) AccessController.doPrivileged(
-		    new PrivilegedExceptionAction() {
-			public Object run() throws MalformedURLException {
+		return AccessController.doPrivileged(
+		    new PrivilegedExceptionAction<URL>() {
+			@Override
+			public URL run() throws MalformedURLException {
 			    return new URL("jar", "", -1, url + "!/",
 					   jarHandler);
 			}
@@ -680,7 +699,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * resource has been detected (as will happen when probing for a
      * PREFERRED.LIST).
      */
-    private URLConnection getPreferredConnection(URL url, boolean closeAfter)
+    private static URLConnection getPreferredConnection(URL url, boolean closeAfter)
 	throws IOException
     {
 	if (url.getProtocol().equals("file")) {
@@ -738,7 +757,8 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 		    closeConn.getInputStream().close();//RTE NPE
 		} catch (IOException e) {
 		} catch (RuntimeException e){
-                    if ( e instanceof NullPointerException || e.getCause() instanceof NullPointerException) {
+                    if ( e instanceof NullPointerException || e.getCause() 
+			    instanceof NullPointerException) {
                         // Sun Bug ID: 6536522
                         // swallow
                         e.printStackTrace(System.err);
@@ -750,6 +770,19 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	}
 
 	return conn;
+    }
+
+    /**
+     * The codebase annotation for PreferredClassLoader is immutable and 
+     * cannot be modified.
+     * 
+     * @param url 
+     * @throws UnsupportedOperationException when invoked.
+     */
+    @Override
+    protected final void addURL(URL url) {
+	throw new UnsupportedOperationException(
+		"PreferredClassLoader codebase annotation is immutable");
     }
 
     /**
@@ -796,20 +829,6 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	throws IOException
     {
         return isPreferredResource0(name, isClass);
-        // No longer need privilege the preferred list is now downloaded
-        // during construction.
-//	try {
-//	    return ((Boolean) AccessController.doPrivileged(
-//	        new PrivilegedExceptionAction() {
-//		    public Object run() throws IOException {
-//			boolean b = isPreferredResource0(name, isClass);
-//			return Boolean.valueOf(b);
-//		    }
-//	        }, acc)).booleanValue();
-//
-//	} catch (PrivilegedActionException e) {
-//	    throw (IOException) e.getException();
-//	}
     }
 
     /*
@@ -951,6 +970,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      *
      * @throws ClassNotFoundException if the class could not be found
      **/
+    @Override
     protected Class loadClass(String name, boolean resolve)
 	throws ClassNotFoundException
     {
@@ -1016,6 +1036,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * @return a <code>URL</code> for the resource, or
      * <code>null</code> if the resource could not be found
      **/
+    @Override
     public URL getResource(String name) {
 	try {
 	    return (isPreferredResource(name, false) ?
@@ -1054,10 +1075,11 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * @return an <code>Enumeration</code> for the resource, the
      * <code>Enumeration</code> is empty if the resource could not be found
      * 
-     * @throws an IOException if isPreferredResource throws an IOException.
+     * @throws IOException if isPreferredResource throws an IOException.
      * 
      * @since 3.0.0
      **/
+    @Override
     public Enumeration<URL> getResources(String name) throws IOException{
         return (isPreferredResource(name, false) ?
                 findResources(name) : super.getResources(name));
@@ -1072,6 +1094,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * Fortunately, URLClassLoader.defineClass ignores the value
      * returned by this method.
      */
+    @Override
     protected Package definePackage(String name, String specTitle,
 				    String specVersion, String specVendor,
 				    String implTitle, String implVersion,
@@ -1087,22 +1110,6 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	}
     }
     
-//    protected Class<?> findClass(final String name)
-//	 throws ClassNotFoundException
-//    {   
-//        /* TODO: Override and create our own CodeSource
-//         * implementation that contains permissions.perm
-//         * After we retrieve the manifest, class bytes and
-//         * certificates, create the CodeSource we call
-//         * defineClass(String name, byte[]b, int off, int len, CodeSource cs)
-//         * 
-//         * This will be utilised by a class that overrides 
-//         * BasicProxyPreparer.getPermissions()
-//         * to retrieve the advisory permissions.
-//         */
-//        return super.findClass(name);
-//    }
-
     /**
      * {@inheritDoc}
      *
@@ -1114,6 +1121,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * then this method returns that string.  Otherwise, this method
      * returns a space-separated list of this loader's path of URLs.
      **/
+    @Override
     public String getClassAnnotation() {
 	return exportAnnotation;
     }
@@ -1181,6 +1189,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * policy does not grant the specified <code>CodeSource</code> the
      * permission <code>DownloadPermission("permit")</code>
      **/
+    @Override
     protected PermissionCollection getPermissions(CodeSource codeSource) {
 	if (requireDlPerm) {
 	    SecurityManager sm = System.getSecurityManager();
@@ -1202,6 +1211,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
     /**
      * Returns a string representation of this class loader.
      **/
+    @Override
     public String toString() {
 	return super.toString() + "[\"" + exportAnnotation + "\"]";
     }
@@ -1217,9 +1227,10 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	 * getAccessControlContext() in the sun.applet.AppletPanel class.
 	 */
 	// begin with permissions granted to all code in current policy
-	PermissionCollection perms = (PermissionCollection)
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
+	PermissionCollection perms =
+	    AccessController.doPrivileged(new PrivilegedAction<PermissionCollection>() {
+		@Override
+		public PermissionCollection run() {
 		    CodeSource codesource =
 			new CodeSource(null, (Certificate[]) null);
 		    Policy p = java.security.Policy.getPolicy();
@@ -1364,13 +1375,78 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	}
     }
     
-    private class PreferredResourcesPrivilegedExceptionAction 
+    @Override
+    public Permission[] getPermissions() {
+	if (advisoryPermissions == null) {
+	    return AdvisoryDynamicPermissions.DEFAULT_PERMISSIONS;
+	}
+	return advisoryPermissions.clone();
+    }
+
+    private static class PreferredPermissionsPrivilegedAction
+	    implements PrivilegedAction<Permission[]> {
+
+	private static final String resource = "META-INF/PERMISSIONS.LIST";
+	private final URL[] urls;
+	private final URLStreamHandler jarHandler;
+	private final ClassLoader loader;
+
+	PreferredPermissionsPrivilegedAction(
+		URL[] urls,
+		URLStreamHandler jarHandler,
+		ClassLoader loader) 
+	{
+	    this.urls = urls;
+	    this.jarHandler = jarHandler;
+	    this.loader = loader;
+	}
+
+	@Override
+	public Permission[] run() {
+	    Permission[] permissions = null;
+	    List<Permission> perms = new LinkedList<Permission>();
+	    InputStream in = null;
+	    for (int i = 0, l = urls.length; i < l; i++) {
+		try {
+		    in = getPreferredInputStream(urls[i], resource, jarHandler);
+		    if (in != null) {
+			BufferedReader reader = new BufferedReader(
+				new InputStreamReader(in, "UTF-8"));
+			for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+			    String trim = line.trim();
+			    if (trim.startsWith("#") || trim.startsWith("//")
+				    || (trim.length() == 0)) {
+				continue;
+			    }
+			    perms.add(AdvisoryPermissionParser.parse(line, loader));
+			}
+			permissions = perms.toArray(new Permission[perms.size()]);
+		    }
+		} catch (Exception ex) {
+		    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.CONFIG, "No advisory permissions: " + urls[i].toString(), ex);
+		} finally {
+		    if (in != null) {
+			try {
+			    in.close();
+			} catch (IOException ex) {
+			} // Ignore.
+		    }
+		}
+	    }
+	    return permissions;
+	}
+
+    }
+    
+    private static class PreferredResourcesPrivilegedExceptionAction 
                 implements PrivilegedExceptionAction<PreferredResources>{
         
-        private URL firstURL;
+        private final URL firstURL;
+	private final URLStreamHandler jarHandler;
         
-        PreferredResourcesPrivilegedExceptionAction(URL first){
+        PreferredResourcesPrivilegedExceptionAction(URL first, URLStreamHandler jarHandler){
             firstURL = first;
+	    this.jarHandler = jarHandler;
         }
 
         @Override
@@ -1378,7 +1454,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
             PreferredResources pref = null;
             InputStream prefIn = null;
             try {
-                prefIn = getPreferredInputStream(firstURL);
+                prefIn = getPreferredInputStream(firstURL, PREF_NAME, jarHandler);
                 if (prefIn != null) pref = new PreferredResources(prefIn);
             } catch (IOException ex) {
                 Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.CONFIG, "Unable to access preferred resources", ex);

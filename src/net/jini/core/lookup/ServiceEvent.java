@@ -17,6 +17,12 @@
  */
 package net.jini.core.lookup;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * This class is used for remote events sent by the lookup service.  It
  * extends RemoteEvent with methods to obtain the service ID of the matched
@@ -33,6 +39,7 @@ package net.jini.core.lookup;
  *
  * @since 1.0
  */
+@AtomicSerial
 public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 
     private static final long serialVersionUID = 1304997274096842701L;
@@ -49,6 +56,28 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @serial
      */
     protected final int transition;
+
+    private static GetArg check(GetArg arg) throws IOException {
+	Object serviceID = arg.get("serviceID", null); // Type check
+	if ( serviceID != null && !(serviceID instanceof ServiceID)) throw new ClassCastException();
+	int transition = arg.get("transition", 0);
+	switch (transition){
+	    case ServiceRegistrar.TRANSITION_MATCH_MATCH:
+		return arg;
+	    case ServiceRegistrar.TRANSITION_MATCH_NOMATCH:
+		return arg;
+	    case ServiceRegistrar.TRANSITION_NOMATCH_MATCH:
+		return arg;
+	    default:
+		throw new InvalidObjectException("transition state is illegal");
+	}
+    }
+    
+    public ServiceEvent(GetArg arg) throws IOException{
+	super(check(arg));
+	serviceID = (ServiceID) arg.get("serviceID", null);
+	transition = arg.get("transition", 0);
+    }
 
     /**
      * Simple constructor.
@@ -124,14 +153,28 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     /**
      * Returns the new state of the item, or null if the item was deleted
      * from the lookup service.
+     * 
+     * It is preferable to delay unmarshalling the service proxy until this method
+     * is called.
      *
      * @return a <tt>ServiceItem</tt> object representing the service item value
      */
     public abstract ServiceItem getServiceItem();
     
+    public Object getBootstrapProxy(){
+	throw new UnsupportedOperationException("Lookup service doesn't support secure lookup");
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+    
     /**
      * Serialization evolution support
-     * @serialData 
+     * @serial 
+     * @param stream ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws java.io.IOException if a problem occurs during de-serialization.
      */
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException

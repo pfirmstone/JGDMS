@@ -18,48 +18,33 @@
 
 package org.apache.river.test.share;
 
-import net.jini.admin.Administrable;
-import org.apache.river.admin.DestroyAdmin;
-
-import net.jini.lookup.DiscoveryAdmin;
-
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.entry.Entry;
-import net.jini.core.event.EventRegistration;
-import net.jini.core.event.RemoteEventListener;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceItem;
-import net.jini.core.lookup.ServiceMatches;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceRegistration;
-import net.jini.core.lookup.ServiceTemplate;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import net.jini.core.constraint.RemoteMethodControl;
 
 import java.io.IOException;
 import java.io.Serializable;
-
-import java.lang.reflect.Field;
-
 import java.rmi.RemoteException;
-import java.rmi.UnmarshalException;
-import java.rmi.MarshalledObject;
-
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.transaction.CannotAbortException;
+import net.jini.core.transaction.CannotCommitException;
+import net.jini.core.transaction.CannotJoinException;
+import net.jini.core.transaction.TimeoutExpiredException;
+import net.jini.core.transaction.UnknownTransactionException;
+import net.jini.core.transaction.server.CrashCountException;
+import net.jini.core.transaction.server.TransactionManager;
+import net.jini.core.transaction.server.TransactionParticipant;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * This class is a proxy to backend servers for simulations of activatable
  * lookup services that implement the LookupSimulator interface.
  */
+@AtomicSerial
 public class TesterTransactionManagerProxy implements TransactionManager, 
 						      Serializable 
 {
+    private static final long serialVersionUID = 7327572992370001498L;
+    
     final TransactionManager server;
     int sid;
 
@@ -75,6 +60,10 @@ public class TesterTransactionManagerProxy implements TransactionManager,
 	this.sid = sid;
     }
 
+    TesterTransactionManagerProxy(GetArg arg) throws IOException  {
+	this(arg.get("server", null, TransactionManager.class), arg.get("sid", 0));
+    }
+    
     public void commit(long id, long timeout)
             throws UnknownTransactionException, CannotCommitException,
             RemoteException, TimeoutExpiredException {

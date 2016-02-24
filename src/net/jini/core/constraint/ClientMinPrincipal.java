@@ -19,13 +19,15 @@
 package net.jini.core.constraint;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the client, such that if the client
@@ -54,6 +56,7 @@ import java.util.Set;
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0
  */
+@AtomicSerial
 public final class ClientMinPrincipal
 				implements InvocationConstraint, Serializable
 {
@@ -70,6 +73,21 @@ public final class ClientMinPrincipal
      * The principals.
      */
     private final Principal[] principals;
+    
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException
+     */
+    public ClientMinPrincipal(GetArg arg) throws IOException{
+	this(verify(arg.get("principals", null, Principal[].class)));
+    }
+    
+    private static Principal[] verify(Principal[] principals) throws InvalidObjectException{
+	principals = principals.clone();
+	Constraint.verify(principals);
+	return principals;
+    }
 
     /**
      * Creates a constraint containing the specified principal.  This
@@ -80,10 +98,18 @@ public final class ClientMinPrincipal
      * @throws NullPointerException if the argument is <code>null</code>
      */
     public ClientMinPrincipal(Principal p) {
+	this(check(p), true);
+    }
+    
+    private static Principal[] check(Principal p){
 	if (p == null) {
 	    throw new NullPointerException("principal cannot be null");
 	}
-	principals = new Principal[]{p};
+	return new Principal[]{p};
+    }
+    
+    private ClientMinPrincipal(Principal[] principals, boolean check){
+	this.principals = principals;
     }
 
     /**
@@ -98,7 +124,7 @@ public final class ClientMinPrincipal
      * @throws IllegalArgumentException if the argument is empty
      */
     public ClientMinPrincipal(Principal[] principals) {
-	this.principals = Constraint.reduce(principals);
+	this(Constraint.reduce(principals), true);
     }
 
     /**
@@ -114,7 +140,7 @@ public final class ClientMinPrincipal
      * elements do not all implement the <code>Principal</code> interface
      */
     public ClientMinPrincipal(Collection c) {
-	principals = Constraint.reduce(c);
+	this(Constraint.reduce(c));
     }
 
     /**
@@ -167,6 +193,9 @@ public final class ClientMinPrincipal
      * @throws java.io.InvalidObjectException if there are no principals,
      * or any principal is <code>null</code>, or if there are duplicate
      * principals
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

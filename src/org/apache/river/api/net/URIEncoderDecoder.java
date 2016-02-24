@@ -134,7 +134,7 @@ class URIEncoderDecoder {
      * and legal characters are converted into their hexidecimal value prepended
      * by '%'.
      * <p>
-     * For example: '#' -> %23
+     * For example: '#' -&gt; %23
      * Other characters, which are unicode chars that are not US-ASCII, and are
      * not ISO Control or are not ISO Space chars, are preserved.
      * <p>
@@ -178,7 +178,7 @@ class URIEncoderDecoder {
      * not ISO Control or are not ISO Space chars are not preserved. They are
      * converted into their hexidecimal value prepended by '%'.
      * <p>
-     * For example: Euro currency symbol -> "%E2%82%AC".
+     * For example: Euro currency symbol -&gt; "%E2%82%AC".
      * <p>
      * Called from URI.toASCIIString()
      *
@@ -212,7 +212,7 @@ class URIEncoderDecoder {
      * equivalent byte value. All other characters are passed through
      * unmodified.
      * <p>
-     * e.g. "A%20B%20C %24%25" -> "A B C $%"
+     * e.g. "A%20B%20C %24%25" -&gt; "A B C $%"
      * <p>
      * Called from URI.getXYZ() methods
      * 

@@ -20,7 +20,6 @@ package net.jini.discovery;
 
 import org.apache.river.logging.Levels;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,9 +33,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
-import net.jini.config.EmptyConfiguration;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 
@@ -178,10 +174,10 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
          *  which the registrar referenced by the current instance of
          *  this class (proxy) has currently been (or not been) discovered.
          *  That is, if
-         *  from = 0 (no bits set)  ==> discovered by neither group nor locator
-         *       = 1 (bit 0 set)    ==> discovered by only group discovery
-         *       = 2 (bit 1 set)    ==> discovered by only locator discovery
-         *       = 3 (bits 1&2 set) ==> discovered by both group and locator
+         *  from = 0 (no bits set)  ==&gt; discovered by neither group nor locator
+         *       = 1 (bit 0 set)    ==&gt; discovered by only group discovery
+         *       = 2 (bit 1 set)    ==&gt; discovered by only locator discovery
+         *       = 3 (bits 1&amp;2 set) ==&gt; discovered by both group and locator
          */
 	private int from; // sync(this)
         /** Indicates whether the registrar referenced by this class is
@@ -1194,13 +1190,14 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      *  mechanism (group discovery, locator discovery, or both) through
      *  which the registrar referenced by the current instance of
      *  this class (proxy) has currently been (or not been) discovered.
-     * <p>
-     *  That is, if from <br>
-     * <tab id=t1>= 0 (no bits set)    <tab id=t2>==> discovered by neither group nor locator<br>
-     *      <tab to=t1>= 1 (bit 0 set)    <tab to=t2>==> discovered by only group discovery<br>
-     *      <tab to=t1>= 2 (bit 1 set)    <tab to=t2>==> discovered by only locator discovery<br>
-     *      <tab to=t1>= 3 (bits 1&2 set) <tab to=t2>==> discovered by both group and locator<br>
-     * <p>
+     * </p>
+     * <table border=0><caption>That is, if from</caption>
+     * <tr><td>= 0 (no bits set)</td><td>==&gt; discovered by neither group nor locator</td></tr>
+     * <tr><td>= 1 (bit 0 set)</td><td>==&gt; discovered by only group discovery</td></tr>
+     * <tr><td>= 2 (bit 1 set)</td><td>==&gt; discovered by only locator discovery</td></tr>
+     * <tr><td>= 3 (bits 1&amp;2 set)</td><td>==&gt; discovered by both group and locator</td></tr>
+     * </table>
+     * 
      * @param proxy  a ServiceRegistrar object
      * @return an <code>int</code> from, indicating whether the proxy   
      *         was obtained through group or locator discovery. 

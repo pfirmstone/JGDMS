@@ -17,31 +17,32 @@
  */
 package org.apache.river.outrigger;
 
-import java.lang.reflect.Method;
+import org.apache.river.landlord.ConstrainableLandlordLease;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import java.util.Collection;
-
-import net.jini.core.entry.Entry;
-import net.jini.core.event.RemoteEventListener;
-import net.jini.core.transaction.Transaction;
-import net.jini.core.lease.Lease;
-import net.jini.space.JavaSpace;
-import net.jini.space.JavaSpace05;
 import net.jini.admin.Administrable;
-
-import net.jini.id.Uuid;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.entry.Entry;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.Lease;
+import net.jini.core.transaction.Transaction;
+import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-import org.apache.river.proxy.ConstrainableProxyUtil;
-import org.apache.river.landlord.ConstrainableLandlordLease;
+import net.jini.space.JavaSpace;
+import net.jini.space.JavaSpace05;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Constrainable subclass of <code>SpaceProxy2</code>
  */
+@AtomicSerial
 final class ConstrainableSpaceProxy2 extends SpaceProxy2
     implements RemoteMethodControl 
 {
@@ -187,6 +188,28 @@ final class ConstrainableSpaceProxy2 extends SpaceProxy2
 	super(constrainServer(space, methodConstraints),
 	      spaceUuid, serverMaxServerQueryTimeout);
 	this.methodConstraints = methodConstraints;
+    }
+
+    ConstrainableSpaceProxy2(GetArg arg) throws IOException{
+	super(check(arg));
+	methodConstraints = (MethodConstraints) 
+		arg.get("methodConstraints", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	SpaceProxy2 sp2 = new SpaceProxy2(arg);
+	MethodConstraints methodConstraints = (MethodConstraints) 
+		arg.get("methodConstraints", null);
+	
+	/* Basic validation of space, spaceUuid, and 
+	 * serverMaxServerQueryTimeout was performed by
+	 * SpaceProxy2.readObject(), we just need to verify than
+	 * space implements RemoteMethodControl and that it has
+	 * appropriate constraints. 
+	 */
+	ConstrainableProxyUtil.verifyConsistentConstraints(
+	    methodConstraints, sp2.space, methodMapArray);
+	return arg;
     }
 
     /**

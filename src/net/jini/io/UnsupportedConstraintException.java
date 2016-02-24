@@ -65,7 +65,6 @@ public class UnsupportedConstraintException extends IOException {
      * @param cause the cause
      */
     public UnsupportedConstraintException(String s, Throwable cause) {
-	super(s);
-	initCause(cause);
+	super(s, cause);
     }
 }

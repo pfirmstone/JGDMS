@@ -18,6 +18,10 @@
 
 package net.jini.core.lease;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * An exception used to indicate that a lease is not known to the grantor
  * of the lease.  This can occur when a lease expires or has been cancelled.
@@ -26,6 +30,7 @@ package net.jini.core.lease;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class UnknownLeaseException extends LeaseException {
 
     private static final long serialVersionUID = -2921099330511429288L;
@@ -44,5 +49,9 @@ public class UnknownLeaseException extends LeaseException {
      */
     public UnknownLeaseException(String reason) {
 	super(reason);
+    }
+    
+    public UnknownLeaseException(GetArg arg) throws IOException{
+	super(arg);
     }
 }

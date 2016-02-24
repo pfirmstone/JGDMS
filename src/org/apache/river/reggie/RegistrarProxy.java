@@ -17,16 +17,19 @@
  */
 package org.apache.river.reggie;
 
-import org.apache.river.proxy.MarshalledWrapper;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
-import java.rmi.RemoteException;
+import java.lang.reflect.Proxy;
 import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.admin.Administrable;
@@ -40,10 +43,18 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * A RegistrarProxy is a proxy for a registrar.  Clients only see instances
@@ -52,6 +63,7 @@ import net.jini.id.UuidFactory;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class RegistrarProxy 
     implements ServiceRegistrar, Administrable, ReferentUuid, Serializable
 {
@@ -83,6 +95,29 @@ class RegistrarProxy
 	    new RegistrarProxy(server, registrarID);
     }
 
+    @ReadInput
+    private static RO getRO(){
+	return new RO();
+    }
+    
+    private static boolean check(GetArg arg) throws IOException{
+	Registrar server = (Registrar) arg.get("server", null);
+	if (server == null) throw new InvalidObjectException("null server");
+	RO r = (RO) arg.getReader();
+	if (r.registrarID == null) throw new InvalidObjectException("null ServiceID");
+	return true;
+    }
+    
+    RegistrarProxy(GetArg arg) throws IOException{
+	this(arg, check(arg));
+    }
+    
+    RegistrarProxy(GetArg arg, boolean check) throws IOException{
+	server = (Registrar) arg.get("server", null);
+	RO r = (RO) arg.getReader();
+	registrarID = r.registrarID;
+    }
+    
     /** Constructor for use by getInstance(), ConstrainableRegistrarProxy. */
     RegistrarProxy(Registrar server, ServiceID registrarID) {
 	this.server = server;
@@ -90,24 +125,27 @@ class RegistrarProxy
     }
 
     // Inherit javadoc
+    @Override
     public Object getAdmin() throws RemoteException {
         return server.getAdmin();
     }
 
     // Inherit javadoc
+    @Override
     public ServiceRegistration register(ServiceItem srvItem,
 					long leaseDuration)
 	throws RemoteException
     {
 	Item item = new Item(srvItem);
-	if (item.serviceID != null) {
+	if (item.getServiceID() != null) {
 	    Util.checkRegistrantServiceID(
-		item.serviceID, logger, Level.WARNING);
+		    item.getServiceID(), logger, Level.WARNING);
 	}
 	return server.register(item, leaseDuration);
     }
 
     // Inherit javadoc
+    @Override
     public Object lookup(ServiceTemplate tmpl) throws RemoteException {
 	MarshalledWrapper wrapper = server.lookup(new Template(tmpl));
 	if (wrapper == null)
@@ -122,13 +160,31 @@ class RegistrarProxy
     }
 
     // Inherit javadoc
+    @Override
     public ServiceMatches lookup(ServiceTemplate tmpl, int maxMatches)
 	throws RemoteException
     {
 	return server.lookup(new Template(tmpl), maxMatches).get();
     }
+    
+    public Object [] lookUp(
+	    ServiceTemplate tmpl, int maxProxies) throws RemoteException
+    {
+	Object [] proxys = server.lookUp(new Template(tmpl), maxProxies);
+	List result = new ArrayList(proxys.length);
+	for (int i = 0, l = proxys.length; i < l; i++){
+	    if(!(proxys[i] instanceof RemoteMethodControl)) continue;
+	    if(!(proxys[i] instanceof TrustEquivalence)) continue;
+	    if(!(proxys[i] instanceof ServiceProxyAccessor)) continue;
+	    if(!(proxys[i] instanceof ServiceAttributesAccessor)) continue;
+	    if(!Proxy.isProxyClass(proxys[i].getClass())) continue;
+	    result.add(proxys[i]);
+	}
+	return result.toArray();
+    }
 
     // Inherit javadoc
+    @Override
     public EventRegistration notify(ServiceTemplate tmpl,
 				    int transitions,
 				    RemoteEventListener listener,
@@ -141,6 +197,7 @@ class RegistrarProxy
     }
 
     // Inherit javadoc
+    @Override
     public Class[] getEntryClasses(ServiceTemplate tmpl)
 	throws RemoteException
     {
@@ -149,6 +206,7 @@ class RegistrarProxy
     }
 
     // Inherit javadoc
+    @Override
     public Object[] getFieldValues(ServiceTemplate tmpl,
 				   int setIndex, String field)
 	throws NoSuchFieldException, RemoteException
@@ -198,6 +256,7 @@ class RegistrarProxy
     }
 
     // Inherit javadoc
+    @Override
     public Class[] getServiceTypes(ServiceTemplate tmpl, String prefix)
 	throws RemoteException
     {
@@ -206,32 +265,38 @@ class RegistrarProxy
 							  prefix));
     }
 
+    @Override
     public ServiceID getServiceID() {
 	return registrarID;
     }
 
     // Inherit javadoc
+    @Override
     public LookupLocator getLocator() throws RemoteException {
 	return server.getLocator();
     }
 
     // Inherit javadoc
+    @Override
     public String[] getGroups() throws RemoteException {
 	return server.getMemberGroups();
     }
 
     // Inherit javadoc
+    @Override
     public Uuid getReferentUuid() {
 	return UuidFactory.create(registrarID.getMostSignificantBits(),
 				  registrarID.getLeastSignificantBits());
     }
 
     // Inherit javadoc
+    @Override
     public int hashCode() {
 	return registrarID.hashCode();
     }
 
     /** Proxies for servers with the same service ID are considered equal. */
+    @Override
     public boolean equals(Object obj) {
 	return ReferentUuids.compare(this, obj);
     }
@@ -242,6 +307,7 @@ class RegistrarProxy
      *
      * @return String
      */
+    @Override
     public String toString() {
 	return this.getClass().getName() + "[registrar=" + registrarID
 	    + " " + server + "]";
@@ -278,5 +344,16 @@ class RegistrarProxy
      */
     private void readObjectNoData() throws ObjectStreamException {
 	throw new InvalidObjectException("no data");
+    }
+    
+    private static class RO implements ReadObject{
+	
+	ServiceID registrarID;
+	    
+	@Override
+	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
+	    registrarID = new ServiceID(in);
+}
+	
     }
 }

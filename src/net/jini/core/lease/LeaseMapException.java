@@ -18,13 +18,20 @@
 
 package net.jini.core.lease;
 
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
+import java.io.ObjectStreamField;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * An exception generated when a LeaseMap renewAll or cancelAll call
@@ -34,9 +41,23 @@ import java.util.Set;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class LeaseMapException extends LeaseException {
 
     private static final long serialVersionUID = -4854893779678486122L;
+    
+    /**
+     * By defining serial persistent fields, we don't need to use transient fields.
+     * All fields can be final and this object becomes immutable.
+     * 
+     * In earlier versions the extra fields will duplicate those of Throwable,
+     * so only ref id's will be sent, the objects these fields refer to will
+     * only be sent once.
+     */
+    private static final ObjectStreamField[] serialPersistentFields = 
+	{
+	    new ObjectStreamField("exceptionMap", Map.class)
+	}; 
 
     /**
      * A Map from Lease to Exception, containing each lease that failed to
@@ -45,8 +66,35 @@ public class LeaseMapException extends LeaseException {
      *
      * @serial
      */
-    public final Map<Lease,Exception> exceptionMap;
+    public final Map<Lease,Throwable> exceptionMap;
 
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    public LeaseMapException(GetArg arg) throws IOException{
+	this(arg,
+	     Valid.copyMap( //Defensive copy of exceptionMap into new HashMap
+		 Valid.notNull(
+		     arg.get("exceptionMap", null, Map.class),
+		     "exceptionMap is null"
+		 ), 
+		 // New map to contain checked keys and values
+		 new HashMap<Lease,Throwable>(), 
+		 Lease.class, // keys must be instanceof Lease
+		 Throwable.class // values must be instanceof Throwable
+	     ) // returns populated and checked map.
+	);
+    }
+    
+    private LeaseMapException(GetArg arg,
+			      Map<Lease,Throwable> exceptionMap) throws IOException 
+    {
+        super(arg);
+	this.exceptionMap = exceptionMap;
+    }
+    
     /**
      * Constructs a LeaseMapException for the specified map with a
      * detail message.
@@ -62,7 +110,7 @@ public class LeaseMapException extends LeaseException {
      *         {@link Lease}, or any value which is not an instance of
      *         <code>Throwable</code>
      */
-    public LeaseMapException(String s, Map<Lease,Exception> exceptionMap) {
+    public LeaseMapException(String s, Map<Lease,Throwable> exceptionMap) {
 	super(s);
 
 	final Set mapEntries = exceptionMap.entrySet();
@@ -93,12 +141,21 @@ public class LeaseMapException extends LeaseException {
 
 	this.exceptionMap = exceptionMap;
     }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	PutField pf = out.putFields();
+	pf.put("exceptionMap", exceptionMap);
+	out.writeFields();
+    }
 
     /**
      * @throws InvalidObjectException if <code>exceptionMap</code> is 
      * <code>null</code>, contains any key which is not an instance of
      * {@link Lease}, or contains any value which in not an instance of
      * <code>Throwable</code>
+     * @param in ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException
@@ -141,9 +198,9 @@ public class LeaseMapException extends LeaseException {
         StringBuilder sb = new StringBuilder(1024);
         sb.append(super.getMessage());
         sb.append(ret);
-        Iterator<Entry<Lease,Exception>> it = exceptionMap.entrySet().iterator();
+        Iterator<Entry<Lease,Throwable>> it = exceptionMap.entrySet().iterator();
         while (it.hasNext()){
-            Entry<? extends Lease,Exception> entry = it.next();
+            Entry<Lease,Throwable> entry = it.next();
             sb.append(lease);
             sb.append(entry.getKey());
             sb.append(exception);

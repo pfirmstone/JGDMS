@@ -101,7 +101,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     option is a hint that stack traces are desired. It is the responsibility
  *     of the individual plugin implementation to honor this option.
  * </dd>
- * <p>
+ * <br>
  * <dt><b><code>-explain</code></b>
  * <dd>By default, the output of a validity check will be a short message with
  *     enough detail to allow a knowledgeable user to interpret it; however, it
@@ -112,7 +112,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     is the responsibility of the individual plugin implementation to honor
  *     this option.
  * </dd>
- * <p>
+ * <br>
  * <dt><b><code>-level</code> <var>info|warning|error</var></b>
  * <dd>The tool supports three severity levels for message generation. 
  * <p>
@@ -133,7 +133,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     This option is used to set the level at which message records are
  *     generated. The default value is <var>warning</var>.
  * </dd>
- * <p>
+ * <br>
  * <dt><b><code>-plugin</code> <var>file</var></b>
 
  * <dd>Identifies a JAR file containing user supplied plugins that will be run
@@ -146,7 +146,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     <code>org.apache.river.tool.envcheck.Plugin</code> interface. This option
  *     may be supplied zero or more times.
  * </dd>
- * <p>
+ * <br>
  * <dt><b><code>-security</code></b>
  * <dd>A plugin specific option that is recognized by one of the bundled
  *     plugins.  Specifying this option will activate a number of JAAS and JSSE

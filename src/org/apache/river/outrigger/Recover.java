@@ -42,6 +42,7 @@ public interface Recover {
     /**
      * Recover the join state from the previous session.
      *
+     * @throws java.lang.Exception if the state can't be recovered.
      * @see LogOps#joinStateOp
      *
      * @param state is the stored join state

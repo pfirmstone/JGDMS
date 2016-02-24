@@ -20,11 +20,16 @@ package org.apache.river.start;
 
 import java.io.File;
 import java.io.FilePermission;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.util.ArrayList;
@@ -32,6 +37,9 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -61,10 +69,22 @@ import org.apache.river.api.net.Uri;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 public final class SharedActivationPolicyPermission extends Permission
                                                     implements Serializable
 {
     private static final long serialVersionUID = 1L;
+    
+    /**
+     * In earlier versions the extra fields will duplicate those of Permission,
+     * so only ref id's will be sent, so the objects these fields refer to will
+     * only be sent once.
+     */
+    private static final ObjectStreamField[] serialPersistentFields = 
+	{
+	    new ObjectStreamField("policyPermission", Permission.class),
+	    new ObjectStreamField("policy", String.class)
+	}; 
 
     /*
      * Debug flag.
@@ -82,11 +102,10 @@ public final class SharedActivationPolicyPermission extends Permission
      * Constructor that creates a 
      * <code>SharedActivationPolicyPermission</code> with the specified name.
      * Delegates <code>policy</code> to supertype.
+     * @param policy
      */
     public SharedActivationPolicyPermission(String policy) {
-	//TBD - check for null args
-	super(policy);
-	policyPermission = init(policy);
+	this(policy, init(policy));
     }
 
     /**
@@ -97,9 +116,32 @@ public final class SharedActivationPolicyPermission extends Permission
      * argument is currently ignored.
      */
     public SharedActivationPolicyPermission(String policy, String action) {
-	//TBD - check for null args
+	this(policy, init(policy));
+    }
+   
+    private SharedActivationPolicyPermission(String policy, Permission policyPermission){
 	super(policy);
-	policyPermission = init(policy);
+	this.policyPermission = policyPermission;
+    }
+    
+    public SharedActivationPolicyPermission(GetArg arg) throws IOException{
+	this(
+	    Valid.notNull(
+		arg.get("policy", null, String.class), "policy cannot be null"
+	    ),
+	    (String) null
+	);
+    }
+    
+    private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {
+	in.defaultReadObject();
+    }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	PutField pf = out.putFields();
+	pf.put("policyPermission", policyPermission);
+	pf.put("policy", getName());
+	out.writeFields();
     }
 
 //    /**
@@ -135,7 +177,7 @@ public final class SharedActivationPolicyPermission extends Permission
     /**
      * Contains common code to all constructors.
      */
-    private Permission init(final String policy) {
+    private static Permission init(final String policy) {
 	/*
 	 * In order to leverage the <code>FilePermission</code> logic
 	 * we need to make sure that forward slashes ("/"), in 

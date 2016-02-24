@@ -21,7 +21,7 @@ package org.apache.river.test.impl.outrigger.matching;
 import net.jini.core.entry.Entry;
 import net.jini.space.JavaSpace;
 import java.lang.reflect.*;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import net.jini.core.transaction.TransactionException;
 import java.rmi.RemoteException;
 import net.jini.core.entry.UnusableEntryException;
@@ -114,10 +114,10 @@ public abstract class SpaceQuery {
                 }
 
                 // Equality check of entryField.get(entry) and tmplFieldVal
-                final MarshalledObject mEntryFieldVal = new
-                        MarshalledObject(entryField.get(entry));
-                final MarshalledObject mTmplFieldVal = new
-                        MarshalledObject(tmplFieldVal);
+                final MarshalledInstance mEntryFieldVal = new
+                        MarshalledInstance(entryField.get(entry));
+                final MarshalledInstance mTmplFieldVal = new
+                        MarshalledInstance(tmplFieldVal);
 
                 if (!mEntryFieldVal.equals(mTmplFieldVal)) {
                     return false;

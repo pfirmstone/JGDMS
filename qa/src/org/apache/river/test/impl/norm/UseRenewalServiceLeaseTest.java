@@ -111,7 +111,7 @@ public class UseRenewalServiceLeaseTest extends LeaseUsesTestBase {
 	    return false;
 	} catch (Exception e) {
 	    logger.log(Level.INFO, (idCounter - 2) + " leases registered");
-	    throw new TestException ("Testing for availability: " + e.getMessage());
+	    throw new TestException ("Testing for availability: " , e);
 	}
 	// Should never get here
 	//return false;

@@ -17,6 +17,7 @@
  */
 package net.jini.lookup.entry;
 
+import java.beans.ConstructorProperties;
 import java.io.Serializable;
 import net.jini.core.entry.Entry;
 
@@ -45,6 +46,11 @@ public class LocationBean implements EntryBean, Serializable {
      */
     public LocationBean() {
 	assoc = new Location();
+    }
+    
+    @ConstructorProperties({"floor", "room", "building"})
+    public LocationBean(String floor, String room, String building){
+	assoc = new Location(floor, room, building);
     }
 
     /**

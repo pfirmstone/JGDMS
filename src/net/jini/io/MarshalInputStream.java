@@ -24,8 +24,6 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
 import java.rmi.server.RMIClassLoaderSpi;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,7 +88,7 @@ public class MarshalInputStream
      * maps keywords for primitive types and void to corresponding
      * Class objects
      **/
-    private static final Map specialClasses = new HashMap();
+    private static final Map<String,Class> specialClasses = new HashMap<String,Class>(9);
     static {
 	specialClasses.put("boolean", boolean.class);
 	specialClasses.put("byte", byte.class);
@@ -191,24 +189,49 @@ public class MarshalInputStream
 			      Collection context)
 	throws IOException
     {	      
-	super(in);
-	if (context == null) {
-	    throw new NullPointerException();
-	}
+	super(check(in, context));
 	this.defaultLoader = defaultLoader;
 	this.verifyCodebaseIntegrity = verifyCodebaseIntegrity;
 	this.verifierLoader = verifierLoader;
 	this.context = context;
-        AccessController.doPrivileged(new PrivilegedAction<Object>(){
+    }
 
-            @Override
-            public Object run() {
-                enableResolveObject(true);
-                return null;
+    /**
+     * 
+     * @param defaultLoader
+     * @param verifyCodebaseIntegrity
+     * @param verifierLoader
+     * @param context
+     * @throws IOException 
+     */
+    protected MarshalInputStream(ClassLoader defaultLoader,
+				 boolean verifyCodebaseIntegrity,
+				 ClassLoader verifierLoader,
+				 Collection context)
+	throws IOException
+    {	            
+	super();
+	this.defaultLoader = defaultLoader;
+	this.verifyCodebaseIntegrity = verifyCodebaseIntegrity;
+	this.verifierLoader = verifierLoader;
+	this.context = context;
             }
             
-        });
-        
+    private static InputStream check(InputStream in, Collection context){
+	if (context == null || in == null) throw new NullPointerException();
+	// SecurityException's propagate, cause them to be thrown prior to
+	// superclass instantiation.
+	// Should we bother?  ObjectInputStream is susceptable to a finalizer
+	// attack.
+//	AccessController.doPrivileged(new PrivilegedAction<Object>() {
+//	    @Override
+//	    public Object run() {
+//		new SerializablePermission("enableSubclassImplementation").checkGuard(null);
+//		new SerializablePermission("enableSubstitution").checkGuard(null);
+//		return null;
+//	    }
+//	});
+	return in;
     }
 
     /**
@@ -318,6 +341,12 @@ public class MarshalInputStream
 	}
     }
 
+    protected Class superResolveClass(ObjectStreamClass classDesc) 
+	 throws IOException, ClassNotFoundException
+    {
+	return super.resolveClass(classDesc);
+    }
+
     /**
      * Resolves the appropriate {@link Class} object for the proxy
      * class described by the interface names
@@ -385,6 +414,12 @@ public class MarshalInputStream
 					   defaultLoader,
 					   verifyCodebaseIntegrity,
 					   verifierLoader);
+    }
+
+    protected Class superResolveProxyClass(String[] interfaceNames) 
+	    throws IOException, ClassNotFoundException
+    {
+	return super.resolveProxyClass(interfaceNames);
     }
 
     /**

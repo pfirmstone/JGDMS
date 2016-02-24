@@ -18,15 +18,16 @@
 package org.apache.river.outrigger;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.InvalidObjectException;
-
-import net.jini.core.transaction.server.TransactionParticipant;
+import java.io.ObjectInputStream;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Subclass of <code>ParticipantProxy</code> that implements
@@ -34,6 +35,7 @@ import net.jini.id.Uuid;
  *
  * @author Sun Microsystems, Inc.
  */
+@AtomicSerial
 final class ConstrainableParticipantProxy extends ParticipantProxy
     implements RemoteMethodControl
 {
@@ -54,6 +56,25 @@ final class ConstrainableParticipantProxy extends ParticipantProxy
 				  MethodConstraints methodConstraints)
     {
 	super(constrainServer(space, methodConstraints), spaceUuid);
+    }
+
+    ConstrainableParticipantProxy(GetArg arg) throws IOException {
+	super(check(arg));
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	ParticipantProxy pp = new ParticipantProxy(arg);
+	
+	/* Basic validation of space and spaceUuid, was performed by
+	 * ParticipantProxy.readObject(), we just need to verify than
+	 * space implements RemoteMethodControl.	
+	 */
+
+	if(!(pp.space instanceof RemoteMethodControl) ) {
+	    throw new InvalidObjectException(
+	        "space does not implement RemoteMethodControl");
+	}
+	return arg;
     }
 
     /**

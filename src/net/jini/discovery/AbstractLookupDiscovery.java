@@ -1861,12 +1861,13 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *         this method is called after the <code>terminate</code>
      *         method has been called.
      * 
-     * @see #LookupDiscovery
+     * @see LookupDiscovery
      * @see #ALL_GROUPS
      * @see #NO_GROUPS
      * @see DiscoveryPermission
      * @see #getGroups
      */
+    @Override
     public void setGroups(String[] newGroups) throws IOException {
         testArrayForNullElement(newGroups);
 	checkGroups(newGroups);
@@ -2531,8 +2532,8 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *  <p>
      *  if (old groups and new groups)
      *  <p><ul>
-     *       <li> (not equal but stillInterested) --> send a changed event
-     *       <li> (!stillInterested)              --> send a discarded event
+     *       <li> (not equal but stillInterested) --&gt; send a changed event
+     *       <li> (!stillInterested)              --&gt; send a discarded event
      *    </ul>
      *  <p>
      *

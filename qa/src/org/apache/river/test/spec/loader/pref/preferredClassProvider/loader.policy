@@ -45,6 +45,7 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}" {
 };
 
 grant { 
+    permission org.apache.river.DeSerializationPermission "ATOMIC";
     permission java.io.FilePermission "<<ALL FILES>>", "read";
     permission java.net.SocketPermission "*", "connect,accept,listen,resolve"; 
     permission java.lang.RuntimePermission "getProtectionDomain";

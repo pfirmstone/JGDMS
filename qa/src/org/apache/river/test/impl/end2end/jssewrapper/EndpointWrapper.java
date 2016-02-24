@@ -18,26 +18,25 @@
 
 package org.apache.river.test.impl.end2end.jssewrapper;
 
-import javax.security.auth.Subject;
-
-import java.rmi.MarshalledObject;
-import net.jini.core.constraint.InvocationConstraints;
-import net.jini.jeri.Endpoint;
-import net.jini.jeri.OutboundRequest;
-import net.jini.jeri.OutboundRequestIterator;
-import net.jini.jeri.connection.OutboundRequestHandle;
-import net.jini.jeri.connection.Connection;
-
-import net.jini.security.proxytrust.TrustEquivalence;
-
+import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.io.IOException;
+
+import java.rmi.MarshalledObject;
+import java.util.ArrayList;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.ArrayList;
 import java.util.List;
+import javax.security.auth.Subject;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.io.MarshalledInstance;
+import net.jini.jeri.Endpoint;
+import net.jini.jeri.OutboundRequest;
+import net.jini.jeri.OutboundRequestIterator;
+import net.jini.jeri.connection.Connection;
+import net.jini.jeri.connection.OutboundRequestHandle;
+import net.jini.security.proxytrust.TrustEquivalence;
 
 
 /**
@@ -151,7 +150,7 @@ public class EndpointWrapper implements Endpoint, Serializable, TrustEquivalence
             }
             ObjectOutputStream oos =
                 new ObjectOutputStream(or.getRequestOutputStream());
-            oos.writeObject(new MarshalledObject(rcb));
+            oos.writeObject(new MarshalledInstance(rcb));
             oos.flush();
             Util.log(Util.RETURN, "returned OutboundRequest: " + or);
             Util.log(Util.CALLS, "Leaving Endpoint.newRequest");

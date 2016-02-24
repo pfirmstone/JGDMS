@@ -41,6 +41,8 @@ public interface StoredResource {
      * @see LogOps#renewOp
      *
      * @param obj resource to restore
+     * @throws IOException if an IO related exception occurs.
+     * @throws ClassNotFoundException if class not found.
      */
     public void restore(StorableResource obj)
 	throws IOException, ClassNotFoundException;

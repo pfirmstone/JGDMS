@@ -29,6 +29,8 @@ import net.jini.lease.LeaseRenewalService;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Defines a client-side proxy for a Norm server.
@@ -36,6 +38,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 class NormProxy extends AbstractProxy
     implements LeaseRenewalService, Administrable
 {
@@ -61,6 +64,10 @@ class NormProxy extends AbstractProxy
 	super(server, serverUuid);
     }
 
+    NormProxy(GetArg arg) throws IOException {
+	super(arg);
+    }
+
     /** Require fields to be non-null. */
     private void readObjectNoData() throws InvalidObjectException {
 	throw new InvalidObjectException(
@@ -84,6 +91,7 @@ class NormProxy extends AbstractProxy
     }
 
     /** Defines a subclass of NormProxy that implements RemoteMethodControl. */
+    @AtomicSerial
     static final class ConstrainableNormProxy extends NormProxy
 	implements RemoteMethodControl
     {
@@ -98,6 +106,19 @@ class NormProxy extends AbstractProxy
 	    }
 	}
 
+	ConstrainableNormProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException {
+	    NormProxy np = new NormProxy(arg);
+	    if (!(np.server instanceof RemoteMethodControl)) {
+		throw new InvalidObjectException(
+		    "server must implement RemoteMethodControl");
+	    }
+	    return arg;
+	}
+	
 	/** Require server to implement RemoteMethodControl. */
 	private void readObject(ObjectInputStream in)
 	    throws IOException, ClassNotFoundException

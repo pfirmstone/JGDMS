@@ -17,6 +17,10 @@
  */
 package org.apache.river.mahalo;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 /**
  * A <code>LogRecord</code> which encapsulates a participant
  * being instructed to roll-forward.
@@ -24,11 +28,15 @@ package org.apache.river.mahalo;
  * @author Sun Microsystems, Inc.
  *
  */
-
+@AtomicSerial
 class ParticipantCommitRecord extends ParticipantModRecord {
     static final long serialVersionUID = -881052193077840308L;
 
     ParticipantCommitRecord(ParticipantHandle part) {
 	super(part,COMMITTED);
     }
+    
+    ParticipantCommitRecord(GetArg arg) throws IOException {
+	super(arg);
+}
 }

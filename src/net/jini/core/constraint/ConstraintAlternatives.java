@@ -21,11 +21,12 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Combines two or more constraint alternatives into a single overall
@@ -47,6 +48,7 @@ import java.util.Set;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class ConstraintAlternatives
 				implements RelativeTimeConstraint, Serializable
 {
@@ -88,6 +90,44 @@ public final class ConstraintAlternatives
 	this.constraints =
 	    reduce((InvocationConstraint[]) constraints.clone());
 	setRelative();
+    }
+    
+    /**
+     * AtomicSerial constructor.
+     * @param arg 
+     * @throws java.io.IOException 
+     */
+    public ConstraintAlternatives(GetArg arg) throws IOException{
+	this(validate(arg.get("constraints", null, InvocationConstraint[].class)), false);
+    }
+    
+    private static InvocationConstraint[] validate(InvocationConstraint[] constraints) 
+	    throws InvalidObjectException{
+	if (constraints == null) {
+	    throw new InvalidObjectException(
+				  "cannot create constraint with no elements");
+	}
+	constraints = constraints.clone();
+	try {
+	    verify(constraints, 2);
+	} catch (RuntimeException e) {
+	    if (e instanceof NullPointerException ||
+		e instanceof IllegalArgumentException)
+	    {
+		InvalidObjectException ee =
+		    new InvalidObjectException(e.getMessage());
+		ee.initCause(e);
+		throw ee;
+	    }
+	    throw e;
+	}
+	for (int i = constraints.length; --i >= 0; ) {
+	    if (Constraint.contains(constraints, i, constraints[i])) {
+		throw new InvalidObjectException(
+			  "cannot create constraint with duplicate elements");
+	    }
+	}
+	return constraints;
     }
 
     /**
@@ -282,8 +322,8 @@ public final class ConstraintAlternatives
      *
      * @return an immutable set of all of the constraints
      */
-    public Set elements() {
-	return new ArraySet(constraints);
+    public Set<InvocationConstraint> elements() {
+	return new ArraySet<InvocationConstraint>(constraints);
     }
 
     /**
@@ -349,6 +389,9 @@ public final class ConstraintAlternatives
      * @throws InvalidObjectException if there are less than two constraints,
      * or any constraint is <code>null</code> or an instance of this class,
      * or if there are duplicates
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

@@ -21,18 +21,22 @@ package org.apache.river.mahalo;
 import org.apache.river.landlord.ConstrainableLandlordLease;
 import org.apache.river.landlord.Landlord;
 import org.apache.river.landlord.LandlordProxyVerifier;
+import java.io.IOException;
+import java.io.Serializable;
+import java.rmi.RemoteException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.ReferentUuid;
 import net.jini.id.Uuid;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
-import java.io.Serializable;
-import java.rmi.RemoteException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /** Defines a trust verifier for the smart proxies of a Mahalo server. */
+@AtomicSerial
 final class ProxyVerifier implements TrustVerifier, Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -63,6 +67,20 @@ final class ProxyVerifier implements TrustVerifier, Serializable {
      *	       TrustEquivalence}
      */
     ProxyVerifier(TxnManager serverProxy, Uuid proxyID) {
+	this(check(serverProxy, proxyID), serverProxy, proxyID);
+    }
+    
+    ProxyVerifier(GetArg arg) throws IOException{
+	this((TxnManager) arg.get("serverProxy", null),
+		(Uuid) arg.get("proxyID", null));
+    }
+    
+    private ProxyVerifier(boolean check,TxnManager serverProxy, Uuid proxyID ){
+	this.serverProxy = (RemoteMethodControl) serverProxy;
+	this.proxyID = proxyID;
+    }
+    
+    private static boolean check(TxnManager serverProxy, Uuid proxyID){
 	if (!(serverProxy instanceof RemoteMethodControl)) {
 	    throw new UnsupportedOperationException(
 		"No verifier available for non-constrainable service");
@@ -74,8 +92,7 @@ final class ProxyVerifier implements TrustVerifier, Serializable {
 	    throw new IllegalArgumentException(
 	        "Proxy id cannot be null");
 	}
-	this.serverProxy = (RemoteMethodControl) serverProxy;
-	this.proxyID = proxyID;
+	return true;
     }
 
     /**

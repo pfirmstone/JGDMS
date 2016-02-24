@@ -18,7 +18,7 @@
 
 package org.apache.river.qa.harness;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
 
 import net.jini.core.discovery.LookupLocator;
@@ -76,13 +76,13 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
      * Call the slave host with a request to start the service. If the returned
      * object is a <code>Throwable,</code> that object is wrapped in a
      * <code>TestException</code> thrown by this method. Otherwise, the returned
-     * object is assumed to be a <code>MarshalledObject</code> containing the
+     * object is assumed to be a <code>MarshalledInstance</code> containing the
      * service proxy. The proxy is unwrapped and prepared before returning.
      * 
      * @throws RemoteException never
      * @throws TestException if the call to the slave returns <code>null</code>
      *                       or an object of any type other than 
-     *                       <code>MarshalledObject.</code> If the returned
+     *                       <code>MarshalledInstance.</code> If the returned
      *                       object is <code>Throwable,</code> the
      *                       <code>TestException</code> wraps the 
      *                       <code>Throwable.</code> Any unexpected exception
@@ -99,12 +99,12 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
 	    if (o instanceof Throwable) {
 		throw new TestException("Slave call returned exception", (Throwable) o);
 	    }
-	    if (! (o instanceof MarshalledObject)) {
-		throw new TestException("expected MarshalledObject, got " 
+	    if (! (o instanceof MarshalledInstance)) {
+		throw new TestException("expected MarshalledInstance, got " 
 					+ o.getClass());
 	    }
             synchronized (this){
-                serviceRef = ((MarshalledObject) o).get();
+                serviceRef = ((MarshalledInstance) o).get(false);
                 getServicePreparerName();
                 serviceRef = doProxyPreparation(serviceRef);
             }

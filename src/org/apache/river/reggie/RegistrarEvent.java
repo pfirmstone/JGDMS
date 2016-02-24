@@ -18,12 +18,18 @@
 package org.apache.river.reggie;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * Concrete implementation class for abstract ServiceEvent.
@@ -31,6 +37,7 @@ import net.jini.core.lookup.ServiceItem;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class RegistrarEvent extends ServiceEvent {
 
     private static final long serialVersionUID = 2L;
@@ -38,7 +45,7 @@ class RegistrarEvent extends ServiceEvent {
     /**
      * The new state of the serviceItem, or null if the serviceItem has been
      * deleted from the lookup service.  This is either a ServiceItem
-     * or an Item (to be converted to a ServiceItem when unmarshalled).
+     * or an Item (to be converted to a ServiceItem when getServiceItem is called).
      *
      * @serial
      */
@@ -50,6 +57,29 @@ class RegistrarEvent extends ServiceEvent {
      * annotation loss (see bug 4745728).
      */
     private transient ServiceID servID;
+
+    @ReadInput
+    private static ReadObject getRO(){
+	return new RO();
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	Object serviceItem = arg.get("serviceItem", null);
+	if (serviceItem == null ||
+	    serviceItem instanceof ServiceItem ||
+	    serviceItem instanceof Item)
+	{
+	    RO r = (RO) arg.getReader();
+	    if (r.servID instanceof ServiceID) return arg;
+	}
+	throw new InvalidObjectException("Invariants weren't satisfied");
+    }
+    
+    public RegistrarEvent(GetArg arg) throws IOException {
+	super(check(arg));
+	serviceItem = arg.get("serviceItem", null);
+	servID = ((RO) arg.getReader()).servID;
+    }
 
     /**
      * Simple constructor.
@@ -82,6 +112,8 @@ class RegistrarEvent extends ServiceEvent {
     public ServiceItem getServiceItem() {
 	if (serviceItem instanceof ServiceItem){
 	    return ((ServiceItem) serviceItem).clone();
+	} else if (serviceItem instanceof Item) {
+	    serviceItem = ((Item)serviceItem).get();
 	}
 	return (ServiceItem)serviceItem;
     }
@@ -104,15 +136,22 @@ class RegistrarEvent extends ServiceEvent {
     /**
      * Reads the default serializable field value for this instance, followed
      * by the serviceItem's service ID encoded as specified by the
-     * ServiceID.writeBytes method.  If the value of the serviceItem field is an Item
-     * instance, converts it to a ServiceItem.
+     * ServiceID.writeBytes method. 
      */
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
 	servID = new ServiceID(in);
-	if (serviceItem instanceof Item)
-	    serviceItem = ((Item)serviceItem).get();
+    }
+    
+    private static class RO implements ReadObject {
+
+	ServiceID servID;
+	@Override
+	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
+	    servID = new ServiceID(in);
+}
+	
     }
 }

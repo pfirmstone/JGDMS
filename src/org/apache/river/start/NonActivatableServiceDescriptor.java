@@ -18,34 +18,35 @@
 
 package org.apache.river.start;
 
-import org.apache.river.api.util.Startable;
-import org.apache.river.config.Config;
-
-import net.jini.config.Configuration;
-import net.jini.export.ProxyAccessor;
-import net.jini.security.BasicProxyPreparer;
-import net.jini.security.ProxyPreparer;
-import net.jini.security.policy.DynamicPolicy;
-import net.jini.security.policy.DynamicPolicyProvider;
-import net.jini.security.policy.PolicyFileProvider;
-
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.net.URLClassLoader;
-import java.rmi.MarshalledObject;
+import java.security.AllPermission;
 import java.security.Permission;
 import java.security.Policy;
-import java.security.AllPermission;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import net.jini.loader.ClassLoading;
+import net.jini.config.Configuration;
+import net.jini.export.ProxyAccessor;
+import net.jini.export.ServiceProxyAccessor;
+import net.jini.io.MarshalledInstance;
 import net.jini.loader.LoadClass;
+import net.jini.security.BasicProxyPreparer;
+import net.jini.security.ProxyPreparer;
+import net.jini.security.policy.DynamicPolicy;
+import net.jini.security.policy.DynamicPolicyProvider;
+import net.jini.security.policy.PolicyFileProvider;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
+import org.apache.river.api.util.Startable;
+import org.apache.river.config.Config;
 
 /**
  * Class used to launch shared, non-activatable, in-process 
@@ -63,10 +64,10 @@ import net.jini.loader.LoadClass;
  * to be placed in the same VM, with each object maintaining distinct 
  * export codebase and security policy settings. 
  * <P>
- * <a name="serviceConstructor">
+ * <a name="serviceConstructor"></a>
  * Services need to implement the following "non-activatable
  * constructor":
- * <blockquote><pre>&lt;impl&gt;(String[] args, {@link LifeCycle LifeCycle} lc)</blockquote></pre>
+ * <blockquote><pre>&lt;impl&gt;(String[] args, {@link LifeCycle LifeCycle} lc)</pre></blockquote>
  * where,
  * <UL>
  * <LI>args - are the service configuration arguments
@@ -74,7 +75,7 @@ import net.jini.loader.LoadClass;
  *     {@link LifeCycle} reference.
  * </UL>
  *
- * <a name="serviceProxy">
+ * <a name="serviceProxy"></a>
  * A service implementation can return its service proxy 
  * (via the <code>proxy</code> field of the 
  * {@link Created Created} object returned by
@@ -99,9 +100,8 @@ import net.jini.loader.LoadClass;
  * <li><a href="#logging">Logging</a>
  * </ul>
  *
- * <a name="configEntries">
+ * <a name="configEntries"></a>
  * <h3>Configuring NonActivatableServiceDescriptor</h3>
- * </a>
  *
  * <code>NonActivatableServiceDescriptor</code> 
  * depends on {@link ActivateWrapper}, which can itself be configured. See
@@ -115,20 +115,20 @@ import net.jini.loader.LoadClass;
  * The following configuration entries use the
  * component prefix "<code>org.apache.river.start</code>": <p>
  *
- * <a name="servicePreparer">
+ * <a name="servicePreparer"></a>
  * <table summary="Describes the default service preparer configuration entry"
  *        border="0" cellpadding="2">
  *    <tr valign="top">
- *      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *      servicePreparer</code></font>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *      <th scope="col">&#X2022;
+ *      <th scope="col" align="left" colspan="2"> <code>
+ *      servicePreparer</code>
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Type: <td> {@link net.jini.security.ProxyPreparer}
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> <code>
  *        new {@link net.jini.security.BasicProxyPreparer}()
  *        </code>
- *    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Description: <td> The default proxy preparer used to prepare
  *      the <a href="#serviceProxy">service proxy</a>.
  *      This value should not be <code>null</code>. This entry is
@@ -142,22 +142,21 @@ import net.jini.loader.LoadClass;
  *      accept a {@linkplain ProxyPreparer proxy preparer} argument. 
  *  </table>
  *
- * <a name="logging">
+ * <a name="logging"></a>
  * <h3>Loggers and Logging Levels</h3>
- * </a>
- *
+ * <p>
  * This implementation uses the {@link
  * java.util.logging.Logger}, named 
  * <code>org.apache.river.start.service.starter</code>. 
  * The following table describes the
  * type of information logged as well as the levels of information logged.
- * <p>
+ * </p>
  *
  *  <table border="1" cellpadding="5"
  *	 summary="Describes logging performed by the non-activatable,
  *       service descriptor at different logging levels">
  *
- *  <caption halign="center" valign="top"><b><code>
+ *  <caption><b><code>
  *	   org.apache.river.start.service.starter</code></b></caption>
  *
  *  <tr> <th scope="col"> Level <th scope="col"> Description
@@ -178,7 +177,7 @@ import net.jini.loader.LoadClass;
  * @since 2.0
  */
 // TODO - add discussion about how to provide a service's proxy
-
+@AtomicSerial
 public class NonActivatableServiceDescriptor
     implements ServiceDescriptor, Serializable
 {
@@ -242,7 +241,7 @@ public class NonActivatableServiceDescriptor
     protected transient boolean descCreated = false;
     
     /** Lock object for <code>descCreated</code> flag */
-    protected final Object descCreatedLock = new Lock();
+    protected final Object descCreatedLock;
     
     private static LifeCycle NoOpLifeCycle = 
         new LifeCycle() { // default, no-op object
@@ -324,6 +323,7 @@ public class NonActivatableServiceDescriptor
 	LifeCycle lifeCycle,
         ProxyPreparer preparer)
     {
+	this.descCreatedLock = new Lock();
         if (exportCodebase == null || policy == null ||
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(
@@ -339,6 +339,16 @@ public class NonActivatableServiceDescriptor
 	    (lifeCycle == null)?NoOpLifeCycle:lifeCycle;
         this.servicePreparer = preparer;    
     }
+    
+    public NonActivatableServiceDescriptor(GetArg arg) throws IOException{
+	this(Valid.notNull(arg.get("codebase", null, String.class), "export codebase cannot be null"),
+	    Valid.notNull(arg.get("policy", null, String.class), "policy cannot be null"),
+	    Valid.notNull(arg.get("classpath", null, String.class), "import codebase cannot be null"),
+	    Valid.notNull(arg.get("implClassName", null, String.class), "implementation cannot be null"),
+	    arg.get("serverConfigArgs", null, String[].class),
+	    null, null
+	);
+    }
 
     public NonActivatableServiceDescriptor(
 	// Required Args
@@ -351,6 +361,7 @@ public class NonActivatableServiceDescriptor
 	LifeCycle lifeCycle,
         ProxyPreparer preparer)
     {
+	this.descCreatedLock = new Lock();
         if (exportCodebase == null || policy == null ||
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(
@@ -551,7 +562,7 @@ public class NonActivatableServiceDescriptor
      *      the current thread's context class loader
      * <LI> loads the service object's class and calls a constructor 
      *      with the following signature:
-     * <blockquote><pre>&lt;impl&gt;(String[], LifeCycle)</blockquote></pre>
+     * <blockquote><pre>&lt;impl&gt;(String[], LifeCycle)</pre></blockquote>
      * <LI> obtains the service proxy by calling
      *      {@link ServiceProxyAccessor#getServiceProxy() ServiceProxyAccessor.getServiceProxy()}
      *      or
@@ -707,9 +718,13 @@ public class NonActivatableServiceDescriptor
 	    }
 	                
             logger.log(Level.FINEST, "Proxy =  {0}", proxy);
-	    curThread.setContextClassLoader(oldClassLoader);
+	    // Suspect the next line is a bug, why set to the old ClassLoader
+	    // instead of new?
+	    // Setting the context classLoader was for MarshalledObject
+	    // I don't think we need to for MarshalledInstance - TODO: check.
+//	    curThread.setContextClassLoader(oldClassLoader);
 //TODO - factor in code integrity for MO
-            proxy = (new MarshalledObject(proxy)).get();
+            proxy = (new MarshalledInstance(proxy)).get(oldClassLoader, false, null, null);
 	} finally {
 	    curThread.setContextClassLoader(oldClassLoader);
 	}

@@ -18,26 +18,31 @@
 
 package org.apache.river.phoenix;
 
-import org.apache.river.proxy.MarshalledWrapper;
+import java.io.IOException;
 import java.io.Serializable;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.rmi.UnmarshalException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationID;
 import java.rmi.server.UID;
-import java.rmi.UnmarshalException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
  */
+@AtomicSerial //To prevent replacement by serializer in stream constructor not implemented.
 class AID extends ActivationID {
     private static final long serialVersionUID = 681896091039721074L;
 
     protected final Activator activator;
     protected final UID uid;
 
+    @AtomicSerial
     static final class State implements Serializable {
 	private static final long serialVersionUID = 4479839553358267720L;
 
@@ -47,6 +52,11 @@ class AID extends ActivationID {
 	State(Activator activator, UID uid) {
 	    this.activator = activator;
 	    this.uid = uid;
+	}
+	
+	public State(GetArg arg) throws IOException{
+	    this(arg.get("activator", null, Activator.class),
+		 arg.get("uid", null, UID.class));
 	}
 
 	private Object readResolve() {
@@ -60,10 +70,10 @@ class AID extends ActivationID {
 	this.uid = uid;
     }
 
-
     /**
      * Activate the object corresponding to this instance.
      */
+    @Override
     public Remote activate(boolean force)
 	throws ActivationException, RemoteException
     {
@@ -85,10 +95,12 @@ class AID extends ActivationID {
 	return uid;
     }
 
+    @Override
     public int hashCode() {
 	return uid.hashCode();
     }
 
+    @Override
     public boolean equals(Object obj) {
 	if (obj != null && obj.getClass() == getClass()) {
 	    AID id = (AID) obj;

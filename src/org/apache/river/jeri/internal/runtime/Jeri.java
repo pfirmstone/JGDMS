@@ -32,13 +32,13 @@ final class Jeri {
 
     /** duration of DGC leases granted by this runtime */
     static final long leaseValue =			// default 10 minutes
-	((Long) AccessController.doPrivileged(new GetLongAction(
+	( AccessController.doPrivileged(new GetLongAction(
 	    "org.apache.river.jeri.dgc.leaseValue", 600000)))
 	    .longValue();
 
     /** period of checking for DGC lease expiration */
     static final long leaseCheckInterval =		// default 5 minutes
-	((Long) AccessController.doPrivileged(new GetLongAction(
+	( AccessController.doPrivileged(new GetLongAction(
 	    "org.apache.river.jeri.dgc.checkInterval", leaseValue / 2)))
 	    .longValue();
 

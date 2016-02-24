@@ -19,42 +19,38 @@
 package org.apache.river.test.impl.end2end.e2etest;
 
 /* JAAS imports */
-import javax.security.auth.Subject;
-
-/* Java imports */
+import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
 import java.io.IOException;
-
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.Method;
 
+import java.lang.reflect.Proxy;
 import java.rmi.MarshalledObject;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-
-import net.jini.core.constraint.ClientAuthentication;
-import net.jini.core.constraint.Confidentiality;
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.constraint.InvocationConstraint;
-import net.jini.core.constraint.InvocationConstraints;
-import net.jini.constraint.BasicMethodConstraints;
-import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.jeri.BasicILFactory;
-
-import net.jini.jeri.BasicJeriExporter;
 
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
+import javax.security.auth.Subject;
+import net.jini.constraint.BasicMethodConstraints;
+import net.jini.core.constraint.ClientAuthentication;
+import net.jini.core.constraint.Confidentiality;
+import net.jini.core.constraint.InvocationConstraint;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.io.MarshalledInstance;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.security.proxytrust.ProxyTrust;
 
 /**
  * A secure RMI server. This class does not provide the server implementation.
@@ -90,14 +86,14 @@ public class SecureServer implements Constants {
      * @return a serialized copy of service proxy
      */
 
-    MarshalledObject getProxy() {
-        MarshalledObject iface = null;
+    MarshalledInstance getProxy() {
+        MarshalledInstance iface = null;
         try {
-            iface = (MarshalledObject)
+            iface =
             Subject.doAsPrivileged(
                 ProviderManager.getSubjectProvider().getServerSubject(),
-                new PrivilegedExceptionAction() {
-                    public Object run() throws RemoteException,
+                new PrivilegedExceptionAction<MarshalledInstance>() {
+                    public MarshalledInstance run() throws RemoteException,
                         NotBoundException {
                             return serverProxy();
                         }
@@ -131,11 +127,11 @@ public class SecureServer implements Constants {
      * Returns a serialized Remote stub for an exported
      * <code>SecureServer</code> object.
      *
-     * @return a MarshalledObject containing the serialized stub
+     * @return a MarshalledInstance containing the serialized stub
      */
-    MarshalledObject serverProxy() throws RemoteException, NotBoundException
+    MarshalledInstance serverProxy() throws RemoteException, NotBoundException
     {
-        MarshalledObject obj = null;
+        MarshalledInstance obj = null;
         ServiceHandler handler = new ServiceHandler(this, coordinator);
         BasicJeriExporter exporter = getExporter();
         handler.setExporter(exporter); // needed so it can do the unexport
@@ -146,7 +142,7 @@ public class SecureServer implements Constants {
 	    }
             SmartProxy sp = new SmartProxy(stub, coordinator);
             try {
-                obj = new MarshalledObject(sp);
+                obj = new MarshalledInstance(sp);
             } catch (IOException e) {
                 InstanceCarrier ic =
                     (InstanceCarrier) Bridge.readCallbackLocal.get();

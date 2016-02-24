@@ -38,6 +38,8 @@ public interface StoredObject<T extends StorableObject<T>> {
      *   
      * @param object to restore
      * @return a restored instance of T
+     * @throws IOException if an IO related exception occurs.
+     * @throws ClassNotFoundException if class not found.
      */  
     public T restore(T object)
 	throws IOException, ClassNotFoundException;

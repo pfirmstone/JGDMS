@@ -33,7 +33,7 @@ import java.lang.ref.WeakReference;
  * @author Sun Microsystems, Inc.
  *
  */
-public class WeakKeyReference extends WeakReference {
+public class WeakKeyReference<T> extends WeakReference<T> {
     /** The key's hashcode, set at creation. */
     private final int hashCode;
 
@@ -44,7 +44,7 @@ public class WeakKeyReference extends WeakReference {
      * Create a new <code>WeakReference</code> to the given key.  The
      * reference is placed on no queue.
      */
-    public WeakKeyReference(Object key) {
+    public WeakKeyReference(T key) {
 	super(key);
 	hashCode = key.hashCode();
     }
@@ -53,7 +53,7 @@ public class WeakKeyReference extends WeakReference {
      * Create a new <code>WeakReference</code> to the given key, placing
      * the cleared reference on the specified <code>ReferenceQueue</code>.
      */
-    public WeakKeyReference(Object key, ReferenceQueue refQueue) {
+    public WeakKeyReference(T key, ReferenceQueue<T> refQueue) {
 	super(key, refQueue);
 	hashCode = key.hashCode();
     }
@@ -64,6 +64,7 @@ public class WeakKeyReference extends WeakReference {
      * the key in a way that affects the hashCode, you will need to create
      * a new <code>WeakKeyReference</code> for that new table.
      */
+    @Override
     public int hashCode() {
 	return hashCode;
     }
@@ -78,6 +79,7 @@ public class WeakKeyReference extends WeakReference {
      *     the result of invoking <code>equals</code> on the two keys.
      * </ul>
      */
+    @Override
     public boolean equals(Object other) {
 	if (this == other) return true;
 	if (!(other instanceof WeakKeyReference))  return false;

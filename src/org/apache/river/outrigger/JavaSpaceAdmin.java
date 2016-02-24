@@ -30,7 +30,7 @@ import net.jini.space.JavaSpace05;
 
 /**
  * This interface contains all the administrative methods that Outrigger
- * provides to control its JavaSpaces<sup><font size=-2>TM</font></sup> 
+ * provides to control its JavaSpaces<sup>TM</sup> 
  * service. <p>
  *
  * @deprecated Invoke the {@link JoinAdmin} and {@link
@@ -50,6 +50,7 @@ public interface JavaSpaceAdmin extends JoinAdmin, DestroyAdmin {
 
     /**
      * Return the space that this administrative object governs.
+     * @return JavaSpace
      * @throws RemoteException if communications with the
      *         server is necessary and it can not be completed.
      */
@@ -67,6 +68,7 @@ public interface JavaSpaceAdmin extends JoinAdmin, DestroyAdmin {
      *             tmpl
      * @param txn  The iterator should return only entries that match
      *             this transaction
+     * @return AdminIterator
      * @throws RemoteException if communications with the
      *         server is necessary and it can not be completed.
      * @throws TransactionException if there is a problem with
@@ -94,6 +96,7 @@ public interface JavaSpaceAdmin extends JoinAdmin, DestroyAdmin {
      *             this transaction
      * @param fetchSize advice on how many entries to fetch when the iterator
      *             has to go to the server for more entries.
+     * @return AdminIterator
      * @throws RemoteException if communications with the
      *         server is necessary and it can not be completed.
      * @throws TransactionException if there is a problem with

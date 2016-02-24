@@ -17,8 +17,12 @@
  */
 package net.jini.core.lookup;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Items in the lookup service are matched using instance of this class.
@@ -40,6 +44,7 @@ import net.jini.core.entry.Entry;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class ServiceTemplate implements java.io.Serializable, Cloneable {
 
     private static final long serialVersionUID = 7854483807886483216L;
@@ -62,6 +67,27 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      * @serial
      */
     public Entry[] attributeSetTemplates;
+    
+    /**
+     * Constructor for @AtomicSerial, note that any instances of this
+     * should be cloned in a secure stream to prevent an attacker retaining 
+     * a reference to mutable state.
+     * 
+     * @param arg
+     * @throws IOException 
+     */
+    public ServiceTemplate(GetArg arg) throws IOException {
+	/* Any class cast exceptions will be occur before Object's default
+	 * constructor is called, in that case an instance of this object
+	 * will not be created.
+	 * null check for org/apache/river/test/spec/lookupservice/ToStringTest.td
+	 */
+	this(arg == null ? null: arg.get("serviceID", null, ServiceID.class),
+	    arg == null? null: arg.get("serviceTypes", null, Class[].class),
+	    arg == null? null: arg.get("attributeSetTemplates", null, Entry[].class)
+	);
+    }
+    
 
     /**
      * Simple constructor.
@@ -72,7 +98,8 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      */
     public ServiceTemplate(ServiceID serviceID,
 			   Class[] serviceTypes,
-			   Entry[] attrSetTemplates) {
+			   Entry[] attrSetTemplates) 
+    {
 	this.serviceID = serviceID;
 	this.serviceTypes = serviceTypes;
 	this.attributeSetTemplates = attrSetTemplates;
@@ -115,7 +142,7 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      * <code>ServiceTemplate</code>
      */
     public String toString() {
-	StringBuffer sBuffer = new StringBuffer();
+	StringBuilder sBuffer = new StringBuilder();
 	sBuffer.append(
 	       getClass().getName()).append(
 	       "[serviceID=").append(
@@ -147,4 +174,8 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
 	}
 	return sBuffer.append("]").toString();
     }
+            
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+}
 }

@@ -19,25 +19,24 @@ package org.apache.river.fiddler;
 
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.proxy.ConstrainableProxyUtil;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.rmi.RemoteException;
 import net.jini.admin.JoinAdmin;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.entry.Entry;
-
-import java.lang.reflect.Method;
-import java.io.InvalidObjectException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
-import java.rmi.RemoteException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * This class is a proxy providing access to the methods of an implementation
@@ -48,6 +47,7 @@ import java.rmi.RemoteException;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -108,6 +108,15 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
 	this.proxyID = proxyID;
     }//end constructor
 
+    /**
+     * {@link AtomicSerial} constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    FiddlerAdminProxy(GetArg arg) throws IOException {
+	this((Fiddler)arg.get("server", null), (Uuid) arg.get("proxyID", null));
+    }
+    
     /* *** Methods of org.apache.river.fiddler.FiddlerAdmin *** */
 
     /**
@@ -661,6 +670,7 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
      *
      * @since 2.0
      */
+    @AtomicSerial
     static final class ConstrainableFiddlerAdminProxy 
                                                 extends FiddlerAdminProxy
                                                 implements RemoteMethodControl
@@ -826,6 +836,23 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
             super( constrainServer(server, methodConstraints), proxyID);
 	    this.methodConstraints = methodConstraints;
         }//end constructor
+
+	private static GetArg check(GetArg arg) throws IOException {
+	    FiddlerAdminProxy fap = new FiddlerAdminProxy(arg);
+	    MethodConstraints methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
+	    /* Verify the server and its constraints */
+            ConstrainableProxyUtil.verifyConsistentConstraints
+                                                       (methodConstraints,
+                                                        fap.server,
+                                                        methodMapArray);
+	    return arg;
+	}		       
+	ConstrainableFiddlerAdminProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	    methodConstraints = (MethodConstraints) 
+		    arg.get("methodConstraints", null);
+	}
 
         /** Returns a copy of the given server proxy having the client method
          *  constraints that result after the specified method mapping is

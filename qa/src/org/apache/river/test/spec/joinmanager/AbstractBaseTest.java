@@ -18,51 +18,39 @@
 
 package org.apache.river.test.spec.joinmanager;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
-
+import net.jini.config.ConfigurationException;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
+import net.jini.core.lookup.ServiceID;
+import net.jini.core.lookup.ServiceMatches;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.ServiceTemplate;
+import net.jini.discovery.DiscoveryGroupManagement;
+import net.jini.discovery.DiscoveryManagement;
+import net.jini.discovery.LookupDiscoveryManager;
+import net.jini.lease.LeaseRenewalManager;
+import net.jini.lookup.JoinManager;
+import net.jini.lookup.ServiceIDListener;
+import net.jini.lookup.entry.ServiceControlled;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
 import org.apache.river.test.share.AttributesUtil;
 import org.apache.river.test.share.BaseQATest;
 import org.apache.river.test.share.DiscoveryServiceUtil;
 import org.apache.river.test.share.GroupsUtil;
 import org.apache.river.test.share.LocatorsUtil;
-
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-import org.apache.river.qa.harness.Test;
-
-import net.jini.discovery.DiscoveryManagement;
-import net.jini.discovery.DiscoveryGroupManagement;
-import net.jini.discovery.LookupDiscoveryManager;
-
-import net.jini.lease.LeaseRenewalManager;
-
-import net.jini.lookup.JoinManager;
-import net.jini.lookup.ServiceIDListener;
-
-import net.jini.lookup.entry.ServiceControlled;
-
-import net.jini.core.discovery.LookupLocator;
-
-import net.jini.core.entry.Entry;
-
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceMatches;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceTemplate;
-
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-
-import java.rmi.RemoteException;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
-import net.jini.config.ConfigurationException;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -100,12 +88,17 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      *  serialize the outer class would also be made; resutling in a 
      *  <code>NotSerializableException</code>.
      */
+    @AtomicSerial
     public static class TestService implements Serializable {
         public int i;
         public TestService(int i) {
             this.i = i;
         }//end constructor
 
+	public TestService(GetArg arg) throws IOException{
+	    this(arg.get("i",0));
+	}
+	
         @Override
         public int hashCode() {
             int hash = 7;

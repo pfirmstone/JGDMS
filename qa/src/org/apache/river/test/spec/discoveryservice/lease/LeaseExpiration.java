@@ -55,7 +55,7 @@ import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
 
 import java.util.ArrayList;
@@ -190,7 +190,7 @@ public class LeaseExpiration extends AbstractBaseTest {
     private static final int N_CYCLES_WAIT_EXPIRATION = 10;
     private static final long N_SECS = 30;
     private final long duration = N_SECS*1000;
-    private MarshalledObject handback = null;
+    private MarshalledInstance handback = null;
     private boolean eventReceived = false;
     private final Object eventLock = new Object();
 
@@ -228,7 +228,7 @@ public class LeaseExpiration extends AbstractBaseTest {
             logger.log(Level.FINE, 
                        "  lookup MemberGroup(s) = "
                        +GroupsUtil.toCommaSeparatedStr(memberGroups));
-            handback = new MarshalledObject
+            handback = new MarshalledInstance
                                   (GroupsUtil.toCommaSeparatedStr(memberGroups));
             return this;
         }
@@ -289,7 +289,7 @@ public class LeaseExpiration extends AbstractBaseTest {
 			   eventListener,
 			   memberGroups,
 			   duration,
-			   new MarshalledObject(GroupsUtil.toCommaSeparatedStr
+			   new MarshalledInstance(GroupsUtil.toCommaSeparatedStr
 						             (memberGroups)));
 	lease = getPreparedLease(reg);
 	lrm.renewUntil(lease,Lease.FOREVER,new LRMListener());

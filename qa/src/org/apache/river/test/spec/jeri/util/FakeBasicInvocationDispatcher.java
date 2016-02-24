@@ -68,28 +68,28 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
      *** @param t the exception to throw
      ***/
 
-    public void setCheckAccessException(Throwable t) {
+    public synchronized void setCheckAccessException(Throwable t) {
         checkAccessException = t;
     }
-    public void setCreateMarshalInputStreamException(Throwable t) {
+    public synchronized void setCreateMarshalInputStreamException(Throwable t) {
         createMarshalInputStreamException = t;
     }
-    public void setCreateMarshalOutputStreamException(Throwable t) {
+    public synchronized void setCreateMarshalOutputStreamException(Throwable t) {
         createMarshalOutputStreamException = t;
     }
-    public void setInvokeException(Throwable t) {
+    public synchronized void setInvokeException(Throwable t) {
         invokeException = t;
     }
-    public void setUnmarshalMethodException(Throwable t) {
+    public synchronized void setUnmarshalMethodException(Throwable t) {
         unmarshalMethodException = t;
     }
-    public void setUnmarshalArgumentsException(Throwable t) {
+    public synchronized void setUnmarshalArgumentsException(Throwable t) {
         unmarshalArgumentsException = t;
     }
-    public void setMarshalReturnException(Throwable t) {
+    public synchronized void setMarshalReturnException(Throwable t) {
         marshalReturnException = t;
     }
-    public void setMarshalThrowException(Throwable t) {
+    public synchronized void setMarshalThrowException(Throwable t) {
         marshalThrowException = t;
     }
 
@@ -104,7 +104,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
      ***        is not an instance of an exception thrown by the method
      ***/
 
-    public void checkAccess(Remote impl, Method method,
+    public synchronized void checkAccess(Remote impl, Method method,
         InvocationConstraints constraints, Collection context)
     {
         logger.entering(getClass().getName(),"checkAccess");
@@ -115,7 +115,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         super.checkAccess(impl,method,constraints,context);
     }
 
-    public ObjectInputStream createMarshalInputStream(Object impl,
+    public synchronized ObjectInputStream createMarshalInputStream(Object impl,
         InboundRequest request, boolean integrity, Collection context)
         throws IOException
     {
@@ -127,7 +127,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         return super.createMarshalInputStream(impl,request,integrity,context);
     }
 
-    public ObjectOutputStream createMarshalOutputStream(Object impl,
+    public synchronized ObjectOutputStream createMarshalOutputStream(Object impl,
         Method method, InboundRequest request, Collection context)
         throws IOException
     {
@@ -139,7 +139,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         return super.createMarshalOutputStream(impl,method,request,context);
     }
 
-    public Object invoke(Remote impl, Method method, Object[] args, 
+    public synchronized Object invoke(Remote impl, Method method, Object[] args, 
         Collection context) throws Throwable 
     {
         logger.entering(getClass().getName(),"invoke");
@@ -149,7 +149,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         return super.invoke(impl,method,args,context);
     }
 
-    public Object[] unmarshalArguments(Remote impl, Method method, 
+    public synchronized Object[] unmarshalArguments(Remote impl, Method method, 
         ObjectInputStream in, Collection c) 
         throws IOException, ClassNotFoundException
     {
@@ -162,7 +162,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         return super.unmarshalArguments(impl,method,in,c);
     }
 
-    public Method unmarshalMethod(Remote impl, ObjectInputStream in, 
+    public synchronized Method unmarshalMethod(Remote impl, ObjectInputStream in, 
         Collection c)
         throws IOException, ClassNotFoundException, NoSuchMethodException
     {
@@ -176,7 +176,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         return super.unmarshalMethod(impl,in,c);
     }
 
-    public void marshalReturn(Remote impl, Method method,
+    public synchronized void marshalReturn(Remote impl, Method method,
         Object returnValue, ObjectOutputStream out, Collection c) 
         throws IOException
     {
@@ -188,7 +188,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         super.marshalReturn(impl,method,returnValue,out,c);
     }
 
-    public void marshalThrow(Remote impl, Method method,
+    public synchronized void marshalThrow(Remote impl, Method method,
         Throwable throwable, ObjectOutputStream out, Collection c) 
         throws IOException
     {
@@ -206,25 +206,25 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
 
     // ********************************************** //
 
-    private void throwCNFE(Throwable t) throws ClassNotFoundException {
+    private static void throwCNFE(Throwable t) throws ClassNotFoundException {
         if (t instanceof ClassNotFoundException) {
             throw (ClassNotFoundException) t;
         } 
         throwUnchecked(t);
     }
-    private void throwNSME(Throwable t) throws NoSuchMethodException {
+    private static void throwNSME(Throwable t) throws NoSuchMethodException {
         if (t instanceof NoSuchMethodException) {
             throw (NoSuchMethodException) t;
         } 
         throwUnchecked(t);
     }
-    private void throwIOE(Throwable t) throws IOException {
+    private static void throwIOE(Throwable t) throws IOException {
         if (t instanceof IOException) {
             throw (IOException) t;
         } 
         throwUnchecked(t);
     }
-    private void throwUnchecked(Throwable t) throws RuntimeException, Error {
+    private static void throwUnchecked(Throwable t) throws RuntimeException, Error {
         if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
         } else if (t instanceof Error) {

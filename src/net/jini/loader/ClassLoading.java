@@ -71,7 +71,7 @@ import net.jini.security.Security;
  * RMIClassLoader}.
  * </p><p>
  * If a provider is not found, it will not be updated.
- * </p><p>
+ * </p>
  * <h1>History</h1>
  * <p>Gregg Wonderly originally reported River-336 and provided a patch
  * containing a new CodebaseAccessClassLoader to replace {@link RMIClassLoader}, 

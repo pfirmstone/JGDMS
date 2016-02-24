@@ -103,9 +103,12 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 
 /**
- * A basic implementation of a JavaSpaces<sup><font size=-2>TM</font></sup> 
+ * A basic implementation of a JavaSpaces<sup>TM</sup> 
  * service. This class is designed for use by both transient and 
  * persistent instances. Persistence is delegated to <code>Store</code>
  * and <code>LogOps</code> objects which handles the details
@@ -151,7 +154,8 @@ import net.jini.core.transaction.server.TransactionConstants;
  */
 public class OutriggerServerImpl 
     implements OutriggerServer, TimeConstants, LocalLandlord, Recover,
-	       ServerProxyTrust, Startable
+	       ServerProxyTrust, Startable, ServiceProxyAccessor,
+	       ServiceAttributesAccessor, ServiceIDAccessor
 {	
     /**
      * Component name we use to find items in the configuration and loggers.
@@ -801,6 +805,17 @@ public class OutriggerServerImpl
             thrown = null;
             context = null;
         }
+    }
+
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	return getLookupAttributes();
+    }
+
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return new ServiceID(topUuid.getMostSignificantBits(),
+			    topUuid.getLeastSignificantBits());
     }
 
     private static class InitHolder {
@@ -4108,8 +4123,7 @@ public class OutriggerServerImpl
 	    String msg, Throwable t, Logger logger)
 	throws NoSuchObjectException
     {
-	final NoSuchObjectException nsoe = new NoSuchObjectException(msg);
-	nsoe.initCause(t);
+	final NoSuchObjectException nsoe = new net.jini.export.NoSuchObjectException(msg, t);
 	logger.log(Levels.FAILED, msg, nsoe);
 	throw nsoe;
     }

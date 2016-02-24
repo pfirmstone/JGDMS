@@ -136,8 +136,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	synchronized (mux.muxLock) {
 	    IOFuture future = new IOFuture();
 	    if (mux.muxDown) {
-		IOException ioe = new IOException(mux.muxDownMessage);
-		ioe.initCause(mux.muxDownCause);
+		IOException ioe = new IOException(mux.muxDownMessage, mux.muxDownCause);
 		future.done(ioe);
 		return future;
 	    }
@@ -258,8 +257,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	while (!queue.isEmpty()) {
 	    Object next = queue.removeFirst();
 	    if (next instanceof IOFuture) {
-		IOException ioe = new IOException(mux.muxDownMessage);
-		ioe.initCause(mux.muxDownCause);
+		IOException ioe = new IOException(mux.muxDownMessage, mux.muxDownCause);
 		((IOFuture) next).done(ioe);
 	    }
 	}

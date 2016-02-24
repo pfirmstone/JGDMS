@@ -42,11 +42,7 @@ import net.jini.core.constraint.MethodConstraints;
  *     <li> <a href="#ldLogging">Logging</a>
  * </ul>
  *
- * <a name="ldConfigEntries">
- * <p>
- * <b><font size="+1">Configuring LookupDiscovery</font></b>
- * <p>
- * </a>
+ * <a name="ldConfigEntries"><b>Configuring LookupDiscovery</b></a>
  * 
  * This implementation of <code>LookupDiscovery</code> supports the
  * following configuration entries; where each configuration entry name
@@ -57,21 +53,21 @@ import net.jini.core.constraint.MethodConstraints;
  * is retrieved from the configuration only once per instance of this
  * utility, where each such retrieval is performed in the constructor.
  *
- * <a name="discoveryConstraints">
+ * <a name="discoveryConstraints"></a>
  * <table summary="Describes the discoveryConstraints
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>discoveryConstraints</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>discoveryConstraints</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link net.jini.core.constraint.MethodConstraints}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>null</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> Constraints to apply to the multicast request, multicast
  *         	announcement and unicast discovery protocols.  Multicast
@@ -122,22 +118,22 @@ import net.jini.core.constraint.MethodConstraints;
  *         	underlying implementations of versions 1 and 2 of the discovery
  *              protocols.
  * </table>
- * </a>
- * <a name="finalMulticastRequestInterval">
+ * 
+ * <a name="finalMulticastRequestInterval"></a>
  * <table summary="Describes the finalMulticastRequestInterval
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>finalMulticastRequestInterval</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>finalMulticastRequestInterval</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>2*60*1000 (2 minutes)</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> With respect to when this utility is started, as well
  *            as when the set of groups to discover is changed, this
@@ -146,22 +142,22 @@ import net.jini.core.constraint.MethodConstraints;
  *            equal to the value of the <a href="#multicastRequestMax">
  *            <code>multicastRequestMax</code></a> entry of this component.
  * </table>
- * </a>
- * <a name="initialMulticastRequestDelayRange">
+ * 
+ * <a name="initialMulticastRequestDelayRange"></a>
  * <table summary="Describes the initialMulticastRequestDelayRange
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>initialMulticastRequestDelayRange</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>initialMulticastRequestDelayRange</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>0 milliseconds</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> With respect to when this utility is started, this entry controls
  *       how long to wait before sending out the first multicast request.
@@ -175,22 +171,22 @@ import net.jini.core.constraint.MethodConstraints;
  *       request is not delayed if the groups to discover are subsequently
  *       changed.
  * </table>
- * </a>
- * <a name="multicastAnnouncementInterval">
+ * 
+ * <a name="multicastAnnouncementInterval"></a>
  * <table summary="Describes the multicastAnnouncementInterval
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>multicastAnnouncementInterval</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>multicastAnnouncementInterval</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>2*60*1000 (2 minutes)</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> A lookup service will send out multicast packets
  *            announcing its existence every N milliseconds; for some
@@ -198,22 +194,22 @@ import net.jini.core.constraint.MethodConstraints;
  *            this utility examines the multicast announcements from
  *            previously discovered lookup services for <i>liveness</i>.
  * </table>
- * </a>
- * <a name="multicastInterfaceRetryInterval">
+ * 
+ * <a name="multicastInterfaceRetryInterval"></a>
  * <table summary="Describes the multicastInterfaceRetryInterval
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>multicastInterfaceRetryInterval</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>multicastInterfaceRetryInterval</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>int</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>5*60*1000 (5 minutes)</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> With respect to any network interface this utility is configured
  *            to use to send and receive multicast packets (see entry  
@@ -225,24 +221,24 @@ import net.jini.core.constraint.MethodConstraints;
  *            <code>multicastInterfaceRetryInterval</code></a> milliseconds
  *            until success is encountered.
  * </table>
- * </a>
- * <a name="multicastInterfaces">
+ * 
+ * <a name="multicastInterfaces"></a>
  * <table summary="Describes the multicastInterfaces
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>multicastInterfaces</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>multicastInterfaces</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link java.net.NetworkInterface NetworkInterface[]}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new </code>
  *              {@link java.net.NetworkInterface NetworkInterface[]}
- *                     &nbsp <code>{all currently supported interfaces}</code>
+ *                     &nbsp; <code>{all currently supported interfaces}</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> Each network interface that is represented by an element
  *            in the array corresponding to this configuration item
@@ -255,44 +251,44 @@ import net.jini.core.constraint.MethodConstraints;
  *            the interface to which the operating system defaults will be
  *            used.
  * </table>
- * </a>
- * <a name="multicastRequestHost">
+ * 
+ * <a name="multicastRequestHost"></a>
  * <table summary="Describes the multicastRequestHost
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>multicastRequestHost</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>multicastRequestHost</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>String</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> 
  *    <code>{@link java.net.InetAddress}.getLocalHost().getHostAddress()</code>
  *
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> This entry specifies the host name to include in multicast
  *            requests if participating in <b><i>version 2</i></b> of the
  *            multicast request protocol. The name cannot be <code>null</code>.
  * </table>
- * </a>
- * <a name="multicastRequestInterval">
+ * 
+ * <a name="multicastRequestInterval"></a>
  * <table summary="Describes the multicastRequestInterval
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>multicastRequestInterval</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>multicastRequestInterval</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>5000</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *     <td> With respect to when this utility is started, as well as
  *          when the set of groups to discover is changed, this entry
@@ -302,44 +298,44 @@ import net.jini.core.constraint.MethodConstraints;
  *          <a href="#multicastRequestMax"><code>multicastRequestMax</code></a>
  *          entry of this component.
  * </table>
- * </a>
- * <a name="multicastRequestMax">
+ * 
+ * <a name="multicastRequestMax"></a>
  * <table summary="Describes the multicastRequestMax
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>multicastRequestMax</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>multicastRequestMax</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>int</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>7</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The maximum number multicast requests to send when this
  *            utility is started for the first time, and whenever the
  *            groups to discover is changed.
  * </table>
- * </a>
- * <a name="registrarPreparer">
+ * 
+ * <a name="registrarPreparer"></a>
  * <table summary="Describes the registrarPreparer configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>registrarPreparer</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>registrarPreparer</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  *                     </code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *   Description:
  *     <td> Preparer for the proxies to the lookup services that are
  *          discovered and used by this utility. 
@@ -362,21 +358,21 @@ import net.jini.core.constraint.MethodConstraints;
  *                                                           getLocator}
  *       </ul>
  * </table>
- * </a>
- * <a name="executorService">
+ * 
+ * <a name="executorService"></a>
  * <table summary="Describes the taskManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>executorService</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>executorService</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ *     Type: <td> {@link ExecutorService}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new 
- *             {@link java.util.concurrent/ThreadPoolExecutor
+ *             {@link ThreadPoolExecutor
  *              ThreadPoolExecutor}(
  *                      15, 
  *                      15, 
@@ -385,29 +381,29 @@ import net.jini.core.constraint.MethodConstraints;
  *                      new LinkedBlockingQueue(),
  *                      new NamedThreadFactory("LookupDiscovery",false))</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The object that pools and manages the various threads
  *            executed by this utility. This object
  *            should not be shared with other components in the
  *            application that employs this utility.
  * </table>
- *  </a>
- * <a name="unicastDelayRange">
+ * 
+ * <a name="unicastDelayRange"></a>
  * <table summary="Describes the unicastDelayRange
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>unicastDelayRange</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>unicastDelayRange</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>0 milliseconds</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> Controls how long this utility will wait before sending out
  *       unicast discovery requests. If the value is positive, any
@@ -419,26 +415,26 @@ import net.jini.core.constraint.MethodConstraints;
  *       <code>LookupDiscovery</code> instances simultaneously receive multicast
  *       announcements from the lookup service.
  * </table>
- * </a>
- * <a name="wakeupManager">
+ * 
+ * <a name="wakeupManager"></a>
  * <table summary="Describes the wakeupManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>wakeupManager</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>wakeupManager</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link org.apache.river.thread.WakeupManager}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new 
  *     {@link org.apache.river.thread.WakeupManager#WakeupManager(
  *          org.apache.river.thread.WakeupManager.ThreadDesc)
  *     WakeupManager}(new 
  *     {@link org.apache.river.thread.WakeupManager.ThreadDesc}(null,true))</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> Object used to schedule unicast discovery requests that are
  *       delayed using the
@@ -446,24 +442,18 @@ import net.jini.core.constraint.MethodConstraints;
  *       configuration entry of this utility. This entry is processed only
  *       if <code>unicastDelayRange</code> has a positive value.
  * </table>
- * </a>
- * <a name="ldLogging">
- * <p>
- * <b><font size="+1">Logging</font></b>
- * <p>
- * </a>
+ *
+ * <a name="ldLogging"><b>Logging</b></a>
  *
  * This implementation of <code>LookupDiscovery</code> uses the {@link Logger}
  * named <code>net.jini.discovery.LookupDiscovery</code> to log information
- * at the following logging levels: <p>
+ * at the following logging levels: <br>
  * 
  * <table border="1" cellpadding="5"
  *       summary="Describes the information logged by LookupDiscovery, and
  *                 the levels at which that information is logged">
  * 
- * <caption halign="center" valign="top">
- *   <b><code>net.jini.discovery.LookupDiscovery</code></b>
- * </caption>
+ * <caption><b><code>net.jini.discovery.LookupDiscovery</code></b></caption>
  *
  * <tr> <th scope="col"> Level</th>
  *      <th scope="col"> Description</th>

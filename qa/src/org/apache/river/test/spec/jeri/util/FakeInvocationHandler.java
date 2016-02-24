@@ -71,7 +71,7 @@ public class FakeInvocationHandler implements InvocationHandler {
      * @param ro the return value that the invoke method must return
      *        if <code>ie</code> is not null
      */
-    public void init(Throwable ie, Method em, Object[] ea, Object ro) {
+    public synchronized void init(Throwable ie, Method em, Object[] ea, Object ro) {
         logger.entering(getClass().getName(),"init(invokeException:" + ie
             + ",expectedMethod:" + em + ",expectedArgs:" + ea 
             + ",returnObject:" + ro + ")");
@@ -88,7 +88,7 @@ public class FakeInvocationHandler implements InvocationHandler {
      * @return ro if <code>ie</code> is not null
      * @throws ie if not null
      */
-    public Object invoke(Object proxy, Method method, Object[] args)
+    public synchronized Object invoke(Object proxy, Method method, Object[] args)
         throws Throwable
     {
         logger.entering(getClass().getName(),"invoke("

@@ -39,8 +39,9 @@ import net.jini.security.AccessPermission;
  * remote method being invoked. Wildcard matches are supported using the
  * syntax specified by {@link AccessPermission}.
  * 
- * <p>The possible target names for the activator are:
+ * </p>
  * <table border=1 cellpadding=5>
+ * <caption>The possible target names for the activator are:</caption>
  * <tr>
  * <th>Permission Target Name</th>
  * <th>What the Permission Allows</th>

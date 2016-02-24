@@ -47,18 +47,18 @@ import java.util.StringTokenizer;
  * line that can be used to dynamically control how the methods of this
  * class interpret and handle the data that is manipulated. Those
  * command line arguments are:
- * <p>
+ * </p>
  *  <ul>
- *    <li> '-drive <drive>'     - the drive letter to prepend to the
+ *    <li> '-drive &lt;drive&gt;'     - the drive letter to prepend to the
  *                                directory tree that is searched
- *    <li> '-root <rootDir>'    - the root directory to prepend to the relative
+ *    <li> '-root &lt;rootDir>&gt;'    - the root directory to prepend to the relative
  *                                directory used as the start point of the
  *                                search
- *    <li> '-start <startDir>'  - the directory (absolute or relative) from
+ *    <li> '-start &lt;startDir&gt;'  - the directory (absolute or relative) from
  *                                which to start the search
- *    <li> '-suffix <.fileExt>' - will search for only files having this suffix
+ *    <li> '-suffix &lt;.fileExt>&gt;' - will search for only files having this suffix
  *                                as extension (ex. .java, .class, .c, etc)
- *    <li> '-out <outputFile>'  - the file to which to write the generated list
+ *    <li> '-out &lt;outputFile&gt;'  - the file to which to write the generated list
  *    <li> '-noRecurse'         - will search for the desired files only in the
  *                                given start directory; that is, it will not
  *                                "walk the tree"
@@ -78,14 +78,14 @@ abstract public class AbstractTreeWalker {
     private static ResourceBundle resources;
     private static boolean resinit = false;
 
-    private String drive = new String("c");
+    private String drive = "c";
     private String rootDir = null;
 
     /** The absolute path of the directory from which to start the search for
      *  test source files.
      */
-    private String startDir = new String(".");
-    private String suffix   = new String(".java");
+    private String startDir = ".";
+    private String suffix   = ".java";
     private String outFilename;
     private boolean recurse = true;
     private boolean verbose = false;
@@ -165,7 +165,6 @@ abstract public class AbstractTreeWalker {
                                    ("org.apache.river.tool.resources.treewalker");
                 resinit = true;
             } catch (MissingResourceException e) {
-                e.printStackTrace();
             }
         }//endif
         try {
@@ -191,10 +190,10 @@ abstract public class AbstractTreeWalker {
                 setRootDir(args[i]);
             } else if(arg.equals("-start")) {
                 i++;
-                startDir = new String(args[i]);
+                startDir = args[i];
             } else if(arg.equals("-suffix")) {
                 i++;
-                suffix = new String(args[i]);
+                suffix = args[i];
             } else if(arg.equals("-out")) {
                 i++;
                 setOutPrintWriter(args[i]);
@@ -215,7 +214,7 @@ abstract public class AbstractTreeWalker {
             if(rootDir != null) print("treewalker.print.root",rootDir);
             print("treewalker.print.start",startDir);
             print("treewalker.print.suffix",suffix);
-            print("treewalker.print.recurse",new Boolean(recurse));
+            print("treewalker.print.recurse", recurse);
         }//endif
     }//end setup
 
@@ -232,7 +231,7 @@ abstract public class AbstractTreeWalker {
                                     +"must be single letter a-z");
             return;
         }
-        drive = new String(drv);
+        drive = drv;
     }//end setDrive
 
     /** Sets the root directory to prepend to the relative start directory */
@@ -241,10 +240,11 @@ abstract public class AbstractTreeWalker {
             print("treewalker.absolute","input root directory -- "+dir);
             System.exit(0);
         }
-        rootDir = new String(dir);
+        rootDir = dir;
     }//end setRootDir
 
-    /** Gets the root directory to prepend to the relative start directory */
+    /** Gets the root directory to prepend to the relative start directory
+     * @return  */
     protected String getRootDir() {
         return rootDir;
     }//end getRootDir
@@ -265,7 +265,6 @@ abstract public class AbstractTreeWalker {
             FileWriter outFW = new FileWriter(filename);
             outPW = new PrintWriter(outFW,true);
         } catch(IOException e) {
-            e.printStackTrace();
             print("treewalker.open.failure",filename);
             System.exit(0);
         }
@@ -276,7 +275,7 @@ abstract public class AbstractTreeWalker {
         String dirComponents[] = getDirs(path);
         StringBuffer strBuf = new StringBuffer(dirComponents[0]);
         for(int i=1;i<dirComponents.length;i++) {
-            strBuf = strBuf.append("."+dirComponents[i]);
+            strBuf = strBuf.append(".").append(dirComponents[i]);
         }//end loop(i)
         return strBuf.toString();
     }//end pathToPkg
@@ -322,13 +321,9 @@ abstract public class AbstractTreeWalker {
      */
     private boolean hasDrive(String path) {
         char[] charArray = path.toCharArray();
-        if(    ((charArray[0] >= 'A') && (charArray[0] <= 'z'))
+        return ((charArray[0] >= 'A') && (charArray[0] <= 'z'))
             && (    (charArray[1] == ':') 
-                 && ((charArray[2] == '\\') || (charArray[2] == '/')) ) )
-        {
-            return true;
-        }
-        return false;
+		&& ((charArray[2] == '\\') || (charArray[2] == '/')) );
     }//end hasDrive
 
     /** Determines whether or not the current file system is a DOS file system.
@@ -339,7 +334,7 @@ abstract public class AbstractTreeWalker {
     private boolean dosFileSystem() {
         String sep = System.getProperty("file.separator");
         String dosSep  = "\\";
-        boolean isDos = ( (dosSep.compareTo(sep) == 0) ? true : false);
+        boolean isDos = ( (dosSep.compareTo(sep) == 0));
         return isDos;
     }//end dosFileSystem
 
@@ -366,7 +361,7 @@ abstract public class AbstractTreeWalker {
             String sep = System.getProperty("file.separator");
             StringBuffer strBuf = new StringBuffer(sep+components[1]);
             for(int i=2;i<components.length;i++) {
-                strBuf = strBuf.append(sep+components[i]);
+                strBuf = strBuf.append(sep).append(components[i]);
             }
             return strBuf.toString();
         }
@@ -415,7 +410,7 @@ abstract public class AbstractTreeWalker {
      *  @return <code>String</code> containing the drive letter to use.
      */
     private String getFileSystemDrive() {
-        String drv = ( dosFileSystem() ? new String(drive) : new String("") );
+        String drv = ( dosFileSystem() ? drive : "" );
         return drv;
     }//end getFileSystemDrive
 
@@ -484,7 +479,7 @@ abstract public class AbstractTreeWalker {
                 pStart = 1;
             }
             for(int i=pStart;i<pDirComponents.length;i++) {
-                pBuf = pBuf.append(sep+pDirComponents[i]);
+                pBuf = pBuf.append(sep).append(pDirComponents[i]);
             }
             return pBuf.toString();
         } else { /* Relative path, prepend installDir */
@@ -501,10 +496,10 @@ abstract public class AbstractTreeWalker {
                     iStart = 1;
                 } else if(dosFileSystem()) { // no drive but windows: get drive
                     String iDrive = getFileSystemDrive();
-                    iBuf = iBuf.append(iDrive+driveSep);
+                    iBuf = iBuf.append(iDrive).append(driveSep);
                 }
                 for(int i=iStart;i<iDirComponents.length;i++) {
-                    iBuf = iBuf.append(sep+iDirComponents[i]);
+                    iBuf = iBuf.append(sep).append(iDirComponents[i]);
                 }
                 iDir = iBuf.toString();
             }
@@ -522,14 +517,14 @@ abstract public class AbstractTreeWalker {
                     pStart = 1;
                 } else if(dosFileSystem()) {
                     String pDrive = getFileSystemDrive();
-                    pBuf = pBuf.append(pDrive+driveSep);
+                    pBuf = pBuf.append(pDrive).append(driveSep);
                 }
             } else { // prepend the install directory
                 pBuf = pBuf.append(iDir);
             }
             /* re-build path with install directory and "clean" components */
             for(int i=pStart;i<pDirComponents.length;i++) {
-                pBuf = pBuf.append(sep+pDirComponents[i]);
+                pBuf = pBuf.append(sep).append(pDirComponents[i]);
             }
             return pBuf.toString();
         }

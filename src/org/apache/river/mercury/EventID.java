@@ -18,13 +18,16 @@
 package org.apache.river.mercury;
 
 import java.io.IOException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
-
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 
 /**
  * The <code>EventID</code> class is used to represent a unique event
@@ -32,13 +35,14 @@ import net.jini.io.MarshalledInstance;
  * that make a registration unique: the event's source and ID attributes.
  *
  * It's used by the mailbox code in order to maintain a list 
- * of <tt>EventID<tt>s that caused an <code>UnknownEventException</code> 
+ * of <tt>EventID</tt>s that caused an <code>UnknownEventException</code> 
  * to be received during an event notification attempt for a given event.
  *
  * @author Sun Microsystems, Inc.
  *
  * @since 1.1
  */
+@AtomicSerial
 class EventID implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -50,14 +54,21 @@ class EventID implements Serializable {
      * The event ID. 
      * @serial
      */
-    private long id = 0;
+    private final long id;
+
+    public EventID(GetArg arg) throws IOException {
+	this(null,
+	    arg.get("id", 0L),
+	    check(((RO)arg.getReader()).source, "Null source read from stream")
+	);
+    }
 
     /** 
      * Simple constructor that assigns the provided arguments
      * to the appropriate internal fields
      */
     public EventID(Object source, long id) {
-        init(source, id);
+        this(null, id, check(source,"Source argument must be non-null"));
     }
 
     /** 
@@ -69,10 +80,15 @@ class EventID implements Serializable {
      *                if a null argument is provided
      */
     public EventID(RemoteEvent evt) {
-        if (evt == null )
-            throw new IllegalArgumentException(
-		"RemoteEvent argument must be non-null");
-        init(evt.getSource(), evt.getID());
+        this(check(evt, "RemoteEvent argument must be non-null" ),
+		evt.getID(),
+		check(evt.getSource(),"Source argument must be non-null")
+		);
+    }
+
+    private static <T> T check(T nullCheck, String message){
+	if (nullCheck == null) throw new IllegalArgumentException(message);
+	return nullCheck;
     }
 
     /** 
@@ -83,10 +99,7 @@ class EventID implements Serializable {
      * @exception IllegalArgumentException 
      *                if a null <tt>source</tt> argument is provided.
      */
-    private void init(Object source, long id) {
-        if (source == null )
-            throw new IllegalArgumentException(
-		"Source argument must be non-null");
+    private EventID(Object check, long id, Object source) {
 	this.source = source;
 	this.id = id;
     }
@@ -166,5 +179,26 @@ class EventID implements Serializable {
                 throw (Error)e;
 	    }
         }
+    }
+    
+    private static class RO implements ReadObject {
+	
+	Object source;
+
+	@Override
+	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
+	    MarshalledObject mo = (MarshalledObject)stream.readObject();
+	    try {
+		source = new MarshalledInstance(mo).get(false);
+	    } catch (Throwable e) {
+		if (e instanceof Error &&
+		    !(e instanceof LinkageError ||
+		      e instanceof OutOfMemoryError ||
+		      e instanceof StackOverflowError)) {
+		    throw (Error)e;
+}
+	    }
+	}
+	
     }
 }

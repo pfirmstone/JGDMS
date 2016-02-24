@@ -27,6 +27,8 @@ import java.text.FieldPosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on delegation, such that if delegation is permitted,
@@ -60,6 +62,7 @@ import java.util.Locale;
  * @see DelegationRelativeTime
  * @since 2.0
  */
+@AtomicSerial
 public final class DelegationAbsoluteTime
 				implements InvocationConstraint, Serializable
 {
@@ -120,9 +123,50 @@ public final class DelegationAbsoluteTime
 				  long minStop,
 				  long maxStop)
     {
+	this(minStart, maxStart, minStop, maxStop,
+		check(minStart, maxStart, minStop, maxStop));
+    }
+    
+    /**
+     * Normal constructor check invariants.
+     */
+    private static boolean check(long minStart,
+				   long maxStart,
+				   long minStop,
+				   long maxStop)
+    {
 	if (minStart > maxStart || maxStart > minStop || minStop > maxStop) {
 	    throw new IllegalArgumentException("illegal times");
 	}
+	return true;
+    }
+    
+    /**
+     * private constructor that validates AtomicSerial construction.
+     * @param deserialization
+     * @param minStart
+     * @param maxStart
+     * @param minStop
+     * @param maxStop
+     * @throws InvalidObjectException 
+     */
+    private DelegationAbsoluteTime(boolean deserialization,
+				   long minStart,
+				   long maxStart,
+				   long minStop,
+				   long maxStop ) throws InvalidObjectException
+    {
+	this(minStart, maxStart, minStop, maxStop,
+		deserialization ? validate(minStart, maxStart, minStop, maxStop):
+			check(minStart, maxStart, minStop, maxStop));
+    }
+    
+    private DelegationAbsoluteTime(long minStart,
+				   long maxStart,
+				   long minStop,
+				   long maxStop,
+				   boolean check)
+    {
 	this.minStart = minStart;
 	this.maxStart = maxStart;
 	this.minStop = minStop;
@@ -151,6 +195,36 @@ public final class DelegationAbsoluteTime
     {
 	this(minStart.getTime(), maxStart.getTime(),
 	     minStop.getTime(), maxStop.getTime());
+    }
+    
+    /**
+     * AtomicSerial public constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    public DelegationAbsoluteTime(GetArg arg) throws IOException{
+	this(true, 
+	    arg.get("minStart", 0L),
+	    arg.get("maxStart", 0L),
+	    arg.get("minStop", 0L),
+	    arg.get("maxStop", 0L));
+    }
+    
+    /**
+     * Deserialization input validation
+     * 
+     * @param minStart
+     * @param maxStart
+     * @param minStop
+     * @param maxStop
+     * @return
+     * @throws InvalidObjectException 
+     */
+    private static boolean validate(long minStart, long maxStart, long minStop, long maxStop) throws InvalidObjectException{
+	if (minStart > maxStart || maxStart > minStop || minStop > maxStop) {
+	    throw new InvalidObjectException("invalid times");
+	}
+	return true;
     }
 
     /**
@@ -280,6 +354,9 @@ public final class DelegationAbsoluteTime
      * than <code>maxStart</code>, or <code>maxStart</code> is greater than
      * <code>minStop</code>, or <code>minStop</code> is greater than
      * <code>maxStop</code>
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

@@ -226,7 +226,7 @@ class MasterHarness {
 	    if (policyClass.getClassLoader().getParent() != null) {
 		outStream.println("MergedPolicyprovider must be "
 				+ "installed in an extensions ClassLoader");
-		System.exit(1);
+//		System.exit(1);
 	    }
 	} catch (Exception e) {
 	    outStream.println("failed to find MergedPolicyProvider");

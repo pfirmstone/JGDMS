@@ -64,9 +64,9 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  * <li> <a href="#examples">Examples for running CheckConfigurationFile</a>
  * </ul> <p>
  *
- * <a name="entry_desc">
- * <h3>Entry description files</h3>
- * </a>
+ * <h3><a name="entry_desc">
+ * Entry description files
+ * </a></h3>
  *
  * Checking of the source can be controlled by specifying one or more entry
  * description files, each listing the names and types of entries that are
@@ -112,9 +112,8 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  * </pre>
  * </blockquote> <p>
  *
- * <a name="examples">
+ * <a name="examples"></a>
  * <h3>Examples for running CheckConfigurationFile</h3>
- * </a>
  *
  * This utility can be run from the {@linkplain #main command line}, or by
  * calling the {@link #check(String, ClassLoader, String[], String,
@@ -216,6 +215,7 @@ public class CheckConfigurationFile  {
      * provider is created by passing that constructor a <code>Reader</code>
      * for the source file to be checked, the location and entry override
      * values, and the class loader.
+     * @param args array of string arguments.
      */
     public static void main(String[] args) {
 	if (args.length == 0) {

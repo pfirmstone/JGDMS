@@ -21,21 +21,22 @@ import org.apache.river.tool.classdepend.ClassDepend;
 import org.apache.river.tool.classdepend.ClassDependParameters;
 import org.apache.river.tool.classdepend.ClassDependParameters.CDPBuilder;
 import org.apache.river.tool.classdepend.ClassDependencyRelationship;
+import java.io.File;
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import java.io.File;
-import java.io.IOException;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 /**
  * Tool used to analyze a set of classes and determine on what other classes
@@ -565,6 +566,7 @@ public class ClassDep {
      * checking.
      */
     private boolean failed;
+    private Set<String> providers = new TreeSet<String>();
 
     /**
      * No argument constructor. The user must fill in the
@@ -889,6 +891,23 @@ public class ClassDep {
             e.printStackTrace();
         }
          
+	if (!providers.isEmpty()){
+	    List classDependencyRelations = new LinkedList();
+	    Iterator it = providers.iterator();
+	    while (it.hasNext()){
+		classDependencyRelations.add(classDependencyRelationMap.get(it.next()));
+	    }
+	    it = classDependencyRelations.iterator();
+	    while (it.hasNext()){
+		ClassDependencyRelationship cdrs = (ClassDependencyRelationship) it.next();
+		if (cdrs == null) continue;
+		Set dependants = cdrs.getDependants();
+		Iterator i = dependants.iterator();
+		while (i.hasNext()){
+		    results.add(i.next().toString());
+		}
+	    }
+	}
         if (tells.isEmpty()){
             // Here's where we should build the parameter list and call the filter
             //Ready the Parameter Builder for ClassDepend
@@ -1257,6 +1276,9 @@ public class ClassDep {
 		addTells(args[i]);
 	    } else if (arg.indexOf(File.separator) >= 0) {
 		addRoots(arg);
+	    } else if ("-prov".equals(args[i])){
+		i++;
+		providers.add(args[i]);
 	    } else if (arg.startsWith("-")) {
 		usage();
 	    } else {

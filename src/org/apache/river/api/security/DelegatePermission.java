@@ -295,7 +295,7 @@ public final class DelegatePermission extends Permission{
 
 	    return (PermissionEntry[]) l.toArray(new PermissionEntry[l.size()]);
 	} catch (IOException ex) {
-	    throw (Error) new InternalError().initCause(ex);
+	    throw new InternalError(ex);
 	}
     }
 

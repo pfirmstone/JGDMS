@@ -137,9 +137,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * <li><a href="#algorithm">The renewal algorithm</a>
  * </ul>
  *
- * <a name="configEntries">
- * <p><b><font size="+1">Configuring LeaseRenewalManager</font></b><p>
- * </a>
+ * <a name="configEntries"><b>Configuring LeaseRenewalManager</b></a>
  *
  * This implementation of <code>LeaseRenewalManager</code> supports the
  * following configuration entries, with component
@@ -148,14 +146,14 @@ import org.apache.river.thread.NamedThreadFactory;
  * <table summary="Describes the renewBatchTimeWindow configuration entry"
  *	  border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *	 renewBatchTimeWindow</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *	 renewBatchTimeWindow</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>5 * 60 * 1000 // 5 minutes</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> The maximum number of milliseconds earlier than
  *     a lease would typically be renewed to allow it to be renewed in
  *     order to permit batching its renewal with that of other
@@ -165,14 +163,14 @@ import org.apache.river.thread.NamedThreadFactory;
  * <table summary="Describes the roundTripTime configuration entry"
  *	  border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *	 roundTripTime</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *	 roundTripTime</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>10 * 1000 // 10 seconds</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> The worst-case latency, expressed in milliseconds,
  *     to assume for a remote call to renew a lease. The value must be greater 
  *     than zero. Unrealistically low values for this entry may
@@ -183,36 +181,34 @@ import org.apache.river.thread.NamedThreadFactory;
  * <table summary="Describes the executorService configuration entry"
  *	  border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
- *	 executorService</code></font>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2"><code>
+ *	 executorService</code>
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link ExecutorService}
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new ThreadPoolExecutor(1,11,15,TimeUnit.SECONDS,
  *     new LinkedBlockingQueue())</code>
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description: <td> The object used to manage queuing tasks
  *     involved with renewing leases and sending notifications. The
  *     value must not be <code>null</code>. The default value creates
  *     a maximum of 11 threads for performing operations, waits 15
  *     seconds before removing idle threads.
  * </table>
- * 
- * <a name="logging">
- * <p><b><font size="+1">Logging</font></b><p>
- * </a>
- *
+ * <p>
+ * <a name="logging"><b>Logging</b></a>
+ * </p>
+ * <p>
  * This implementation uses the {@link Logger} named
  * <code>net.jini.lease.LeaseRenewalManager</code> to log information at
- * the following logging levels: <p>
+ * the following logging levels: </p>
  *
  * <table border="1" cellpadding="5"
  *	  summary="Describes logging performed by the
  *		   LeaseRenewalManager at different logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
- *	    net.jini.lease.LeaseRenewalManager</code></b></caption>
+ * <caption><b><code>net.jini.lease.LeaseRenewalManager</code></b></caption>
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *
@@ -227,63 +223,63 @@ import org.apache.river.thread.NamedThreadFactory;
  *	<td> Adding and removing leases, lease renewal attempts, and desired
  *	     lease expiration events
  *
- * </table> <p>
+ * </table> 
+ * <p>
  *
  * For a way of using the <code>FAILED</code> and <code>HANDLED</code> logging
  * levels in standard logging configuration files, see the {@link LogManager}
- * class.
- *
- * <a name="algorithm">
- * <p><b><font size="+1">The renewal algorithm</font></b><p>
- * </a>
+ * class.</p>
+ * <p>
+ * <a name="algorithm"><b>The renewal algorithm</b></a></p>
+ * <p>
  * The time at which a lease is scheduled for renewal is based on the
  * expiration time of the lease, possibly adjusted to account for the
  * latency of the remote renewal call. The configuration entry
  * <code>roundTripTime</code>, which defaults to ten seconds, represents
- * the total time to make the remote call. 
+ * the total time to make the remote call.</p>
  * <p>
  * The following pseudocode was derived from the code which computes
  * the renewal time. In this code, <code>rtt</code> represents the
- * value of the <code>roundTripTime</code>:
+ * value of the <code>roundTripTime</code>:</p>
  *
  * <pre>    
  *          endTime = lease.getExpiration();
  *          delta = endTime - now;
- *          if (delta <= rtt * 2) {
+ *          if (delta &lt;= rtt * 2) {
  *	        delta = rtt;
- *          } else if (delta <= rtt * 8) {
+ *          } else if (delta &lt;= rtt * 8) {
  *	        delta /= 2;
- *          } else if (delta <= 1000 * 60 * 60 * 24 * 7) {
+ *          } else if (delta &lt;= 1000 * 60 * 60 * 24 * 7) {
  *	        delta /= 8;
- *          } else if (delta <= 1000 * 60 * 60 * 24 * 14) {
+ *          } else if (delta &lt;= 1000 * 60 * 60 * 24 * 14) {
  *	        delta = 1000 * 60 * 60 * 24;
  *          } else {
  *	        delta = 1000 * 60 * 60 * 24 * 3;
  *          }
  *          renew = endTime - delta;
  *</pre>
- *
+ * <p>
  * It is important to note that <code>delta</code> is never less than
  * <code>rtt</code> when the renewal time is computed. A lease which 
  * would expire within this time range will be scheduled for immediate
  * renewal. The use of very short lease durations (at or below <code>rtt</code>)
  * can cause the renewal manager to effectively ignore the lease duration
  * and repeatedly schedule the lease for immediate renewal.
- * <p>
+ * </p><p>
  * If an attempt to renew a lease fails with an indefinite exception, a
  * renewal is rescheduled with an updated renewal time as computed by the
- * following pseudocode:
+ * following pseudocode:</p>
  *
  * <pre>
  *          delta = endTime - renew;
- *          if (delta > rtt) {
- *              if (delta <= rtt * 3) {
+ *          if (delta &gt; rtt) {
+ *              if (delta &lt;= rtt * 3) {
  *	            delta = rtt;
- *              } else if (delta <= 1000 * 60 * 60) {
+ *              } else if (delta &lt;= 1000 * 60 * 60) {
  *	            delta /= 3;
- *              } else if (delta <= 1000 * 60 * 60 * 24) {
+ *              } else if (delta &lt;= 1000 * 60 * 60 * 24) {
  *	            delta = 1000 * 60 * 30;
- *              } else if (delta <= 1000 * 60 * 60 * 24 * 7) {
+ *              } else if (delta &lt;= 1000 * 60 * 60 * 24 * 7) {
  *	            delta = 1000 * 60 * 60 * 3;
  *              } else {
  *	            delta = 1000 * 60 * 60 * 8;
@@ -617,7 +613,7 @@ public class LeaseRenewalManager {
 	/**
 	 * Returns true if the renewal of this lease can be batched with
 	 * the (earlier) renewal of the given lease.  This method must
-	 * be called with an entry such that e.renew <= this.renew. <p>
+	 * be called with an entry such that e.renew &lt;= this.renew. <p>
 	 * 
 	 * First checks that both leases require renewal, have the same
 	 * client constraints, and can be batched.  Then enforces

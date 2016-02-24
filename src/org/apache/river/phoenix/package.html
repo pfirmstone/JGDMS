@@ -97,8 +97,8 @@ The Phoenix configuration must supply at least a
 <code>org.apache.river.phoenix</code>.
 
 <p>The <code>PhoenixStarter</code> instance implements the {@link
-org.apache.river.start.ServiceProxyAccessor} interface, and implements the
-{@link org.apache.river.start.ServiceProxyAccessor#getServiceProxy
+net.jini.export.ServiceProxyAccessor} interface, and implements the
+{@link net.jini.export.ServiceProxyAccessor#getServiceProxy
 getServiceProxy} method to return Phoenix's
 <code>ActivationSystem</code> proxy.  When Phoenix's
 <code>ActivationSystem</code> is shutdown, the activation system

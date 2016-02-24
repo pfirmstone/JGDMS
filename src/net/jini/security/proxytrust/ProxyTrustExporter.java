@@ -20,6 +20,7 @@ package net.jini.security.proxytrust;
 
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
+import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -54,6 +55,7 @@ import net.jini.security.TrustVerifier;
  * @see net.jini.jeri.ProxyTrustILFactory
  * @since 2.0
  */
+@Deprecated
 public class ProxyTrustExporter implements Exporter {
     /** Permission required to use class loader of main proxy's class */
     private static final Permission loaderPermission =
@@ -309,11 +311,12 @@ public class ProxyTrustExporter implements Exporter {
      */
     private static class WeakRef extends WeakReference {
 	/** The bootstrap remote object */
-	ProxyTrust boot = new ProxyTrustImpl(this);
+	ProxyTrust boot;
 
 	/** Create an instance registered with queue */
 	WeakRef(Remote impl) {
 	    super(impl, queue);
+	    this.boot = new ProxyTrustImpl(this);
 	}
 
 	/** Clear both references */
@@ -353,7 +356,7 @@ public class ProxyTrustExporter implements Exporter {
     /** ProxyTrust impl class */
     private static class ProxyTrustImpl implements ProxyTrust {
 	/** Weak reference to the main remote object */
-	private final Reference ref;
+	protected final Reference ref;
 
 	ProxyTrustImpl(Reference ref) {
 	    this.ref = ref;

@@ -114,7 +114,7 @@ public class GetFieldValuesAttr extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         /* create the lookup service */
 	super.construct(sysConfig);
         /* retrieve the proxies to the lookup service */
@@ -144,7 +144,7 @@ public class GetFieldValuesAttr extends QATestRegistrar {
      *       2. Verifies that getFieldValues() returns the expected results.
      *  @exception QATestException usually indicates test failure
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	Object[] fieldValues = null;
 	for(int i=0;i<fieldStr.length;i++) {
 	    for(int j=0;j<fieldStr[i].length;j++) {

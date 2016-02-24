@@ -20,7 +20,7 @@ package org.apache.river.test.impl.outrigger.matching;
 // imports
 import java.io.IOException;
 import net.jini.core.entry.Entry;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.lang.reflect.*;
 
 
@@ -37,10 +37,10 @@ public class Template {
     final private Class sourceClass;
 
     /*
-     * The MarshalledObjects that reprsent the values of the public
+     * The MarshalledInstances that reprsent the values of the public
      * non-static fields of source
      */
-    final private MarshalledObject[] matchValues;
+    final private MarshalledInstance[] matchValues;
 
     // The public non-static fields of source;
     final private Field[] matchFields;
@@ -100,7 +100,7 @@ public class Template {
             }
         }
         matchFields = new Field[matchCount];
-        matchValues = new MarshalledObject[matchCount];
+        matchValues = new MarshalledInstance[matchCount];
         matchCount = 0;
 
         for (int i = 0; i < allFields.length; i++) {
@@ -109,7 +109,7 @@ public class Template {
                 final Object fieldValue = matchFields[matchCount].get(source);
 
                 if (fieldValue != null) {
-                    matchValues[matchCount] = new MarshalledObject(fieldValue);
+                    matchValues[matchCount] = new MarshalledInstance(fieldValue);
                 } else {
                     matchValues[matchCount] = null;
                 }
@@ -155,8 +155,8 @@ public class Template {
                     if (matchFields[j].equals(targetField)) {
                         if (matchValues[j] != null) {
                             final Object fieldValue = targetField.get(target);
-                            final MarshalledObject marshaled = new
-                                    MarshalledObject(fieldValue);
+                            final MarshalledInstance marshaled = new
+                                    MarshalledInstance(fieldValue);
 
                             if (!marshaled.equals(matchValues[j])) {
                                 return false;

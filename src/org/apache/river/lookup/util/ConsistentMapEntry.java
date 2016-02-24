@@ -18,8 +18,11 @@
 
 package org.apache.river.lookup.util;
 
-import java.util.Map;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.Map;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * An implementation of the <code>java.util.Map.Entry</code> interface that has
@@ -42,6 +45,7 @@ import java.io.Serializable;
  *
  * @author Bill Venners
  */
+@AtomicSerial
 final class ConsistentMapEntry<K,V> implements Map.Entry<K,V>, Serializable {
 
     private static final long serialVersionUID = -8633627011729114409L;
@@ -55,6 +59,16 @@ final class ConsistentMapEntry<K,V> implements Map.Entry<K,V>, Serializable {
      * @serial An <code>Object</code> value, or <code>null</code>
      */
     private final V value;
+
+    /**
+     * {@link AtomicSerial} constructor.
+     * @param arg
+     * @throws IOException 
+     * @throws ClassCastException if types don't match <K,V>
+     */
+    public ConsistentMapEntry(GetArg arg) throws IOException {
+	this((K) arg.get("key", null), (V) arg.get("value", null));
+    }
 
     /**
      * Constructs a new <code>ConsistentMapEntry</code> with passed

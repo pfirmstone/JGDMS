@@ -18,6 +18,9 @@
 package net.jini.discovery;
 
 import java.util.logging.Logger;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.LinkedBlockingQueue;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
@@ -50,11 +53,7 @@ import org.apache.river.thread.NamedThreadFactory;
  *     <li> <a href="#lldLogging">Logging</a>
  * </ul>
  *
- * <a name="lldConfigEntries">
- * <p>
- * <b><font size="+1">Configuring LookupLocatorDiscovery</font></b>
- * <p>
- * </a>
+ * <a name="lldConfigEntries"><b>Configuring LookupLocatorDiscovery</b></a>
  *
  * This implementation of <code>LookupLocatorDiscovery</code> supports the
  * following configuration entries; where each configuration entry name
@@ -65,21 +64,21 @@ import org.apache.river.thread.NamedThreadFactory;
  * entry is retrieved from the configuration only once per instance of
  * this utility, where each such retrieval is performed in the constructor.
  *
- * <a name="initialUnicastDelayRange">
+ * <a name="initialUnicastDelayRange"></a>
  * <table summary="Describes the initialUnicastDelayRange
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>initialUnicastDelayRange</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>initialUnicastDelayRange</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>0 milliseconds</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> With respect to when this utility is started, this entry controls
  *       how long to wait before attempting unicast discovery.
@@ -94,23 +93,22 @@ import org.apache.river.thread.NamedThreadFactory;
  *       It does not delay discovery requests that are initiated if the managed
  *       <code>LookupLocator</code>s are subsequently changed.
  * </table>
- * </a>
- * <a name="registrarPreparer">
+ * <a name="registrarPreparer"></a>
  * <table summary="Describes the registrarPreparer configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>registrarPreparer</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>registrarPreparer</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  *                     </code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *   Description:
  *     <td> Preparer for the proxies to the lookup services that are
  *          discovered and used by this utility. 
@@ -125,57 +123,56 @@ import org.apache.river.thread.NamedThreadFactory;
  *          returned by this preparer are invoked by this implementation of
  *          <code>LookupLocatorDiscovery</code>.
  * </table>
- * </a>
- * <a name="executorService">
+ * 
+ * <a name="executorService"></a>
  * <table summary="Describes the executorService configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>executorService</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>executorService</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ *     Type: <td> {@link ExecutorService}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new 
- *             {@link java.util.concurrent/ThreadPoolExecutor
- *                  ThreadPoolExecutor}(
+ *             {@link ThreadPoolExecutor}(
  *                       15,
  *                       15,
  *                       15,
  *                       TimeUnit.SECONDS,
- *                       new {@link java.util.concurrent/LinkedBlockingQueue LinkedBlockingQueue}(),
+ *                       new {@link LinkedBlockingQueue}(),
  *                       new {@link NamedThreadFactory}("LookupLocatorDiscovery", false)
  *                   )</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The object that pools and manages the various threads
  *            executed by this utility. This object
  *            should not be shared with other components in the
  *            application that employs this utility.
  * </table>
- * </a>
- * <a name="wakeupManager">
+ * 
+ * <a name="wakeupManager"></a>
  * <table summary="Describes the wakeupManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>wakeupManager</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>wakeupManager</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link org.apache.river.thread.WakeupManager}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new 
  *     {@link org.apache.river.thread.WakeupManager#WakeupManager(
  *          org.apache.river.thread.WakeupManager.ThreadDesc)
  *     WakeupManager}(new 
  *     {@link org.apache.river.thread.WakeupManager.ThreadDesc}(null,true))</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> Object that pools and manages the various tasks that are
  *            initially executed by the object corresponding to the
@@ -189,22 +186,18 @@ import org.apache.river.thread.NamedThreadFactory;
  *            succeeds. This object should not be shared with other components
  *            in the application that employs this utility.
  * </table>
- * </a>
- * <a name="lldLogging">
- * <p>
- * <b><font size="+1">Logging</font></b>
- * <p>
- * </a>
  *
+ * <a name="lldLogging"><b>Logging</b></a>
+ *<p>
  * This implementation of <code>LookupLocatorDiscovery</code> uses the
  * {@link Logger} named <code>net.jini.discovery.LookupLocatorDiscovery</code>
- * to log information at the following logging levels: <p>
+ * to log information at the following logging levels: </p>
  *
  * <table border="1" cellpadding="5"
  *         summary="Describes the information logged by LookupLocatorDiscovery,
  *                 and the levels at which that information is logged">
  *
- * <caption halign="center" valign="top">
+ * <caption>
  *   <b><code>net.jini.discovery.LookupLocatorDiscovery</code></b>
  * </caption>
  *

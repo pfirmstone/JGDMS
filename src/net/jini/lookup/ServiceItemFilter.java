@@ -61,24 +61,25 @@ import  net.jini.core.lookup.ServiceItem;
 public interface ServiceItemFilter {
 
     /**
+     * <p>
      * This method defines the implementation of the additional selection
      * criteria (additional matching and/or proxy preparation) to apply to a
      * {@link net.jini.core.lookup.ServiceItem ServiceItem} object found
      * through standard template matching. This method takes one argument:
      * the {@link net.jini.core.lookup.ServiceItem ServiceItem} object to
-     * test against the additional criteria.
+     * test against the additional criteria.</p>
      * <p> 
      * Neither a <code>null</code> reference nor a
      * {@link net.jini.core.lookup.ServiceItem ServiceItem} object containing
      * <code>null</code> fields will be passed to this method by the 
      * {@link net.jini.lookup.ServiceDiscoveryManager ServiceDiscoveryManager}
-     * or the {@link net.jini.lookup.LookupCache LookupCache}.
+     * or the {@link net.jini.lookup.LookupCache LookupCache}.</p>
      * <p>
      * If the parameter passed to this method is a
      * {@link net.jini.core.lookup.ServiceItem ServiceItem} object that has
      * non-<code>null</code> fields but is associated with attribute sets
      * containing <code>null</code> entries, then this method must process
-     * that parameter in a reasonable manner.
+     * that parameter in a reasonable manner.</p>
      * <p>
      * Note that although this method returns a <code>boolean</code>, there
      * are actually three possible return states that can occur. Those states
@@ -87,7 +88,7 @@ public interface ServiceItemFilter {
      * {@link net.jini.core.lookup.ServiceItem ServiceItem} object that was
      * input to this method. The three possible return states can be
      * summarized as follows:
-     * <p>
+     * </p>
      * <ul>
      *   <li> If the input object satisfies any additional matching criteria
      *        that are specified, and if the proxy is successfully prepared
@@ -95,7 +96,7 @@ public interface ServiceItemFilter {
      *        and the service field of the
      *        {@link net.jini.core.lookup.ServiceItem ServiceItem} parameter
      *        is either left unchanged (when proxy preparation is not
-     *        requested) or is <b><i>replaced</b></i> with the prepared proxy.
+     *        requested) or is <b><i>replaced</i></b> with the prepared proxy.
      *        When this state is returned by this method, it is said that the
      *        object <i>passed</i> (the <code>check</code> method of) the
      *        filter; or that the filter returned a <i>pass</i> condition.
@@ -113,7 +114,7 @@ public interface ServiceItemFilter {
      *        {@link java.rmi.RemoteException RemoteException}), then this
      *        method returns <code>true</code> and the service field of the
      *        {@link net.jini.core.lookup.ServiceItem ServiceItem} parameter
-     *        is <b><i>replaced</b></i> with <code>null</code>. In this case,
+     *        is <b><i>replaced</i></b> with <code>null</code>. In this case,
      *        the object has neither passed nor failed the filter. Thus, when
      *        this state is returned by this method, it is said that the
      *        results of the filtering process are <i>indefinite</i>.

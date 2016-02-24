@@ -31,30 +31,33 @@ import java.util.Set;
  * @author Sun Microsystems, Inc.
  * 
  */
-final class ArraySet implements Set {
+final class ArraySet<T> implements Set<T> {
     /**
      * The array.
      */
-    private final Object[] elements;
+    private final T[] elements;
 
     /**
      * Creates an instance from an array. The array is not copied.
      */
-    ArraySet(Object[] elements) {
+    ArraySet(T[] elements) {
 	this.elements = elements;
     }
 
     /* inherit javadoc */
+    @Override
     public int size() {
 	return elements.length;
     }
 
     /* inherit javadoc */
+    @Override
     public boolean isEmpty() {
 	return elements.length == 0;
     }
 
     /* inherit javadoc */
+    @Override
     public boolean contains(Object o) {
 	for (int i = elements.length; --i >= 0; ) {
 	    if (elements[i].equals(o)) {
@@ -65,14 +68,15 @@ final class ArraySet implements Set {
     }
 
     /* inherit javadoc */
-    public Iterator iterator() {
-	return new Iter();
+    @Override
+    public Iterator<T> iterator() {
+	return new Iter<T>();
     }
 
     /**
      * Simple iterator.
      */
-    private final class Iter implements Iterator {
+    private final class Iter<T> implements Iterator<T> {
 	/**
 	 * Index into the array.
 	 */
@@ -83,14 +87,17 @@ final class ArraySet implements Set {
 	}
 
 	/* inherit javadoc */
+	@Override
 	public boolean hasNext() {
 	    return idx < elements.length;
 	}
 
 	/* inherit javadoc */
-	public Object next() {
+	@SuppressWarnings("unchecked")
+	@Override
+	public T next() {
 	    if (idx < elements.length) {
-		return elements[idx++];
+		return (T) elements[idx++];
 	    }
 	    throw new NoSuchElementException();
 	}
@@ -98,12 +105,14 @@ final class ArraySet implements Set {
 	/**
 	 * Always throws UnsupportedOperationException.
 	 */
+	@Override
 	public void remove() {
 	    throw new UnsupportedOperationException();
 	}
     }
 
     /* inherit javadoc */
+    @Override
     public Object[] toArray() {
 	Object[] a = new Object[elements.length];
 	System.arraycopy(elements, 0, a, 0, elements.length);
@@ -111,9 +120,11 @@ final class ArraySet implements Set {
     }
 
     /* inherit javadoc */
-    public Object[] toArray(Object a[]) {
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T[] toArray(T a[]) {
 	if (a.length < elements.length) {
-	    a = (Object[]) Array.newInstance(a.getClass().getComponentType(),
+	    a = (T[]) Array.newInstance(a.getClass().getComponentType(),
 					     elements.length);
 	}
 	System.arraycopy(elements, 0, a, 0, elements.length);
@@ -126,20 +137,23 @@ final class ArraySet implements Set {
     /**
      * Always throws UnsupportedOperationException.
      */
-    public boolean add(Object o) {
+    @Override
+    public boolean add(T o) {
 	throw new UnsupportedOperationException();
     }
 
     /**
      * Always throws UnsupportedOperationException.
      */
+    @Override
     public boolean remove(Object o) {
 	throw new UnsupportedOperationException();
     }
 
     /* inherit javadoc */
-    public boolean containsAll(Collection c) {
-	Iterator iter = c.iterator();
+    @Override
+    public boolean containsAll(Collection<?> c) {
+	Iterator<?> iter = c.iterator();
 	while (iter.hasNext()) {
 	    if (!contains(iter.next())) {
 		return false;
@@ -151,32 +165,37 @@ final class ArraySet implements Set {
     /**
      * Always throws UnsupportedOperationException.
      */
-    public boolean addAll(Collection c) {
+    @Override
+    public boolean addAll(Collection<? extends T> c) {
 	throw new UnsupportedOperationException();
     }
 
     /**
      * Always throws UnsupportedOperationException.
      */
-    public boolean retainAll(Collection c) {
+    @Override
+    public boolean retainAll(Collection<?> c) {
 	throw new UnsupportedOperationException();
     }
 
     /**
      * Always throws UnsupportedOperationException.
      */
-    public boolean removeAll(Collection c) {
+    @Override
+    public boolean removeAll(Collection<?> c) {
 	throw new UnsupportedOperationException();
     }
 
     /**
      * Always throws UnsupportedOperationException.
      */
+    @Override
     public void clear() {
 	throw new UnsupportedOperationException();
     }
 
     /* inherit javadoc */
+    @Override
     public boolean equals(Object o) {
 	return (this == o ||
 		(o instanceof Set &&
@@ -185,11 +204,13 @@ final class ArraySet implements Set {
     }
 
     /* inherit javadoc */
+    @Override
     public int hashCode() {
 	return Constraint.hash(elements);
     }
 
     /* inherit javadoc */
+    @Override
     public String toString() {
 	return Constraint.toString(elements);
     }

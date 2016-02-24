@@ -25,7 +25,7 @@ import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
 
 import net.jini.core.lease.Lease;
@@ -151,10 +151,10 @@ public class LeaseExpirationTest extends TestBase implements Test {
 	if (shouldRegister) {	    
 	    logger.log(Level.INFO, "Registering for warning events");
 
-	    final MarshalledObject handback = 
-		new MarshalledObject(new Long(348));
+	    final MarshalledInstance handback = 
+		new MarshalledInstance(new Long(348));
 	    EventRegistration reg = set.setExpirationWarningListener(
-                listener, minWarning, handback);
+                listener, minWarning, handback.convertToMarshalledObject());
             reg = prepareNormEventRegistration(reg);
 
 	    if (!set.equals(reg.getSource())) {
@@ -281,7 +281,7 @@ public class LeaseExpirationTest extends TestBase implements Test {
 	private EventRegistration registation;
 
 	/** Handback object we expect to see */
-	private MarshalledObject handback;
+	private MarshalledInstance handback;
 
 	/** Set to a discriptive non-null value if there is an error */
 	private String result = null;
@@ -313,7 +313,7 @@ public class LeaseExpirationTest extends TestBase implements Test {
 	/** 
 	 * Set the registion and handback so we can do basic error checking
 	 */
-	private void setRegInfo(EventRegistration er, MarshalledObject hb) {
+	private void setRegInfo(EventRegistration er, MarshalledInstance hb) {
 	    registation = er;
 	    handback = hb;
 	}

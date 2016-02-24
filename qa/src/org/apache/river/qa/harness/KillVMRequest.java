@@ -19,12 +19,15 @@
 package org.apache.river.qa.harness;
 
 import java.io.IOException;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveTestRequest</code> used to kill the activation group of a 
  * service.
  */
+@AtomicSerial
 class KillVMRequest implements SlaveRequest {
 
     /** 
@@ -34,7 +37,7 @@ class KillVMRequest implements SlaveRequest {
      * so that the codebase is not lost. Failure to do so results in a
      * <code>ClassNotFoundException</code> in the slave.
      */
-    private MarshalledObject marshalledProxy;
+    private MarshalledInstance marshalledProxy;
 
     /**
      * Construct the request. The proxy is wrapped.
@@ -45,12 +48,19 @@ class KillVMRequest implements SlaveRequest {
      */
     public KillVMRequest(Object proxy) throws TestException {
 	try {
-	    marshalledProxy = new MarshalledObject(proxy);
+	    marshalledProxy = new MarshalledInstance(proxy);
 	} catch (IOException e) {
 	    throw new TestException("Unexpected exception", e);
 	}
     }
+    
+    public KillVMRequest(GetArg arg) throws IOException{
+	this(arg.get("marshalledProxy", null, MarshalledInstance.class));
+    }
 
+    private KillVMRequest(MarshalledInstance marshalledProxy){
+	this.marshalledProxy = marshalledProxy;
+    }
     /**
      * Execute the request. The proxy is unwrapped and the local
      * AdminManager is called to kill the activation group vm.
@@ -64,7 +74,7 @@ class KillVMRequest implements SlaveRequest {
 	AdminManager manager = slaveTest.getAdminManager();
 	Boolean b = new Boolean(false);
 	try {
-	    b = new Boolean(manager.killVM(marshalledProxy.get()));
+	    b = new Boolean(manager.killVM(marshalledProxy.get(false)));
 	} catch (Exception e) {
 	    e.printStackTrace();
 	}

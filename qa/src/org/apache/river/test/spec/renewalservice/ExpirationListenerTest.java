@@ -21,7 +21,7 @@ package org.apache.river.test.spec.renewalservice;
 import java.util.logging.Level;
 
 // java.rmi
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 // net.jini
 import net.jini.core.event.EventRegistration;
@@ -149,11 +149,11 @@ public class ExpirationListenerTest extends AbstractLeaseRenewalServiceTest {
 	set = prepareSet(set);
 
 	// create a handback object
-	MarshalledObject handback = new MarshalledObject(new Integer(99));
+	MarshalledInstance handback = new MarshalledInstance(new Integer(99));
 
 	// register listener to receive events
 	EventRegistration evReg = 
-	    set.setExpirationWarningListener(rrl, minWarning, handback);
+	    set.setExpirationWarningListener(rrl, minWarning, handback.convertToMarshalledObject());
 	evReg = prepareRegistration(evReg);
 
 	if (rstUtil.isValidExpWarnEventReg(evReg, set) == false) {
@@ -214,7 +214,7 @@ public class ExpirationListenerTest extends AbstractLeaseRenewalServiceTest {
 	/* TESTING ASSERTION #2
 	   the handback object is the one we expect. */
 	RemoteEvent[] events = rrl.getEvents();
-	MarshalledObject mObj = events[0].getRegistrationObject();
+	MarshalledInstance mObj = new MarshalledInstance(events[0].getRegistrationObject());
 	if (handback.equals(mObj) == false) {
 	    String message = "Assertion #2 failed ...\n";
 	    message += "Handback object does not match original.";
@@ -230,7 +230,7 @@ public class ExpirationListenerTest extends AbstractLeaseRenewalServiceTest {
 			  renewSetDur + " milliseconds");
 	try {
 	    evReg = set.setExpirationWarningListener(null, minWarning, 
-						     handback);
+						     handback.convertToMarshalledObject());
 	    evReg = prepareRegistration(evReg);
 	    if (rstUtil.isValidExpWarnEventReg(evReg, set) == false) {
 		String message = "Assertion #3 failed ...\n";
@@ -251,7 +251,7 @@ public class ExpirationListenerTest extends AbstractLeaseRenewalServiceTest {
 	   a negative value for minWarning results in an 
 	   IllegalArgumentException */
 	try {
-	    evReg = set.setExpirationWarningListener(rrl, -10, handback);
+	    evReg = set.setExpirationWarningListener(rrl, -10, handback.convertToMarshalledObject());
 	    evReg = prepareRegistration(evReg);
 	    if (rstUtil.isValidExpWarnEventReg(evReg, set) == false) {
 		String message = "Assertion #4 failed ...\n";
@@ -268,7 +268,7 @@ public class ExpirationListenerTest extends AbstractLeaseRenewalServiceTest {
 	
 	// edge case (try 0 to ensure it is allowed)
 	try {
-	    evReg = set.setExpirationWarningListener(rrl, 0, handback);
+	    evReg = set.setExpirationWarningListener(rrl, 0, handback.convertToMarshalledObject());
 	    evReg = prepareRegistration(evReg);
 	    if (rstUtil.isValidExpWarnEventReg(evReg, set) == false) {
 		String message = "Assertion #4 failed ...\n";
@@ -312,7 +312,7 @@ public class ExpirationListenerTest extends AbstractLeaseRenewalServiceTest {
 	long duration = rstUtil.expToDur(leaseExpiration);
 	long lateWarning = duration + 10000;
 	evReg = 
-	    set.setExpirationWarningListener(rrl, lateWarning, handback);
+	    set.setExpirationWarningListener(rrl, lateWarning, handback.convertToMarshalledObject());
 	evReg = prepareRegistration(evReg);
 	logger.log(Level.FINE, "minWarning on lease expiration is " +
 			  lateWarning + " milliseconds");

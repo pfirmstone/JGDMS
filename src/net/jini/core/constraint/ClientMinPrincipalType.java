@@ -19,15 +19,14 @@
 package net.jini.core.constraint;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.security.Principal;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the client, such that if the client
@@ -57,6 +56,7 @@ import java.util.Set;
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0
  */
+@AtomicSerial
 public final class ClientMinPrincipalType
 				implements InvocationConstraint, Serializable
 {
@@ -73,6 +73,21 @@ public final class ClientMinPrincipalType
      * The classes.
      */
     private final Class[] classes;
+    
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException
+     */
+    public ClientMinPrincipalType(GetArg arg) throws IOException{
+	this(verify(arg.get("classes", null, Class[].class)));
+    }
+    
+    private static Class [] verify(Class [] classes) throws InvalidObjectException{
+	classes = classes.clone();
+	Constraint.verify(classes);
+	return classes;
+    }
 
     /**
      * Creates a constraint containing the specified class.  This
@@ -86,8 +101,17 @@ public final class ClientMinPrincipalType
      * {@link java.security.Principal} as a superinterface
      */
     public ClientMinPrincipalType(Class clazz) {
+	this(check(clazz), true);
+    }
+    
+    private static Class [] check(Class clazz){
 	Constraint.verify(clazz);
-	classes = new Class[]{clazz};
+	return new Class[]{clazz};
+    }
+    
+    private ClientMinPrincipalType(Class[] classes, boolean check){
+	super();
+	this.classes = classes;
     }
 
     /**
@@ -109,7 +133,7 @@ public final class ClientMinPrincipalType
      * any element is <code>null</code>
      */
     public ClientMinPrincipalType(Class[] classes) {
-	this.classes = Constraint.reduce(classes, false);
+	this(Constraint.reduce(classes, false), true);
     }
 
     /**
@@ -132,7 +156,7 @@ public final class ClientMinPrincipalType
      * any element is <code>null</code>
      */
     public ClientMinPrincipalType(Collection c) {
-	classes = Constraint.reduce(c, false);
+	this(Constraint.reduce(c, false), true);
     }
 
     /**
@@ -181,6 +205,9 @@ public final class ClientMinPrincipalType
      * any class is <code>null</code>, a primitive type, array type, or
      * <code>final</code> class that does not have <code>Principal</code> as
      * a superinterface, or if any class is assignable to any other class
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if de-serialization problem occurs.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

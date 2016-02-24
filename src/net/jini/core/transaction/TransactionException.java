@@ -17,6 +17,10 @@
  */
 package net.jini.core.transaction;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 
 /**
  * Base class for exceptions thrown during a transaction. 
@@ -25,7 +29,7 @@ package net.jini.core.transaction;
  *
  * @since 1.0
  */
-public class TransactionException extends Exception {
+public class TransactionException extends AtomicException {
     static final long serialVersionUID = -5009935764793203986L;
 
     /**
@@ -44,5 +48,9 @@ public class TransactionException extends Exception {
     
     public TransactionException(String desc, Throwable cause){
         super(desc, cause);
+    }
+    
+    public TransactionException(GetArg arg) throws IOException{
+	super(arg);
     }
 }

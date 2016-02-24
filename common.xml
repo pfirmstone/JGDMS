@@ -78,7 +78,7 @@
     <property name="test.results.dir" value="${test.results}"/>
 
     <!-- Standard javadoc options and settings -->
-    <property name="jdk.doc.url" value="http://docs.oracle.com/javase/6/docs/api"/>
+    <property name="jdk.doc.url" value="http://docs.oracle.com/javase/8/docs/api"/>
     <property name="jdk.packages" location="${root}/${src-doc}/j2se"/>
     <property name="api.copyright" value="Copyright 2007-2013, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 
@@ -106,8 +106,8 @@
 
     <property name="debug" value="true"/>
     <property name="verbose" value="false"/>
-    <property name="source" value="6"/>
-    <property name="target" value="6"/>
+    <property name="source" value="8"/>
+    <property name="target" value="8"/>
     <!-- Example add the following lines to build.properties to utilise Java 8 compact profiles
     target=8
     profile=compact3
@@ -266,6 +266,20 @@
         <element name="cd-elements" implicit="yes" />
         <sequential>
             <java classname="org.apache.river.tool.ClassDep" 
+                  fork="true" failonerror="true"
+                  logError="true" output="@{output}">
+                <classpath refid="@{classpathref}"/>
+                <cd-elements />
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="gentrustedclasses" description="Generate Trusted Deserialization Class List">
+        <attribute name="output"/>
+        <attribute name="classpathref" default="classdep.classpath" />
+        <element name="cd-elements" implicit="yes" />
+        <sequential>
+            <java classname="org.apache.river.tool.GenTrustedClasses" 
                   fork="true" failonerror="true"
                   logError="true" output="@{output}">
                 <classpath refid="@{classpathref}"/>

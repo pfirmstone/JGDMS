@@ -18,11 +18,6 @@
 
 package net.jini.jeri.ssl;
 
-import org.apache.river.discovery.internal.EndpointInternals;
-import org.apache.river.discovery.internal.SslEndpointInternalsAccess;
-import org.apache.river.jeri.internal.connection.ConnManagerFactory;
-import org.apache.river.jeri.internal.connection.ServerConnManager;
-import org.apache.river.logging.Levels;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -73,6 +68,12 @@ import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.security.AuthenticationPermission;
 import net.jini.security.Security;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.discovery.internal.EndpointInternals;
+import org.apache.river.discovery.internal.SslEndpointInternalsAccess;
+import org.apache.river.jeri.internal.connection.ConnManagerFactory;
+import org.apache.river.jeri.internal.connection.ServerConnManager;
+import org.apache.river.logging.Levels;
 
 /**
  * An implementation of {@link Endpoint} that uses TLS/SSL to support
@@ -283,6 +284,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  *	requirements and preferences.
  * </ul>
  */
+@AtomicSerial
 public final class SslEndpoint
     implements Endpoint, Serializable, TrustEquivalence
 {
@@ -328,7 +330,11 @@ public final class SslEndpoint
      *	       <code>null</code>
      */
     public static SslEndpoint getInstance(String serverHost, int port) {
-	return new SslEndpoint(serverHost, port, null);
+	try {
+	    return new SslEndpoint(false, serverHost, port, null);
+	} catch (InvalidObjectException ex) {
+	    throw new Error("unreachable code");
+	}
     }
 
     /**
@@ -348,7 +354,33 @@ public final class SslEndpoint
     public static SslEndpoint getInstance(
 	String serverHost, int port, SocketFactory socketFactory)
     {
-	return new SslEndpoint(serverHost, port, socketFactory);
+	try {
+	    return new SslEndpoint(false, serverHost, port, socketFactory);
+	} catch (InvalidObjectException ex) {
+	    throw new Error("unreachable code");
+	}
+    }
+    
+    private SslEndpoint(boolean atomicSerial, 
+			String serverHost, 
+			int port, 
+			SocketFactory socketFactory) throws InvalidObjectException
+    {
+	this(atomicSerial ? 
+		validate(serverHost, port):
+		check(serverHost, port),
+	     port, 
+	     socketFactory
+	);
+    }
+    
+    private static String check(String serverHost, int port){
+	if (serverHost == null) {
+	    throw new NullPointerException("serverHost cannot be null");
+	} else if  (port <= 0 || port > 0xFFFF) {
+	    throw new IllegalArgumentException("Invalid port: " + port);
+	}
+	return serverHost;
     }
 
     /** Creates an instance of this class. */
@@ -643,11 +675,23 @@ public final class SslEndpoint
 	int port = fields.get("port", 0);
 	SocketFactory socketFactory =
 	    (SocketFactory) fields.get("socketFactory", null);
+	validate(serverHost, port);
+	impl = new SslEndpointImpl(this, serverHost, port, socketFactory);
+    }
+    
+    private static String validate(String serverHost, int port) throws InvalidObjectException{
 	if (serverHost == null) {
 	    throw new InvalidObjectException("serverHost cannot be null");
 	} else if  (port <= 0 || port > 0xFFFF) {
 	    throw new InvalidObjectException("Invalid port: " + port);
 	}
-	impl = new SslEndpointImpl(this, serverHost, port, socketFactory);
+	return serverHost;
+    }
+    
+    public SslEndpoint(AtomicSerial.GetArg arg) throws IOException{
+	this(true,
+	     arg.get("serverHost", null, String.class),
+	     arg.get("port", 0),
+	     arg.get("socketFactory", null, SocketFactory.class));
     }
 }

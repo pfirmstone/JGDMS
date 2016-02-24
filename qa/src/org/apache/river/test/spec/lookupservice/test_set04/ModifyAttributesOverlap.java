@@ -43,11 +43,11 @@ import java.rmi.RemoteException;
  */
 public class ModifyAttributesOverlap extends QATestRegistrar {
 
-    private ServiceRegistration reg;
-    private Attr08 attr0;
-    private Attr08 attr1;
-    private Attr09 attr2;
-    private Attr09 attr3;
+    private volatile ServiceRegistration reg;
+    private volatile Attr08 attr0;
+    private volatile Attr08 attr1;
+    private volatile Attr09 attr2;
+    private volatile Attr09 attr3;
     private Entry[] attrs;
 
     public Test construct(QAConfig sysConfig) throws Exception {

@@ -23,7 +23,6 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
-import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
 import net.jini.export.Exporter;
@@ -55,6 +54,8 @@ import net.jini.security.Security;
 public abstract class ActivationGroup
     extends java.rmi.activation.ActivationGroup
 {
+    private static final long serialVersionUID = 1011518575632276884L;
+    
     /** current activation group for this virtual machine */
     private static ActivationGroup currGroup;
 
@@ -73,7 +74,7 @@ public abstract class ActivationGroup
     {
 	super(id);
     }
-
+    
     /**
      * Creates and sets the activation group for the current virtual machine.
      * This method calls

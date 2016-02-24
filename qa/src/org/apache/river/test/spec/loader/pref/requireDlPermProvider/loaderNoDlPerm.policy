@@ -20,6 +20,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
  * 3. allow call setFactory().
  */
 grant { 
+    permission org.apache.river.DeSerializationPermission "ATOMIC";
     permission java.net.SocketPermission "*", "connect,accept,listen,resolve"; 
     permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.lang.RuntimePermission "setFactory";

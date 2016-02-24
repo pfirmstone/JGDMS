@@ -17,37 +17,8 @@
  */
 package net.jini.lookup;
 
-import org.apache.river.constants.ThrowableConstants;
-import org.apache.river.lookup.entry.LookupAttributes;
-import org.apache.river.thread.RetryTask;
-import org.apache.river.thread.WakeupManager;
-import org.apache.river.logging.LogUtil;
-
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
-import net.jini.config.EmptyConfiguration;
-import net.jini.config.NoSuchEntryException;
-import net.jini.discovery.DiscoveryEvent;
-import net.jini.discovery.DiscoveryListener;
-import net.jini.discovery.DiscoveryManagement;
-import net.jini.discovery.LookupDiscoveryManager;
-import net.jini.lease.LeaseListener;
-import net.jini.lease.LeaseRenewalEvent;
-import net.jini.lease.LeaseRenewalManager;
-import net.jini.security.BasicProxyPreparer;
-import net.jini.security.ProxyPreparer;
-
-import net.jini.core.entry.Entry;
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.UnknownLeaseException;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceItem;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceRegistration;
-
 import java.io.IOException;
 import java.rmi.RemoteException;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -63,11 +34,37 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.river.thread.FutureObserver;
+import net.jini.config.Configuration;
+import net.jini.config.ConfigurationException;
+import net.jini.config.EmptyConfiguration;
+import net.jini.config.NoSuchEntryException;
+import net.jini.core.entry.CloneableEntry;
+import net.jini.core.entry.Entry;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.core.lookup.ServiceID;
+import net.jini.core.lookup.ServiceItem;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.ServiceRegistration;
+import net.jini.discovery.DiscoveryEvent;
+import net.jini.discovery.DiscoveryListener;
+import net.jini.discovery.DiscoveryManagement;
+import net.jini.discovery.LookupDiscoveryManager;
+import net.jini.lease.LeaseListener;
+import net.jini.lease.LeaseRenewalEvent;
+import net.jini.lease.LeaseRenewalManager;
+import net.jini.security.BasicProxyPreparer;
+import net.jini.security.ProxyPreparer;
+import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.logging.LogUtil;
+import org.apache.river.lookup.entry.LookupAttributes;
 import org.apache.river.thread.DependencyLinker;
 import org.apache.river.thread.ExtensibleExecutorService;
 import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
+import org.apache.river.thread.FutureObserver;
 import org.apache.river.thread.NamedThreadFactory;
+import org.apache.river.thread.RetryTask;
+import org.apache.river.thread.WakeupManager;
 
 /**
  * A goal of any well-behaved service is to advertise the facilities and
@@ -2057,7 +2054,13 @@ public class JoinManager {
      */
     public Entry[] getAttributes() {
         if(bTerminated) throw new IllegalStateException("join manager was terminated");
-        return (Entry[])lookupAttr.clone();
+        Entry[] result = lookupAttr.clone();
+	for (int i = 0, l = result.length; i < l; i++){
+	    if (result[i] instanceof CloneableEntry){
+		result[i] = ((CloneableEntry)result[i]).clone();
+	    }
+	}
+	return result;
     }//end getAttributes
 
     /** 

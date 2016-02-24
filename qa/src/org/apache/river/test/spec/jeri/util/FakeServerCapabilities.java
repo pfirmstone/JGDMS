@@ -34,7 +34,7 @@ import net.jini.io.UnsupportedConstraintException;
  */
 public class FakeServerCapabilities implements ServerCapabilities {
 
-    private InvocationConstraints constraints;
+    private final InvocationConstraints constraints;
 
     /**
      * Constructs a FakeServerCapabilities.  

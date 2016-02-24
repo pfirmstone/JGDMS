@@ -52,6 +52,11 @@ particularly in the area of quality of service.
 <p>
 The basic trust-related constraints are very simple:
 <ul>
+<li>{@link net.jini.core.constraint.AtomicValidation} - to make sure
+that untrusted messages and objects (the data) sent
+over the network that could potentially be tampered with by third parties 
+cannot do harm.  Without this constraint, many of the following constraints
+are subject to reference stealing attacks during serialization.
 <li>{@link net.jini.core.constraint.Integrity} - to make sure
 that the messages and objects (not just data, but also downloaded code) sent
 over the network are not tampered with by third parties

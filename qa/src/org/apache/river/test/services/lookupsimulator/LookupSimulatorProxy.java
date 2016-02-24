@@ -18,42 +18,31 @@
 
 package org.apache.river.test.services.lookupsimulator;
 
-import net.jini.admin.Administrable;
-import org.apache.river.admin.DestroyAdmin;
 
-import net.jini.lookup.DiscoveryAdmin;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamException;
+import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
-import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceMatches;
-import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import net.jini.core.constraint.RemoteMethodControl;
-
-import java.io.IOException;
-import java.io.Serializable;
-
-import java.lang.reflect.Field;
-
-import java.rmi.RemoteException;
-import java.rmi.UnmarshalException;
-import java.rmi.MarshalledObject;
-
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * This class is a proxy to backend servers for simulations of activatable
  * lookup services that implement the LookupSimulator interface.
  */
+@AtomicSerial
 public class LookupSimulatorProxy implements LookupSimulatorProxyInterface {
     private static final long serialVersionUID = 977257904824022932L;
 
@@ -71,6 +60,11 @@ public class LookupSimulatorProxy implements LookupSimulatorProxyInterface {
         this.server = server;
         this.serviceID = serviceID;
     }//end constructor
+
+    public LookupSimulatorProxy(GetArg arg)throws IOException{
+	this (Valid.notNull(arg.get("server", null, LookupSimulator.class), "null server"),
+	      Valid.notNull(arg.get("serviceID", null, ServiceID.class), "null serviceID"));
+    }
 
     /* Administrable */
     public Object getAdmin() throws RemoteException {

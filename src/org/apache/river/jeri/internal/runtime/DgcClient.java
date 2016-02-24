@@ -18,7 +18,6 @@
 
 package org.apache.river.jeri.internal.runtime;
 
-import org.apache.river.logging.Levels;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
@@ -35,6 +34,7 @@ import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.BasicObjectEndpoint;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.ObjectEndpoint;
+import org.apache.river.logging.Levels;
 
 /**
  * Jeri ERI client-side DGC implementation.

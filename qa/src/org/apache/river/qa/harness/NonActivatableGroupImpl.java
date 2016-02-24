@@ -23,6 +23,7 @@ import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.rmi.MarshalledObject;
 import java.util.logging.Logger;
+import net.jini.io.MarshalledInstance;
 
 /**
  * A container for nonactivatable services. This class is the
@@ -64,7 +65,7 @@ class NonActivatableGroupImpl {
         nonActGroup = group;
 	try {
 	    ObjectOutputStream os = new ObjectOutputStream(origErr);
-	    os.writeObject(new MarshalledObject(group.getProxy()));
+	    os.writeObject(new MarshalledInstance(group.getProxy()));
 	    os.flush();
 	} catch (IOException e) {
 	    throw new RuntimeException("WriteObject failed", e);

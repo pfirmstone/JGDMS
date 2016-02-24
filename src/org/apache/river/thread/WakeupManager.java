@@ -65,26 +65,26 @@ import net.jini.config.ConfigurationException;
  * <code>stop</code> will cause future <code>schedule</code> calls to
  * fail with an <code>IllegalStateException</code>. <p>
  *
- * <a name="ConfigEntries">
+ * <a name="ConfigEntries"></a>
  * <code>WakeupManager</code> supports the <code>queueThreadTimeout</code>
  * configuration entry, with the component
  * <code>org.apache.river.thread.WakeupManager</code>.
  *
- * <a name="queueThreadTimeout">
+ * <a name="queueThreadTimeout"></a>
  * <table summary="Describes the queueThreadTimeout configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
- *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>queueThreadTimeout</code></font>
+ *     <th scope="col">&#X2022;
+ *     <th scope="col" align="left" colspan="2">
+ *     <code>queueThreadTimeout</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> 30,000 milliseconds
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> How long, in milliseconds, the queue's thread will be
  *       left running if there are no scheduled tasks. Must be
@@ -92,11 +92,11 @@ import net.jini.config.ConfigurationException;
  *       consulted when the <code>WakeupManager</code> is initially created.
  *           
  * </table>
- * <p>
+ *
  *
  * This class uses the {@link Logger} named
  * <code>org.apache.river.thread.WakeupManager</code> to log information at
- * the following logging levels: <p>
+ * the following logging levels: 
  * 
  * <table border=1 cellpadding=5
  *       summary="Describes logging performed by WakeupManager at different

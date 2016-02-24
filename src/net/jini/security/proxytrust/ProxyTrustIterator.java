@@ -19,6 +19,7 @@
 package net.jini.security.proxytrust;
 
 import java.rmi.RemoteException;
+import java.util.NoSuchElementException;
 
 /**
  * Defines an iterator that produces objects from which a

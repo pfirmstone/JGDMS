@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the maximum amount of time to wait for a
@@ -37,6 +39,7 @@ import java.io.Serializable;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@AtomicSerial
 public final class ConnectionRelativeTime
 			implements RelativeTimeConstraint, Serializable
 {
@@ -56,10 +59,34 @@ public final class ConnectionRelativeTime
      * @throws IllegalArgumentException if the argument is less than zero
      */
     public ConnectionRelativeTime(long time) {
+	this(check(time), true);
+    }
+    
+    /**
+     * AtomicSerial constructor
+     * @param arg
+     * @throws IOException 
+     */
+    public ConnectionRelativeTime(GetArg arg) throws IOException{
+	this(validate(arg.get("time", -1)), true);
+    }
+    
+    private ConnectionRelativeTime(long time, boolean check){
+	this.time = time;
+    }
+    
+    private static long validate(long time) throws InvalidObjectException{
+	if (time < 0) {
+	    throw new InvalidObjectException("invalid duration");
+	}
+	return time;
+    }
+    
+    private static long check(long time){
 	if (time < 0) {
 	    throw new IllegalArgumentException("invalid duration");
 	}
-	this.time = time;
+	return time;
     }
 
     /**
@@ -118,6 +145,9 @@ public final class ConnectionRelativeTime
      * Verifies that <code>time</code> is greater than or equal to zero.
      *
      * @throws InvalidObjectException if <code>time</code> is less than zero
+     * @param s ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws IOException if a problem occurs during de-serialization.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

@@ -1032,7 +1032,7 @@ public class JarWrapper {
 		String p = new URI(path).getPath();	// decode path
 		return new File(base, p.replace('/', File.separatorChar));
 	    } catch (URISyntaxException e) {
-		throw (Error) new InternalError().initCause(e);
+		throw new InternalError(e);
 	    }
 	}
 

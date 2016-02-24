@@ -18,13 +18,16 @@
 
 package org.apache.river.qa.harness;
 
-import java.rmi.MarshalledObject;
 
-import java.io.Serializable;
+import java.io.IOException;
+import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>SlaveRequest</code> to start a service.
  */
+@AtomicSerial
 class StartServiceRequest implements SlaveRequest {
 
     /** the service name */
@@ -43,6 +46,11 @@ class StartServiceRequest implements SlaveRequest {
 	this.serviceName = serviceName;
 	this.count = count;
     }
+    
+    StartServiceRequest(GetArg arg) throws IOException{
+	this(arg.get("serviceName", null, String.class),
+	     arg.get("count", 0));
+    }
 
     /**
      * Called by the <code>SlaveTest</code> after unmarshalling this object.
@@ -58,7 +66,7 @@ class StartServiceRequest implements SlaveRequest {
     public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
 	Admin admin = slaveTest.getAdminManager().getAdmin(serviceName, count);
 	admin.start();
-	MarshalledObject mo = new MarshalledObject(admin.getProxy());
+	MarshalledInstance mo = new MarshalledInstance(admin.getProxy());
 	return mo;
     }
 }

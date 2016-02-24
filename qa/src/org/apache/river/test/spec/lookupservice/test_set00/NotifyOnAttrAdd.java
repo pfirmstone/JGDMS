@@ -21,7 +21,6 @@ import org.apache.river.qa.harness.Test;
 
 import java.util.logging.Level;
 
-import org.apache.river.qa.harness.TestException;
 
 import org.apache.river.test.spec.lookupservice.QATestRegistrar;
 import org.apache.river.test.spec.lookupservice.QATestUtils;
@@ -36,13 +35,8 @@ import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.entry.Entry;
-import net.jini.core.lease.UnknownLeaseException;
-import java.rmi.MarshalledObject;
-import java.rmi.StubNotFoundException;
+import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
-import java.rmi.NoSuchObjectException;
-import java.util.Vector;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -135,7 +129,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
             tmpl[i] = new ServiceTemplate(curSrvcID,null,null);
 	    EventRegistration er;
 	    er = proxy.notify(tmpl[i], regTransitions, listener,
-			      new MarshalledObject(curSrvcID),
+			      new MarshalledInstance(curSrvcID).convertToMarshalledObject(),
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}

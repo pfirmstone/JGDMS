@@ -17,29 +17,29 @@
  */
 package org.apache.river.test.impl.outrigger.matching;
 
-import java.util.logging.Level;
-
-// Test harness specific classes
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.qa.harness.QAConfig;
+import java.io.IOException;
+import java.rmi.RemoteException;
 
 // All other imports
 import java.util.List;
-import java.rmi.RemoteException;
-import net.jini.core.lease.Lease;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import net.jini.admin.Administrable;
 import net.jini.core.entry.Entry;
-import net.jini.space.JavaSpace;
 import net.jini.core.entry.UnusableEntryException;
+import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
-import org.apache.river.thread.TaskManager;
+import net.jini.space.JavaSpace;
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.outrigger.AdminIterator;
 import org.apache.river.outrigger.JavaSpaceAdmin;
-import net.jini.admin.Administrable;
+import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.thread.TaskManager;
 
 
 /**
@@ -107,7 +107,7 @@ public class StressTest extends MatchTestCore {
      * Not valid until <code>construct()</code> is called.
      * @see StressTest#construct
      */
-    private volatile TaskManager taskMgr = null;
+    private volatile Executor taskMgr = null;
 
     /**
      * Maintains number of task objects created.  Used to
@@ -247,9 +247,10 @@ public class StressTest extends MatchTestCore {
         if (entryAllocation == 0) {
             throw new TestException("Too many reader tasks requested");
         }
-        taskMgr = new TaskManager(numReaders + numWriters,
-                1000 * 60, // idle timeout -- 60 secs
-                1.0f); // load factor
+        taskMgr = Executors.newFixedThreadPool(numReaders + numWriters);
+//		new TaskManager(numReaders + numWriters,
+//                1000 * 60, // idle timeout -- 60 secs
+//                1.0f); // load factor
         return this;
     }
 
@@ -301,7 +302,7 @@ public class StressTest extends MatchTestCore {
             }
 
             // Create write task and add to taskManager
-            taskMgr.add(new WriteRandomEntryTask(alloc));
+            taskMgr.execute(new WriteRandomEntryTask(alloc));
         }
 
         /*
@@ -331,7 +332,7 @@ public class StressTest extends MatchTestCore {
             }
 
             // Create read task and add to taskManager
-            taskMgr.add(new ReadAndTakeEntryTask(alloc));
+            taskMgr.execute(new ReadAndTakeEntryTask(alloc));
         }
 
         // Determine writeCount at which spaceSet() will be called.
@@ -550,7 +551,8 @@ public class StressTest extends MatchTestCore {
                     taskMessage("Successfully wrote: " + entry);
 
                     // Not explicitly necessary, but just to be safe.
-                    Thread.yield();
+//                    Thread.yield();
+		    Thread.sleep(100L);
                 }
 
                 if (timingStats) {
@@ -782,7 +784,8 @@ public class StressTest extends MatchTestCore {
                             }
                         }
                     }
-                    Thread.yield();
+//                    Thread.yield
+		    Thread.sleep(100L);
                 }
             } catch (Exception e) {
                 ReadAndTakeEntryTaskOK = false;

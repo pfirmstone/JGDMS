@@ -356,7 +356,7 @@ public class ReadObject {
 	check(new BMC(new MethodDesc[0]),
 	      "must have at least one descriptor");
 	check(new BMC(new MethodDesc[]{
-		  new MethodDesc(null),
+		  new MethodDesc((InvocationConstraints)null),
 		  new MethodDesc("foo", null)}),
 	      "default descriptor must be last");
 	check(new BMC(new MethodDesc[]{

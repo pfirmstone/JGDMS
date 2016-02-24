@@ -248,7 +248,7 @@ public class HttpmdUtil {
     /**
      * Returns true if the character is permitted in an HTTPMD comment.  Legal
      * comment characters are ASCII letters and numbers, plus '-', '_', '.',
-     * '~', '*', ''', '(', ')', ':', '@', '&', '=', '+', '$', and ','.
+     * '~', '*', ''', '(', ')', ':', '@', '&amp;', '=', '+', '$', and ','.
      */
     static boolean commentChar(char c) {
 	return (c >= 'a' && c <= 'z')

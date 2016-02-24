@@ -163,7 +163,7 @@ public final class AuthenticationPermission extends Permission {
      *
      * @serial
      */
-    private String actions;
+    private final String actions;
     /**
      * The parsed elements of the local principals with wildcard principal
      * names replaced by null, or null if there is a principal with both a
@@ -194,9 +194,7 @@ public final class AuthenticationPermission extends Permission {
      * of this class
      */
     public AuthenticationPermission(String name, String actions) {
-	super(name);
-	this.actions = actions;
-	init();
+	this(parseName(new Data(name)), actions, parseActions(actions));
     }
 
     /**
@@ -215,7 +213,7 @@ public final class AuthenticationPermission extends Permission {
      * of this class
      */
     public AuthenticationPermission(Set local, Set peer, String actions) {
-	this(parseName(local, peer), actions);
+	this(parseName(local, peer), actions, parseActions(actions));
     }
 
     /**
@@ -240,33 +238,31 @@ public final class AuthenticationPermission extends Permission {
 	 * Simple constructor.
 	 */
 	Data() {}
+	
+	Data(String name){
+	    this.name = name;
+	    this.me = null;
+	    this.peer = null;
+	}
     }
 
     /**
      * Creates an instance with the specified data and actions.
      */
-    private AuthenticationPermission(Data data, String actions) {
+    private AuthenticationPermission(Data data, String actions, int mask) {
 	super(data.name);
 	this.me = data.me;
 	this.peer = data.peer;
 	this.actions = actions;
-	parseActions();
-    }
-
-    /**
-     * Parses the target name and actions, and initializes the transient
-     * fields.
-     */
-    private void init() {
-	parseActions();
-	parseName(new StringTokenizer(getName(), " ", true), false);
+	this.mask = mask;
     }
 
     /**
      * Parses the actions field and initializes the transient mask field.
      */
-    private void parseActions() {
+    private static int parseActions(String actions) {
 	StringTokenizer st = new StringTokenizer(actions, " ,", true);
+	int mask = 0;
 	boolean comma = false;
 	while (st.hasMoreTokens()) {
 	    String act = st.nextToken();
@@ -293,6 +289,12 @@ public final class AuthenticationPermission extends Permission {
 	if (!comma) {
 	    throw new IllegalArgumentException("invalid actions");
 	}
+	return mask;
+    }
+    
+    private static Data parseName(Data data){
+	StringTokenizer st = new StringTokenizer(data.name, " ", true);
+	return parseName(st, false, data);
     }
 
     /**
@@ -300,7 +302,7 @@ public final class AuthenticationPermission extends Permission {
      * and initializes the transient fields. Peer is false when parsing
      * the local principals, true when parsing the peer principals.
      */
-    private void parseName(StringTokenizer st, boolean peer) {
+    private static Data parseName(StringTokenizer st, boolean peer, Data data) {
 	List vals = new ArrayList(2);
     outer:
 	while (true) {
@@ -312,7 +314,7 @@ public final class AuthenticationPermission extends Permission {
 		cls = st.nextToken();
 	    } while (cls.equals(" "));
 	    if (!peer && cls.equalsIgnoreCase("peer")) {
-		parseName(st, true);
+		parseName(st, true, data);
 		break;
 	    }
 	    if (cls.equals("*")) {
@@ -385,10 +387,11 @@ public final class AuthenticationPermission extends Permission {
 	    res = (String[]) vals.toArray(new String[vals.size()]);
 	}
 	if (peer) {
-	    this.peer = res;
+	    data.peer = res;
 	} else {
-	    this.me = res;
+	    data.me = res;
 	}
+	return data;
     }
 
     /**
@@ -602,7 +605,14 @@ public final class AuthenticationPermission extends Permission {
     {
 	s.defaultReadObject();
 	try {
-	    init();
+	    /**
+	     * Parses the target name and actions, and initializes the transient
+	     * fields.
+	     */
+	    mask = parseActions(actions);
+	    Data data = parseName(new Data(getName()));
+	    me = data.me;
+	    peer = data.peer;
 	} catch (RuntimeException e) {
 	    if (e instanceof NullPointerException ||
 		e instanceof IllegalArgumentException)

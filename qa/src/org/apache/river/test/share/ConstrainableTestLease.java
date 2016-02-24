@@ -17,26 +17,21 @@
  */
 package org.apache.river.test.share;
 
-import java.rmi.Remote;
+import java.io.IOException;
 import java.rmi.RemoteException;
-import net.jini.core.lease.Lease;
-
-import net.jini.core.lease.LeaseMap;
-import net.jini.core.lease.LeaseDeniedException;
-import net.jini.core.lease.UnknownLeaseException;
-
-import net.jini.config.Configuration;
-import net.jini.export.Exporter;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.security.TrustVerifier;
-import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.security.proxytrust.ProxyTrust;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Lease class use by renwal service tests when they don't want to use
  * <code>LocalLease</code>.
  */
+@AtomicSerial
 public class ConstrainableTestLease extends TestLease implements RemoteMethodControl {
 
     final private LeaseBackEnd home;
@@ -53,6 +48,20 @@ public class ConstrainableTestLease extends TestLease implements RemoteMethodCon
     public ConstrainableTestLease(int id, LeaseBackEnd home, long expiration) {
 	super(id, home, expiration);
 	this.home = home;
+    }
+    
+    public ConstrainableTestLease(GetArg arg) throws IOException{
+	super(arg);
+	home = arg.get("home", null, LeaseBackEnd.class);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException{
+	Valid.isInstance(ProxyTrust.class,
+	    Valid.isInstance(RemoteMethodControl.class, 
+		arg.get("home", null, LeaseBackEnd.class)
+	    )
+	);
+	return arg;
     }
 
     // purposefully inherit doc comment from supertype

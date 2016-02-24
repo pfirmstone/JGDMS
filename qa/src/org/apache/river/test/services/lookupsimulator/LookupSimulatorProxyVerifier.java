@@ -25,6 +25,8 @@ import java.rmi.RemoteException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Trust verifier for smart proxies used by Reggie.
@@ -32,6 +34,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 final class LookupSimulatorProxyVerifier implements TrustVerifier, Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -50,6 +53,10 @@ final class LookupSimulatorProxyVerifier implements TrustVerifier, Serializable 
      * implement both RemoteMethodControl and TrustEquivalence.
      */
     LookupSimulatorProxyVerifier(LookupSimulator server) {
+	this(check(server));
+    }
+    
+    private static RemoteMethodControl check(LookupSimulator server) {
 	if (!(server instanceof RemoteMethodControl)) {
 	    throw new UnsupportedOperationException(
 		"server does not implement RemoteMethodControl");
@@ -57,7 +64,15 @@ final class LookupSimulatorProxyVerifier implements TrustVerifier, Serializable 
 	    throw new UnsupportedOperationException(
 		"server does not implement TrustEquivalence");
 	}
-	this.server = (RemoteMethodControl) server;
+	return (RemoteMethodControl) server;
+    }
+    
+    private LookupSimulatorProxyVerifier(RemoteMethodControl server){
+	this.server = server;
+    }
+
+    LookupSimulatorProxyVerifier(GetArg arg) throws IOException {
+	this(arg.get("server",null, LookupSimulator.class));
     }
 
     /**

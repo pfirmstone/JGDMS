@@ -467,9 +467,7 @@ public final class SelectionManager {
 	    wakeupPipeSink.write(wakeupBuffer);
 	} catch (IOException e) {
 	    // REMIND: what if thread was interrupted?
-	    Error error = new AssertionError("unexpected I/O exception");
-	    error.initCause(e);
-	    throw error;
+	    throw new AssertionError("unexpected I/O exception", e);
 	}
     }
 
@@ -483,9 +481,7 @@ public final class SelectionManager {
 		wakeupPipeSource.read(wakeupBuffer);
 	    } catch (IOException e) {
 		// REMIND: what if thread was interrupted?
-		Error error = new AssertionError("unexpected I/O exception");
-		error.initCause(e);
-		throw error;
+		throw new AssertionError("unexpected I/O exception", e);
 	    }
 	} while (!wakeupBuffer.hasRemaining());
     }

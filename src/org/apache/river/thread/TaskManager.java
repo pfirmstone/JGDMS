@@ -41,7 +41,7 @@ import java.util.logging.Logger;
  * <table border=1 cellpadding=5
  *       summary="Describes logging performed by TaskManager at different
  *	          logging levels">
- * <caption halign="center" valign="top"><b><code>
+ * <caption><b><code>
  *	   org.apache.river.thread.TaskManager</code></b></caption>
  * <tr><th>Level<th>Description
  * <tr><td>{@link Level#SEVERE SEVERE}<td>

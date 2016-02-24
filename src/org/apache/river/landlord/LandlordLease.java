@@ -17,18 +17,19 @@
  */
 package org.apache.river.landlord;
 
-import java.io.ObjectInputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.rmi.RemoteException;
-
 import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
-import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
+import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.ID;
 
@@ -41,6 +42,7 @@ import org.apache.river.lease.ID;
  * @see Landlord
  * @since 2.0
  */
+@AtomicSerial
 public class LandlordLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
     static final long serialVersionUID = 2L;
 
@@ -104,6 +106,28 @@ public class LandlordLease extends AbstractLease implements ReferentUuid, ID<Uui
 	this.cookie   = cookie;
 	this.landlord = landlord;
 	this.landlordUuid = landlordUuid;
+    }
+
+    LandlordLease(GetArg arg) throws IOException {
+	super(check(arg));
+	cookie = (Uuid) arg.get("cookie", null);
+	landlord = (Landlord) arg.get("landlord", null);
+	landlordUuid = (Uuid) arg.get("landlordUuid", null);
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	Uuid cookie = (Uuid) arg.get("cookie", null);
+	Landlord landlord = (Landlord) arg.get("landlord", null);
+	Uuid landlordUuid = (Uuid) arg.get("landlordUuid", null);
+	if (cookie == null)
+	    throw new InvalidObjectException("null cookie reference");
+
+	if (landlord == null)
+	    throw new InvalidObjectException("null landlord reference");
+
+	if (landlordUuid == null)
+	    throw new InvalidObjectException("null landlordUuid reference");
+	return arg;
     }
 
     // Implementation of the Lease interface

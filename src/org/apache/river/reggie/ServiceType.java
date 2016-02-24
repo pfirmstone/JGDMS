@@ -22,6 +22,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.rmi.MarshalException;
@@ -30,6 +31,8 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.StringTokenizer;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.proxy.MarshalledWrapper;
 
@@ -47,6 +50,7 @@ import org.apache.river.proxy.MarshalledWrapper;
  * @see ClassMapper
  * see ClassResolver (org.apache.river.reggie.test.share.ClassResolver?)
  */
+@AtomicSerial
 class ServiceType implements Serializable {
 
     private static final long serialVersionUID = 2L;
@@ -58,19 +62,19 @@ class ServiceType implements Serializable {
      *
      * @serial
      */
-    private String name;
+    private final String name;
     /**
      * Hash for the type
      *
      * @serial
      */
-    protected long hash;
+    protected final long hash;
     /**
      * Descriptor for the superclass.
      *
      * @serial
      */
-    protected ServiceType superclass;
+    protected final ServiceType superclass;
     /**
      * Descriptor for the interfaces.  As a special case, interfaces is
      * null for the descriptor for java.lang.Object, and non-null otherwise.
@@ -78,7 +82,48 @@ class ServiceType implements Serializable {
      *
      * @serial
      */
-    protected ServiceType[] interfaces;
+    protected final ServiceType[] interfaces;
+    
+    private static long check(GetArg arg) throws IOException {
+	String name = (String) arg.get("name", null); // Throws ClassCastException
+	if (name == null)
+	    throw new InvalidObjectException("name cannot be null");
+	long hash = arg.get("hash", 0L);
+	if (hash == 0) {
+	    try {
+		hash = computeHash(name);
+	    } catch (Exception e) {
+		throw new UnmarshalException("unable to calculate the type"
+					     + " hash for " + name, e);
+	    }
+	}
+	Object superclass = arg.get("superclass", null); // Throws ClassCastException
+	if (superclass != null && !(superclass instanceof ServiceType)){
+	    throw new InvalidObjectException(
+		"superclass must be instances of ServiceType");
+	}
+	Object interfaces = arg.get("interfaces", null); // Throws ClassCastException
+	
+	if (interfaces != null && !(interfaces instanceof ServiceType[])){
+	    throw new InvalidObjectException(
+		"interfaces must be instances of ServiceType[]");
+	}
+	return hash;
+    }
+    
+    ServiceType(GetArg arg) throws IOException {
+	this(arg,check(arg));
+    }
+    
+    private ServiceType(GetArg arg, long hash) throws IOException{
+	name = (String) arg.get("name", null);
+	this.hash = hash;
+	superclass = (ServiceType) arg.get("superclass", null);
+	ServiceType [] interfaces = (ServiceType[]) arg.get("interfaces", null);
+	if (interfaces != null) interfaces = interfaces.clone();
+	this.interfaces = interfaces;
+    }
+
     /**
      * An instance containing only name, no supertype info.
      * This is only used on the registrar side, to minimize the amount
@@ -110,10 +155,13 @@ class ServiceType implements Serializable {
 	    name = buf.toString();
 	}
 	this.superclass = superclass;
-	if (clazz != Object.class)
+	if (clazz != Object.class){
 	    this.interfaces = interfaces;
+	} else {
+	    this.interfaces = null;
+	}
 	try {
-	    computeHash();
+	    hash = computeHash(name);
 	} catch (Exception e) {
 	    throw new MarshalException("unable to calculate the type hash for "
 				       + name, e);
@@ -126,6 +174,9 @@ class ServiceType implements Serializable {
      */
     private ServiceType(ServiceType stype) {
 	name = stype.name;
+	hash = stype.hash;
+	superclass = stype.superclass == null ? null : stype.superclass.getReplacement();
+	interfaces = null;
     }
 
     /**
@@ -237,6 +288,7 @@ class ServiceType implements Serializable {
      * @return true if this object equals the object passed in; false
      * otherwise.
      */
+    @Override
     public boolean equals(Object o) {
 	if (this == o) return true;
 	if (!(o instanceof ServiceType))
@@ -249,11 +301,13 @@ class ServiceType implements Serializable {
      * Return a hashcode for this type.
      * @return int the hashcode for this type
      */
+    @Override
     public int hashCode() {
 	return (int) (hash ^ (hash >>> 32));
     }
 
     /* Inherit javadoc */
+    @Override
     public String toString() {
 	return getClass() + "[name=" + getName() + "]";
     }
@@ -265,9 +319,9 @@ class ServiceType implements Serializable {
      * ordered alphabetically by field name.  The first 8 bytes of the digest
      * are used to form the 64-bit hash value for this type.
      */
-    private void computeHash() throws IOException, NoSuchAlgorithmException
+    private static long computeHash(String name) throws IOException, NoSuchAlgorithmException
     {
-	hash = 0;
+	long hash = 0;
 	MessageDigest md = MessageDigest.getInstance("SHA");
 	DataOutputStream out = new DataOutputStream(
 	    new DigestOutputStream(new ByteArrayOutputStream(127),md));	    
@@ -277,7 +331,13 @@ class ServiceType implements Serializable {
 	for (int i = Math.min(8, digest.length); --i >= 0; ) {
 	    hash += ((long) (digest[i] & 0xFF)) << (i * 8);
 	}
+	return hash;
     }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
 
     /**
      * Samples integrity protection setting (if any) of the stream from which
@@ -291,14 +351,16 @@ class ServiceType implements Serializable {
 	    throw new InvalidObjectException("name cannot be null");
 	integrity = MarshalledWrapper.integrityEnforced(in);
 	if (hash == 0) {
-	    try {
-		computeHash();
-	    } catch (Exception e) {
-		throw new UnmarshalException("unable to calculate the type"
-					     + " hash for " + name, e);
+	    throw new InvalidObjectException("hash cannot be zero");
+//	    try {
+//		hash = computeHash(name);
+//	    } catch (Exception e) {
+//		throw new UnmarshalException("unable to calculate the type"
+//					     + " hash for " + name, e);
+//	    }
+	    
 	    }
 	}
-    }
 
     /**
      * Throws InvalidObjectException, since data for this class is required.

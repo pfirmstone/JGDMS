@@ -64,7 +64,7 @@ public class FakeBasicProxyPreparer extends BasicProxyPreparer {
      * Gateway to protected BasicProxyPreparer.permissions field
      */
     public Permission[] getPermissionsField() {
-	return permissions;
+	return super.getPermissions(null);
     }
 
     /**

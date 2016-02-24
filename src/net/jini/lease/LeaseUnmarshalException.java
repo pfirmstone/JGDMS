@@ -17,8 +17,14 @@
  */
 package net.jini.lease;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.rmi.MarshalledObject;
 import net.jini.core.lease.Lease;
+import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Exception thrown when a lease renewal set can't unmarshal one or more
@@ -68,7 +74,8 @@ import net.jini.core.lease.Lease;
  * @author Sun Microsystems, Inc.
  * @see Lease 
  */
-public class LeaseUnmarshalException extends Exception {
+@AtomicSerial
+public class LeaseUnmarshalException extends AtomicException {
     private static final long serialVersionUID = -6736107321698417489L;
 
     /**
@@ -139,12 +146,12 @@ public class LeaseUnmarshalException extends Exception {
 				   MarshalledObject[] marshalledLeases,
 				   Throwable[] exceptions)
     {
-	super(message);
-	validate(marshalledLeases, exceptions);
-
-	this.unmarshalledLeases = leases;
-	this.stillMarshalledLeases = marshalledLeases;
-	this.exceptions = exceptions;
+	this(message,
+	     leases,
+	     marshalledLeases,
+	     exceptions, 
+	     validate(marshalledLeases, exceptions)
+	);
     }
 
     /**
@@ -177,12 +184,62 @@ public class LeaseUnmarshalException extends Exception {
 				   MarshalledObject[] marshalledLeases,
 				   Throwable[] exceptions)
     {
-	super();
-	validate(marshalledLeases, exceptions);
-
+	this(leases,
+	     marshalledLeases,
+	     exceptions, 
+	     validate(marshalledLeases, exceptions)
+	);
+    }
+    
+    private LeaseUnmarshalException(Lease[] leases,
+				    MarshalledObject[] marshalledLeases,
+				    Throwable[] exceptions,
+				    boolean check)
+    {
 	this.unmarshalledLeases = leases;
 	this.stillMarshalledLeases = marshalledLeases;
 	this.exceptions = exceptions;
+    }
+    
+    private LeaseUnmarshalException(String message,
+				    Lease[] leases,
+				    MarshalledObject[] marshalledLeases,
+				    Throwable[] exceptions,
+				    boolean check)
+    {
+	super(message);
+	this.unmarshalledLeases = leases;
+	this.stillMarshalledLeases = marshalledLeases;
+	this.exceptions = exceptions;
+    }
+    
+    public LeaseUnmarshalException(GetArg arg) throws IOException
+    {
+	super(validateSerial(arg));
+	unmarshalledLeases 
+	    = Valid.copy(arg.get("unmarshalledLeases", null, Lease[].class));
+	stillMarshalledLeases 
+	    = Valid.copy(arg.get("stillMarshalledLeases", null, MarshalledObject[].class));
+	exceptions 
+	    = Valid.copy(arg.get("exceptions", null, Throwable[].class));
+    }
+    
+    private static GetArg validateSerial(GetArg arg) throws IOException{
+	MarshalledObject[] marshalledLeases 
+	    = arg.get("stillMarshalledLeases", null, MarshalledObject[].class);
+	Throwable[] exceptions = arg.get("exceptions", null, Throwable[].class);
+	try {
+	    validate(marshalledLeases, exceptions);
+	} catch (IllegalArgumentException e){
+	    InvalidObjectException ex = new InvalidObjectException("validation failed");
+	    ex.initCause(e);
+	    throw ex;
+	} catch (NullPointerException e){
+	    InvalidObjectException ex = new InvalidObjectException("validation failed");
+	    ex.initCause(e);
+	    throw ex;
+	}
+	return arg;
     }
 
     /**
@@ -191,7 +248,7 @@ public class LeaseUnmarshalException extends Exception {
      * <code>marshalledLeases</code> does not match the length of
      * <code>exceptions</code>.
      */
-    private void validate(MarshalledObject[] marshalledLeases,
+    private static boolean validate(MarshalledObject[] marshalledLeases,
 			  Throwable[] exceptions)
     {
 	/*
@@ -204,20 +261,20 @@ public class LeaseUnmarshalException extends Exception {
 			    +") is not equal to marshalledLeases.length ("
 			    +marshalledLeases.length +")");
 	}
+	return true;
     }
 
     /**
      * Accessor method that returns an array consisting of instances of
      * <code>Lease</code>, where each element of the array corresponds
-     * to a successfully unmarshalled object. Note that the same array
-     * is returned on each invocation of this method; that is, a copy is
-     * not made.
+     * to a successfully unmarshalled object. Note that a copy is returned 
+     * on each invocation of this method.
      *
      * @return array of instances of <code>Lease</code>, where each
      *	       element corresponds to a successfully unmarshalled object
      */
     public Lease[] getLeases() {
-	return unmarshalledLeases;
+	return unmarshalledLeases.clone();
     }
 
     /**
@@ -225,23 +282,23 @@ public class LeaseUnmarshalException extends Exception {
      * <code>MarshalledObject</code>, where each element of the array is
      * a marshalled instance of the <code>Lease</code> interface, and
      * corresponds to an object that could not be successfully
-     * unmarshalled. Note that the same array is returned on each
-     * invocation of this method; that is, a copy is not made.
+     * unmarshalled. Note that a copy is returned on each
+     * invocation of this method.
      *
      * @return array of marshalled instances of <code>Lease</code>,
      *	       where each element corresponds to an object in which
      *	       failure occurred while attempting to unmarshal the object
      */
     public MarshalledObject[] getMarshalledLeases() {
-	return stillMarshalledLeases;
+	return stillMarshalledLeases.clone();
     }
 
     /**
      * Accessor method that returns an array consisting of instances of
      * <code>Throwable</code>, where each element of the array
      * corresponds to one of the exceptions that occurred during the
-     * unmarshalling process. Note that the same array is returned on
-     * each invocation of this method; that is, a copy is not made.
+     * unmarshalling process. Note a copy is returned on
+     * each invocation of this method.
      * <p> 
      * Each element in the return set should be an instance of
      * <code>IOException</code>, <code>ClassNotFoundException</code>, or
@@ -259,6 +316,6 @@ public class LeaseUnmarshalException extends Exception {
      *	       occurred during the unmarshalling process
      */
     public Throwable[] getExceptions() {
-	return exceptions;
+	return exceptions.clone();
     }
 }

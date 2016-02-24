@@ -19,7 +19,7 @@
 package org.apache.river.test.impl.end2end.e2etest;
 
 import java.io.Serializable;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -86,7 +86,7 @@ public class End2EndTest implements Constants, TestCoordinator {
      * @param testNames the names or numbers of tests to run
      */
     End2EndTest(String[] testNames) {
-	final MarshalledObject iface;
+	final MarshalledInstance iface;
 	threadCount = Integer.getInteger("threadCount",1).intValue();
 	if (threadCount < 1) {
             threadCount = 1;
@@ -118,7 +118,7 @@ public class End2EndTest implements Constants, TestCoordinator {
             System.setSecurityManager(new CombinerSecurityManager());
         }
 	server = new SecureServer(this);
-	MarshalledObject pickeledStub = server.getProxy();
+	MarshalledInstance pickeledStub = server.getProxy();
 	for (int i=threadCount; --i >= 0; ) {
 	    TestClient client = new SecureClient(this,
 						 pickeledStub);

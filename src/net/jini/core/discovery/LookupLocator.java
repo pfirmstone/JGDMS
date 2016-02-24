@@ -24,9 +24,11 @@ import org.apache.river.discovery.UnicastResponse;
 import org.apache.river.discovery.UnicastSocketTimeout;
 import org.apache.river.discovery.internal.MultiIPDiscovery;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URI;
@@ -35,7 +37,8 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.discovery.ConstrainableLookupLocator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -56,11 +59,18 @@ import org.apache.river.api.net.Uri;
  *
  * @since 1.0
  * @see net.jini.discovery.LookupLocatorDiscovery
- * @see ConstrainableLookupLocator
+ * @see net.jini.discovery.ConstrainableLookupLocator
  */
+@AtomicSerial
 public class LookupLocator implements Serializable {
     private static final long serialVersionUID = 1448769379829432795L;
-    
+    private static final ObjectStreamField[] serialPersistentFields = 
+    { 
+        /** @serialField The name of the host at which to perform discovery. */
+        new ObjectStreamField("host", String.class),
+	/** @serialField The port number on the host at which to perform discovery. */
+	new ObjectStreamField("port", Integer.TYPE)
+    };
     /**
      * The port for both unicast and multicast boot requests.
      */
@@ -132,9 +142,43 @@ public class LookupLocator implements Serializable {
      * @throws NullPointerException if <code>url</code> is <code>null</code>
      */
     public LookupLocator(String url) throws MalformedURLException {
-	URI uri = parseURI(url);
+	this(parseURI(url));
+    }
+    
+    /**
+     * Only this constructor doesn't check invariants.
+     * @param uri 
+     */
+    private LookupLocator(URI uri){
+	super();
         host = uri.getHost();
         port = uri.getPort();
+    }
+
+    /**
+     * Check invariants before super() is called.
+     * @param host
+     * @param port
+     * @return 
+     */
+    private static URI parseURI(String host, int port){
+	if (host == null) {
+            throw new NullPointerException("null host");
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("jini://").append(host);
+        if (port != -1) { //URI compliance -1 is converted to discoveryPort.
+            sb.append(":").append(port);
+        }
+        try {
+            return parseURI(sb.toString());
+        } catch (MalformedURLException ex) {
+            throw new IllegalArgumentException("host cannot be parsed", ex);
+        }
+    }
+    
+    public LookupLocator(GetArg arg) throws IOException{
+	this(parseURI(arg.get("host", null, String.class), arg.get("port", 0)));
     }
 
     /**
@@ -165,24 +209,13 @@ public class LookupLocator implements Serializable {
      * @throws NullPointerException if <code>host</code> is <code>null</code>
      */
     public LookupLocator(String host, int port) {
-        if (host == null) {
-            throw new NullPointerException("null host");
+        this(parseURI(host, port));
         }
-        StringBuilder sb = new StringBuilder();
-        sb.append("jini://").append(host);
-        if (port != -1) { //URI compliance -1 is converted to discoveryPort.
-            sb.append(":").append(port);
-        }
-        try {
-            URI uri = parseURI(sb.toString());
-            this.host = uri.getHost();
-            this.port = uri.getPort();
-        } catch (MalformedURLException ex) {
-            throw new IllegalArgumentException("host cannot be parsed", ex);
-        }
-    }
 
-    private URI parseURI(String url) throws MalformedURLException {
+    /**
+     * Check invariants before super() is called.
+     */
+    private static URI parseURI(String url) throws MalformedURLException {
         if (url == null) {
             throw new NullPointerException("url is null");
         }
@@ -394,14 +427,38 @@ public class LookupLocator implements Serializable {
 	}
     }
     
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+    
     /**
      * Added to allow deserialisation of broken serial compatibility in 2.2.0
+     * 
+     * Invariants are not protected against finalizer and circular reference
+     * attacks with standard de-serialization, ensure trust is established
+     * prior to obtaining an instance of LookupLocator from a Remote interface
+     * or ObjectInputStream.
+     * 
      * @serial
      * @param oin
      * @throws IOException
      * @throws ClassNotFoundException 
      */
-    private void readObject(ObjectInputStream oin) throws IOException, ClassNotFoundException{
+    private void readObject(ObjectInputStream oin) 
+	    throws IOException, ClassNotFoundException{
         oin.defaultReadObject();
+	try {
+	    parseURI(host, port);
+	} catch (NullPointerException ex){
+	    InvalidObjectException e = new InvalidObjectException(
+		    "Invariants not satisfied during deserialization");
+	    e.initCause(ex);
+	    throw e;
+	} catch (IllegalArgumentException ex){
+	    InvalidObjectException e = new InvalidObjectException(
+		    "Invariants not satisfied during deserialization");
+	    e.initCause(ex);
+	    throw e;
     }
+}
 }

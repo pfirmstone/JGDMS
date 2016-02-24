@@ -18,7 +18,6 @@
 
 package net.jini.config;
 
-import org.apache.river.logging.Levels;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,6 +59,9 @@ import net.jini.loader.ClassLoading;
 import net.jini.loader.LoadClass;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.logging.Levels;
 
 /**
  * Supplies objects needed to configure applications, such as {@link Exporter}
@@ -82,117 +84,118 @@ import net.jini.security.Security;
  * The syntax of a configuration source is as follows, using the same grammar
  * notation that is used in <i>The Java Language Specification (JLS)</i>:
  *
- * <pre>
- * <i>Source</i>:
- *   <i>Imports</i><sub>opt</sub> <i>Components</i><sub>opt</sub>
- *
- * <i>Imports</i>:
- *   <i>Import</i>
- *   <i>Imports</i> <i>Import</i>
- *
- * <i>Import</i>:
- *   import <i>PackageName</i> . * ;
- *   import <i>PackageName</i> . <i>ClassName</i> . * ;
- *   import <i>PackageName</i> . <i>ClassName</i> ;
- *
- * <i>PackageName</i>:
- *   <i>QualifiedIdentifier</i>
- *
- * <i>ClassName</i>:
- *   <i>QualifiedIdentifier</i>
- *
- * <i>Components</i>:
- *   <i>Component</i>
- *   <i>Components</i> <i>Component</i>
- *
- * <i>Component</i>:
- *   <i>QualifiedIdentifier</i> { <i>Entries</i><sub>opt</sub> }
- *
- * <i>Entries</i>:
- *   <i>Entry</i>
- *   <i>Entries</i> <i>Entry</i>
- *
- * <i>Entry</i>:
- *   <i>EntryModifiers</i><sub>opt</sub> <i>Identifier</i> = <i>Expr</i> ;
- *
- * <i>EntryModifiers</i>:
- *   static
- *   private
- *   static private
- *   private static
- *
- * <i>Expr</i>:
- *   <i>Literal</i>
- *   <i>TypeName</i> . class
- *   <i>EntryName</i>
- *   <i>ThisReference</i>
- *   <i>FieldName</i>
- *   <i>Cast</i>
- *   <i>NewExpr</i>
- *   <i>MethodCall</i>
- *   <i>Data</i>
- *   <i>Loader</i>
- *   <i>StringConcatenation</i> 
- *
- * <i>Literal</i>:
- *   <i>IntegerLiteral</i>
- *   <i>FloatingPointLiteral</i>
- *   <i>BooleanLiteral</i>
- *   <i>CharacterLiteral</i>
- *   <i>StringLiteral</i>
- *   <i>NullLiteral</i>
- *
- * <i>TypeName</i>:
- *   <i>ClassName</i>
- *   <i>ClassName</i> [ ]
- *   <i>PrimitiveType</i>
- *   <i>PrimitiveType</i> [ ]
- *
- * <i>EntryName</i>:
- *   <i>QualifiedIdentifier</i>
- *
- * <i>ThisReference</i>:
- *   this
- *
- * <i>FieldName</i>:
- *   <i>QualifiedIdentifier</i> . <i>Identifier</i>
- *
- * <i>Cast</i>:
- *   ( <i>TypeName</i> ) <i>Expr</i>
- *
- * <i>NewExpr</i>:
- *   new <i>QualifiedIdentifier</i> ( <i>ExprList</i><sub>opt</sub> )
- *   new <i>QualifiedIdentifier</i> [ ] { <i>ExprList</i><sub>opt</sub> ,<sub>opt</sub> }
- *
- * <i>MethodCall</i>:
- *   <i>StaticMethodName</i> ( <i>ExprList</i><sub>opt</sub> )
- *
- * <i>StaticMethodName</i>:
- *   <i>QualifiedIdentifier</i> . <i>Identifier</i>
- *
- * <i>ExprList</i>:
- *   <i>Expr</i>
- *   <i>ExprList</i> , <i>Expr</i>
- *
- * <i>Data</i>:
- *   $data
- *
- * <i>Loader</i>:
- *   $loader
- * 
- * <i>StringConcatenation</i>:
- *   <i>Expr</i> + <i>Expr</i> 
- * </pre>
+ * <div>
+ * <p><br>
+ * <i>Source</i>:<br>
+ * &nbsp;&nbsp;<i>Imports</i><sub>opt</sub> <i>Components</i><sub>opt</sub><br>
+ * <br>
+ * <i>Imports</i>:<br>
+ * &nbsp;&nbsp;<i>Import</i><br>
+ * &nbsp;&nbsp;<i>Imports</i> <i>Import</i><br>
+ *<br>
+ * <i>Import</i>:<br>
+ * &nbsp;&nbsp;import <i>PackageName</i> . * ;<br>
+ * &nbsp;&nbsp;import <i>PackageName</i> . <i>ClassName</i> . * ;<br>
+ * &nbsp;&nbsp;import <i>PackageName</i> . <i>ClassName</i> ;<br>
+ * <br>
+ * <i>PackageName</i>:<br>
+ * &nbsp;&nbsp;<i>QualifiedIdentifier</i><br>
+ * <br>
+ * <i>ClassName</i>:<br>
+ * &nbsp;&nbsp;<i>QualifiedIdentifier</i><br>
+ * <br>
+ * <i>Components</i>:<br>
+ * &nbsp;&nbsp;<i>Component</i><br>
+ * &nbsp;&nbsp;<i>Components</i> <i>Component</i><br>
+ * <br>
+ * <i>Component</i>:<br>
+ * &nbsp;&nbsp;<i>QualifiedIdentifier</i> { <i>Entries</i><sub>opt</sub> }<br>
+ * <br>
+ * <i>Entries</i>:<br>
+ * &nbsp;&nbsp;<i>Entry</i><br>
+ * &nbsp;&nbsp;<i>Entries</i> <i>Entry</i><br>
+ *<br>
+ * <i>Entry</i>:<br>
+ * &nbsp;&nbsp;<i>EntryModifiers</i><sub>opt</sub> <i>Identifier</i> = <i>Expr</i> ;<br>
+ *<br>
+ * <i>EntryModifiers</i>:<br>
+ * &nbsp;&nbsp;static<br>
+ * &nbsp;&nbsp;private<br>
+ * &nbsp;&nbsp;static private<br>
+ * &nbsp;&nbsp;private static<br>
+ * <br>
+ * <i>Expr</i>:<br>
+ * &nbsp;&nbsp;<i>Literal</i><br>
+ * &nbsp;&nbsp;<i>TypeName</i> . class<br>
+ * &nbsp;&nbsp;<i>EntryName</i><br>
+ * &nbsp;&nbsp;<i>ThisReference</i><br>
+ * &nbsp;&nbsp;<i>FieldName</i><br>
+ * &nbsp;&nbsp;<i>Cast</i><br>
+ * &nbsp;&nbsp;<i>NewExpr</i><br>
+ * &nbsp;&nbsp;<i>MethodCall</i><br>
+ * &nbsp;&nbsp;<i>Data</i><br>
+ * &nbsp;&nbsp;<i>Loader</i><br>
+ * &nbsp;&nbsp;<i>StringConcatenation</i> <br>
+ * <br>
+ * <i>Literal</i>:<br>
+ * &nbsp;&nbsp;<i>IntegerLiteral</i><br>
+ * &nbsp;&nbsp;<i>FloatingPointLiteral</i><br>
+ * &nbsp;&nbsp;<i>BooleanLiteral</i><br>
+ * &nbsp;&nbsp;<i>CharacterLiteral</i><br>
+ * &nbsp;&nbsp;<i>StringLiteral</i><br>
+ * &nbsp;&nbsp;<i>NullLiteral</i><br>
+ * <br>
+ * <i>TypeName</i>:<br>
+ * &nbsp;&nbsp;<i>ClassName</i><br>
+ * &nbsp;&nbsp;<i>ClassName</i> [ ]<br>
+ * &nbsp;&nbsp;<i>PrimitiveType</i><br>
+ * &nbsp;&nbsp;<i>PrimitiveType</i> [ ]<br>
+ * <br>
+ * <i>EntryName</i>:<br>
+ * &nbsp;&nbsp;<i>QualifiedIdentifier</i><br>
+ * <br>
+ * <i>ThisReference</i>:<br>
+ * &nbsp;&nbsp;this<br>
+ * <br>
+ * <i>FieldName</i>:<br>
+ * &nbsp;&nbsp;<i>QualifiedIdentifier</i> . <i>Identifier</i><br>
+ * <br>
+ * <i>Cast</i>:<br>
+ * &nbsp;&nbsp;( <i>TypeName</i> ) <i>Expr</i><br>
+ * <br>
+ * <i>NewExpr</i>:<br>
+ * &nbsp;&nbsp;new <i>QualifiedIdentifier</i> ( <i>ExprList</i><sub>opt</sub> )<br>
+ * &nbsp;&nbsp;new <i>QualifiedIdentifier</i> [ ] { <i>ExprList</i><sub>opt</sub> ,<sub>opt</sub> }<br>
+ * <br>
+ * <i>MethodCall</i>:<br>
+ * &nbsp;&nbsp;<i>StaticMethodName</i> ( <i>ExprList</i><sub>opt</sub> )<br>
+ * <br>
+ * <i>StaticMethodName</i>:<br>
+ * &nbsp;&nbsp;<i>QualifiedIdentifier</i> . <i>Identifier</i><br>
+ * <br>
+ * <i>ExprList</i>:<br>
+ * &nbsp;&nbsp;<i>Expr</i><br>
+ * &nbsp;&nbsp;<i>ExprList</i> , <i>Expr</i><br>
+ * <br>
+ * <i>Data</i>:<br>
+ * &nbsp;&nbsp;$data<br>
+ * <br>
+ * <i>Loader</i>:<br>
+ * &nbsp;&nbsp;$loader<br>
+ * <br>
+ * <i>StringConcatenation</i>:<br>
+ * &nbsp;&nbsp;<i>Expr</i> + <i>Expr</i> <br>
+ * </p></div>
  *
  * The syntax of each override option is as follows:
  *
- * <pre>
- * <i>Override</i>:
- *   <i>EntryModifiers</i><sub>opt</sub> <i>FullyQualifiedEntryName</i> = <i>Expr</i>
- *
- * <i>FullyQualifiedEntryName</i>:
- *   <i>QualifiedIdentifier</i> . <i>Identifier</i>
- * </pre> <p>
+ * <div>
+ * <i>Override</i>:<br>
+ * &nbsp;&nbsp;<i>EntryModifiers</i><sub>opt</sub> <i>FullyQualifiedEntryName</i> = <i>Expr</i><br>
+ * <br>
+ * <i>FullyQualifiedEntryName</i>:<br>
+ * &nbsp;&nbsp;<i>QualifiedIdentifier</i> . <i>Identifier</i><br>
+ * </div> <p>
  *
  * For example, a simple configuration source file might look like the
  * following:
@@ -360,13 +363,12 @@ import net.jini.security.Security;
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.config</code> to log information at the following logging
- * levels: <p>
+ * levels: <br>
  *
  * <table border="1" cellpadding="5" summary="Describes logging performed by
  *	  the ConfigurationFile class at different logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
- *	    net.jini.config</code></b></caption>
+ * <caption><b><code>net.jini.config</code></b></caption>
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *
@@ -2105,6 +2107,7 @@ public class ConfigurationFile extends AbstractConfiguration {
      * Returns the static type of the expression specified for the entry with
      * the specified component and name.
      *
+     * @param <T> the type of the entry
      * @param component the component
      * @param name the name of the entry for the component
      * @return the static type of the matching entry, or <code>null</code> if
@@ -2801,6 +2804,7 @@ public class ConfigurationFile extends AbstractConfiguration {
      * configuration source or a problem encountered when attempting to return
      * an existing entry or the type of an existing entry.
      */
+    @AtomicSerial
     public static class ErrorDescriptor implements Serializable {
     
         private static final long serialVersionUID = 1L;
@@ -2846,8 +2850,8 @@ public class ConfigurationFile extends AbstractConfiguration {
          * @param t exception associated with this error or <code>null</code>
          * if there is no exception related to the error; <code>t</code>
          * cannot be an instance of <code>java.lang.Error</code>
-         * @throws IllegalArgumentException if <code>lineno</code> < 
-         * <code>0</code>, <code>override</code> < <code>0</code>, 
+         * @throws IllegalArgumentException if <code>lineno</code> &lt; 
+         * <code>0</code>, <code>override</code> &lt; <code>0</code>, 
          * <code>description</code> is <code>null</code>, or <code>t</code> 
          * is an instance of <code>java.lang.Error</code>
          */ 
@@ -2857,7 +2861,25 @@ public class ConfigurationFile extends AbstractConfiguration {
                                String locationName,
                                Throwable t)
         {
-            if (lineno < 0)
+            this(lineno, override, description, locationName, t,
+		    check(lineno, override, description, t));
+        }
+	
+	public ErrorDescriptor(GetArg arg) throws IOException{
+	    this(arg.get("lineno", -1),
+		 arg.get("override", -1),
+		 arg.get("description", null, String.class),
+		 arg.get("locationName", null, String.class),
+		 arg.get("t", null, Throwable.class)
+	    );
+	}
+	
+	private static boolean check(int lineno,
+				     int override,
+				     String description,
+				     Throwable t)
+	{
+	    if (lineno < 0)
                 throw new IllegalArgumentException("line number must be"
                                                    + " greater than 0");
             if (override < 0)
@@ -2869,13 +2891,23 @@ public class ConfigurationFile extends AbstractConfiguration {
             if (t instanceof Error)
                 throw new IllegalArgumentException("t cannot be an instance of"
                                                    + " java.lang.Error");
-            this.lineno = lineno;
+	    return true;
+	}
+	
+	private ErrorDescriptor(int lineno,
+				int override,
+				String description,
+				String locationName,
+				Throwable t,
+				boolean check)
+	{
+	    this.lineno = lineno;
             this.override = override;
             this.description = description;
             this.locationName = locationName;
             this.t = t;
-        }
-    
+	}
+		   
         /**
          * Creates a new error descriptor.
          *
@@ -2889,8 +2921,8 @@ public class ConfigurationFile extends AbstractConfiguration {
          * @param locationName the name of the configuration source
          * location or <code>null</code> if location information is not
          * available
-         * @throws IllegalArgumentException if <code>lineno</code> < 
-         * <code>0</code>, <code>override</code> < <code>0</code>, or
+         * @throws IllegalArgumentException if <code>lineno</code> &lt; 
+         * <code>0</code>, <code>override</code> &lt; <code>0</code>, or
          * <code>description</code> is <code>null</code>
          */ 
         public ErrorDescriptor(int lineno,
@@ -2911,8 +2943,8 @@ public class ConfigurationFile extends AbstractConfiguration {
          * if the problem was not found in an override
          * @param description a description of the problem; this parameter
          * cannot be <code>null</code>        
-         * @throws IllegalArgumentException if <code>lineno</code> < 
-         * <code>0</code>, <code>override</code> < <code>0</code>, or
+         * @throws IllegalArgumentException if <code>lineno</code> &lt; 
+         * <code>0</code>, <code>override</code> &lt; <code>0</code>, or
          * <code>description</code> is <code>null</code>
          */             
         public ErrorDescriptor(int lineno, int override, String description) {
@@ -3005,6 +3037,10 @@ public class ConfigurationFile extends AbstractConfiguration {
         /**
          * Verifies that the deserialized field values for this error
          * descriptor are valid.
+	 * 
+	 * @param in ObjectInputStream re-constructing this object
+	 * @throws ClassNotFoundException if class not found.
+	 * @throws IOException if de-serialization problem occurs.
          */
         private void readObject(ObjectInputStream in)
             throws IOException, ClassNotFoundException
@@ -3027,6 +3063,7 @@ public class ConfigurationFile extends AbstractConfiguration {
         /**
          * Throws InvalidObjectException, since a descriptor is always 
          * required.
+	 * @throws ObjectStreamException if invoked, namely an InvalidObjectException
          */
         private void readObjectNoData() throws ObjectStreamException {
             throw new InvalidObjectException("no data");

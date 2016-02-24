@@ -17,10 +17,11 @@
  */
 package net.jini.lookup.entry;
 
+import java.beans.ConstructorProperties;
 import java.io.Serializable;
-import net.jini.core.entry.Entry;
-import java.util.Set;
 import java.rmi.MarshalledObject;
+import java.util.Set;
+import net.jini.core.entry.Entry;
 
 /**
  * A JavaBeans(TM) component that encapsulates a <code>UIDescriptor</code> object.
@@ -41,6 +42,13 @@ public class UIDescriptorBean implements EntryBean, Serializable {
      */
     public UIDescriptorBean() {
         assoc = new UIDescriptor();
+    }
+    
+    @ConstructorProperties({"role", "toolkit", "attributes", "factory"})
+    public UIDescriptorBean(String role, String toolkit, 
+	    Set attributes, MarshalledObject factory)
+    {
+	assoc = new UIDescriptor(role, toolkit, attributes, factory);
     }
 
     /**

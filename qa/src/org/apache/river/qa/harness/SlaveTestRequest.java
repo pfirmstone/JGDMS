@@ -18,20 +18,18 @@
 
 package org.apache.river.qa.harness;
 
-import java.util.Properties;
-
-import java.io.Serializable;
+import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>HarnessRequest</code> to start the <code>SlaveTest</code>.
  */
+@AtomicSerial
 class SlaveTestRequest implements HarnessRequest {
 
     /** the <code>QAConfig</code> object to supply to the slave test */
     private QAConfig config;
-
-    /** the name of the test being run by the master */
-    private String testName;
 
     /** 
      * Construct the request.
@@ -41,6 +39,10 @@ class SlaveTestRequest implements HarnessRequest {
      */
     SlaveTestRequest(QAConfig config) {
 	this.config = config;
+    }
+    
+    SlaveTestRequest(GetArg arg) throws IOException{
+	this(arg.get("config", null, QAConfig.class));
     }
 
     /**

@@ -17,32 +17,32 @@
  */
 package org.apache.river.mahalo;
 
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.id.ReferentUuid;
-import net.jini.id.ReferentUuids;
-import net.jini.id.Uuid;
-import net.jini.security.proxytrust.ProxyTrustIterator;
-import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.RemoteException;
-
 import net.jini.admin.Administrable;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.LeaseDeniedException;
-import net.jini.core.transaction.server.CrashCountException;
-import net.jini.core.transaction.server.TransactionManager;
-import net.jini.core.transaction.server.TransactionManager.Created;
-import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.core.transaction.CannotAbortException;
 import net.jini.core.transaction.CannotCommitException;
 import net.jini.core.transaction.CannotJoinException;
 import net.jini.core.transaction.TimeoutExpiredException;
 import net.jini.core.transaction.UnknownTransactionException;
+import net.jini.core.transaction.server.CrashCountException;
+import net.jini.core.transaction.server.TransactionManager;
+import net.jini.core.transaction.server.TransactionManager.Created;
+import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.id.ReferentUuid;
+import net.jini.id.ReferentUuids;
+import net.jini.id.Uuid;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import net.jini.security.proxytrust.SingletonProxyTrustIterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A <code>TxnMgrProxy</code> is a proxy for the 
@@ -55,6 +55,7 @@ import net.jini.core.transaction.UnknownTransactionException;
  *
  * @since 1.1
  */
+@AtomicSerial
 class TxnMgrProxy implements TransactionManager, Administrable, Serializable, 
     ReferentUuid 
 {
@@ -84,19 +85,38 @@ class TxnMgrProxy implements TransactionManager, Administrable, Serializable,
      */
     static TxnMgrProxy create(TxnManager txnMgr, Uuid id) {
         if (txnMgr instanceof RemoteMethodControl) {
-            return new ConstrainableTxnMgrProxy(txnMgr, id, null);
+            return new ConstrainableTxnMgrProxy(check(txnMgr, id), id, null);
         } else {
-            return new TxnMgrProxy(txnMgr, id);
+            return new TxnMgrProxy(check(txnMgr, id), id);
         }
     }
 
     /** Convenience constructor. */
     private TxnMgrProxy(TxnManager txnMgr, Uuid id) {
+	this.backend = txnMgr;
+	this.proxyID = id;
+    }
+    
+    TxnMgrProxy (GetArg arg) throws IOException {
+	this(check(arg), arg.get("proxyID", null, Uuid.class));
+    }
+    
+    private static TxnManager check(TxnManager txnMgr, Uuid id){
         if (txnMgr == null || id == null) {
             throw new IllegalArgumentException("Cannot accept null arguments");
         }
-	this.backend = txnMgr;
-	this.proxyID = id;
+	 return txnMgr;
+    }
+    
+    private static TxnManager check(GetArg arg) throws IOException {
+	try {
+	    return check((TxnManager) arg.get("backend", null),
+		    (Uuid) arg.get("proxyID", null));
+	} catch (IllegalArgumentException ex){
+	    InvalidObjectException e = new InvalidObjectException("Invariants unsatisfied");
+	    e.initCause(ex);
+	    throw e;
+	}
     }
     
     public Created create(long lease) 
@@ -221,6 +241,7 @@ class TxnMgrProxy implements TransactionManager, Administrable, Serializable,
 
     
     /** A subclass of TxnMgrProxy that implements RemoteMethodControl. */
+    @AtomicSerial
     final static class ConstrainableTxnMgrProxy extends TxnMgrProxy
         implements RemoteMethodControl
     {
@@ -233,6 +254,21 @@ class TxnMgrProxy implements TransactionManager, Administrable, Serializable,
             super(constrainServer(txnMgr, methodConstraints),
                   id);
         }
+
+	ConstrainableTxnMgrProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	}
+	
+	private static GetArg check(GetArg arg) throws IOException {
+	    TxnMgrProxy p = new TxnMgrProxy(arg);
+	    // Verify that the server implements RemoteMethodControl
+            if( !(p.backend instanceof RemoteMethodControl) ) {
+                throw new InvalidObjectException(
+		    "ConstrainableTxnMgrProxy.readObject failure - backend " +
+		    "does not implement constrainable functionality ");
+            }//endif
+	    return arg;
+	}
 
        /**
          * Returns a copy of the server proxy with the specified client

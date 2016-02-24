@@ -1478,7 +1478,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * 
      * TODO: Add support for nested Exceptions when support for Java 6 is dropped. 
      * 
-     * @throws IOException
+     * @throws IOException if closing any file opened by this ClassLoader 
+     * causes an IOException, only the first instance is thrown.
      */
     public void close() throws IOException {
         synchronized (searchList){

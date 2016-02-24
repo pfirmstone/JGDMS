@@ -83,7 +83,7 @@ public interface RevocablePolicy extends DynamicPolicy {
      * has escaped any further Permission checks, meaning that the Permission
      * cannot be revoked for the caller holding a reference.
      * 
-     * @param p
+     * @param p PermissionGrant to be granted.
      * @return true if successful 
      * @since 3.0.0
      */

@@ -19,11 +19,13 @@ package net.jini.discovery;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.Collections;
 import java.util.EventObject;
 import java.util.HashMap;
 import java.util.Map;
 import net.jini.core.lookup.ServiceRegistrar;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Event object passed (via either the <code>DiscoveryListener</code>
@@ -40,6 +42,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * @see DiscoveryChangeListener
  * @see net.jini.core.lookup.ServiceRegistrar
  */
+@AtomicSerial
 public class DiscoveryEvent extends EventObject {
     private static final long serialVersionUID = 5280303374696501479L;
 
@@ -48,7 +51,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    private volatile ServiceRegistrar[] regs;
+    private final ServiceRegistrar[] regs;
 
     /**
      * Map from the registrars of this event to the groups in which each
@@ -56,7 +59,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    private volatile Map<ServiceRegistrar, String[]> groups;
+    private final Map<ServiceRegistrar, String[]> groups;
 
     /**
      * Construct a new <code>DiscoveryEvent</code> object, with the given
@@ -67,9 +70,7 @@ public class DiscoveryEvent extends EventObject {
      * @param regs   the registrars to which this event applies
      */
     public DiscoveryEvent(Object source, ServiceRegistrar[] regs) {
-	super(source);
-	this.regs = regs.clone();
-	this.groups = null;
+	this(source, null, regs.clone());
     }
 
     /**
@@ -83,11 +84,33 @@ public class DiscoveryEvent extends EventObject {
      *               a member
      */
     public DiscoveryEvent(Object source, Map<ServiceRegistrar, String[]> groups) {
+	this(source, groups, groups.keySet().toArray(new ServiceRegistrar[groups.size()]));
+    }
+    
+    public DiscoveryEvent(GetArg arg) throws IOException{
+	this(arg.get("source",null),
+	     check(arg.get("groups", null, Map.class)),
+	     Valid.copy(Valid.notNull(arg.get("regs", null, ServiceRegistrar[].class), "regs cannot be null"))
+	);
+    }
+    
+    private static Map<ServiceRegistrar, String[]>  check(
+	    Map<ServiceRegistrar, String[]> groups){
+	if (groups == null) return null; // groups ok to be null.
+	Map<ServiceRegistrar, String[]> result 
+		= new HashMap<ServiceRegistrar, String[]>(groups.size());
+	Valid.copyMap(groups, result, ServiceRegistrar.class, String[].class);
+	// check that all ServiceRegistrar
+	return result;
+    }
+    
+    private DiscoveryEvent(Object source, Map<ServiceRegistrar, String[]> groups, ServiceRegistrar[] regs){
 	super(source);
 	this.groups = groups;
-        this.regs   = groups.keySet().toArray
-                                       (new ServiceRegistrar[groups.size()]);
+	this.regs = regs;
     }
+    
+    
 
     /**
      * Return the set of registrars to which this event applies.
@@ -121,18 +144,9 @@ public class DiscoveryEvent extends EventObject {
         return groups != null ? new HashMap<ServiceRegistrar, String[]>(groups) : null;
     }
     
-    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream oin) throws IOException, ClassNotFoundException{
         oin.defaultReadObject();
-        regs = regs.clone();
-        Map<ServiceRegistrar, String[]> groupClone;
-        Map<ServiceRegistrar, String[]> typeCheckedGroups;
-        if (groups != null) {
-            groupClone = new HashMap<ServiceRegistrar, String[]>(groups.size());
-            typeCheckedGroups = Collections.checkedMap(groupClone, ServiceRegistrar.class, String[].class);
-            typeCheckedGroups.putAll(groups);
-            groups = groupClone;
-        }
-            
+	Valid.notNull(regs, "regs cannot be null");
+        check(groups);
     }
 }

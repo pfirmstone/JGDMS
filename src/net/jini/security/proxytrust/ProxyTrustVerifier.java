@@ -32,7 +32,6 @@ import java.net.MalformedURLException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
 import java.rmi.server.RMIClassLoader;
-import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -49,6 +48,7 @@ import net.jini.io.ObjectStreamContext;
 import net.jini.loader.ClassLoading;
 import net.jini.security.SecurityContext;
 import net.jini.security.TrustVerifier;
+import org.apache.river.api.io.AtomicMarshalInputStream;
 
 /**
  * Trust verifier for service proxies that use dynamically downloaded code.
@@ -100,6 +100,7 @@ import net.jini.security.TrustVerifier;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@Deprecated
 public class ProxyTrustVerifier implements TrustVerifier {
 
     private static final Logger logger =
@@ -275,9 +276,11 @@ public class ProxyTrustVerifier implements TrustVerifier {
      * with that codebase, with the thread's context class loader set to the
      * parent class loader, returns the class loader of the class.
      *
+     * @throws java.rmi.RemoteException
      * @throws NullPointerException {@inheritDoc}
      * @throws SecurityException {@inheritDoc}
      */
+    @Override
     public boolean isTrustedObject(Object obj, TrustVerifier.Context ctx)
 	throws RemoteException
     {
@@ -410,11 +413,12 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	try {
 	    return AccessController.doPrivileged(rsc.wrap(
 		new PrivilegedExceptionAction() {
+			@Override
 			public Object run()
 			    throws IllegalAccessException,
 				   InvocationTargetException
 			{
-			    return m.invoke(obj, null);
+			    return m.invoke(obj, (Object[]) null);
 			}
 		    }), rsc.getAccessControlContext());
 	} catch (PrivilegedActionException pae) {
@@ -433,10 +437,11 @@ public class ProxyTrustVerifier implements TrustVerifier {
     private static boolean restrictedHasNext(final ProxyTrustIterator iter,
 					     SecurityContext rsc)
     {
-	return ((Boolean)
+	return (
 		AccessController.doPrivileged(rsc.wrap(
-		    new PrivilegedAction() {
-			public Object run() {
+		    new PrivilegedAction<Boolean>() {
+			@Override
+			public Boolean run() {
 			    return Boolean.valueOf(iter.hasNext());
 			}
 		    }), rsc.getAccessControlContext())).booleanValue();
@@ -452,6 +457,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	try {
 	    return AccessController.doPrivileged(rsc.wrap(
 		new PrivilegedExceptionAction() {
+			@Override
 			public Object run() throws RemoteException {
 			    return iter.next();
 			}
@@ -470,6 +476,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
     {
 	AccessController.doPrivileged(rsc.wrap(
 	   new PrivilegedAction() {
+		@Override
 		public Object run() {
 		    iter.setException(e);
 		    return null;
@@ -520,6 +527,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	}
 	final InvocationHandler ih = Proxy.getInvocationHandler(obj);
 	obj = AccessController.doPrivileged(new PrivilegedAction() {
+		@Override
 		public Object run() {
 		    ClassLoader bcl = base.getClassLoader();
 		    if (bcl == null) {
@@ -559,9 +567,10 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	obj = ((RemoteMethodControl) obj).setConstraints(mc);
 	TrustVerifier verifier = ((ProxyTrust) obj).getProxyVerifier();
 	final Class vc = verifier.getClass();
-	ClassLoader bcl = (ClassLoader)
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		    public Object run() {
+	ClassLoader bcl =
+	    AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+		    @Override
+		    public ClassLoader run() {
 			ClassLoader bcl = base.getClassLoader();
 			if (bcl == vc.getClassLoader()) {
 			    return null;
@@ -578,7 +587,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 		if (out.replace) {
 		    logger.log(Level.FINER, "remarshalling verifier");
 		    MarshalInputStream in =
-			new MarshalInputStream(
+			(MarshalInputStream) AtomicMarshalInputStream.create(
 			       new ByteArrayInputStream(bout.toByteArray()),
 			       bcl, false, null, Collections.EMPTY_SET);
 		    in.useCodebaseAnnotations();
@@ -619,14 +628,17 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	    this.bcl = bcl;
 	}
 
+	@Override
 	public Collection getObjectStreamContext() {
 	    return Collections.EMPTY_SET;
 	}
 
+	@Override
 	protected void annotateClass(Class c) throws IOException {
 	    writeAnnotation(c);
 	}
 
+	@Override
 	protected void annotateProxyClass(Class c) throws IOException {
 	    writeAnnotation(c);
 	}
@@ -636,6 +648,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	    writeObject(cb);
 	    if (bcb.equals(cb)) {
 		AccessController.doPrivileged(new PrivilegedAction() {
+			@Override
 			public Object run() {
 			    if (c.getClassLoader() != bcl) {
 				replace = true;
@@ -653,6 +666,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
     private static Method getMethod(Object obj) {
 	final Class base = obj.getClass();
 	return (Method) AccessController.doPrivileged(new PrivilegedAction() {
+		@Override
 		public Object run() {
 		    for (Class c = base; c != null; c = c.getSuperclass()) {
 			try {

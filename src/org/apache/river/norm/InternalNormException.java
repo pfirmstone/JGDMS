@@ -57,7 +57,7 @@ public class InternalNormException extends RuntimeException {
      * @param ex the cause
      */
     public InternalNormException(String str, Throwable ex) {
-	super(str);
+	super(str, ex);
 	nestedException = ex;
     }
 

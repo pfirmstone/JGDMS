@@ -18,28 +18,27 @@
 package org.apache.river.fiddler;
 
 import org.apache.river.proxy.ConstrainableProxyUtil;
-
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
-import net.jini.discovery.LookupDiscoveryService;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.event.RemoteEventListener;
 import net.jini.discovery.LookupDiscoveryRegistration;
+import net.jini.discovery.LookupDiscoveryService;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
-
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.event.RemoteEventListener;
-
-import java.lang.reflect.Method;
-import java.io.InvalidObjectException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
-import java.rmi.RemoteException;
-import java.rmi.MarshalledObject;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * This class is a proxy for a lookup discovery service. Clients only see
@@ -49,6 +48,7 @@ import java.rmi.MarshalledObject;
  * @author Sun Microsystems, Inc.
  *
  */
+@AtomicSerial
 class FiddlerProxy implements Administrable, LookupDiscoveryService,
                               ReferentUuid, Serializable
 {
@@ -94,6 +94,17 @@ class FiddlerProxy implements Administrable, LookupDiscoveryService,
             return new FiddlerProxy(server, proxyID);
         }//endif
     }//end createServiceProxy
+
+    /**
+     * {@link AtomicSerial} constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    FiddlerProxy(GetArg arg) throws IOException {
+	this(check((Fiddler) arg.get("server", null),
+		   (Uuid) arg.get("proxyID", null)),
+	     (Uuid) arg.get("proxyID", null));
+    }
 
     /**
      * Constructs a new instance of FiddlerProxy.
@@ -249,6 +260,10 @@ class FiddlerProxy implements Administrable, LookupDiscoveryService,
                                throws IOException, ClassNotFoundException
     {
         s.defaultReadObject();
+        check(server, proxyID);
+    }//end readObject
+    
+    private static Fiddler check(Fiddler server, Uuid proxyID) throws InvalidObjectException{
         /* Verify server */
         if(server == null) {
             throw new InvalidObjectException("FiddlerProxy.readObject "
@@ -261,7 +276,8 @@ class FiddlerProxy implements Administrable, LookupDiscoveryService,
                                              +"failure - proxyID "
                                              +"field is null");
         }//endif
-    }//end readObject
+	return server;
+    }
 
     /** During deserialization of an instance of this class, if it is found
      *  that the stream contains no data, this method is automatically
@@ -348,6 +364,7 @@ class FiddlerProxy implements Administrable, LookupDiscoveryService,
      *
      * @since 2.0
      */
+    @AtomicSerial
     static final class ConstrainableFiddlerProxy extends FiddlerProxy
                                                  implements RemoteMethodControl
     {
@@ -409,6 +426,35 @@ class FiddlerProxy implements Administrable, LookupDiscoveryService,
             super( constrainServer(server, methodConstraints), proxyID);
 	    this.methodConstraints = methodConstraints;
         }//end constructor
+
+	/**
+	 * {@link AtomicSerial} constructor.
+	 * @param arg
+	 * @throws IOException 
+	 */
+	ConstrainableFiddlerProxy(GetArg arg) throws IOException {
+	    super(check(arg));
+	    this.methodConstraints 
+		    = (MethodConstraints) arg.get("methodConstraints", null);
+	}
+	
+	/**
+	 * Validate invariants before calling superclass constructor.
+	 * @param arg
+	 * @return
+	 * @throws IOException 
+	 */
+	private static GetArg check(GetArg arg) throws IOException {
+	    FiddlerProxy fp = new FiddlerProxy(arg);
+	    MethodConstraints methodConstraints 
+		    = (MethodConstraints) arg.get("methodConstraints", null);
+	    /* Verify the server and its constraints */
+            ConstrainableProxyUtil.verifyConsistentConstraints
+                                                       (methodConstraints,
+                                                        fp.server,
+                                                        methodMapArray);
+	    return arg;
+	}
 
         /** Returns a copy of the given server proxy having the client method
          *  constraints that result after the specified method mapping is

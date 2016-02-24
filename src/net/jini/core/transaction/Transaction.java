@@ -17,9 +17,12 @@
  */
 package net.jini.core.transaction;
 
+import java.io.IOException;
+import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
-import java.rmi.RemoteException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Interface for classes representing transactions returned by
@@ -82,6 +85,7 @@ import java.rmi.RemoteException;
 public interface Transaction {
 
     /** Class that holds return values from create methods. */
+    @AtomicSerial
     public static class Created implements java.io.Serializable {
 	static final long serialVersionUID = -5199291723008952986L;
 
@@ -106,6 +110,16 @@ public interface Transaction {
 	    this.transaction = transaction;
 	    this.lease = lease;
         }
+	
+	/**
+	 * AtomicSerial constructor.
+	 * @param arg
+	 * @throws IOException 
+	 */
+	public Created(GetArg arg) throws IOException{
+	    this(arg.get("transaction", null, Transaction.class),
+		    arg.get("lease", null, Lease.class));
+	}
 
         // inherit javadoc
         public String toString() {

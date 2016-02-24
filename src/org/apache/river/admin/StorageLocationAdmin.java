@@ -35,6 +35,8 @@ public interface StorageLocationAdmin {
      * Returns the location of the service's persistent storage.
      * Typically returns a directory pathname unless the service
      * specifies otherwise.
+     * @return the location of the service's persistent storage
+     * @throws java.rmi.RemoteException
      */
     String getStorageLocation() throws RemoteException;
 
@@ -43,7 +45,9 @@ public interface StorageLocationAdmin {
      * moving all current persistent storage from the current
      * location to the specified new location.
      *
+     * @param location of the service's persistent storage.
      * @exception IOException if moving the persistent storage fails
+     * @throws java.rmi.RemoteException
      */
     void setStorageLocation(String location)
 	throws IOException, RemoteException;

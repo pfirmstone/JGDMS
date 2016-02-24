@@ -18,7 +18,6 @@
 
 package net.jini.security;
 
-import org.apache.river.collection.WeakIdentityMap;
 import org.apache.river.logging.Levels;
 import org.apache.river.resource.Service;
 import java.lang.ref.SoftReference;
@@ -42,14 +41,14 @@ import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -166,7 +165,8 @@ public final class Security {
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
      */
-    private static final WeakIdentityMap integrityMap = new WeakIdentityMap();
+    private static final Map<ClassLoader,SoftReference<IntegrityVerifier[]>> integrityMap 
+	    = new WeakHashMap<ClassLoader,SoftReference<IntegrityVerifier[]>>();
 
     /**
      * SecurityManager instance used to obtain caller's Class.
@@ -401,19 +401,19 @@ public final class Security {
     private static IntegrityVerifier[] getIntegrityVerifiers(
 							final ClassLoader cl)
     {
-	SoftReference ref;
+	SoftReference<IntegrityVerifier[]> ref;
 	synchronized (integrityMap) {
-	    ref = (SoftReference) integrityMap.get(cl);
+	    ref = integrityMap.get(cl);
 	}
 	IntegrityVerifier[] verifiers = null;
 	if (ref != null) {
-	    verifiers = (IntegrityVerifier[]) ref.get();
+	    verifiers = ref.get();
 	}
 	if (verifiers == null) {
-	    final ArrayList list = new ArrayList(1);
+	    final List<IntegrityVerifier> list = new LinkedList<IntegrityVerifier>();
 	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {
-		    for (Iterator iter =
+		    for (Iterator<IntegrityVerifier> iter =
 			     Service.providers(IntegrityVerifier.class, cl);
 			 iter.hasNext(); )
 		    {
@@ -428,10 +428,9 @@ public final class Security {
 				     "integrity verifiers {0}",
 				     new Object[]{list});
 	    }
-	    verifiers = (IntegrityVerifier[]) list.toArray(
-					  new IntegrityVerifier[list.size()]);
+	    verifiers = list.toArray( new IntegrityVerifier[list.size()]);
 	    synchronized (integrityMap) {
-		integrityMap.put(cl, new SoftReference(verifiers));
+		integrityMap.put(cl, new SoftReference<IntegrityVerifier[]>(verifiers));
 	    }
 	}
 	return verifiers;
@@ -487,7 +486,7 @@ public final class Security {
      * principals of the <code>Subject</code>, as well as the ability to use
      * credentials of the <code>Subject</code> for authentication.
      * 
-     * @param <T> 
+     * @param <T> type of object result from PrivilegedAction
      * @param action the action to be executed
      * @return the object returned by the action's <code>run</code> method
      * @throws NullPointerException if the action is <code>null</code>
@@ -497,6 +496,7 @@ public final class Security {
 	final AccessControlContext acc = AccessController.getContext();
 	return AccessController.doPrivileged(new PrivilegedAction<T>() {
             
+	    @Override
 	    public T run() {
 		return AccessController.doPrivileged(
 		    action, createPrivilegedContext(caller, acc));
@@ -518,7 +518,7 @@ public final class Security {
      * to principals of the <code>Subject</code>, as well as the ability to use
      * credentials of the <code>Subject</code> for authentication.
      * 
-     * @param <T> 
+     * @param <T> type of object result from PrivilegedExceptionAction
      * @param action the action to be executed
      * @return the object returned by the action's <code>run</code> method
      * @throws PrivilegedActionException if the action's <code>run</code>
@@ -532,6 +532,7 @@ public final class Security {
 	final AccessControlContext acc = AccessController.getContext();
 	return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
             
+	    @Override
 	    public T run() throws Exception {
 		try {
 		    return AccessController.doPrivileged(
@@ -577,6 +578,7 @@ public final class Security {
      * privileges, only reduce them to those determined by a policy for a 
      * particular Subject.
      * <p>
+     * @param <T> type of object result from PrivilegedAction
      * @param subject  The Subject the work will be performed as, may be null.
      * @param action  The code to be run as the Subject.
      * @return   The value returned by the PrivilegedAction's run() method.
@@ -626,11 +628,13 @@ public final class Security {
      * privileges, only reduce them to those determined by a policy for a 
      * particular Subject.
      * <p>
+     * @param <T> type of object result from PrivilegedExceptionAction
      * @param subject  The Subject the work will be performed as, may be null.
      * @param action  The code to be run as the Subject.
      * @return   The value returned by the PrivilegedAction's run() method.
      * @throws  NullPointerException if action is null;
-     * @throws PrivilegedActionException 
+     * @throws PrivilegedActionException if the specified action's run method
+     * throws a check exception.
      * @since 3.0.0
      */
     public static <T> T doAs(final Subject subject,
@@ -654,6 +658,7 @@ public final class Security {
      * Unlike Security.doAs which doesn't require any privileges, this method 
      * requires the same Permission as Subject.doAsPrivileged to execute.
      * 
+     * @param <T> type of object result from PrivilegedAction
      * @param subject  The Subject the work will be performed as, may be null.
      * @param action  The code to be run as the Subject.
      * @param context  The SecurityContext to be tied to the specific action
@@ -687,6 +692,7 @@ public final class Security {
      * Unlike Security.doAs which doesn't require any privileges, this method 
      * requires the same Permission as Subject.doAsPrivileged to execute.
      * 
+     * @param <T> type of object result from PrivilegedExceptionAction
      * @param subject  The Subject the work will be performed as, may be null.
      * @param action  The code to be run as the Subject.
      * @param context  The SecurityContext to be tied to the specific action
@@ -1028,7 +1034,8 @@ public final class Security {
 	/**
 	 * Weak map from ClassLoader to SoftReference(TrustVerifier[]).
 	 */
-	private static final WeakIdentityMap map = new WeakIdentityMap();
+	private static final Map<ClassLoader,SoftReference> map 
+		= new WeakHashMap<ClassLoader,SoftReference>();
 
 	/**
 	 * Creates an instance containing the trust verifiers found from

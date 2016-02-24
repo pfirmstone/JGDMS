@@ -29,7 +29,7 @@ import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.UnknownGroupException;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.util.Properties;
 import java.util.Arrays;
 import java.util.List;
@@ -195,8 +195,8 @@ public class ServiceStarterCreateSharedGroupTest extends StarterBase implements 
             ois = new ObjectInputStream(
                       new BufferedInputStream(
                          new FileInputStream(cookieFile)));
-            MarshalledObject mo = (MarshalledObject)ois.readObject();
-	    obj = (ActivationGroupID)mo.get();
+            MarshalledInstance mo = (MarshalledInstance)ois.readObject();
+	    obj = (ActivationGroupID)mo.get(false);
         } finally {
             if (ois != null) ois.close();
         }

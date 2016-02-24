@@ -19,29 +19,23 @@
 
 package org.apache.river.test.spec.renewalservice;
 
-import java.util.logging.Logger;
-import java.util.logging.Level;
-
-// java.io
-import java.io.IOException;
-
-// java.rmi
-import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
-
-// net.jini
-import net.jini.core.event.EventRegistration;
-import net.jini.core.lease.Lease;
-import net.jini.lease.ExpirationWarningEvent;
-import net.jini.lease.RenewalFailureEvent;
-import net.jini.lease.LeaseRenewalService;
-import net.jini.lease.LeaseRenewalSet;
-import net.jini.core.lease.UnknownLeaseException;
-
-import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.TestException;
 import org.apache.river.test.share.RememberingRemoteListener;
+import java.io.IOException;
+import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.io.MarshalledInstance;
+import net.jini.lease.ExpirationWarningEvent;
+import net.jini.lease.LeaseRenewalService;
+import net.jini.lease.LeaseRenewalSet;
+import net.jini.lease.RenewalFailureEvent;
 
 /**
  * This class provides methods to perform often used convenience routines.
@@ -387,7 +381,7 @@ public class LeaseRenewalServiceTestUtil extends Object {
 
 	Lease[] leaseArray = new Lease[array.length];
 	for (int i = 0; i < array.length; ++i) {
-	    leaseArray[i] = (Lease) array[i].get();
+	    leaseArray[i] = (Lease) new MarshalledInstance(array[i]).get(false);
 	}
 
 	return indexOfLease(lease, leaseArray);

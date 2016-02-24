@@ -52,9 +52,9 @@ import java.security.PrivilegedExceptionAction;
  *          ctx.wrap(action), ctx.getAccessControlContext());
  * </pre>
  * 
- * <BOLD>
+ * <b>
  * Implementations must override Object equals and hashCode.
- * </BOLD>
+ * </b>
  * 
  * @author Sun Microsystems, Inc.
  * 

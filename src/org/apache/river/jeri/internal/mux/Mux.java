@@ -135,7 +135,7 @@ abstract class Mux {
     String muxDownMessage;
     Throwable muxDownCause;
 
-    final BitSet busySessions = new BitSet();
+    final BitSet busySessions = new BitSet(MAX_SESSION_ID + 1);
     final Session [] sessions = new Session[MAX_SESSION_ID + 1];
 
     private int expectedPingCookie = -1;

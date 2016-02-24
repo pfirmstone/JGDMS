@@ -18,7 +18,13 @@
 
 package net.jini.core.event;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * The base class or superclass for remote events.
@@ -48,7 +54,7 @@ import java.rmi.MarshalledObject;
  * that can support it.  This guarantee states that not only do sequence
  * numbers increase, but they are not skipped.  In such a case, if
  * RemoteEvent x and y have the same source and the same event identifier,
- * and x has sequence number m and y has sequence number n, then if m < n 
+ * and x has sequence number m and y has sequence number n, then if m &lt; n 
  * there were exactly n-m-1 events of the same event type between the event 
  * that triggered x and the event that triggered y. Such sequence numbers 
  * are said to be "fully ordered".
@@ -78,6 +84,7 @@ import java.rmi.MarshalledObject;
  *
  * @since 1.0
  */
+@AtomicSerial
 public class RemoteEvent extends java.util.EventObject {
 
     private static final long serialVersionUID = 1777278867291906446L;
@@ -109,6 +116,27 @@ public class RemoteEvent extends java.util.EventObject {
      * @serial
      */
     private final MarshalledObject handback;
+
+    private static Object check(GetArg arg) throws IOException {
+	Object source = Valid.notNull(arg.get("source", null),"source cannot be null");
+	arg.get("eventID", 0L);
+	long seqNum = arg.get("seqNum", -1L);
+	if (seqNum < 0) throw new InvalidObjectException("seqNum may have overflowed, less than zero");
+	arg.get("handback", null, MarshalledObject.class); // Type check
+	return source;
+    }
+    
+    public RemoteEvent(GetArg arg) throws IOException {
+	this (arg, check(arg));
+    }
+    
+    private RemoteEvent(GetArg arg, Object source) throws IOException{
+	super(source);
+	this.source = source;
+	eventID = arg.get("eventID", -1L);
+	seqNum = arg.get("seqNum", -1L);
+	handback = (MarshalledObject) arg.get("handback", null);
+    }
 
     /**
      * Constructs a RemoteEvent object.
@@ -179,8 +207,15 @@ public class RemoteEvent extends java.util.EventObject {
 	return handback;
     }
 
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
+    }
+
     /**
      * Serialization support
+     * @param stream ObjectInputStream
+     * @throws ClassNotFoundException if class not found.
+     * @throws java.io.IOException if a problem occurs during de-serialization.
      */
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException

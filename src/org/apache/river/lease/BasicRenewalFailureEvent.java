@@ -20,11 +20,14 @@ package org.apache.river.lease;
 import org.apache.river.proxy.MarshalledWrapper;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.lease.Lease;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.lease.RenewalFailureEvent;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Basic implementation of <code>RenewalFailureEvent</code> that
@@ -37,6 +40,7 @@ import net.jini.lease.RenewalFailureEvent;
  * @author Sun Microsystems, Inc.
  * @see LeaseRenewalSet 
  */
+@AtomicSerial
 public class BasicRenewalFailureEvent extends RenewalFailureEvent {
     private static final long serialVersionUID = 4122133697986606684L;
 
@@ -54,6 +58,25 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      * @serial 
      */
     private final MarshalledInstance marshalledLease;
+
+    private static GetArg check(GetArg arg) throws IOException {
+	MarshalledInstance marshalledThrowable = 
+		(MarshalledInstance) arg.get("marshalledThrowable", null);
+	MarshalledInstance marshalledLease = 
+		(MarshalledInstance) arg.get("marshalledLease", null);
+	if (marshalledThrowable == null && marshalledLease == null) throw
+		new NullPointerException("At least one field must be non null");
+	return arg;
+    }
+    
+    public BasicRenewalFailureEvent(GetArg arg) throws IOException {
+	super(arg);
+	marshalledThrowable = 
+		(MarshalledInstance) arg.get("marshalledThrowable", null);
+	marshalledLease = 
+		(MarshalledInstance) arg.get("marshalledLease", null);
+	verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(arg);
+    }
 
     /**
      * Transient cache of lease returned by <code>getLease</code> method.  
@@ -155,6 +178,10 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
 	}
 
 	return throwable;
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+	out.defaultWriteObject();
     }
 
     /* Set transient fields. */

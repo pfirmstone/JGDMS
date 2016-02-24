@@ -117,11 +117,15 @@ public interface RemotePolicy {
      * Permissions required by the callers Subject should be set in the 
      * local policy files at the RemotePolicy server.
      * 
+     * When granting a Permission, if its class is contained
+     * within a downloaded code, remember to use UnresolvedPermission instead,
+     * in case the class isn't present at the client.
+     * 
      * Where an IOException is thrown, no update to the
      * RemotePolicy has occurred.
      * 
-     * @param policyPermissions
-     * @throws java.io.IOException 
+     * @param policyPermissions PermissionGrant array.
+     * @throws java.io.IOException if connection problem occurs.
      */
     public void replace(PermissionGrant[] policyPermissions) throws IOException;
 }
