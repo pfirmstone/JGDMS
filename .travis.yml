@@ -1,0 +1,5 @@
+language: java
+install: ant jtreg
+jdk:
+  - oraclejdk8
+  - oraclejdk7 
