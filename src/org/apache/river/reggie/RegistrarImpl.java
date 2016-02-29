@@ -734,22 +734,28 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 *
 	 * @serial
 	 */
-	public final MarshalledObject handback;
+	public final Object handback;
 	/**
 	 * The lease expiration time.
 	 *
 	 * @serial
 	 */
 	private long leaseExpiration;
+	/**
+	 * 
+	 *  
+	 */
+	transient boolean newNotify;
 	
 	public EventReg(GetArg arg) throws IOException {
 	    this(arg.get("eventID", 0L),
-		    (Uuid) arg.get("leaseID", null),
-		    (Template) arg.get("tmpl", null),
+		    arg.get("leaseID", null, Uuid.class),
+		    arg.get("tmpl", null, Template.class),
 		    arg.get("transitions", 0),
 		    null,
-		    (MarshalledObject) arg.get("handback", null),
-		    arg.get("leaseExpiration", 0L)
+		    arg.get("handback", null),
+		    arg.get("leaseExpiration", 0L),
+		    true
 		    );
 	    seqNo = arg.get("seqNo", 0L);
 	}
@@ -757,7 +763,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	/** Simple constructor */
 	public EventReg(long eventID, Uuid leaseID, Template tmpl,
 			int transitions, RemoteEventListener listener,
-			MarshalledObject handback, long leaseExpiration) {
+			Object handback, long leaseExpiration, boolean newNotify) {
 	    this.eventID = eventID;
 	    this.leaseID = leaseID;
 	    this.tmpl = tmpl;
@@ -766,6 +772,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    this.listener = listener;
 	    this.handback = handback;
 	    this.leaseExpiration = leaseExpiration;
+	    this.newNotify = newNotify;
 	}
         
         long incrementAndGetSeqNo(){
@@ -2087,9 +2094,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         private final long now;
         /* The listener */
         private final RemoteEventListener listener;
+	private final boolean newNotify;
 
 	/** Simple constructor, except increments reg.seqNo. */
-	public EventTask(EventReg reg, ServiceID sid, Item item, int transition, RegistrarProxy proxy, Registrar registrar, long now)
+	public EventTask(EventReg reg,
+			ServiceID sid,
+			Item item,
+			int transition,
+			RegistrarProxy proxy,
+			Registrar registrar,
+			long now)
 	{
 	    this.reg = reg;
             this.listener = reg.listener;
@@ -2100,6 +2114,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             this.proxy = proxy;
             this.registrar = registrar;
             this.now = now;
+	    this.newNotify = reg.newNotify;
 	}
 
 	/** Send the event */
@@ -2112,9 +2127,31 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    new Object[]{ listener, Long.valueOf(reg.eventID) });
 	    }
 	    try {
-		listener.notify(new RegistrarEvent(proxy, reg.eventID,
-						       seqNo, reg.handback,
-						       sid, transition, item));
+		if (!newNotify){
+		    listener.notify(
+			new RegistrarEvent(proxy,
+			    reg.eventID,
+			    seqNo,
+			    (MarshalledObject) reg.handback,
+			    sid,
+			    transition,
+			    item
+			)
+		    );
+		} else {
+		    listener.notify(
+			new RegistrarEvent(proxy,
+			    reg.eventID,
+			    seqNo,
+			    reg.handback !=null ?
+				((MarshalledInstance) reg.handback).convertToMarshalledObject()
+				: null,
+			    sid,
+			    transition,
+			    item.bootstrapProxy
+			)
+		    );
+		}
                 return Boolean.TRUE;
 	    } catch (Throwable e) {
 		switch (ThrowableConstants.retryable(e)) {
@@ -3244,7 +3281,34 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	concurrentObj.writeLock();
 	try {
 	    EventRegistration reg = notifyDo(
-		tmpl, transitions, listener, handback, leaseDuration);
+		tmpl, transitions, listener, handback, leaseDuration, false);
+	    if (logger.isLoggable(Level.FINE)) {
+		logger.log(
+		    Level.FINE,
+		    "registered event listener {0} as {1}",
+		    new Object[]{
+			listener,
+			((ReferentUuid) reg.getLease()).getReferentUuid()
+		    });
+	    }
+	    return reg;
+	} finally {
+	    concurrentObj.writeUnlock();
+	}
+    }
+    
+    // This method's javadoc is inherited from an interface of this class
+    public EventRegistration notiFy(Template tmpl,
+				    int transitions,
+				    RemoteEventListener listener,
+				    MarshalledInstance handback,
+				    long leaseDuration)
+	throws RemoteException
+    {	
+	concurrentObj.writeLock();
+	try {
+	    EventRegistration reg = notifyDo(
+		tmpl, transitions, listener, handback, leaseDuration, true);
 	    if (logger.isLoggable(Level.FINE)) {
 		logger.log(
 		    Level.FINE,
@@ -5327,8 +5391,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private EventRegistration notifyDo(Template tmpl,
 				       int transitions,
 				       RemoteEventListener listener,
-				       MarshalledObject handback,
-				       long leaseDuration)
+				       Object handback,
+				       long leaseDuration,
+				       boolean newNotify)
 	throws RemoteException
     {
 	if (transitions == 0 ||
@@ -5344,7 +5409,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	leaseDuration = limitDuration(leaseDuration, maxEventLease);
 	long now = System.currentTimeMillis();
 	EventReg reg = new EventReg(eventID, newLeaseID(), tmpl, transitions,
-				    listener, handback, now + leaseDuration);
+			    listener, handback, now + leaseDuration, newNotify);
 	eventID++;
 	addEvent(reg);
 	addLogRecord(new EventRegisteredLogObj(reg));

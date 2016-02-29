@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
@@ -205,6 +206,17 @@ public class RemoteEvent extends java.util.EventObject {
      */
     public MarshalledObject getRegistrationObject() {
 	return handback;
+    }
+    
+    /**
+     * Returns the handback object that was provided as a parameter to
+     * the event interest registration method, if any.
+     *
+     * @return the MarshalledInstance that was provided as a parameter to
+     *         the event interest registration method, if any. 
+     */
+    public MarshalledInstance getRegistrationObject2() {
+	return new MarshalledInstance(handback);
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {

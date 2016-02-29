@@ -49,6 +49,7 @@ import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -193,6 +194,19 @@ class RegistrarProxy
 	throws RemoteException
     {
 	return server.notify(new Template(tmpl), transitions, listener,
+			     handback, leaseDuration);
+    }
+    
+    // Inherit javadoc
+    @Override
+    public EventRegistration notiFy(ServiceTemplate tmpl,
+				    int transitions,
+				    RemoteEventListener listener,
+				    MarshalledInstance handback,
+				    long leaseDuration)
+	throws RemoteException
+    {
+	return server.notiFy(new Template(tmpl), transitions, listener,
 			     handback, leaseDuration);
     }
 

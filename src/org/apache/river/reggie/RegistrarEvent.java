@@ -22,10 +22,16 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Proxy;
 import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
+import net.jini.export.ServiceProxyAccessor;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
@@ -44,8 +50,9 @@ class RegistrarEvent extends ServiceEvent {
 
     /**
      * The new state of the serviceItem, or null if the serviceItem has been
-     * deleted from the lookup service.  This is either a ServiceItem
-     * or an Item (to be converted to a ServiceItem when getServiceItem is called).
+     * deleted from the lookup service.  This is either a ServiceItem,
+     * an Item (to be converted to a ServiceItem when getServiceItem is called),
+     * or a bootstrapProxy;
      *
      * @serial
      */
@@ -67,7 +74,9 @@ class RegistrarEvent extends ServiceEvent {
 	Object serviceItem = arg.get("serviceItem", null);
 	if (serviceItem == null ||
 	    serviceItem instanceof ServiceItem ||
-	    serviceItem instanceof Item)
+	    serviceItem instanceof Item ||
+	    serviceItem instanceof ServiceProxyAccessor && 
+		Proxy.isProxyClass(serviceItem.getClass()))
 	{
 	    RO r = (RO) arg.getReader();
 	    if (r.servID instanceof ServiceID) return arg;
@@ -98,7 +107,7 @@ class RegistrarEvent extends ServiceEvent {
 			  MarshalledObject handback,
 			  ServiceID serviceID,
 			  int transition,
-			  Item item)
+			  Object item)
     {
 	super(source, eventID, seqNo, handback, null, transition);
 	this.serviceItem = item;
@@ -114,8 +123,24 @@ class RegistrarEvent extends ServiceEvent {
 	    return ((ServiceItem) serviceItem).clone();
 	} else if (serviceItem instanceof Item) {
 	    serviceItem = ((Item)serviceItem).get();
+	} else if (serviceItem instanceof ServiceProxyAccessor){
+	    try {
+		serviceItem = ((ServiceProxyAccessor) serviceItem).getServiceProxy();
+	    } catch (RemoteException ex) {
+		serviceItem = null;
+	    };
 	}
 	return (ServiceItem)serviceItem;
+    }
+    
+    public Object getBootstrapProxy(){
+	if (serviceItem instanceof Item){
+	    return ((Item)serviceItem).bootstrapProxy;
+	} else if (serviceItem instanceof ServiceItem){
+	    return null;
+	} else {
+	    return serviceItem;
+	}
     }
 
     // javadoc inherited from ServiceEvent

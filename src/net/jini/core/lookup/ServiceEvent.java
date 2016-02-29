@@ -161,8 +161,16 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      */
     public abstract ServiceItem getServiceItem();
     
+    /**
+     * Returns a bootstrap proxy from which the new state of the item can be
+     * retrieved.
+     * 
+     * The returned bootstrap proxy should be prepared prior to use.
+     * 
+     * @return a bootstrap proxy.
+     */
     public Object getBootstrapProxy(){
-	throw new UnsupportedOperationException("Lookup service doesn't support secure lookup");
+	return null;
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
