@@ -186,7 +186,7 @@ final class Item implements Serializable, Cloneable {
      * Bootstrap proxy for registrar default method.
      * @serial
      */
-    private Proxy bootstrapProxy;
+    Proxy bootstrapProxy;
 
     /**
      * List view of attributeSets

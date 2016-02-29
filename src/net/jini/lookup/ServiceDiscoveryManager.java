@@ -612,8 +612,8 @@ import org.apache.river.lookup.entry.LookupAttributes;
  */
 public class ServiceDiscoveryManager {
     
-    private final ProxyPreparer bootstrapProxyPreparer;
-    private final boolean useInsecureLookup;
+    final ProxyPreparer bootstrapProxyPreparer;
+    final boolean useInsecureLookup;
 
 
     /**
@@ -2041,7 +2041,11 @@ public class ServiceDiscoveryManager {
         int transition = (ServiceRegistrar.TRANSITION_NOMATCH_MATCH
                 | ServiceRegistrar.TRANSITION_MATCH_NOMATCH
                 | ServiceRegistrar.TRANSITION_MATCH_MATCH);
-        e = proxy.notify(tmpl, transition, listenerProxy, null, duration);
+	if (useInsecureLookup){
+	    e = proxy.notify(tmpl, transition, listenerProxy, null, duration);
+	} else {
+	    e = proxy.notiFy(tmpl, transition, listenerProxy, null, duration);
+	}
         /* Proxy preparation -
          *
          * Prepare the proxy to the lease on the event registration just

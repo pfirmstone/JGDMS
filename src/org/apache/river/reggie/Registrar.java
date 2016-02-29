@@ -17,9 +17,6 @@
  */
 package org.apache.river.reggie;
 
-import org.apache.river.admin.DestroyAdmin;
-import org.apache.river.proxy.MarshalledWrapper;
-import net.jini.export.ServiceProxyAccessor;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -31,8 +28,12 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistration;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.lookup.DiscoveryAdmin;
+import org.apache.river.admin.DestroyAdmin;
+import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * Registrar defines the private protocol between the various client-side
@@ -86,6 +87,17 @@ interface Registrar
 			     int transitions,
 			     RemoteEventListener listener,
 			     MarshalledObject handback,
+			     long leaseDuration)
+	throws RemoteException;
+    
+    /**
+     * Registers for event notification.
+     * @see net.jini.core.lookup.ServiceRegistrar#notify
+     */
+    EventRegistration notiFy(Template tmpl,
+			     int transitions,
+			     RemoteEventListener listener,
+			     MarshalledInstance handback,
 			     long leaseDuration)
 	throws RemoteException;
 

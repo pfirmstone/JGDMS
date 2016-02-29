@@ -153,7 +153,8 @@ public interface ServiceRegistrar {
     default Object [] lookUp(
 	    ServiceTemplate tmpl, int maxProxies) throws RemoteException
     {
-	throw new UnsupportedOperationException("Lookup service doesn't support secure lookup");
+//	throw new UnsupportedOperationException("Lookup service doesn't support secure lookup");
+	return new Object[0];
     }
 
     /**

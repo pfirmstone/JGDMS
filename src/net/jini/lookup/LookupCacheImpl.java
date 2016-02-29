@@ -21,6 +21,7 @@ package net.jini.lookup;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,7 +43,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.config.ConfigurationException;
+import net.jini.core.entry.Entry;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.UnknownEventException;
@@ -53,6 +56,8 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.export.Exporter;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
@@ -161,7 +166,41 @@ final class LookupCacheImpl implements LookupCache {
 		throw new UnknownEventException("ServiceEvent required,not: " + evt.toString());
 	    }
 	    ServiceEvent theEvent = (ServiceEvent) evt;
-	    notifyServiceMap(theEvent.getSource(), theEvent.getID(), theEvent.getSequenceNumber(), theEvent.getServiceID(), theEvent.getServiceItem(), theEvent.getTransition());
+	    if (sdm.useInsecureLookup){
+		notifyServiceMap(
+		    theEvent.getSource(),
+		    theEvent.getID(),
+		    theEvent.getSequenceNumber(),
+		    theEvent.getServiceID(),
+		    theEvent.getServiceItem(),
+		    theEvent.getTransition()
+		);
+	    } else {
+		ServiceItem item = null;
+		ServiceID id;
+		Object proxy = theEvent.getBootstrapProxy();
+		Entry [] attributes;
+		proxy = sdm.bootstrapProxyPreparer.prepareProxy(proxy);
+		try {
+		    id = ((ServiceIDAccessor)proxy).serviceID();
+		    attributes = ((ServiceAttributesAccessor)proxy).getServiceAttributes();
+		    item = new ServiceItem(id, proxy, attributes);
+		} catch (IOException ex) {
+		    sdm.logger.log(Level.FINE, 
+			"exception thrown while attempting to establish contact via a bootstrap proxy"
+			, ex
+		    );
+		    // Item will be null.
+		}
+		notifyServiceMap(
+		    theEvent.getSource(),
+		    theEvent.getID(),
+		    theEvent.getSequenceNumber(),
+		    theEvent.getServiceID(),
+		    item,
+		    theEvent.getTransition()
+		);
+	    }
 	}
 
 	/**
@@ -652,6 +691,23 @@ final class LookupCacheImpl implements LookupCache {
 	return ret;
     } //end LookupCacheImpl.getServiceItems
 
+    ServiceItem [] processBootStrapProxys(Object [] proxys){
+	int length = proxys.length;
+	Collection<ServiceItem> result = new ArrayList<ServiceItem>(length);
+	for (int i = 0; i < length; i++){
+	    Object bootstrap;
+	    Entry [] attributes;
+	    ServiceID id;
+	    try {
+		bootstrap = sdm.bootstrapProxyPreparer.prepareProxy(proxys[i]);
+		attributes = ((ServiceAttributesAccessor) bootstrap).getServiceAttributes();
+		id = ((ServiceIDAccessor) bootstrap).serviceID();
+		result.add(new ServiceItem(id, bootstrap, attributes));
+	    } catch (IOException ex) { } //ignore
+	}
+	return result.toArray(new ServiceItem[result.size()]);
+    }
+    
     // This method's javadoc is inherited from an interface of this class
     @Override
     public void addListener(ServiceDiscoveryListener listener) {
@@ -761,7 +817,13 @@ final class LookupCacheImpl implements LookupCache {
      * that is ultimately c by the RegisterListenerTask (whose listener
      * registration caused this method to be invoked in the first place).
      */
-    private void notifyServiceMap(Object eventSource, long eventID, long seqNo, ServiceID sid, ServiceItem item, int transition) {
+    private void notifyServiceMap(Object eventSource, 
+				    long eventID, 
+				    long seqNo,
+				    ServiceID sid,
+				    ServiceItem item,
+				    int transition) 
+    {
 	if (eventSource == null) {
 	    return;
 	}
@@ -825,29 +887,35 @@ final class LookupCacheImpl implements LookupCache {
     private void lookup(ProxyReg reg, EventReg eReg) {
 	assert Thread.holdsLock(eReg);
 	ServiceRegistrar proxy = reg.getProxy();
-	ServiceMatches matches;
+	ServiceItem[] items;
 	/* For the given lookup, get all services matching the tmpl */
 	try {
 	    // Don't like the fact that we're calling foreign code while
 	    // holding an object lock, however holding this lock doesn't
 	    // provide an opportunity for DOS as the lock only relates to a specific
 	    // ServiceRegistrar and doesn't interact with client code.
-	    matches = proxy.lookup(tmpl, Integer.MAX_VALUE);
+	    if (sdm.useInsecureLookup){
+		ServiceMatches matches = proxy.lookup(tmpl, Integer.MAX_VALUE);
+		items = matches.items;
+	    } else {
+		Object [] matches = proxy.lookUp(tmpl, Integer.MAX_VALUE);
+		items = processBootStrapProxys(matches);
+	    }
 	} catch (Exception e) {
 	    // ReRegisterGoodEquals test failure becomes more predictable
 	    // when fail is only called if decrement is successful.
 	    sdm.fail(e, proxy, this.getClass().getName(), "run", "Exception occurred during call to lookup", bCacheTerminated);
 	    return;
 	}
-	if (matches.items == null) {
-	    throw new AssertionError("spec violation in queried " + "lookup service: ServicesMatches instance " + "returned by call to lookup() method contains " + "null 'items' field");
+	if (items == null) {
+	    throw new AssertionError("spec violation in queried lookup service: ServicesMatches instance returned by call to lookup() method contains null 'items' field");
 	}
 	/* 1. Cleanup "orphaned" itemReg's. */
 	Iterator<Map.Entry<ServiceID, ServiceItemReg>> iter = serviceIdMap.entrySet().iterator();
 	while (iter.hasNext()) {
 	    Map.Entry<ServiceID, ServiceItemReg> e = iter.next();
 	    ServiceID srvcID = e.getKey();
-	    ServiceItem itemInSnapshot = findItem(srvcID, matches.items);
+	    ServiceItem itemInSnapshot = findItem(srvcID, items);
 	    if (itemInSnapshot != null) {
 		continue; //not an orphan
 	    }
@@ -875,12 +943,12 @@ final class LookupCacheImpl implements LookupCache {
 	    }
 	} //end loop
 	/* 2. Handle "new" and "old" items from the given lookup */
-	for (int i = 0, l = (matches.items).length; i < l; i++) {
+	for (int i = 0, l = items.length; i < l; i++) {
 	    /* Skip items with null service field (Bug 4378751) */
-	    if ((matches.items[i]).service == null) {
+	    if (items[i].service == null) {
 		continue;
 	    }
-	    newOldService(reg, matches.items[i], false);
+	    newOldService(reg, items[i], false);
 	} //end loop
     }
 
