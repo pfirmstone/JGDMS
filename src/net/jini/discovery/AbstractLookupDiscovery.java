@@ -18,28 +18,16 @@
 
 package net.jini.discovery;
 
-import org.apache.river.config.Config;
-import org.apache.river.config.LocalHostLookup;
-import org.apache.river.discovery.Discovery;
-import org.apache.river.discovery.DiscoveryConstraints;
-import org.apache.river.discovery.DiscoveryProtocolException;
-import org.apache.river.discovery.EncodeIterator;
-import org.apache.river.discovery.MulticastAnnouncement;
-import org.apache.river.discovery.MulticastRequest;
-import org.apache.river.discovery.UnicastResponse;
-import org.apache.river.discovery.internal.MultiIPDiscovery;
-import org.apache.river.logging.Levels;
-import org.apache.river.logging.LogUtil;
-import org.apache.river.thread.WakeupManager;
-import org.apache.river.thread.WakeupManager.Ticket;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
-import java.net.MulticastSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -73,8 +61,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
@@ -90,7 +78,21 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.config.Config;
+import org.apache.river.config.LocalHostLookup;
+import org.apache.river.discovery.Discovery;
+import org.apache.river.discovery.DiscoveryConstraints;
+import org.apache.river.discovery.DiscoveryProtocolException;
+import org.apache.river.discovery.EncodeIterator;
+import org.apache.river.discovery.MulticastAnnouncement;
+import org.apache.river.discovery.MulticastRequest;
+import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.internal.MultiIPDiscovery;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 import org.apache.river.thread.NamedThreadFactory;
+import org.apache.river.thread.WakeupManager;
+import org.apache.river.thread.WakeupManager.Ticket;
 
 
 /**

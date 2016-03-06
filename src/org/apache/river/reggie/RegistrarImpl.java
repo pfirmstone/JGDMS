@@ -113,6 +113,7 @@ import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceCodebaseAccessor;
 import net.jini.export.ServiceIDAccessor;
 import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
@@ -146,6 +147,7 @@ import org.apache.river.discovery.MulticastRequest;
 import org.apache.river.discovery.UnicastResponse;
 import org.apache.river.logging.Levels;
 import org.apache.river.lookup.entry.BasicServiceType;
+import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.proxy.MarshalledWrapper;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
@@ -169,7 +171,9 @@ import org.apache.river.thread.SynchronousExecutors;
  *
  */
 class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Startable,
-	ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor{
+	ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor,
+	ServiceCodebaseAccessor
+{
 
     /** Maximum minMax lease duration for both services and events */
     private static final long MAX_LEASE = 1000L * 60 * 60 * 24 * 365 * 1000;
@@ -408,6 +412,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private Configuration config;
     private Exception constructionException;
     private AccessControlContext context;
+    private final String certFactoryType;
+    private final String certPathEncoding;
+    private final byte[] encodedCerts;
     
 
     /**
@@ -496,6 +503,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         this.snapshotNotifier = concurrentObj.newCondition();
         this.eventNotifier = concurrentObj.newCondition();
         this.serviceNotifier = concurrentObj.newCondition();
+	this.certFactoryType = init.certFactoryType;
+	this.certPathEncoding = init.certPathEncoding;
+	this.encodedCerts = init.encodedCerts.clone();
         lifeCycle = init.lifeCycle;
         serverSocketFactory = init.serverSocketFactory;
         persistenceSnapshotThreshold = init.persistenceSnapshotThreshold;
@@ -620,6 +630,26 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     @Override
     public ServiceID serviceID() throws IOException {
 	return myServiceID;
+    }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return CodebaseProvider.getClassAnnotation(RegistrarProxy.class);
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
     }
 
     /** A service item registration record. */
@@ -2947,9 +2977,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    if (reggie.multicastInterfaces == null || reggie.multicastInterfaces.length > 0)
 	    {
 		socket = new MulticastSocket();
-		socket.setTimeToLive(
-		    reggie.multicastAnnouncementConstraints.getMulticastTimeToLive(
-			DEFAULT_MULTICAST_TTL));
+		if (Constants.GLOBAL_ANNOUNCE){
+		    socket.setTimeToLive(
+			reggie.multicastAnnouncementConstraints.getMulticastTimeToLive(
+			    255));
+		} else {
+		    socket.setTimeToLive(
+			reggie.multicastAnnouncementConstraints.getMulticastTimeToLive(
+			    DEFAULT_MULTICAST_TTL));
+		    
+		}
 	    } else {
 		socket = null;
 	    }
@@ -4890,6 +4927,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
          AccessControlContext context;
          ExecutorService executor;
          ScheduledExecutorService scheduledExecutor;
+	 String certFactoryType;
+	 String certPathEncoding;
+	 byte [] encodedCerts;
         
         
         
@@ -5104,6 +5144,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     new NamedThreadFactory("Reggie_Discovery_Response", false)
                 ) 
             );
+	    this.certFactoryType = Config.getNonNullEntry(config, COMPONENT,
+		    "Codebase_CertFactoryType", String.class, "X.509");
+	    this.certPathEncoding = Config.getNonNullEntry(config, COMPONENT,
+		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+	    this.encodedCerts = Config.getNonNullEntry(config, COMPONENT,
+		    "Codebase_Certs", byte[].class, new byte[0]);
             this.unexportTimeout = Config.getLongEntry(
                    config, COMPONENT, "unexportTimeout", 20000L,
                    0, Long.MAX_VALUE);

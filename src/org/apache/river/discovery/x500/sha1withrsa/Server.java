@@ -18,16 +18,8 @@
 
 package org.apache.river.discovery.x500.sha1withrsa;
 
-import org.apache.river.discovery.ClientSubjectChecker;
-import org.apache.river.discovery.DatagramBufferFactory;
-import org.apache.river.discovery.DelayedMulticastRequestDecoder;
-import org.apache.river.discovery.MulticastAnnouncement;
-import org.apache.river.discovery.MulticastAnnouncementEncoder;
-import org.apache.river.discovery.MulticastRequest;
+import org.apache.river.discovery.internal.MulticastServer;
 import org.apache.river.discovery.internal.X500Server;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import net.jini.core.constraint.InvocationConstraints;
 
 /**
  * Implements the server side of the
@@ -36,54 +28,14 @@ import net.jini.core.constraint.InvocationConstraints;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-public class Server
-    implements DelayedMulticastRequestDecoder,
-	       MulticastAnnouncementEncoder
+public class Server extends MulticastServer
 {
 
-    // Internal implementation. We dont want to expose the internal base
-    // classes to the outside.
-    private final ServerImpl impl;
-   
     /**
      * Constructs a new instance.
      */
     public Server() {
-	impl = new ServerImpl();
-    }
-
-    // inherit javadoc from DiscoveryFormatProvider
-    public String getFormatName() {
-	return impl.getFormatName();
-    }
-
-    // inherit javadoc from MulticastAnnouncementEncoder
-    public void encodeMulticastAnnouncement(
-		    MulticastAnnouncement announcement,
-		    DatagramBufferFactory bufs,
-		    InvocationConstraints constraints)
-	throws IOException {
-	    impl.encodeMulticastAnnouncement(announcement, bufs, constraints);
-    }
-
-    // inherit javadoc from MulticastRequestDecoder
-    public MulticastRequest decodeMulticastRequest(
-				ByteBuffer buf,
-				InvocationConstraints constraints, 
-				ClientSubjectChecker checker)
-	throws IOException {
-	    return impl.decodeMulticastRequest(buf, constraints, checker);
-    }
-
-    // inherit javadoc from DelayedMulticastRequestDecoder
-    public MulticastRequest decodeMulticastRequest(
-				ByteBuffer buf,
-				InvocationConstraints constraints,
-				ClientSubjectChecker checker,
-				boolean delayConstraintCheck)
-	throws IOException {
-	    return impl.decodeMulticastRequest(
-			    buf, constraints, checker, delayConstraintCheck);
+	super(new ServerImpl());
     }
 
     private static final class ServerImpl extends X500Server {

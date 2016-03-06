@@ -28,8 +28,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectStreamException;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;

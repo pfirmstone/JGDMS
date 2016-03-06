@@ -18,15 +18,8 @@
 
 package org.apache.river.discovery.x500.sha1withdsa;
 
-import org.apache.river.discovery.DatagramBufferFactory;
-import org.apache.river.discovery.DelayedMulticastAnnouncementDecoder;
-import org.apache.river.discovery.MulticastAnnouncement;
-import org.apache.river.discovery.MulticastRequest;
-import org.apache.river.discovery.MulticastRequestEncoder;
+import org.apache.river.discovery.internal.MulticastClient;
 import org.apache.river.discovery.internal.X500Client;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import net.jini.core.constraint.InvocationConstraints;
 
 /**
  * Implements the client side of the
@@ -35,57 +28,16 @@ import net.jini.core.constraint.InvocationConstraints;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-public class Client 
-    implements DelayedMulticastAnnouncementDecoder,
-	       MulticastRequestEncoder
+public class Client extends MulticastClient
 {
-    // Internal implementation. We dont want to expose the internal base
-    // classes to the outside.
-    private final ClientImpl impl;
 
     /**
      * Constructs a new instance.
      */
     public Client() {
-	impl = new ClientImpl();
+	super(new ClientImpl());
     }
 
-    // Inherit javadoc from DiscoveryFormatProvider
-    public String getFormatName() {
-	return impl.getFormatName();
-    }
-
-    // Inherit javadoc from MulticastRequestEncoder
-    public void encodeMulticastRequest(
-		    MulticastRequest request,
-		    DatagramBufferFactory bufs,
-		    InvocationConstraints constraints)
-	throws IOException
-    {
-	impl.encodeMulticastRequest(request, bufs, constraints);
-    }
-
-    // Inherit javadoc from MulticastAnnouncementDecoder
-    public MulticastAnnouncement decodeMulticastAnnouncement(
-				    ByteBuffer buf,
-				    InvocationConstraints constraints)
-	throws IOException
-    {
-	return impl.decodeMulticastAnnouncement(buf, constraints);
-    }
-    
-    // Inherit javadoc from DelayedMulticastAnnouncementDecoder
-    public MulticastAnnouncement decodeMulticastAnnouncement(
-				    ByteBuffer buf,
-				    InvocationConstraints constraints,
-				    boolean delayConstraintCheck)
-	throws IOException 
-    {
-	return impl.decodeMulticastAnnouncement(buf,
-						constraints,
-						delayConstraintCheck);
-    }
-    
     private static final class ClientImpl extends X500Client {
 	ClientImpl() {
 	    super(Constants.FORMAT_NAME,

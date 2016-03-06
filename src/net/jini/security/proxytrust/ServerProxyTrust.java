@@ -36,6 +36,7 @@ import net.jini.security.TrustVerifier;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@Deprecated
 public interface ServerProxyTrust {
 
     /**

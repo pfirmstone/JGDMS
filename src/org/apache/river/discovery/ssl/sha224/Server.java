@@ -16,27 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.river.discovery.kerberos;
+package org.apache.river.discovery.ssl.sha224;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import javax.net.ServerSocketFactory;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.export.ProxyAccessor;
+import net.jini.export.ServiceCodebaseAccessor;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.ServerEndpoint;
-import net.jini.jeri.kerberos.KerberosServerEndpoint;
+import net.jini.jeri.ssl.SslServerEndpoint;
+import org.apache.river.discovery.UnicastResponse;
 import org.apache.river.discovery.internal.EndpointBasedServer;
 import org.apache.river.discovery.internal.EndpointInternals;
-import org.apache.river.discovery.internal.KerberosEndpointInternalsAccess;
+import org.apache.river.discovery.internal.SslEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastServer;
 
 /**
- * Implements the server side of the <code>net.jini.discovery.kerberos</code>
+ * Implements the server side of the <code>net.jini.discovery.ssl.sha224</code>
  * unicast discovery format.
  *
- * @author Sun Microsystems, Inc.
- * @since 2.0
  */
 public class Server extends UnicastServer {
     
@@ -49,31 +55,46 @@ public class Server extends UnicastServer {
 
     private static final class ServerImpl extends EndpointBasedServer {
 	
-	private static EndpointInternals epi = 
+	private static final EndpointInternals epi =
 	    AccessController.doPrivileged(new PrivilegedAction<EndpointInternals>() {
+		@Override
 		public EndpointInternals run() {
-		    return KerberosEndpointInternalsAccess.get();
+		    return SslEndpointInternalsAccess.get();
 		}
 	    });
 	
+	/**
+	 * Creates a new instance.
+	 */
 	ServerImpl() {
-	    super("net.jini.discovery.kerberos", epi);
+	    super("net.jini.discovery.ssl.sha224", epi);
 	}
 
 	// documentation inherited from EndpointBasedServer
+	@Override
 	protected ServerEndpoint getServerEndpoint(ServerSocketFactory factory)
 	    throws UnsupportedConstraintException
 	{
-	    return KerberosServerEndpoint.getInstance("ignored", 0, null, factory);
+	    return SslServerEndpoint.getInstance("ignored", 0, null, factory);
 	}
 
 	@Override
 	protected MessageDigest handshakeHashAlgorithm() {
 	    try {
-		return MessageDigest.getInstance("SHA-1");
+		return MessageDigest.getInstance("SHA-224");
 	    } catch (NoSuchAlgorithmException ex) {
 		throw new AssertionError(ex);
 	    }
+	}
+	
+	@Override
+	protected void writeUnicastResponse(OutputStream out,
+					UnicastResponse response,
+					Collection context)
+	throws IOException
+	{
+	    super.writeClassAnnotationCerts(out, response);
+	    super.writeUnicastResponse(out, response, context);
 	}
     }
 }

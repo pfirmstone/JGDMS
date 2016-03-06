@@ -18,23 +18,18 @@
 
 package org.apache.river.discovery.ssl;
 
-import org.apache.river.discovery.ClientSubjectChecker;
-import org.apache.river.discovery.UnicastDiscoveryServer;
-import org.apache.river.discovery.UnicastResponse;
-import org.apache.river.discovery.internal.EndpointBasedServer;
-import org.apache.river.discovery.internal.EndpointInternals;
-import org.apache.river.discovery.internal.SslEndpointInternalsAccess;
-import java.io.IOException;
-import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.security.AccessController;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
-import java.util.Collection;
 import javax.net.ServerSocketFactory;
-import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.ssl.SslServerEndpoint;
+import org.apache.river.discovery.internal.EndpointBasedServer;
+import org.apache.river.discovery.internal.EndpointInternals;
+import org.apache.river.discovery.internal.SslEndpointInternalsAccess;
+import org.apache.river.discovery.internal.UnicastServer;
 
 /**
  * Implements the server side of the <code>net.jini.discovery.ssl</code>
@@ -43,50 +38,20 @@ import net.jini.jeri.ssl.SslServerEndpoint;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-public class Server implements UnicastDiscoveryServer {
-    
-    // Internal implementation. We dont want to expose the internal base
-    // classes to the outside.    
-    private final ServerImpl impl;
+public class Server extends UnicastServer {
     
     /**
      * Creates a new instance.
      */
     public Server() {
-	impl = new ServerImpl();
-    }
-
-    // javadoc inherited from DiscoveryFormatProvider
-    public String getFormatName() {
-	return impl.getFormatName();
-    }
-
-    //javadoc inherited from UnicastDiscoveryServer
-    public void checkUnicastDiscoveryConstraints(
-		    InvocationConstraints constraints)
-	throws UnsupportedConstraintException
-    {
-	impl.checkUnicastDiscoveryConstraints(constraints);
-    }
-    
-    //javadoc inherited from UnicastDiscoveryServer
-    public void handleUnicastDiscovery(UnicastResponse response,
-				       Socket socket,
-				       InvocationConstraints constraints,
-				       ClientSubjectChecker checker,
-				       Collection context,
-				       ByteBuffer received,
-				       ByteBuffer sent)
-	throws IOException
-    {
-	impl.handleUnicastDiscovery(response, socket, constraints, checker,
-				    context, received, sent);
+	super(new ServerImpl());
     }
 
     private static final class ServerImpl extends EndpointBasedServer {
 	
-	private static EndpointInternals epi =
+	private static final EndpointInternals epi =
 	    AccessController.doPrivileged(new PrivilegedAction<EndpointInternals>() {
+		@Override
 		public EndpointInternals run() {
 		    return SslEndpointInternalsAccess.get();
 		}
@@ -100,10 +65,20 @@ public class Server implements UnicastDiscoveryServer {
 	}
 
 	// documentation inherited from EndpointBasedServer
+	@Override
 	protected ServerEndpoint getServerEndpoint(ServerSocketFactory factory)
 	    throws UnsupportedConstraintException
 	{
 	    return SslServerEndpoint.getInstance("ignored", 0, null, factory);
+	}
+
+	@Override
+	protected MessageDigest handshakeHashAlgorithm() {
+	    try {
+		return MessageDigest.getInstance("SHA-1");
+	    } catch (NoSuchAlgorithmException ex) {
+		throw new AssertionError(ex);
+	    }
 	}
     }
 }

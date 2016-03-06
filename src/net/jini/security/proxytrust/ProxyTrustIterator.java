@@ -36,6 +36,7 @@ import java.util.NoSuchElementException;
  * 
  * @since 2.0
  */
+@Deprecated
 public interface ProxyTrustIterator {
     /**
      * Returns <code>true</code> if the iteration has more elements, and

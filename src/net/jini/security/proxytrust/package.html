@@ -23,7 +23,48 @@
 
 </head>
 <body bgcolor="white">
-
+<p>
+Historically, proxy trust relied on the Java sandbox, however with the 
+plethora of security problems relating to serialization.  Now with the 
+development of gadget attacks, where an attacker crafts a serialized 
+stream to contain objects constructed in a way to create execution paths
+not intended by the original developers.
+<p>
+The constraint {@link net.jini.core.constraint.AtomicInputValidation},
+{@ling org.apache.river.api.io.AtomicMarshalInputStream} and 
+{@link org.apache.river.api.io.DeSerializationPermission} combined with
+{@link net.jini.loader.DownloadPermission}, prevent downloading untrusted code,
+limit classes that are allowed to perform deserialization and prevent the
+objects from being assembled into a form required to perform gadget attacks,
+by preventing object construction when invariants are not satisfied.
+<p>
+In addition to the above defenses, a new method {@link net.jini.core.lookup.ServiceRegistrar#lookUp}
+has been provided to return bootstrap proxy's, that clients apply constraints to
+and use to authenticate
+a service, retrieve the service proxy and apply constraints, in this case
+the proxy has been retrieved from a trusted and authenticated service.
+<p>
+    New unicast discovery providers:<br>
+    <br>
+<UL>
+<li>org.apache.river.discovery.ssl.sha512.Client</li>
+<li>org.apache.river.discovery.ssl.sha512.Server</li>
+<li>org.apache.river.discovery.ssl.sha384.Client</li>
+<li>org.apache.river.discovery.ssl.sha384.Server</li>
+<li>org.apache.river.discovery.ssl.sha256.Client</li>
+<li>org.apache.river.discovery.ssl.sha256.Server</li>
+<li>org.apache.river.discovery.ssl.sha224.Client</li>
+<li>org.apache.river.discovery.ssl.sha224.Server</li>
+</UL>
+The new unicast discovery providers above, automatically grant DownloadPermission
+and DeSerializationPermission("ATOMIC") either to the ServiceRegistrar proxy's
+class annotation, or to it's Certificate chain, to enable the proxy to be 
+downloaded and deserialized, note that constraints should be used to ensure
+authentication occurs prior to these permissions being granted.
+<p>
+In light of these developments, the proxy trust mechanisms in this package are
+now obsolete.
+<p>
 Defines a trust verifier to support verification of proxies that use
 dynamically downloaded code, implementation mechanisms to support the
 verification of such proxies, and an exporter for remote objects that have

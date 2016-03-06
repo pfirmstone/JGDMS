@@ -16,28 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.river.discovery.ssl;
+package org.apache.river.discovery.ssl.sha224;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import javax.net.SocketFactory;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.ssl.SslEndpoint;
+import org.apache.river.discovery.UnicastResponse;
 import org.apache.river.discovery.internal.EndpointBasedClient;
 import org.apache.river.discovery.internal.EndpointInternals;
 import org.apache.river.discovery.internal.SslEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastClient;
 
 /**
- * Implements the client side of the <code>net.jini.discovery.ssl</code>
+ * Implements the client side of the <code>net.jini.discovery.ssl.sha224</code>
  * unicast discovery format.
  *
- * @author Sun Microsystems, Inc.
- * @since 2.0
  */
 public class Client extends UnicastClient {
     
@@ -58,7 +60,7 @@ public class Client extends UnicastClient {
 	 * Creates a new instance.
 	 */
 	ClientImpl() {
-	    super("net.jini.discovery.ssl", epi);
+	    super("net.jini.discovery.ssl.sha224", epi);
 	}
 
 	// documentation inherited from EndpointBasedClient
@@ -72,10 +74,28 @@ public class Client extends UnicastClient {
 	@Override
 	protected MessageDigest handshakeHashAlgorithm() {
 	    try {
-		return MessageDigest.getInstance("SHA-1");
+		return MessageDigest.getInstance("SHA-224");
 	    } catch (NoSuchAlgorithmException ex) {
 		throw new AssertionError(ex);
 	    }
+	}
+	
+	@Override
+	protected UnicastResponse readUnicastResponse(
+					    InputStream in,
+					    ClassLoader defaultLoader,
+					    boolean verifyCodebaseIntegrity,
+					    ClassLoader verifierLoader,
+					    Collection context)
+	throws IOException, ClassNotFoundException
+	{
+	    return super.readUnicastResponse(
+		in,
+		defaultLoader,
+		grantDownloadPermission(in,verifyCodebaseIntegrity),
+		verifierLoader,
+		context
+	    );
 	}
     }
 }

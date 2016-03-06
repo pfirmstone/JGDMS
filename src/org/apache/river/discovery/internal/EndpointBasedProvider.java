@@ -20,8 +20,8 @@ package org.apache.river.discovery.internal;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
+import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
@@ -30,7 +30,7 @@ import net.jini.io.UnsupportedConstraintException;
 /**
  * Superclass for endpoint-based unicast discovery providers.
  */
-class EndpointBasedProvider extends BaseProvider {
+abstract class EndpointBasedProvider extends BaseProvider {
 
     /** Object providing access to non-public endpoint operations */
     protected final EndpointInternals endpointInternals;
@@ -52,8 +52,8 @@ class EndpointBasedProvider extends BaseProvider {
     /**
      * Returns true if the given constraints include Integrity.YES as a
      * requirement or preference; returns false otherwise.  If the required
-     * constraints include any constraint other than an Integrity constraint,
-     * an UnsupportedConstraintException is thrown.
+     * constraints include any constraint other than an Integrity or Atomicity 
+     * constraint, an UnsupportedConstraintException is thrown.
      */
     static boolean checkIntegrity(InvocationConstraints constraints)
 	throws UnsupportedConstraintException
@@ -64,7 +64,8 @@ class EndpointBasedProvider extends BaseProvider {
 	    InvocationConstraint c = (InvocationConstraint) i.next();
 	    if (c == Integrity.YES) {
 		integrity = true;
-	    } else if (!(c instanceof Integrity)) {
+	    } else if (!(c instanceof Integrity) || 
+		    !(c instanceof AtomicInputValidation)) {
 		throw new UnsupportedConstraintException(
 		    "cannot satisfy constraint: " + c);
 	    }
@@ -83,21 +84,60 @@ class EndpointBasedProvider extends BaseProvider {
 	}
 	return integrity;
     }
+    
+    /**
+     * Returns true if the given constraints include AtomicInputValidation.YES as a
+     * requirement or preference; returns false otherwise.  If the required
+     * constraints include any constraint other than an Integrity or Atomicity 
+     * constraint, an UnsupportedConstraintException is thrown.
+     */
+    static boolean checkAtomicity(InvocationConstraints constraints)
+	throws UnsupportedConstraintException
+    {
+	boolean atomicity = false;
+	for (Iterator i = constraints.requirements().iterator(); i.hasNext(); )
+	{
+	    InvocationConstraint c = (InvocationConstraint) i.next();
+	    if (c == AtomicInputValidation.YES) {
+		atomicity = true;
+	    } else if (!(c instanceof Integrity) || 
+		    !(c instanceof AtomicInputValidation)) {
+		throw new UnsupportedConstraintException(
+		    "cannot satisfy constraint: " + c);
+	    }
+	    // NYI: support ConstraintAlternatives containing Atomicity
+	}
+	if (!atomicity) {
+	    for (Iterator i = constraints.preferences().iterator();
+		 i.hasNext(); )
+	    {
+		if (i.next() == AtomicInputValidation.YES) {
+		    atomicity = true;
+		    break;
+		}
+		// NYI: support ConstraintAlternatives containing Integrity
+	    }
+	}
+	return atomicity;
+    }
 
     /**
-     * Returns the SHA-1 hash of the concatenation of the given unicast
+     * Returns the MessageDigest hash of the concatenation of the given unicast
      * discovery request and response handshake bytes.
      */
-    static byte[] calcHandshakeHash(ByteBuffer request, ByteBuffer response) {
-	try {
-	    MessageDigest md = MessageDigest.getInstance("SHA-1");
+    byte[] calcHandshakeHash(ByteBuffer request, ByteBuffer response) {
+	    MessageDigest md = handshakeHashAlgorithm();
 	    update(md, request);
 	    update(md, response);
 	    return md.digest();
-	} catch (NoSuchAlgorithmException e) {
-	    throw new AssertionError(e);
-	}
     }
+    
+    /**
+     * Returns a MessageDigest, subclasses may override
+     * to utilize different algorithms.
+     * @return 
+     */
+    abstract protected MessageDigest handshakeHashAlgorithm();
 
     private static void update(MessageDigest md, ByteBuffer buf) {
 	if (buf.hasArray()) {

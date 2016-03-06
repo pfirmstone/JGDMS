@@ -18,8 +18,6 @@
 
 package net.jini.security;
 
-import org.apache.river.logging.Levels;
-import org.apache.river.resource.Service;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -57,7 +55,11 @@ import javax.security.auth.Subject;
 import javax.security.auth.SubjectDomainCombiner;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.SecurityContextSource;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.RevocablePolicy;
 import org.apache.river.api.security.SubjectDomain;
+import org.apache.river.logging.Levels;
+import org.apache.river.resource.Service;
 
 /**
  * Provides methods for executing actions with privileges enabled, for
@@ -769,6 +771,37 @@ public final class Security {
 	Policy policy = getPolicy();
 	return (policy instanceof DynamicPolicy && 
 		((DynamicPolicy) policy).grantSupported());
+    }
+    
+    /**
+     * Returns <code>true</code> if the installed security policy provider
+     * supports dynamic revocable permission grants--i.e., if it implements the {@link
+     * RevocablePolicy} interface and calling its {@link
+     * RevocablePolicy#revokeSupported grantSupported} method returns
+     * <code>true</code>.  Returns <code>false</code> otherwise.
+     *
+     * @return <code>true</code> if the installed security policy provider
+     * supports dynamic permission grants
+     * @see #grant(Class,Permission[])
+     * @see #grant(Class,Principal[],Permission[])
+     * @see #grant(Class,Class)
+     */
+    public static boolean revocationSupported() {
+	Policy policy = getPolicy();
+	return (policy instanceof RevocablePolicy && 
+		((RevocablePolicy) policy).revokeSupported());
+    }
+    
+    public static void grant(PermissionGrant grant) {
+	Policy policy = getPolicy();
+	if (!(policy instanceof RevocablePolicy)) {
+	    throw new UnsupportedOperationException("revocable grants not supported");
+	}
+	((RevocablePolicy) policy).grant(grant);
+	if (policyLogger.isLoggable(Level.FINER)) {
+	    policyLogger.log(Level.FINER, "granted {0}",
+		new Object[]{grant.toString()});
+	}
     }
 
     /**
