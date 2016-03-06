@@ -53,6 +53,7 @@ import net.jini.jeri.connection.ConnectionEndpoint;
 import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.loader.DownloadPermission;
 import net.jini.security.Security;
+import org.apache.river.api.io.DeSerializationPermission;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.discovery.UnicastDiscoveryClient;
@@ -175,50 +176,59 @@ public abstract class EndpointBasedClient
 	    in, defaultLoader, verifyCodebaseIntegrity, verifierLoader, context);
     }
     
-    protected boolean grantDownloadPermission(InputStream in, 
+    protected boolean readAnnotationCertsGrantPerm(InputStream in, 
 					    boolean verifyCodebaseIntegrity)
 	    throws IOException
     {
 	DataInputStream din = new DataInputStream(in);
-	    String classAnnotation = din.readUTF();
-	    String certFactoryType = din.readUTF();
-	    String certPathEncoding = din.readUTF();
-	    short length = din.readShort();
-	    byte [] encodedCerts = new byte[length];
-	    din.readFully(encodedCerts);
-	    PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
-	    if (length > 0){ // Make a Certificate grant.
-		try {
-		    CertificateFactory factory = 
-			CertificateFactory.getInstance(certFactoryType);
-		    CertPath certPath = factory.generateCertPath(
-			new ByteArrayInputStream(encodedCerts), certPathEncoding);
-		    verifyCodebaseIntegrity = false; // Not necessary with signed jar file.
-		    
-		    Collection<? extends Certificate> certs = certPath.getCertificates();
-		    pgb.certificates(certs.toArray(new Certificate[certs.size()]));
-		    
-		} catch (CertificateException ex) {
-		    Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-		}
-	    } else { // Make a URI grant.
-		String [] classAnnotations = classAnnotation.split(" ");
-		for (int i = 0, l = classAnnotations.length; i < l ; i++){
-		    pgb.uri(formatName);
-		}
+	String classAnnotation = din.readUTF();
+	String certFactoryType = din.readUTF();
+	String certPathEncoding = din.readUTF();
+	short length = din.readShort();
+	byte [] encodedCerts = new byte[length];
+	din.readFully(encodedCerts);
+	PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+	pgb.permissions(
+	    new Permission []{
+		new DownloadPermission(),
+		new DeSerializationPermission("ATOMIC")
 	    }
-	    pgb.permissions(new Permission []{new DownloadPermission()});
-	    PermissionGrant grant = pgb.build();
+	);
+	PermissionGrant grant = null;
+	if (length > 0){ // Make a Certificate grant.
+	    try {
+		CertificateFactory factory = 
+		    CertificateFactory.getInstance(certFactoryType);
+		CertPath certPath = factory.generateCertPath(
+		    new ByteArrayInputStream(encodedCerts), certPathEncoding);
+		verifyCodebaseIntegrity = false; // signed jar file will ensure codebase integrity.
+
+		Collection<? extends Certificate> certs = certPath.getCertificates();
+		pgb.certificates(certs.toArray(new Certificate[certs.size()]));
+		grant = pgb.build();
+	    } catch (CertificateException ex) {
+		Logger.getLogger(Client.class.getName()).log(Level.INFO, "unable to build certficate", ex);
+	    }
+	} else if (!classAnnotation.isEmpty()) { // Make a URI grant.
+	    String [] classAnnotations = classAnnotation.split(" ");
+	    for (int i = 0, l = classAnnotations.length; i < l ; i++){
+		pgb.uri(formatName);
+	    }
+	    grant = pgb.build();
+	} 
+	if (grant != null){
+	    final PermissionGrant g = grant;
 	    AccessController.doPrivileged(new PrivilegedAction(){
 
 		@Override
 		public Object run() {
-		    Security.grant(grant);
+		    Security.grant(g);
 		    return null;
 		}
 
 	    });
-	    return verifyCodebaseIntegrity;
+	}
+	return verifyCodebaseIntegrity;
     }
 
     /**

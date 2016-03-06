@@ -92,7 +92,7 @@ public class Client extends UnicastClient {
 	    return super.readUnicastResponse(
 		in,
 		defaultLoader,
-		grantDownloadPermission(in,verifyCodebaseIntegrity),
+		readAnnotationCertsGrantPerm(in,verifyCodebaseIntegrity),
 		verifierLoader,
 		context
 	    );
