@@ -18,29 +18,48 @@
 
 package org.apache.river.discovery.internal;
 
-import org.apache.river.discovery.UnicastDiscoveryClient;
-import org.apache.river.discovery.UnicastResponse;
-import org.apache.river.jeri.internal.connection.ConnManager;
-import org.apache.river.jeri.internal.connection.ConnManagerFactory;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.security.AccessController;
+import java.security.Permission;
+import java.security.PrivilegedAction;
+import java.security.cert.CertPath;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.NoSuchElementException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.net.SocketFactory;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.OutboundRequest;
 import net.jini.jeri.OutboundRequestIterator;
 import net.jini.jeri.connection.Connection;
 import net.jini.jeri.connection.ConnectionEndpoint;
 import net.jini.jeri.connection.OutboundRequestHandle;
+import net.jini.loader.DownloadPermission;
+import net.jini.security.Security;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
+import org.apache.river.discovery.UnicastDiscoveryClient;
+import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.ssl.sha224.Client;
+import org.apache.river.jeri.internal.connection.ConnManager;
+import org.apache.river.jeri.internal.connection.ConnManagerFactory;
 
 /**
  * Provides an abstract endpoint-based UnicastDiscoveryClient implementation,
@@ -93,8 +112,28 @@ public abstract class EndpointBasedClient
 	ConnectionInfo ci = getConnectionInfo(socket, constraints);
 	Connection conn = ci.endpoint.connect(ci.handle);
 	try {
-	    boolean integrity =
-		checkIntegrity(conn.getUnfulfilledConstraints(ci.handle));
+	    InvocationConstraints unfulfilled = conn.getUnfulfilledConstraints(ci.handle);
+	    boolean integrity = checkIntegrity(unfulfilled);
+	    boolean atomicity = checkAtomicity(unfulfilled);
+	    if (atomicity){
+		AtomicValidationEnforcement enforceAtomic = 
+		    new AtomicValidationEnforcement() {
+
+			@Override
+			public boolean enforced() {
+			    return true;
+			}
+		    };
+		if (context == null || context.isEmpty()){
+		    context = new ArrayList();
+		    context.add(enforceAtomic);
+		    context = Collections.unmodifiableCollection(context);
+		} else {
+		    context = new ArrayList(context);
+		    context.add(enforceAtomic);
+		    context = Collections.unmodifiableCollection(context);
+		}
+	    }
 	    OutputStream out =
 		new BufferedOutputStream(conn.getOutputStream());
 	    conn.writeRequestData(ci.handle, out);
@@ -106,11 +145,80 @@ public abstract class EndpointBasedClient
 	    if (e != null) {
 		throw e;
 	    }
-	    return Plaintext.readUnicastResponse(
+	    return readUnicastResponse(
 		in, defaultLoader, integrity, verifierLoader, context);
 	} finally {
 	    conn.close();
 	}
+    }
+    
+    /**
+     * Client providers can override to utilize a different format.
+     * @param in
+     * @param defaultLoader
+     * @param verifyCodebaseIntegrity
+     * @param verifierLoader
+     * @param context
+     * @return
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     */
+    protected UnicastResponse readUnicastResponse(
+					    InputStream in,
+					    ClassLoader defaultLoader,
+					    boolean verifyCodebaseIntegrity,
+					    ClassLoader verifierLoader,
+					    Collection context)
+	throws IOException, ClassNotFoundException
+    {
+	return Plaintext.readUnicastResponse(
+	    in, defaultLoader, verifyCodebaseIntegrity, verifierLoader, context);
+    }
+    
+    protected boolean grantDownloadPermission(InputStream in, 
+					    boolean verifyCodebaseIntegrity)
+	    throws IOException
+    {
+	DataInputStream din = new DataInputStream(in);
+	    String classAnnotation = din.readUTF();
+	    String certFactoryType = din.readUTF();
+	    String certPathEncoding = din.readUTF();
+	    short length = din.readShort();
+	    byte [] encodedCerts = new byte[length];
+	    din.readFully(encodedCerts);
+	    PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+	    if (length > 0){ // Make a Certificate grant.
+		try {
+		    CertificateFactory factory = 
+			CertificateFactory.getInstance(certFactoryType);
+		    CertPath certPath = factory.generateCertPath(
+			new ByteArrayInputStream(encodedCerts), certPathEncoding);
+		    verifyCodebaseIntegrity = false; // Not necessary with signed jar file.
+		    
+		    Collection<? extends Certificate> certs = certPath.getCertificates();
+		    pgb.certificates(certs.toArray(new Certificate[certs.size()]));
+		    
+		} catch (CertificateException ex) {
+		    Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+		}
+	    } else { // Make a URI grant.
+		String [] classAnnotations = classAnnotation.split(" ");
+		for (int i = 0, l = classAnnotations.length; i < l ; i++){
+		    pgb.uri(formatName);
+		}
+	    }
+	    pgb.permissions(new Permission []{new DownloadPermission()});
+	    PermissionGrant grant = pgb.build();
+	    AccessController.doPrivileged(new PrivilegedAction(){
+
+		@Override
+		public Object run() {
+		    Security.grant(grant);
+		    return null;
+		}
+
+	    });
+	    return verifyCodebaseIntegrity;
     }
 
     /**

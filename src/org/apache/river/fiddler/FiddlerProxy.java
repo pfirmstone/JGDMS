@@ -17,7 +17,6 @@
  */
 package org.apache.river.fiddler;
 
-import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -32,6 +31,7 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.LookupDiscoveryService;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -39,6 +39,7 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 
 /**
  * This class is a proxy for a lookup discovery service. Clients only see
@@ -50,7 +51,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class FiddlerProxy implements Administrable, LookupDiscoveryService,
-                              ReferentUuid, Serializable
+                              ReferentUuid, ProxyAccessor, Serializable
 {
     private static final long serialVersionUID = 2L;
     /**
@@ -293,6 +294,11 @@ class FiddlerProxy implements Administrable, LookupDiscoveryService,
         throw new InvalidObjectException("no data found when attempting to "
                                          +"deserialize FiddlerProxy instance");
     }//end readObjectNoData
+
+    @Override
+    public Object getProxy() {
+	return server;
+    }
 
     /** The constrainable version of the class <code>FiddlerProxy</code>. 
      *  <p>

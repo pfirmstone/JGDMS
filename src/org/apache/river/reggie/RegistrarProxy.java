@@ -43,6 +43,7 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
+import net.jini.export.ProxyAccessor;
 import net.jini.export.ServiceAttributesAccessor;
 import net.jini.export.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
@@ -66,7 +67,7 @@ import org.apache.river.proxy.MarshalledWrapper;
  */
 @AtomicSerial
 class RegistrarProxy 
-    implements ServiceRegistrar, Administrable, ReferentUuid, Serializable
+    implements ServiceRegistrar, ProxyAccessor, Administrable, ReferentUuid, Serializable
 {
     private static final long serialVersionUID = 2L;
 
@@ -358,6 +359,11 @@ class RegistrarProxy
      */
     private void readObjectNoData() throws ObjectStreamException {
 	throw new InvalidObjectException("no data");
+    }
+
+    @Override
+    public Object getProxy() {
+	return server;
     }
     
     private static class RO implements ReadObject{

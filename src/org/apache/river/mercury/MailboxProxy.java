@@ -17,31 +17,24 @@
  */
 package org.apache.river.mercury;
 
-import org.apache.river.proxy.ThrowThis;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
-
-import java.lang.reflect.Method;
 import java.rmi.RemoteException;
-
-import javax.security.auth.Subject;
-
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
-import net.jini.event.EventMailbox;
 import net.jini.event.MailboxPullRegistration;
 import net.jini.event.MailboxRegistration;
 import net.jini.event.PullEventMailbox;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
-import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
@@ -59,7 +52,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class MailboxProxy implements PullEventMailbox,
-    Administrable, Serializable, ReferentUuid 
+    Administrable, Serializable, ReferentUuid, ProxyAccessor
 {
 
     private static final long serialVersionUID = 2L;
@@ -218,6 +211,11 @@ class MailboxProxy implements PullEventMailbox,
         throw new InvalidObjectException("no data found when attempting to "
                                          +"deserialize MailboxProxy instance");
     }//end readObjectNoData
+
+    @Override
+    public Object getProxy() {
+	return mailbox;
+    }
 
     
     /** A subclass of MailboxProxy that implements RemoteMethodControl. */

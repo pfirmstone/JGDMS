@@ -29,6 +29,7 @@ import java.util.NoSuchElementException;
  * 
  * @since 2.0
  */
+@Deprecated
 public class SingletonProxyTrustIterator implements ProxyTrustIterator {
     /** The object to produce */
     private Object obj;

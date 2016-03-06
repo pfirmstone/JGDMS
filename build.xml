@@ -323,8 +323,15 @@
             <package name="org.apache.river.discovery.kerberos"/>
             <package name="org.apache.river.discovery.plaintext"/>
             <package name="org.apache.river.discovery.ssl"/>
+            <package name="org.apache.river.discovery.ssl.sha224"/>
+            <package name="org.apache.river.discovery.ssl.sha256"/>
+            <package name="org.apache.river.discovery.ssl.sha384"/>
+            <package name="org.apache.river.discovery.ssl.sha512"/>
             <package name="org.apache.river.discovery.x500.sha1withdsa"/>
             <package name="org.apache.river.discovery.x500.sha1withrsa"/>
+            <package name="org.apache.river.discovery.x500.sha256withdsa"/>
+            <package name="org.apache.river.discovery.x500.sha512withecdsa"/>
+            <package name="org.apache.river.discovery.x500.sha512withrsa"/>
             <package name="org.apache.river.example.browser"/>
             <package name="org.apache.river.fiddler"/>
             <package name="org.apache.river.landlord"/>

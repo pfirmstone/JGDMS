@@ -24,6 +24,7 @@ import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.lease.LeaseRenewalService;
 import net.jini.lease.LeaseRenewalSet;
@@ -40,7 +41,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class NormProxy extends AbstractProxy
-    implements LeaseRenewalService, Administrable
+    implements LeaseRenewalService, Administrable, ProxyAccessor
 {
     private static final long serialVersionUID = 1;
 
@@ -88,6 +89,11 @@ class NormProxy extends AbstractProxy
     /** inherit javadoc */
     public Object getAdmin() throws RemoteException {
 	return server.getAdmin();
+    }
+
+    @Override
+    public Object getProxy() {
+	return server;
     }
 
     /** Defines a subclass of NormProxy that implements RemoteMethodControl. */

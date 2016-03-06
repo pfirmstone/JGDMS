@@ -18,18 +18,11 @@
 
 package org.apache.river.discovery.kerberos;
 
-import org.apache.river.discovery.UnicastDiscoveryClient;
-import org.apache.river.discovery.UnicastResponse;
-import org.apache.river.discovery.internal.EndpointBasedClient;
-import org.apache.river.discovery.internal.EndpointInternals;
-import org.apache.river.discovery.internal.KerberosEndpointInternalsAccess;
-import java.io.IOException;
-import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.security.AccessController;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PrivilegedAction;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 import javax.net.SocketFactory;
@@ -40,6 +33,10 @@ import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.kerberos.KerberosEndpoint;
+import org.apache.river.discovery.internal.EndpointBasedClient;
+import org.apache.river.discovery.internal.EndpointInternals;
+import org.apache.river.discovery.internal.KerberosEndpointInternalsAccess;
+import org.apache.river.discovery.internal.UnicastClient;
 
 /**
  * Implements the client side of the <code>net.jini.discovery.kerberos</code>
@@ -48,43 +45,13 @@ import net.jini.jeri.kerberos.KerberosEndpoint;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-public class Client implements UnicastDiscoveryClient {
+public class Client extends UnicastClient {
     
-    // Internal implementation. We dont want to expose the internal base
-    // classes to the outside.
-    private final ClientImpl impl;
     /**
      * Creates a new instance.
      */
     public Client() {
-	impl = new ClientImpl();
-    }
-
-    // javadoc inherited from DiscoveryFormatProvider
-    public String getFormatName() {
-	return impl.getFormatName();
-    }
-
-    // javadoc inherited from UnicastDiscoveryClient
-    public void checkUnicastDiscoveryConstraints(
-		    InvocationConstraints constraints)
-	throws UnsupportedConstraintException
-    {
-	impl.checkUnicastDiscoveryConstraints(constraints);
-    }
-
-    // javadoc inherited from UnicastDiscoveryClient
-    public UnicastResponse doUnicastDiscovery(Socket socket,
-					      InvocationConstraints constraints,
-					      ClassLoader defaultLoader,
-					      ClassLoader verifierLoader,
-					      Collection context,
-					      ByteBuffer sent,
-					      ByteBuffer received)
-	throws IOException, ClassNotFoundException 
-    {
-	return impl.doUnicastDiscovery(socket, constraints, defaultLoader,
-				       verifierLoader, context, sent, received);
+	super(new ClientImpl());
     }
 
     private static final class ClientImpl extends EndpointBasedClient {
@@ -162,5 +129,14 @@ public class Client implements UnicastDiscoveryClient {
 	    }
 	    throw new UnsupportedConstraintException("no kerberos principal");
 	}	
+
+	@Override
+	protected MessageDigest handshakeHashAlgorithm() {
+	    try {
+		return MessageDigest.getInstance("SHA-1");
+	    } catch (NoSuchAlgorithmException ex) {
+		throw new AssertionError(ex);
+	    }
+	}
     }
 }

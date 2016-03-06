@@ -36,6 +36,7 @@ import net.jini.core.transaction.server.CrashCountException;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionManager.Created;
 import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -57,7 +58,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 class TxnMgrProxy implements TransactionManager, Administrable, Serializable, 
-    ReferentUuid 
+    ReferentUuid, ProxyAccessor
 {
 
     private static final long serialVersionUID = 2L;
@@ -239,7 +240,11 @@ class TxnMgrProxy implements TransactionManager, Administrable, Serializable,
                                          +"deserialize TxnMgrProxy instance");
     }//end readObjectNoData
 
-    
+    @Override
+    public Object getProxy() {
+	return backend;
+    }
+   
     /** A subclass of TxnMgrProxy that implements RemoteMethodControl. */
     @AtomicSerial
     final static class ConstrainableTxnMgrProxy extends TxnMgrProxy

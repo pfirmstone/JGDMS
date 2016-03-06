@@ -17,7 +17,6 @@
  */
 package org.apache.river.outrigger;
 
-import org.apache.river.landlord.LandlordLease;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -43,6 +42,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.entry.UnusableEntriesException;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -52,6 +52,7 @@ import net.jini.space.JavaSpace05;
 import net.jini.space.MatchSet;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.landlord.LandlordLease;
 
 /**
  * This class is the client-side proxy for the Outrigger
@@ -71,7 +72,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 // @see OutriggerSpace
 @AtomicSerial
 class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
-			     Serializable 
+			     Serializable, ProxyAccessor
 {
     static final long serialVersionUID = 1L;
 
@@ -204,6 +205,11 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 	} catch (Throwable t) {
 	    return -1;
 	}
+    }
+
+    @Override
+    public Object getProxy() {
+	return space;
     }
 
     /**
