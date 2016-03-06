@@ -889,10 +889,10 @@
             <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>
-			<arg line="-out net.jini.lookup"/>
-			<arg line="-out org.apache.river.api.lookup"/>
-			<arg line="-out net.jini.config.GroovyConfig"/>
-			<arg line="-out net.jini.config.Component"/>
+            <arg line="-out net.jini.lookup"/>
+            <arg line="-out org.apache.river.api.lookup"/>
+            <arg line="-skip net.jini.config.GroovyConfig"/>
+            <arg line="-skip net.jini.config.Component"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
