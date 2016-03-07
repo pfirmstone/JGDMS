@@ -8,3 +8,6 @@
 * Lookup Service registrar to search services available from various arbitrary third parties.
 * Lookup method that allows authentication of third parties, using a bootstrap proxy, prior granting DownloadPermission and DeSerialization permission for service utilisation.
 * Invocation and Method constraints.
+
+## Discussion forum:
+https://groups.google.com/forum/#!forum/river-secure-ipv6-discovery
