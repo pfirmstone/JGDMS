@@ -374,7 +374,7 @@ public class TestPerformance extends TestUtilities {
     public static class RMIJSSE {
 
 	static final String[][] propsList = {
-	    { "encrypt", "false",
+	    { "encrypt", "true", // Chaunged to true, as Confidentiality.NO is no longer supported as a required constraint to prevent MITM attacks.
 	      "clientAuth", "false" },
 	    { "clientAuth", "false",
 	      "serverAuth", "false" },
@@ -605,7 +605,7 @@ public class TestPerformance extends TestUtilities {
 	    TrustManagerFactory trustManagerFactory =
 		TrustManagerFactory.getInstance("SunX509");
 	    trustManagerFactory.init(keyStore);
-	    SSLContext sslContext = SSLContext.getInstance("SSL");
+	    SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
 	    sslContext.init(keyManagerFactory.getKeyManagers(),
 			    trustManagerFactory.getTrustManagers(),
 			    SecureRandom.getInstance("SHA1PRNG"));

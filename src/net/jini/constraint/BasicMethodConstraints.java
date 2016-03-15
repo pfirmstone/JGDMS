@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -135,9 +136,9 @@ public final class BasicMethodConstraints
 	
 	public MethodDesc(GetArg arg) throws IOException{
 	    this(checkSerial(
-		    (String) arg.get("name", null),
-		    (Class []) arg.get("types", null),
-		    (InvocationConstraints) arg.get("constraints", null)
+		    arg.get("name", null, String.class),
+		    arg.get("types", null, Class[].class),
+		    arg.get("constraints", null, InvocationConstraints.class)
 		),
 		(String) arg.get("name", null),
 		(Class[]) arg.get("types", null),
@@ -222,7 +223,7 @@ public final class BasicMethodConstraints
 		}
 	    } else {
 		try {
-		    return check(name, types);
+		    check(name, types);
 		} catch (RuntimeException e) {
 		    rethrow(e);
 		}
@@ -389,10 +390,6 @@ public final class BasicMethodConstraints
 	    }
 	}
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-	    out.defaultWriteObject();
-	}
-
 	/**
 	 * Verifies that the method name, parameter types, and constraints are
 	 * valid.
@@ -413,8 +410,8 @@ public final class BasicMethodConstraints
 	{
 	    s.defaultReadObject();
 	    checkSerial(name, types, constraints);
-		}
-		}
+            }
+        }
 
     /**
      * Creates an instance with the specified ordered array of descriptors.

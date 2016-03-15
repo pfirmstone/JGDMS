@@ -128,12 +128,12 @@ public abstract class TestBasicProxyPreparer extends BasicTest {
 	    } else if (!safeEquals(this.methodConstraints, methodConstraints)) {
 		throw new Test.FailedException(
 		    "Wrong methodConstraints: " + this.methodConstraints);
-	    } else if (this.permissions == null ||
-		       !Arrays.equals(this.permissions, permissions))
+	    } else if (super.getPermissions(null) == null ||
+		       !Arrays.equals(super.getPermissions(null), permissions))
 	    {
 		throw new Test.FailedException(
 		    "Wrong permissions: " +
-		    UnitTestUtilities.toString(this.permissions));
+		    UnitTestUtilities.toString(super.getPermissions(null)));
 	    }
 	}
 
@@ -163,19 +163,26 @@ public abstract class TestBasicProxyPreparer extends BasicTest {
 	    }
 	}				    
 
+        /**
+         * BasicProxyPreparer getPermissions now returns a clone
+         * and permissions now has private access. 
+         * 
+         * @param proxy
+         * @return 
+         */
 	protected Permission[] getPermissions(Object proxy) {
-	    try {
+//	    try {
 		Permission[] result = super.getPermissions(proxy);
-		if (!safeEquals(result, permissions)) {
-		    throw new Test.FailedException(
-			"Wrong permissions: " +
-			UnitTestUtilities.toString(result));
-		}
+//		if (!safeEquals(result, permissions)) {
+//		    throw new Test.FailedException(
+//			"Wrong permissions: " +
+//			UnitTestUtilities.toString(result));
+//		}
 		return result;
-	    } catch (Exception e) {
-		throw (Test.FailedException) new Test.FailedException(
-		    "Unexpected exception").initCause(e);
-	    }
+//	    } catch (Exception e) {
+//		throw (Test.FailedException) new Test.FailedException(
+//		    "Unexpected exception").initCause(e);
+//	    }
 	}
 
 	public synchronized Object prepareProxy(Object proxy)

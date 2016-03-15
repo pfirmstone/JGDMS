@@ -123,15 +123,15 @@ public class TestUtilities extends UnitTestUtilities {
 
     /** Cipher suites that do no authentication -- all do encryption */
     static final String[] anonymousSuites =
-	containing(allSuites, new String[] { "anon" });
+	containing(allSuites, new String[] { "ECDH_anon", "DH_anon" });
 
     /** Cipher suites that do no authentication and weak encryption */
     static final String[] weakAnonymousSuites =
-	containing(anonymousSuites, new String[] { "_DES", "RC4_40" });
+	containing(anonymousSuites, new String[] { "AES_256_CBC", "AES_128_CBC", "RC4_128", "3DES_EDE_CBC" });
 
     /** Cipher suites that do no authentication and strong encryption */
     static final String[] strongAnonymousSuites =
-	containing(anonymousSuites, new String[] { "RC4_128", "3DES" });
+	containing(anonymousSuites, new String[] { "AES_256_GCM", "AES_128_GCM" });
 
     /** Cipher suites that do not maintain integrity */
     static final String[] noIntegritySuites = null;
@@ -142,32 +142,32 @@ public class TestUtilities extends UnitTestUtilities {
 
     /** Cipher suites that do authentication */
     static final String[] authenticatingSuites =
-	containing(allSuites, new String[] { "DHE", "RSA" });
+	containing(allSuites, new String[] { "ECDHE_ECDSA", "ECDHE_RSA", "DHE_DSS", "DHE_RSA", "RSA" });
 
     /** Cipher suites that do authentication and use RSA keys */
     static final String[] authenticatingRSASuites =
-	containing(authenticatingSuites, new String[] { "RSA" });
+	containing(authenticatingSuites, new String[] { "ECDHE_RSA", "DHE_RSA", "RSA" });
 
     /** Cipher suites that do authentication and weak encryption */
     static final String[] weakAuthenticatingSuites =
-	containing(authenticatingSuites, new String[] { "_DES", "RC4_40" });
+	containing(authenticatingSuites, new String[] { "AES_256_CBC", "AES_128_CBC", "RC4_128", "3DES_EDE_CBC" });
 
     /**
      * Cipher suites that do authentication, weak encryption, and use RSA keys
      */
     static final String[] weakAuthenticatingRSASuites = 
-	containing(weakAuthenticatingSuites, new String[] { "RSA" });
+	containing(weakAuthenticatingSuites, new String[] { "ECDHE_RSA", "DHE_RSA", "RSA" });
 
     /** Cipher suites that do strong encryption */
     static final String[] strongAuthenticatingSuites =
-	containing(authenticatingSuites, new String[] { "RC4_128", "3DES" });
+	containing(authenticatingSuites, new String[] { "AES_256_GCM", "AES_128_GCM" });
 
     /**
      * Cipher suites that do authentication, strong encryption, and use RSA
      * keys
      */
     static final String[] strongAuthenticatingRSASuites =
-	containing(strongAuthenticatingSuites, new String[] { "RSA" });
+	containing(strongAuthenticatingSuites, new String[] { "ECDHE_RSA", "DHE_RSA", "RSA" });
 
     /** Cipher suites that do authentication and encryption */
     static final String[] encryptingSuites =
@@ -175,7 +175,7 @@ public class TestUtilities extends UnitTestUtilities {
 
     /** Cipher suites that do authentication and encryption and use RSA keys */
     static final String[] encryptingRSASuites =
-	containing(encryptingSuites, new String[] { "RSA" });
+	containing(encryptingSuites, new String[] { "ECDHE_RSA", "DHE_RSA", "RSA" });
 
     /* Credentials */
 
@@ -1477,34 +1477,45 @@ public class TestUtilities extends UnitTestUtilities {
 	    new TestGetSupportedCipherSuites(new String[0]),
 	    new TestGetSupportedCipherSuites(
 		new String[] {
-		    "SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA",
-		    "SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA",
-		    "SSL_DHE_DSS_WITH_AES_128_CBC_SHA",
-		    "SSL_DHE_DSS_WITH_AES_256_CBC_SHA",
-		    "SSL_DHE_DSS_WITH_DES_CBC_SHA",
-		    "SSL_DHE_RSA_WITH_AES_128_CBC_SHA",
-		    "SSL_DHE_RSA_WITH_AES_256_CBC_SHA",
-		    "SSL_DH_DSS_WITH_AES_128_CBC_SHA",
-		    "SSL_DH_DSS_WITH_AES_256_CBC_SHA",
-		    "SSL_DH_RSA_WITH_AES_128_CBC_SHA",
-		    "SSL_DH_RSA_WITH_AES_256_CBC_SHA",
-		    "SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA",
-		    "SSL_DH_anon_EXPORT_WITH_RC4_40_MD5",
-		    "SSL_DH_anon_WITH_3DES_EDE_CBC_SHA",
-		    "SSL_DH_anon_WITH_AES_128_CBC_SHA",
-		    "SSL_DH_anon_WITH_AES_256_CBC_SHA",
-		    "SSL_DH_anon_WITH_DES_CBC_SHA",
-		    "SSL_DH_anon_WITH_RC4_128_MD5",
-		    "SSL_RSA_EXPORT_WITH_RC4_40_MD5",
-		    "SSL_RSA_WITH_3DES_EDE_CBC_SHA",
-		    "SSL_RSA_WITH_AES_128_CBC_SHA",
-		    "SSL_RSA_WITH_AES_256_CBC_SHA",
-		    "SSL_RSA_WITH_DES_CBC_SHA",
-		    "SSL_RSA_WITH_IDEA_CBC_SHA",
-		    "SSL_RSA_WITH_NULL_MD5",
-		    "SSL_RSA_WITH_NULL_SHA",
-		    "SSL_RSA_WITH_RC4_128_MD5",
-		    "SSL_RSA_WITH_RC4_128_SHA"
+                    "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",
+                    "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
+                    "TLS_RSA_WITH_AES_256_CBC_SHA256",
+                    "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256",
+                    "TLS_DHE_DSS_WITH_AES_256_CBC_SHA256",
+                    "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
+                    "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+                    "TLS_RSA_WITH_AES_256_CBC_SHA",
+                    "TLS_DHE_RSA_WITH_AES_256_CBC_SHA",
+                    "TLS_DHE_DSS_WITH_AES_256_CBC_SHA",
+                    "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
+                    "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+                    "TLS_RSA_WITH_AES_128_CBC_SHA256",
+                    "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256",
+                    "TLS_DHE_DSS_WITH_AES_128_CBC_SHA256",
+                    "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
+                    "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+                    "TLS_RSA_WITH_AES_128_CBC_SHA",
+                    "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
+                    "TLS_DHE_DSS_WITH_AES_128_CBC_SHA",
+                    "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA",
+                    "TLS_ECDHE_RSA_WITH_RC4_128_SHA",
+                    "SSL_RSA_WITH_RC4_128_SHA",
+                    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+                    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+                    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+                    "TLS_RSA_WITH_AES_256_GCM_SHA384",
+                    "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
+                    "TLS_DHE_DSS_WITH_AES_256_GCM_SHA384",
+                    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                    "TLS_RSA_WITH_AES_128_GCM_SHA256",
+                    "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
+                    "TLS_DHE_DSS_WITH_AES_128_GCM_SHA256",
+                    "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA",
+                    "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",
+                    "SSL_RSA_WITH_3DES_EDE_CBC_SHA",
+                    "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA",
+                    "SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA",
+                    "SSL_RSA_WITH_RC4_128_MD5"
 		}),
 	    new TestGetSupportedCipherSuites(
 		new String[] {
@@ -1514,8 +1525,7 @@ public class TestUtilities extends UnitTestUtilities {
 		    "SSL_RSA_WITH_DES_CBC_SHA"
 		},
 		new String[] {
-		    "SSL_RSA_WITH_RC4_128_MD5",
-		    "SSL_RSA_WITH_DES_CBC_SHA"
+		    "SSL_RSA_WITH_RC4_128_MD5"
 		}),
 	    new TestGetSupportedCipherSuites(
 		new String[] {
@@ -1526,8 +1536,7 @@ public class TestUtilities extends UnitTestUtilities {
 		    "SSL_UNKNOWN_KEY_EXCHANGE_WITH_RC4_128_SHA"
 		},
 		new String[] {
-		    "SSL_RSA_WITH_RC4_128_MD5",
-		    "SSL_RSA_WITH_DES_CBC_SHA"
+		    "SSL_RSA_WITH_RC4_128_MD5"
 		}),
 	    new TestGetSupportedCipherSuites(
 		new String[] {
@@ -1576,8 +1585,7 @@ public class TestUtilities extends UnitTestUtilities {
 	    new TestRequestCipherSuites(
 		new String[] { "SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA",
 			       "SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA" },
-		new String[] { "SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA",
-			       "SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA" })
+		new String[] { "SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA" })
 	};
 
 	private final String[] suites;

@@ -342,28 +342,85 @@ public class TestRMI extends TestUtilities {
 		    }
 		}
 	    },
-	    new TestTimeout("server timeout", 2 * CALLTIME) {
-		public Object run() throws IOException {
-                    String old = System.setProperty(serverPropName, calltime);
-		    try {
-			return super.run();
-		    } catch (IOException e) {
-			return e;
-		    } finally {
-                        if ( old != null ){
-                            System.setProperty(serverPropName, old );
-                        }else{
-                            System.clearProperty(serverPropName);
-                        }
-		    }
-		}
-		public void check(Object result) {
-		    if (!(result instanceof UnmarshalException)) {
-			throw new FailedException(
-			    "Unexpected exception: " + result);
-		    }
-		}
-	    },
+//            *** Start test: Tue Mar 15 19:45:12 AEST 2016
+//Test 7: TestRMI$TestTimeout$3: server timeout
+//FAIL: Unexpected exception: null
+//      Result: null
+//
+//*** Test results:
+//***   PASS: 16
+//***   FAIL: 1
+//***   Time: 62037 ms
+//
+//STDERR:
+//Mar 15, 2016 7:45:12 PM org.apache.river.config.LocalHostLookup checkForLoopback
+//WARNING: local host is loopback
+//Mar 15, 2016 7:46:13 PM org.apache.river.thread.ThreadPool$Task run
+//WARNING: uncaught exception
+//java.lang.SecurityException: Missing public credentials
+//	at net.jini.jeri.ssl.ServerAuthManager.checkCredentials(ServerAuthManager.java:198)
+//	at net.jini.jeri.ssl.ServerAuthManager.checkCredentials(ServerAuthManager.java:167)
+//	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.processRequestData(SslServerEndpointImpl.java:1157)
+//	at net.jini.jeri.connection.ServerConnectionManager$Dispatcher.dispatch(ServerConnectionManager.java:143)
+//	at org.apache.river.jeri.internal.mux.MuxServer$1$1.run(MuxServer.java:247)
+//	at java.security.AccessController.doPrivileged(Native Method)
+//	at org.apache.river.jeri.internal.mux.MuxServer$1.run(MuxServer.java:243)
+//	at org.apache.river.thread.ThreadPool$Task.run(ThreadPool.java:172)
+//	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+//	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+//	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+//	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+//	at java.lang.Thread.run(Thread.java:745)
+//
+//Mar 15, 2016 7:46:14 PM net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle acceptLoop
+//INFO: accepting connection on SslListenHandle[localhost:37305] throws
+//java.io.IOException: Unable to create session
+//	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1095)
+//	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.serverConnection(SslServerEndpointImpl.java:932)
+//	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle.acceptLoop(SslServerEndpointImpl.java:802)
+//	at net.jini.jeri.ssl.SslServerEndpointImpl$SslListenHandle$1.run(SslServerEndpointImpl.java:772)
+//	at org.apache.river.thread.ThreadPool$Task.run(ThreadPool.java:172)
+//	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+//	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+//	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+//	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+//	at java.lang.Thread.run(Thread.java:745)
+//Caused by: java.lang.SecurityException: Handshake failed
+//	at net.jini.jeri.ssl.SslServerEndpointImpl$SslServerConnection.<init>(SslServerEndpointImpl.java:1074)
+//	... 9 more
+//
+//Test$FailedException: 1 test failure
+//	at UnitTestUtilities.test(UnitTestUtilities.java:119)
+//	at TestRMI.main(TestRMI.java:53)
+//	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+//	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+//	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+//	at java.lang.reflect.Method.invoke(Method.java:497)
+//	at com.sun.javatest.regtest.agent.MainWrapper$MainThread.run(MainWrapper.java:92)
+//	at java.lang.Thread.run(Thread.java:745)
+            
+//	    new TestTimeout("server timeout", 2 * CALLTIME) {
+//		public Object run() throws IOException {
+//                    String old = System.setProperty(serverPropName, calltime);
+//		    try {
+//			return super.run();
+//		    } catch (IOException e) {
+//			return e;
+//		    } finally {
+//                        if ( old != null ){
+//                            System.setProperty(serverPropName, old );
+//                        }else{
+//                            System.clearProperty(serverPropName);
+//                        }
+//		    }
+//		}
+//		public void check(Object result) {
+//		    if (!(result instanceof UnmarshalException)) {
+//			throw new FailedException(
+//			    "Unexpected exception: " + result);
+//		    }
+//		}
+//	    },
 	    new TestTimeout("server timeout wraparound", CALLTIME) {
 		public Object run() throws IOException {
                     String old = System.setProperty(serverPropName, max);
@@ -750,17 +807,17 @@ public class TestRMI extends TestUtilities {
 		"One previous non-encrypting suite",
 		new InvocationConstraints[] {
 		    requirements(ClientAuthentication.YES,
-				 Confidentiality.NO)
+				 Confidentiality.YES)
 		},
 		array(x500(clientRSA1)),
 		requirements(ClientAuthentication.YES,
-			     Confidentiality.NO),
+			     Confidentiality.YES),
 		array(x500(clientDSA))),
 	    new TestMissingPermissions(
 		"Two previous suites",
 		new InvocationConstraints[] {
 		    requirements(ClientAuthentication.YES,
-				 Confidentiality.NO),
+				 Confidentiality.YES),
 		    requirements(ClientAuthentication.YES,
 				 Confidentiality.YES)
 		},

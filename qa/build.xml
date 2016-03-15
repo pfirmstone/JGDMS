@@ -243,7 +243,8 @@
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
             <!--<arg value="net/jini/url/httpmd/TestEqual.java"/>-->
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
-            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
+            <!--2 test failures in: 
+            <arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
         </jtreg>
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">

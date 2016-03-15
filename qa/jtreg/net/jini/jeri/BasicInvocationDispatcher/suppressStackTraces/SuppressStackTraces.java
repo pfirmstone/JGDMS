@@ -49,25 +49,7 @@ interface Pong extends Remote {
     void pong() throws PongException, RemoteException;
 }
 
-class PongException extends Exception {
-    private void readObject(ObjectInputStream in)
-	throws IOException, ClassNotFoundException
-    {
-	in.defaultReadObject();
 
-	/*
-	 * Verify right at unmarshalling time that this exception instance
-	 * contains no stack trace data from the server (regardless of whether
-	 * or not it would be apparent at the RMI client application level).
-	 */
-	StackTraceElement[] trace = getStackTrace();
-	if (trace.length > 0) {
-	    throw new RuntimeException(
-		"TEST FAILED: exception contained non-empty stack trace: " +
-		Arrays.asList(trace));
-	}
-    }
-}
 
 class Impl implements Pong {
     public void pong() throws PongException { __BAR__(); }

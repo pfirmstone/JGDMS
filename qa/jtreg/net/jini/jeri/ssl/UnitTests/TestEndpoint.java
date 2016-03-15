@@ -859,14 +859,14 @@ public class TestEndpoint extends TestUtilities {
 			     ClientAuthentication.NO,
 			     ServerAuthentication.YES),
 		serverRSASubject,
-		OK),
+		UNSUPPORTED),
 	    new TestNewRequest(
 		clientRSASubject,
 		requirements(Confidentiality.NO,
 			     ClientAuthentication.NO,
 			     ServerAuthentication.YES),
 		serverRSASubject,
-		OK),
+		UNSUPPORTED),
 	    new TestNewRequest(
 		null,
 		requirements(Confidentiality.NO,
@@ -894,7 +894,7 @@ public class TestEndpoint extends TestUtilities {
 			     ClientAuthentication.YES,
 			     ServerAuthentication.YES),
 		serverRSASubject,
-		OK),
+		UNSUPPORTED),
 	    new TestNewRequest(
 		null,
 		requirements(Confidentiality.YES,
@@ -969,7 +969,7 @@ public class TestEndpoint extends TestUtilities {
 		new WithSubject() { {
 		    addX500Principal("serverRSA", subject);
 		} }.subject(),
-		OK),
+		UNSUPPORTED),
 	    new TestNewRequest(
 		"Non-encrypting with DSA server credentials",
 		null,

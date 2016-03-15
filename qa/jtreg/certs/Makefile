@@ -18,7 +18,7 @@
 #DSTCROOT =	/home/tjb/lib/jcsi/jcsi_v1.0b1 #replaced with BC_LIB
 #JDK13HOME =	/files/jdk13 #replaced with JAVA_HOME
 
-BC_LIB = ../../../bouncy-castle
+BC_LIB = ../../../dep-libs/bouncy-castle
 
 KEYTOOL=${JAVA_HOME}/bin/keytool
 KEYSTORECMD=${KEYTOOL} -storepass keypass -keypass keypass -validity 3650
@@ -35,9 +35,9 @@ USER_NAMES=A B C D E
 #	  *.java
 
 compile:
-	${JAVA_HOME}/bin/javac \
+	${JAVA_HOME}/../bin/javac \
 	  -d . \
-	  -classpath .:${BC_LIB}/bcprov-jdk16-146.jar:${BC_LIB}/bcmail-jdk16-146.jar \
+	  -classpath .:${BC_LIB}/bcprov-jdk15on-154.jar:${BC_LIB}/bcpkix-jdk15on-154.jar:${BC_LIB}/bcmail-jdk15on-154.jar \
 	  *.java
 
 create:

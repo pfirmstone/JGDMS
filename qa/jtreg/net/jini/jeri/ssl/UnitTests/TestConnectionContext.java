@@ -49,22 +49,22 @@ public class TestConnectionContext extends TestUtilities implements Test {
 	new LazyMethod("ConnectionContext", "getConnectionTime", new Class[0]);
     private static final LazyMethod getPreferences =
 	new LazyMethod("ConnectionContext", "getPreferences", new Class[0]);
-
-    private static String ANONS1 = "SSL_DH_anon_WITH_RC4_128_MD5";
-    private static String ANONS2 = "SSL_DH_anon_WITH_3DES_EDE_CBC_SHA";
-    private static String ANONW1 = "SSL_DH_anon_WITH_DES_CBC_SHA";
-    private static String ANONW2 = "SSL_DH_anon_EXPORT_WITH_RC4_40_MD5";
-    private static String ANONW3 = "SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA";
-    private static String CONFS1 = "SSL_RSA_WITH_RC4_128_MD5";
-    private static String CONFS2 = "SSL_RSA_WITH_RC4_128_SHA";
-    private static String CONFS3 = "SSL_RSA_WITH_3DES_EDE_CBC_SHA";
-    private static String CONFS4 = "SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA";
-    private static String CONFW1 = "SSL_RSA_WITH_DES_CBC_SHA";
-    private static String CONFW2 = "SSL_DHE_DSS_WITH_DES_CBC_SHA";
-    private static String CONFW3 = "SSL_RSA_EXPORT_WITH_RC4_40_MD5";
-    private static String CONFW4 = "SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA";
-    private static String NCONF1 = "SSL_RSA_WITH_NULL_MD5";
-    private static String NCONF2 = "SSL_RSA_WITH_NULL_SHA";
+    
+    private static String ANONS1 = "TLS_DH_anon_WITH_AES_128_GCM_SHA256";
+    private static String ANONS2 = "TLS_DH_anon_WITH_AES_256_GCM_SHA384";
+    private static String ANONW1 = "TLS_DH_anon_WITH_AES_128_CBC_SHA";
+    private static String ANONW2 = "TLS_ECDH_anon_WITH_RC4_128_SHA";
+    private static String ANONW3 = "TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA";
+    private static String CONFS1 = "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256";
+    private static String CONFS2 = "TLS_DHE_DSS_WITH_AES_128_GCM_SHA256";
+    private static String CONFS3 = "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
+    private static String CONFS4 = "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384";
+    private static String CONFW1 = "TLS_DHE_DSS_WITH_AES_128_CBC_SHA";
+    private static String CONFW2 = "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256";
+    private static String CONFW3 = "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA";
+    private static String CONFW4 = "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA";
+    private static String NCONF1 = "TLS_ECDHE_ECDSA_WITH_NULL_SHA";
+    private static String NCONF2 = "TLS_ECDHE_RSA_WITH_NULL_SHA";
 
     private static Principal AN = null;
     private static Principal CL = x500("CN=Client");

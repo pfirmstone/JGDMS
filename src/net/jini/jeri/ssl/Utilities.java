@@ -70,8 +70,10 @@ abstract class Utilities {
      * communication.
      */
     private static final String[] ANONYMOUS_KEY_EXCHANGE_ALGORITHMS = {
-	"ECDH_anon", //These are not safe from mitm attack
-	"DH_anon"
+        //These are not safe from mitm attack, but are here for constraint functionality purposes
+	"ECDH_anon", 
+	"DH_anon",
+        "DH_anon_EXPORT"
     };
 
     /** The names of JSSE key exchange algorithms that use RSA keys. */

@@ -46,7 +46,7 @@ public class AllPrincipalsGrantProxyPreparer extends BasicProxyPreparer {
 	Permission[] perms = getPermissions(proxy);
 	if (perms.length > 0) {
 	    try {
-		Security.grant(proxy.getClass(), null, permissions);
+		Security.grant(proxy.getClass(), null, getPermissions(null));
 	    } catch (UnsupportedOperationException e) {
 		throw (SecurityException) new SecurityException(
 		    "Dynamic permission grants are not supported").initCause(e);

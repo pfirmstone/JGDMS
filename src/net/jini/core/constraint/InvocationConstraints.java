@@ -21,6 +21,8 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.Collection;
@@ -522,7 +524,7 @@ public final class InvocationConstraints implements Serializable {
 	return ("InvocationConstraints[reqs: " + Constraint.toString(reqs) +
 		", prefs: " + Constraint.toString(prefs) + "]");
     }
-
+    
     /**
      * Verifies that there are no <code>null</code> elements and no duplicates.
      *

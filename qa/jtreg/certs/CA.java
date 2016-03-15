@@ -19,6 +19,7 @@
 //import com.dstc.security.provider.DSTC;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -41,6 +42,8 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.spec.EncodedKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Date;
 import java.util.Iterator;
@@ -59,14 +62,16 @@ import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v1CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v1CertificateBuilder;
-import org.bouncycastle.jce.PKCS10CertificationRequest;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMReader;
+import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.PEMWriter;
 import org.bouncycastle.openssl.PasswordFinder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestHolder;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 
 /*
  * HISTORICAL:
@@ -192,11 +197,11 @@ public class CA {
                         new BufferedInputStream(
                         new FileInputStream(certRequests[i]))
                         );
-                PEMReader pemRead = new PEMReader(input);
+                PEMParser pemRead = new PEMParser(input);
                 PKCS10CertificationRequest certReq = 
                         (PKCS10CertificationRequest) pemRead.readObject();
-                JcaPKCS10CertificationRequestHolder holder = 
-                        new JcaPKCS10CertificationRequestHolder(certReq);
+                JcaPKCS10CertificationRequest holder = 
+                        new JcaPKCS10CertificationRequest(certReq);
                 PublicKey publicKey1 = holder.getPublicKey();
                 X500Name x500Name = holder.getSubject();
                 X500Principal subject1 = new X500Principal(x500Name.toString());
@@ -236,7 +241,7 @@ public class CA {
         PBEParameterSpec pbeParamSpec = new PBEParameterSpec(salt, iterationCount);
        
         PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray(), salt, iterationCount);
-        String pbeAlgorithm = "PBEwithSHA1AndDESede";
+        String pbeAlgorithm = "PBEwithSHA1AndRC4_128";
         Cipher cipher = Cipher.getInstance(pbeAlgorithm);
         SecretKeyFactory skf = SecretKeyFactory.getInstance(pbeAlgorithm);
         cipher.init(Cipher.WRAP_MODE, skf.generateSecret(pbeKeySpec));
@@ -291,7 +296,7 @@ public class CA {
         // initialise the cypher with wrapper key in unwrap mode.
         cipher.init(Cipher.DECRYPT_MODE, secretKeyFact.generateSecret(pbeSpec), pInfo.getAlgParameters());
         // Retrieve the private key.
-        PKCS8EncodedKeySpec pcks8Spec = pInfo.getKeySpec(cipher);
+        EncodedKeySpec pcks8Spec = pInfo.getKeySpec(cipher);
         KeyFactory keyFact = KeyFactory.getInstance(secretKeyAlgorithm, "BC");
         return keyFact.generatePrivate(pcks8Spec);
         
@@ -311,8 +316,10 @@ public class CA {
         String certFileName = p.getProperty("jcsi.ca.cert", "user.cert");
         File f = new File(directory +"/"+ certFileName);
         Writer out = new OutputStreamWriter(new BufferedOutputStream(new FileOutputStream(f)));
-        PEMWriter pemWriter = new PEMWriter(out, "BC");
-        pemWriter.writeObject(c);
+        PEMWriter pemWriter = new PEMWriter(out);
+        PemObject pemObj = new PemObject(c.getType(), c.getEncoded());
+        pemWriter.writeObject(pemObj);
+//        pemWriter.writeObject(c);
         pemWriter.flush();
         pemWriter.close();
     }
@@ -322,8 +329,13 @@ public class CA {
         String certFileName = p.getProperty("jcsi.ca.cert", "user.cert");
         File f = new File(directory +"/"+ certFileName);
         Reader in = new InputStreamReader(new BufferedInputStream(new FileInputStream(f)));
-        PEMReader pemReader = new PEMReader(in);
-        return (Certificate) pemReader.readObject();
+//        PEMParser pemReader = new PEMParser(in);
+        PemReader pemReader = new PemReader(in);
+        PemObject pemObj = pemReader.readPemObject();
+        CertificateFactory certFactory = CertificateFactory.getInstance(pemObj.getType());
+        InputStream inst = new ByteArrayInputStream(pemObj.getContent());
+        return certFactory.generateCertificate(inst);
+//        return (Certificate) pemReader.readObject();
     }
     
     private static X500Principal getIssuer( Properties p ){

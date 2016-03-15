@@ -1,0 +1,10 @@
+Instructions for CA Cert generation, user certs, cert requests, cert chains and key stores.
+$ make clean
+$ make compile
+$ make create
+$ make create_users_truststore
+$ run-ca.sh -CA test-ca1.properties
+$ run-ca.sh -CR test-ca1.properties
+$ run-ca.sh -CA test-ca2.properties
+$ run-ca.sh -CR test-ca2.properties
+$ make import

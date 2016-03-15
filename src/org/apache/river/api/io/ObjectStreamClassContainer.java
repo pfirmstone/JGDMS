@@ -75,6 +75,8 @@ class ObjectStreamClassContainer {
     }
 
     protected void deSerializationPermitted(Permission perm) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm == null) return;
 	if (context != null && perm != null) {
 	    context.checkPermission(perm);
 	}
@@ -122,8 +124,7 @@ class ObjectStreamClassContainer {
 		    return new AccessControlContext(domains.toArray(new ProtectionDomain[domains.size()]));
 		}
 	    });
-	    SecurityManager sm = System.getSecurityManager();
-	    if (sm != null) sm.checkPermission(perm, context);
+	    sm.checkPermission(perm, context);
 	}
     }
 

@@ -33,16 +33,15 @@ import net.jini.export.Exporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.apache.river.api.io.AtomicSerial;
 
 interface Ping extends Remote {
     void ping() throws PingException, RemoteException;
 }
 
-class PingException extends Exception {
-}
 
 public class ServerStackTrace implements Ping {
-
+    
     public void ping() throws PingException {
 	__BAR__();
     }

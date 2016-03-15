@@ -142,6 +142,21 @@ class ThrowableSerializer implements Serializable {
 		    }
 		    return result;
 		}
+                if (params.length == 0){
+                    result = (Throwable) cons[i].newInstance();
+		    if (cause != null){
+			if (RemoteException.class.isAssignableFrom(clas)){
+			    ((RemoteException) result).detail = cause;
+			} else {
+			    try {
+				result.initCause(cause);
+			    } catch (IllegalStateException e){
+				throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
+			    }
+			} 
+		    }
+		    return result;
+                }
 	    }
 	    throw throIO(new InstantiationException("No suitable constructor found for class " + clas));
 	} catch (SecurityException ex) {
