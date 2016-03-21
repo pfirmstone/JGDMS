@@ -117,14 +117,22 @@ public final class InvocationConstraints implements Serializable {
 				  InvocationConstraint[] prefs,
 				  boolean serial) throws InvalidObjectException
     {
-	verify(reqs);
-	verify(prefs);
-	for (int i = prefs.length; --i >= 0; ) {
+	this(check(reqs, prefs),
+             verify(reqs),
+             verify(prefs)
+        );
+    }
+    
+    private static boolean check(InvocationConstraint[] reqs, 
+				 InvocationConstraint[] prefs) throws InvalidObjectException
+    {
+        for (int i = prefs.length; --i >= 0; ) {
 	    if (Constraint.contains(reqs, reqs.length, prefs[i])) {
 		throw new InvalidObjectException(
 			  "cannot create constraint with redundant elements");
 	    }
 	}
+        return true;
     }
     
     /**
@@ -557,7 +565,7 @@ public final class InvocationConstraints implements Serializable {
      * Verifies that the array is non-null, the elements are all non-null,
      * and there are no duplicates.
      */
-    private static void verify(InvocationConstraint[] constraints)
+    private static InvocationConstraint[] verify(InvocationConstraint[] constraints)
 	throws InvalidObjectException
     {
 	if (constraints == null) {
@@ -572,5 +580,6 @@ public final class InvocationConstraints implements Serializable {
 			  "cannot create constraint with redundant elements");
 	    }
 	}
+        return constraints;
     }
 }

@@ -70,7 +70,8 @@ abstract class Utilities {
      * communication.
      */
     private static final String[] ANONYMOUS_KEY_EXCHANGE_ALGORITHMS = {
-        //These are not safe from mitm attack, but are here for constraint functionality purposes
+        //These are not safe from mitm attack, but are here for constraint 
+        // functionality purposes, all are disabled in Java 8.
 	"ECDH_anon", 
 	"DH_anon",
         "DH_anon_EXPORT"

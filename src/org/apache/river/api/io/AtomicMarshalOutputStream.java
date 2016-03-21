@@ -41,6 +41,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.x500.X500Principal;
 import net.jini.io.MarshalOutputStream;
 import org.apache.river.api.io.ActivationGroupDescSerializer.CmdEnv;
 
@@ -259,6 +260,7 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    serializers.put(ActivationDesc.class, ActivationDescSerializer.class);
 	    serializers.put(CommandEnvironment.class, CmdEnv.class);
 	    serializers.put(StackTraceElement.class, StackTraceElementSerializer.class);
+            serializers.put(X500Principal.class, X500PrincipalSerializer.class);
 	}
 	
 	    @Override

@@ -62,6 +62,8 @@ ${KEYSTORECMD} -genkey -alias notTrusted -dname CN=notTrusted -keyalg RSA
 # The following commands depend on using an outside certificate
 # authority to sign each of the certificates and supply a certificate
 # for the CA.
+${KEYSTORECMD} -genkey -alias clientDSA1 -dname CN=clientDSA1 -keyalg DSA
+${KEYSTORECMD} -certreq -alias clientDSA1 -file clientDSA1.request
 
 ${KEYSTORECMD} -genkey -alias clientDSA2 -dname CN=clientDSA2 -keyalg DSA
 ${KEYSTORECMD} -certreq -alias clientDSA2 -file clientDSA2.request
@@ -76,7 +78,7 @@ ${KEYSTORECMDEXP} -genkey -alias serverRSA2expired -dname CN=serverRSA2 -keyalg 
 ${KEYSTORECMDEXP} -certreq -alias serverRSA2expired -file serverRSA2expired.request
 
 set +x
-echo Sign clientDSA2.req, serverRSA2.req, clientDSA2expired.req and serverRSA2expired.req,\
+echo Sign clientDSA1.req, clientDSA2.req, serverRSA2.req, clientDSA2expired.req and serverRSA2expired.req,\
  then import them:
 echo expired certificates need one day to expire before testing.
 

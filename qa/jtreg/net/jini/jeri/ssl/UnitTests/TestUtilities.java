@@ -1538,6 +1538,45 @@ public class TestUtilities extends UnitTestUtilities {
 		new String[] {
 		    "SSL_RSA_WITH_RC4_128_MD5"
 		}),
+            new TestGetSupportedCipherSuites(
+		new String[] {  //Now insecure unsupported protocols
+                    "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384",
+                    "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384",
+                    "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA",
+                    "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA",
+                    "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256",
+                    "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256",
+                    "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA",
+                    "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA",
+                    "TLS_ECDH_ECDSA_WITH_RC4_128_SHA",
+                    "TLS_ECDH_RSA_WITH_RC4_128_SHA",
+                    "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384",
+                    "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384",
+                    "TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256",
+                    "TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256",
+                    "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA",
+                    "TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA",
+                    "TLS_DH_anon_WITH_AES_256_GCM_SHA384",
+                    "TLS_DH_anon_WITH_AES_128_GCM_SHA256",
+                    "TLS_DH_anon_WITH_AES_256_CBC_SHA256",
+                    "TLS_ECDH_anon_WITH_AES_256_CBC_SHA",
+                    "TLS_DH_anon_WITH_AES_256_CBC_SHA",
+                    "TLS_DH_anon_WITH_AES_128_CBC_SHA256",
+                    "TLS_ECDH_anon_WITH_AES_128_CBC_SHA",
+                    "TLS_DH_anon_WITH_AES_128_CBC_SHA",
+                    "TLS_ECDH_anon_WITH_RC4_128_SHA",
+                    "SSL_DH_anon_WITH_RC4_128_MD5",
+                    "TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA",
+                    "SSL_DH_anon_WITH_3DES_EDE_CBC_SHA",
+                    "TLS_ECDH_ECDSA_WITH_NULL_SHA",
+                    "TLS_ECDH_RSA_WITH_NULL_SHA",
+                    "TLS_ECDH_anon_WITH_NULL_SHA",
+                    "SSL_DH_anon_WITH_DES_CBC_SHA",
+                    "SSL_DH_anon_EXPORT_WITH_RC4_40_MD5",
+                    "SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA"
+                },
+		new String[0]
+            ), 
 	    new TestGetSupportedCipherSuites(
 		new String[] {
 		    "SSL_RSA_WITH_UNKNOWN_CIPHER_SHA",

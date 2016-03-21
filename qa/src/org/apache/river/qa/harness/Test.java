@@ -29,35 +29,35 @@ public interface Test {
      * which have been determined to result from problems external
      * to the product.
      */
-    int ENV = 1;
+    final int ENV = 1;
     /**
      * Failure type. Indicates that a test failed but the reason for
      * failure may be external to the product being tested.
      */
-    int INDEF = 2;
+    final int INDEF = 2;
     /**
      * Failure type indicating no failure occured. This is a special
      * value which should be returned by a FailureAnalyzer to indicate
      * that the exception represents a passing condition for the test
      */
-    int PASSED = 6;
+    final int PASSED = 6;
     /**
      * Failure type indicating that the test should be rerun.
      */
-    int RERUN = 4;
+    final int RERUN = 4;
     /**
      * Failure type indicating that the test should not be run.
      */
-    int SKIP = 3;
+    final int SKIP = 3;
     /**
      * Failure type. Indicates that a test failed because the product failed,
      * or an unrecognized environmental failure occured.
      */
-    int TEST = 0;
+    final int TEST = 0;
     /**
      * Failure type (for analyzers) indicating failure not recognized
      */
-    int UNKNOWN = 5;
+    final int UNKNOWN = 5;
 
     /**
      * Execute the body of the test.
