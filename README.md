@@ -11,3 +11,12 @@
 
 ## Discussion forum:
 https://groups.google.com/forum/#!forum/river-secure-ipv6-discovery
+
+## Notables:
+* Worlds fastest, highly scalable, Java security policy provider.
+* RFC3986URLClassLoader is much faster than Java's built in URLClassLoader.
+* RFC3896 compliant Uri.
+* Atomic Serialization outperforms standard Java.
+* JERI (Jini Extensible Remote Invocation) outperforms java RMI.
+* Unnecessary DNS calls have been eliminated.
+* Hi performance lookup service method delays or avoids unnecessary codebase downloads.
