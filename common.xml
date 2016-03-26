@@ -27,7 +27,7 @@
     <!-- Product version info -->
     <property name="version" value="trunk"/>
     <property name="product.name" value="apache-river-${version}"/>
-    <property name="product.title" value="Apache River v${version}"/>
+    <property name="product.title" value="River-Internet v${version}"/>
 
     <!-- Standard directory names -->
     <property name="doc" value="doc"/>

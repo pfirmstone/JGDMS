@@ -44,7 +44,7 @@ import net.jini.url.httpmd.HttpmdUtil;
  * </pre>
  * </blockquote>
  *
- * where <var><b>install_dir</b></var> is the directory where the Apache River release
+ * where <var><b>install_dir</b></var> is the directory where the River-Internet release
  * is installed, <var><b>your_host</b></var> is the host where the HTTP server
  * for the <code>sdm-dl.jar</code> JAR file will be running, and
  * <var><b>http_port</b></var> is the port for that server. This command prints

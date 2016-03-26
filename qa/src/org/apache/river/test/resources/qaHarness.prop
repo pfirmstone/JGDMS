@@ -178,7 +178,7 @@ org.apache.river.jsk.domain=apache.org
 # in a separate file
 org.apache.river.qa.harness.generateHtml=false
 org.apache.river.qa.harness.generateHtml.resultLog=result$/index.html
-org.apache.river.qa.harness.generateHtml.title=Apache River QA test results
+org.apache.river.qa.harness.generateHtml.title=River-Internet QA test results
 org.apache.river.qa.harness.generateHtml.links=qaHarness.prop logging.properties
 org.apache.river.qa.harness.generateHtml.removePassResults=false
 org.apache.river.qa.harness.generateHtml.testOrderJsp=http://jiniautot.east:8080/autot/ReloadTestOrder.jsp

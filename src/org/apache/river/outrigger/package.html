@@ -62,7 +62,7 @@ The storage formats used by Snaplogstore and Logstore are mutually
 incompatible.<p>
 
 The JAR file <code>outrigger.jar</code>, included in the <code>lib</code>
-subdirectory of the Apache River release
+subdirectory of the River-Internet release
 installation, contains the classes for <code>TransientOutriggerImpl</code>.
 &nbsp <code>outrigger.jar</code> also includes, via a JAR file manifest
 classpath directive, a reference to
@@ -1420,7 +1420,7 @@ The examples below make the following assumptions: <p>
 <ul>
 <li> The Java(TM) 2 Platform, Standard Edition, (J2SE(TM)) has been
      installed, and its commands are available in the current path
-<li> The Apache River release has been installed in the
+<li> The River-Internet release has been installed in the
      <var><b>install_dir</b></var> directory
 <li> The example configuration and policy files described below are
      available in the <var><b>config_dir</b></var> directory
@@ -1786,7 +1786,7 @@ org.apache.river.start {
 </a>
 
 This configuration starts a transient Outrigger server that will use Jini
-ERI (the configurable Java RMI implementation included with the Apache River 
+ERI (the configurable Java RMI implementation included with the River-Internet 
 release) to communicate between proxies and the server. Only a single VM will
 be involved (which will be started by the command shown below). The
 Outrigger server will reside in this VM. When this VM exits, the server, the

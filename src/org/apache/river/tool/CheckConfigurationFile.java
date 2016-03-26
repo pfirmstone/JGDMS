@@ -83,9 +83,9 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  * actual type is not assignable to the expected type, is treated as an
  * error. <p>
  *
- * Entry description files for all of the Apache River release services and utilities
+ * Entry description files for all of the River-Internet release services and utilities
  * are provided in the <code>configentry</code> subdirectory beneath the
- * top-level directory of the Apache River release installation. <p>
+ * top-level directory of the River-Internet release installation. <p>
  *
  * Here is a sample entry description file:
  *
@@ -131,7 +131,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  * </pre>
  * </blockquote>
  * 
- * where <var><b>install_dir</b></var> is the directory where the Apache River release
+ * where <var><b>install_dir</b></var> is the directory where the River-Internet release
  * is installed, and <var><b>your-norm.config</b></var> is a configuration
  * source file intended for use with the transient {@linkplain
  * org.apache.river.norm Norm} service implementation. This command will print out

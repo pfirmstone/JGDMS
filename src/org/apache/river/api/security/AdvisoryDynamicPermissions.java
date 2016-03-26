@@ -18,11 +18,12 @@
 package org.apache.river.api.security;
 
 import java.security.Permission;
+import net.jini.security.ProxyPreparer;
 import org.apache.river.api.common.Beta;
 
 /**
  * Jar files that include a META-INF/PERMISSIONS.LIST file,
- * allow a ProxyVerifier to grant these permissions dynamically.
+ * allow a {@link ProxyPreparer} to grant these permissions dynamically.
  * <p>
  * The PERMISSIONS.LIST file must be UTF-8 encoded, the format of the file 
  * is line based, length is not limited, however lines must be readable by 

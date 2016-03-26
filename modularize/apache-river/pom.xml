@@ -21,8 +21,8 @@
     <artifactId>river</artifactId>
     <version>3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Apache River Project</name>
-    <description>Apache River Project</description>
+    <name>River-Internet Project</name>
+    <description>River-Internet Project</description>
     <inceptionYear>2008</inceptionYear>
     <url>http://river.apache.org</url>
 
@@ -105,7 +105,7 @@
                             </links>
                             <detectLinks>true</detectLinks>
                             <breakiterator>true</breakiterator>
-                            <top><![CDATA[<h2>Apache River Project ${pom.version} API Documentation</h2>]]></top>
+                            <top><![CDATA[<h2>River-Internet Project ${pom.version} API Documentation</h2>]]></top>
                             <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
                             <excludePackageNames></excludePackageNames>
                         </configuration>

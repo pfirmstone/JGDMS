@@ -17,17 +17,16 @@
  !-->
 <html lang="en-US">
 <head>
-<title>Apache River Release Notes, v3.0.0</title>
+<title>River-Internet Release Notes, v3.0.0-b1</title>
 </head>
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
 
 
-<center> <h1><a name="TOP">Apache River 
+<center> <h1><a name="TOP">River-Internet 
 <br>v3.0.0 Release Notes</a></h1></center>
 <p>
-Apache River is aimed at the development and advancement of the
-River technology core infrastructure. It is a top level Apache project.  River technology is a service
+River-Internet technology is a micro service
 oriented architecture that defines a programming model which both
 exploits and extends Java technology to enable the construction of
 secure, distributed systems which are adaptive to change.
@@ -35,30 +34,23 @@ secure, distributed systems which are adaptive to change.
 
 <h2>Submitting Issues</h2>
 <p>
-If you would like to submit a bug against the Apache River release, please use the
-<a href="http://issues.apache.org/jira/browse/RIVER">River JIRA</a>.
-To discuss problems, questions, or suggestions on the release, please subscribe
-to the <code>river-dev</code> list from the <a href="http://river.apache.org/mailing-lists.html">
-project Mailing Lists</a> page.
+If you would like to submit a bug against the River-Internet release, please 
+do so on github.
 <hr>
 
 <ul><a name="platform"><h2>Platform dependencies</h2></a>
 This release depends on new features included in version 6 of
-the <a href="http://docs.oracle.com/javase/6/docs/">Java(TM) 2 Platform,
+the <a href="http://docs.oracle.com/javase/8/docs/">Java(TM) 2 Platform,
 Standard Edition</a>. You should not expect to be able to use
 the source code or JAR files from this release with earlier versions
 of the Java platform. This requirement also extends to clients
 that dynamically download code from the services provided in this release.
 </ul>
 <hr>
-<ul><a name="platform_jars">
+<ul><a name="platform_jars"></ul>
 <h2>Platform JAR files</h2></a>
-In this release we have extended our platform requirements to be
-more than just the Java 2 Platform, Standard Edition.
-<p>
-<dl>
-<dt><b><code>jsk-policy.jar</code></b>
-<dd>
+
+<b><code>jsk-policy.jar</code></b>
 This JAR file contains a security policy provider,
 <a href="../api/net/jini/security/policy/DynamicPolicyProvider.html">
 <code>DynamicPolicyProvider</code></a>, that supports dynamic
@@ -86,8 +78,8 @@ then define a <i>system</i> property:
 -Djava.security.properties=<var>path-to-file</var>/security.properties
 </pre>
 when running your application.
-<p><dt><b><code>jsk-platform.jar</code></b>
-<dd>
+<p><b><code>jsk-platform.jar</code></b>
+
 This JAR file contains classes and interfaces that we have chosen to include
 in all of our applications, and have also chosen to assume are available
 in all other applications that receive objects from our applications.
@@ -211,7 +203,7 @@ the contents of this JAR file to use different sets of providers.
 <p><dt><b><code>jsk-lib.jar</code></b>
 <dd>
 This JAR file is referenced in the <code>Class-Path</code> manifest attribute
-of many Apache River release implementation JAR files, and contains the utility
+of many River-Internet release implementation JAR files, and contains the utility
 APIs that are not tied to a specific service implementation.
 <p>
 This JAR file contains all of the classes and interfaces in the
@@ -450,7 +442,7 @@ practice you should not need to refer directly to this JAR file.
 <p><dt><b><code>prebuilt-outrigger-logstore.jar</code></b>
 <dd>A secondary JAR file containing specially postprocessed classes in
 <code>outrigger-logstore.jar</code>. This JAR file is never used at runtime,
-it is only used if you attempt to rebuild the Apache River release from sources and
+it is only used if you attempt to rebuild the River-Internet release from sources and
 do not have the necessary ObjectStore PSE Pro for Java postprocessor tool.
 In practice you should not need to refer directly to this JAR file.
 </dl>
@@ -762,7 +754,7 @@ been removed
 </ul>
 
 
-<h2>Upcoming Changes planned for the next version of Apache River</h2>
+<h2>Upcoming Changes planned for the next version of River-Internet</h2>
 <li>All packages ouside of the net.jini namespace will be 
 renamed to org.apache.river.</li>
 <li>Support for Java 5 language features</li>

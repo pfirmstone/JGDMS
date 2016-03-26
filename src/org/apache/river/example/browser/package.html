@@ -27,7 +27,7 @@ A visualization tool for exploring Jini Network Technology
 communities (<i>djinns</i>) with support for ServiceUI. The Service Browser
 lets you discover lookup services and inspect the various
 services registered within those lookup services. This tool
-is provided as an example program within the Apache River release
+is provided as an example program within the River-Internet release
 but many who use it think
 of it more as a utility than an example.
 <p>
@@ -60,7 +60,7 @@ structure:
 </pre></blockquote>
 where <var><b>java_options</b></var> includes such things as the security
 policy file and the RMI codebase annotation, <var><b>install_dir</b></var>
-is the directory where the Apache River release is installed, and
+is the directory where the River-Internet release is installed, and
 <var><b>config_options</b></var> includes any
 {@link net.jini.config.Configuration} provider options. The
 Service Browser can be run with no <var><b>config_options</b></var>.
@@ -694,7 +694,7 @@ In this example, the local host is assumed to have the name
 <var><b>your_host</b></var>, running an HTTP server on port
 <var><b>http_port</b></var>, serving files in the <code>lib</code>
 subdirectory of <var><b>install_dir</b></var>, the directory where the
-Apache River release is installed.
+River-Internet release is installed.
 When the Service Browser is run this way, without a configuration file, it
 will perform multicast discovery to find all available lookup
 services, and will use Jini extensible remote invocation (Jini ERI)

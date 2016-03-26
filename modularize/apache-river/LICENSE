@@ -201,9 +201,9 @@
    limitations under the License.
 
 
-APACHE RIVER SUBCOMPONENTS:
+River-Internet SUBCOMPONENTS:
 
-Apache River includes some external software components. Your use of these
+River-Internet includes some external software components. Your use of these
 components is subject to the terms and conditions of the following licenses:
 
 ASM libraries (tools/asm-3.2.jar and tools/asm-commons-3.2.jar)

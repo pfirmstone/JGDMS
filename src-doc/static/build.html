@@ -19,12 +19,12 @@
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
 
-<title>Building the Apache River Packages</title>
+<title>Building River-Internet</title>
 <a name="TOP">
-<center><h1>Building the Apache River Packages</h1></center>
+<center><h1>Building River-Internet</h1></center>
 
 <br>
-The Apache River distribution includes support for
+River-Internet includes support for
 generating binary (JAR) files and documentation from the provided source code
 using the Apache Ant build tool (available from the Ant project site at
 Apache.org, <a href="http://ant.apache.org">
@@ -32,8 +32,7 @@ Apache.org, <a href="http://ant.apache.org">
 <p>
 This page describes how to use <code>ant</code> to build the distribution from
 the source code. This Ant build process was originally based on Geoff Arnold's
-Ant build script, located at <a href="http://user-garnold.jini.org">
-<code>http://user-garnold.jini.org</code> (link dead)</a>, and we thank him for his
+Ant build script, and we thank him for his
 contribution.
 
 <p>
@@ -42,13 +41,7 @@ Jini technology.  The JAR files are provided for you as part of the starter kit,
 depending on your installation options.  The location of the JAR files is 
 documented in <a href="info-index.html#examine">info-index.html</a> .  In the
 instructions below, <B><VAR>install_dir</VAR></B> is the directory into which
-you installed the Apache River distribution.
-
-<p>
-<b>NOTE</b>:<i> Please do not attempt to build the Apache River JAR files
-without first taking referencing the 
-<a href="http://developer.java.sun.com/developer/products/jini/tested.html"> 
-platforms on which the starter kit has been tested (link dead)</a></i>.
+you installed the River-Internet distribution.
 
 <p>
 <hr>
@@ -58,10 +51,10 @@ platforms on which the starter kit has been tested (link dead)</a></i>.
 The following prerequisites must be met before a build can be executed:
 <ul>
   <li>	
-    The <b><code>bin</code></b> directory of the Java(TM) 2 SDK, Standard
-    Edition, v 1.5 (or later) must be in your executable search path. You can
-    obtain the Java software at <a href="http://java.sun.com">
-    <code>http://java.sun.com</code></a> . 
+    The <b><code>bin</code></b> directory of the Java(TM) Platform, Standard
+    Edition JDK, v 1.8 (or later) must be in your executable search path. You can
+    obtain the Java software at <a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">
+    <code>http://www.oracle.com/technetwork/java/javase/downloads/index.html</code></a> . 
   </li>
   <p>
   <li>
@@ -175,11 +168,6 @@ where the basic targets are:
     and produce the distribution bundles (binary and source) in the top-level "dist"
     directory.
 
-    <p>
-    <dt>
-    <b>install-policy</b> and <b>uninstall-policy</b><br>
-    This target will install/uninstall jsk-policy.jar into the JVM extensions directory.
-
   </dl>
 </blockquote>
 
@@ -209,7 +197,7 @@ where the basic targets are:
 <p>
 If you make any modifications and/or corrections to this build process and
 want those changes considered for use in our next release, please submit your
-modifications to <code>river-user@incubator.apache.org</code> for consideration.
+modifications for consideration.
 
 <p>
 <hr>

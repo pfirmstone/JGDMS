@@ -31,7 +31,7 @@
     <import file="${root}/common.xml"/>
 
     <!-- javadoc setings -->
-    <property name="javadoc.doc-title" value="Apache River v${version} Hello Example API Documentation"/>
+    <property name="javadoc.doc-title" value="River-Internet v${version} Hello Example API Documentation"/>
     <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
 
     <!-- classpath searched by ClassDep -->

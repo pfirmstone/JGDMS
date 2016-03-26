@@ -7,7 +7,7 @@ Meanwhile, please refer to:
 ===============================================
 
 This file describes the steps one can take to build and run the tests
-provided under the 'integrationtests' directory of Apache River. Note
+provided under the 'integrationtests' directory of River-Internet. Note
 that the steps outlined here assume a unix or linux based system with
 access to the GNU make utility.
 
@@ -15,7 +15,7 @@ access to the GNU make utility.
 
      Suppose your home directory is /home/myUsername, and suppose you
      checkout the river distribution (including the QA test source)
-     from the Apache River Project as show below,
+     from the River-Internet Project as show below,
 
      > cd ~
      > svn checkout \
@@ -57,7 +57,7 @@ access to the GNU make utility.
 
      # exit
 
-     -- The Apache River Jini distribution should now be built --
+     -- The River-Internet Jini distribution should now be built --
 
 5. BUILD - the qa tests
 

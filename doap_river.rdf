@@ -24,11 +24,11 @@
   <Project rdf:about="http://river.apache.org">
     <created>2012-04-14</created>
     <license rdf:resource="http://usefulinc.com/doap/licenses/asl20" />
-    <name>Apache River</name>
+    <name>River-Internet</name>
     <homepage rdf:resource="http://river.apache.org" />
     <asfext:pmc rdf:resource="http://river.apache.org" />
-    <shortdesc>Apache River software provides a standards-compilani JINI service.</shortdesc>
-    <description>Apache River software provides a JINI service, which is a service oriented architecture that defines a programming model which both exploits and extends Java technology to enable the construction of secure, distributed systems consisting of federations of services and clients. Jini technology can be used to build adaptive network systems that are scalable, evolvable and flexible as typically required in dynamic computing environments.</description>
+    <shortdesc>River-Internet software provides a standards-compilani JINI service.</shortdesc>
+    <description>River-Internet software provides a JINI service, which is a service oriented architecture that defines a programming model which both exploits and extends Java technology to enable the construction of secure, distributed systems consisting of federations of services and clients. Jini technology can be used to build adaptive network systems that are scalable, evolvable and flexible as typically required in dynamic computing environments.</description>
     <bug-database rdf:resource="https://issues.apache.org/jira/browse/RIVER" />
     <mailing-list rdf:resource="http://river.apache.org/mailing-lists.html" />
     <download-page rdf:resource="http://river.apache.org/downloads.html" />
@@ -36,7 +36,7 @@
     <category rdf:resource="http://projects.apache.org/category/javaee" />
     <release>
       <Version>
-        <name>Apache River 2.2.0</name>
+        <name>River-Internet 2.2.0</name>
         <created>2011-06-20</created>
         <revision>2.2.0</revision>
       </Version>
@@ -49,7 +49,7 @@
     </repository>
     <maintainer>
       <foaf:Person>
-        <foaf:name>Apache River PMC</foaf:name>
+        <foaf:name>River-Internet PMC</foaf:name>
           <foaf:mbox rdf:resource="mailto:dev@river.apache.org"/>
       </foaf:Person>
     </maintainer>
