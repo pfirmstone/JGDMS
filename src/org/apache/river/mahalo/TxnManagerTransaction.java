@@ -18,20 +18,13 @@
 
 package org.apache.river.mahalo;
 
-import org.apache.river.constants.TimeConstants;
-import org.apache.river.constants.TxnConstants;
-import org.apache.river.landlord.LeasedResource;
-import org.apache.river.logging.Levels;
-import org.apache.river.mahalo.log.ClientLog;
-import org.apache.river.mahalo.log.LogException;
-import org.apache.river.mahalo.log.LogManager;
-import org.apache.river.thread.WakeupManager;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
@@ -50,6 +43,14 @@ import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.id.Uuid;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.constants.TimeConstants;
+import org.apache.river.constants.TxnConstants;
+import org.apache.river.landlord.LeasedResource;
+import org.apache.river.logging.Levels;
+import org.apache.river.mahalo.log.ClientLog;
+import org.apache.river.mahalo.log.LogException;
+import org.apache.river.mahalo.log.LogManager;
+import org.apache.river.thread.WakeupManager;
 
 /**
  * TxnManagerTransaction is a class which
@@ -76,9 +77,7 @@ class TxnManagerTransaction
      * While this class implemented Serializable in Jini 2.0 some of its
      * instance variables were not serializable.
      * 
-     * Serialization was required for Replication, perhaps Distributed would
-     * be more suited to replication since it doesn't share the limitations
-     * of serialization.
+     * Serialization was required for Replication.
      *
      * static final long serialVersionUID = -2088463193687796098L;
      */
@@ -134,7 +133,7 @@ class TxnManagerTransaction
     /**
      * @serial
      */
-    private final List<ParticipantHandle> parts = new Vector<ParticipantHandle>();
+    private final List<ParticipantHandle> parts = new ArrayList<ParticipantHandle>();
 
     /**
      * @serial
@@ -340,7 +339,9 @@ class TxnManagerTransaction
                 transactionsLogger.log(Level.FINEST,
                 "Adding ParticipantHandle: {0}", handle);
             }
-	    parts.add(handle);
+	    synchronized (parts){
+		parts.add(handle);
+	    }
 	} catch (Exception e) {
             if (transactionsLogger.isLoggable(Level.SEVERE)) {
                 transactionsLogger.log(Level.SEVERE,
@@ -373,9 +374,10 @@ class TxnManagerTransaction
 	if (handle == null)
 	    throw new NullPointerException("ParticipantHolder: " +
 			"modifyParticipant: cannot modify null handle");
-
-	if (parts.contains(ph))
-	    ph = (ParticipantHandle) parts.get(parts.indexOf(handle));	
+	synchronized (parts){
+	    int index = parts.indexOf(handle);
+	    if (index > -1) ph = parts.get(index);
+	}
 
 	if (ph == null) {
             if (operationsLogger.isLoggable(Level.FINER)) {
@@ -468,10 +470,11 @@ class TxnManagerTransaction
 	try {
 	    ParticipantHandle ph = 
 	        new ParticipantHandle(preparedPart, crashCount);
-	    ParticipantHandle phtmp = (ParticipantHandle) 	
-	        ((parts.contains(ph))?
-		    parts.get(parts.indexOf(ph)):
-		    null);	
+	    ParticipantHandle phtmp = null;
+	    synchronized (parts){
+		int index = parts.indexOf(ph);
+		if (index > -1) ph = parts.get(index);
+	    }
 
             if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
@@ -1199,15 +1202,17 @@ private List<ParticipantHandle> parthandles() {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
 	        "parthandles");
 	}
-	if ( (parts == null ) || ( parts.size() == 0 ) )
-	    return null;
-
-        List<ParticipantHandle> vect = new ArrayList<ParticipantHandle>(parts);
+	List<ParticipantHandle> result;
+	
+	synchronized (parts){
+	    if ( (parts == null ) || ( parts.isEmpty() ) ) return null;
+	    result = new ArrayList<ParticipantHandle>(parts);
+	}
  
         if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
             "Retrieved {0} participants", 
-	     Integer.valueOf(vect.size()));
+	     Integer.valueOf(result.size()));
         }
 	
         if (operationsLogger.isLoggable(Level.FINER)) {
@@ -1215,7 +1220,7 @@ private List<ParticipantHandle> parthandles() {
 	        "parthandles");
 	}
 
-	return vect;
+	return result;
     }
     
     private String getParticipantInfo() {
@@ -1223,23 +1228,29 @@ private List<ParticipantHandle> parthandles() {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
 	        "getParticipantInfo");
 	}
-        if ( (parts == null ) || ( parts.size() == 0 ) )
-	    return "No participants";
-
-        if (transactionsLogger.isLoggable(Level.FINEST)) {
-            transactionsLogger.log(Level.FINEST,
-            "{0} participants joined", Integer.valueOf(parts.size()));
-        }
-	StringBuffer sb = new StringBuffer(parts.size() + " Participants: ");
-        ParticipantHandle ph;
-        for (int i=0; i < parts.size(); i++) {
-            ph = (ParticipantHandle)parts.get(i);
-            sb.append(
-                "{" + i + ", " 
-                + ph.getPreParedParticipant().toString() + ", " 
-                + TxnConstants.getName(ph.getPrepState())
-                + "} ");
-        }
+	StringBuilder sb;
+	int size;
+	synchronized (parts){
+	    size = parts.size();
+	    if ( (parts == null ) || ( size == 0 ) ) return "No participants";
+	    sb = new StringBuilder(size * 40);
+	    ParticipantHandle ph;
+	    sb.append(size).append(" Participants: ");
+	    for (int i=0; i < size; i++) {
+		ph = (ParticipantHandle)parts.get(i);
+		sb.append("{")
+		.append(i)
+		.append(", ")
+		.append(ph.getPreParedParticipant().toString())
+		.append(", ")
+		.append(TxnConstants.getName(ph.getPrepState()))
+		.append("} ");
+	    }
+	}
+	if (transactionsLogger.isLoggable(Level.FINEST)) {
+		transactionsLogger.log(Level.FINEST,
+		"{0} participants joined", Integer.valueOf(size));
+	    }
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(TxnManagerTransaction.class.getName(), 
 	        "getParticipantInfo", sb.toString());
@@ -1255,12 +1266,14 @@ private List<ParticipantHandle> parthandles() {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
 	        "restoreTransientState");
 	}
-    	if ( (parts == null ) || ( parts.size() == 0 ) )
-	    return;
-
-	ParticipantHandle[] handles =
-	    parts.toArray(new ParticipantHandle[parts.size()]);
-        for (int i=0; i < handles.length; i++) {
+	ParticipantHandle[] handles;
+	int size;
+	synchronized(parts){
+	    size = parts.size();
+	    if ( (parts == null ) || ( size == 0 ) ) return;
+	    handles = parts.toArray(new ParticipantHandle[size]);
+	}
+        for (int i=0; i < size; i++) {
 	    handles[i].restoreTransientState(preparer);
             if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
