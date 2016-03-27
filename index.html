@@ -33,7 +33,17 @@
       <section id="main_content" class="inner">
         <h3>
 <a id="welcome-to-river-internet" class="anchor" href="#welcome-to-river-internet" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Welcome to River-Internet.</h3>
-
+          <p>What is River-Internet? Firstly it's an implementation of Jini, secondly, it's a dynamic micro service architecture, that provides numerous components, put simply some key components are:</p>
+          <ol>
+              <li>JERI - Jini Extensible Remote Invocation, allows you to export java object's, invoke methods on them, using various secure connection and input validation options.</li>          
+              <li><a href="doc/api/net/jini/discovery/LookupDiscovery.html">net.jini.discovery.LookupDiscovery</a> - Allows clients to discover a net.jini.core.lookup.ServiceRegistrar, this is now possible globally using IPv6 multicast.</li>
+              <li><a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html">net.jini.core.lookup.ServiceRegistrar</a> - Allows clients to search for services and for services to be registered and found by clients.</li>
+              <li><a href="doc/api/net/jini/lookup/ServiceDiscoveryManager.html">net.jini.lookup.ServiceDiscoveryManager</a> - Provides search and filtering functions that make life easier for client code.</li>
+              <li><a href="doc/api/net/jini/lookup/JoinManager.html">net.jini.lookup.JoinManager</a> - Provides assistance to services that want to register with a ServiceRegistrar.</li>
+              <li><a href="doc/api/net/jini/config/Configuration.html">net.jini.config.Configuration</a> - net.jini.config.GroovyConfig allows you to configure the above components using Groovy.</li>
+          </ol>
+          <p> There are many other components, including JavaSpaces, but it helps
+              to learn how to use
 
 
 <h3>
@@ -79,7 +89,184 @@
     has been replaced by Executor, which is much faster. </p>
     <img src="images/River2.2_Mahalo_RandomStressTest.PNG" class="screen" alt="River 2.2 Mahalo Random Stress test profile">
     <img src="images/River-internet_mahalo_randomStressTest.PNG" class="screen" alt="River-Internet Mahalo Random Stress test profile">
-
+<h5>
+    <a id="system_properties" class="anchor" href="#system_properties" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>System properties</h5> 
+    
+    <table>
+  <tr>
+   <td>System Property</td>
+   <td>Default</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.activation.enableActivateGrant</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>net.jini.discovery.IPv6</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>net.jini.discovery.GLOBAL_ANNOUNCE</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.jeri.server.suppressStackTraces</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.jeri.tcp.useNIO</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>java.rmi.server.useCodebaseOnly</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.reggie.enableImplToStubReplacement</td>
+   <td>Row 2 - Col 2</td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.jeri.kerberos.KerberosEndpoint.minGssContextLifetime</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxGssContextRetries</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr>
+  <tr>
+   <td>org.apache.river.jeri.kerberos.KerberosServerEndpoint.maxCacheSize</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.connection.mux.client.initialInboundRation</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.connection.mux.server.initialInboundRation</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>java.rmi.activation.port</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.connectionTimeout</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.handshakeTimeout</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.ssl.maxClientSessionDuration</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.ssl.maxServerSessionDuration</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.dgc.leaseValue</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.dgc.cleanInterval</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.dgc.minimumDuration</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.dgc.checkInterval</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.ssl.cipherSuites</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.jeri.ssl.sslProtocol</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>net.jini.loader.codebaseAnnotation</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>java.rmi.server.codebase</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>net.jini.loader.ClassLoading.provider</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>java.security.policy</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>net.jini.security.policy.PolicyFileProvider.basePolicyClass</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.discovery.x500.trustStore</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.discovery.x500.trustStorePassword</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.discovery.x500.ldapCertStores</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>javax.net.ssl.trustStore</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>javax.net.ssl.trustStorePassword</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>java.util.logging.config.file</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>org.apache.river.outrigger.maxServerQueryTimeout</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr><tr>
+   <td>java.security.auth.login.config</td>
+   <td></td>
+   <td>Purpose</td>
+  </tr>
+ </table> 
       </section>
     </div>
 
