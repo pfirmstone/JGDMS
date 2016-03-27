@@ -1,0 +1,849 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
+<link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
+<title>JavaSpaces Service Specification</title>
+</head>
+
+<body bgcolor="#ffffff">
+
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="90%">
+<tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a></td>
+<td align=right><em>JavaSpaces Service Specification</em></td>
+</tr>
+</table>
+<br clear="all">
+
+
+<hr align="left">
+<table width="90%">
+<tr>
+<td align="right" font size="4"><b>Version 2.3</b></td>
+</tr>
+</table>
+<a id="skip"></a>
+<blockquote>
+<h2 align="left">
+  <a id="31412"> </a>JS - JavaSpaces<font size="-1"><sup>TM</sup></font> Service Specification</h2>
+<h3 class="Heading2">
+  <a id="31414"> </a>JS.1	 Introduction	 
+</h3>
+<p class="Body">
+   Distributed systems are hard to build. They require careful thinking about problems that do not occur in local computation. The primary problems are those of partial failure, greatly increased latency, and language compatibility. The Java(TM) programming language has a remote method invocation system called RMI that lets you approach general distributed computation in the Java(TM) programming language using techniques natural to the Java programming language and application environment. This is layered on the Java platform's object serialization mechanism to marshal parameters of remote methods into a form that can be shipped across the wire and unmarshalled in a remote server's Java virtual machine<a href="#31491"><sup>1</sup></a> (<span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">JVM</span>).
+</p>
+<p class="Body">
+  <a id="1778"> </a>This specification describes the architecture of JavaSpaces technology, which is designed to help you solve two related problems: distributed persistence and the design of distributed algorithms. JavaSpaces services use <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">RMI</span> and the serialization feature of the Java programming language to accomplish these goals.
+</p>
+<h4 class="Heading3">
+  <a id="27387"> </a>JS.1.1	 The JavaSpaces Application Model and Terms
+</h4>
+<p class="Body">
+  <a id="27409"> </a>A JavaSpaces service holds <em class="Emphasis">entries</em>. An entry is a typed group of objects, expressed in a class for the Java platform that implements the interface <code>net.jini.core.entry.Entry</code>. Entries are described in detail in the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>. 
+</p>
+<p class="Body">
+  <a id="27420"> </a>An entry can be <em class="Emphasis">written</em> into a JavaSpaces service, which creates a copy of that entry in the space<a href="#27423"><sup>2</sup></a> that can be used in future lookup operations.
+</p>
+<p class="Body">
+  <a id="27450"> </a>You can look up entries in a JavaSpaces service using <em class="Emphasis">templates,</em> which are entry objects that have some or all of its fields set to specified <em class="Emphasis">values</em> that must be matched exactly. Remaining fields are left as <em class="Emphasis">wildcards</em>--these fields are not used in the lookup.
+</p>
+<p class="Body">
+  <a id="27463"> </a>There are two kinds of lookup operations: <em class="Emphasis">read</em> and <em class="Emphasis">take</em>. A <em class="Emphasis">read</em> request to a space returns either an entry that matches the template on which the read is done, or an indication that no match was found. A <em class="Emphasis">take</em> request operates like a read, but if a match is found, the matching entry is removed from the space.
+</p>
+<p class="Body">
+  <a id="27464"> </a>You can request a JavaSpaces service to <em class="Emphasis">notify</em> you when an entry that matches a specified template is written. This is done using the distributed event model contained in the package <code>net.jini.core.event</code> and described in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>.
+</p>
+<p class="Body">
+  <a id="2902"> </a>All operations that modify a JavaSpaces service are performed in a transactionally secure manner with respect to that space. That is, if a write operation returns successfully, that entry was written into the space (although an intervening take may remove it from the space before a subsequent lookup of yours). And if a take operation returns an entry, that entry has been removed from the space, and no future operation will read or take the same entry. In other words, each entry in the space can be taken at most once. Note, however, that two or more entries in a space may have exactly the same value.
+</p>
+<p class="Body">
+  <a id="2903"> </a>The architecture of JavaSpaces technology supports a simple transaction mechanism that allows multi-operation and/or multi-space updates to complete atomically. This is done using the two-phase commit model under the default transaction semantics, as defined in the package <code>net.jini.core.transaction</code> and described in the <a href="txn-spec.html"><em class="Emphasis">Jini Transaction Specification</em></a>.
+</p>
+<p class="Body">
+  <a id="2966"> </a>Entries written into a JavaSpaces service are governed by a lease, as defined in the package <code>net.jini.core.lease</code> and described in the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>.
+</p>
+<h5 class="Heading4">
+  <a id="1765"> </a>JS.1.1.1	 Distributed Persistence
+</h5>
+<p class="Body">
+  <a id="2397"> </a>Implementations of JavaSpaces technology provide a mechanism for storing a group of related objects and retrieving them based on a value-matching lookup for specified fields. This allows a JavaSpaces service to be used to store and retrieve objects on a remote system.
+</p>
+<h5 class="Heading4">
+  <a id="2399"> </a>JS.1.1.2	 Distributed Algorithms as Flows of Objects
+</h5>
+<p class="Body">
+  <a id="1768"> </a>Many distributed algorithms can be modeled as a flow of objects between participants. This is different from the traditional way of approaching distributed computing, which is to create method-invocation-style protocols between participants. In this architecture's "flow of objects" approach, protocols are based on the movement of objects into and out of implementations of JavaSpaces technology.
+</p>
+<p class="Body">
+  <a id="1769"> </a>For example, a book-ordering system might look like this:
+</p>
+<ul>
+  <li class="SmartList1"><a id="1770"> </a>A book buyer wants to buy 100 copies of a book. The buyer writes a request for bids into a particular public JavaSpaces service.<p>
+  <li class="SmartList1"><a id="1771"> </a>The broker runs a server that takes those requests out of the space and writes them into a JavaSpaces service for each book seller who registered with the broker for that service.<p>
+  <li class="SmartList1"><a id="1772"> </a>A server at each book seller removes the requests from its JavaSpaces service, presents the request to a human to prepare a bid, and writes the bid into the space specified in the book buyer's request for bids.<p>
+  <li class="SmartList1"><a id="30613"> </a>When the bidding period closes, the buyer takes all the bids from the space and presents them to a human to select the winning bid.
+</ul>
+<p class="Body">
+  <a id="30619"> </a>A method-invocation-style design would create particular remote interfaces for these interactions. With a "flow of objects" approach, only one interface is required: the <code>net.jini.space.JavaSpace</code> interface.
+</p>
+<p class="Body">
+  <a id="30676"> </a>In general, the JavaSpaces application world looks like this:
+<p><CENTER>
+<img src="images/js-speca.gif" alt="explained in following paragraph" height="348" width="480">
+
+</CENTER></p>
+<p class="Body">
+  <a id="30679"> </a>Clients perform operations that map entries or templates onto JavaSpaces services. These can be singleton operations (as with the upper client), or contained in transactions (as with the lower client) so that all or none of the operations take place. A single client can interact with as many spaces as it needs to. Identities are accessed from the security subsystem and passed as parameters to method invocations. Notifications go to event catchers, which may be clients themselves or proxies for a client (such as a store-and-forward mailbox).
+</p>
+<h4 class="Heading3">
+  <a id="1840"> </a>JS.1.2	 Benefits
+</h4>
+<p class="Body">
+  <a id="30861"> </a>JavaSpaces services are tools for building distributed protocols. They are designed to work with applications that can model themselves as flows of objects through one or more servers. If your application can be modeled this way, JavaSpaces technology will provide many benefits.
+</p>
+<p class="Body">
+  <a id="1862"> </a>JavaSpaces services can provide a reliable distributed storage system for the objects. In the book-buying example, the designer of the system had to define the protocol for the participants and design the various kinds of entries that must be passed around. This effort is akin to designing the remote interfaces that an equivalent customized service would require. Both the JavaSpaces system solution and the customized solution would require someone to write the code that presented requests and bids to humans in a <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">GUI</span>. And in both systems, someone would have to write code to handle the seller's registrations of interest with the broker.
+</p>
+<p class="Body">
+  <a id="1864"> </a>The server for the model that uses the JavaSpaces <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">API</span> would be implemented at that point.
+</p>
+<p class="Body">
+  <a id="1863"> </a>The customized system would need to implement the servers. These servers would have to handle concurrent access from multiple clients. Someone would need to design and implement a reliable storage strategy that guaranteed the entries written to the server would not be lost in an unrecoverable or undetectable way. If multiple bids needed to be made atomically, a distributed transaction system would have to be implemented.
+</p>
+<p class="Body">
+  <a id="1871"> </a>All these concerns are solved in JavaSpaces services. They handle concurrent access. They store and retrieve entries atomically. And they provide an implementation of the distributed transaction mechanism.
+</p>
+<p class="Body">
+  <a id="1887"> </a>This is the power of the JavaSpaces technology architecture--many common needs are addressed in a simple platform that can be easily understood and used in powerful ways.
+</p>
+<p class="Body">
+  <a id="1917"> </a>JavaSpaces services also help with data that would traditionally be stored in a file system, such as user preferences, e-mail messages, and images. Actually, this is not a different use of a JavaSpaces service. Such uses of a file system can equally be viewed as passing objects that contain state from one external object (the image editor) to another (the window system that uses the image as a screen background). And JavaSpaces services enhance this functionality because they store objects, not just data, so the image can have abstract behavior, not just information that must be interpreted by some external application(s).
+</p>
+<p class="Body">
+  <a id="2085"> </a>JavaSpaces services can provide distributed <em class="Emphasis">object</em> persistence with objects in the Java programming language. Because code written in the Java programming language is downloadable, entries can store objects whose behavior will be transmitted from the writer to the readers, just as in an <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">RMI</span> using Java technology. An entry in a space may, when fetched, cause some active behavior in the reading client. This is the benefit of storing objects, not just data, in an accessible repository for distributed cooperative computing.
+</p>
+<h4 class="Heading3">
+  <a id="2411"> </a>JS.1.3	 JavaSpaces Technology and Databases
+</h4>
+<p class="Body">
+  <a id="2428"> </a>A JavaSpaces service can store persistent data which is later searchable. But a JavaSpaces service is not a relational or object database. JavaSpaces services are designed to help solve problems in distributed computing, not to be used primarily as a data repository (although there are many data storage uses for JavaSpaces applications). Some important differences are:
+</p>
+<ul>
+  <li class="SmartList1"><a id="2429"> </a>Relational databases understand the data they store and manipulate it directly via query languages. JavaSpaces services store entries that they understand only by type and the serialized form of each field. There are no general queries in the JavaSpaces application design, only "exact match" or "don't care" for a given field. You design your flow of objects so that this is sufficient and powerful.<p>
+  <li class="SmartList1"><a id="2435"> </a>Object databases provide an object oriented image of stored data that can be modified and used, nearly as if it were transient memory. JavaSpaces systems do not provide a nearly transparent persistent/transient layer, and work only on copies of entries.
+</ul>
+<p class="Body">
+  <a id="2446"> </a>These differences exist because JavaSpaces services are designed for a different purpose than either relational or object databases. A JavaSpaces service can be used for simple persistent storage, such as storing a user's preferences that can be looked up by the user's ID or name. JavaSpaces service functionality is somewhere between that of a filesystem and a database, but it is neither.
+</p>
+<h4 class="Heading3">
+  <a id="2427"> </a>JS.1.4	 JavaSpaces System Design and Linda<a href="#275577"><sup>3</sup></a> Systems
+</h4>
+<p class="Body">
+  <a id="2295"> </a>The JavaSpaces system design is strongly influenced by Linda systems, which support a similar model of entry-based shared concurrent processing. In <a href="js-spec.html#7438">Section&nbsp;JS.4.1, "Linda Systems"</a>, you will find several references that describe Linda-style systems.
+</p>
+<p class="Body">
+  <a id="2304"> </a>No knowledge of Linda systems is required to understand this specification. This section discusses the relationship of JavaSpaces systems with respect to Linda systems for the benefit of those already familiar with Linda programming. Other readers should feel free to skip ahead.
+</p>
+<p class="Body">
+  <a id="2144"> </a>JavaSpaces systems are similar to Linda systems in that they store collections of information for future computation and are driven by value-based lookup. They differ in some important ways:
+</p>
+<ul>
+  <li class="SmartList1"><a id="2210"> </a>Linda systems have not used rich typing. JavaSpaces systems take a deep concern with typing from the Java platform type-safe environment. In JavaSpaces systems, entries themselves, not just their fields, are typed--two different entries with the same field types but with different data types for the Java programming language are different entry types. For example, an entry that had a string and two double values could be either a idd point or a idd vector. In JavaSpaces systems these two entry types would have specific different classes for the Java platform, and templates for one type would never match the other, even if the values were compatible.<p>
+  <li class="SmartList1"><a id="2214"> </a>Entries are typed as objects in the Java programming language, so they may have methods associated with them. This provides a way of associating behavior with entries.<p>
+  <li class="SmartList1"><a id="2164"> </a>As another result of typed entries, JavaSpaces services allow matching of subtypes--a template match can return a type that is a subtype of the template type. This means that the read or take may return more states than anticipated. In combination with the previous point, this means that entry behavior can be polymorphic in the usual object-oriented style that the Java platform provides.<p>
+  <li class="SmartList1"><a id="2272"> </a>The fields of entries are objects in the Java programming language. Any object data type for the Java programming language can be used as a template for matching entry lookups as long as it has certain properties. This means that computing systems constructed using the JavaSpaces <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">API</span> are object-oriented from top to bottom, and behavior-based (agent-like) applications can use JavaSpaces services for co-ordination.<p>
+  <li class="SmartList1"><a id="2829"> </a>Most environments will have more than one JavaSpaces service. Most Linda tuple spaces have one tuple space for all cooperating threads. So transactions in the JavaSpaces system can span multiple spaces (and even non-JavaSpaces system transaction participants).<p>
+  <li class="SmartList1"><a id="2830"> </a>Entries written into a JavaSpaces service are leased. This helps keep the space free of debris left behind due to system crashes and network failures.<p>
+  <li class="SmartList1"><a id="2831"> </a>The JavaSpaces <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">API</span> does not provide an equivalent of "eval" because it would require the service to execute arbitrary computation on behalf of the client. Such a general compute service has its own large number of requirements (such as security and fairness).
+</ul>
+<p class="Body">
+  <a id="2320"> </a>On the nomenclature side, the JavaSpaces technology <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">API</span> uses a more accessible set of terms than the traditional Linda terms. The term mappings are "entry" for "tuple," "value" for "actual," "wildcard" for "formal," "write" for "out," and "take" for "in." So the Linda sentence "When you `out' a tuple make sure that actuals and formals in `in' and `read' can do appropriate matching" would be translated to "When you write an entry make sure that values and wildcards in take and read can do appropriate matching."
+</p>
+<h4 class="Heading3">
+  <a id="1946"> </a>JS.1.5	 Goals and Requirements
+</h4>
+<p class="Body">
+  <a id="1950"> </a>The goals for the design of JavaSpaces technology are:
+</p>
+<ul>
+  <li class="SmartList1"><a id="1953"> </a>Provide a platform for designing distributed computing systems that simplifies the design and implementation of those systems.<p>
+  <li class="SmartList1"><a id="1972"> </a>The client side should have few classes, both to keep the client-side model simple and to make downloading of the client classes quick.<p>
+  <li class="SmartList1"><a id="2008"> </a>The client side should have a small footprint, because it will run on computers with limited local memory.<p>
+  <li class="SmartList1"><a id="2016"> </a>A variety of implementations should be possible, including relational database storage and object-oriented database storage.<p>
+  <li class="SmartList1"><a id="1989"> </a>It should be possible to create a replicated JavaSpaces service.
+</ul>
+<p class="Body">
+  <a id="1998"> </a>The requirements for JavaSpaces application clients are:
+</p>
+<ul>
+  <li class="SmartList1"><a id="2001"> </a>It must be possible to write a client purely in the Java programming language.<p>
+  <li class="SmartList1"><a id="2033"> </a>Clients must be oblivious to the implementation details of the service. The same entries and templates must work in the same ways no matter which implementation is used.
+</ul>
+<h4 class="Heading3">
+  <a id="2063"> </a>JS.1.6	 Dependencies
+</h4>
+<p class="Body">
+  <a id="2064"> </a>This document relies upon the following other specifications:
+</p>
+<ul>
+  <li class="SmartList1"><a id="31963"> </a><em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Object Serialization Specification</em> <p>
+  <li class="SmartList1"><a id="2065"> </a><em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Remote Method Invocation Specification</em> <p>
+  <li class="SmartList1"><a id="31881"> </a><a href="entry-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Entry Specification</em></a><p>
+  <li class="SmartList1"><a id="31881"> </a><a href="event-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Distributed Events Specification</em></a><p>
+  <li class="SmartList1"><a id="31881"> </a><a href="lease-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Distributed Leasing Specification</em></a><p>
+  <li class="SmartList1"><a id="31881"> </a><a href="txn-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Transaction Specification</em></a><p>
+</ul>
+
+<h3 class="Heading2">
+  <a id="7280"> </a>JS.2	 Operations
+</h3>
+<p class="Body">
+  There are four primary kinds of operations that you can invoke on a JavaSpaces service. Each operation has parameters that are entries, including some that are templates, which are a kind of entry. This chapter describes entries, templates, and the details of the operations, which are:
+</p>
+<ul>
+  <li class="SmartList1"><a id="7282"> </a><code>write</code>: Write the given entry into this JavaSpaces service.<p>
+  <li class="SmartList1"><a id="7283"> </a><code>read</code>: Read an entry from this JavaSpaces service that matches the given template.<p>
+  <li class="SmartList1"><a id="7284"> </a><code>take</code>: Read an entry from this JavaSpaces service that matches the given template, removing it from this space.<p>
+  <li class="SmartList1"><a id="7285"> </a><code>notify</code>: Notify a specified object when entries that match the given template are written into this JavaSpaces service.
+</ul>
+<p class="Body">
+  <a id="7286"> </a>As used in this document, the term "operation" refers to a single invocation of a method; for example, two different <code>take</code> operations may have different templates.
+</p>
+<h4 class="Heading3">
+  <a id="7287"> </a>JS.2.1	 Entries
+</h4>
+<p class="Body">
+  <a id="30734"> </a>The types <code>Entry</code> and <code>UnusableEntryException</code> that are used in this specification are from the package <code>net.jini.core.entry</code> and are described in detail in the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>. In the terminology of that specification <code>write</code> is a store operation; <code>read</code> and <code>take</code> are combination search and fetch operations; and <code>notify</code> sets up repeated search operations as entries are written to the space.
+</p>
+<h4 class="Heading3">
+  <a id="7290"> </a>JS.2.2	 <code>net.jini.space.JavaSpace</code> 
+</h4>
+<p class="Body">
+  <a id="7291"> </a>All operations are invoked on an object that implements the <code>JavaSpace</code> interface. For example, the following code fragment would write an entry of type <code>AttrEntry</code> into the JavaSpaces service referred to by the identifier <code>space</code>:
+
+<pre  class="Preformatted">JavaSpace space = getSpace();
+AttrEntry e = new AttrEntry();
+e.id = "Duke";
+e.value = new GIFImage("dukeWave.gif");
+space.write(e, null, 60 * 60 * 1000);	 // one hour
+// lease is ignored -- one hour will be enough
+
+</pre>
+<p class="Body">
+  <a id="7293"> </a>The <code>JavaSpace</code> interface is:
+</p>
+<pre  class="Preformatted">package net.jini.space;
+
+import java.rmi.*;
+import net.jini.core.event.*;
+import net.jini.core.transaction.*;
+import net.jini.core.lease.*;
+
+public interface JavaSpace {
+    Lease write(Entry e, Transaction txn, long lease)
+        throws RemoteException, TransactionException;
+    public final long NO_WAIT = 0; // don't wait at all
+    Entry read(Entry tmpl, Transaction txn, long timeout)
+        throws TransactionException, UnusableEntryException,
+               RemoteException, InterruptedException;
+    Entry readIfExists(Entry tmpl, Transaction txn, 
+                       long timeout)
+        throws TransactionException, UnusableEntryException,
+               RemoteException, InterruptedException;
+    Entry take(Entry tmpl, Transaction txn, long timeout)
+        throws TransactionException, UnusableEntryException,
+               RemoteException, InterruptedException;
+    Entry takeIfExists(Entry tmpl, Transaction txn, 
+                       long timeout)
+        throws TransactionException, UnusableEntryException,
+               RemoteException, InterruptedException;
+    EventRegistration notify(Entry tmpl, Transaction txn,
+              RemoteEventListener listener, long lease,
+              MarshalledObject handback)
+        throws RemoteException, TransactionException;
+    Entry snapshot(Entry e) throws RemoteException;
+}
+
+</pre>
+<p class="Body">
+  <a id="10380"> </a>The <code>Transaction</code> and <code>TransactionException</code> types in the above signatures are imported from <code>net.jini.core.transaction</code>. The <code>Lease</code> type is imported from <code>net.jini.core.lease</code>. The <code>RemoteEventListener</code> and <code>EventRegistration</code> types are imported from <code>net.jini.core.event</code>.
+</p>
+<p class="Body">
+  <a id="7296"> </a>In all methods that have the parameter, <code>txn</code> may be <code>null</code>, which means that no <code>Transaction</code> object is managing the operation (see <a href="js-spec.html#7388">Section&nbsp;JS.3, "Transactions"</a>). 
+</p>
+<p class="Body">
+  <a id="30749"> </a>The <code>JavaSpace</code> interface is not a remote interface. Each implementation of a JavaSpaces service exports proxy objects that implement the <code>JavaSpace</code> interface locally on the client, talking to the actual JavaSpaces service through an implementation-specific interface. An implementation of any <code>JavaSpace</code> method may communicate with a remote JavaSpaces service to accomplish its goal; hence, each method throws <code>RemoteException</code> to allow for possible failures. Unless noted otherwise in this specification, when you invoke <code>JavaSpace</code> methods you should expect <code>RemoteExceptions</code> on method calls in the same cases in which you would expect them for methods invoked directly on an <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">RMI</span> remote reference. For example, invoking <code>snapshot</code> might require talking to the remote JavaSpaces server, and so might get a <code>RemoteException</code> if the server crashes during the operation.
+</p>
+<p class="Body">
+  <a id="7301"> </a>The details of each <code>JavaSpace</code> method are given in the sections that follow.
+</p>
+<h5 class="Heading4">
+  <a id="7303"> </a>JS.2.2.1	 <code>InternalSpaceException</code> 
+</h5>
+<p class="Body">
+  <a id="7304"> </a>The exception <code>InternalSpaceException</code> may be thrown by a JavaSpaces service that encounters an inconsistency in its own internal state or is unable to process a request because of internal limitations (such as storage space being exhausted). This exception is a subclass of <code>RuntimeException</code>. The exception has two constructors: one that takes a <code>String</code> description and another that takes a <code>String</code> and a nested exception; both constructors simply invoke the <code>RuntimeException</code> constructor that takes a <code>String</code> argument.
+</p>
+<pre  class="Preformatted">package net.jini.space;
+
+public class InternalSpaceException extends RuntimeException {
+    public final Throwable nestedException;
+    public InternalSpaceException(String msg) {...}
+    public InternalSpaceException(String msg, Throwable e) {...}
+    public printStackTrace() {...}
+    public printStackTrace(PrintStream out) {...}
+    public printStackTrace(PrintWriter out) {...}
+}
+
+</pre>
+<p class="Body">
+  <a id="27286"> </a>The <code>nestedException</code> field is the one passed to the second constructor, or <code>null</code> if the first constructor was used. The overridden <code>printStackTrace</code> methods print out the stack trace of the exception and, if <code>nestedException</code> is not <code>null</code>, print out that stack trace as well.
+</p>
+<h4 class="Heading3">
+  <a id="7308"> </a>JS.2.3	 <code>write</code> 
+</h4>
+<p class="Body">
+  <a id="7309"> </a>A <code>write</code> places a copy of an entry into the given JavaSpaces service. The <code>Entry</code> passed to the <code>write</code> is not affected by the operation. Each <code>write</code> operation places a new entry into the specified space, even if the same <code>Entry</code> object is used in more than one <code>write</code>.
+</p>
+<p class="Body">
+  <a id="7310"> </a>Each <code>write</code> invocation returns a <code>Lease</code> object that is <code>lease</code> milliseconds long. If the requested time is longer than the space is willing to grant, you will get a lease with a reduced time. When the lease expires, the entry is removed from the space. An <code>IllegalArgumentException</code> will be thrown if the lease time requested is negative and not equal to <CODE>Lease.ANY</CODE>.
+</p>
+<p class="Body">
+  <a id="30767"> </a>If a <code>write</code> returns without throwing an exception, that entry is committed to the space, possibly within a transaction (see <a href="js-spec.html#7388">Section&nbsp;JS.3, "Transactions"</a>). If a <code>RemoteException</code> is thrown, the <code>write</code> may or may not have been successful. If any other exception is thrown, the entry was not written into the space.
+</p>
+<p class="Body">
+  <a id="7315"> </a>Writing an entry into a space might generate notifications to registered objects (see <a href="js-spec.html#7346">Section&nbsp;JS.2.7, "<code>notify</code>"</a>).
+</p>
+<h4 class="Heading3">
+  <a id="7320"> </a>JS.2.4	 <code>readIfExists</code> and <code>read</code>
+</h4>
+<p class="Body">
+  <a id="7321"> </a>The two forms of the <code>read</code> request search the JavaSpaces service for an entry that matches the template provided as an <code>Entry</code>. If a match is found, a reference to a copy of the matching entry is returned. If no match is found, <code>null</code> is returned. Passing a <code>null</code> reference for the template will match any entry.
+</p>
+<p class="Body">
+  <a id="7322"> </a>Any matching entry can be returned. Successive read requests with the same template in the same JavaSpaces service may or may not return equivalent objects, even if no intervening modifications have been made to the space. Each invocation of read may return a new object even if the same entry is matched in the JavaSpaces service.
+</p>
+<p class="Body">
+  <a id="7323"> </a>A <code>readIfExists</code> request will return a matching entry, or <code>null</code> if there is currently no matching entry in the space. If the only possible matches for the template have conflicting locks from one or more other transactions, the <code>timeout</code> value specifies how long the client is willing to wait for interfering transactions to settle before returning a value. If at the end of that time no value can be returned that would not interfere with transactional state, <code>null</code> is returned. Note that, due to the remote nature of JavaSpaces services, <code>read</code> and <code>readIfExists</code> may throw a <code>RemoteException</code> if the network or server fails prior to the timeout expiration
+</p>
+<p class="Body">
+  <a id="7324"> </a>A <code>read</code> request acts like a <code>readIfExists</code> except that it will wait until a matching entry is found or until transactions settle, whichever is longer, up to the timeout period.
+</p>
+<p class="Body">
+  <a id="31373"> </a>In both read methods, a timeout of <code>NO_WAIT</code> means to return immediately, with no waiting, which is equivalent to using a zero timeout. An <code>IllegalArgumentException</code> will be thrown if a negative timeout value is used.
+</p>
+<h4 class="Heading3">
+  <a id="31375"> </a>JS.2.5	 <code>takeIfExists</code> and <code>take</code>
+</h4>
+<p class="Body">
+  <a id="31227"> </a>The <code>take</code> requests perform exactly like the corresponding <code>read</code> requests (see <a href="js-spec.html#7320">Section&nbsp;JS.2.4, "<code>readIfExists</code> and <code>read</code>"</a>), except that the matching entry is removed from the space. Two <code>take</code> operations will never return copies of the same entry, although if two equivalent entries were in the JavaSpaces service the two <code>take</code> operations could return equivalent entries.
+</p>
+<p class="Body">
+  <a id="30790"> </a>If a <code>take</code> returns a non-<code>null</code> value, the entry has been removed from the space, possibly within a transaction (see <a href="js-spec.html#7388">Section&nbsp;JS.3, "Transactions"</a>). This modifies the claims to once-only retrieval: A <code>take</code> is considered to be successful only if all enclosing transactions commit successfully. If a <code>RemoteException</code> is thrown, the <code>take</code> may or may not have been successful. If an <code>UnusableEntryException</code> is thrown, the <code>take</code> removed the unusable entry from the space; the contents of the exception are as described in the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>. If any other exception is thrown, the <code>take</code> did not occur, and no entry was removed from the space.
+</p>
+<p class="Body">
+  <a id="7336"> </a>With a <code>RemoteException</code>, an entry can be removed from a space and yet never returned to the client that performed the <code>take</code>, thus losing the entry in between. In circumstances in which this is unacceptable, the <code>take</code> can be wrapped inside a transaction that is committed by the client when it has the requested entry in hand.
+</p>
+<h4 class="Heading3">
+  <a id="7338"> </a>JS.2.6	 <code>snapshot</code> 
+</h4>
+<p class="Body">
+  <a id="7339"> </a>The process of serializing an entry for transmission to a JavaSpaces service will be identical if the same entry is used twice. This is most likely to be an issue with templates that are used repeatedly to search for entries with <code>read</code> or <code>take</code>. The client-side implementations of <code>read</code> and <code>take</code> cannot reasonably avoid this duplicated effort, since they have no efficient way of checking whether the same template is being used without intervening modification.
+</p>
+<p class="Body">
+  <a id="30806"> </a>The <code>snapshot</code> method gives the JavaSpaces service implementor a way to reduce the impact of repeated use of the same entry. Invoking <code>snapshot</code> with an <code>Entry</code> will return another <code>Entry</code> object that contains a <em class="Emphasis">snapshot</em> of the original entry. Using the returned snapshot entry is equivalent to using the unmodified original entry in all operations on the same JavaSpaces service. Modifications to the original entry will not affect the snapshot. You can <code>snapshot</code> a <code>null</code> template; <code>snapshot</code> may or may not return <code>null</code> given a <code>null</code> template.
+</p>
+<p class="Body">
+  <a id="30807"> </a>The entry returned from <code>snapshot</code> will be guaranteed equivalent to the original unmodified object only when used with the space. Using the snapshot with any other JavaSpaces service will generate an <code>IllegalArgumentException</code> unless the other space can use it because of knowledge about the JavaSpaces service that generated the snapshot. The snapshot will be a different object from the original, may or may not have the same hash code, and <code>equals</code> may or may not return <code>true</code> when invoked with the original object, even if the original object is unmodified.
+</p>
+<p class="Body">
+  <a id="7342"> </a>A snapshot is guaranteed to work only within the virtual machine in which it was generated. If a snapshot is passed to another virtual machine (for example, in a parameter of an <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">RMI</span> call), using it--even with the same JavaSpaces service--may generate an <code>IllegalArgumentException</code>.
+</p>
+<p class="Body">
+  <a id="7343"> </a>We expect that an implementation of JavaSpaces technology will return a specialized <code>Entry</code> object that represents a pre-serialized version of the object, either in the object itself or as an identifier for the entry that has been cached on the server. Although the client may cache the snapshot on the server, it must guarantee that the snapshot returned to the client code is always valid. The implementation may not throw any exception that indicates that the snapshot has become invalid because it has been evicted from a cache. An implementation that uses a server-side cache must therefore guarantee that the snapshot is valid as long as it is reachable (not garbage) in the client, such as by storing enough information in the client to be able to re-insert the snapshot into the server-side cache.
+</p>
+<p class="Body">
+  <a id="7344"> </a>No other method returns a snapshot. Specifically, the return values of the <code>read</code> and <code>take</code> methods are not snapshots and are usable with any implementation of JavaSpaces technology.
+</p>
+<h4 class="Heading3">
+  <a id="7346"> </a>JS.2.7	 <code>notify</code> 
+</h4>
+<p class="Body">
+  <a id="27483"> </a>A <code>notify</code> request registers interest in future incoming entries to the JavaSpaces service that match the specified template. Matching is done as it is for <code>read</code>. The <code>notify</code> method is a particular registration method under the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>. When matching entries are written, the specified <code>RemoteEventListener</code> will eventually be notified. When you invoke <code>notify</code> you provide an upper bound on the lease time, which is how long you want the registration to be remembered by the JavaSpaces service. The service decides the actual time for the lease. You will get an <code>IllegalArgumentException</code> if the lease time requested is not <code>Lease.ANY</code> and is negative. The lease time is expressed in the standard millisecond units, although actual lease times will usually be of much larger granularity. A lease time of <code>Lease.FOREVER</code> is a request for an indefinite lease; if the service chooses not to grant an indefinite lease, it will return a bounded (non-zero) lease. The final argument to the notify request is a <CODE>MarshaledObject</CODE> called the handback.
+<p>
+Each notify returns a <CODE>net.jini.core.event.EventRegistration</CODE> object. When an object is written that matches the template supplied in the <CODE>notify</CODE> invocation, the listener's <CODE>notify</CODE> method is eventually invoked, with a <CODE>RemoteEvent</CODE> object.  The <CODE>RemoteEvent</CODE> object's <CODE>getID</CODE> method will return the same value returned by the <CODE>EventRegistration</CODE> object's <CODE>getID</CODE> method.  This value, the event ID, will be unique at least with respect to all other active event registrations on this JavaSpaces service with different templates or transactions.  The <CODE>RemoteEvent</CODE> object's <CODE>getSource</CODE> method will return a reference to the JavaSpaces service.  If the handback associated with the registration was non-<CODE>null</CODE>, the <CODE>RemoteEvent</CODE> object's <CODE>getRegistrationObject</CODE> method will return an object that is equivalent (in the sense of the <CODE>equals</CODE> method) to the handback, otherwise this method will return <CODE>null</CODE>. The <CODE>RemoteEvent</CODE> object's <CODE>getSequenceNumber</CODE> method will return the sequence number assigned to this event.  Sequence numbers for a given event ID are strictly increasing. If there is no gap between two sequence numbers, no events have been missed; if there is a gap, events might (but might not) have been missed. For example, a gap might occur if the JavaSpaces service crashes, even if no events are lost due to the crash.
+</p>
+<p class="Body">
+  <a id="7349"> </a>If the transaction parameter is <code>null</code>, the listener will be notified when matching entries are written either under a <code>null</code> transaction or when a transaction commits. If an entry is written under a transaction and then taken under that same transaction before the transaction is committed, listeners registered under a <code>null</code> transaction will not be notified of that entry.
+</p>
+<p class="Body">
+  <a id="7350"> </a>If the transaction parameter is not <code>null</code>, the listener will be notified of matching entries written under that transaction in addition to the notifications it would receive under a <code>null</code> transaction. A <code>notify</code> made with a non-<code>null</code> transaction is implicitly dropped when the transaction completes.
+</p>
+<p class="Body">
+  <a id="7351"> </a>The request specified by a successful <code>notify</code> is as persistent as the entries of the space. They will be remembered as long as an untaken entry would be, until the lease expires, or until any governing transaction completes, whichever is shorter.
+</p>
+<p class="Body">
+  <a id="7352"> </a>The service will make a "best effort" attempt to deliver notifications. The service will retry at most until the notification request's lease expires. Notifications may be delivered in any order.
+</p>
+<p class="Body">
+  <a id="7353"> </a>See the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a> for details on the event types.
+</p>
+<h4 class="Heading3">
+  <a id="7354"> </a>JS.2.8	 Operation Ordering
+</h4>
+<p class="Body">
+  <a id="7355"> </a>Operations on a space are unordered. The only view of operation order can be a thread's view of the order of the operations it performs. A view of inter-thread order can be imposed only by cooperating threads that use an application-specific protocol to prevent two or more operations being in progress at a single time on a single JavaSpaces service. Such means are outside the purview of this specification.
+</p>
+<p class="Body">
+  <a id="7356"> </a>For example, given two threads <em class="Emphasis">T</em> and <em class="Emphasis">U</em>, if <em class="Emphasis">T</em> performs a <code>write</code> operation and <em class="Emphasis">U</em> performs a <code>read</code> with a template that would match the written entry, the <code>read</code> may not find the written entry even if the <code>write</code> returns before the <code>read</code>. Only if <em class="Emphasis">T</em> and <em class="Emphasis">U</em> cooperate to ensure that the <code>write</code> returns before the <code>read</code> commences would the <code>read</code> be ensured the opportunity to find the entry written by <em class="Emphasis">T</em> (although it still might not do so because of an intervening <code>take</code> from a third entity).
+</p>
+<h4 class="Heading3">
+  <a id="7358"> </a>JS.2.9	 Serialized Form
+</h4>
+<CENTER>
+<table border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000"
+       cellpadding="5" cellspacing="0" summary="serialized form of <code>InternalSpaceException</code>">
+  <caption></caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Class</th>
+    <th>serialVersionUID</th>
+    <th>Serialized Fields</th>
+  </tr>
+  <tr>
+    <td><align="left"><code>InternalSpaceException</code></td>
+    <td>-4167507833172939849L</td>
+    <td><em>all public fields</em></td>
+ </align> </tr>
+</table>
+</CENTER>
+<h5 class="Heading3">
+  <a id="7360"> </a>JS.2.10	 <code>JavaSpace05</code> 
+</h5>
+<p class="Body">
+  <a id="7361"> </a>The <code>JavaSpace05</code> interface extends the 
+  JavaSpace interface to provide methods that allow clients to perform batch 
+  operations on the space (which are generally more efficient than performing 
+  an equivalent set of singleton operations) and to more easily develop 
+  applications where a given Entry needs to be read by multiple clients. 
+  Implementations of the JavaSpace interface are not required to implement 
+  this interface.
+</p>
+<p class="Body">
+  <a id="300016"> </a>Unless otherwise noted, the effects of any invocation of a method defined by this interface must be visible to any operation on the space that is started after the invocation returns normally. Note, the effects of a method invocation that throws a RemoteException are not necessarily visible when the exception is thrown. 
+</p>
+<p class="Body">
+  <a id="300017"> </a>All of the methods of this interface take one or more Collections as arguments. Each such Collection must be treated as immutable by implementations and must not be changed by the client during the course of any method invocation to which they have been passed.
+</p>
+<p class="Body">
+  <a id="300018"> </a>The <code>JavaSpace05</code> interface is not a remote interface. Each implementation of this interface exports a proxy object that implements this interface local to the client. Each method of the interface takes as one of its arguments a Collection of Entry instances. The entries themselves must be serialized in accordance with the Jini Entry Specification and will not be altered by the call. Typically, the Collection holding the entries will not be serialized at all. If one of these entries can't be serialized, a MarshalException will be thrown. Aside from the handling of these Collection of Entry parameters, all methods defined by this interface otherwise obey normal Java(TM) Remote Method Invocation remote interface semantics. 
+</p>
+
+</pre>
+<p class="Body">
+  <a id="7362"> </a>The <code>JavaSpace05</code> interface is:
+</p>
+<pre  class="Preformatted">package net.jini.space;
+
+import java.rmi.*;
+import java.util.*
+import net.jini.core.event.*;
+import net.jini.core.transaction.*;
+import net.jini.core.lease.*;
+import net.jini.entry.*
+
+public interface JavaSpace05 extends JavaSpace {
+    public List write(List        entries,
+		      Transaction txn,
+		      List        leaseDurations)
+	throws TransactionException, RemoteException;
+    public Collection take(Collection  tmpls, 
+			   Transaction txn, 
+			   long        timeout, 
+			   long        maxEntries)
+	throws UnusableEntriesException, TransactionException,
+	       RemoteException;
+    public MatchSet contents(Collection  tmpls, 
+			     Transaction txn,
+			     long        leaseDuration, 
+			     long        maxEntries)
+	throws TransactionException, RemoteException;
+    public EventRegistration 
+	registerForAvailabilityEvent(Collection          tmpls, 
+				     Transaction         txn,
+				     boolean             visibilityOnly,
+				     RemoteEventListener listener,
+				     long                leaseDuration, 
+				     MarshalledObject    handback)
+	throws TransactionException, RemoteException;
+}
+
+</pre>
+<p class="Body">
+  <a id="7363"> </a>The details of each <code>JavaSpace05</code> method are given in the sections that follow.
+</p>
+<h5 class="Heading4">
+  <a id="300000"> </a>JS.2.10.1	 <code>MatchSet</code> 
+</h5>
+<p class="Body">
+  <a id="300001"> </a>The <code>MatchSet</code> interface is a collection of 
+  Entry instances to be incrementally returned from a JavaSpaces service. 
+  Some operations on a space must return more entries than can be conveniently 
+  returned by a single call, generally because returning all the entries in one 
+  result would consume too many resources in the client or introduce too much 
+  latency before the first entry could be processed. In these cases, match sets
+  are returned to incrementally return the necessary entries. A MatchSet 
+  instance is a proxy object that can be used to access a match set created 
+  by a space.
+</p>
+<p class="Body">
+  <a id="300012"> </a>Typically match sets are created by some factory method 
+  on the space (for example, JavaSpace05.contents) which returns a MatchSet 
+  instance that will serve as a proxy to the match set. The match set will 
+  initially contain some population of entries specified by the operation that 
+  created it. These entries can be retrieved by calling next. 
+  A successful call to next will remove the returned Entry from the match set. 
+  Match sets can end up in one of two terminal states, exhausted or invalidated.
+  Under what conditions a match set enters one of these states is specified by 
+  the operation that created it. An exhausted match set is empty and will have 
+  no more entries added. Calling next on an exhausted match set must always 
+  return null. Calling next on an invalidated match set may return a non-null 
+  value, or it may throw one of the allowed exceptions. In particular it may 
+  throw NoSuchObjectException to indicate that the match set has been 
+  invalidated. Once next throws a NoSuchObjectException, all future next 
+  calls on that instance must also throw NoSuchObjectException. Calling next 
+  on an invalidated match set must never return null. 
+  Implementations must not add entries to an invalidated match set.
+</p>
+<p class="Body">
+  <a id="300013"> </a>Between the time a match set is created and the time it reaches a terminal state, entries may be added by the space. However, an Entry that is removed by a next call must not be added back to a match set (though if there is a distinct but equivalent entry in the space it may be added). The space may also remove entries independent of next calls. The conditions under which entries will be removed independent of next calls or added after the initial creation of the match set are specified by the operation that created the match set. 
+</p>
+<p class="Body">
+  <a id="300014"> </a>If there is a possibility that a match set may become invalidated, it must be leased and an appropriate proxy must be returned by the getLease method. If there is no possibility that the match set will become invalidated, implementations should not lease the match set. If a match set is not leased, then getLease must return null. 
+</p>
+<p class="Body">
+  <a id="300015"> </a>An active lease on a match set serves as a hint to the space that the client is still interested in the match set, and as a hint to the client that the match set is still functioning. However, implementations are allowed to invalidate match sets associated with active leases and to unilaterally cancel leases associated with functioning match sets. If a match set is leased and the lease is active, implementations should, to the best of their ability, maintain the match set and not invalidate it. There are cases, however, where this may not be possible in particular, it is not expected that implementations will maintain match sets across crashes. If the lease expires or is canceled, an implementation should invalidate the match set. An implementation must unilaterally cancel a match set's lease if the match set is invalidated. An implementation may unilaterally cancel the lease at other times without necessarily invalidating the match set. Clients should not assume that the resources associated with a leased match set will be freed if the match set reaches the exhausted state, and should instead cancel the lease. This interface is not a remote interface; though in general a MatchSet is a proxy for some remote match set, only the next method is considered to be a remote method, and as outlined in its description it deviates in a number of ways from normal Java(TM) Remote Method Invocation remote method semantics.
+</p>
+<pre  class="Preformatted">package net.jini.space;
+
+public interface MatchSet {
+    public Entry next() throws RemoteException, UnusableEntryException;
+    public Lease getLease();
+    public Entry getSnapshot();
+}
+</pre>
+<h5 class="Heading4">
+  <a id="300002"> </a>JS.2.10.2	 <code>MatchSet.next</code> 
+</h5>
+<p class="Body">
+  <a id="300003"> </a>Removes one <code>Entry</code> from the match set and returns a copy to the caller. Returns null if the match set is empty. The returned <code>Entry</code> must be unmarshalled in accordance with the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>.
+</p>
+<p class="Body">
+  <a id="300004"> </a>A given invocation of this method may perform remote communications, but generally the next method is not expected to have remote method constraints that can vary from invocation to invocation. Instead the set of constraints associated with the next method will be fixed at the time the match set was created, even if this object implements an interface like <code>RemoteMethodControl</code> that would otherwise allow the set of constraints associated with the next method to be altered.
+</p>
+<p class="Body">
+    <a id="300005"> </a>If an <code>UnusableEntryException</code> is thrown, the <code>Entry</code> removed from the <code>MatchSet</code> could not be unmarshalled.  If a <code>RemoteException</code> is thrown, a communication error has occurred and no entry was removed.
+</p>
+<h5 class="Heading4">
+  <a id="300006"> </a>JS.2.10.3	 <code>MatchSet.getLease</code> 
+</h5>
+<p class="Body">
+  <a id="300007"> </a>Returns a proxy to the <code>Lease</code> associated with this match set, or null if this match set is not leased.
+</p>
+<h5 class="Heading4">
+  <a id="300008"> </a>JS.2.10.4	 <code>MatchSet.getSnapshot</code> 
+</h5>
+<p class="Body">
+  <a id="300009"> </a>Returns a snapshot of the <code>Entry</code> removed by the last call to next. 
+</p>
+<p class="Body">
+  <a id="300010"> </a>Any snapshot returned by this method will meet the same contract as the object returned by passing the result of the last next invocation to <code>JavaSpace.snapshot</code>.
+</p>
+<p class="Body">
+    <a id="300011"> </a>If an <code>IllegalStateExecption</code> is thrown, the last call to next did not remove an Entry from the match set, or next was not called.
+</p>
+
+<h4 class="Heading3">
+  <a id="7366"> </a>JS.2.11	 <code>JavaSpace05.write</code> 
+</h4>
+<p class="Body">
+  <a id="7367"> </a>This method provides an overload of the <code>JavaSpace.write</code> method that allows new copies of multiple <code>Entry</code> instances to be stored in the space using a single call. The client may specify a <code>Transaction</code> for the operation to be performed under. Each <code>Entry</code> to be stored in the space has a separate requested initial lease duration. 
+</p>
+<p class="Body">
+  <a id="7368"> </a>The effect on the space of an invocation of this method successfully storing an Entry is the same as if the Entry had been successfully stored by a call to the singleton form of write under txn with the given requested initial lease duration. This method returns the proxies to the leases for each newly stored Entry by returning a List of Lease instances. The i th element of the returned List will be a proxy for the lease on the Entry created from the i th element of entries. 
+</p>
+<p class="Body">
+  <a id="7369"> </a>If an invocation of this method returns normally, then a new copy of each element of entries must have been stored in the space. A new copy of each element will be stored even if there are duplicates (either in terms of object identity or of entry equivalence) in entries. 
+</p>
+<p class="Body">
+  <a id="7370"> </a>The order in which the entries stored by an invocation of this method will become visible in the space is unspecified, and different observers may see the entries become visible in different orders.
+</p>
+<p class="Body">
+    <a id="7371"> </a>If a <code>TransactionException, SecurityException, IllegalArgumentException, or NullPointerException</code> is thrown, no entries will have been added to the space by this operation. If a <code>RemoteException</code> is thrown, either new copies of all of the elements of entries will have been stored or no entries will have been stored; that is, in the case of a <code>RemoteException</code>, the storing of new entries in the space will either fail or succeed as a unit. 
+</p>
+    
+<h4 class="Heading3">
+  <a id="300028"> </a>JS.2.12	 <code>JavaSpace05.take</code> 
+</h4>
+<p class="Body">
+    <a id="300019"> </a>This method provides an overload of the JavaSpace.take method that attempts to remove, optionally under a Transaction, and return one or more entries from the space. Each Entry taken will match one or more elements of the passed Collection of templates, and all of the taken entries will be visible to the passed Transaction. If there are initially no matches in the space that are visible to the passed Transaction, an invocation of this method will block for up to a specified timeout for one or more matches to appear. 
+</p>
+<p class="Body">
+    <a id="300020"> </a>The effect on the space of an invocation of this method successfully taking an Entry will be the same as if the Entry had been taken using the singleton version of this method and passing txn as the Transaction. 
+</p>
+<p class="Body">
+    <a id="300021"> </a>The tmpls parameter must be a Collection of Entry instances to be used as templates. All of the entries taken must match one or more of these templates. The tmpls parameter may contain null values and may contain duplicates. An Entry is said to be available to an invocation of this method if the Entry could have been returned by an invocation of the singleton take method using txn. 
+</p>
+<p class="Body">
+    <a id="300022"> </a>If the method succeeds, a non-null Collection will be returned. The Collection will contain a copy of each Entry that was taken. If no entries were taken, the Collection will be empty. Each Entry taken will be represented by a distinct Entry instance in the returned Collection, even if some of the entries are equivalent to others taken by the operation. There will be no null elements in the returned Collection.
+</p>
+<p class="Body">
+    <a id="300023"> </a>If one or more of the entries taken cannot be unmarshalled in the client, an UnusableEntriesException is thrown. The exception's UnusableEntriesException.getEntries method will return a Collection with a copy of each Entry that could be unmarshalled. The UnusableEntriesException.getUnusableEntryExceptions method will return a Collection with an UnusableEntryException for each Entry that could not be unmarshalled. Every Entry taken by the invocation will either be represented in the Collection returned by getEntries or in the Collection returned by getUnusableEntryExceptions. 
+</p>
+<p class="Body">
+    <a id="300024"> </a>If there is at least one matching Entry available in the space, an invocation of this method must take at least one Entry. If more than one matching Entry is available, the invocation may take additional entries. It must not take more than maxEntries, but an implementation may chose to take fewer entries from the space than the maximum available or the maximum allowed by maxEntries. If for whatever reason, an invocation of this method takes fewer entries than the maximum number of available matching entries, how an implementation selects which entries should be taken by the invocation and which are left in the space is unspecified. How consumption of entries is arbitrated between conflicting queries is also unspecified. 
+</p>
+<p class="Body">
+    <a id="300025"> </a>If there are initially no matching entries in the space, an invocation of this method should block for up to timeout milliseconds for a match to appear. If one or more matches become available before timeout expires, one or more of the newly available entries should be taken and the method should return without further blocking. If for some reason the invocation can't block for the full timeout and no entries have been taken, the invocation must fail with a RemoteException or TransactionException as appropriate. 
+</p>
+<p class="Body">
+    <a id="300026"> </a>If an invocation of this method removes (or locks) more than one Entry, the order in which the removal (or locking) occurs is undefined, and different observers may see the removal or locking of the entries in different orders. 
+</p>
+<p class="Body">
+    <a id="300027"> </a>If a TransactionException, SecurityException, IllegalArgumentException, or NullPointerException is thrown, no entries will have been taken. If a RemoteException is thrown, up to maxEntries may have been taken by this operation. 
+</p>
+<h4 class="Heading3">
+  <a id="300029"> </a>JS.2.13	 <code>JavaSpace05.contents</code> 
+</h4>
+<p class="Body">
+  <a id="300030"> </a>Creates a match set that can be used to exhaustively read through all of the matching entries in the space that are visible to the passed Transaction and remain visible for the lifetime of the match set. May also yield additional entries that match but are only visible for part of the lifetime of the match set. 
+<p>
+<p class="Body">
+  <a id="300031"> </a>The tmpls parameter must be a Collection of Entry instances to be used as templates. All of the entries placed in the match set will match one or more of these templates. tmpls may contain null values and may contain duplicates. An Entry is said to be visible to an invocation of this method if the Entry could have been returned by a singleton JavaSpace.read using the same transaction. 
+<p>   
+<p class="Body">
+  <a id="300032"> </a>The resulting match set must initially contain all of the visible matching entries in the space. During the lifetime of the match set an Entry may be, but is not required to be, added to the match set if it becomes visible. If the match set becomes empty, no more entries can be added and the match set enters the exhausted state.
+<p>    
+<p class="Body">
+  <a id="300033"> </a>Normally there are three conditions under which an Entry might be removed from the match set: 
+<p>    
+<ul>
+    <li class="SmartList1"><a id="300038"> </a>Any Entry yielded by an invocation of the MatchSet.next method on the match set (either as the return value of a successful call or embedded in an UnusableEntryException) must be removed from the match set. 
+    <li class="SmartList1"><a id="300039"> </a>Any Entry that remains in the match set after maxEntries entries are yielded by next invocations must be removed from the match set. In such a case, the criteria used to select which entries are yielded by next calls and which get removed from the set at the end is unspecified. 
+    <li class="SmartList1"><a id="300040"> </a>Any Entry that during the lifetime of the match set becomes invisible may at the discretion of the implementation be removed from the match set. 
+</ul>
+<p class="Body">
+  <a id="300034"> </a>An implementation may decide to remove an Entry from the set for other reasons. If it does so, however, it must invalidate the set.
+<p>    
+<p class="Body">
+  <a id="300035"> </a>If txn is non-null and still active, any Entry removed from the match set by a next call must be locked as if it had been returned by a read operation using txn. An implementation may establish the read lock on the Entry any time between when the Entry is added to the match set and when the Entry is removed from the match set by an invocation of next. These read locks are not released when the match set reaches either the exhausted state or the invalidated state. If from the space's perspective the txn leaves the active state, the space must remove from the match set any entries in the match set that have not yet been read locked. This may require the match set to be invalidated. 
+<p>   
+<p class="Body">
+  <a id="300036"> </a>If the match set is leased and leaseDuration is positive, the initial duration of the lease must be less than or equal to leaseDuration. If leaseDuration is Lease.ANY, the initial duration of the lease can be any positive value desired by the implementation. 
+<p>
+<p class="Body">
+  <a id="300037"> </a>If there are remote method constraints associated with an invocation of this method, any remote communications performed by or on behalf of the match set's next method will be performed in compliance with these constraints, not with the constraints (if any) associated with next. 
+<p>  
+    <h4 class="Heading3">
+  <a id="300041"> </a>JS.2.14	 <code>JavaSpace05.registerForAvailabilityEvent</code> 
+</h4>
+<p class="Body">
+  <a id="300042"> </a>Register for events triggered when a matching Entry transitions from unavailable to available. The resulting events will be instances of the AvailabilityEvent class and the AvailabilityEvent.getEntry method will return a copy of the Entry whose transition triggered the event.
+</p>
+ <p class="Body">
+  <a id="300043"> </a>An Entry makes a transition from unavailable to available when it goes from being in a state where it could not be returned by a JavaSpace.take using txn to a state where it could be returned. An Entry makes a transition from invisible to visible when it goes from being in a state where it could not be returned by a JavaSpace.read using txn to a state where it could be returned. Note, any transition from invisible to visible is also a transition from unavailable to available, but an already visible entry can be unavailable and then make a transition from unavailable to available. Because the entry was already visible, this transition would not be a transition from invisible to visible.  
+</p> 
+<p class="Body">
+  <a id="300044"> </a>The tmpls parameter must be a Collection of Entry instances to be used as templates. Events will be generated when an Entry that matches one or more of these templates makes an appropriate transition. A single transition will generate only one event per registration, in particular the transition of an Entry that matches multiple elements of tmpls must still generate exactly one event for this registration. If a given Entry undergoes multiple applicable transitions while the registration is active, each must generate a separate event.  
+</p>
+<p class="Body">
+  <a id="300045"> </a>Events are not generated directly by the transition of matching entries, but instead by an abstract observer set up in the space for each registration. The observer may see the transitions out of order and as a result the order of the events generated for this registration (as determined by the sequence numbers assigned to the events) may be different from the order of the transitions themselves. Additionally, each registration will have its own abstract observer and different observers may see the same sequence of transitions in different orders. As a result, given a set of transitions that trigger events for two different registrations, the order of the events generated for one registration may differ from the order of the events generated for the other.   
+</p>
+<p class="Body">
+  <a id="300046"> </a>A non-null EventRegistration object will be returned. Each registration will be assigned an event ID. The event ID will be unique at least with respect to all other active event registrations for AvailabilityEvents on this space with a non-equivalent set of templates, a different transaction, and/or a different value for the visibilityOnly flag. The event ID can be obtained by calling the EventRegistration.getID method on the returned EventRegistration. The returned EventRegistration object's EventRegistration.getSource method will return a reference to the space.  
+</p>
+<p class="Body">
+  <a id="300047"> </a>Registrations are leased. leaseDurations represents the client's desired initial lease duration. If leaseDuration is positive, the initial lease duration will be a positive value less than or equal to leaseDuration. If leaseDuration is Lease.ANY, the space is free to pick any positive initial lease duration it desires. A proxy for the lease associated with the registration can be obtained by calling the returned EventRegistration's EventRegistration.getLease method.  
+</p>
+<p class="Body">
+  <a id="300048"> </a>A registration made with a non-null value for txn is implicitly dropped when the space observes txn has left the active state.  
+</p>
+<h3 class="Heading2">
+  <a id="7388"> </a>JS.3	 Transactions	 
+</h3>
+<p class="Body">
+  The JavaSpaces <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">API</span> uses the package <code>net.jini.core.transaction</code> to provide basic atomic transactions that group multiple operations across multiple JavaSpaces services into a bundle that acts as a single atomic operation. JavaSpaces services are actors in these transactions; the client can be an actor as well, as can any remote object that implements the appropriate interfaces.
+</p>
+<p class="Body">
+  <a id="7390"> </a>Transactions wrap together multiple operations. Either all modifications within the transactions will be applied or none will, whether the transaction spans one or more operations and/or one or more JavaSpaces services.
+</p>
+<p class="Body">
+  <a id="7391"> </a>The transaction semantics described here conform to the default transaction semantics defined in the <a href="txn-spec.html"><em class="Emphasis">Jini Transaction Specification</em></a>.
+</p>
+<h4 class="Heading3">
+  <a id="7392"> </a>JS.3.1	 Operations under Transactions
+</h4>
+<p class="Body">
+  <a id="7393"> </a>Any <code>read</code>, <code>write</code>, or <code>take</code> operations that have a <code>null</code> transaction act as if they were in a committed transaction that contained exactly that operation. For example, a <code>take</code> with a <code>null</code> transaction parameter performs as if a transaction was created, the <code>take</code> performed under that transaction, and then the transaction was committed. Any <code>notify</code> operations with a <code>null</code> transaction apply to <code>write</code> operations that are committed to the entire space.
+</p>
+<p class="Body">
+  <a id="7394"> </a>Transactions affect operations in the following ways:
+</p>
+<ul>
+  <li class="SmartList1"><a id="7395"> </a><code>write</code>: An entry that is written is not visible outside its transaction until the transaction successfully commits. If the entry is taken within the transaction, the entry will never be visible outside the transaction and will not be added to the space when the transaction commits. Specifically, the entry will not generate notifications to listeners that are not registered under the writing transaction. Entries written under a transaction that aborts are discarded.<p>
+  <li class="SmartList1"><a id="7396"> </a><code>read</code>: A <code>read</code> may match any entry written under that transaction or in the entire space. A JavaSpaces service is not required to prefer matching entries written inside the transaction to those in the entire space. When read, an entry is added to the set of entries read by the provided transaction. Such an entry may be read in any other transaction to which the entry is visible, but cannot be taken in another transaction.<p>
+  <li class="SmartList1"><a id="7397"> </a><code>take</code>: A <code>take</code> matches like a <code>read</code> with the same template. When taken, an entry is added to the set of entries taken by the provided transaction. Such an entry may not be read or taken by any other transaction.<p>
+  <li class="SmartList1"><a id="7398"> </a><code>notify</code>: A <code>notify</code> performed under a <code>null</code> transaction applies to <code>write</code> operations that are committed to the entire space. A <code>notify</code> performed under a non-<code>null</code> transaction additionally provides notification of writes performed within that transaction. When a transaction completes, any registrations under that transaction are implicitly dropped. When a transaction commits, any entries that were written under the transaction (and not taken) will cause appropriate notifications for registrations that were made under a <code>null</code> transaction.
+</ul>
+<p class="Body">
+  <a id="7399"> </a>If a transaction aborts while an operation is in progress under that transaction, the operation will terminate with a <code>TransactionException</code>. Any statement made in this chapter about <code>read</code> or <code>take</code> apply equally to <code>readIfExists</code> or <code>takeIfExists</code>, respectively.
+</p>
+<h4 class="Heading3">
+  <a id="7401"> </a>JS.3.2	 Transactions and ACID Properties
+</h4>
+<p class="Body">
+  <a id="7402"> </a>The ACID properties traditionally offered by database transactions are preserved in transactions on JavaSpaces systems. The ACID properties are:
+</p>
+<ul>
+  <li class="SmartList1"><a id="7403"> </a><em class="Emphasis">Atomicity:</em> All the operations grouped under a transaction occur or none of them do.<p>
+  <li class="SmartList1"><a id="7404"> </a><em class="Emphasis">Consistency:</em> The completion of a transaction must leave the system in a consistent state. Consistency includes issues known only to humans, such as that an employee should always have a manager. The enforcement of consistency is outside of the transaction--a transaction is a tool to allow consistency guarantees, and not itself a guarantor of consistency.<p>
+  <li class="SmartList1"><a id="7405"> </a><em class="Emphasis">Isolation:</em> Ongoing transactions should not affect each other. Any observer should be able to see other transactions executing in some sequential order (although different observers may see different orders).<p>
+  <li class="SmartList1"><a id="7406"> </a><em class="Emphasis">Durability:</em> The results of a transaction should be as persistent as the entity on which the transaction commits.
+</ul>
+<p class="Body">
+  <a id="7407"> </a>The timeout values in <code>read</code> and <code>take</code> allow a client to trade full isolation for liveness. For example, if a <code>read</code> request has only one matching entry and that entry is currently locked in a <code>take</code> from another transaction, <code>read</code> would block indefinitely if the client wanted to preserve isolation. Since completing the transaction could take an indefinite amount of time, a client may choose instead to put an upper bound on how long it is willing to wait for such isolation guarantees, and instead proceed to either abort its own transaction or ask the user whether to continue or whatever else is appropriate for the client.
+</p>
+<p class="Body">
+  <a id="7408"> </a>Persistence is not a required property of JavaSpaces technology implementations. A transient implementation that does not preserve its contents between system crashes is a proper implementation of the <code>JavaSpace</code> interface's contract, and may be quite useful. If you choose to perform operations on such a space, your transactions will guarantee as much durability as the JavaSpaces service allows for all its data, which is all that any transaction system can guarantee.
+</p>
+<h3 class="Heading2">
+  <a id="27837"> </a>JS.4	 Further Reading	 
+</h3>
+<h4 class="Heading3">
+  <a id="7438"> </a>JS.4.1	 Linda Systems
+</h4>
+<ol type="1">
+      <li class="SmartList3" value="1"><a id="27505"> </a>"How to Write Parallel Programs: A Guide to the Perplexed," Nicholas Carriero and David Gelernter, <span style="color: #000000; font-family: Times; font-size: 12pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">ACM</span><em class="Emphasis"> Computing Surveys</em>, Sept., 1989.<p>
+      <li class="SmartList3" value="2"><a id="27506"> </a>"Generative Communication in Linda," David Gelernter, <span style="color: #000000; font-family: Times; font-size: 12pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">ACM</span><em class="Emphasis"> Transactions on Programming Languages and Systems,</em> Vol. 7, No. 1, pp. 80-112 (January 1985).<p>
+      <li class="SmartList3" value="3"><a id="30930"> </a>"Persistent Linda: Linda + Transactions + Query Processing," Brian G. Anderson and Dennis Shasha, <em class="Emphasis">Proceedings of the 13th Symposium on Fault-Tolerant Distributed Systems,</em> 1994.<p>
+      <li class="SmartList3" value="4"><a id="30931"> </a>"Adding Fault-tolerant Transaction Processing to LINDA," Scott R. Cannon and David Dunn, <em class="Emphasis">Software--Practice and Experience,</em> Vol. 24(5), pp. 449-446 (May 1994).<p>
+      <li class="SmartList3" value="5"><a id="27528"> </a><em class="Emphasis">ActorSpaces: An Open Distributed Programming Paradigm,</em> Gul Agha, Christian J. Callsen, University of Illinois at Urbana-Champaign, <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">UILU</span>-<span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">ENG</span>-92-1846.
+</ol>
+<h4 class="Heading3">
+  <a id="27534"> </a>JS.4.2	 The Java Platform
+</h4>
+<ol type="1">
+      <li class="SmartList3" value="6"><a id="30950"> </a><em class="Emphasis">The Java Programming Language, Third Edition,</em> Ken Arnold, James Gosling, and David Holmes, Addison Wesley, 2000.<p>
+      <li class="SmartList3" value="7"><a id="30954"> </a><em class="Emphasis">The Java Language Specification,</em> James Gosling, Bill Joy, and Guy Steele, Addison Wesley, 1996.<p>
+      <li class="SmartList3" value="8"><a id="27548"> </a><em class="Emphasis">The Java Virtual Machine Specification, Second Edition,</em> Tim Lindholm and Frank Yellin, Addison Wesley, 1999.<p>
+      <li class="SmartList3" value="9"><a id="27549"> </a><em class="Emphasis">The Java Class Libraries, Second Edition,</em> Patrick Chan, Rosanna Lee, and Doug Kramer, Addison Wesley, 1998.
+</ol>
+<h4 class="Heading3">
+  <a id="27556"> </a>JS.4.3	 Distributed Computing
+</h4>
+<ol type="1">
+      <li class="SmartList3" value="10"><a id="31118"> </a><em class="Emphasis">Distributed Systems,</em> Sape Mullender, Addison Wesley, 1993.<p>
+      <li class="SmartList3" value="11"><a id="31119"> </a><em class="Emphasis">Distributed Systems: Concepts and Design,</em> George Coulouris, Jean Dollimore, and Tim Kindberg, Addison Wesley, 1998.<p>
+      <li class="SmartList3" value="12"><a id="27572"> </a><em class="Emphasis">Distributed Algorithms,</em> Nancy A. Lynch, Morgan Kaufmann Publishers, 1997.
+</ol>
+</p>
+
+<h3 class="Heading2">
+  <a id="01886"> </a>JS.5	 History	 
+</h3>
+ 
+
+
+<table align="center" border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000" cellpadding="5" cellspacing="0" summary="changes made to this specification">
+  <caption><p class="Body">
+  <a id="01887"> </a>
+</p>
+</caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Version</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>v1.0</td>
+    <td>Initial release of this specification.</td>
+  </tr>
+    <tr>
+    <td>v2.0 (formerly called v1.2)</td>
+    <td>Section JS.2.7 was changed to no longer require that event sequence numbers be "fully ordered."<a href="#04915"><sup>4</sup></a></td>
+  </tr>
+  <tr>
+    <td>v2.1 (formerly called v1.2.1)</td>
+    <td>A paragraph in Section JS.2.7 was inadvertently left in the document during the v1.2 revision. That paragraph has been deleted in this release.</td>
+  </tr>
+  <tr>
+    <td>v2.2 </td>
+    <td>Removed dependency on Jini Entry Utilities Specification.</td>
+  </tr>
+  <tr>
+    <td>v2.3 </td>
+    <td>Added optional JavaSpace05 interface.</td>
+  </tr>
+</table>
+<p>
+<a id="31491"><a href="#31414"><sup>1</sup></a> As used in this document, the terms "Java virtual machine" or "JVM" mean a virtual machine for the Java platform.
+</p>
+<a id="27423"><a href="#27420"><sup>2</sup></a> The term "space" is used to refer to a JavaSpaces service implementation.
+</p>
+<a id="275577"> </a><a href="#2427"><sup>3</sup></a> "Linda" is the name of a public domain technology originally propounded by Dr. David Gelernter of Yale University. "Linda" is also claimed as a trademark for certain goods by Scientific Computing Associates, Inc. This discussion refers to the public domain "Linda" technology.
+<p>
+<a id="04915"> </a><a href="#01886"><sup>4</sup></a> "Fully ordered" in defined in the <em>Jini Technology Core Platform Specification</em>, "Distributed Events".
+<h3 class="Heading2">
+<a id="0188"> </a>		 License	 
+</h3>
+<p>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</blockquote>
+
+<hr>
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%"><tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a>
+<td align=right><em>JavaSpaces Service Specifications</em></td>
+</tr></table>
+<a id="skip"></a>
+
+<hr>
+</body>
+</html>
+
+<!-- This HTML file was initially created with Quadralay WebWorks Publisher 3.5.0 -->
+<!-- by Susan Snyder -->
+<!-- Last updated: 01/27/05 -->

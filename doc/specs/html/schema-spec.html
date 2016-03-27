@@ -1,0 +1,698 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
+<link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
+<title>Jini Lookup Attribute Schema Specification  </title>
+</head>
+
+<body bgcolor="#ffffff">
+
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%">
+<tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a></td>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
+</tr>
+</table>
+<br clear="all">
+
+
+<hr align="left">
+<table width="90%">
+<tr>
+<td align="right" font size="4"><b>Version 1.0</b></td>
+</tr>
+</table>
+<a name="skip"></a>
+<blockquote>
+<h2><a name="7185"></a>LS - Jini<font size="-1"><sup>TM</sup></font> Lookup Attribute Schema Specification</h2>
+<h3 class="Heading2">
+  <a name="7186"> </a>LS.1	 Introduction	 
+</h3>
+<p class="Body">
+  <a name="3780"> </a>The Jini<font size="-1"><sup>TM</sup></font> lookup service provides facilities for services to advertise their availability and for would-be clients to obtain references to those services based on the attributes they provide. The mechanism that it provides for registering and querying based on attributes is centered on the Java<font size="-1"><sup>TM</sup></font> platform type system, and is based on the notion of an <em class="Emphasis">entry.</em>
+</p>
+<p class="Body">
+  <a name="3751"> </a>An entry is a class that contains a number of public fields of object type. Services provide concrete values for each of these fields; each value acts as an attribute. Entries thus provide aggregation of attributes into sets; a service may provide several entries when registering itself in the lookup service, which means that attributes on each service are provided in a set of sets.
+</p>
+<p class="Body">
+  <a name="3758"> </a>The purpose of this document is to provide a framework in which services and their would-be clients can interoperate. This framework takes two parts:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="3768"> </a>We describe a set of common predefined entries that span much of the basic functionality that is needed both by services registering themselves and by entities that are searching for services.<p>
+  <li class="SmartList1"><a name="3776"> </a>Since we cannot anticipate all of the future needs of clients of the lookup service, we provide a set of guidelines and design patterns for extending, using, and imitating this set in ways that are consistent and predictable. We also construct some examples that illustrate the use of these patterns.
+</ul>
+
+<h4 class="Heading3">
+  <a name="3779"> </a>LS.1.1	 Terminology
+</h4>
+<p class="Body">
+  <a name="3781"> </a>Throughout this document, we will use the following terms in consistent ways:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="3782"> </a><em class="Emphasis">Service</em>--a service that has registered, or will register, itself with the lookup service<p>
+  <li class="SmartList1"><a name="3787"> </a><em class="Emphasis">Client</em>--an entity that performs queries on the lookup service, in order to find particular services
+</ul>
+
+<h4 class="Heading3">
+  <a name="3811"> </a>LS.1.2	 Design Issues
+</h4>
+<p class="Body">
+  <a name="3812"> </a>Several factors influence and constrain the design of the lookup service schema.
+</p>
+<div style="color: #000000; font-family: Times; font-size: 11pt; font-style: normal; font-weight: bold; margin-bottom: 8pt; margin-left: 36pt; margin-right: 0pt; margin-top: 13pt; text-align: left; text-decoration: none; text-indent: -36pt; text-transform: none; vertical-align: baseline">
+<a name="3817"> </a>Matching Cannot Always Be Automated<br>
+</div>
+<p class="Body">
+  <a name="3820"> </a>No matter how much information it has at its disposal, a client of the lookup service will not always be able to find a single unique match without assistance when it performs a lookup. In many instances we expect that more than one service will match a particular query. Accordingly, both the lookup service and the attribute schema are geared toward reducing the number of matches that are returned on a given lookup to a minimum, and not necessarily to just one.
+</p>
+<div style="color: #000000; font-family: Times; font-size: 11pt; font-style: normal; font-weight: bold; margin-bottom: 8pt; margin-left: 36pt; margin-right: 0pt; margin-top: 13pt; text-align: left; text-decoration: none; text-indent: -36pt; text-transform: none; vertical-align: baseline">
+<a name="3821"> </a>Attributes Are Mostly Static<br>
+</div>
+<p class="Body">
+  <a name="3824"> </a>We have designed the schema for the lookup service with the assumption that most attributes will not need to be changed frequently. For example, we do not expect attributes to change more often than once every minute or so. This decision is based on our expectation that clients that need to make a choice of service based on more frequently updated attributes will be able to talk to whatever small set of services the lookup service returns for a query, and on our belief that the benefit of updating attributes frequently at the lookup service is outweighed by the cost in network traffic and processing.
+</p>
+<div style="color: #000000; font-family: Times; font-size: 11pt; font-style: normal; font-weight: bold; margin-bottom: 8pt; margin-left: 36pt; margin-right: 0pt; margin-top: 13pt; text-align: left; text-decoration: none; text-indent: -36pt; text-transform: none; vertical-align: baseline">
+<a name="3834"> </a>Humans Need to Understand Most Attributes<br>
+</div>
+<p class="Body">
+  <a name="3835"> </a>A corollary of the idea that matching cannot always be automated is that humans--whether they be users or administrators of services--must be able to understand and interpret attributes. This has several implications:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="3840"> </a>We must provide a mechanism to deal with localization of attributes<p>
+  <li class="SmartList1"><a name="3847"> </a>Multiple-valued attributes must provide a way for humans to see only one value (see <a href="schema-spec.html#7189">Section&nbsp;LS.2, "Human Access to Attributes"</a>)
+</ul>
+
+<p class="Body">
+  <a name="3848"> </a>We will cover human accessibility of attributes soon.
+</p>
+<div style="color: #000000; font-family: Times; font-size: 11pt; font-style: normal; font-weight: bold; margin-bottom: 8pt; margin-left: 36pt; margin-right: 0pt; margin-top: 13pt; text-align: left; text-decoration: none; text-indent: -36pt; text-transform: none; vertical-align: baseline">
+<a name="3857"> </a>Attributes Can Be Changed by Services or Humans, But Not Both<br>
+</div>
+<p class="Body">
+  <a name="3860"> </a>For any given attribute class we expect that attributes within that class will all be set or modified either by the service, or via human intervention, but not both. What do we mean by this? A service is unlikely to be able to determine that it has been moved from one room to another, for example, so we would not expect the fields of a "location" attribute class to be changed by the service itself. Similarly, we do not expect that a human operator will need to change the name of the vendor of a particular service. This idea has implications for our approach to ensuring that the values of attributes are valid.
+</p>
+<div style="color: #000000; font-family: Times; font-size: 11pt; font-style: normal; font-weight: bold; margin-bottom: 8pt; margin-left: 36pt; margin-right: 0pt; margin-top: 13pt; text-align: left; text-decoration: none; text-indent: -36pt; text-transform: none; vertical-align: baseline">
+<a name="3880"> </a>Attributes Must Interoperate with JavaBeans<font size="-1"><sup>TM</sup></font> Components<br>
+</div>
+<p class="Body">
+  <a name="3881"> </a>The JavaBeans<font size="-1"><sup>TM</sup></font> specification provides a number of facilities relating to the localized display and modification of properties, and has been widely adopted. It is to our advantage to provide a familiar set of mechanisms for manipulating attributes in these ways.
+</p>
+<h4 class="Heading3">
+  <a name="3937"> </a>LS.1.3	 Dependencies
+</h4>
+<p class="Body">
+  <a name="3938"> </a>This document relies on the following other specifications:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="3940"> </a><a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a> <p>
+  <li class="SmartList1"><a name="3961"> </a><a href="http://www.jini.org/standards"><em class="Emphasis"><code>net.jini.entry</code> Specification</em></a> <p>
+  <li class="SmartList1"><a name="3942"> </a><em class="Emphasis">JavaBeans</em><font size="-1"><sup>TM</sup></font><em class="Emphasis"> Specification</em> 
+</ul>
+
+
+<h3 class="Heading2">
+  <a name="7189"> </a>LS.2	 Human Access to Attributes	 
+</h3>
+<h4 class="Heading3">
+  <a name="7190"> </a>LS.2.1	 Providing a Single View of an Attribute's Value
+</h4>
+<p class="Body">
+  <a name="7191"> </a>Consider the following entry class:
+</p>
+<pre  class="Preformatted">
+public class Foo implements net.jini.core.entry.Entry {
+    public Bar baz;
+}
+
+public class Bar {
+    int quux;
+    boolean zot;
+}
+</code></pre>
+<p class="Body">
+  <a name="10587"> </a>A visual search tool is going to have a difficult time rendering the value of an instance of class <code>Bar</code> in a manner that is comprehensible to humans. Accordingly, to avoid such situations, entry class implementors should use the following guidelines when designing a class that is to act as a value for an attribute:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="7201"> </a>Provide a property editor class of the appropriate type, as described in Section 9.2 of the <em class="Emphasis">JavaBeans Specification</em>.<p>
+  <li class="SmartList1"><a name="31176"> </a>Extend the <code>java.awt.Component</code> class; this allows a value to be represented by a JavaBeans component or some other "active" object.<p>
+  <li class="SmartList1"><a name="31177"> </a>Provide either a non-default implementation of the <code>Object.toString</code> method or inherit directly or indirectly from a class that does so (since the default implementation of <code>Object.toString </code>is not useful).
+</ul>
+
+<p class="Body">
+  <a name="7204"> </a>One of the above guidelines should be followed for all attribute value classes. Authors of entry classes should assume that any attribute value that does not satisfy one of these guidelines will be ignored by some or all user interfaces.
+</p>
+<h3 class="Heading2">
+  <a name="7212"> </a>LS.3	 JavaBeans Components and Design Patterns	 
+</h3>
+<h4 class="Heading3">
+  <a name="7214"> </a>LS.3.1	 Allowing Display and Modification of Attributes
+</h4>
+<p class="Body">
+  <a name="7215"> </a>We use JavaBeans components to provide a layer of abstraction on top of the individual classes that implement the <code>net.jini.core.entry.Entry</code> interface. This provides us with several benefits:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="7216"> </a>This approach uses an existing standard and thus reduces the amount of unfamiliar material for programmers.<p>
+  <li class="SmartList1"><a name="7217"> </a>JavaBeans components provide mechanisms for localized display of attribute values and descriptions.<p>
+  <li class="SmartList1"><a name="7218"> </a>Modification of attributes is also handled, via property editors.
+</ul>
+
+<h5 class="Heading4">
+  <a name="7219"> </a>LS.3.1.1	 Using JavaBeans Components with Entry Classes
+</h5>
+<p class="Body">
+  <a name="7220"> </a>Many, if not most, entry classes should have a bean class associated with them. Our use of JavaBeans components provides a familiar mechanism for authors of browse/search tools to represent information about a service's attributes, such as its icons and appropriately localized descriptions of the meanings and values of its attributes. JavaBeans components also play a role in permitting administrators of a service to modify some of its attributes, as they can manipulate the values of its attributes using standard JavaBeans component mechanisms.
+</p>
+<p class="Body">
+  <a name="31182"> </a>For example, obtaining a <code>java.beans.BeanDescriptor</code> for a JavaBeans component that is linked to a "location" entry object for a particular service allows a programmer to obtain an icon that gives a visual indication of what that entry class is for, along with a short textual description of the class and the values of the individual attributes in the location object. It also permits an administrative tool to view and change certain fields in the location, such as the floor number.
+</p>
+<h4 class="Heading3">
+  <a name="7222"> </a>LS.3.2	 Associating JavaBeans Components with Entry Classes
+</h4>
+<p class="Body">
+  <a name="7223"> </a>The pattern for establishing a link between an entry object and an instance of its JavaBeans component is simple enough, as this example illustrates:
+</p>
+<pre  class="Preformatted">
+package org.example.foo;
+
+import java.io.Serializable;
+import net.jini.lookup.entry.EntryBean;
+import net.jini.entry.AbstractEntry;
+
+public class Size {
+    public int value;
+}
+
+public class Cavenewt extends AbstractEntry {
+    public Cavenewt() {
+    }
+    public Cavenewt(Size anvilSize) {
+        this.anvilSize = anvilSize;
+    }
+    public Size anvilSize;
+}
+
+public class CavenewtBean implements EntryBean, Serializable {
+    protected Cavenewt assoc;
+    public CavenewtBean() {
+        super();
+        assoc = new Cavenewt();
+    }
+    public void setAnvilSize(Size x) {
+        assoc.anvilSize = x;
+    }
+    public Size getAnvilSize() {
+        return assoc.anvilSize;
+    }
+    public void makeLink(Entry obj) {
+         assoc = (Cavenewt) obj;
+    }
+    public Entry followLink() {
+        return assoc;
+    }
+}
+</pre>
+<p class="Body">
+  <a name="30162"> </a>From the above, the pattern should be relatively clear:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="7263"> </a>The name of a JavaBeans component is derived by taking the fully qualified entry class name and appending the string <code>Bean</code>; for example, the name of the JavaBeans component associated with the entry class <code>foo.bar.Baz</code> is <code>foo.bar.BazBean</code>. This implies that an entry class and its associated JavaBeans component must reside in the same package.<p>
+  <li class="SmartList1"><a name="7264"> </a>The class has both a public no-arg constructor and a public constructor that takes each public object field of the class and its superclasses as parameter. The former constructs an empty instance of the class, and the latter initializes each field of the new instance to the given parameter.<p>
+  <li class="SmartList1"><a name="7265"> </a>The class implements the <code>net.jini.core.entry.Entry</code> interface, preferably by extending the <code>net.jini.entry.AbstractEntry</code> class, and the JavaBeans component implements the <code>net.jini.lookup.entry.EntryBean</code> interface.<p>
+  <li class="SmartList1"><a name="7266"> </a>There is a one-to-one link between a JavaBeans component and a particular entry object. The <code>makeLink</code> method establishes this link and will throw an exception if the association is with an entry class of the wrong type. The <code>followLink</code> method returns the entry object associated with a particular JavaBeans component.<p>
+  <li class="SmartList1"><a name="7267"> </a>The no-arg public constructor for a JavaBeans component creates and makes a link to an empty entry object.<p>
+  <li class="SmartList1"><a name="7268"> </a>For each public object field <code class="CodeEmphasis">foo</code> in an entry class, there exist both a <code>set</code><code class="CodeEmphasis">Foo</code> and a <code>getFoo</code> method in the associated JavaBeans component. The <code>set</code><code class="CodeEmphasis">Foo</code> method takes a single argument of the same type as the <code class="CodeEmphasis">foo</code> field in the associated entry and sets the value of that field to its argument. The <code>get</code><code class="CodeEmphasis">Foo</code> method returns the value of that field.
+</ul>
+
+<h4 class="Heading3">
+  <a name="7269"> </a>LS.3.3	 Supporting Interfaces and Classes
+</h4>
+<p class="Body">
+  <a name="7270"> </a>The following classes and interfaces provide facilities for handling entry classes and their associated JavaBeans components.
+</p>
+<pre  class="Preformatted">
+package net.jini.lookup.entry;
+
+public class EntryBeans {
+    public static EntryBean createBean(Entry e)
+        throws ClassNotFoundException, java.io.IOException {...}
+
+    public static Class getBeanClass(Class c)
+        throws ClassNotFoundException {...}
+}
+
+public interface EntryBean {
+    void makeLink(Entry e);
+    Entry followLink();
+}
+</pre>
+<p class="Body">
+  <a name="30550"> </a>The <code>EntryBeans</code> class cannot be instantiated. Its sole method, <code>createBean</code>, creates and initializes a new JavaBeans component and links it to the entry object it is passed. If a problem occurs creating the JavaBeans component, the method throws either <code>java.io.IOException</code> or <code>ClassNotFoundException</code>.
+</p>
+<p class="Body">
+  <a name="7286"> </a>The <code>createBean</code> method uses the same mechanism for instantiating a JavaBeans component as the <code>java.beans.Beans.instantiate</code> method. It will initially try to instantiate the JavaBeans component using the same class loader as the entry it is passed. If that fails, it will fall back to using the default class loader.
+</p>
+<p class="Body">
+  <a name="7287"> </a>The <code>getBeanClass</code> method returns the class of the JavaBeans component associated with the given attribute class. If the class passed in does not implement the <code>net.jini.core.entry.Entry</code> interface, an <code>IllegalArgumentException</code> is thrown. If the given attribute class cannot be found, a <code>ClassNotFoundException</code> is thrown.
+</p>
+<p class="Body">
+  <a name="7288"> </a>The <code>EntryBean</code> interface must be implemented by all JavaBeans components that are intended to be linked to entry objects. The <code>makeLink</code> method establishes a link between a JavaBeans component object and an entry object, and the <code>followLink</code> method returns the entry object linked to by a particular JavaBeans component. Note that objects that implement the <code>EntryBean</code> interface should not be assumed to perform any internal synchronization in their implementations of the <code>makeLink</code> or <code>followLink</code> methods, or in the <code>setFoo</code> or <code>getFoo</code> patterns.
+</p>
+<h3 class="Heading2">
+  <a name="7313"> </a>LS.4	 Generic Attribute Classes	 
+</h3>
+<p class="Body">
+  <a name="7314"> </a>We will now describe some attribute classes that are generic to many or all services and the JavaBeans components that are associated with each. Unless otherwise stated, all classes defined here live in the <code>net.jini.lookup.entry </code>package. The definitions assume the following classes to have been imported:
+</p>
+<pre  class="Preformatted">
+java.io.Serializable</code> 
+<code>net.jini.entry.AbstractEntry</code> 
+</pre>
+<h4 class="Heading3">
+  <a name="31204"> </a>LS.4.1	 Indicating User Modifiability
+</h4>
+<p class="Body">
+  <a name="31205"> </a>To indicate that certain entry classes should only be modified by the service that registered itself with instances of these entry classes, we annotate them with the <code>ServiceControlled</code> interface.
+</p>
+<pre  class="Preformatted">
+public interface ServiceControlled {
+}
+</pre>
+<p class="Body">
+  <a name="10489"> </a>Authors of administrative tools that modify fields of attribute objects at the lookup service should not permit users to either modify any fields or add any new instances of objects that implement this interface.
+</p>
+<h4 class="Heading3">
+  <a name="7322"> </a>LS.4.2	 Basic Service Information
+</h4>
+<p class="Body">
+  <a name="7323"> </a>The <code>ServiceInfo</code> attribute class provides some basic information about a service.
+</p>
+<pre  class="Preformatted">
+public class ServiceInfo extends AbstractEntry
+    implements ServiceControlled
+{
+    public ServiceInfo() {...}
+    public ServiceInfo(String name, String manufacturer,
+                       String vendor, String version,
+                       String model, String serialNumber) {...}
+
+    public String name;
+    public String manufacturer;
+    public String vendor;
+    public String version;
+    public String model;
+    public String serialNumber;
+}
+
+public class ServiceInfoBean
+    implements EntryBean, Serializable
+{
+    public String getName() {...}
+    public void setName(String s) {...}
+    public String getManufacturer() {...}
+    public void setManufacturer(String s) {...}
+    public String getVendor() {...}
+    public void setVendor(String s) {...}
+    public String getVersion() {...}
+    public void setVersion(String s) {...}
+    public String getModel() {...}
+    public void setModel(String s) {...}
+    public String getSerialNumber() {...}
+    public void setSerialNumber(String s) {...}
+}
+</pre>
+<p class="Body">
+  <a name="10491"> </a>Each service should register itself with only one instance of this class. The fields of the <code>ServiceInfo</code> class have the following meanings:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="7355"> </a>The <code>name</code> field contains a specific product name, such as <code>"Ultra</code> <code>30"</code> (for a particular workstation) or <code>"JavaSafe"</code> (for a specific configuration management service). This string should not include the name of the manufacturer or vendor.<p>
+  <li class="SmartList1"><a name="7356"> </a>The <code>manufacturer</code> field provides the name of the company that "built" this service. This might be a hardware manufacturer or a software authoring company.<p>
+  <li class="SmartList1"><a name="7357"> </a>The <code>vendor</code> field contains the name of the company that sells the software or hardware that provides this service. This may be the same name as is in the <code>manufacturer</code> field, or it could be the name of a reseller. This field exists so that in cases in which resellers relabel products built by other companies, users will be able to search based on either name.<p>
+  <li class="SmartList1"><a name="7358"> </a>The <code>version</code> field provides information about the version of this service. It is a free-form field, though we expect that service implementors will follow normal version-naming conventions in using it.<p>
+  <li class="SmartList1"><a name="7359"> </a>The <code>model</code> field contains the specific model name or number of the product, if any.<p>
+  <li class="SmartList1"><a name="7360"> </a>The <code>serialNumber</code> field provides the serial number of this instance of the service, if any.
+</ul>
+
+<h4 class="Heading3">
+  <a name="7361"> </a>LS.4.3	 More Specific Information
+</h4>
+<p class="Body">
+  <a name="7362"> </a>The <code>ServiceType</code> class allows an author of a service to deliver information that is specific to a particular instance of a service, rather than to services in general.
+</p>
+<pre  class="Preformatted">
+public class ServiceType extends AbstractEntry
+        implements ServiceControlled
+{
+    public ServiceType() {...}
+    public java.awt.Image getIcon(int iconKind) {...}
+    public String getDisplayName() {...}
+    public String getShortDescription() {...}
+}
+</pre>
+<p class="Body">
+  <a name="10493"> </a>Each service may register itself with multiple instances of this class, usually with one instance for each type of service interface it implements.
+</p>
+<p class="Body">
+  <a name="7372"> </a>This class has no public fields and, as a result, has no associated JavaBeans component. 
+</p>
+<p class="Body">
+  <a name="7373"> </a>The <code>getIcon</code> method returns an icon of the appropriate kind for the service; it works in the same way as the <code>getIcon</code> method in the <code>java.beans.BeanInfo</code> interface, with the value of <code>iconKind</code> being taken from the possibilities defined in that interface. The <code>getDisplayName</code> and <code>getShortDescription</code> methods return a localized human-readable name and description for the service, in the same manner as their counterparts in the <code>java.beans.FeatureDescriptor</code> class. Each of these methods returns <code>null</code> if no information of the appropriate kind is defined.
+</p>
+<p class="Body">
+  <a name="7374"> </a>In case the distinction between the information this class provides and that provided by a JavaBeans component's meta-information is unclear, the class <code>ServiceType</code> is meant to be used in the lookup service as one of the entry classes with which a service registers itself, and so it can be customized on a per-service basis. By contrast, the <code>FeatureDescriptor</code> and <code>BeanInfo</code> objects for all <code>EntryBean</code> classes provide only generic information about those classes and none about specific instances of those classes.
+</p>
+<h4 class="Heading3">
+  <a name="7375"> </a>LS.4.4	 Naming a Service
+</h4>
+<p class="Body">
+  <a name="7376"> </a>People like to associate names with particular services and may do so using the <code>Name</code> class.
+</p>
+<pre  class="Preformatted">
+public class Name extends AbstractEntry {
+    public Name() {...}
+    public Name(String name) {...}
+
+    public String name;
+}
+
+public class NameBean implements EntryBean, Serializable {
+    public String getName() {...}
+    public void setName(String s) {...}
+}
+</pre>
+<p class="Body">
+  <a name="10495"> </a>Services may register themselves with multiple instances of this class, and either services or administrators may add, modify, or remove instances of this class from the attribute set under which a service is registered.
+</p>
+<p class="Body">
+  <a name="7389"> </a>The <code>name</code> field provides a short name for a particular instance of a service (for example, "<code>Bob's</code> <code>toaster</code>").
+</p>
+<h4 class="Heading3">
+  <a name="7390"> </a>LS.4.5	 Adding a Comment to a Service
+</h4>
+<p class="Body">
+  <a name="7391"> </a>In cases in which some kind of comment is appropriate for a service (for example, "<code>this toaster tends to burn bagels</code>"), the <code>Comment</code> class provides an appropriate facility.
+</p>
+<pre  class="Preformatted">
+public class Comment extends AbstractEntry {
+    public Comment() {...}
+    public Comment(String comment) {...}
+
+    public String comment;
+}
+
+public class CommentBean implements EntryBean, Serializable {
+    public String getComment() {...}
+    public void setComment(String s) {...}
+}
+</pre>
+<p class="Body">
+  <a name="10497"> </a>A service may have more than one comment associated with it, and comments may be added, removed, or edited by either a service itself, administrators, or users.
+</p>
+<h4 class="Heading3">
+  <a name="7404"> </a>LS.4.6	 Physical Location
+</h4>
+<p class="Body">
+  <a name="7405"> </a>The <code>Location</code> and <code>Address</code> classes provide information about the physical location of a particular service.
+</p>
+<p class="Body">
+  <a name="7406"> </a>Since many services have no physical location, some have one, and a few may have more than one, it might make sense for a service to register itself with zero or more instances of either of these classes, depending on its nature.
+</p>
+<p class="Body">
+  <a name="7407"> </a>The <code>Location</code> class is intended to provide information about the physical location of a service in a single building or on a small, unified campus. The <code>Address</code> class provides more information and may be appropriate for use with the <code>Location</code> class in a larger, more geographically distributed organization.
+</p>
+<pre  class="Preformatted">
+public class Location extends AbstractEntry {
+    public Location() {...}
+    public Location(String floor, String room,
+                    String building) {...}
+
+    public String floor;
+    public String room;
+    public String building;
+}
+
+public class LocationBean implements EntryBean, Serializable {
+    public String getFloor() {...}
+    public void setFloor(String s) {...}
+    public String getRoom() {...}
+    public void setRoom(String s) {...}
+    public String getBuilding() {...}
+    public void setBuilding(String s) {...}
+}
+
+public class Address extends AbstractEntry {
+    public Address() {...}
+    public Address(String street, String organization,
+                   String organizationalUnit, String locality,
+                   String stateOrProvince, String postalCode,
+                   String country) {...}
+
+    public String street;
+    public String organization;
+    public String organizationalUnit;
+    public String locality;
+    public String stateOrProvince;
+    public String postalCode;
+    public String country;
+}
+
+public class AddressBean implements EntryBean, Serializable {
+    public String getStreet() {...}
+    public void setStreet(String s) {...}
+    public String getOrganization() {...}
+    public void setOrganization(String s) {...}
+    public String getOrganizationalUnit() {...}
+    public void setOrganizationalUnit(String s) {...}
+    public String getLocality() {...}
+    public void setLocality(String s) {...}
+    public String getStateOrProvince() {...}
+    public void setStateOrProvince(String s) {...}
+    public String getPostalCode() {...}
+    public void setPostalCode(String s) {...}
+    public String getCountry() {...}
+    public void setCountry(String s) {...}
+}
+</pre>
+<p class="Body">
+  <a name="7459"> </a>We believe the fields of these classes to be self-explanatory, with the possible exception of the <code>locality</code> field of the <code>Address</code> class, which would typically hold the name of a city.
+</p>
+<h4 class="Heading3">
+  <a name="7460"> </a>LS.4.7	 Status Information
+</h4>
+<p class="Body">
+  <a name="7461"> </a>Some attributes of a service may constitute long-lived status, such as an indication that a printer is out of paper. We provide a class, <code>Status</code>, that implementors can use as a base for providing status-related entry classes.
+</p>
+<pre  class="Preformatted">
+public abstract class Status extends AbstractEntry {
+    protected Status() {...}
+    protected Status(StatusType severity) {...}
+
+    public StatusType severity;
+}
+
+public class StatusType implements Serializable {
+    private final int type;
+    private StatusType(int t) { type = t; }
+    public static final StatusType ERROR =  new StatusType(1);
+    public static final StatusType WARNING =
+                                            new StatusType(2);
+    public static final StatusType NOTICE = new StatusType(3);
+    public static final StatusType NORMAL = new StatusType(4);
+}
+
+public abstract class StatusBean
+    implements EntryBean, Serializable
+{
+    public StatusType getSeverity() {...}
+    public void setSeverity(StatusType i) {...}
+}
+</pre>
+<p class="Body">
+  <a name="30481"> </a>We define a separate <code>StatusType</code> class to make it possible to write a property editor that will work with the <code>StatusBean</code> class (we do not currently provide a property editor implementation).
+</p>
+<h4 class="Heading3">
+  <a name="7485"> </a>LS.4.8	 Serialized Forms
+<p><CENTER>
+<table border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000"
+       cellpadding="5" cellspacing="0" summary="serialized forms of the following classes">
+  <caption></caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Class<br></th>
+    <th>serialVersionUID<br></th>
+    <th>Serialized Fields<br></th>
+  </tr>
+  <tr>
+    <td><code>Address</code><br></td>
+    <td>2896136903322046578L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>AddressBean</code><br></td>
+    <td>4491500432084550577L<br></td>
+    <td><code>Address asoc</code><br></td>
+  </tr>
+  <tr>
+    <td><code>Comment</code><br></td>
+    <td>7138608904371928208L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>CommentBean</code><br></td>
+    <td>5272583409036504625L<br></td>
+    <td><code>Comment asoc</code><br></td>
+  </tr>
+  <tr>
+    <td><code>Location</code><br></td>
+    <td>-3275276677967431315L<br></td>
+    <td><em>all public fields</em></div></td>
+  </tr>
+  <tr>
+    <td><code>LocationBean</code><br></td>
+    <td>-4182591284470292829L<br></td>
+    <td> </a><code>Location asoc</code><br></td>
+  </tr>
+  <tr>
+    <td><code>Name</code><br></td>
+    <td>2743215148071307201L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>NameBean</code><br></td>
+    <td>-6026791845102735793L<br></td>
+    <td><code>Name asoc</code><br></td>
+  </tr>
+  <tr>
+    <td><code>ServiceInfo</code><br></td>
+    <td>-1116664185758541509L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>ServiceInfoBean</code><br></td>
+    <td>8352546663361067804L<br></td>
+    <td><code>ServiceInfo asoc</code><br></td>
+  </tr>
+  <tr>
+    <td><code>ServiceType</code><br></td>
+    <td>-6443809721367395836L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>Status</code><br></td>
+    <td>-5193075846115040838L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>StatusBean</code><br></td>
+    <td>-1975539395914887503L<br></td>
+    <td><code>Status asoc</code><br></td>
+  </tr>
+  <tr>
+    <td><code>StatusType</code><br></td>
+    <td>-8268735508512712203L<br></td>
+    <td><code>int type</code><br></td>
+  </tr>
+</table>
+</CENTER>
+
+
+
+<h3 class="Heading2">
+  <a name="43987"> </a>LS.5	 History</h3>
+<p>
+<table align="center" border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000" cellpadding="5" cellspacing="0" summary="history of this specification">
+  <caption><p class="Body">
+  <a name="01887"> </a>
+</p>
+</caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Version</th>
+    <th>Description</th>
+  </tr>
+ <tr>
+    <td valign="top">v1.0
+	</td>
+    <td>Initial release of this specification.
+</td>
+  </tr>
+</table>
+
+<h3 class="Heading2">
+  <a name="0188"> </a>		 License	 
+</h3>
+<p>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</blockquote>
+
+<hr>
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%"><tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
+</tr></table>
+<a name="skip"></a>
+
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>
+
+<!-- This HTML file was initially created with Quadralay WebWorks Publisher 3.5.0 -->
+<!-- by Susan Snyder -->
+<!-- Last updated: 01/27/05 -->

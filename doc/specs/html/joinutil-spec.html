@@ -1,0 +1,437 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
+<link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
+<title>Jini Join Utilities Specification  </title>
+</head>
+
+<body bgcolor="#ffffff">
+
+
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%">
+<tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a></td>
+<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
+</tr>
+</table>
+<br clear="all">
+
+
+<hr>
+<table width="90%">
+<tr>
+<td align="right" font size="4"><b>Version 3.0</b></td>
+</tr>
+</table>
+<a name="skip"></a>
+<blockquote>
+<h2>
+  <a name="1015487"> </a>JU - Jini<font size="-1"><sup>TM</sup></font> Join Utilities Specification</h2>
+<h3 class="Heading2">
+  <a name="1015667"> </a>JU.1	 Introduction
+</h3>
+<p class="Body">
+  <a name="1015702"> </a>This specification defines helper utility classes, along with supporting interfaces and classes, that encapsulate functionality that can help Jini<font size="-1"><sup>TM</sup></font> technology-based services (Jini services) demonstrate good behavior in their discovery and registration related interactions with Jini lookup services. In particular, the Jini join utilities perform functions related to lookup service discovery and registration (joining), as well as lease renewal and attribute management, which the Jini technology programming model requires of a well-behaved Jini service. Currently, this specification defines only one helper utility class:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1015716"> </a>The <code>JoinManager</code> helper utility
+</ul>
+
+<h3 class="Heading2">
+  <a name="1015670"> </a>JU.2	 The <code>JoinManager</code>
+</h3>
+<p class="Body">
+  <a name="1016181"> </a>The goal of any well-behaved Jini service, implemented within the bounds defined by the Jini technology programming model, is to advertise the service it provides by requesting residency within at least one Jini lookup service. Making such a request of a Jini lookup service is known as registering with, or <em class="Emphasis">joining</em>, a lookup service. To demonstrate this good behavior, a service must comply with both the multicast discovery protocol and the unicast discovery protocol to discover the lookup services it is interested in joining. The service must also comply with the join protocol to register with the desired lookup services. The details of the discovery and join protocols are described in the <a href="discovery-spec.html"><em class="Emphasis">Jini Technology Discovery and Join Specification</em></a>.
+</p>
+<p class="Body">
+  <a name="1016156"> </a>For the service to maintain its residency in the lookup services it has joined, the service must provide for the coordination, systematic renewal, and overall management of all leases on that residency. In addition to handling all discovery and join duties, as well as managing all leases on lookup service residency, the service must provide for the coordination and management of any attribute sets with which it may have registered.
+</p>
+<p class="Body">
+  <a name="1016215"> </a>With respect to the duties described above, a Jini service may perform all but the attribute set management duties by using the helper utility classes <code>LookupDiscoveryManager</code> and <code>LeaseRenewalManager</code>. (For information on these classes, refer to the <a href="discoveryutil-spec.html"><em class="Emphasis">Jini Discovery Utilities Specification</em>, Section DU.5, "The LookupDiscoveryManager Utility"</a>,  and the <a href="leaseutil-spec.html"><em class="Emphasis">Jini Lease Utilities Specification</em>, Section LM.2, "The LeaseRenewalManager"</a>).
+</p>
+<p class="Body">
+  <a name="1002807"> </a>Rather than writing a service to use these classes in a coordinated fashion (in addition to providing for attribute management), the service may be written to employ the <code>JoinManager</code> class from the <code>net.jini.lookup</code> package. This utility class performs all of the functions related to discovery, joining, service lease renewal, and attribute management that the Jini technology programming model requires of a well-behaved Jini service. Each of these activities is intimately involved with the maintenance of a service's residency in one or more lookup services (the service's <em class="Emphasis">join state</em>), hence the name <code>JoinManager</code>.
+</p>
+<p class="Body">
+  <a name="1002812"> </a>The <code>JoinManager</code> class provides an implementation of the functionality described above. The use of this class in a wide variety of services can help minimize the work resulting from having to repeatedly implement this required functionality in each service.
+</p>
+<p class="Body">
+  <a name="1001884"> </a>The <code>JoinManager</code> is a utility class, not a remote service. Jini services that wish to use this utility will create an instance of the <code>JoinManager</code> in the service's address space to manage the entity's join state locally.
+</p>
+<p class="Body">
+  <a name="1003456"> </a>Note that when either the term <em>service</em> or the term <em>entity</em> is used, it refers to the object that has created an instance of the <code>JoinManager</code> and avails itself of the public methods of that utility class.
+</p>
+<h4 class="Heading3">
+  <a name="1003750"> </a>JU.2.1	 Other Types
+</h4>
+<p class="Body">
+  <a name="1003751"> </a>The types defined in the specification of the <code>JoinManager</code> utility class are in the <code>net.jini.lookup</code> package. The following types may be referenced in this chapter. Whenever referenced, these object types will be referenced in unqualified form:
+</p>
+<pre  class="Preformatted">
+net.jini.core.lease.Lease
+net.jini.core.entry.Entry
+net.jini.core.lookup.ServiceID
+net.jini.core.lookup.ServiceRegistrar
+net.jini.core.lookup.ServiceRegistration
+net.jini.config.Configuration
+net.jini.config.ConfigurationException
+net.jini.discovery.DiscoveryListener
+net.jini.discovery.DiscoveryManagement
+net.jini.lookup.entry.ServiceControlled
+net.jini.lease.LeaseRenewalManager
+net.jini.discovery.LookupLocatorDiscovery
+net.jini.discovery.LookupDiscoveryManager
+java.io.IOException
+java.io.Serializable
+java.rmi.MarshalledObject
+java.util.EventListener
+</code></pre>
+<h3 class="Heading2">
+  <a name="1002449"> </a>JU.3	 The Interface
+</h3>
+<p class="Body">
+  <a name="1003342"> </a>The public methods provided by the <code>JoinManager</code> class are as follows:
+</p>
+<pre  class="Preformatted">
+package net.jini.lookup;
+
+public class JoinManager {
+    public JoinManager(Object serviceProxy,
+                       Entry[] attrSets,
+                       ServiceIDListener callback,
+                       DiscoveryManagement discoveryMgr,
+                       LeaseRenewalManager leaseMgr)
+                                     throws IOException {...}
+    public JoinManager(Object serviceProxy,
+                       Entry[] attrSets,
+                       ServiceIDListener callback,
+                       DiscoveryManagement discoveryMgr,
+                       LeaseRenewalManager leaseMgr,
+                       ConFiguration config)
+              throws IOException, ConfigurationException {...}
+    public JoinManager(Object serviceProxy,
+                       Entry[] attrSets,
+		       ServiceID serviceID,
+                       DiscoveryManagement discoveryMgr,
+                       LeaseRenewalManager leaseMgr)
+                                     throws IOException {...}
+    public JoinManager(Object serviceProxy,
+                       Entry[] attrSets,
+                       ServiceID serviceID,
+                       DiscoveryManagement discoveryMgr,
+                       LeaseRenewalManager leaseMgr,
+                       ConFiguration config)
+              throws IOException, ConfigurationException {...}
+
+    public DiscoveryManagement getDiscoveryManager() {...}
+    public LeaseRenewalManager getLeaseRenewalManager() {...}
+    public ServiceRegistrar[]  getJoinSet() {...}
+
+    public void replaceRegistration(Object serviceProxy){...}
+    public void replaceRegistration(Object serviceProxy, 
+                                    Entry[] attrSets) {...}
+
+    public Entry[] getAttributes(){...}
+    public void addAttributes(Entry[] attrSets) {...}
+    public void addAttributes(Entry[] attrSets, 
+                              boolean checkSC) {...}
+    public void setAttributes(Entry[] attrSets) {...}
+    public void modifyAttributes(Entry[] attrSetTemplates,
+                                 Entry[] attrSets) {...}
+    public void modifyAttributes(Entry[] attrSetTemplates,
+                                 Entry[] attrSets,
+                                 boolean checkSC) {...}
+    public void terminate() {...}
+}
+</pre>
+<h3 class="Heading2">
+  <a name="1015962"> </a>JU.4	 The Semantics
+</h3>
+<p class="Body">
+  <a name="1015963"> </a>The  <code>JoinManager</code> helper utility class defines a number of public methods in addition to the constructor. This utility defines an accessor method that allows the entity to retrieve the set of lookup services with which the entity has been registered (by the <code>JoinManager</code>), as well as methods that allow the entity to retrieve references to the objects the <code>JoinManager</code> uses for discovery management and lease renewal management. This utility also defines a method that allows the entity to register a new reference to the service (optionally, with new attributes) which was previously registered, by this utility, with all discovered lookup services. Finally, the <code>JoinManager</code> class defines methods the entity may use to manage the attributes associated with the entity, and a method that allows the entity to terminate the join processing being performed on its behalf.
+</p>
+The <code>equals</code> method for the <code>JoinManager</code> class returns <code>true</code> if and only if two instances of this class refer to the same object. That is, <code>x</code> and <code>y</code> are equal instances of this class if and only if x == y has the value <code>true</code>.
+<p>
+The constructor of the <code>JoinManager</code> class has four versions. Each version of the constructor throws <code>IOException</code> because construction of a <code>JoinManager</code> may initiate the multicast discovery process, which can throw <code>IOException</code>.
+<p>
+The four versions of the constructor can be divided into two categories, each containing two of the four versions. Each category of constructor is distinguished by how the constructors in the category handle processing related to the service ID. Additionally, the only difference between the two constructors within either category is the absence or presence of a parameter of type <code>Configuration</code>, which is used to classify the constructors of the category as <em>non-configurable</em> or <em>configurable</em>, respectively.
+<p>
+Constructors in the first category each have the following parameters in common:</p>
+<ul>
+
+  <li class="SmartList1"><a name="1002857"> </a>A reference (proxy) to the service requesting the services of the <code>JoinManager</code><p>
+  <li class="SmartList1"><a name="1002860"> </a>An array containing the service's attributes<p>
+  <li class="SmartList1"><a name="1002888"> </a>A reference to an object that implements the <code>ServiceIDListener</code> interface (belonging to the package <code>net.jini.lookup</code>) <p>
+  <li class="SmartList1"><a name="1002886"> </a>A reference to an object that implements the <code>DiscoveryManagement</code> interface<p>
+  <li class="SmartList1"><a name="1002864"> </a>An instance of the <code>LeaseRenewalManager</code> utility class
+</ul>
+
+<p class="Body">
+If the reference to the service to be registered is not <code>Serializable</code>, an <code>IllegalArgumentException</code> is thrown.
+<p class="Body">
+  <a name="1003496"> </a>Passing <code>null</code> as the value of the <code>attrSets</code> parameter is equivalent to passing an empty <code>Entry</code> array. If any of the elements of the <code>attrSets</code> array are <code>null</code>, a <code>NullPointerException</code> is thrown.
+</p>
+<p class="Body">
+  <a name="1007178"> </a>The assignment of a service ID to the service will result in an event notification being sent to the listener object that was passed as the <code>ServiceIDListener</code> argument (<code>callback</code>). If a <code>null</code> value is passed in through this argument, then no such notification will be sent.
+</p>
+<p class="Body">
+  <a name="1003850"> </a>To use the <code>JoinManager</code>, the service supplies an object through which notifications that indicate a lookup service has been discovered or discarded will be received. At a minimum, this object must satisfy the contract defined in the <code>DiscoveryManagement</code> interface. That is, this object must provide the <code>JoinManager</code> with the ability to set discovery listeners and to discard previously discovered lookup services when they are found to be unavailable.
+</p>
+<p class="Body">
+  <a name="1002906"> </a>The <code>DiscoveryManagement</code> argument may be set to a value of <code>null</code>. If <code>null</code> is the value of this argument, then an instance of the <code>LookupDiscoveryManager</code> utility class will be constructed to listen for events announcing the discovery of only those lookup services that are members of the public group, unless, in the case of either configurable version of the constructor, this default behavior is overridden through the use of the configuration mechanism (see below).
+</p>
+<p class="Body">
+  <a name="1002907"> </a>The <code>LeaseRenewalManager</code> argument may be set to a value of <code>null</code>. If <code>null</code> is the value of this argument, an instance of the <code>LeaseRenewalManager</code> class will be created, initially managing no <code>Lease</code> objects. This feature allows a service that employs the <code>JoinManager</code> either to use a single entity to manage all of its leases, or to use separate entities: one to manage the leases unrelated to the join process, and one to manage the leases that result from the join process and that are accessible only within the <code>JoinManager</code>.
+</p>
+<p class="Body">
+  <a name="1016267"> </a>A constructor from the first category is typically used by services that have not yet been assigned a service ID, but that have been pre-configured to join lookup services that the service identifies through the initialization of a discovery manager.
+</p>
+<p class="Body">
+  <a name="1002941"> </a>The constructors from the second category each take the same arguments as the constructors from the first category, except that an instance of <code>ServiceID</code> replaces the instance of <code>ServiceIDListener</code>. Note that the <code>ServiceID</code> class is defined in the <a href="lookup-spec.html"><em class="Emphasis">Jini Technology Lookup Service Specification</em></a>, and the <code>ServiceIDListener</code> interface is described later in this document.
+</p>
+<p class="Body">
+  <a name="1002065"> </a>Constructors from the second category each apply the same semantics to the <code>serviceProxy</code>, <code>attrSets</code>, <code>discoveryMgr</code>, and <code>leaseMgr</code> arguments as is applied by the constructors from the first category.
+</p>
+<p class="Body">
+  <a name="1001043"> </a>A constructor from the second category should be used by services that have already been assigned a service ID (possibly by the service provider or as a result of a prior registration with some lookup service), and that may or may not have been pre-configured to join lookup services identified by group or by specific location.
+</p>
+<p>
+As previously noted, the configurable form of a constructor from either category is characterized by an additional parameter of type <code>Configuration</code>. Through that parameter, the configurable form of the constructor can be used to customize the behavior of the resulting <code>JoinManager</code> instance. Such customizations are implementation dependent. A <code>NullPointerException</code> is thrown if <code>null</code> is passed as the value of that parameter. A <code>ConfigurationException</code> is thrown to indicate that a problem occurred while attempting to retrieve an item from the given <code>Configuration</code>.
+<p>
+Creating a <code>JoinManager</code> using the non-configurable form of a constructor from either category will result in a <code>JoinManager</code> having only basic, default behavior. Thus, the use of the configurable forms of the constructor is strongly encouraged.
+<p class="Body">
+  <a name="1003190"> </a>The <code>getDiscoveryManager</code> method returns the instance of <code>DiscoveryManagement</code> that was either passed into the constructor by the entity or that was created as a result of <code>null</code> being passed as that parameter. This method takes no arguments as input.
+</p>
+<p class="Body">
+  <a name="1003398"> </a>The object returned by this method encapsulates the mechanism by which either the <code>JoinManager</code> or the entity itself can set discovery listeners and discard previously discovered lookup services when they are found to be unavailable.
+</p>
+<p class="Body">
+  <a name="1003192"> </a>The <code>getLeaseRenewalManager</code> method returns an instance of the <code>LeaseRenewalManager</code> class. This method takes no arguments as input.
+</p>
+<p class="Body">
+  <a name="1003391"> </a>The object returned by this method manages the leases requested and held by the <code>JoinManager</code>. Although it may also manage leases unrelated to the join process that are requested and held by the service itself, the leases with which the <code>JoinManager</code> is concerned are the leases that correspond to the service registration requests the <code>JoinManager</code> has made with each lookup service the service wishes to join.
+</p>
+<p class="Body">
+  <a name="1003326"> </a>The <code>getJoinSet</code> method returns an array of <code>ServiceRegistrar</code> objects, each corresponding to a lookup service with which the service is currently registered (joined). If there are no lookup services with which the service is currently registered, this method returns the empty array. This method takes no arguments as input and will return a new array upon each invocation.
+</p>
+<p>
+The <code>replaceRegistration</code> method registers a new reference to the service with all current and future discovered lookup services. The new service reference will replace the reference that was previously registered as a result of either constructing this utility, or a prior invocation of <code>replaceRegistration</code>. The new service reference will be registered using the same <code>ServiceID</code> with which previous registrations were made through this utility.
+<p>
+There are two forms of the <code>replaceRegistration</code> method. Both forms of this method take as input an <code>Object</code> (<code>serviceProxy</code>) that represents the new service reference (proxy) to register with each discovered lookup service. With respect to either form of the <code>replaceRegistration</code> method, if the <code>Object</code> input to this parameter is not <code>Serializable</code>, then an <code>IllegalArgumentException</code> is thrown. If <code>null</code> is input to that parameter, then a <code>NullPointerException</code> is thrown.
+<p>
+The attribute sets that the first form of <code>replaceRegistration</code> associates with the new service reference are the same attribute sets as those associated with the old registration.
+<p>
+In addition to the <code>serviceProxy</code> parameter, the second form of the <code>replaceRegistration</code> method takes an array of <code>Entry</code> objects (<code>attrSets</code>), none of whose elements may be <code>null</code>, that represents the new set of attributes to associate with the new service reference to be registered. As with the constructor to this utility, passing <code>null</code> as the value of the <code>attrSets</code> parameter is equivalent to passing an empty array, and if any of the elements of the array are <code>null</code>, a <code>NullPointerException</code> is thrown. This new set of attributes will be associated with the service in all future join processing.
+<p class="Body">
+  <a name="1003688"> </a>The registration of the new service reference with each lookup service must be performed asynchronously, thus there is no guarantee that the replacement of the old service reference with the new service reference (along with new attributes when the second form of the method is used) will have completed upon return from <code>replaceRegistration</code>. Because there is no guarantee that service registration will have completed upon return from this method, services that invoke the second form of this method must take care not to modify the contents of the array input to the <code>attrSets</code> parameter. Doing so could cause the service's attribute state to be corrupted or inconsistent on a subset of the lookup services with which the service is registered as compared with the state reflected on the remaining lookup services. It is for this reason that the effects of modifying the contents of the array input to the <code>attrSets</code> parameter, after the second form of this method is invoked, are undefined.
+</p>
+<p class="Body">
+The <code>getAttributes</code> method returns an array containing the set of attributes currently associated with the service. If the service is not currently associated with an attribute set, this method returns the empty array. This method takes no arguments as input and will return a new array upon each invocation.
+<p class="Body">
+Note that although a new array is returned by <code>getAttributes</code>, the elements of that array are <em>not</em> copies. Thus, it is important that the elements of the array returned by <code>getAttributes</code> not be modified; doing so could cause the state of the <code>JoinManager</code> to become corrupted or inconsistent. This potential for corruption or inconsistency is why the effects of modifying the elements of the array returned by <code>getAttributes</code> are undefined.
+<p class="Body">
+The <code>addAttributes</code> method associates a new set of attributes with the service, in addition to the service's current set of attributes. The association of this new set of attributes with the service will be propagated to each lookup service with which the service is registered. This propagation must be performed asynchronously, so there is no guarantee that the propagation of the attributes to all lookup services with which the service is registered will have completed upon return from this method.
+<p class="Body">
+The set of attributes consisting of the union of the new set with the old set will be associated with the service in all future join processing. 
+<p class="Body">
+There are two forms of the <code>addAttributes</code> method. Both forms of this method take as input an argument (<code>attrSets</code>) representing the set of attributes to associate with the service. This set is represented as an array of <code>Entry</code> objects, none of whose elements may be <code>null</code>. If at least one element of this input set is <code>null</code>, a <code>NullPointerException</code> is thrown.
+<p class="Body">
+An invocation of either form of this method with duplicate elements in the <code>attrSets</code> parameter (where duplication means attribute equality as defined by calling the <code>MarshalledObject.equals</code> method on field values) is equivalent to performing the invocation with the duplicates removed from that parameter. If <code>null</code> is passed in as the value of this parameter, a <code>NullPointerException</code> will be thrown.
+<p class="Body">
+The second form of this method also takes as input a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface that is used to control which entities may modify a service's attribute set. For more information on this interface, refer to the <a href="schema-spec.html"><em>Jini Lookup Attribute Schema Specification</em>, Section LS.4.1, "Indicating User Modifiability"</a>. If the value of this flag is true and at least one of the attributes to be added is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
+<p class="Body">
+Note that because there is no guarantee that attribute propagation will have completed upon return from this method, services that invoke this method must take care not to modify the contents of the input array. Doing so could cause the service's attribute state to be corrupted or inconsistent on a subset of the lookup services with which the service is registered as compared with the state reflected on the remaining lookup services. It is for this reason that the effects of modifying the contents of the input array, after this method is invoked, are undefined.
+<p class="Body">
+  <a name="1000700"> </a>The <code>setAttributes</code> method replaces the service's current set of attributes with the given new set of attributes. This method takes a single argument as input: an array of <code>Entry</code> objects, none of whose elements may be <code>null</code>, which represents the set of attributes that will replace the current set of attributes. If at least one element of this input set is <code>null</code>, a <code>NullPointerException</code> is thrown.
+</p>
+<p class="Body">
+  <a name="1003116"> </a>The replacement of the service's current set of attributes with the new set of attributes will be propagated to each lookup service with which the service is registered. This propagation must be performed asynchronously, so there is no guarantee that the propagation of the attributes to all lookup services with which the service is registered will have completed upon return from this method.
+</p>
+<p class="Body">
+  <a name="1003115"> </a>The service's new set of attributes will be associated with the service in all future join processing.
+</p>
+<p class="Body">
+  <a name="1003600"> </a>An invocation of this method with duplicate elements in the <code>attrSets</code> parameter (where duplication means attribute equality as defined by calling the <code>MarshalledObject.equals</code> method on field values) is equivalent to performing the invocation with the duplicates removed from that parameter. If <code>null</code> is input to <code>setAttributes</code>, a <code>NullPointerException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1003738"> </a>For the same reason as noted above in the description of the <code>addAttributes</code> method, the effects of modifying the contents of the input array after the method <code>setAttributes</code> is invoked, are undefined.
+</p>
+<p class="Body">
+  <a name="1000720"> </a>The <code>modifyAttributes</code> method changes the service's current set of attributes using the same semantics as the <code>modifyAttributes</code> method of the class <code>ServiceRegistration</code> (see the <a href="lookup-spec.html"><em class="Emphasis">Jini Technology Lookup Service Specification</em></a>). This method has two forms. The first form takes two arguments, the second form takes three arguments. Both forms will take an array of templates in the first argument and an array of attributes in the second argument. The templates are used to identify which elements to modify from the service's current set of attributes. If any element of the array of templates is <code>null</code>, a <code>NullPointerException</code> is thrown. The attribute array contains the actual modifications to be made. The additional argument in the signature of the second form of <code>modifyAttributes</code> is a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface used to control which entities may modify a service's attribute set (see the <a href="schema-spec.html#31204"><em class="Emphasis">Jini Lookup Attribute Schema Specification</em>, Section&nbsp;LS.4.1, "Indicating User Modifiability"</a>). If the value of this flag is true and at least one of the attributes to be modified is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
+</p>
+<p class="Body">
+  <a name="1001414"> </a>The association of the new set of attributes with the service will be propagated to each lookup service with which the service is registered. This propagation must be performed asynchronously. Because of this asynchronous behavior, there is no guarantee that the propagation of the attributes to all lookup services with which the service is registered will have completed upon return from this method.
+</p>
+<p class="Body">
+  <a name="1003135"> </a>The set of attributes that results after the modifications have been applied will be associated with the service in all future join processing.
+</p>
+<p class="Body">
+  <a name="1016039"> </a>The <code>modifyAttributes</code> method throws an <code>IllegalArgumentException</code> if one of the following conditions is satisfied:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1016067"> </a>The length of the array containing the templates does not equal the length of the array containing the attributes<p>
+  <li class="SmartList1"><a name="1016329"> </a>Any element of either array is not an instance of a valid <code>Entry</code> class (for example, the class is not public, does not contain a no-arg constructor, or has at least one public field which is a non-static, non-final primitive)<p>
+  <li class="SmartList1"><a name="1016330"> </a>The class of <code>attrSets[</code><code class="CodeEmphasis">i</code><code>]</code> is neither the same as, nor a super class of, the class of <code>attrSetsTemplate[</code><code class="CodeEmphasis">i</code><code>]</code>
+</ul>
+
+<p class="Body">
+  <a name="1016073"> </a>For the same reason as that noted above in the description of the <code>addAttributes</code> method, the effects of modifying the contents of the <code>attrSets</code> parameter, after <code>modifyAttributes</code> is invoked, are undefined.
+</p>
+<p class="Body">
+  <a name="1003036"> </a>The <code>terminate</code> method performs cleanup duties related to the termination of the lookup service discovery event mechanism, as well as to the lease and thread management performed by the <code>JoinManager</code>. This method will cancel all of the service's managed leases that were granted by the lookup services with which the service is registered, and will terminate all threads that have been created.
+</p>
+<p class="Body">
+  <a name="1007272"> </a>If the discovery manager employed by the <code>JoinManager</code> was created by the <code>JoinManager</code> itself, this method will terminate <em class="Emphasis">all</em> discovery processing being performed by that manager object on behalf of the service; otherwise, the discovery manager supplied by the service is still valid.
+</p>
+<p class="Body">
+  <a name="1007273"> </a>Whether an instance of the <code>LeaseRenewalManager</code> class was supplied by the service or created by the <code>JoinManager</code> itself, any reference to that object obtained by the service prior to termination will still be valid after termination.
+</p>
+<p class="Body">
+  <a name="1003042"> </a>The <code>JoinManager</code> makes certain concurrency guarantees with respect to an invocation of the <code>terminate</code> method while other method invocations are in progress. The termination process described above will not begin until completion of all invocations of the methods defined in the public interface of the <code>JoinManager</code>. The semantics of all current and future method invocations made on an instance of <code>JoinManager</code> after that instance has been terminated are left for each <code>JoinManager</code> implementation to define (although the reference to the <code>LeaseRenewalManager</code> object employed by any <code>JoinManager</code> instance is still valid, even after termination). For example, a <code>JoinManager</code> implementation might be defined to throw <code>IllegalStateException</code> when any method on that <code>JoinManager</code> is invoked after the termination process has completed.
+</p>
+<h3 class="Heading2">
+  <a name="1000765"> </a>JU.5	 Supporting Interfaces and Classes
+</h3>
+<p class="Body">
+  <a name="1002962"> </a>The <code>JoinManager</code> class depends on the interfaces <code>DiscoveryManagement</code> and <code>ServiceIDListener</code> discussed below. 
+</p>
+<p class="Body">
+  <a name="1002963"> </a><code>JoinManager</code> also references the concrete classes <code>LookupDiscoveryManager</code> and <code>LeaseRenewalManager</code>, each described in a separate specification.
+</p>
+<h4 class="Heading3">
+  <a name="1000770"> </a>JU.5.1	 The <code>DiscoveryManagement</code> Interface
+</h4>
+<p class="Body">
+  <a name="1002984"> </a>Although it is not necessary for the <code>JoinManager</code> itself to execute the discovery process, it does need to be notified when one of the lookup services it wishes to join is discovered or discarded. Thus, at a minimum, the <code>JoinManager</code> requires access to the discovery events sent to the listeners registered with the discovery process' event mechanism. The instance of <code>DiscoveryManagement</code> that is passed as an argument to the constructor of the <code>JoinManager</code> provides a mechanism for acquiring access to those events. For a complete description of the semantics of the methods of this interface, refer to the <em class="Emphasis"><a href="discoveryutil-spec.html">Jini Discovery Utilities Specification</a></em>.
+</p>
+<p class="Body">
+  <a name="1003002"> </a>One noteworthy item about the semantics of the <code>JoinManager</code> is the effect that invocations of the <code>discard</code> method of <code>DiscoveryManagement</code> will have on any discovery listeners created by the <code>JoinManager</code>. The <code>DiscoveryManagement</code> interface specifies that the <code>discard</code> method will remove a particular lookup service from the managed set of lookup services that have already been discovered, allowing that lookup service to be rediscovered. Invoking this method will result in the flushing of the lookup service from the appropriate cache, ultimately causing a discard notification to be sent to all <code>DiscoveryListener</code> objects registered with the event mechanism of the discovery process, including all listeners registered by the <code>JoinManager</code>.
+</p>
+<p class="Body">
+  <a name="1003018"> </a>Upon receipt of an event notification indicating that a lookup service has been discarded, the lease granted by the discarded lookup service is ultimately cancelled. Note that although a discarded event is sent when the lookup service is no longer available, such an event will also be sent whenever the lookup service is available, but the service no longer wishes to be registered with the lookup service. (For example, the service's groups of interest may have been changed so that they no longer include any of the lookup service's member groups.) In this case, cancelling the lease can produce consistent system state in a much more timely fashion than simply allowing the lease to expire.
+</p>
+<h4 class="Heading3">
+  <a name="1000785"> </a>JU.5.2	 The <code>ServiceIDListener</code> Interface
+</h4>
+<p class="Body">
+  <a name="1000786"> </a>The <code>ServiceIDListener</code> interface defines the methods used by a service to register a request for notification from the <code>JoinManager</code> upon the assignment of a <code>serviceID</code> by a lookup service. It is the responsibility of the service to create and pass into the <code>JoinManager</code> an object that implements this interface. That implementation must provide the definition of the actions to take upon receipt of the notification. Typically, the action taken will be to persist the assigned <code>serviceID</code> reference.
+</p>
+<pre  class="Preformatted">
+package net.jini.lookup;
+
+public interface ServiceIDListener extends EventListener {
+    public void serviceIDNotify(ServiceID serviceID);
+}
+</pre>
+<p class="Body">
+  <a name="1006698"> </a>The intent of this interface is to allow the entity to receive the  <code>ServiceID</code> instance assigned to it by the lookup service. It is not part of the semantics of the call that the return from the <code>ServiceIDNotify</code> method can be delayed while the recipient of the call processes the information delivered by the method. Thus, it is highly recommended that implementations of this interface avoid time consuming operations, and return from the method as quickly as possible. For example, one strategy might be to simply notify a separate thread, operating asynchronously, which is designed to place the <code>ServiceID</code> instance in persistent storage.
+</p>
+<p class="Body">
+  <a name="1016089"> </a>
+<h3 class="Heading2">
+  <a name="01886"> </a>JU.6	 History	 
+</h3>
+<p>
+<table align="center" border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000" cellpadding="5" cellspacing="0" summary="history of this specification">
+  <caption><p class="Body">
+  <a name="01887"> </a>
+</p>
+</caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Version</th>
+    <th>Description</th>
+  </tr>
+    <tr>
+    <td>v1.0</td>
+    <td>Initial release of this specification.</td>
+  </tr>
+  <tr>
+    <td>v2.0</td>
+    <td>New constructors added to accommodate configuration, along with supporting text. Miscellaneous corrections.</td>
+  </tr>
+  <tr>
+    <td>v3.0</td>
+    <td>Add specification for the <code>replaceRegistration</code> method. 
+    <br>Specify <code>RuntimeExceptions</code> that are thrown by the methods of this utility. 
+    <br>Specify that the lease from a discarded lookup service should be cancelled, not removed (as was previously specified). 
+    <br>Miscellaneous corrections and clarifications.</td>
+  </tr>
+</table>
+</p>
+<h3 class="Heading2">
+  <a name="0188"> </a>		 License	 
+</h3>
+<p>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</blockquote>
+
+<hr>
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%">
+<tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a>
+</td><td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
+</tr>
+</table>
+<a name="skip"></a>
+
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>
+
+<!-- This HTML file was created with Quadralay WebWorks Publisher 3.5.0 -->
+<!-- by Susan Snyder -->
+<!-- Last updated: 01/27/05 -->
