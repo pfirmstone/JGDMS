@@ -45,21 +45,41 @@
 <a id="documentation" class="anchor" href="#documentation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Documentation</h3>
 
     <p><a href="doc/index.html">River-Internet Documentation</a></p>
+<h4>
+    <a id="uniqueFunctionality" class="anchor" href="#unique functionality" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Functionality unique to River-Internet</h4>
+    <p><a href="https://github.com/pfirmstone/river-internet/wiki">Wiki</a></p>
+    
+    <p><a href="doc/org/apache/river/api/io/package-summary.html">
+            Serialization with atomic input validation, hardened for reading
+            untrusted stream data</a></p>
+<h5>
+    <a id="TLS_unicast_discovery" class="anchor" href="#TLS unicast discovery" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New TLS Unicast discovery providers</h5> 
+    <p>The following TLS Unicast discovery providers will automatically grant 
+        <a href="doc/api/org/apache/river/api/io/DeSerializationPermission.html">
+            DeSerializationPermission</a> 
+        and <a href="doc/api/net/jini/loader/DownloadPermission.html">
+            DownloadPermission</a> after successful lookup service principal
+            authentication.
+    <p><a href="doc/org/apache/river/discovery/ssl/sha224/package-summary.html"/>Unicast TLS discovery using SHA-224 hash</a><p>
+    <p><a href="doc/org/apache/river/discovery/ssl/sha256/package-summary.html"/>Unicast TLS discovery using SHA-256 hash</a><p>
+    <p><a href="doc/org/apache/river/discovery/ssl/sha384/package-summary.html"/>Unicast TLS discovery using SHA-384 hash</a><p>
+    <p><a href="doc/org/apache/river/discovery/ssl/sha512/package-summary.html"/>Unicast TLS discovery using SHA-512 hash</a><p>
+<h5>
+    <a id="lookup_service" class="anchor" href="#lookup service" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New lookup service method that allows authentication, to occur prior to downloading code</h5> 
+    <p>Using Java 8 interface default methods, a new lookup method has been added to
+        <a href="doc/net/jini/core/lookup/ServiceRegistrar#lookUp">ServiceRegistrar</a>, this allows
+    services to be authenticated using a local bootstrap proxy, and to dynamically grant
+    <a href="doc/api/org/apache/river/api/io/DeSerializationPermission.html">
+            DeSerializationPermission</a> 
+        and <a href="doc/api/net/jini/loader/DownloadPermission.html">
+            DownloadPermission</a> prior to downloading
+    and de-serializing the service implementation.</p>
     <p>River-Internet has been refactored internally and takes advantage of
         recent Java libraries, note how Jini releases use TaskManager, this
     has been replaced by Executor, which is much faster. </p>
     <img src="images/River2.2_Mahalo_RandomStressTest.PNG" class="screen" alt="River 2.2 Mahalo Random Stress test profile">
     <img src="images/River-internet_mahalo_randomStressTest.PNG" class="screen" alt="River-Internet Mahalo Random Stress test profile">
 
-<h3>
-<a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Authors and Contributors</h3>
- 
-<p>You can <a href="https://help.github.com/articles/basic-writing-and-formatting-syntax/#mentioning-users-and-teams" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor’s GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
-
-<h3>
-<a id="support-or-contact" class="anchor" href="#support-or-contact" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Support or Contact</h3>
-
-<p>Having trouble with Pages? Check out our <a href="https://help.github.com/pages">documentation</a> or <a href="https://github.com/contact">contact support</a> and we’ll help you sort it out.</p>
       </section>
     </div>
 
