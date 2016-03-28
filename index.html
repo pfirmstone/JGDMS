@@ -100,43 +100,76 @@
   </tr>
   <tr>
    <td>org.apache.river.activation.enableActivateGrant</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>FALSE</td>
+   <td>This property is interpreted as a <code>boolean</code> value (see {@link
+ Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, this
+ implementation invokes {@link Security#grant(Class,Class) Security.grant}
+ as defined in the specification.</td>
   </tr>
   <tr>
    <td>net.jini.discovery.IPv6</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>FALSE</td>
+   <td>This property is interpreted as a <code>boolean</code> value (see {@link
+ Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, 
+ <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a> and <a href="doc/specs/html/discovery-spec.html#40029">jini-request</a> protocols will use IPv6 multicast addresses: 
+ <a href="http://www.iana.org/assignments/ipv6-multicast-addresses/ipv6-multicast-addresses.xhtml">IANA IPv6 Multicast Addresses</a></td>
   </tr>
   <tr>
    <td>net.jini.discovery.GLOBAL_ANNOUNCE</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>FALSE</td>
+   <td>This property is interpreted as a <code>boolean</code> value (see {@link
+ Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, 
+ <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a>
+    will join the global multicast address group FF0X::155.  
+     If <code>false</code> the 
+    jini-announcement protocol will join the site local multicast address group
+    FF05::155.
+    As defined in RFC4291, IPv6 multicast addresses which are only different
+    in scope represent different groups. Clients joining the global group,
+    will not receive site local announcement packets and vice versa.
+</td>
   </tr>
   <tr>
    <td>net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>FALSE</td>
+   <td>This property is interpreted as a <code>boolean</code> value (see {@link
+       Boolean#getBoolean Boolean.getBoolean}).  If <code>true</code> JERI's 
+       <a href="doc/api/net/jini/jeri/BasicInvocationHandler"> </a> or 
+       <a href="doc/api/net/jini/jeri/BasicInvocationDispatcher"> </a>  doesn't
+       perform input validation by default, unless the required
+       <a href="doc/api/net/jini/core/constraint/InvocationConstraint">
+           InvocationConstraint's</a> contain <a href="doc/api/net/jini/core/constraint/AtomicInputValidation#YES">AtomicInputValidation.YES </td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.server.suppressStackTraces</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>FALSE</td>
+   <td>If <code>true</code>, removes server-side stack traces before
+ marshalling an exception thrown as a result of a remote call.  The
+ default value is <code>false</code>.</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.tcp.useNIO</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>FALSE</td>
+   <td>whether or not to use NIO-based sockets if possible</td>
   </tr>
   <tr>
    <td>java.rmi.server.useCodebaseOnly</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>TRUE</td>
+   <td><a href="http://docs.oracle.com/javase/7/docs/technotes/guides/rmi/enhancements-7.html">
+   Java 7 enhancement</a> It is recommended that default value of <code>true</code></td>
+   is used.  This has no effect on JERI and applies only to Java RMI.  Java RMI
+   is not secure and should be avoided.
   </tr>
   <tr>
    <td>org.apache.river.reggie.enableImplToStubReplacement</td>
-   <td>Row 2 - Col 2</td>
-   <td>Purpose</td>
+   <td>FALSE</td>
+   <td>This system property is interpreted as a
+    <code>boolean</code> value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang"><code>Boolean.getBoolean</code></a>).  If <code>true</code>, then JRMP impl-to-stub
+    replacement will be attempted on the service proxy objects contained in
+    <a href="doc/api/net/jini/core/lookup/ServiceItem.html" title="class in net.jini.core.lookup"><code>ServiceItem</code></a>s passed to the <a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html#register-net.jini.core.lookup.ServiceItem-long-"><code>register</code></a> method of Reggie's
+    proxy.  By default, this behavior is not enabled--it is provided as a
+    transitional measure for services that depend on JRMP impl-to-stub
+    replacement when registering with Reggie.</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize</td>
