@@ -77,38 +77,55 @@ import org.apache.river.impl.Messages;
 
 
 /**
- * ObjectInputStream hardened against DOS attack.
+ * <h1>ObjectInputStream hardened against DOS attack.</h1>
  * 
- *    Not supported:
- *      private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
- *      object graphs with circular references.
- *      Object construction using the first non serializable superclass zero
- *      arg constructor.
- *
- *    Supported:
- *      Classes annotated with @AtomicSerial, that provide a single GetArg parameter 
- *      constructor and throw IOException.
- *      String's, arrays, enums, primitive values.
- *      Classes that have a zero arg constructor and have been granted DeSerializationPermission
- *      A minimial set of pre defined Java platform classes that don't conform to
- *      these rules but have been audited for invariant security.
+ *    <h2>De-serialization Not supported:</h2>
+ * <p>
+ * <ul>
+ *      <li><code>private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException</code></li>
+ *      <li>Object graphs with circular references.</li>
+ *      <li>Object construction using the first non serializable superclass zero
+ *      arg constructor.</li>
+ * </ul>
+ *</p>
+ *    <h2>De-serialization Supported:</h2>
+ * <p>
+ * <ul>
+ *      <li>Classes annotated with @AtomicSerial, that provide a single GetArg parameter 
+ *      constructor and throw IOException.</li>
+ *      <li>Classes annotated with @AtomicExternal, that provide a single ObjectInput parameter
+ *      constructor and throw IOException.</li>
+ *      <li>Classes that implement {@link Externalizable}
+ *      <li>String's, arrays, enums, primitive values.</li>
+ *      <li>{@link Serializable} object's with a public zero arg constructor,
+ *      with serial forms that contain only primitive fields, any object fields must
+ *      be marked transient.</li>
+ *      <li>{@link net.jini.core.entry.Entry}, stream data will be checked against
+ *      each field type.</li>
+ * </ul>
+ * </p><p>
+ *      Any of the above classes that have the appropriate {@link DeSerializationPermission},
+ *      {@link Serializable} object's that have only primitive serial form, don't
+ *      require {@link DeSerializationPermission}.
  *      The Serialization stream protocol.
- *
- *    Informational:
+ *</p>
+ *    <h2>Informational:</h2>
+ * <p>
  *      Collection, List Set, SortedSet, Map and SortedMap, are replaced in
  *      AtomicObjectOutputStream with immutable implementations that guard
  *      against denial of service attacks.  These collections are not intended
  *      to be used in de-serialized form, other than for passing as an argument
  *      to create a new collection.  Collections should be type checked during
  *      validation before a superclass constructor is called.
+ * </p><p>
  *      AtomicMarshalInputStream is restricted to caching 2^16 objects, and a total combined
  *      array length of Integer.MAX_VALUE - 8, for all arrays, the
  *      stream must be reset prior to exceeding these limits or a 
  *      StreamCorruptedException will be thrown and control will return to the caller.
- * 
+ * </p><p>
  *	JVM arguments should be adjusted to ensure that an OOME will not be thrown
  *	if these limits are reached.
- *
+ *</p>
  * @author peter
  */
 public class AtomicMarshalInputStream extends MarshalInputStream {
@@ -2628,17 +2645,19 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     }
     
     /**
+     * <p>
      * Reads the tc object from the source stream. In this case,
      * the Object will only be read from the stream if the type matches.
-     * 
+     * </p><p>
      * If the stream type doesn't match, AtomicMarshalInputStream will check
-     * if the class has a readResolve method and check its return type,
-     * if neither match the expected type, an InvalidObjectException
+     * if the class has a readResolve method and check its annotated with @Serializer 
+     * with a declared return type.
+     * If neither match the expected type, an InvalidObjectException
      * will be thrown.
-     * 
+     * </p><p>
      * If no exception is thrown, then AtomicMarshalInputStream will proceed
      * and deserialize the object.
-     * 
+     * </p>
      * @param <T>
      * @param type
      * @return the new object read.

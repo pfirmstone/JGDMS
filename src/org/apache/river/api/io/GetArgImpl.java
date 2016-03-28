@@ -149,6 +149,20 @@ class GetArgImpl extends AtomicSerial.GetArg {
 	return readers.get(context.caller());
     }
 
+    /**
+     * Simple method to validate an object's parameters, this has been provided
+     * for subclasses, that have simple invariant checks and don't contain intra class invariants between child
+     * class and super class, but where invariants must be checked prior to
+     * Object's default constructor being called.
+     * 
+     * @param fields an array containing field names.
+     * @param types an array containing the type of each field.
+     * @param nonNull a boolean array containing true if a field must not be null. 
+     * @return
+     * @throws IOException if invariants aren't satisfied.
+     * @throws NullPointerException if any arguments are null.
+     * @throws IllegalArgumentException if array lengths are not equal.
+     */
     @Override
     public AtomicSerial.GetArg validateInvariants(String[] fields, Class[] types, boolean[] nonNull) throws IOException {
 	Class caller = context.caller();

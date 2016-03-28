@@ -35,9 +35,6 @@ import java.security.AccessController;
 import java.security.Guard;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 import net.jini.io.ObjectStreamContext;
 
 /**
@@ -277,7 +274,12 @@ public @interface AtomicSerial {
 	    return true;
 	}
 	
-	
+	/**
+         * Not intended for general construction, however may be extended
+         * by an ObjectInput implementation or for testing purposes.
+         * 
+         * @throws SecurityException if caller doesn't have permission java.io.SerializablePermission "enableSubclassImplementation";
+         */
 	protected GetArg() {
 	    this(check());
 	}
@@ -313,7 +315,7 @@ public @interface AtomicSerial {
 	/**
          * Get the value of the named Object field from the persistent field.
 	 * Convenience method to avoid type casts, that also performs a type check.
-	 * 
+	 * <p>
 	 * Instances of java.util.Collection will be replaced in the stream
 	 * by a safe limited functionality immutable Collection instance 
 	 * that must be passed to a collection instance constructor.  It is

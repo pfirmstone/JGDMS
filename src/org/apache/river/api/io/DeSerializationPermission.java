@@ -58,12 +58,14 @@ import java.security.BasicPermission;
 public class DeSerializationPermission extends BasicPermission {
 
     /**
+     * The ProtectionDomain of a class that is de-serializing (reading object input)
+     * from an {@link AtomicMarshalInputStream} requires permission to do so.
      * 
      * @param type one of the following 
-     * <li>ATOMIC</li>
-     * <li>EXTERNALIZABLE</li>
-     * <li>MARSHALLED</li>
-     * <li>PROXY</li>
+     * <li>ATOMIC - Classes that implement {@link AtomicSerial} or {@link AtomicExternal}</li>
+     * <li>EXTERNALIZABLE - Classes that implement {@link Externalizable}</li>
+     * <li>MARSHALLED - {@link net.jini.io.MarshalledInstance} or {@link java.rmi.MarshalledObject}</li>
+     * <li>PROXY - any class extending {@link java.lang.reflect.Proxy}, dynamically generated proxy's already have this permission.</li>
      */
     public DeSerializationPermission(String type) {
 	super(type);
