@@ -99,22 +99,19 @@
   </tr>
   <tr>
    <td>org.apache.river.activation.enableActivateGrant</td>
-   <td>This property is interpreted as a <code>boolean</code> value (see {@link
- Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, this
- implementation invokes {@link Security#grant(Class,Class) Security.grant}
+   <td>This property is interpreted as a <code>boolean</code> value. If <code>true</code>, this
+       implementation invokes <a href="doc/api/net/jini/security/Security#grant(Class,Class)">Security.grant</a>
  as defined in the specification.</td>
   </tr>
   <tr>
    <td>net.jini.discovery.IPv6</td>
-   <td>This property is interpreted as a <code>boolean</code> value (see {@link
- Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, 
+   <td>This property is interpreted as a <code>boolean</code> value. If <code>true</code>, 
  <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a> and <a href="doc/specs/html/discovery-spec.html#40029">jini-request</a> protocols will use IPv6 multicast addresses: 
  <a href="http://www.iana.org/assignments/ipv6-multicast-addresses/ipv6-multicast-addresses.xhtml">IANA IPv6 Multicast Addresses</a></td>
   </tr>
   <tr>
    <td>net.jini.discovery.GLOBAL_ANNOUNCE</td>
-   <td>This property is interpreted as a <code>boolean</code> value (see {@link
- Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, 
+   <td>This property is interpreted as a <code>boolean</code> value. If <code>true</code>, 
  <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a>
     will join the global multicast address group FF0X::155.  
      If <code>false</code> the 
@@ -127,8 +124,7 @@
   </tr>
   <tr>
    <td>net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
-   <td>This property is interpreted as a <code>boolean</code> value (see {@link
-       Boolean#getBoolean Boolean.getBoolean}).  If <code>true</code> JERI's 
+   <td>This property is interpreted as a <code>boolean</code> value.  If <code>true</code> JERI's 
        <a href="doc/api/net/jini/jeri/BasicInvocationHandler"> </a> or 
        <a href="doc/api/net/jini/jeri/BasicInvocationDispatcher"> </a>  doesn't
        perform input validation by default, unless the required
