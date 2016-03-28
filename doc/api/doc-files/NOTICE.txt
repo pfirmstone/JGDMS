@@ -1,4 +1,4 @@
-Apache River
+River-Internet
 Copyright 2009 The Apache Software Foundation
 
 This product includes software developed at

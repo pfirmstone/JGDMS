@@ -56,14 +56,14 @@
 
     <p><a href="doc/index.html">River-Internet Documentation</a></p>
 <h4>
-    <a id="uniqueFunctionality" class="anchor" href="#unique functionality" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Functionality unique to River-Internet</h4>
+    <a id="uniqueFunctionality" class="anchor" href="#unique_functionality" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Functionality unique to River-Internet</h4>
     <p><a href="https://github.com/pfirmstone/river-internet/wiki">Wiki</a></p>
     
     <p><a href="doc/api/org/apache/river/api/io/package-summary.html">
             Serialization with atomic input validation, hardened for reading
             untrusted stream data</a></p>
 <h5>
-    <a id="TLS_unicast_discovery" class="anchor" href="#TLS unicast discovery" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New TLS Unicast discovery providers</h5> 
+    <a id="TLS_unicast_discovery" class="anchor" href="#TLS_unicast_discovery" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New TLS Unicast discovery providers</h5> 
     <p>The following TLS Unicast discovery providers will automatically grant 
         <a href="doc/api/org/apache/river/api/io/DeSerializationPermission.html">
             DeSerializationPermission</a> 
@@ -75,7 +75,7 @@
     <p><a href="doc/api/org/apache/river/discovery/ssl/sha384/package-summary.html">Unicast TLS discovery using SHA-384 hash</a><p>
     <p><a href="doc/api/org/apache/river/discovery/ssl/sha512/package-summary.html">Unicast TLS discovery using SHA-512 hash</a><p>
 <h5>
-    <a id="lookup_service" class="anchor" href="#lookup service" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New lookup service method that allows authentication, to occur prior to downloading code</h5> 
+    <a id="lookup_service" class="anchor" href="#lookup_service" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New lookup service method that allows authentication, to occur prior to downloading code</h5> 
     <p>Using Java 8 interface default methods, a new lookup method has been added to
         <a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html#lookUp-net.jini.core.lookup.ServiceTemplate-int-">ServiceRegistrar</a>, this allows
     services to be authenticated using a local bootstrap proxy, and to dynamically grant
@@ -84,6 +84,14 @@
         and <a href="doc/api/net/jini/loader/DownloadPermission.html">
             DownloadPermission</a> prior to downloading
     and de-serializing the service implementation.</p>
+<h5>
+    <a id="Proxy_advisory_permissions" class="anchor" href="#Proxy_advisory_permissions" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span>
+    </a>Proxy advisory permissions</h5> 
+    <p>The first proxy jar file in a list of codebase annotations, may now 
+        contain a list of Permission's.  These permissions may be retrieved 
+        from the Proxy's ClassLoader, 
+        <a href="doc/api/org/apache/river/api/security/AdvisoryDynamicPermissions">
+            AdvisoryDynamicPermissions</a></p>
     <p>River-Internet has been refactored internally and takes advantage of
         recent Java libraries, note how Jini releases use TaskManager, this
     has been replaced by Executor, which is much faster. </p>
