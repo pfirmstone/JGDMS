@@ -168,70 +168,104 @@
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize</td>
-   <td>Purpose</td>
+   <td>Maximum number of entries allowed in the soft cache of a
+      Kerberos endpoint. The default is 64.</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.minGssContextLifetime</td>
-   <td>Purpose</td>
+   <td>Minimum number of seconds of remaining lifetime a <code>GSSContext</code>
+      of an existing connection has to have before it can
+      be considered as a candidate connection to be chosen for a new
+      request. The default is 30.</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxGssContextRetries</td>
-   <td>Purpose</td>
+   <td><a href="http://www.ietf.org/rfc/rfc1510.txt">RFC 1510</a>
+      specifies that if a KDC or server receives two authenticators
+      with the same client and server pair and timestamps of the
+      same microsecond, the second will be considered a replay
+      and will be rejected.  This means if multiple session ticket
+      requests of the same client and server principal pair and
+      microsecond timestamps are received at a KDC, only the first
+      one will succeed, and the rest will be considered replays
+      and will be rejected by the KDC.  For this reason, the Kerberos
+      provider catches the "replay" exception and retries the
+      corresponding <code>GSSContext</code> initialization
+      handshake.  This system property controls the maximum number
+      of retries a <code>KerberosEndpoint</code> will conduct.  The
+      default is 3.</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosServerEndpoint.maxCacheSize</td>
-   <td>Purpose</td>
+   <td>Maximum size of the soft cache, default is 256.</td>
   </tr><tr>
    <td>org.apache.river.jeri.connection.mux.client.initialInboundRation</td>
-   <td>Purpose</td>
+   <td>initial inbound ration as client, default is 32768</td>
   </tr><tr>
    <td>org.apache.river.jeri.connection.mux.server.initialInboundRation</td>
-   <td>Purpose</td>
+   <td>initial inbound ration as server, default is 32768</td>
   </tr><tr>
    <td>java.rmi.activation.port</td>
-   <td>Purpose</td>
+   <td>The activation system port, default 1098, used by ServiceStarter</td>
   </tr><tr>
    <td>org.apache.river.jeri.connectionTimeout</td>
-   <td>Purpose</td>
+   <td>Time in milliseconds
+       to leave idle client-side connections around before closing them. The default
+       value is 15000 milliseconds (15 seconds).</td>
   </tr><tr>
    <td>org.apache.river.jeri.handshakeTimeout</td>
-   <td>Purpose</td>
+   <td>Time in milliseconds
+       for client-side connections to wait for the server to acknowledge an opening
+       handshake. The default value is 15000 milliseconds (15 seconds).</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.maxClientSessionDuration</td>
-   <td>Purpose</td>
+   <td>The maximum time a client session should be used before expiring --
+       non-final to facilitate testing.  Use 23.5 hours (in milliseconds) as the default to allow
+       the client to negotiate a new session before the server timeout, which
+       defaults to 24 hours.</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.maxServerSessionDuration</td>
-   <td>Purpose</td>
+   <td>The maximum time a session should be used before expiring -- non-final
+       to facilitate testing.  Use 24 hours (in milliseconds) to allow the client, which uses
+       23.5 hours, to renegotiate a new session before the server timeout.</td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.leaseValue</td>
-   <td>Purpose</td>
+   <td>lease duration to request (usually ignored by server), 
+       and duration of DGC leases granted by this runtime, default 600000 ( 10 minutes specified in milliseconds).</td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.cleanInterval</td>
-   <td>Purpose</td>
+   <td>maximum interval between retries of failed clean calls, default 180000 (3 minutes specified in milliseconds)</td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.minimumDuration</td>
-   <td>Purpose</td>
+   <td>minimum lease duration that we bother to honor, default 5000 (5 seconds) </td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.checkInterval</td>
-   <td>Purpose</td>
+   <td>period of checking for DGC lease expiration, default 300000 (5 minutes)</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</td>
-   <td>Purpose</td>
+   <td>The trust manager factory algorithm,
+       <a href="https://docs.oracle.com/javase/8/docs/api/javax/net/ssl/TrustManagerFactory.html#getDefaultAlgorithm--">TrustManagerFactory default algorithm</a></td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.cipherSuites</td>
-   <td>Purpose</td>
+   <td>The cipher suites specified by the user, or null if not specified.</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.sslProtocol</td>
-   <td>Purpose</td>
+   <td>The secure socket protocol used with JSSE, default: TLSv1.2 </td>
   </tr><tr>
    <td>net.jini.loader.codebaseAnnotation</td>
-   <td>Purpose</td>
+   <td>Revert <code>SecureClassLoader</code>'s <code>CodeSource</code> cache to use <code>URL.equals(java.lang.Object)</code>
+  and <code>URL.hashCode()</code>, when set to URL.</td>
   </tr><tr>
    <td>java.rmi.server.codebase</td>
-   <td>Purpose</td>
+   <td>codebase annotation for proxy classes.</td>
   </tr><tr>
    <td>net.jini.loader.ClassLoading.provider</td>
-   <td>Purpose</td>
+   <td>Default: net.jini.loader.pref.PreferredClassProvider, however this should be set to
+   net.jini.loader.pref.RequireDlPermProvider in order to enforce DownloadPermission.</td>
+  </tr><tr>
+   <td>java.rmi.server.RMIClassLoaderSpi</td>
+   <td>Default: net.jini.loader.pref.PreferredClassProvider, however this should be set to
+   net.jini.loader.pref.RequireDlPermProvider in order to enforce DownloadPermission.</td>
   </tr><tr>
    <td>java.security.policy</td>
    <td>Purpose</td>
