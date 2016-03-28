@@ -95,12 +95,10 @@
     <table>
   <tr>
    <td>System Property</td>
-   <td>Default</td>
    <td>Purpose</td>
   </tr>
   <tr>
    <td>org.apache.river.activation.enableActivateGrant</td>
-   <td>FALSE</td>
    <td>This property is interpreted as a <code>boolean</code> value (see {@link
  Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, this
  implementation invokes {@link Security#grant(Class,Class) Security.grant}
@@ -108,7 +106,6 @@
   </tr>
   <tr>
    <td>net.jini.discovery.IPv6</td>
-   <td>FALSE</td>
    <td>This property is interpreted as a <code>boolean</code> value (see {@link
  Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, 
  <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a> and <a href="doc/specs/html/discovery-spec.html#40029">jini-request</a> protocols will use IPv6 multicast addresses: 
@@ -116,7 +113,6 @@
   </tr>
   <tr>
    <td>net.jini.discovery.GLOBAL_ANNOUNCE</td>
-   <td>FALSE</td>
    <td>This property is interpreted as a <code>boolean</code> value (see {@link
  Boolean#getBoolean Boolean.getBoolean}). If <code>true</code>, 
  <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a>
@@ -131,7 +127,6 @@
   </tr>
   <tr>
    <td>net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
-   <td>FALSE</td>
    <td>This property is interpreted as a <code>boolean</code> value (see {@link
        Boolean#getBoolean Boolean.getBoolean}).  If <code>true</code> JERI's 
        <a href="doc/api/net/jini/jeri/BasicInvocationHandler"> </a> or 
@@ -142,19 +137,16 @@
   </tr>
   <tr>
    <td>org.apache.river.jeri.server.suppressStackTraces</td>
-   <td>FALSE</td>
    <td>If <code>true</code>, removes server-side stack traces before
  marshalling an exception thrown as a result of a remote call.  The
  default value is <code>false</code>.</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.tcp.useNIO</td>
-   <td>FALSE</td>
    <td>whether or not to use NIO-based sockets if possible</td>
   </tr>
   <tr>
    <td>java.rmi.server.useCodebaseOnly</td>
-   <td>TRUE</td>
    <td><a href="http://docs.oracle.com/javase/7/docs/technotes/guides/rmi/enhancements-7.html">
    Java 7 enhancement</a> It is recommended that default value of <code>true</code></td>
    is used.  This has no effect on JERI and applies only to Java RMI.  Java RMI
@@ -162,7 +154,6 @@
   </tr>
   <tr>
    <td>org.apache.river.reggie.enableImplToStubReplacement</td>
-   <td>FALSE</td>
    <td>This system property is interpreted as a
     <code>boolean</code> value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang"><code>Boolean.getBoolean</code></a>).  If <code>true</code>, then JRMP impl-to-stub
     replacement will be attempted on the service proxy objects contained in
@@ -173,130 +164,99 @@
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize</td>
-   <td></td>
    <td>Purpose</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.minGssContextLifetime</td>
-   <td></td>
    <td>Purpose</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxGssContextRetries</td>
-   <td></td>
    <td>Purpose</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri.kerberos.KerberosServerEndpoint.maxCacheSize</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.connection.mux.client.initialInboundRation</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.connection.mux.server.initialInboundRation</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>java.rmi.activation.port</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.connectionTimeout</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.handshakeTimeout</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.maxClientSessionDuration</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.maxServerSessionDuration</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.leaseValue</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.cleanInterval</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.minimumDuration</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.dgc.checkInterval</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.cipherSuites</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.jeri.ssl.sslProtocol</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>net.jini.loader.codebaseAnnotation</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>java.rmi.server.codebase</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>net.jini.loader.ClassLoading.provider</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>java.security.policy</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>net.jini.security.policy.PolicyFileProvider.basePolicyClass</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.discovery.x500.trustStore</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.discovery.x500.trustStorePassword</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.discovery.x500.ldapCertStores</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>javax.net.ssl.trustStore</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>javax.net.ssl.trustStorePassword</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>java.util.logging.config.file</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>org.apache.river.outrigger.maxServerQueryTimeout</td>
-   <td></td>
    <td>Purpose</td>
   </tr><tr>
    <td>java.security.auth.login.config</td>
-   <td></td>
    <td>Purpose</td>
   </tr>
  </table> 
