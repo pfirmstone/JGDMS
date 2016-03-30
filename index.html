@@ -167,6 +167,14 @@
     replacement when registering with Reggie.</td>
   </tr>
   <tr>
+   <td>net.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse</td>
+   <td>This system property is interpreted as a
+    <code>boolean</code> value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang"><code>Boolean.getBoolean</code></a>). 
+    If <code>true</code>, then Reggie, will use an ephemeral port to listen 
+    for unicast discovery requests, if the configured port is already in use. 
+    This property is false by default.</td>
+  </tr>
+  <tr>
    <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize</td>
    <td>Maximum number of entries allowed in the soft cache of a
       Kerberos endpoint. The default is 64.</td>
@@ -268,34 +276,99 @@
    net.jini.loader.pref.RequireDlPermProvider in order to enforce DownloadPermission.</td>
   </tr><tr>
    <td>java.security.policy</td>
-   <td>Purpose</td>
-  </tr><tr>
+   <td>This property should be set to:<br>
+       -Djava.security.policy=net.jini.security.policy.DynamicPolicyProvider</td>
+  </tr>
+  <tr>
+   <td>net.jini.security.policy.DynamicPolicyProvider.basePolicyClass</td>
+   <td>This property is set to "org.apache.river.api.security.ConcurrentPolicyFile" by default.</td>
+  </tr>
+  <tr>
+   <td>net.jini.security.policy.DynamicPolicyProvider.revocation</td>
+   <td>This property is interpreted as a boolean value and is true by default.  
+       This allows PermissionGrant's to be used in Dynamic grants, this is required
+   to dynamically grant DownloadPermission and DeSerializationPermission prior to
+   performing a codebase download.  PermissionGrant's can be implemented to expire,
+   or be revoked.</td>
+  </tr> 
+  <tr>
    <td>net.jini.security.policy.PolicyFileProvider.basePolicyClass</td>
-   <td>Purpose</td>
+   <td>This property, by default is set to "org.apache.river.api.security.ConcurrentPolicyFile"</td>
   </tr><tr>
    <td>org.apache.river.discovery.x500.trustStore</td>
-   <td>Purpose</td>
-  </tr><tr>
-   <td>org.apache.river.discovery.x500.trustStorePassword</td>
-   <td>Purpose</td>
-  </tr><tr>
-   <td>org.apache.river.discovery.x500.ldapCertStores</td>
-   <td>Purpose</td>
+   <td>The location of the
+       file to load the keystore from can be specified (in order of precedence)
+       by the org.apache.river.discovery.x500.trustStore and
+       javax.net.ssl.trustStore system properties; if no location is specified,
+       then the cacerts file in the lib/security subdirectory of the JDK
+       installation directory is used.  If specified, the location is treated as
+       a URL. If no protocol is specified in the URL or it is an unknown
+       protocol, then, the location is treated as a file name.</td>
   </tr><tr>
    <td>javax.net.ssl.trustStore</td>
-   <td>Purpose</td>
+   <td>See above.</td>
+  </tr><tr>
+   <td>org.apache.river.discovery.x500.trustStorePassword</td>
+   <td>Depending on which system property is used to specify the keystore
+       location, the org.apache.river.discovery.x500.trustStoreType and
+       org.apache.river.discovery.x500.trustStorePassword or
+       javax.net.ssl.trustStoreType and javax.net.ssl.trustStorePassword system
+       properties can be used to specify the type of the keystore and the
+       password to use when loading it.  If no keystore type is specified, then
+       the type returned by KeyStore.getDefaultType() is used; if no password
+       is specified, then no password is used when loading the keystore.</td>
   </tr><tr>
    <td>javax.net.ssl.trustStorePassword</td>
-   <td>Purpose</td>
+   <td>See above.</td>
+  </tr><tr>
+   <td>org.apache.river.discovery.x500.trustStoreType</td>
+   <td>See <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore">KeyStore Types</a></td>
+  </tr><tr>
+   <td>javax.net.ssl.trustStoreType</td>
+   <td>See above.</td>
+  </tr><tr>
+   <td>org.apache.river.discovery.x500.ldapCertStores</td>
+   <td>In addition to the above, if the org.apache.river.discovery.x500.ldapCertStores system
+       property is set, its value is interpreted as a comma-separated list of
+       "host[:port]" elements which are used to obtain references to LDAP-based
+       CertStore instances.</td>
   </tr><tr>
    <td>java.util.logging.config.file</td>
-   <td>Purpose</td>
+   <td>The logging configuration file is specified by the
+       <code>java.util.logging.config.file</code> system property (which is
+       sampled at every probe), if defined, otherwise it is the
+       <code>logging.properties</code> file in the <code>lib</code> subdirectory
+       of the directory specified by the <code>java.home</code> system property.
+   </td>
+  </tr><tr>
+   <td>java.util.logging.manager</td>
+   <td>Use <a href="doc/api/org/apache/river/logging/LogManager.html">org.apache.river.logging.LogManager</a> class as the value of the
+       <code>java.util.logging.manager</code> system property to permit specifying
+       the symbolic names for the <code>FAILED</code> and <code>HANDLED</code>
+       logging levels in standard logging configuration files, or to allow changes
+       to the logging configuration file to be noticed.
+   </td>
+  </tr><tr>
+   <td>org.apache.river.logging.interval</td>
+   <td>The <code>org.apache.river.logging.interval</code> logging property (obtained
+       using {@link java.util.logging.LogManager#getProperty
+       LogManager.getProperty}) specifies the time interval in milliseconds
+       between probes to see if the logging configuration file has changed;
+       periodic checking only takes place if the value is greater than zero. (If a
+       new logging configuration file is read, this property can be redefined.)
+   </td>
   </tr><tr>
    <td>org.apache.river.outrigger.maxServerQueryTimeout</td>
-   <td>Purpose</td>
-  </tr><tr>
-   <td>java.security.auth.login.config</td>
-   <td>Purpose</td>
+   <td>Value (as a long) of the
+       <code>org.apache.river.outrigger.maxServerQueryTimeout</code>
+       property in this VM, or a non-positive number if it is not set.
+       Set <code>maxServerQueryTimeout</code> in SpaceProxy2, based on the values
+       of the server's<code>maxServerQueryTimeout</code> and 
+       <code>maxServerQueryTimeout</code> system property.
+       If the org.apache.river.outrigger.maxServerQueryTimeout property
+        was set in this VM, override the value set by the server
+        when SpaceProxy2 was created.
+   </td>
   </tr>
  </table> 
       </section>
