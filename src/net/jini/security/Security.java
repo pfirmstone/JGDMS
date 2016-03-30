@@ -794,7 +794,8 @@ public final class Security {
     
     public static void grant(PermissionGrant grant) {
 	Policy policy = getPolicy();
-	if (!(policy instanceof RevocablePolicy)) {
+	if (!((policy instanceof RevocablePolicy)&& 
+		((RevocablePolicy) policy).revokeSupported())) {
 	    throw new UnsupportedOperationException("revocable grants not supported");
 	}
 	((RevocablePolicy) policy).grant(grant);

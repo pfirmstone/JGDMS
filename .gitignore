@@ -6,3 +6,7 @@
 /nbbuild.xml
 /manifest.mf
 /build.properties
+/lib-dl/
+/qa/build/
+/configentry/
+/dist/

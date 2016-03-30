@@ -343,7 +343,7 @@ This implementation uses the following security providers: <p>
 <ul>
 <li> {@link javax.net.ssl.SSLContext}, with the protocol specified by
      the <code>org.apache.river.jeri.ssl.sslProtocol</code> system property,
-     or <code>"TLS"</code> if that property is not defined, to provide
+     or <code>"TLSv1.2"</code> if that property is not defined, to provide
      the TLS/SSL implementation. The {@link
      javax.net.ssl.SSLContext#init SSLContext.init} method is called
      with <code>null</code> for the <code>random</code> parameter to use
@@ -391,7 +391,7 @@ system properties: <p>
      negotiate a new session before the server timeout occurs.
 <li> <code>org.apache.river.jeri.ssl.sslProtocol</code> - The secure socket
      protocol used when obtaining {@link javax.net.ssl.SSLContext}
-     instances. The default is <code>"TLS"</code>.
+     instances. The default is <code>"TLSv1.2"</code>.
 <li> <code>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</code> -
      The algorithm used when obtaining {@link
      javax.net.ssl.TrustManagerFactory} instances. The default is the

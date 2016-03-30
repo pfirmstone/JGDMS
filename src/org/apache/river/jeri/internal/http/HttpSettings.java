@@ -191,7 +191,7 @@ public class HttpSettings {
     }
 
     /**
-     * If http.nonProxyHosts system property value is set, returns true iff
+     * If http.nonProxyHosts system property value is set, returns true if
      * given host matches any regular expressions contained in value; if
      * http.nonProxyHosts is unset, returns false.
      */
