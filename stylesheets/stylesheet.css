@@ -237,13 +237,14 @@ table {
   border: 1px solid #373737;
   margin-bottom: 20px;
   text-align: left;
+  max-width: 739px;
  }
  
-table#systemProp {
+/*table#systemProp {
     width: available;
     margin-left: 10px;
     margin-right: 10px;
-}
+}*/
 
 th {
   font-family: 'Lucida Grande', 'Helvetica Neue', Helvetica, Arial, sans-serif;
