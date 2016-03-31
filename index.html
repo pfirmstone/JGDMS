@@ -106,7 +106,8 @@
    <td>Purpose</td>
   </tr>
   <tr>
-   <td>org.apache.river.activation.enableActivateGrant</td>
+   <td>org.apache.river.activation
+       .enableActivateGrant</td>
    <td>This property is interpreted as a <code>boolean</code> value. If <code>true</code>, this
        implementation invokes <a href="doc/api/net/jini/security/Security#grant-java.lang.Class-java.lang.Class-">Security.grant</a>
  as defined in the specification.</td>
@@ -131,7 +132,8 @@
     </td>
   </tr>
   <tr>
-   <td>net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
+   <td>net.jini.jeri
+       .ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
    <td>This property is interpreted as a <code>boolean</code> value.  If <code>true</code> JERI's 
        <a href="doc/api/net/jini/jeri/BasicInvocationHandler">BasicInvocationHandler</a> or 
        <a href="doc/api/net/jini/jeri/BasicInvocationDispatcher">BasicInvocationDispatcher</a>  doesn't
@@ -140,13 +142,15 @@
            InvocationConstraint's</a> contain <a href="doc/api/net/jini/core/constraint/AtomicInputValidation#YES">AtomicInputValidation.YES </td>
   </tr>
   <tr>
-   <td>org.apache.river.jeri.server.suppressStackTraces</td>
+   <td>org.apache.river.jeri
+       .server.suppressStackTraces</td>
    <td>If <code>true</code>, removes server-side stack traces before
  marshalling an exception thrown as a result of a remote call.  The
  default value is <code>false</code>.</td>
   </tr>
   <tr>
-   <td>org.apache.river.jeri.tcp.useNIO</td>
+   <td>org.apache.river.jeri
+       .tcp.useNIO</td>
    <td>whether or not to use NIO-based sockets if possible</td>
   </tr>
   <tr>
@@ -157,7 +161,8 @@
    is not secure and should be avoided.</td>
   </tr>
   <tr>
-   <td>org.apache.river.reggie.enableImplToStubReplacement</td>
+   <td>org.apache.river.reggie
+       .enableImplToStubReplacement</td>
    <td>This system property is interpreted as a
     <code>boolean</code> value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang"><code>Boolean.getBoolean</code></a>).  If <code>true</code>, then JRMP impl-to-stub
     replacement will be attempted on the service proxy objects contained in
@@ -167,7 +172,8 @@
     replacement when registering with Reggie.</td>
   </tr>
   <tr>
-   <td>net.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse</td>
+   <td>net.jini.core.lookup.ServiceRegistrar
+       .portAbitraryIfInUse</td>
    <td>This system property is interpreted as a
     <code>boolean</code> value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang"><code>Boolean.getBoolean</code></a>). 
     If <code>true</code>, then Reggie, will use an ephemeral port to listen 
@@ -175,19 +181,22 @@
     This property is false by default.</td>
   </tr>
   <tr>
-   <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize</td>
+   <td>org.apache.river.jeri.kerberos
+       .KerberosEndpoint.maxCacheSize</td>
    <td>Maximum number of entries allowed in the soft cache of a
       Kerberos endpoint. The default is 64.</td>
   </tr>
   <tr>
-   <td>org.apache.river.jeri.kerberos.KerberosEndpoint.minGssContextLifetime</td>
+   <td>org.apache.river.jeri.kerberos
+       .KerberosEndpoint.minGssContextLifetime</td>
    <td>Minimum number of seconds of remaining lifetime a <code>GSSContext</code>
       of an existing connection has to have before it can
       be considered as a candidate connection to be chosen for a new
       request. The default is 30.</td>
   </tr>
   <tr>
-   <td>org.apache.river.jeri.kerberos.KerberosEndpoint.maxGssContextRetries</td>
+   <td>org.apache.river.jeri.kerberos
+       .KerberosEndpoint.maxGssContextRetries</td>
    <td><a href="http://www.ietf.org/rfc/rfc1510.txt">RFC 1510</a>
       specifies that if a KDC or server receives two authenticators
       with the same client and server pair and timestamps of the
@@ -204,13 +213,16 @@
       default is 3.</td>
   </tr>
   <tr>
-   <td>org.apache.river.jeri.kerberos.KerberosServerEndpoint.maxCacheSize</td>
+   <td>org.apache.river.jeri.kerberos
+       .KerberosServerEndpoint.maxCacheSize</td>
    <td>Maximum size of the soft cache, default is 256.</td>
   </tr><tr>
-   <td>org.apache.river.jeri.connection.mux.client.initialInboundRation</td>
+   <td>org.apache.river.jeri.connection
+       .mux.client.initialInboundRation</td>
    <td>initial inbound ration as client, default is 32768</td>
   </tr><tr>
-   <td>org.apache.river.jeri.connection.mux.server.initialInboundRation</td>
+   <td>org.apache.river.jeri.connection
+       .mux.server.initialInboundRation</td>
    <td>initial inbound ration as server, default is 32768</td>
   </tr><tr>
    <td>java.rmi.activation.port</td>
@@ -226,13 +238,15 @@
        for client-side connections to wait for the server to acknowledge an opening
        handshake. The default value is 15000 milliseconds (15 seconds).</td>
   </tr><tr>
-   <td>org.apache.river.jeri.ssl.maxClientSessionDuration</td>
+   <td>org.apache.river.jeri.ssl
+       .maxClientSessionDuration</td>
    <td>The maximum time a client session should be used before expiring --
        non-final to facilitate testing.  Use 23.5 hours (in milliseconds) as the default to allow
        the client to negotiate a new session before the server timeout, which
        defaults to 24 hours.</td>
   </tr><tr>
-   <td>org.apache.river.jeri.ssl.maxServerSessionDuration</td>
+   <td>org.apache.river.jeri.ssl
+       .maxServerSessionDuration</td>
    <td>The maximum time a session should be used before expiring -- non-final
        to facilitate testing.  Use 24 hours (in milliseconds) to allow the client, which uses
        23.5 hours, to renegotiate a new session before the server timeout.</td>
@@ -250,7 +264,8 @@
    <td>org.apache.river.jeri.dgc.checkInterval</td>
    <td>period of checking for DGC lease expiration, default 300000 (5 minutes)</td>
   </tr><tr>
-   <td>org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm</td>
+   <td>org.apache.river.jeri.ssl
+       .trustManagerFactoryAlgorithm</td>
    <td>The trust manager factory algorithm,
        <a href="https://docs.oracle.com/javase/8/docs/api/javax/net/ssl/TrustManagerFactory.html#getDefaultAlgorithm--">TrustManagerFactory default algorithm</a></td>
   </tr><tr>
@@ -280,11 +295,13 @@
        -Djava.security.policy=net.jini.security.policy.DynamicPolicyProvider</td>
   </tr>
   <tr>
-   <td>net.jini.security.policy.DynamicPolicyProvider.basePolicyClass</td>
+   <td>net.jini.security.policy
+       .DynamicPolicyProvider.basePolicyClass</td>
    <td>This property is set to "org.apache.river.api.security.ConcurrentPolicyFile" by default.</td>
   </tr>
   <tr>
-   <td>net.jini.security.policy.DynamicPolicyProvider.revocation</td>
+   <td>net.jini.security.policy
+       .DynamicPolicyProvider.revocation</td>
    <td>This property is interpreted as a boolean value and is true by default.  
        This allows PermissionGrant's to be used in Dynamic grants, this is required
    to dynamically grant DownloadPermission and DeSerializationPermission prior to
@@ -292,10 +309,12 @@
    or be revoked.</td>
   </tr> 
   <tr>
-   <td>net.jini.security.policy.PolicyFileProvider.basePolicyClass</td>
+   <td>net.jini.security.policy
+       .PolicyFileProvider.basePolicyClass</td>
    <td>This property, by default is set to "org.apache.river.api.security.ConcurrentPolicyFile"</td>
   </tr><tr>
-   <td>org.apache.river.discovery.x500.trustStore</td>
+   <td>org.apache.river.discovery
+       .x500.trustStore</td>
    <td>The location of the
        file to load the keystore from can be specified (in order of precedence)
        by the org.apache.river.discovery.x500.trustStore and
@@ -308,7 +327,8 @@
    <td>javax.net.ssl.trustStore</td>
    <td>See above.</td>
   </tr><tr>
-   <td>org.apache.river.discovery.x500.trustStorePassword</td>
+   <td>org.apache.river.discovery
+       .x500.trustStorePassword</td>
    <td>Depending on which system property is used to specify the keystore
        location, the org.apache.river.discovery.x500.trustStoreType and
        org.apache.river.discovery.x500.trustStorePassword or
@@ -321,13 +341,15 @@
    <td>javax.net.ssl.trustStorePassword</td>
    <td>See above.</td>
   </tr><tr>
-   <td>org.apache.river.discovery.x500.trustStoreType</td>
+   <td>org.apache.river.discovery
+       .x500.trustStoreType</td>
    <td>See <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore">KeyStore Types</a></td>
   </tr><tr>
    <td>javax.net.ssl.trustStoreType</td>
    <td>See above.</td>
   </tr><tr>
-   <td>org.apache.river.discovery.x500.ldapCertStores</td>
+   <td>org.apache.river.discovery
+       .x500.ldapCertStores</td>
    <td>In addition to the above, if the org.apache.river.discovery.x500.ldapCertStores system
        property is set, its value is interpreted as a comma-separated list of
        "host[:port]" elements which are used to obtain references to LDAP-based
@@ -358,7 +380,8 @@
        new logging configuration file is read, this property can be redefined.)
    </td>
   </tr><tr>
-   <td>org.apache.river.outrigger.maxServerQueryTimeout</td>
+   <td>org.apache.river.outrigger
+       .maxServerQueryTimeout</td>
    <td>Value (as a long) of the
        <code>org.apache.river.outrigger.maxServerQueryTimeout</code>
        property in this VM, or a non-positive number if it is not set.
@@ -370,13 +393,15 @@
         when SpaceProxy2 was created.
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.http.idleConnectionTimeout</td>
+   <td>org.apache.river.jeri.http
+       .idleConnectionTimeout</td>
    <td>The number of
     milliseconds to retain idle client-side HTTP connections before closing
     them. The default is <code>15000</code>.  
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td>
   </tr><tr>
-   <td>org.apache.river.jeri.http.idleServerConnectionTimeout</td>
+   <td>org.apache.river.jeri.http
+       .idleServerConnectionTimeout</td>
    <td>The
     number of milliseconds to retain idle server-side HTTP connections before
     closing them.  The default is the idle client-side connection timeout (as
@@ -384,7 +409,8 @@
     system property) plus <code>10000</code>. 
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td> 
   </tr><tr>
-   <td>org.apache.river.jeri.http.responseAckTimeout</td>
+   <td>org.apache.river.jeri.http
+       .responseAckTimeout</td>
    <td>The number of
     milliseconds to wait for acknowledgments from
     {@link net.jini.io.context.AcknowledgmentSource} instances.  The default is
@@ -392,7 +418,8 @@
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.http.disableProxyPersistentConnections</td>
+   <td>org.apache.river.jeri.http
+       .disableProxyPersistentConnections</td>
    <td>If
     the value is case-insensitive equal to <code>true</code>, client-side
     connections through the HTTP proxy are not reused across requests;
@@ -400,7 +427,8 @@
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.http.pingProxyConnections</td>
+   <td>org.apache.river.jeri.http
+       .pingProxyConnections</td>
    <td>If
     the value is case-insensitive equal to <code>true</code>, then if an
     HTTP proxy is being used, ping the server endpoint to verify whether
@@ -417,7 +445,8 @@
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.http.pingProxyConnectionTimeout</td>
+   <td>org.apache.river.jeri.http
+       .pingProxyConnectionTimeout</td>
    <td>The
     number of milliseconds from the time a server endpoint was last
     pinged before a ping will precede the next request. The default is
@@ -426,14 +455,16 @@
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.https.idleConnectionTimeout</td>
+   <td>org.apache.river.jeri.https
+       .idleConnectionTimeout</td>
    <td>The
      number of milliseconds to retain idle client-side HTTPS connections
      before closing them. The default is <code>15000</code>.
      <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.https.idleServerConnectionTimeout</td>
+   <td>org.apache.river.jeri.https
+       .idleServerConnectionTimeout</td>
    <td>The number of milliseconds to retain idle server-side HTTPS
      connections before closing them.  The default is the idle
      client-side connection timeout (as specified by the
@@ -442,7 +473,8 @@
      <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.https.responseAckTimeout</td>
+   <td>org.apache.river.jeri.https
+       .responseAckTimeout</td>
    <td>The
      number of milliseconds to wait for acknowledgments from {@link
      net.jini.io.context.AcknowledgmentSource} instances, or to keep
@@ -451,7 +483,8 @@
    <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.https.pingProxyConnections</td>
+   <td>org.apache.river.jeri.https
+       .pingProxyConnections</td>
    <td>If
     the value is case-insensitive equal to <code>true</code>, then if an
     HTTP proxy is being used, ping the server endpoint to verify whether
@@ -468,7 +501,8 @@
    <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
-   <td>org.apache.river.jeri.https.pingProxyConnectionTimeout</td>
+   <td>org.apache.river.jeri.https
+       .pingProxyConnectionTimeout</td>
    <td>The
     number of milliseconds from the time a server endpoint was last
     pinged before a ping will precede the next request. The default is
