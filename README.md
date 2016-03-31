@@ -1,5 +1,5 @@
 # river-internet
-## This software is a fork of River-Internet, it is designed with internet security in mind and provides:
+## This software is forked from Apache River trunk, it is designed with internet security in mind and provides:
 * ObjectInput and ObjectOutput implementations for hardening deserialization in the presence of untrusted input.
 * TLSv1.2 Encrypted endpoints for RPC communication over untrusted networks, using RSA and Ephemeral Diffie Hellman key exchange and AES with GCM, non-epheremal DH key exchanges are prohibited.
 * IPv6 Multicast Discovery using X500 distinguished names with various integrity checking hash functions provided.
@@ -15,7 +15,7 @@ https://groups.google.com/forum/#!forum/river-secure-ipv6-discovery
 ## Notables:
 * Worlds fastest, highly scalable, Java security policy provider.
 * RFC3986URLClassLoader is much faster than Java's built in URLClassLoader.
-* RFC3896 compliant Uri.
+* RFC3986 compliant Uri.
 * Atomic Serialization outperforms standard Java.
 * JERI (Jini Extensible Remote Invocation) outperforms java RMI.
 * Unnecessary DNS calls have been eliminated.
