@@ -241,6 +241,8 @@ table {
  
 table#systemProp {
     width: available;
+    margin-left: 10px;
+    margin-right: 10px;
 }
 
 th {
