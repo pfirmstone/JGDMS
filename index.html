@@ -108,22 +108,22 @@
   <tr>
    <td>org.apache.river.activation
        .enableActivateGrant</td>
-   <td>This property is interpreted as a <code>boolean</code> value. If <code>true</code>, this
+   <td>This property is interpreted as a boolean value. If true, this
        implementation invokes <a href="doc/api/net/jini/security/Security#grant-java.lang.Class-java.lang.Class-">Security.grant</a>
  as defined in the specification.</td>
   </tr>
   <tr>
    <td>net.jini.discovery.IPv6</td>
-   <td>This property is interpreted as a <code>boolean</code> value. If <code>true</code>, 
+   <td>This property is interpreted as a boolean value. If true, 
  <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a> and <a href="doc/specs/html/discovery-spec.html#40029">jini-request</a> protocols will use IPv6 multicast addresses: 
  <a href="http://www.iana.org/assignments/ipv6-multicast-addresses/ipv6-multicast-addresses.xhtml">IANA IPv6 Multicast Addresses</a></td>
   </tr>
   <tr>
    <td>net.jini.discovery.GLOBAL_ANNOUNCE</td>
-   <td>This property is interpreted as a <code>boolean</code> value. If <code>true</code>, 
+   <td>This property is interpreted as a boolean value. If true, 
     <a href="doc/specs/html/discovery-spec.html#19194">jini-announcement</a>
     will join the global multicast address group FF0X::155.  
-     If <code>false</code> the 
+     If false the 
     jini-announcement protocol will join the site local multicast address group
     FF05::155.
     As defined in RFC4291, IPv6 multicast addresses which are only different
@@ -134,7 +134,7 @@
   <tr>
    <td>net.jini.jeri
        .ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
-   <td>This property is interpreted as a <code>boolean</code> value.  If <code>true</code> JERI's 
+   <td>This property is interpreted as a boolean value.  If true JERI's 
        <a href="doc/api/net/jini/jeri/BasicInvocationHandler">BasicInvocationHandler</a> or 
        <a href="doc/api/net/jini/jeri/BasicInvocationDispatcher">BasicInvocationDispatcher</a>  doesn't
        perform input validation by default, unless the required
@@ -144,9 +144,9 @@
   <tr>
    <td>org.apache.river.jeri
        .server.suppressStackTraces</td>
-   <td>If <code>true</code>, removes server-side stack traces before
+   <td>If true, removes server-side stack traces before
  marshalling an exception thrown as a result of a remote call.  The
- default value is <code>false</code>.</td>
+ default value is false.</td>
   </tr>
   <tr>
    <td>org.apache.river.jeri
@@ -156,7 +156,7 @@
   <tr>
    <td>java.rmi.server.useCodebaseOnly</td>
    <td><a href="http://docs.oracle.com/javase/7/docs/technotes/guides/rmi/enhancements-7.html">
-   Java 7 enhancement</a> It is recommended that default value of <code>true</code>
+   Java 7 enhancement</a> It is recommended that default value of true
    is used.  This has no effect on JERI and applies only to Java RMI.  Java RMI
    is not secure and should be avoided.</td>
   </tr>
@@ -164,9 +164,9 @@
    <td>org.apache.river.reggie
        .enableImplToStubReplacement</td>
    <td>This system property is interpreted as a
-    <code>boolean</code> value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang"><code>Boolean.getBoolean</code></a>).  If <code>true</code>, then JRMP impl-to-stub
+    boolean value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang">Boolean.getBoolean</a>).  If true, then JRMP impl-to-stub
     replacement will be attempted on the service proxy objects contained in
-    <a href="doc/api/net/jini/core/lookup/ServiceItem.html" title="class in net.jini.core.lookup"><code>ServiceItem</code></a>s passed to the <a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html#register-net.jini.core.lookup.ServiceItem-long-"><code>register</code></a> method of Reggie's
+    <a href="doc/api/net/jini/core/lookup/ServiceItem.html" title="class in net.jini.core.lookup">ServiceItem</a>s passed to the <a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html#register-net.jini.core.lookup.ServiceItem-long-">register</a> method of Reggie's
     proxy.  By default, this behavior is not enabled--it is provided as a
     transitional measure for services that depend on JRMP impl-to-stub
     replacement when registering with Reggie.</td>
@@ -175,8 +175,8 @@
    <td>net.jini.core.lookup.ServiceRegistrar
        .portAbitraryIfInUse</td>
    <td>This system property is interpreted as a
-    <code>boolean</code> value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang"><code>Boolean.getBoolean</code></a>). 
-    If <code>true</code>, then Reggie, will use an ephemeral port to listen 
+    boolean value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang">Boolean.getBoolean</a>). 
+    If true, then Reggie, will use an ephemeral port to listen 
     for unicast discovery requests, if the configured port is already in use. 
     This property is false by default.</td>
   </tr>
@@ -189,7 +189,7 @@
   <tr>
    <td>org.apache.river.jeri.kerberos
        .KerberosEndpoint.minGssContextLifetime</td>
-   <td>Minimum number of seconds of remaining lifetime a <code>GSSContext</code>
+   <td>Minimum number of seconds of remaining lifetime a GSSContext
       of an existing connection has to have before it can
       be considered as a candidate connection to be chosen for a new
       request. The default is 30.</td>
@@ -207,9 +207,9 @@
       one will succeed, and the rest will be considered replays
       and will be rejected by the KDC.  For this reason, the Kerberos
       provider catches the "replay" exception and retries the
-      corresponding <code>GSSContext</code> initialization
+      corresponding GSSContext initialization
       handshake.  This system property controls the maximum number
-      of retries a <code>KerberosEndpoint</code> will conduct.  The
+      of retries a KerberosEndpoint will conduct.  The
       default is 3.</td>
   </tr>
   <tr>
@@ -276,8 +276,8 @@
    <td>The secure socket protocol used with JSSE, default: TLSv1.2 </td>
   </tr><tr>
    <td>net.jini.loader.codebaseAnnotation</td>
-   <td>Revert <code>SecureClassLoader</code>'s <code>CodeSource</code> cache to use <code>URL.equals(java.lang.Object)</code>
-  and <code>URL.hashCode()</code>, when set to URL.</td>
+   <td>Revert SecureClassLoader's CodeSource cache to use URL.equals(java.lang.Object)
+  and URL.hashCode(), when set to URL.</td>
   </tr><tr>
    <td>java.rmi.server.codebase</td>
    <td>codebase annotation for proxy classes.</td>
@@ -357,22 +357,22 @@
   </tr><tr>
    <td>java.util.logging.config.file</td>
    <td>The logging configuration file is specified by the
-       <code>java.util.logging.config.file</code> system property (which is
+       java.util.logging.config.file system property (which is
        sampled at every probe), if defined, otherwise it is the
-       <code>logging.properties</code> file in the <code>lib</code> subdirectory
-       of the directory specified by the <code>java.home</code> system property.
+       logging.properties file in the lib subdirectory
+       of the directory specified by the java.home system property.
    </td>
   </tr><tr>
    <td>java.util.logging.manager</td>
    <td>Use <a href="doc/api/org/apache/river/logging/LogManager.html">org.apache.river.logging.LogManager</a> class as the value of the
-       <code>java.util.logging.manager</code> system property to permit specifying
-       the symbolic names for the <code>FAILED</code> and <code>HANDLED</code>
+       java.util.logging.manager system property to permit specifying
+       the symbolic names for the FAILED and HANDLED
        logging levels in standard logging configuration files, or to allow changes
        to the logging configuration file to be noticed.
    </td>
   </tr><tr>
    <td>org.apache.river.logging.interval</td>
-   <td>The <code>org.apache.river.logging.interval</code> logging property (obtained
+   <td>The org.apache.river.logging.interval logging property (obtained
        using {@link java.util.logging.LogManager#getProperty
        LogManager.getProperty}) specifies the time interval in milliseconds
        between probes to see if the logging configuration file has changed;
@@ -383,11 +383,11 @@
    <td>org.apache.river.outrigger
        .maxServerQueryTimeout</td>
    <td>Value (as a long) of the
-       <code>org.apache.river.outrigger.maxServerQueryTimeout</code>
+       org.apache.river.outrigger.maxServerQueryTimeout
        property in this VM, or a non-positive number if it is not set.
-       Set <code>maxServerQueryTimeout</code> in SpaceProxy2, based on the values
-       of the server's<code>maxServerQueryTimeout</code> and 
-       <code>maxServerQueryTimeout</code> system property.
+       Set maxServerQueryTimeout in SpaceProxy2, based on the values
+       of the server's maxServerQueryTimeout and 
+       maxServerQueryTimeout system property.
        If the org.apache.river.outrigger.maxServerQueryTimeout property
         was set in this VM, override the value set by the server
         when SpaceProxy2 was created.
@@ -397,7 +397,7 @@
        .idleConnectionTimeout</td>
    <td>The number of
     milliseconds to retain idle client-side HTTP connections before closing
-    them. The default is <code>15000</code>.  
+    them. The default is 15000.  
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td>
   </tr><tr>
    <td>org.apache.river.jeri.http
@@ -405,8 +405,8 @@
    <td>The
     number of milliseconds to retain idle server-side HTTP connections before
     closing them.  The default is the idle client-side connection timeout (as
-    specified by the <code>org.apache.river.jeri.http.idleConnectionTimeout</code>
-    system property) plus <code>10000</code>. 
+    specified by the org.apache.river.jeri.http.idleConnectionTimeout
+    system property) plus 10000. 
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td> 
   </tr><tr>
    <td>org.apache.river.jeri.http
@@ -414,14 +414,14 @@
    <td>The number of
     milliseconds to wait for acknowledgments from
     {@link net.jini.io.context.AcknowledgmentSource} instances.  The default is
-    <code>15000</code>.
+    15000.
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
    </td>
   </tr><tr>
    <td>org.apache.river.jeri.http
        .disableProxyPersistentConnections</td>
    <td>If
-    the value is case-insensitive equal to <code>true</code>, client-side
+    the value is case-insensitive equal to true, client-side
     connections through the HTTP proxy are not reused across requests;
     otherwise, persistent connections are maintained and reused if possible.
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
@@ -430,7 +430,7 @@
    <td>org.apache.river.jeri.http
        .pingProxyConnections</td>
    <td>If
-    the value is case-insensitive equal to <code>true</code>, then if an
+    the value is case-insensitive equal to true, then if an
     HTTP proxy is being used, ping the server endpoint to verify whether
     it is alive and reachable. The ping occurs before the first request
     and before each subsequent request which follows the expiration of
@@ -441,7 +441,7 @@
     of response from a delivered request (which might result in an
     UnmarshalException). The ping increases the likelihood that the
     inability to reach the server endpoint can be explicitly identified.
-    The default value is <code>false</code>, and no pings are done.
+    The default value is false, and no pings are done.
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
    </td>
   </tr><tr>
@@ -450,7 +450,7 @@
    <td>The
     number of milliseconds from the time a server endpoint was last
     pinged before a ping will precede the next request. The default is
-    <code>Long.MAX_VALUE</code> (essentially meaning, ping only before
+    Long.MAX_VALUE (essentially meaning, ping only before
     the first request).
     <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
    </td>
@@ -459,7 +459,7 @@
        .idleConnectionTimeout</td>
    <td>The
      number of milliseconds to retain idle client-side HTTPS connections
-     before closing them. The default is <code>15000</code>.
+     before closing them. The default is 15000.
      <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
@@ -468,8 +468,8 @@
    <td>The number of milliseconds to retain idle server-side HTTPS
      connections before closing them.  The default is the idle
      client-side connection timeout (as specified by the
-     <code>org.apache.river.jeri.https.idleConnectionTimeout</code> system
-     property) plus <code>30000</code>.
+     org.apache.river.jeri.https.idleConnectionTimeout system
+     property) plus 30000.
      <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
@@ -479,14 +479,14 @@
      number of milliseconds to wait for acknowledgments from {@link
      net.jini.io.context.AcknowledgmentSource} instances, or to keep
      track of acknowledgements that have not yet been sent. The default
-     is <code>15000</code>.
+     is 15000.
    <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
    <td>org.apache.river.jeri.https
        .pingProxyConnections</td>
    <td>If
-    the value is case-insensitive equal to <code>true</code>, then if an
+    the value is case-insensitive equal to true, then if an
     HTTP proxy is being used, ping the server endpoint to verify whether
     it is alive and reachable. The ping occurs before the first request
     and before each subsequent request which follows the expiration of
@@ -497,7 +497,7 @@
     of response from a delivered request (which might result in an
     UnmarshalException). The ping increases the likelihood that the
     inability to reach the server endpoint can be explicitly identified.
-    The default value is <code>false</code>, and no pings are done.
+    The default value is false, and no pings are done.
    <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
   </tr><tr>
@@ -506,7 +506,7 @@
    <td>The
     number of milliseconds from the time a server endpoint was last
     pinged before a ping will precede the next request. The default is
-    <code>Long.MAX_VALUE</code> (essentially meaning, ping only before
+    Long.MAX_VALUE (essentially meaning, ping only before
     the first request).
    <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    </td>
@@ -526,10 +526,10 @@
    <td>http.nonProxyHosts</td>
    <td>The names of hosts for which direct
      connections should be made rather than using the proxy server. Each
-     host name may contain '<code>*</code>' wildcard characters in any
+     host name may contain '*' wildcard characters in any
      position to match zero or more of any characters within the
      name. Multiple host names may be specified by separating the names
-     with '<code>|</code>' characters. The default is for all
+     with '|' characters. The default is for all
      connections to use the proxy server if one is specified.
    <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
    and <a href="doc/api/net/jini/jeri/http/package-summary.html">JERI http endpoints.</a>
@@ -538,21 +538,21 @@
       <td>http.proxyHost</td>
    <td>if specified, the value of this property is
   interpreted as the host name of the HTTP proxy to use.  If
-  <code>http.proxyHost</code> is not specified, then the <code>proxyHost</code>
+  http.proxyHost is not specified, then the proxyHost
   system property is consulted as a fallback; if it is not specified either,
   then HTTP proxying is disabled (i.e., all HTTP messages are sent directly to
-  the target host of the given <code>HttpEndpoint</code>).
+  the target host of the given HttpEndpoint).
   <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints.</a>
    </td>
   </tr><tr>
    <td>http.proxyPort</td>
-   <td>if <code>http.proxyHost</code> or
-  <code>proxyHost</code> is set, then the (integer) value of
-  <code>http.proxyPort</code> system property is used as the port number on
+   <td>if http.proxyHost or
+  proxyHost is set, then the (integer) value of
+  http.proxyPort system property is used as the port number on
   which to connect to the HTTP proxy; if unspecified, then the
-  <code>proxyPort</code> property is consulted as a fallback.  If neither
-  <code>http.proxyPort</code> nor <code>proxyPort</code> is specified (but
-  <code>http.proxyHost</code> or <code>proxyHost</code> is), then the HTTP
+  proxyPort property is consulted as a fallback.  If neither
+  http.proxyPort nor proxyPort is specified (but
+  http.proxyHost or proxyHost is), then the HTTP
   proxy port number defaults to 80.
   <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints.</a>
    </td>
