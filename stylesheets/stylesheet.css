@@ -44,10 +44,6 @@ table {
   border-spacing: 0;
 }
 
-table#systemProp {
-    width: 90%;
-}
-
 /*******************************************************************************
 Theme Styles
 *******************************************************************************/
@@ -242,6 +238,10 @@ table {
   margin-bottom: 20px;
   text-align: left;
  }
+ 
+table#systemProp {
+    width: 90%;
+}
 
 th {
   font-family: 'Lucida Grande', 'Helvetica Neue', Helvetica, Arial, sans-serif;
