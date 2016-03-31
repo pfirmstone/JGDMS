@@ -237,7 +237,8 @@ table {
   border: 1px solid #373737;
   margin-bottom: 20px;
   text-align: left;
-  max-width: 739px;
+  max-width: 80%;
+  font-size: 10px;
  }
  
 /*table#systemProp {
