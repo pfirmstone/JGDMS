@@ -240,7 +240,7 @@ table {
  }
  
 table#systemProp {
-    width: 90%;
+    width: available;
 }
 
 th {
