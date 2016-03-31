@@ -100,7 +100,7 @@
 <h5>
     <a id="system_properties" class="anchor" href="#system_properties" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>System properties</h5> 
     
-    <table>
+    <table id="systemProp">
   <tr>
    <td>System Property</td>
    <td>Purpose</td>
@@ -369,6 +369,163 @@
         was set in this VM, override the value set by the server
         when SpaceProxy2 was created.
    </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.http.idleConnectionTimeout</code></td>
+   <td>The number of
+    milliseconds to retain idle client-side HTTP connections before closing
+    them. The default is <code>15000</code>.  
+    <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.http.idleServerConnectionTimeout</code></td>
+   <td>The
+    number of milliseconds to retain idle server-side HTTP connections before
+    closing them.  The default is the idle client-side connection timeout (as
+    specified by the <code>org.apache.river.jeri.http.idleConnectionTimeout</code>
+    system property) plus <code>10000</code>. 
+    <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td> 
+  </tr><tr>
+   <td><code>org.apache.river.jeri.http.responseAckTimeout</code></td>
+   <td>The number of
+    milliseconds to wait for acknowledgments from
+    {@link net.jini.io.context.AcknowledgmentSource} instances.  The default is
+    <code>15000</code>.
+    <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.http.disableProxyPersistentConnections</code></td>
+   <td>If
+    the value is case-insensitive equal to <code>true</code>, client-side
+    connections through the HTTP proxy are not reused across requests;
+    otherwise, persistent connections are maintained and reused if possible.
+    <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.http.pingProxyConnections</code></td>
+   <td>If
+    the value is case-insensitive equal to <code>true</code>, then if an
+    HTTP proxy is being used, ping the server endpoint to verify whether
+    it is alive and reachable. The ping occurs before the first request
+    and before each subsequent request which follows the expiration of
+    the ping proxy timeout period (below) following the previous ping.
+    When using an HTTP proxy it is often impossible to distinguish
+    between inability to reach the server endpoint (such as because the
+    server process refused a connection by the HTTP proxy) and the lack
+    of response from a delivered request (which might result in an
+    UnmarshalException). The ping increases the likelihood that the
+    inability to reach the server endpoint can be explicitly identified.
+    The default value is <code>false</code>, and no pings are done.
+    <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.http.pingProxyConnectionTimeout</code></td>
+   <td>The
+    number of milliseconds from the time a server endpoint was last
+    pinged before a ping will precede the next request. The default is
+    <code>Long.MAX_VALUE</code> (essentially meaning, ping only before
+    the first request).
+    <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.https.idleConnectionTimeout</code></td>
+   <td>The
+     number of milliseconds to retain idle client-side HTTPS connections
+     before closing them. The default is <code>15000</code>.
+     <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.https.idleServerConnectionTimeout</code></td>
+   <td>The number of milliseconds to retain idle server-side HTTPS
+     connections before closing them.  The default is the idle
+     client-side connection timeout (as specified by the
+     <code>org.apache.river.jeri.https.idleConnectionTimeout</code> system
+     property) plus <code>30000</code>.
+     <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.https.responseAckTimeout</code></td>
+   <td>The
+     number of milliseconds to wait for acknowledgments from {@link
+     net.jini.io.context.AcknowledgmentSource} instances, or to keep
+     track of acknowledgements that have not yet been sent. The default
+     is <code>15000</code>.
+   <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.https.pingProxyConnections</code></td>
+   <td>If
+    the value is case-insensitive equal to <code>true</code>, then if an
+    HTTP proxy is being used, ping the server endpoint to verify whether
+    it is alive and reachable. The ping occurs before the first request
+    and before each subsequent request which follows the expiration of
+    the ping proxy timeout period (below) following the previous ping.
+    When using an HTTP proxy it is often impossible to distinguish
+    between inability to reach the server endpoint (such as because the
+    server process refused a connection by the HTTP proxy) and the lack
+    of response from a delivered request (which might result in an
+    UnmarshalException). The ping increases the likelihood that the
+    inability to reach the server endpoint can be explicitly identified.
+    The default value is <code>false</code>, and no pings are done.
+   <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   </td>
+  </tr><tr>
+   <td><code>org.apache.river.jeri.https.pingProxyConnectionTimeout</code></td>
+   <td>The
+    number of milliseconds from the time a server endpoint was last
+    pinged before a ping will precede the next request. The default is
+    <code>Long.MAX_VALUE</code> (essentially meaning, ping only before
+    the first request).
+   <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   </td>
+  </tr><tr>
+   <td>https.proxyHost</td>
+   <td>The host name for the secure proxy server. The
+     default is to use no proxy server.
+   <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   </td>
+  </tr><tr>
+   <td>https.proxyPort</td>
+   <td>The port for the secure proxy server. The default
+     is 443.
+   <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   </td>
+  </tr><tr>
+   <td>http.nonProxyHosts</td>
+   <td>The names of hosts for which direct
+     connections should be made rather than using the proxy server. Each
+     host name may contain '<code>*</code>' wildcard characters in any
+     position to match zero or more of any characters within the
+     name. Multiple host names may be specified by separating the names
+     with '<code>|</code>' characters. The default is for all
+     connections to use the proxy server if one is specified.
+   <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+   and <a href="doc/api/net/jini/jeri/http/package-summary.html">JERI http endpoints.</a>
+   </td>
+  </tr><tr>
+      <td><code>http.proxyHost</code></td>
+   <td>if specified, the value of this property is
+  interpreted as the host name of the HTTP proxy to use.  If
+  <code>http.proxyHost</code> is not specified, then the <code>proxyHost</code>
+  system property is consulted as a fallback; if it is not specified either,
+  then HTTP proxying is disabled (i.e., all HTTP messages are sent directly to
+  the target host of the given <code>HttpEndpoint</code>).
+  <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints.</a>
+   </td>
+  </tr><tr>
+   <td>http.proxyPort</td>
+   <td>if <code>http.proxyHost</code> or
+  <code>proxyHost</code> is set, then the (integer) value of
+  <code>http.proxyPort</code> system property is used as the port number on
+  which to connect to the HTTP proxy; if unspecified, then the
+  <code>proxyPort</code> property is consulted as a fallback.  If neither
+  <code>http.proxyPort</code> nor <code>proxyPort</code> is specified (but
+  <code>http.proxyHost</code> or <code>proxyHost</code> is), then the HTTP
+  proxy port number defaults to 80.
+  <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints.</a>
+   </td>
+  </tr><tr>
+      <td>The values of the system properties above are resampled for each new outbound
+HTTP message.</td>
+      <td></td>
   </tr>
  </table> 
       </section>
