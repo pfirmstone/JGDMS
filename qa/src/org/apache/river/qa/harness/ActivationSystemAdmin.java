@@ -202,9 +202,9 @@ public class ActivationSystemAdmin
             ArrayList l = new ArrayList(10);
             String actCommand = null;
             if (type.equals("rmid")) {
-                l.add(System.getProperty("java.home") + "/bin/rmid");
+                l.add(System.getProperty("java.home") + File.separator + "bin"+ File.separator+ "rmid");
             } else {
-                l.add(System.getProperty("java.home") + "/bin/java");
+                l.add(System.getProperty("java.home") + File.separator + "bin"+ File.separator+ "java");
             }
             l.add("-Djava.security.policy=" + getServicePolicyFile());
             String[] opts = getServiceOptions();

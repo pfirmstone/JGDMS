@@ -773,7 +773,6 @@
             <arg line="${jskprivate.include}"/>
             <arg line="-in org.apache.river.tool"/>
             <arg value="org.apache.river.tool.DebugDynamicPolicyProvider"/>
-            <arg value="org.apache.river.tool.ProfilingSecurityManager"/>
         </classdep>
         <jar destfile="${lib-ext.dir}/jsk-debug-policy.jar"
 		     index="false"
@@ -2128,6 +2127,7 @@
             <arg value="org.apache.river.tool.envcheck.plugins.CheckPersistence"/>
             <arg value="org.apache.river.tool.envcheck.plugins.CheckPolicy"	/>
             <arg value="org.apache.river.tool.envcheck.plugins.FileAccessCheckTask"	/>
+            <arg value="org.apache.river.tool.SecurityPolicyWriter"/>
         </classdep>
         <jar destfile="${lib.dir}/tools.jar" index="false"
                 manifest="${src.manifest.dir}/tools.mf">

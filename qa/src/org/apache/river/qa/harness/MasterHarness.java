@@ -223,11 +223,12 @@ class MasterHarness {
 	try {
 	    Class  policyClass = 
 		Class.forName("org.apache.river.qa.harness.MergedPolicyProvider");
-	    if (policyClass.getClassLoader().getParent() != null) {
-		outStream.println("MergedPolicyprovider must be "
-				+ "installed in an extensions ClassLoader");
-//		System.exit(1);
-	    }
+            //JDK 9 will not allow policy provider to be installed in extensions ClassLoader
+//	    if (policyClass.getClassLoader().getParent() != null) {
+//		outStream.println("MergedPolicyprovider must be "
+//				+ "installed in an extensions ClassLoader");
+////		System.exit(1);
+//	    }
 	} catch (Exception e) {
 	    outStream.println("failed to find MergedPolicyProvider");
 	    System.exit(1);

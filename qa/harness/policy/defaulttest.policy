@@ -93,6 +93,8 @@ grant {
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.fiddler";
     permission java.net.NetPermission "getNetworkInformation";
     permission java.net.URLPermission "http:*", "GET:";
+    permission java.util.logging.LoggingPermission "control";
+    permission java.lang.RuntimePermission "getenv.SOUL";
 };
 
 // needed by some io tests
