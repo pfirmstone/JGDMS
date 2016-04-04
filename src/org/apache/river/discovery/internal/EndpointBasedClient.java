@@ -188,6 +188,7 @@ public abstract class EndpointBasedClient
 	byte [] encodedCerts = new byte[length];
 	din.readFully(encodedCerts);
 	PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+        pgb.context(PermissionGrantBuilder.URI);
 	pgb.permissions(
 	    new Permission []{
 		new DownloadPermission(),
@@ -195,7 +196,7 @@ public abstract class EndpointBasedClient
 	    }
 	);
 	PermissionGrant grant = null;
-	if (length > 0){ // Make a Certificate grant.
+	if (length > 0){ // Make grant to CodeSource with URI, with Certificate signers.
 	    try {
 		CertificateFactory factory = 
 		    CertificateFactory.getInstance(certFactoryType);
@@ -205,16 +206,16 @@ public abstract class EndpointBasedClient
 
 		Collection<? extends Certificate> certs = certPath.getCertificates();
 		pgb.certificates(certs.toArray(new Certificate[certs.size()]));
-		grant = pgb.build();
+                if (!classAnnotation.isEmpty()) { // Make a URI grant.
+                    String [] classAnnotations = classAnnotation.split(" ");
+                    for (int i = 0, l = classAnnotations.length; i < l ; i++){
+                        pgb.uri(formatName);
+                    }
+                    grant = pgb.build();
+                } 
 	    } catch (CertificateException ex) {
 		Logger.getLogger(Client.class.getName()).log(Level.INFO, "unable to build certficate", ex);
 	    }
-	} else if (!classAnnotation.isEmpty()) { // Make a URI grant.
-	    String [] classAnnotations = classAnnotation.split(" ");
-	    for (int i = 0, l = classAnnotations.length; i < l ; i++){
-		pgb.uri(formatName);
-	    }
-	    grant = pgb.build();
 	} 
 	if (grant != null){
 	    final PermissionGrant g = grant;

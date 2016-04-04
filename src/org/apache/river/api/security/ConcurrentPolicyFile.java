@@ -174,8 +174,6 @@ import net.jini.security.policy.PolicyInitializationException;
  * clause has precedence over all GRANT clause Permissions except for AllPermission.
  * <br>
  * This implementation is thread-safe and scalable.
- * @author Peter Firmstone.
- * @since 2.2.1
  */
 
 public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy {

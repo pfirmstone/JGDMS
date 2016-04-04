@@ -17,6 +17,7 @@
  */
 package org.apache.river.qa.harness;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Field;
@@ -127,7 +128,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 	if (vm == null) {
 	    vm = System.getProperty("java.home");
 	}
-	l.add(vm + "/bin/java");
+	l.add(vm + File.separator + "bin"+ File.separator+ "java");
 	l.add("-Djava.rmi.server.codebase=" + getServiceCodebase());
 	l.add("-Djava.security.policy=" + getServicePolicyFile());
 	String[] opts = getServiceOptions();

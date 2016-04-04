@@ -153,12 +153,11 @@ import org.apache.river.resource.Service;
  */
 public final class Security {
 
-    private static final Logger trustLogger =
-		Logger.getLogger("net.jini.security.trust");
-    private static final Logger integrityLogger =
-		Logger.getLogger("net.jini.security.integrity");
-    private static final Logger policyLogger =
-		Logger.getLogger("net.jini.security.policy");
+    private static Logger trustLogger;
+    private static Logger integrityLogger;
+    private static Logger policyLogger;
+    
+    private static final Object loggingLock = new Object();
 
     /**
      * Weak map from String to [URL[], SoftReference(key)]
@@ -177,6 +176,39 @@ public final class Security {
 	AccessController.doPrivileged(new PrivilegedAction() {
 	    public Object run() { return new ClassContextAccess(); }
 	});
+
+    /**
+     * @return the trustLogger
+     */
+    private static Logger getTrustLogger() {
+        synchronized (loggingLock){
+            if (trustLogger != null) return trustLogger;
+            trustLogger = Logger.getLogger("net.jini.security.trust");
+            return trustLogger;
+        }
+    }
+
+    /**
+     * @return the integrityLogger
+     */
+    private static Logger getIntegrityLogger() {
+        synchronized (loggingLock){
+            if (integrityLogger != null) return integrityLogger;
+            integrityLogger = Logger.getLogger("net.jini.security.integrity"); 
+            return integrityLogger;
+        }
+    }
+
+    /**
+     * @return the policyLogger
+     */
+    private static Logger getPolicyLogger() {
+        synchronized (loggingLock){
+            if (policyLogger != null) return policyLogger;
+            policyLogger = Logger.getLogger("net.jini.security.policy");
+            return policyLogger;
+        }
+    }
 
     /**
      * Non-instantiable.
@@ -268,8 +300,8 @@ public final class Security {
 	}
 	SecurityException e = new SecurityException(
 					    "object is not trusted: " + obj);
-	if (trustLogger.isLoggable(Levels.FAILED)) {
-	    logThrow(trustLogger, Levels.FAILED,
+	if (getTrustLogger().isLoggable(Levels.FAILED)) {
+	    logThrow(getTrustLogger(), Levels.FAILED,
 		     Security.class.getName(), "verifyObjectTrust",
 		     "no verifier trusts {0}",
 		     new Object[]{obj}, e);
@@ -332,8 +364,8 @@ public final class Security {
 	for (int i = urls.length; --i >= 0; ) {
 	    for (int j = 0; j < verifiers.length; j++) {
 		if (verifiers[j].providesIntegrity(urls[i])) {
-		    if (integrityLogger.isLoggable(Level.FINE)) {
-			integrityLogger.log(Level.FINE, 
+		    if (getIntegrityLogger().isLoggable(Level.FINE)) {
+			getIntegrityLogger().log(Level.FINE, 
 					    "{0} verifies {1}",
 					     new Object[]{verifiers[j],
 							  urls[i]});
@@ -344,8 +376,8 @@ public final class Security {
 	    SecurityException e =
 		new SecurityException("URL does not provide integrity: " +
 				      urls[i]);
-	    if (integrityLogger.isLoggable(Levels.FAILED)) {
-		logThrow(integrityLogger, Levels.FAILED,
+	    if (getIntegrityLogger().isLoggable(Levels.FAILED)) {
+		logThrow(getIntegrityLogger(), Levels.FAILED,
 			 Security.class.getName(), "verifyCodebaseIntegrity",
 			 "no verifier verifies {0}", new Object[]{urls[i]}, e);
 	    }
@@ -424,8 +456,8 @@ public final class Security {
 		    return null;
 		}
 	    });
-	    if (integrityLogger.isLoggable(Level.FINE)) {
-		integrityLogger.logp(Level.FINE, Security.class.getName(),
+	    if (getIntegrityLogger().isLoggable(Level.FINE)) {
+		getIntegrityLogger().logp(Level.FINE, Security.class.getName(),
 				     "verifyCodebaseIntegrity",
 				     "integrity verifiers {0}",
 				     new Object[]{list});
@@ -792,6 +824,14 @@ public final class Security {
 		((RevocablePolicy) policy).revokeSupported());
     }
     
+    /**
+     * Grant permissions contained by the <code>PermissionGrant</code> to
+     * those implied by the <code>PermissionGrant</code>.
+     * 
+     * @param grant 
+     * @throws UnsupportedOperationException if policy provider is not an
+     * instance of RevocablePolicy or revocation is not supported.
+     */
     public static void grant(PermissionGrant grant) {
 	Policy policy = getPolicy();
 	if (!((policy instanceof RevocablePolicy)&& 
@@ -799,8 +839,8 @@ public final class Security {
 	    throw new UnsupportedOperationException("revocable grants not supported");
 	}
 	((RevocablePolicy) policy).grant(grant);
-	if (policyLogger.isLoggable(Level.FINER)) {
-	    policyLogger.log(Level.FINER, "granted {0}",
+	if (getPolicyLogger().isLoggable(Level.FINER)) {
+	    getPolicyLogger().log(Level.FINER, "granted {0}",
 		new Object[]{grant.toString()});
 	}
     }
@@ -907,8 +947,8 @@ public final class Security {
 	    throw new UnsupportedOperationException("grants not supported");
 	}
 	((DynamicPolicy) policy).grant(cl, principals, permissions);
-	if (policyLogger.isLoggable(Level.FINER)) {
-	    policyLogger.log(Level.FINER, "granted {0} to {1}, {2}",
+	if (getPolicyLogger().isLoggable(Level.FINER)) {
+	    getPolicyLogger().log(Level.FINER, "granted {0} to {1}, {2}",
 		new Object[]{
 		    (permissions != null) ? Arrays.asList(permissions) : null,
 		    (cl != null) ? cl.getName() : null,
@@ -965,8 +1005,8 @@ public final class Security {
 	    grantablePermissions(dpolicy.getGrants(fromClass, principals));
 
 	dpolicy.grant(toClass, principals, permissions);
-	if (policyLogger.isLoggable(Level.FINER)) {
-	    policyLogger.log(Level.FINER, "granted {0} from {1} to {2}, {3}",
+	if (getPolicyLogger().isLoggable(Level.FINER)) {
+	    getPolicyLogger().log(Level.FINER, "granted {0} from {1} to {2}, {3}",
 		new Object[]{
 		    (permissions != null) ? Arrays.asList(permissions) : null,
 		    fromClass.getName(), 
@@ -1104,8 +1144,8 @@ public final class Security {
 			return null;
 		    }
 		});
-		if (trustLogger.isLoggable(Level.FINE)) {
-		    trustLogger.logp(Level.FINE, Security.class.getName(),
+		if (getTrustLogger().isLoggable(Level.FINE)) {
+		    getTrustLogger().logp(Level.FINE, Security.class.getName(),
 				     "verifyObjectTrust",
 				     "trust verifiers {0}", list);
 		}
@@ -1129,8 +1169,8 @@ public final class Security {
 	    for (int i = 0; i < verifiers.length; i++) {
 		try {
 		    if (verifiers[i].isTrustedObject(obj, this)) {
-			if (trustLogger.isLoggable(Level.FINE)) {
-			    trustLogger.log(Level.FINE,
+			if (getTrustLogger().isLoggable(Level.FINE)) {
+			    getTrustLogger().log(Level.FINE,
 					    "{0} trusts {1}",
 					    new Object[]{verifiers[i], obj});
 			}
@@ -1140,8 +1180,8 @@ public final class Security {
 		    boolean rethrow = (e instanceof RuntimeException &&
 				       !(e instanceof SecurityException));
 		    Level level = rethrow ? Levels.FAILED : Levels.HANDLED;
-		    if (trustLogger.isLoggable(level)) {
-			logThrow(trustLogger, level,
+		    if (getTrustLogger().isLoggable(level)) {
+			logThrow(getTrustLogger(), level,
 				 this.getClass().getName(),
 				 "isTrustedObject",
 				 "{0} checking {1} throws",
@@ -1155,8 +1195,8 @@ public final class Security {
 		}
 	    }
 	    if (ex != null) {
-		if (trustLogger.isLoggable(Levels.FAILED)) {
-		    logThrow(trustLogger, Levels.FAILED,
+		if (getTrustLogger().isLoggable(Levels.FAILED)) {
+		    logThrow(getTrustLogger(), Levels.FAILED,
 			     this.getClass().getName(), "isTrustedObject",
 			     "checking {0} throws",
 			     new Object[]{obj}, ex);
@@ -1166,8 +1206,8 @@ public final class Security {
 		}
 		throw (SecurityException) ex;
 	    }
-	    if (trustLogger.isLoggable(Level.FINE)) {
-		trustLogger.log(Level.FINE, "no verifier trusts {0}", obj);
+	    if (getTrustLogger().isLoggable(Level.FINE)) {
+		getTrustLogger().log(Level.FINE, "no verifier trusts {0}", obj);
 	    }
 	    return false;
 	}

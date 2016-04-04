@@ -606,7 +606,7 @@ public class TestDescription implements Serializable {
 	ArrayList cmdList = new ArrayList(10);
 	cmdList.add(getJVM());
         // Uncomment the following line if you want to debug permission requests
-//        cmdList.add("-Djava.security.manager=org.apache.river.tool.ProfilingSecurityManager");
+//        cmdList.add("-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter");
 //        cmdList.add("-Djava.security.manager=java.lang.SecurityManager");
         cmdList.add("-Djava.security.manager=org.apache.river.api.security.CombinerSecurityManager");
 	cmdList.add("-Djava.security.policy=" + getPolicyFile());

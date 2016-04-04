@@ -294,7 +294,7 @@
                 <jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>
                 <!--Use the following security manager if you need to discover which jar
                 file requires a particular permission, note this only works for the harness here -->
-                <!--<jvmarg value="-Djava.security.manager=org.apache.river.tool.ProfilingSecurityManager"/>-->
+                <!--<jvmarg value="-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter"/>-->
                 <!--<jvmarg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
                 <!--Enable the following if you don't want to use any other policy's note == -->
                 <!--<jvmarg value="-Djava.security.policy==${security.policy}" />-->
@@ -314,6 +314,7 @@
                 <jvmarg value="-Dorg.apache.river.qa.harness.configs=${harness.configs}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml=${harness.generateHtml}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
+                <!--<jvmarg value="-Dorg.apache.river.tool.SecurityPolicyWriter.Directory=${river.home}/qa/build/policy"/>-->
 
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />
                 
@@ -336,6 +337,7 @@
                         <include name="jsk-platform.jar"/>
                         <include name="jsk-lib.jar"/>
                         <include name="high-scale-lib.jar"/>
+                        <include name="tools.jar"/>
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>

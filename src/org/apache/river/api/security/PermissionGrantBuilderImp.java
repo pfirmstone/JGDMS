@@ -22,21 +22,14 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.net.URISyntaxException;
 import java.util.Collection;
 import java.lang.ref.WeakReference;
-import java.net.URI;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.apache.river.api.net.Uri;
 
 /**
  * PermissionGrantBuilderImp represents the serialized form of all

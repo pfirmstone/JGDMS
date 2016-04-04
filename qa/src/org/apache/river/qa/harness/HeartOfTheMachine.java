@@ -68,7 +68,7 @@ public class HeartOfTheMachine
     {
         try {
             while( hasReasonToLive() ) {
-                Thread.sleep( TimeUnit.SECONDS.toMillis(10) );
+                Thread.sleep( TimeUnit.SECONDS.toMillis(300000) );//5 minutes
             }
             Runtime.getRuntime().halt(100);
         } catch( InterruptedException e ) {
