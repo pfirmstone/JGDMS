@@ -255,7 +255,6 @@
                 <equals arg1="${ant.java.version}" arg2="1.4"/>
                 <equals arg1="${ant.java.version}" arg2="1.5"/>
                 <equals arg1="${ant.java.version}" arg2="1.6"/>
-                <equals arg1="${ant.java.version}" arg2="1.7"/>
             </or>
         </condition>
         <fail if="unsupported.jdk">Building ${product.name} requires JDK 1.8 or greater.</fail>
