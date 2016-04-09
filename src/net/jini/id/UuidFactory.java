@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.security.SecureRandom;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.net.Uri;
 
 /**
  * Provides static methods for creating {@link Uuid} instances.
@@ -60,6 +61,25 @@ public final class UuidFactory {
      **/
     public static Uuid create(long bits0, long bits1) {
 	return new Impl(bits0, bits1);
+    }
+    
+    /**
+     * Generate a Uuid from a RFC 4122 Compliant URN.
+     * 
+     * @param urn RFC 4122 Complaint URN.
+     * @return Uuid
+     * @throws IllegalArgumentException if the supplied URN scheme isn't uri.
+     */
+    public static Uuid create(Uri urn){
+        String scheme = urn.getScheme();
+        if (!"urn".equalsIgnoreCase(scheme)) throw new IllegalArgumentException("Scheme must be URN");
+        if (!urn.isAbsolute()) throw new IllegalArgumentException("URN not absolute");
+        if (!urn.isOpaque()) throw new IllegalArgumentException("URN not opaque");
+        String schemeSpecificPart = urn.getRawSchemeSpecificPart();
+        int index = schemeSpecificPart.indexOf(":");
+        String uuid = schemeSpecificPart.substring(0, index);
+        if (!uuid.equalsIgnoreCase("uuid")) throw new IllegalArgumentException("Scheme other than Uuid");
+        return create(schemeSpecificPart.substring(index + 1));
     }
 
     /**

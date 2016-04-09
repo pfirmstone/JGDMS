@@ -27,6 +27,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.net.Uri;
 
 /**
  * A 128-bit value to serve as a universally unique identifier.  Two
@@ -227,6 +228,14 @@ public class Uuid implements Serializable {
     }
 
     /**
+     * Converts Uuid to an RFC4122 compliant URI containing the Uuid.
+     * 
+     * @return a RFC4122 compliant URI.
+     */
+    public final Uri toUri(){
+        return Uri.create("urn:uuid:" + toString());
+    }
+    /**
      * Returns a string representation of this <code>Uuid</code>.
      *
      * <p>The string representation is 36 characters long, with five
@@ -249,9 +258,9 @@ public class Uuid implements Serializable {
      *
      * <li><code>node</code> (12 hexadecimal digits)
      *
+     * <p>As an example, a <code>Uuid</code> with the 128-bit value
      * </ul>
      *
-     * <p>As an example, a <code>Uuid</code> with the 128-bit value
      *
      * <pre>0x0123456789ABCDEF0123456789ABCDEF</pre>
      *
