@@ -82,9 +82,10 @@ public class Valid {
      * @param type
      * @return the populated destination collection.
      * @throws ClassCastException
-     * @throws NullPointerException if any parameter is null.
+     * @throws NullPointerException if any parameter, other than source is null.
      */
     public static <T extends Collection<E>, E> T copyCol(T source, T destination, Class<E> type) {
+	if (source == null) return null;
 	Collection typeCheckedView = Collections.checkedCollection(destination, type);
 	typeCheckedView.addAll(source);
 	return destination;
