@@ -224,8 +224,8 @@ public class RemoteEvent extends java.util.EventObject {
      * @return the MarshalledInstance that was provided as a parameter to
      *         the event interest registration method, if any. 
      */
-    public MarshalledInstance getRegistrationObject2() {
-	return new MarshalledInstance(handback);
+    public MarshalledInstance getHandback() {
+	return new MarshalledInstance(getRegistrationObject());
     }
 
     /**

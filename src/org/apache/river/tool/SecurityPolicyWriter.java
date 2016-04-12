@@ -21,7 +21,6 @@ package org.apache.river.tool;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FilePermission;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,6 +49,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.PrivateCredentialPermission;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import org.apache.river.api.security.CombinerSecurityManager;
@@ -209,14 +209,25 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
             Collection<Permission> existed = policy.putIfAbsent(pd, perms);
             if (existed != null) perms = existed;
         }
-        perms.add(p);
-        CodeSource cs = pd.getCodeSource();
+	CodeSource cs = null;
+	try {
+	    cs = pd.getCodeSource();
+	    pd.getPrincipals();
+	} catch (NullPointerException e){
+	    // On some occassions ProtectionDomain hasn't been
+	    // safely published.
+	    System.err.println(
+		"ProtectionDomain wasn't safely published." 
+	    );
+	    e.printStackTrace(System.err);
+	}
         if (cs != null){
             Certificate [] signers = cs.getCertificates();
             if (signers != null && signers.length > 0){
                 exec.submit(new Certs(signers));
             }
         }
+        perms.add(p);
         return true;
     }
     
@@ -252,8 +263,19 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
                 while (it.hasNext()){
                     Entry<ProtectionDomain,Collection<Permission>> entry = it.next();
                     ProtectionDomain pd = entry.getKey();
-                    CodeSource cs = pd.getCodeSource(); 
-                    Principal [] principals = pd.getPrincipals();
+                    CodeSource cs = null; 
+                    Principal [] principals = null;
+		    try {
+			cs = pd.getCodeSource();
+			principals = pd.getPrincipals();
+		    } catch (NullPointerException e){
+			// On some occassions ProtectionDomain hasn't been
+			// safely published.
+			System.err.println(
+			    "ProtectionDomain wasn't safely published: " 
+			    + pd.toString()
+			);
+		    }
                     if (cs != null || (principals != null && principals.length > 0)){
                         URL codebase = cs.getLocation();
                         pw.print("grant ");
@@ -302,13 +324,32 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
                             pw.print("    permission ");
                             pw.print(p.getClass().getCanonicalName());
                             pw.print(" \"");
-                            /* Some complex permissions have quoted strings embedded or
-                            literal carriage returns that must be escaped.  */
-                            String name = p.getName().replace("\"","\\\"").replace("\r","\\\r");
-//                            if (p instanceof FilePermission){
-//                                    name = name.replace(File.separator, "${/}");
-//                            }
-                            pw.print(name);
+			    if (p instanceof PrivateCredentialPermission){
+				PrivateCredentialPermission pcp = (PrivateCredentialPermission) p;
+				String credential = pcp.getCredentialClass();
+				String [][] princpals = pcp.getPrincipals();
+				StringBuilder sb = new StringBuilder();
+				sb.append(credential);
+				sb.append(" ");
+				for (int i=0,l=princpals.length; i<l; i++){
+				    String [] pals = princpals [i];
+				    for (int j=0,m=pals.length; j<m; j++){
+					sb.append(pals[j]);
+					if (j < m-1) sb.append(" \\\"");
+					else sb.append("\\\"");
+				    }
+				    if (i < l-1) sb.append(" ");
+				}
+				pw.print(sb.toString());
+			    } else {
+				/* Some complex permissions have quoted strings embedded or
+				literal carriage returns that must be escaped.  */
+				String name = p.getName().replace("\"","\\\"").replace("\r","\\\r");
+    //                            if (p instanceof FilePermission){
+    //                                    name = name.replace(File.separator, "${/}");
+    //                            }
+				pw.print(name);
+			    }
                             String actions = p.getActions();
                             if (actions != null && !"".equals(actions)){
                                 pw.print("\", \"");

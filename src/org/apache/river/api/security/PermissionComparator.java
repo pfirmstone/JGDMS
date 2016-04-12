@@ -23,6 +23,7 @@ import java.security.UnresolvedPermission;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Comparator;
+import javax.security.auth.PrivateCredentialPermission;
 
 /**
  * A Comparator for Permission that avoids using equals and hashCode() on
@@ -68,7 +69,8 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
         if (hash1 < hash2) return -1;
         if (hash1 > hash2) return 1;
         //hashcodes equal.
-        if (o1 instanceof UnresolvedPermission && o2 instanceof UnresolvedPermission){
+        if (o1 instanceof UnresolvedPermission 
+		&& o2 instanceof UnresolvedPermission){
             // Special case
             UnresolvedPermission u1 = (UnresolvedPermission) o1, u2 = (UnresolvedPermission) o2;
             String type1 = u1.getUnresolvedType(), type2 = u2.getUnresolvedType();
@@ -116,7 +118,47 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
                 if (c != 0) return c;
             }
             return -1;
-        }
+        } else if (o1 instanceof PrivateCredentialPermission && 
+		o2 instanceof PrivateCredentialPermission){
+	    // PrivateCredentialPermission.getName() may only include the credential
+	    // while the action always equals read.
+	    PrivateCredentialPermission p1 = (PrivateCredentialPermission) o1;
+	    PrivateCredentialPermission p2 = (PrivateCredentialPermission) o2;
+	    String cred1 = p1.getCredentialClass(), cred2 = p2.getCredentialClass();
+	    if (cred1 == null){
+		if (cred2 ==null) return 0;
+		return -1; //o1 is less
+	    }
+	    if (cred2 == null) return 1; //o1 is greater
+	    comparison = cred1.compareTo(cred2);
+	    if ( comparison != 0 ) return comparison;
+	    // credentials equal
+	    String [][] prin1 = p1.getPrincipals();
+	    String [][] prin2 = p2.getPrincipals();
+	    int len1 = prin1.length, len2 = prin2.length;
+	    if (len1 < len2) return -1;
+	    if (len1 > len2) return 1;
+	    // lengths equal
+	    // Now we could get complex and order the Principal class names
+	    // and principal names, for more accurate equals, however the only
+	    // consequence of not doing so, is that equivalent permissions
+	    // may be contained, in the same collection.
+	    for (int i=0; i<len1; i++){
+		String [] pr1 = prin1[i];
+		String [] pr2 = prin2[i];
+		// length should always be 2, but just in case.
+		int l1 = pr1.length;
+		int l2 = pr2.length;
+		if (l1 < l2) return -1;
+		if (l1 > l2) return 2;
+		// length equal
+		for (int j=0; j<l1; j++){
+		    comparison = pr1[j].compareTo(pr2[j]);
+		    if (comparison != 0) return comparison;
+		}
+	    }
+	    return -1;
+	}
         String name1 = o1.getName();
         String name2 = o2.getName();
         if ( name1 == null ){
