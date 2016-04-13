@@ -1099,10 +1099,7 @@ class SslServerEndpointImpl extends Utilities {
 
 	/* inherit javadoc */
 	public String toString() {
-	    String sessionString;
-	    synchronized (this) {
-		sessionString = session == null ? "" : session + ", ";
-	    }
+	    String sessionString = session == null ? "" : session + ", ";
 	    return getClassName(this) + "[" +
 		sessionString + 
 		serverHost + ":" + sslSocket.getLocalPort() + "<=" +
