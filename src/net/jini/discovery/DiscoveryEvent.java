@@ -18,6 +18,7 @@
 package net.jini.discovery;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.util.EventObject;
 import java.util.HashMap;
@@ -95,7 +96,7 @@ public class DiscoveryEvent extends EventObject {
     }
     
     private static Map<ServiceRegistrar, String[]>  check(
-	    Map<ServiceRegistrar, String[]> groups){
+	    Map<ServiceRegistrar, String[]> groups) throws InvalidObjectException{
 	if (groups == null) return null; // groups ok to be null.
 	Map<ServiceRegistrar, String[]> result 
 		= new HashMap<ServiceRegistrar, String[]>(groups.size());

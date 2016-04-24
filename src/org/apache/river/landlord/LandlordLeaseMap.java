@@ -17,10 +17,10 @@
  */
 package org.apache.river.landlord;
 
+import java.io.InvalidObjectException;
 import java.rmi.RemoteException;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -132,7 +132,11 @@ public class LandlordLeaseMap extends AbstractIDLeaseMap {
 	    // Everything worked out, normal return
 	    return;
 	} else {
-	    rslt = Valid.copyMap(rslt, new HashMap(rslt.size()), Uuid.class, UnknownLeaseException.class); // In case the map was serialized.
+            try {
+                rslt = Valid.copyMap(rslt, new HashMap(rslt.size()), Uuid.class, UnknownLeaseException.class); // In case the map was serialized.
+            } catch (InvalidObjectException ex) {
+                throw new RemoteException("Invalid map returned: ", ex);
+            }
             LandlordLease[] leasesA = leases.toArray(new LandlordLease[leases.size()]);
 	    // Some the leases could not be canceled, generate a
 	    // LeaseMapException
