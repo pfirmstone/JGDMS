@@ -328,6 +328,7 @@
             <package name="org.apache.river.discovery.ssl.sha256"/>
             <package name="org.apache.river.discovery.ssl.sha384"/>
             <package name="org.apache.river.discovery.ssl.sha512"/>
+            <package name="org.apache.river.discovery.https"/>
             <package name="org.apache.river.discovery.x500.sha1withdsa"/>
             <package name="org.apache.river.discovery.x500.sha1withrsa"/>
             <package name="org.apache.river.discovery.x500.sha256withdsa"/>
@@ -795,6 +796,8 @@
             <arg path="${build.classes.dir}/org/apache/river/admin"/>
             <arg path="${build.classes.dir}/org/apache/river/lease"/>
             <arg path="${build.classes.dir}/org/apache/river/proxy"/>
+            <arg path="${build.classes.dir}/org/apache/river/api/io"/>
+            <arg path="${build.classes.dir}/org/apache/river/impl"/>
             <arg path="${build.classes.dir}/net/jini/admin"/>
             <arg path="${build.classes.dir}/net/jini/entry"/>
             <arg path="${build.classes.dir}/net/jini/event"/>
