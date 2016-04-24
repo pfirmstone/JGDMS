@@ -29,6 +29,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import net.jini.core.constraint.InvocationConstraints;
+import org.apache.river.discovery.https.DiscoveryUnicastHTTPS;
 
 /**
  * Utility class used by implementations which want to perform unicast
@@ -40,9 +41,7 @@ public abstract class MultiIPDiscovery {
     // Default value for unicast socket timeout
     public final static int DEFAULT_TIMEOUT = 60 * 1000;
 
-    public UnicastResponse getResponse(String host,
-				       int port,
-				       InvocationConstraints constraints)
+    public UnicastResponse getResponse(String scheme, String host, int port, InvocationConstraints constraints)
 	throws IOException, ClassNotFoundException
     {
 	InetAddress addrs[] = null;
@@ -56,16 +55,26 @@ public abstract class MultiIPDiscovery {
 	DiscoveryConstraints dc = DiscoveryConstraints.process(constraints);
 	int pv = dc.chooseProtocolVersion();
 	Discovery disco;
-	switch (pv) {
-	    case Discovery.PROTOCOL_VERSION_1:
-		disco = Discovery.getProtocol1();
-		break;
-	    case Discovery.PROTOCOL_VERSION_2:
-		disco = Discovery.getProtocol2(null);
-		break;
-	    default:
-		throw new AssertionError(pv);
-	}
+        /*
+         * https is not a jini discovery protocol, it is the https protocol,
+         * therefore we cannot perform a handshake to select the discovery
+         * provider, or the version.  This is only provided to allow
+         * Unicast Discovery to transit through a https proxy server or firewall.
+         */
+        if ("https".equals(scheme)){
+            disco = new DiscoveryUnicastHTTPS();
+        } else {
+            switch (pv) {
+                case Discovery.PROTOCOL_VERSION_1:
+                    disco = Discovery.getProtocol1();
+                    break;
+                case Discovery.PROTOCOL_VERSION_2:
+                    disco = Discovery.getProtocol2(null);
+                    break;
+                default:
+                    throw new AssertionError(pv);
+            }
+        }
 
 	long deadline = dc.getConnectionDeadline(Long.MAX_VALUE);
 	long connectionTimeout = getTimeout(deadline);

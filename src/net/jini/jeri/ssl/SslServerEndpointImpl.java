@@ -94,16 +94,6 @@ class SslServerEndpointImpl extends Utilities {
     static final Logger logger = serverLogger;
 
     /**
-     * The maximum time a session should be used before expiring -- non-final
-     * to facilitate testing.  Use 24 hours to allow the client, which uses
-     * 23.5 hours, to renegotiate a new session before the server timeout.
-     */
-    private final long maxServerSessionDuration =
-	((Long) Security.doPrivileged(
-	    new GetLongAction("org.apache.river.jeri.ssl.maxServerSessionDuration",
-			      24L * 60L * 60L * 1000L))).longValue();
-
-    /**
      * Executes a Runnable in a system thread -- used for listener accept
      * threads.
      */
@@ -119,114 +109,18 @@ class SslServerEndpointImpl extends Utilities {
     /** The associated server endpoint. */
     private final ServerEndpoint serverEndpoint;
 
-    /** The server subject, or null if the server is anonymous. */
-    private final Subject serverSubject;
-
-    /**
-     * The principals to use for authentication, or null if the server is
-     * anonymous.
-     */
-    final Set serverPrincipals;
-
-    /**
-     * The host name that clients should use to connect to this server, or null
-     * if enumerateListenEndpoints should compute the default.
-     */
-    final String serverHost;
-
-    /** The server port */
-    final int port;
-
-    /** The socket factory for use in the associated Endpoint. */
-    final SocketFactory socketFactory;
-
-    /** The server socket factory. */
-    final ServerSocketFactory serverSocketFactory;
-
-    /**
-     * The permissions needed to authenticate when listening on this endpoint,
-     * or null if the server is anonymous.  Effectively immutable array.
-     */
-    private final Permission[] listenPermissions;
-
     /** The listen endpoint. */
-    private final ListenEndpoint listenEndpoint;
-
-    /** The factory for creating JSSE sockets -- set by sslInit */
-    private SSLSocketFactory sslSocketFactory; // Synchronized on this
-
-    /**
-     * The authentication manager for the SSLContext for this endpoint -- set
-     * by sslInit.
-     */
-    private ServerAuthManager authManager; // Synchronized on this
-
-    /** The server connection manager. */
-    ServerConnManager serverConnectionManager = defaultServerConnectionManager;
-
-    /* -- Methods -- */
+    private final SslListenEndpoint listenEndpoint;
 
     /** Creates an instance of this class. */
     SslServerEndpointImpl(ServerEndpoint serverEndpoint,
-			  Subject serverSubject,
-			  X500Principal[] serverPrincipals,
-			  String serverHost,
-			  int port,
-			  SocketFactory socketFactory,
-			  ServerSocketFactory serverSocketFactory)
+                            SslListenEndpoint listenEndpoint)
     {
 	this.serverEndpoint = serverEndpoint;
-	boolean useCurrentSubject = serverSubject == null;
-	if (useCurrentSubject) {
-	    final AccessControlContext acc = AccessController.getContext();
-	    serverSubject = (Subject) AccessController.doPrivileged(
-		new PrivilegedAction() {
-		    public Object run() {
-			return Subject.getSubject(acc);
-		    }
-		});
-	}
-	this.serverPrincipals = (serverPrincipals == null)
-	    ? computePrincipals(serverSubject)
-	    : checkPrincipals(serverPrincipals);
-	/* Set listenPermissions before calling hasListenPermissions */
-        Permission [] listenPermissions;
-	if (this.serverPrincipals == null) {
-	    listenPermissions = null;
-            } else {
-	    listenPermissions =
-		new AuthenticationPermission[this.serverPrincipals.size()];
-	    int i = 0;
-	    for (Iterator iter = this.serverPrincipals.iterator();
-		 iter.hasNext();
-		 i++)
-	    {
-		Principal p = (Principal) iter.next();
-		listenPermissions[i] = new AuthenticationPermission(
-		    Collections.singleton(p), null, "listen");
-	    }
-	}
-	if (this.serverPrincipals == null ||
-	    /* Don't use current subject without any permission */
-	    (useCurrentSubject &&
-	     serverPrincipals != null &&
-	     !hasListenPermissions()))
-	{
-	    this.serverSubject = null;
-	    listenPermissions = null;
-	} else {
-            this.serverSubject = serverSubject;
-	}
-        this.listenPermissions = listenPermissions;
-	this.serverHost = serverHost;
-	if (port < 0 || port > 0xFFFF) {
-	    throw new IllegalArgumentException("Invalid port: " + port);
-	}
-	this.port = port;
-	this.socketFactory = socketFactory;
-	this.serverSocketFactory = serverSocketFactory;
-	listenEndpoint = createListenEndpoint();
+	this.listenEndpoint = listenEndpoint;
     }
+    
+    /* -- Methods -- */
 
     /** Computes the principals in the subject available for authentication */
     private static Set computePrincipals(Subject subject) {
@@ -262,31 +156,14 @@ class SslServerEndpointImpl extends Utilities {
     }
 
     /**
-     * Returns true if the caller has AuthenticationPermission for listen on
-     * this endpoint.
-     */
-    private boolean hasListenPermissions() {
-	try {
-	    checkListenPermissions(false);
-	    return true;
-	} catch (SecurityException e) {
-	    logger.log(Levels.HANDLED,
-		       "check listen permissions for server endpoint " +
-		       "caught exception",
-		       e);
-	    return false;
-	}
-    }
-
-    /**
      * Checks that principals is not empty and contains no nulls, and returns
      * it as a set.  Returns null if no principals are specified.
      */
-    private static Set checkPrincipals(X500Principal[] principals) {
+    private static Set<X500Principal> checkPrincipals(X500Principal[] principals) {
 	if (principals.length == 0) {
 	    return null;
 	}
-	Set result = new HashSet(principals.length);
+	Set<X500Principal> result = new HashSet<X500Principal>(principals.length);
 	for (int i = principals.length; --i >= 0; ) {
 	    X500Principal p = principals[i];
 	    if (p == null) {
@@ -298,49 +175,26 @@ class SslServerEndpointImpl extends Utilities {
 	return result;
     }
 
-    /**
-     * Initializes the sslSocketFactory and authManager fields.  Wait to do
-     * this until needed, because creating the SSLContext requires initializing
-     * the secure random number generator, which can be time consuming.
-     */
-    private void sslInit() {
-	assert Thread.holdsLock(this);
-	SSLContextInfo info = getServerSSLContextInfo(
-	    serverSubject, serverPrincipals);
-	sslSocketFactory = info.sslContext.getSocketFactory();
-	authManager = (ServerAuthManager) info.authManager;
-    }
-
     /** Returns the SSLSocketFactory, calling sslInit if needed. */
     final SSLSocketFactory getSSLSocketFactory() {
-	synchronized (this) {
-	    if (sslSocketFactory == null) {
-		sslInit();
-	    }
-            return sslSocketFactory;
-	}
+	return listenEndpoint.getSSLSocketFactory();
     }
 
     /** Returns the ServerAuthManager, calling sslInit if needed. */
     final ServerAuthManager getAuthManager() {
-	synchronized (this) {
-	    if (authManager == null) {
-		sslInit();
-	    }
-	return authManager;
-	}
+	return listenEndpoint.getAuthManager();
     }
 
     /** Returns a hash code value for this object. */
     public int hashCode() {
 	return getClass().hashCode()
-	    ^ System.identityHashCode(serverSubject)
-	    ^ (serverPrincipals == null ? 0 : serverPrincipals.hashCode())
-	    ^ (serverHost == null ? 0 : serverHost.hashCode())
-	    ^ port
-	    ^ (socketFactory != null ? socketFactory.hashCode() : 0)
-	    ^ (serverSocketFactory != null
-	       ? serverSocketFactory.hashCode() : 0);
+	    ^ System.identityHashCode(listenEndpoint.serverSubject)
+	    ^ (getServerPrincipals() == null ? 0 : getServerPrincipals().hashCode())
+	    ^ (getServerHost() == null ? 0 : getServerHost().hashCode())
+	    ^ getPort()
+	    ^ (getSocketFactory() != null ? getSocketFactory().hashCode() : 0)
+	    ^ (getServerSocketFactory() != null
+	       ? getServerSocketFactory().hashCode() : 0);
     }
 
     /**
@@ -357,31 +211,35 @@ class SslServerEndpointImpl extends Utilities {
 	    return false;
 	}
 	SslServerEndpointImpl other = (SslServerEndpointImpl) object;
-	return serverSubject == other.serverSubject
-	    && safeEquals(serverPrincipals, other.serverPrincipals)
-	    && safeEquals(serverHost, other.serverHost)
-	    && port == other.port
-	    && Util.sameClassAndEquals(socketFactory, other.socketFactory)
-	    && Util.sameClassAndEquals(serverSocketFactory,
-				       other.serverSocketFactory);
+	return listenEndpoint.serverSubject == other.listenEndpoint.serverSubject
+	    && safeEquals(getServerPrincipals(), other.getServerPrincipals())
+	    && safeEquals(getServerHost(), other.getServerHost())
+	    && getPort() == other.getPort()
+	    && Util.sameClassAndEquals(getSocketFactory(), other.getSocketFactory())
+	    && Util.sameClassAndEquals(getServerSocketFactory(), other.getServerSocketFactory());
     }
 
     /** Returns a string representation of this object. */
+    @Override
     public String toString() {
 	return getClassName(this) + fieldsToString();
     }
 
     /** Returns a string representation of the fields of this object. */
     final String fieldsToString() {
-	return "[" +
-	    (serverPrincipals == null
-	     ? ""
-	     : serverPrincipals.toString() + ", ") +
-	    (serverHost == null ? "" : serverHost + ":") +
-	    port + 
-	    (serverSocketFactory != null ? ", " + serverSocketFactory : "") +
-	    (socketFactory != null ? ", " + socketFactory : "") +
-	    "]";
+        StringBuilder sb = new StringBuilder();
+        Set<X500Principal> principals = getServerPrincipals();
+        String serverHost = getServerHost();
+        ServerSocketFactory ssf = getServerSocketFactory();
+        SocketFactory sf = getSocketFactory();
+        sb.append("[");
+        if (principals != null) sb.append(principals).append(", ");
+        if (serverHost != null) sb.append(serverHost).append(":");
+        sb.append(getPort());
+        if (ssf != null) sb.append(", ").append(ssf);
+        if (sf != null) sb.append(", ").append(sf);
+        sb.append("]");
+	return sb.toString();
     }
 
     /* -- Implement ServerCapabilities -- */
@@ -391,7 +249,7 @@ class SslServerEndpointImpl extends Utilities {
 	throws UnsupportedConstraintException
     {
 	try {
-	    checkListenPermissions(false);
+	    listenEndpoint.checkListenPermissions(false);
 	} catch (SecurityException e) {
 	    if (logger.isLoggable(Levels.FAILED)) {
 		logThrow(logger, Levels.FAILED,
@@ -408,13 +266,13 @@ class SslServerEndpointImpl extends Utilities {
 	}
 	Map serverKeyTypes = new HashMap();
 	List certPaths =
-	    SubjectCredentials.getCertificateChains(serverSubject);
+	    SubjectCredentials.getCertificateChains(listenEndpoint.serverSubject);
 	if (certPaths != null) {
 	    for (int i = certPaths.size(); --i >= 0; ) {
 		CertPath chain = (CertPath) certPaths.get(i);
 		X509Certificate cert = SubjectCredentials.firstX509Cert(chain);
 		X500Principal principal = SubjectCredentials.getPrincipal(
-		    serverSubject, cert);
+		    listenEndpoint.serverSubject, cert);
 		if (principal != null) {
 		    Collection keyTypes =
 			(Collection) serverKeyTypes.get(principal);
@@ -431,8 +289,8 @@ class SslServerEndpointImpl extends Utilities {
 	    String suite = suites[suiteIndex];
 	    String suiteKeyType = getKeyAlgorithm(suite);
 	    Iterator sIter =
-		(serverPrincipals == null
-		 ? Collections.EMPTY_SET : serverPrincipals).iterator();
+		(getServerPrincipals() == null
+		 ? Collections.EMPTY_SET : getServerPrincipals()).iterator();
 	    X500Principal server;
 	    do {
 		if (sIter.hasNext()) {
@@ -521,7 +379,7 @@ class SslServerEndpointImpl extends Utilities {
     final Endpoint enumerateListenEndpoints(ListenContext listenContext)
 	throws IOException
     {
-        String resolvedHost = LOCAL_HOST.check(this.serverHost, this);
+        String resolvedHost = LOCAL_HOST.check(this.getServerHost(), this);
 
         Endpoint result = createEndpoint(
             resolvedHost,
@@ -534,18 +392,12 @@ class SslServerEndpointImpl extends Utilities {
         return result;
     }
 
-    /** Creates a listen endpoint for this server endpoint. */
-    ListenEndpoint createListenEndpoint() {
-	return new SslListenEndpoint();
-    }
-
     /**
      * Creates an endpoint for this server endpoint corresponding to the
      * specified server host and listen cookie.
      */
     Endpoint createEndpoint(String serverHost, SslListenCookie cookie) {
-	return SslEndpoint.getInstance(
-	    serverHost, cookie.getPort(), socketFactory);
+	return SslEndpoint.getInstance(serverHost, cookie.getPort(), getSocketFactory());
     }
 
     /**
@@ -570,30 +422,237 @@ class SslServerEndpointImpl extends Utilities {
     }
 
     /**
-     * Check for permission to listen on this endpoint, but only checking
-     * socket permissions if checkSocket is true.
+     * @return the serverPrincipals
      */
-    final void checkListenPermissions(boolean checkSocket) {
-	SecurityManager sm = System.getSecurityManager();
-	if (sm != null) {
-	    if (checkSocket) {
-		sm.checkListen(port);
-	    }
-	    if (listenPermissions != null) {
-		for (int i = listenPermissions.length; --i >= 0; ) {
-		    sm.checkPermission(listenPermissions[i]);
-		}
-	    }
-	}
+    Set<X500Principal> getServerPrincipals() {
+        return listenEndpoint.serverPrincipals;
+    }
+
+    /**
+     * @return the serverHost
+     */
+    String getServerHost() {
+        return listenEndpoint.serverHost;
+    }
+
+    /**
+     * @return the port
+     */
+    int getPort() {
+        return listenEndpoint.port;
+    }
+
+    /**
+     * @return the socketFactory
+     */
+    SocketFactory getSocketFactory() {
+        return listenEndpoint.socketFactory;
+    }
+
+    /**
+     * @return the serverSocketFactory
+     */
+    ServerSocketFactory getServerSocketFactory() {
+        return listenEndpoint.serverSocketFactory;
+    }
+    
+    void setServerConnectionManager(ServerConnManager connectionManager){
+        listenEndpoint.setServerConnectionManager(connectionManager);
     }
 
     /** Implements ListenEndpoint */
-    class SslListenEndpoint extends Utilities implements ListenEndpoint {
+    static class SslListenEndpoint extends Utilities implements ListenEndpoint {
+        
+        /**
+         * The maximum time a session should be used before expiring -- non-final
+         * to facilitate testing.  Use 24 hours to allow the client, which uses
+         * 23.5 hours, to renegotiate a new session before the server timeout.
+         */
+        private final long maxServerSessionDuration =
+            ((Long) Security.doPrivileged(
+                new GetLongAction("org.apache.river.jeri.ssl.maxServerSessionDuration",
+                                  24L * 60L * 60L * 1000L))).longValue();
+        
+        /** The server subject, or null if the server is anonymous. */
+        private final Subject serverSubject;
+
+        /**
+         * The principals to use for authentication, or null if the server is
+         * anonymous.
+         */
+        final Set<X500Principal> serverPrincipals;
+
+        /**
+         * The host name that clients should use to connect to this server, or null
+         * if enumerateListenEndpoints should compute the default.
+         */
+        final String serverHost;
+
+        /** The server port */
+        final int port;
+
+        /** The socket factory for use in the associated Endpoint. */
+        final SocketFactory socketFactory;
+
+        /** The server socket factory. */
+        final ServerSocketFactory serverSocketFactory;
+
+        private ServerConnManager serverConnectionManager;
+        
+        /**
+         * The permissions needed to authenticate when listening on this endpoint,
+         * or null if the server is anonymous.  Effectively immutable array.
+         */
+        private final Permission[] listenPermissions;
+        
+        
+        /** The factory for creating JSSE sockets -- set by sslInit */
+        private SSLSocketFactory sslSocketFactory; // Synchronized on this
+
+        /**
+         * The authentication manager for the SSLContext for this endpoint -- set
+         * by sslInit.
+         */
+        private ServerAuthManager authManager; // Synchronized on this
+        
+        SslListenEndpoint(Subject serverSubject,
+                            X500Principal[] serverPrincipals,
+                            String serverHost,
+                            int port,
+                            SocketFactory socketFactory,
+                            ServerSocketFactory serverSocketFactory)
+        {
+            this.serverConnectionManager = defaultServerConnectionManager;
+            this.serverHost = serverHost;
+            this.port = port;
+            this.socketFactory = socketFactory;
+            this.serverSocketFactory = serverSocketFactory;
+            boolean useCurrentSubject = serverSubject == null;
+            if (useCurrentSubject) {
+                final AccessControlContext acc = AccessController.getContext();
+                serverSubject = AccessController.doPrivileged(
+                    new PrivilegedAction<Subject>() {
+                        @Override
+                        public Subject run() {
+                            return Subject.getSubject(acc);
+                        }
+                    });
+            }
+            this.serverPrincipals = (serverPrincipals == null)
+                ? computePrincipals(serverSubject)
+                : checkPrincipals(serverPrincipals);
+            Permission [] listenPerms;
+            if (this.serverPrincipals == null) {
+                listenPerms = null;
+            } else {
+                listenPerms =
+                    new AuthenticationPermission[this.serverPrincipals.size()];
+                int i = 0;
+                for (Iterator iter = this.serverPrincipals.iterator();
+                     iter.hasNext();
+                     i++)
+                {
+                    Principal p = (Principal) iter.next();
+                    listenPerms[i] = new AuthenticationPermission(
+                        Collections.singleton(p), null, "listen");
+                }
+            }
+            if (this.serverPrincipals == null ||
+                /* Don't use current subject without any permission */
+                (useCurrentSubject &&
+                 serverPrincipals != null &&
+                 !hasListenPermissions(listenPerms, port)))
+            {
+                this.serverSubject = null;
+                listenPerms = null;
+            } else {
+                this.serverSubject = serverSubject;
+            }
+            this.listenPermissions = listenPerms;
+            
+        }
 
 	/* inherit javadoc */
+        @Override
 	public void checkPermissions() {
-	    checkListenPermissions(true);
+	    checkListenPermissions(true, listenPermissions, port);
 	}
+        
+        /**
+         * Returns true if the caller has AuthenticationPermission for listen on
+         * this endpoint.
+         */
+        private static boolean hasListenPermissions(Permission[] listenPerms, int port) {
+            try {
+                checkListenPermissions(false, listenPerms, port);
+                return true;
+            } catch (SecurityException e) {
+                logger.log(Levels.HANDLED,
+                           "check listen permissions for server endpoint " +
+                           "caught exception",
+                           e);
+                return false;
+            }
+        }
+        
+        /**
+         * Check for permission to listen on this endpoint, but only checking
+         * socket permissions if checkSocket is true.
+         */
+        final void checkListenPermissions(boolean checkSocket) {
+            checkListenPermissions(checkSocket, listenPermissions, port);
+        }
+        
+        /**
+         * Check for permission to listen on this endpoint, but only checking
+         * socket permissions if checkSocket is true.
+         */
+        static void checkListenPermissions(boolean checkSocket, Permission[] listenPerms, int port) {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                if (checkSocket) {
+                    sm.checkListen(port);
+                }
+                if (listenPerms != null) {
+                    for (int i = listenPerms.length; --i >= 0; ) {
+                        sm.checkPermission(listenPerms[i]);
+                    }
+                }
+            }
+        }
+        
+        /**
+         * Initializes the sslSocketFactory and authManager fields.  Wait to do
+         * this until needed, because creating the SSLContext requires initializing
+         * the secure random number generator, which can be time consuming.
+         */
+        private void sslInit() {
+            assert Thread.holdsLock(this);
+            SSLContextInfo info = getServerSSLContextInfo(
+                serverSubject, serverPrincipals);
+            sslSocketFactory = info.sslContext.getSocketFactory();
+            authManager = (ServerAuthManager) info.authManager;
+        }
+
+        /** Returns the SSLSocketFactory, calling sslInit if needed. */
+        final SSLSocketFactory getSSLSocketFactory() {
+            synchronized (this) {
+                if (sslSocketFactory == null) {
+                    sslInit();
+                }
+                return sslSocketFactory;
+            }
+        }
+        
+        /** Returns the ServerAuthManager, calling sslInit if needed. */
+        final ServerAuthManager getAuthManager() {
+            synchronized (this) {
+                if (authManager == null) {
+                    sslInit();
+                }
+            return authManager;
+            }
+        }
 
 	/* inherit javadoc */
 	public ListenHandle listen(RequestDispatcher requestDispatcher)
@@ -618,7 +677,7 @@ class SslServerEndpointImpl extends Utilities {
 	    if (serverSubject == null) {
 		return;
 	    }
-	    checkListenPermissions(false);
+	    checkListenPermissions(false, listenPermissions, port);
 	    Set principals = serverSubject.getPrincipals();
 	    /* Keep track of progress; remove entry when check is done */
             boolean nullServerPrincipals = serverPrincipals == null;
@@ -689,7 +748,7 @@ class SslServerEndpointImpl extends Utilities {
 					ServerSocket serverSocket)
 	    throws IOException
 	{
-	    return new SslListenHandle(requestDispatcher, serverSocket);
+	    return new SslListenHandle(requestDispatcher, serverSocket, this);
 	}
 
 	/** Returns a hash code value for this object. */
@@ -717,8 +776,7 @@ class SslServerEndpointImpl extends Utilities {
 	    } else if (object == null || getClass() != object.getClass()) {
 		return false;
 	    }
-	    SslServerEndpointImpl other =
-		((SslListenEndpoint) object).getImpl();
+	    SslListenEndpoint other = (SslListenEndpoint) object;
 	    return serverSubject == other.serverSubject
 		&& safeEquals(serverPrincipals, other.serverPrincipals)
 		&& port == other.port
@@ -726,17 +784,26 @@ class SslServerEndpointImpl extends Utilities {
 					   other.serverSocketFactory);
 	}
 
-	/**
-	 * Returns the SslServerEndpointImpl associated with this listen
-	 * endpoint.
-	 */
-	private SslServerEndpointImpl getImpl() {
-	    return SslServerEndpointImpl.this;
-	}
+        /**
+         * @return the serverConnectionManager
+         */
+        synchronized ServerConnManager getServerConnectionManager() {
+            return serverConnectionManager;
+        }
+
+        /**
+         * @param serverConnectionManager the serverConnectionManager to set
+         */
+        synchronized void setServerConnectionManager(ServerConnManager serverConnectionManager) {
+            this.serverConnectionManager = serverConnectionManager;
+        }
+
     }
 
     /** Implements ListenHandle */
-    class SslListenHandle extends Utilities implements ListenHandle {
+    static class SslListenHandle extends Utilities implements ListenHandle {
+        
+        private final SslListenEndpoint listenEndpoint;
 
 	/** The request handler */
 	private final RequestDispatcher requestDispatcher;
@@ -760,11 +827,13 @@ class SslServerEndpointImpl extends Utilities {
 
 	/** Creates a listen handle */
 	SslListenHandle(RequestDispatcher requestDispatcher,
-			ServerSocket serverSocket)
+                        ServerSocket serverSocket,
+                        SslListenEndpoint listenEndpoint)
 	    throws IOException
 	{
 	    this.requestDispatcher = requestDispatcher;
 	    this.serverSocket = serverSocket;
+            this.listenEndpoint = listenEndpoint;
 	    securityContext = Security.getContext();
 	    systemExecutor.execute(
 		new Runnable() {
@@ -922,7 +991,7 @@ class SslServerEndpointImpl extends Utilities {
 	/** Returns a string representation of this object. */
 	public String toString() {
 	    return getClassName(this) + "[" +
-		serverHost + ":" + getPort() + "]";
+		listenEndpoint.serverHost + ":" + getPort() + "]";
 	}
 
 	/** Returns a connection for the specified socket. */
@@ -936,7 +1005,7 @@ class SslServerEndpointImpl extends Utilities {
 	void handleConnection(SslServerConnection connection,
 			      RequestDispatcher requestDispatcher)
 	{
-	    serverConnectionManager.handleConnection(
+            listenEndpoint.getServerConnectionManager().handleConnection(
 		connection, requestDispatcher);
 	}
 
@@ -983,16 +1052,18 @@ class SslServerEndpointImpl extends Utilities {
 
 	/* inherit javadoc */
 	public ListenCookie getCookie() {
-	    return new SslListenCookie(getPort());
+	    return new SslListenCookie(getPort(), listenEndpoint);
 	}
     }
 
     /** Implements ListenCookie */
-    final class SslListenCookie implements ListenCookie {
+    static final class SslListenCookie implements ListenCookie {
 	private final int port;
+        private final ListenEndpoint listenEndpoint;
 
-	SslListenCookie(int port) {
+	SslListenCookie(int port, ListenEndpoint listenEndpoint) {
 	    this.port = port;
+            this.listenEndpoint = listenEndpoint;
 	}
 
 	/** Returns the port on which the associated handle is listening. */
@@ -1009,14 +1080,14 @@ class SslServerEndpointImpl extends Utilities {
     }
 
     /** Implements ServerConnection */
-    class SslServerConnection extends Utilities implements ServerConnection {
+    static class SslServerConnection extends Utilities implements ServerConnection {
 
 	/** The listen handle that accepted this connection */
 	private final SslListenHandle listenHandle;
 
 	/** The JSSE socket used for communication */
 	final SSLSocket sslSocket;
-
+        
 	/** The inbound request handle for this connection. */
 	private final InboundRequestHandle requestHandle =
 	    new InboundRequestHandle() { };
@@ -1057,8 +1128,7 @@ class SslServerEndpointImpl extends Utilities {
 	    throws IOException
 	{
 	    this.listenHandle = listenHandle;
-
-	    sslSocket = (SSLSocket) getSSLSocketFactory().createSocket(
+	    sslSocket = (SSLSocket) listenHandle.listenEndpoint.getSSLSocketFactory().createSocket(
 		socket, socket.getInetAddress().getHostName(),
 		socket.getPort(), true /* autoClose */);
 	    sslSocket.setEnabledCipherSuites(getSupportedCipherSuites());
@@ -1079,7 +1149,7 @@ class SslServerEndpointImpl extends Utilities {
                        clientSubject.getPrincipals().iterator().next())
                     : null;
                 X509Certificate serverCert =
-                    getAuthManager().getServerCertificate(session);
+                    listenHandle.listenEndpoint.getAuthManager().getServerCertificate(session);
                 serverPrincipal = serverCert != null
                     ? serverCert.getSubjectX500Principal() : null;
                 if (serverPrincipal != null) {
@@ -1094,41 +1164,43 @@ class SslServerEndpointImpl extends Utilities {
             } catch (SecurityException e){
                 throw new IOException("Unable to create session", e);
             }
-	    logger.log(Level.FINE, "created {0}", this);
+	    logger.log(Level.FINE, "created {0}", toString());
 	}
 
 	/* inherit javadoc */
-	public String toString() {
-	    String sessionString;
-	    synchronized (this) {
-		sessionString = session == null ? "" : session + ", ";
-	    }
-	    return getClassName(this) + "[" +
-		sessionString + 
-		serverHost + ":" + sslSocket.getLocalPort() + "<=" +
-		sslSocket.getInetAddress().getHostName() + ":" +
-		sslSocket.getPort() +
-		"]";
+        @Override
+	public final String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(getClassName(this)).append("[");
+            if (session != null) sb.append(session).append(", ");
+            sb.append(listenHandle.listenEndpoint.serverHost).append(":").append(sslSocket.getLocalPort())
+                .append("<=").append(sslSocket.getInetAddress().getHostName())
+                .append(":").append(sslSocket.getPort()).append("]");
+	    return sb.toString();
 	}
 
 	/* -- Implement ServerConnection -- */
 
 	/* inherit javadoc */
+        @Override
 	public InputStream getInputStream() throws IOException {
 	    return sslSocket.getInputStream();
 	}
 
 	/* inherit javadoc */
+        @Override
 	public OutputStream getOutputStream() throws IOException {
 	    return sslSocket.getOutputStream();
 	}
 
 	/* inherit javadoc */
+        @Override
 	public SocketChannel getChannel() {
 	    return null;
 	}
 
 	/* inherit javadoc */
+        @Override
 	public InboundRequestHandle processRequestData(InputStream in,
 						       OutputStream out)
 	{
@@ -1140,7 +1212,7 @@ class SslServerEndpointImpl extends Utilities {
 		long now = System.currentTimeMillis();
 		decacheSession();
 		long create = session.getCreationTime();
-		long expiration = create + maxServerSessionDuration;
+		long expiration = create + listenHandle.listenEndpoint.maxServerSessionDuration;
 		/* Check for rollover */
 		if (expiration < create) {
 		    expiration = Long.MAX_VALUE;
@@ -1154,7 +1226,7 @@ class SslServerEndpointImpl extends Utilities {
 		    throw new SecurityException("Session has expired");
 		}
 		if (serverPrincipal != null) {
-		    getAuthManager().checkCredentials(session, clientSubject);
+		    listenHandle.listenEndpoint.getAuthManager().checkCredentials(session, clientSubject);
 		}
 		return requestHandle;
 	    } catch (SecurityException e) {

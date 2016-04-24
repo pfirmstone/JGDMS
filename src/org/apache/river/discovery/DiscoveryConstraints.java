@@ -515,8 +515,7 @@ public class DiscoveryConstraints {
 					     Set<DiscoveryProtocolVersion> protocolVersionPrefs,
 					     InvocationConstraints unfulfilled)
     {
-	DiscoveryProtocolVersion bias = unfulfilled.isEmpty() ? 
-	    DiscoveryProtocolVersion.ONE : DiscoveryProtocolVersion.TWO;
+	DiscoveryProtocolVersion bias = DiscoveryProtocolVersion.TWO; // One is deprecated.
 	Set[] sets = { protocolVersionPrefs, protocolVersions };
 	for (int i = 0, l = sets.length; i < l; i++) {
 	    @SuppressWarnings("unchecked")

@@ -373,9 +373,11 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
      *	       greater than <code>65535</code>
      */
     public static HttpsServerEndpoint getInstance(int port) {
-	return new HttpsServerEndpoint(null, null, null, port, null, null);
+	HttpsServerEndpoint se = new HttpsServerEndpoint(null, null, null, check(port), null, null, false);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
-
+    
     /**
      * Returns an HTTPS server endpoint for the specified server host and port.
      * Uses the subject associated with the current access control context, the
@@ -396,8 +398,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
      *	       greater than <code>65535</code>
      */
     public static HttpsServerEndpoint getInstance(String serverHost, int port) {
-	return new HttpsServerEndpoint(
-	    null, null, serverHost, port, null, null);
+	HttpsServerEndpoint se = new HttpsServerEndpoint(
+	    null, null, serverHost, check(port), null, null, false);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
 
     /**
@@ -432,8 +436,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	SocketFactory socketFactory,
 	ServerSocketFactory serverSocketFactory)
     {
-	return new HttpsServerEndpoint(null, null, serverHost, port,
-				       socketFactory, serverSocketFactory);
+	HttpsServerEndpoint se = new HttpsServerEndpoint(null, null, serverHost, check(port),
+				       socketFactory, serverSocketFactory, false);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
 
     /**
@@ -474,8 +480,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	String serverHost,
 	int port)
     {
-	return new HttpsServerEndpoint(serverSubject, serverPrincipals,
-				       serverHost, port, null, null);
+	HttpsServerEndpoint se = new HttpsServerEndpoint(serverSubject, serverPrincipals,
+				       serverHost, check(port), null, null, false);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
 
     /**
@@ -525,23 +533,27 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	SocketFactory socketFactory,
 	ServerSocketFactory serverSocketFactory)
     {
-	return new HttpsServerEndpoint(serverSubject, serverPrincipals,
-				       serverHost, port, socketFactory,
-				       serverSocketFactory);
+	HttpsServerEndpoint se = new HttpsServerEndpoint(serverSubject, serverPrincipals,
+				       serverHost, check(port), socketFactory,
+				       serverSocketFactory, false);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
+    }
+    
+    private static int check(int port){
+        if (port < 0 || port > 0xFFFF) {
+            throw new IllegalArgumentException("Invalid port: " + port);
+        }
+        return port;
     }
 
+
     /** Creates an instance of this class. */
-    private HttpsServerEndpoint(Subject serverSubject,
-				X500Principal[] serverPrincipals,
-				String serverHost,
-				int port,
-				SocketFactory socketFactory,
-				ServerSocketFactory serverSocketFactory)
+    private HttpsServerEndpoint(Subject serverSubject, X500Principal[] serverPrincipals, String serverHost, int port, SocketFactory socketFactory, ServerSocketFactory serverSocketFactory, boolean compression)
     {
 	impl = new HttpsServerEndpointImpl(
 	    this, serverSubject, serverPrincipals,
 	    serverHost, port, socketFactory, serverSocketFactory);
-	logger.log(Level.FINE, "created {0}", this);
     }
 
     /**
@@ -555,7 +567,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
      *	       using the default
      */
     public String getHost() {
-	return impl.serverHost;
+	return impl.getServerHost();
     }
 
     /**
@@ -566,7 +578,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
      *	       <code>0</code> if it selects a free port
      */
     public int getPort() {
-	return impl.port;
+	return impl.getPort();
     }
 
     /**
@@ -576,8 +588,8 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
      * @return an immutable set of the principals or <code>null</code>
      */
     public Set getPrincipals() {
-	return impl.serverPrincipals == null
-	    ? null : Collections.unmodifiableSet(impl.serverPrincipals);
+	return impl.getServerPrincipals() == null
+	    ? null : Collections.unmodifiableSet(impl.getServerPrincipals());
     }
 
     /**
@@ -590,7 +602,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
      *	       sockets, or <code>null</code> if they use default sockets
      */
     public SocketFactory getSocketFactory() {
-	return impl.socketFactory;
+	return impl.getSocketFactory();
     }
 
     /**
@@ -603,7 +615,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
      *	       server sockets
      */
     public ServerSocketFactory getServerSocketFactory() {
-	return impl.serverSocketFactory;
+	return impl.getServerSocketFactory();
     }
 
     /** Returns a string representation of this object. */
@@ -839,29 +851,29 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
     private static final class HttpsServerEndpointImpl
 	extends SslServerEndpointImpl
     {
-	HttpsServerEndpointImpl(ServerEndpoint serverEndpoint,
-				Subject serverSubject,
-				X500Principal[] serverPrincipals,
-				String serverHost,
-				int port,
-				SocketFactory socketFactory,
-				ServerSocketFactory serverSocketFactory)
+	HttpsServerEndpointImpl(ServerEndpoint serverEndpoint, Subject serverSubject, X500Principal[] serverPrincipals, String serverHost, int port, SocketFactory socketFactory, ServerSocketFactory serverSocketFactory)
 	{
-	    super(serverEndpoint, serverSubject, serverPrincipals,
-		  serverHost, port, socketFactory, serverSocketFactory);
-	}
-
-	ListenEndpoint createListenEndpoint() {
-	    return new HttpsListenEndpoint();
+	    super(serverEndpoint, new HttpsListenEndpoint(serverSubject, serverPrincipals,
+		  serverHost, port, socketFactory, serverSocketFactory));
 	}
 
 	Endpoint createEndpoint(String serverHost, SslListenCookie cookie) {
-	    return HttpsEndpoint.getInstance(
-		serverHost, cookie.getPort(), socketFactory);
+	    return HttpsEndpoint.getInstance(serverHost, cookie.getPort(), getSocketFactory());
 	}
 
 	/** Implements ListenEndpoint */
-	private final class HttpsListenEndpoint extends SslListenEndpoint {
+	private static final class HttpsListenEndpoint extends SslListenEndpoint {
+            
+            HttpsListenEndpoint(Subject serverSubject,
+                                X500Principal[] serverPrincipals,
+                                String serverHost,
+                                int port,
+                                SocketFactory socketFactory,
+                                ServerSocketFactory serverSocketFactory)
+            {
+                super(serverSubject, serverPrincipals, serverHost, 
+                        port, socketFactory, serverSocketFactory);
+            }
 
 	    ListenHandle createListenHandle(RequestDispatcher requestDispatcher,
 					    ServerSocket serverSocket)
@@ -872,31 +884,34 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	}
 
 	/** Implements ListenHandle */
-	private final class HttpsListenHandle extends SslListenHandle {
+	private static final class HttpsListenHandle extends SslListenHandle {
 
 	    HttpsListenHandle(RequestDispatcher requestDispatcher,
 			      ServerSocket serverSocket)
 		throws IOException
 	    {
-		super(requestDispatcher, serverSocket);
+		super(requestDispatcher, serverSocket, null);
 	    }
 
+            @Override
 	    SslServerConnection serverConnection(Socket socket)
 		throws IOException
 	    {
 		return new HttpsServerConnection(this, socket);
 	    }
 
+            @Override
 	    void handleConnection(SslServerConnection connection,
 				  RequestDispatcher requestDispatcher)
 	    {
 		try {
-		    new HttpServer(
+		    HttpServer server = new HttpServer(
 			connection.sslSocket,
 			new HttpsRequestDispatcher(
 			    requestDispatcher,
 			    (HttpsServerConnection) connection),
 			(HttpsServerConnection) connection);
+                    server.start();
 		} catch (IOException e) {
 		    if (logger.isLoggable(Level.INFO)) {
 			logThrow(logger, Level.INFO,
@@ -927,9 +942,13 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	    {
 		super(socket, requestDispatcher, httpServerManager);
 		this.connection = connection;
-		connection.httpServer = this;
-		start();
 	    }
+            
+            @Override
+            public void start(){
+                connection.setHttpServer(this, null);
+                super.start();
+            }
 
 	    /** Not called -- handled by inbound request */
 	    protected void checkPermissions() {
@@ -987,6 +1006,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 		this.connection = connection;
 	    }
 
+            @Override
 	    public void dispatch(InboundRequest request) {
 		try {
 		    InboundRequest wrappedRequest =
@@ -1061,10 +1081,10 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	}
 
 	/** Implements ServerConnection. */
-	private final class HttpsServerConnection extends SslServerConnection {
+	private static final class HttpsServerConnection extends SslServerConnection {
 
 	    /** The HTTP server connection */
-	    HttpServer httpServer;
+	    private HttpServer httpServer;
 
 	    /** Creates a server connection. */
 	    HttpsServerConnection(HttpsListenHandle listenHandle, Socket socket)
@@ -1081,11 +1101,29 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 		}
 		super.closeInternal(removeFromListener);
 		/* Close the associated HTTP connection */
-		if (httpServer != null) {
-		    httpServer.shutdown(true);
-		    httpServer = null;
+                HttpServer httpServ = getHttpServer();
+		if (httpServ != null) {
+		    httpServ.shutdown(true);
+		    setHttpServer(null, httpServ);
 		}
 	    }
+
+            /**
+             * @return the httpServer
+             */
+            synchronized HttpServer getHttpServer() {
+                return httpServer;
+            }
+
+            /**
+             * @param newServer the httpServer to set, currentServer equal.
+             * 
+             */
+            synchronized void setHttpServer(HttpServer newServer, HttpServer currentServer) {
+                if (this.httpServer.equals(currentServer)){
+                    this.httpServer = newServer;
+                }
+            }
 	}
     }
 }

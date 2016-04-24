@@ -72,6 +72,7 @@ import net.jini.jeri.ServerEndpoint.ListenContext;
 import net.jini.jeri.ServerEndpoint.ListenEndpoint;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.connection.ServerConnectionManager;
+import net.jini.jeri.ssl.SslServerEndpointImpl.SslListenEndpoint;
 import net.jini.security.AuthenticationPermission;
 import net.jini.security.SecurityContext;
 
@@ -344,7 +345,9 @@ public final class SslServerEndpoint implements ServerEndpoint {
      *	       greater than <code>65535</code>
      */
     public static SslServerEndpoint getInstance(int port) {
-	return new SslServerEndpoint(null, null, null, port, null, null);
+	SslServerEndpoint se = new SslServerEndpoint(null, null, null, check(port), null, null);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
 
     /**
@@ -367,7 +370,9 @@ public final class SslServerEndpoint implements ServerEndpoint {
      *	       greater than <code>65535</code>
      */
     public static SslServerEndpoint getInstance(String serverHost, int port) {
-	return new SslServerEndpoint(null, null, serverHost, port, null, null);
+	SslServerEndpoint se = new SslServerEndpoint(null, null, serverHost, check(port), null, null);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
 
     /**
@@ -402,8 +407,10 @@ public final class SslServerEndpoint implements ServerEndpoint {
 	SocketFactory socketFactory,
 	ServerSocketFactory serverSocketFactory)
     {
-	return new SslServerEndpoint(null, null, serverHost, port,
+	SslServerEndpoint se = new SslServerEndpoint(null, null, serverHost, check(port),
 				     socketFactory, serverSocketFactory);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
 
     /**
@@ -444,8 +451,10 @@ public final class SslServerEndpoint implements ServerEndpoint {
 	String serverHost,
 	int port)
     {
-	return new SslServerEndpoint(serverSubject, serverPrincipals,
-				     serverHost, port, null, null);
+	SslServerEndpoint se = new SslServerEndpoint(serverSubject, serverPrincipals,
+				     serverHost, check(port), null, null);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
     }
 
     /**
@@ -495,9 +504,18 @@ public final class SslServerEndpoint implements ServerEndpoint {
 	SocketFactory socketFactory,
 	ServerSocketFactory serverSocketFactory)
     {
-	return new SslServerEndpoint(serverSubject, serverPrincipals,
-				     serverHost, port, socketFactory,
+	SslServerEndpoint se = new SslServerEndpoint(serverSubject, serverPrincipals,
+				     serverHost, check(port), socketFactory,
 				     serverSocketFactory);
+        logger.log(Level.FINE, "created {0}", se);
+        return se;
+    }
+    
+    private static int check(int port){
+        if (port < 0 || port > 0xFFFF) {
+            throw new IllegalArgumentException("Invalid port: " + port);
+        }
+        return port;
     }
 
     /** Creates an instance of this class. */
@@ -509,9 +527,8 @@ public final class SslServerEndpoint implements ServerEndpoint {
 			      ServerSocketFactory serverSocketFactory)
     {
 	impl = new SslServerEndpointImpl(
-	    this, serverSubject, serverPrincipals,
-	    serverHost, port, socketFactory, serverSocketFactory);
-	logger.log(Level.FINE, "created {0}", this);
+	    this,  new SslListenEndpoint(serverSubject, serverPrincipals,
+	    serverHost, port, socketFactory, serverSocketFactory));
     }
 
     /**
@@ -525,7 +542,7 @@ public final class SslServerEndpoint implements ServerEndpoint {
      *	       using the default
      */
     public String getHost() {
-	return impl.serverHost;
+	return impl.getServerHost();
     }
 
     /**
@@ -536,7 +553,7 @@ public final class SslServerEndpoint implements ServerEndpoint {
      *	       <code>0</code> if it selects a free port
      */
     public int getPort() {
-	return impl.port;
+	return impl.getPort();
     }
 
     /**
@@ -546,8 +563,8 @@ public final class SslServerEndpoint implements ServerEndpoint {
      * @return an immutable set of the principals or <code>null</code>
      */
     public Set getPrincipals() {
-	return impl.serverPrincipals == null
-	    ? null : Collections.unmodifiableSet(impl.serverPrincipals);
+	return impl.getServerPrincipals() == null
+	    ? null : Collections.unmodifiableSet(impl.getServerPrincipals());
     }
 
     /**
@@ -560,7 +577,7 @@ public final class SslServerEndpoint implements ServerEndpoint {
      *	       sockets, or <code>null</code> if they use default sockets
      */
     public SocketFactory getSocketFactory() {
-	return impl.socketFactory;
+	return impl.getSocketFactory();
     }
 
     /**
@@ -573,7 +590,7 @@ public final class SslServerEndpoint implements ServerEndpoint {
      *	       server sockets
      */
     public ServerSocketFactory getServerSocketFactory() {
-	return impl.serverSocketFactory;
+	return impl.getServerSocketFactory();
     }
 
     /** Returns a string representation of this object. */

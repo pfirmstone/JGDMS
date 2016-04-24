@@ -125,7 +125,7 @@ abstract class EndpointBasedProvider extends BaseProvider {
      * Returns the MessageDigest hash of the concatenation of the given unicast
      * discovery request and response handshake bytes.
      */
-    byte[] calcHandshakeHash(ByteBuffer request, ByteBuffer response) {
+    protected byte[] calcHandshakeHash(ByteBuffer request, ByteBuffer response) {
 	    MessageDigest md = handshakeHashAlgorithm();
 	    update(md, request);
 	    update(md, response);

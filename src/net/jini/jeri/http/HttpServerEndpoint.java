@@ -721,6 +721,7 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 	 **/
 	void startAccepting() {
 	    systemThreadPool.execute(new Runnable() {
+                @Override
 		public void run() {
 		    try {
 			executeAcceptLoop();
@@ -746,6 +747,7 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 	 **/
 	private void executeAcceptLoop() {
 	    AccessController.doPrivileged(context.wrap(new PrivilegedAction() {
+                @Override
 		public Object run() {
 		    executeAcceptLoop0();
 		    return null;
@@ -769,7 +771,8 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 
 		    setSocketOptions(socket);
 
-		    new Connection(socket);
+		    Connection con = new Connection(socket);
+                    con.start();
 
 		} catch (Throwable t) {
 		    try {
@@ -819,7 +822,9 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 				    ((Connection) snapshot[i]).shutdown(false);
 				}
 			    }
-			} catch (OutOfMemoryError e) {
+                        // TODO: This looks dodgy, if not completely bonkers!
+                        // Review to decide if this is really what we should do?
+			} catch (OutOfMemoryError e) { 
 			} catch (Exception e) {
 			}
 		    }
@@ -849,6 +854,7 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 	/**
 	 * Stops this listen operation.
 	 **/
+        @Override
 	public void close() {
 	    synchronized (lock) {
 		if (closed) {
@@ -880,10 +886,12 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 	/**
 	 * Returns a cookie to identify this listen operation.
 	 **/
+        @Override
 	public ListenCookie getCookie() {
 	    return cookie;
 	}
 
+        @Override
 	public String toString() {
 	    return "HttpServerEndpoint.LH[" + serverSocket + "]";
 	}
@@ -937,7 +945,10 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 	    Connection(Socket socket) throws IOException {
 		super(socket, requestDispatcher, serverManager);
 		this.socket = socket;
-
+	    }
+            
+            @Override
+            public void start(){
 		boolean needShutdown = false;
 		synchronized (lock) {
 		    if (closed) {
@@ -951,8 +962,9 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 		} else {
 		    start();
 		}
-	    }
+            }
 
+            @Override
 	    public boolean shutdown(boolean force) {
 		synchronized (connLock) {
 		    if (connClosed) {
@@ -978,6 +990,7 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 		return true;
 	    }
 
+            @Override
 	    protected void checkPermissions() {
 		SecurityManager sm = System.getSecurityManager();
 		if (sm != null) {
@@ -986,6 +999,7 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 		}
 	    }
 
+            @Override
 	    protected InvocationConstraints checkConstraints(
 		InvocationConstraints constraints)
 		throws UnsupportedConstraintException
@@ -1006,14 +1020,17 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 	     * Populates the context collection with information representing
 	     * the connection.
 	     **/
+            @Override
 	    protected void populateContext(Collection context) {
 	        Util.populateContext(context, socket.getInetAddress());
 	    }
 
+            @Override
 	    protected void idle() {
 		connTimer.scheduleTimeout(this, false);
 	    }
 
+            @Override
 	    protected void busy() {
 		connTimer.cancelTimeout(this);
 	    }

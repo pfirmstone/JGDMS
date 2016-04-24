@@ -616,19 +616,22 @@ public final class SslEndpoint
 	    return ((SslServerEndpoint) endpoint).impl;
 	}
 
+        @Override
 	public void setConnManagerFactory(Endpoint endpoint,
 					  ConnManagerFactory factory)
 	{
 	    SslEndpointImpl impl = coerce(endpoint);
-	    impl.connectionManager = factory.create(impl);
+	    impl.setConnectionManager(factory.create(impl));
 	}
 
+        @Override
 	public void setServerConnManager(ServerEndpoint endpoint,
 					 ServerConnManager manager)
 	{
-	    coerce(endpoint).serverConnectionManager = manager;
+	    coerce(endpoint).setServerConnectionManager(manager);
 	}
 
+        @Override
 	public InvocationConstraints getUnfulfilledConstraints(
 	    OutboundRequestHandle handle)
 	{
