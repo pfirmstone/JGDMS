@@ -18,10 +18,11 @@
 
 package net.jini.core.event;
 
+import java.rmi.MarshalledObject;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectOutputStream;
-import java.rmi.MarshalledObject;
+import java.io.ObjectStreamField;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -89,6 +90,14 @@ import org.apache.river.api.io.Valid;
 public class RemoteEvent extends java.util.EventObject {
 
     private static final long serialVersionUID = 1777278867291906446L;
+    
+    private static final ObjectStreamField[] serialPersistentFields = 
+	{
+	    new ObjectStreamField("source", Object.class),
+	    new ObjectStreamField("eventID", long.class),
+	    new ObjectStreamField("seqNum", long.class),
+	    new ObjectStreamField("handback", MarshalledObject.class)
+	};
 
     /**
      * The event source.
@@ -215,12 +224,8 @@ public class RemoteEvent extends java.util.EventObject {
      * @return the MarshalledInstance that was provided as a parameter to
      *         the event interest registration method, if any. 
      */
-    public MarshalledInstance getRegistrationObject2() {
-	return new MarshalledInstance(handback);
-    }
-
-    private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+    public MarshalledInstance getHandback() {
+	return new MarshalledInstance(getRegistrationObject());
     }
 
     /**
@@ -234,5 +239,40 @@ public class RemoteEvent extends java.util.EventObject {
     {
 	stream.defaultReadObject();
 	super.source = source;
+    }
+       
+    /**
+     * In River 3.0.0, RemoteEvent became immutable and all state made private,
+     * previously all fields were protected and non final.
+     * <p>
+     * This change breaks compatibility for subclasses that access these fields
+     * directly.  For other classes, all fields were accessible
+     * via public API getter methods.
+     * <p>
+     * To allow an upgrade path for subclasses that extend RemoteEvent and
+     * provide public setter methods for these fields, it is recommended to
+     * override all public methods and maintain state independently using 
+     * transient fields.  The subclass should also use RemoteEvent getter 
+     * methods to set these transient fields during de-serialization.
+     * <p>
+     * writeObject, instead of writing RemoteEvent fields, writes the 
+     * result of all getter methods to the ObjectOutputStream, during serialization,
+     * preserving serial form compatibility wither earlier versions, while 
+     * also allowing mutable subclasses to maintain full serial compatibility.
+     * <p>
+     * Mutable subclasses honoring this contract will be compatible with all 
+     * versions since Jini 1.0.
+     * 
+     * @param stream
+     * @throws java.io.IOException 
+     */
+    private void writeObject(java.io.ObjectOutputStream stream) throws java.io.IOException
+    {
+	ObjectOutputStream.PutField fields = stream.putFields();
+	fields.put("source", getSource());
+	fields.put("eventID", getID());
+	fields.put("seqNum", getSequenceNumber());
+	fields.put("handback", getRegistrationObject());
+	stream.writeFields();
     }
 }
