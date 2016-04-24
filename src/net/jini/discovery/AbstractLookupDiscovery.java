@@ -1206,7 +1206,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 				"Exception occured during unicast discovery " +
 				addr + ":" + port, e);
                             } 
-		    }.getResponse(loc.getHost(),
+		    }.getResponse(loc.scheme(), loc.getHost(),
 				      loc.getPort(),
 				      rawUnicastDiscoveryConstraints);
 		    maybeAddNewRegistrar(resp);

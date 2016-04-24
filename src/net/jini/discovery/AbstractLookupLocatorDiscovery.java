@@ -304,7 +304,7 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 			addr + ":" + port, e);
 		}
 		
-	    }.getResponse(locator.getHost(), locator.getPort(), ic);
+	    }.getResponse(locator.scheme(), locator.getHost(), locator.getPort(), ic);
 	    	    
 	    /* Proxy preparation */
                 ServiceRegistrar proxy = (ServiceRegistrar)registrarPreparer.prepareProxy

@@ -44,8 +44,8 @@ import org.apache.river.api.net.Uri;
 /**
  * LookupLocator supports unicast discovery, using either Discovery V1 or V2.
  * 
- * Version 1 of the unicast discovery protocol is deprecated.  By default
- * Discovery V2 is a preferred constraint.
+ * Version 1 of the unicast discovery protocol is deprecated.
+ * Discovery V2 is used by default, unless otherwise set by Constraints.
  * <p>
  * It's main purpose now is to contain a host name and port number, it is now
  * immutable, since River 2.2.1, this may break overriding classes.
@@ -74,7 +74,9 @@ public class LookupLocator implements Serializable {
     /**
      * The port for both unicast and multicast boot requests.
      */
-    private static final short discoveryPort = 4160;
+    private static final short DISCOVERY_PORT = 4160;
+    
+    private static final short HTTPS_DISCOVERY_PORT = 443;
     
     /**
      * The name of the host at which to perform discovery.
@@ -88,6 +90,15 @@ public class LookupLocator implements Serializable {
      * @serial
      */
     protected final int port;
+    
+    /**
+     * We need to consider allowing path and query to enable internet unicast
+     * discovery as suggested by Mark Brouwer.  Earlier versions will simply
+     * ignore.  Otherwise we could allow https:// discovery.
+     * 
+     * @serial
+     */
+    protected final String scheme;
     
     /**
      * The timeout after which we give up waiting for a response from
@@ -151,6 +162,7 @@ public class LookupLocator implements Serializable {
      */
     private LookupLocator(URI uri){
 	super();
+        scheme = uri.getScheme();
         host = uri.getHost();
         port = uri.getPort();
     }
@@ -161,12 +173,12 @@ public class LookupLocator implements Serializable {
      * @param port
      * @return 
      */
-    private static URI parseURI(String host, int port){
+    private static URI parseURI(String scheme, String host, int port){
 	if (host == null) {
             throw new NullPointerException("null host");
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("jini://").append(host);
+        sb.append(scheme).append("://").append(host);
         if (port != -1) { //URI compliance -1 is converted to discoveryPort.
             sb.append(":").append(port);
         }
@@ -178,7 +190,17 @@ public class LookupLocator implements Serializable {
     }
     
     public LookupLocator(GetArg arg) throws IOException{
-	this(parseURI(arg.get("host", null, String.class), arg.get("port", 0)));
+	this(parseURI(getScheme(arg), arg.get("host", null, String.class), arg.get("port", 0)));
+    }
+    
+    private static String getScheme(GetArg arg) throws IOException{
+        String scheme = "jini";
+        try {
+            scheme = arg.get("scheme", scheme, String.class);
+        } catch (IllegalArgumentException e){
+            // Ignore, just means the field doesn't exist in serial form.
+        }
+        return scheme;
     }
 
     /**
@@ -209,7 +231,7 @@ public class LookupLocator implements Serializable {
      * @throws NullPointerException if <code>host</code> is <code>null</code>
      */
     public LookupLocator(String host, int port) {
-        this(parseURI(host, port));
+        this(parseURI("jini", host, port));
         }
 
     /**
@@ -230,7 +252,9 @@ public class LookupLocator implements Serializable {
         }
 	if (!uri.isAbsolute()) throw new MalformedURLException("no scheme specified: " + url);
 	if (uri.isOpaque()) throw new MalformedURLException("not a hierarchical url: " + url);
-	if (!uri.getScheme().toLowerCase().equals("jini")) throw new MalformedURLException("Invalid URL scheme: " + url);
+        String scheme = uri.getScheme().toLowerCase();
+	if (!"jini".equals(scheme)|| !"https".equals(scheme)) 
+            throw new MalformedURLException("Invalid URL scheme: " + url);
 
         String uriPath = uri.getPath();
         if ((uriPath.length() != 0) && (!uriPath.equals("/"))) {
@@ -247,7 +271,7 @@ public class LookupLocator implements Serializable {
         }
         int port = uri.getPort();
         if (port == -1) {
-            port = discoveryPort;
+            port = "https".equals(scheme)? HTTPS_DISCOVERY_PORT : DISCOVERY_PORT;
             try {
                 uri = new URI(
                         uri.getScheme(),
@@ -270,6 +294,16 @@ public class LookupLocator implements Serializable {
             throw new MalformedURLException("port number out of range: " + url);
         }
         return uri;
+    }
+    
+    /**
+     * Returns the scheme used by this LookupLocator, either traditional
+     * "jini" or "https".
+     * 
+     * @return scheme string.
+     */
+    public String scheme() {
+        return scheme;
     }
 
     /**
@@ -377,7 +411,7 @@ public class LookupLocator implements Serializable {
                 return disco.doUnicastDiscovery(
                         s, dc.getUnfulfilledConstraints(), null, null, null);
             }
-        }.getResponse(host, port, constraints);
+        }.getResponse(scheme, host, port, constraints);
         return resp.getRegistrar();
     }
     
@@ -386,9 +420,9 @@ public class LookupLocator implements Serializable {
      * <code>"jini"</code>.
      */
     public String toString() {
-//	if (port != discoveryPort)
-	    return "jini://" + getHost0(host) + ":" + port + "/";
-//	return "jini://" + getHost0(host) + "/";
+        StringBuilder sb = new StringBuilder();
+        sb.append(scheme).append("://").append(getHost0(host)).append(":").append(port).append("/");
+        return sb.toString();
     }
 
     /**
@@ -448,7 +482,7 @@ public class LookupLocator implements Serializable {
 	    throws IOException, ClassNotFoundException{
         oin.defaultReadObject();
 	try {
-	    parseURI(host, port);
+	    parseURI("jini", host, port);
 	} catch (NullPointerException ex){
 	    InvalidObjectException e = new InvalidObjectException(
 		    "Invariants not satisfied during deserialization");
