@@ -146,7 +146,7 @@ public class LookupLocator implements Serializable {
      * <li> <code>scheme://</code><i>host</i><code>:</code><i>port</i>
      * <li>
      * <code>scheme://</code><i>host</i><code>:</code><i>port</i><code>/</code>
-     *
+     * </ul>
      * @param url the URL to use
      * @throws MalformedURLException <code>url</code> could not be parsed
      * @throws NullPointerException if <code>url</code> is <code>null</code>
