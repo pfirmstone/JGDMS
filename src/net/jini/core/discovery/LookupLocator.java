@@ -92,9 +92,7 @@ public class LookupLocator implements Serializable {
     protected final int port;
     
     /**
-     * We need to consider allowing path and query to enable internet unicast
-     * discovery as suggested by Mark Brouwer.  Earlier versions will simply
-     * ignore.  Otherwise we could allow https:// discovery.
+     * Either <code>"jini"</code> or <code>"https"</code>.
      * 
      * @serial
      */
@@ -130,11 +128,12 @@ public class LookupLocator implements Serializable {
      * {@link java.net.URI} with a <i>server-based naming authority</i>.
      * Requirements for the components are as follows:
      * <ul>
-     * <li> A <i>scheme</i> of <code>"jini"</code> must be present.
+     * <li> A <i>scheme</i> of <code>"jini"</code> or <code>"https"</code> must be present.
      * <li> A <i>server-based naming authority</i> must be
      * present; <i>user-info</i> must not be present. The <i>port</i>, if
      * present, must be between 1 and 65535 (both included). If no port is
-     * specified, a default value of <code>4160</code> is used.
+     * specified, a default value of <code>4160</code> is used for <code>"jini"</code>
+     * and a default value of <code>443</code> is used for <code>"https"</code>.
      * <li> A <i>path</i> if present, must be
      * <code>"/"</code>; <i>path segment</i>s must not be present.
      * <li> There must not be any other components present.
@@ -142,11 +141,11 @@ public class LookupLocator implements Serializable {
      * <p>
      * The four allowed forms of the URL are thus:
      * <ul>
-     * <li> <code>jini://</code><i>host</i>
-     * <li> <code>jini://</code><i>host</i><code>/</code>
-     * <li> <code>jini://</code><i>host</i><code>:</code><i>port</i>
+     * <li> <code>scheme://</code><i>host</i>
+     * <li> <code>scheme://</code><i>host</i><code>/</code>
+     * <li> <code>scheme://</code><i>host</i><code>:</code><i>port</i>
      * <li>
-     * <code>jini://</code><i>host</i><code>:</code><i>port</i><code>/</code>
+     * <code>scheme://</code><i>host</i><code>:</code><i>port</i><code>/</code>
      *
      * @param url the URL to use
      * @throws MalformedURLException <code>url</code> could not be parsed
@@ -205,7 +204,8 @@ public class LookupLocator implements Serializable {
 
     /**
      * Construct a new <code>LookupLocator</code> object, set to perform unicast
-     * discovery to the input <code>host</code> and <code>port</code>.  The
+     * discovery to the input <code>host</code> and <code>port</code> with the 
+     * default <code>"jini"</code> scheme.  The
      * <code>host</code> and <code>port</code> fields will be populated with the
      * <code>host</code> and <code>port</code> arguments.  No host name
      * resolution is attempted.
