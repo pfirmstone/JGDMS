@@ -85,8 +85,8 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
     {
 	trustManager.checkClientTrusted(chain, authType);
 	check(chain);
-	if (serverLogger.isLoggable(Level.FINE)) {
-	    serverLogger.log(Level.FINE,
+	if (SERVER_LOGGER.isLoggable(Level.FINE)) {
+	    SERVER_LOGGER.log(Level.FINE,
 			     "check client trusted succeeds " +
 			     "for auth type {0}\nchain {1}",
 			     new Object[] { authType, toString(chain) });
@@ -98,8 +98,8 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
     {
 	trustManager.checkServerTrusted(chain, authType);
 	check(chain);
-	if (clientLogger.isLoggable(Level.FINE)) {
-	    clientLogger.log(Level.FINE,
+	if (CLIENT_LOGGER.isLoggable(Level.FINE)) {
+	    CLIENT_LOGGER.log(Level.FINE,
 			     "check server trusted succeeds " +
 			     "for auth type {0}\nchain {1}",
 			     new Object[] { authType, toString(chain) });
@@ -155,7 +155,7 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
 			 */
 			factory.init((KeyStore) null);
 		    } catch (KeyStoreException e) {
-			initLogger.log(
+			INIT_LOGGER.log(
 			    Level.WARNING,
 			    "Problem initializing JSSE trust manager keystore",
 			    e);

@@ -248,7 +248,7 @@ final class ConnectionContext extends Utilities {
 		      (constraint == Confidentiality.YES));
 	} else if (constraint instanceof ConfidentialityStrength) {
 	    return ok(!doesEncryption(cipherSuite) ||
-		      (hasStrongCipherAlgorithm(cipherSuite)
+		      (hasStrongKeyCipherAlgorithms(cipherSuite)
 		       == (constraint == ConfidentialityStrength.STRONG)));
 	} else if (constraint instanceof ClientAuthentication) {
 	    return ok((client == null) ==

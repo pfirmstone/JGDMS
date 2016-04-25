@@ -320,7 +320,7 @@ public final class SslServerEndpoint implements ServerEndpoint {
     /* -- Fields -- */
 
     /** Server logger */
-    static final Logger logger = Utilities.serverLogger;
+    static final Logger logger = Utilities.SERVER_LOGGER;
 
     /** Implementation delegate. */
     final SslServerEndpointImpl impl;

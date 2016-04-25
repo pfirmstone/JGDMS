@@ -73,7 +73,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
     /* -- Fields -- */
 
     /** Client logger */
-    static final Logger logger = clientLogger;
+    static final Logger logger = CLIENT_LOGGER;
 
     /**
      * Weak key map that maps connection endpoints to weak references to the
@@ -577,7 +577,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {
 	    try {
-		sm.checkPermission(getSubjectPermission);
+		sm.checkPermission(GET_SUBJECT_PERMISSION);
 	    } catch (SecurityException e) {
 		return Boolean.FALSE;
 	    }

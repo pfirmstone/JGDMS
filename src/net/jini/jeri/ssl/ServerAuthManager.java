@@ -53,7 +53,7 @@ class ServerAuthManager extends AuthManager {
     /* -- Fields -- */
 
     /** Server transport logger */
-    private static final Logger logger = serverLogger;
+    private static final Logger logger = SERVER_LOGGER;
 
     /** The SSLSessionContext for all connections. */
     private final SSLSessionContext sslSessionContext;

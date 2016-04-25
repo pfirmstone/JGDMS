@@ -34,7 +34,8 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * that confidentiality is actually ensured. <p>
  *
  * Serialization for this class is guaranteed to produce instances that are
- * comparable with <code>==</code>. <p>
+ * comparable with <code>==</code>.  For future security, this may be converted
+ * to an enum, which is a breaking change, in order to honor the preceding statement.<p>
  *
  * This constraint is supported by the endpoints defined in this package. <p>
  *
@@ -58,8 +59,18 @@ public final class ConfidentialityStrength
     private static final long serialVersionUID = -5413316999614306469L;
 
     /**
-     * If confidentiality of message contents is ensured, then use strong
-     * confidentiality for message contents. <p>
+     * RFC 7525 Current best practice, if confidentiality of message contents 
+     * is ensured, then use strong confidentiality for message contents. <p>
+     * STRONG confidentiality isn't possible, unless both client and server
+     * are authenticated.
+     * <p>
+     * Guidance:
+     * <ul>
+     * <li> Keys used for strong encryption must not be shared by WEAK encryption connections.
+     * <li> Public Keys lengths used must follow the guidance of RFC 7525.
+     * <li> DHE_DSS and ECDHE_ECDSA key exchanges are allowed in addition to
+     * those recommended in RFC 7525.
+     * </ul>
      *
      * For the endpoints in this package, this constraint is supported by
      * cipher suites with the following cipher algorithms:
@@ -68,6 +79,15 @@ public final class ConfidentialityStrength
      * <li> AES_128_GCM
      * <li> AES_256_GCM
      * </ul>
+     * 
+     * Key exchange is limited to the following ephemeral protocols with forward secrecy.
+     * 
+     * <ul>
+     * <li> ECDHE_RSA
+     * <li> DHE_RSA
+     * <li> DHE_DSS
+     * <li> ECDHE_ECDSA
+     * </ul>
      */
     public static final ConfidentialityStrength STRONG =
 	new ConfidentialityStrength(true);
@@ -75,7 +95,11 @@ public final class ConfidentialityStrength
     /**
      * If confidentiality of message contents is ensured, then use weak
      * confidentiality for message contents. <p>
-     *
+     * All protocols allowed by WEAK are known to be vulnerable to attack.
+     * <p>
+     * Note that in all previous versions of Apache River and Jini, that the
+     * following protocols are considered STRONG.
+     * <p>
      * For the endpoints in this package, this constraint is supported by
      * cipher suites with the following cipher algorithms:
      *
@@ -114,6 +138,7 @@ public final class ConfidentialityStrength
     }
 
     /** Returns a string representation of this object. */
+    @Override
     public String toString() {
 	return value
 	    ? "ConfidentialityStrength.STRONG"

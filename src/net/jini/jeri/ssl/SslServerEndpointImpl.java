@@ -91,7 +91,7 @@ class SslServerEndpointImpl extends Utilities {
     /* -- Fields -- */
 
     /** Server logger */
-    static final Logger logger = serverLogger;
+    static final Logger logger = SERVER_LOGGER;
 
     /**
      * Executes a Runnable in a system thread -- used for listener accept

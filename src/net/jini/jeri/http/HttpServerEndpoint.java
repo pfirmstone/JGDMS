@@ -960,7 +960,7 @@ public final class HttpServerEndpoint implements ServerEndpoint {
 		if (needShutdown) {
 		    shutdown(true);
 		} else {
-		    start();
+		    super.start();
 		}
             }
 

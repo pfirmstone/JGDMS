@@ -70,7 +70,7 @@ class SslConnection extends Utilities implements Connection {
 			      (long) (23.5 * 60 * 60 * 1000)))).longValue();
 
     /** Client logger */
-    private static final Logger logger = clientLogger;
+    private static final Logger logger = CLIENT_LOGGER;
 
     /** The server host */
     final String serverHost;
@@ -166,7 +166,7 @@ class SslConnection extends Utilities implements Connection {
 		SecurityManager sm = System.getSecurityManager();
 		if (sm != null) {
 		    try {
-			sm.checkPermission(getSubjectPermission);
+			sm.checkPermission(GET_SUBJECT_PERMISSION);
 		    } catch (SecurityException e) {
 			credExcept = null;
 		    }

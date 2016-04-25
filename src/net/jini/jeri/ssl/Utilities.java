@@ -76,22 +76,29 @@ abstract class Utilities {
 	"DH_anon",
         "DH_anon_EXPORT"
     };
+    
+    private static final String[] EPHEMERAL_KEY_EXCHANGE_ALGORITHMS = {
+        "ECDHE_RSA", //Only ephemeral DH safe from mitm attack.
+	"DHE_RSA", //Only ephemeral DH safe from mitm attack.
+        "DHE_DSS", //Only ephemeral DH safe from mitm attack.
+        "ECDHE_ECDSA" //Only ephemeral DH safe from mitm attack.
+    };
 
     /** The names of JSSE key exchange algorithms that use RSA keys. */
     private static final String[] RSA_KEY_EXCHANGE_ALGORITHMS = {
-	"ECDHE_RSA", //Only emepheral DH safe from mitm attack.
-	"DHE_RSA", //Only emepheral DH safe from mitm attack.
+	"ECDHE_RSA", //Only ephemeral DH safe from mitm attack.
+	"DHE_RSA", //Only ephemeral DH safe from mitm attack.
 	"RSA",
     };
 
     /** The names of JSSE key exchange algorithms that use DSA keys. */
     private static final String[] DSA_KEY_EXCHANGE_ALGORITHMS = {
-	"DHE_DSS" //Only emepheral DH safe from mitm attack.
+	"DHE_DSS" //Only ephemeral DH safe from mitm attack.
     };
 
     /** The names of JSSE key exchange algorithms that use DSA keys. */
     private static final String[] ECDSA_KEY_EXCHANGE_ALGORITHMS = {
-	"ECDHE_ECDSA" //Only emepheral DH safe from mitm attack.
+	"ECDHE_ECDSA" //Only ephemeral DH safe from mitm attack.
     };
     
     /**
@@ -134,15 +141,15 @@ abstract class Utilities {
     };
 
     /** Client logger */
-    static final Logger clientLogger =
+    static final Logger CLIENT_LOGGER =
 	Logger.getLogger("net.jini.jeri.ssl.client");
 
     /** Server logger */
-    static final Logger serverLogger =
+    static final Logger SERVER_LOGGER =
 	Logger.getLogger("net.jini.jeri.ssl.server");
 
     /** Initialization logger */
-    static final Logger initLogger =
+    static final Logger INIT_LOGGER =
 	Logger.getLogger("net.jini.jeri.ssl.init");
 
     /**
@@ -155,7 +162,7 @@ abstract class Utilities {
      * Or'ed into the value returned by getPermittedKeyAlgorithms when DSA keys
      * are permitted.
      */
-    static final int DSA_KEY_ALGORITHM = 1 << 0;
+    static final int DSA_KEY_ALGORITHM = 1;
 
     /**
      * Or'ed into the value returned by getPermittedKeyAlgorithms when RSA keys
@@ -170,7 +177,7 @@ abstract class Utilities {
     static final int ECDSA_KEY_ALGORITHM = 1 << 2;
 
     /** Stores SSL contexts and auth managers. */
-    private static final WeakSoftTable sslContextMap = new WeakSoftTable();
+    private static final WeakSoftTable SSL_CONTEXT_MAP = new WeakSoftTable();
 
     /**
      * The cipher suites supported by the JSSE implementation, or null if not
@@ -206,7 +213,9 @@ abstract class Utilities {
      * represent the server principal when the server subject is not available.
      */
     static final Principal UNKNOWN_PRINCIPAL = new Principal() {
+        @Override
 	public String toString() { return "UNKNOWN_PRINCIPAL"; }
+        @Override
 	public String getName() { return toString(); }
     };
 
@@ -219,11 +228,11 @@ abstract class Utilities {
 	new InvocationConstraints(null, Integrity.YES);
 
     /** The secure socket protocol used with JSSE. */
-    private static final String sslProtocol = (String) Security.doPrivileged(
+    private static final String SSL_PROTOCOL = (String) Security.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.2"));
 
     /** Permission needed to access the current subject. */
-    static final AuthPermission getSubjectPermission =
+    static final AuthPermission GET_SUBJECT_PERMISSION =
 	new AuthPermission("getSubject");
 
     /* -- Methods -- */
@@ -235,7 +244,7 @@ abstract class Utilities {
      * this provider.
      */
     static String[] getSupportedCipherSuites() {
-	synchronized (sslContextMap) {
+	synchronized (SSL_CONTEXT_MAP) {
 	    if (supportedCipherSuitesInternal == null) {
 		SSLContextInfo info = getServerSSLContextInfo(null, null);
 		SSLSocketFactory factory = info.sslContext.getSocketFactory();
@@ -257,7 +266,7 @@ abstract class Utilities {
 	if (requestedCipherSuites == null) {
 	    suites = factory.getSupportedCipherSuites();
 	} else if (requestedCipherSuites.length == 0) {
-	    initLogger.log(Level.WARNING,
+	    INIT_LOGGER.log(Level.WARNING,
 			   "Problem with requested cipher suites: " +
 			   "No suites specified -- " +
 			   "using default suites");
@@ -272,7 +281,7 @@ abstract class Utilities {
 		socket.setEnabledCipherSuites(requestedCipherSuites);
 		suites = requestedCipherSuites;
 	    } catch (Exception e) {
-		initLogger.log(Level.WARNING,
+		INIT_LOGGER.log(Level.WARNING,
 			       "Problem with requested cipher suites -- " +
 			       "using default suites",
 			       e);
@@ -437,16 +446,19 @@ abstract class Utilities {
 	    permittedLocalPrincipals = serverKey.permittedLocalPrincipals;
 	}
 
+        @Override
 	public WeakSoftTable.RemovableReference copy(ReferenceQueue queue) {
 	    return new ServerKey(this, queue);
 	}
 
+        @Override
 	public int hashCode() {
 	    return super.hashCode()
 		^ (permittedLocalPrincipals == null ? 1
 		   : permittedLocalPrincipals.hashCode());
 	}
 
+        @Override
 	public boolean equals(Object other) {
 	    return super.equals(other)
 		&& safeEquals(permittedLocalPrincipals,
@@ -486,10 +498,12 @@ abstract class Utilities {
 	    cipherSuites = clientKey.cipherSuites;
 	}
 
+        @Override
 	public WeakSoftTable.RemovableReference copy(ReferenceQueue queue) {
 	    return new ClientKey(this, queue);
 	}
 
+        @Override
 	public int hashCode() {
 	    return super.hashCode()
 		^ (permittedRemotePrincipals == null ? 2
@@ -499,6 +513,7 @@ abstract class Utilities {
 		^ cipherSuites[0].hashCode();
 	}
 
+        @Override
 	public boolean equals(Object other) {
 	    if (!super.equals(other)) {
 		return false;
@@ -534,6 +549,7 @@ abstract class Utilities {
 	    this.authManager = value.authManager;
 	}
 
+        @Override
 	public WeakSoftTable.RemovableReference copy(ReferenceQueue queue) {
 	    return new Value(this, queue);
 	}
@@ -559,9 +575,9 @@ abstract class Utilities {
      */
     static SSLContextInfo getClientSSLContextInfo(CallContext callContext) {
 	ClientKey key = new ClientKey(callContext);
-	synchronized (sslContextMap) {
+	synchronized (SSL_CONTEXT_MAP) {
 	    for (int i = 0; true; i++) {
-		Value value = (Value) sslContextMap.get(key, i);
+		Value value = (Value) SSL_CONTEXT_MAP.get(key, i);
 		if (value == null) {
 		    break;
 		}
@@ -576,9 +592,9 @@ abstract class Utilities {
 		    } catch (UnsupportedConstraintException e) {
 			continue;
 		    }
-		    sslContextMap.remove(key, i);
-		    if (clientLogger.isLoggable(Level.FINEST)) {
-			clientLogger.log(
+		    SSL_CONTEXT_MAP.remove(key, i);
+		    if (CLIENT_LOGGER.isLoggable(Level.FINEST)) {
+			CLIENT_LOGGER.log(
 			    Level.FINEST,
 			    "get client SSL context for {0}\n" +
 			    "returns existing {1}",
@@ -591,7 +607,7 @@ abstract class Utilities {
 	/* Create a new SSL context */
 	SSLContext sslContext;
 	try {
-	    sslContext = SSLContext.getInstance(sslProtocol);
+	    sslContext = SSLContext.getInstance(SSL_PROTOCOL);
 	} catch (NoSuchAlgorithmException e) {
 	    throw initializationError(e, "finding SSL context");
 	}
@@ -615,8 +631,8 @@ abstract class Utilities {
 	    throw initializationError(e, "initializing SSL context");
 	}
 
-	if (clientLogger.isLoggable(Level.FINEST)) {
-	    clientLogger.log(Level.FINEST,
+	if (CLIENT_LOGGER.isLoggable(Level.FINEST)) {
+	    CLIENT_LOGGER.log(Level.FINEST,
 			     "get client SSL context for {0}\nreturns new {1}",
 			     new Object[] { callContext, sslContext });
 	}
@@ -639,13 +655,13 @@ abstract class Utilities {
 						  Set serverPrincipals)
     {
 	ServerKey key = new ServerKey(serverSubject, serverPrincipals);
-	synchronized (sslContextMap) {
-	    Value value = (Value) sslContextMap.get(key, 0);
+	synchronized (SSL_CONTEXT_MAP) {
+	    Value value = (Value) SSL_CONTEXT_MAP.get(key, 0);
 	    if (value != null) {
 		SSLContext sslContext = value.getSSLContext();
 		if (sslContext != null) {
-		    if (serverLogger.isLoggable(Level.FINEST)) {
-			serverLogger.log(
+		    if (SERVER_LOGGER.isLoggable(Level.FINEST)) {
+			SERVER_LOGGER.log(
 			    Level.FINEST,
 			    "get server SSL context for {0}\n" +
 			    "and principals {1}\nreturns existing {2}",
@@ -658,7 +674,7 @@ abstract class Utilities {
 
 	    SSLContext sslContext;
 	    try {
-		sslContext = SSLContext.getInstance(sslProtocol);
+		sslContext = SSLContext.getInstance(SSL_PROTOCOL);
 	    } catch (NoSuchAlgorithmException e) {
 		throw initializationError(e, "finding SSL context");
 	    }
@@ -681,10 +697,10 @@ abstract class Utilities {
 		throw initializationError(e, "initializing SSL context");
 	    }
 
-	    sslContextMap.add(key, new Value(key, sslContext, authManager));
+	    SSL_CONTEXT_MAP.add(key, new Value(key, sslContext, authManager));
 
-	    if (serverLogger.isLoggable(Level.FINEST)) {
-		serverLogger.log(
+	    if (SERVER_LOGGER.isLoggable(Level.FINEST)) {
+		SERVER_LOGGER.log(
 		    Level.FINEST,
 		    "get server SSL context for {0}\nand principals {1}\n" +
 		    "returns new {2}",
@@ -704,8 +720,8 @@ abstract class Utilities {
 					    ClientAuthManager authManager)
     {
 	ClientKey key = new ClientKey(callContext);
-	synchronized (sslContextMap) {
-	    sslContextMap.add(key, new Value(key, sslContext, authManager));
+	synchronized (SSL_CONTEXT_MAP) {
+	    SSL_CONTEXT_MAP.add(key, new Value(key, sslContext, authManager));
 	}
     }
 
@@ -723,7 +739,7 @@ abstract class Utilities {
 	    "Error during initialization of SSL or HTTPS provider, " +
 	    "while " + contextString + ": " + error.getMessage(),
 	    error);
-	initLogger.log(Level.WARNING, "Initialization error", e);
+	INIT_LOGGER.log(Level.WARNING, "Initialization error", e);
 	return e;
     }
 
@@ -732,7 +748,7 @@ abstract class Utilities {
      * certificates.
      */
     static CertificateFactory getCertFactory() {
-	synchronized (sslContextMap) {
+	synchronized (SSL_CONTEXT_MAP) {
 	    if (certFactory == null) {
 		try {
 		    certFactory = CertificateFactory.getInstance("X.509");
@@ -843,7 +859,7 @@ abstract class Utilities {
 	    throw new IllegalArgumentException(
 		"Unrecognized key exchange algorithm: " + alg);
 	}
-    }   
+    }    
 
     /**
      * Returns the algorithms permitted for keys used with this cipher suite.
@@ -859,31 +875,32 @@ abstract class Utilities {
      */
     static int getPermittedKeyAlgorithms(String cipherSuite, boolean client) {
 	String keyAlgorithm = getKeyAlgorithm(cipherSuite);
-	if (keyAlgorithm.equals("RSA")) {
-	    /*
-	     * For these suites, the server must use an RSA key, but the client
-	     * may use either an RSA or DSA key.
-	     */
-	    return (client)
-		? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM
-		: RSA_KEY_ALGORITHM;
-	} else if (keyAlgorithm.equals("DSA")) {
-	    /* Same here, but server must use a DSA key */
-	    return (client)
-		? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM
-		: DSA_KEY_ALGORITHM;
-	} else if (keyAlgorithm.equals("ECDSA")) {
-	    /* For this suit the server must use a ECDSA key , but the client
-	     * may use either an RSA, DSA or ECDSA key. */
-	    return (client)
-		? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM | ECDSA_KEY_ALGORITHM
-		: ECDSA_KEY_ALGORITHM;
-	} else if (keyAlgorithm.equals("NULL")) {
-	    return 0;
-	} else {
-	    throw new AssertionError(
-		"Unrecognized key algorithm: " + keyAlgorithm);
-	}
+        switch (keyAlgorithm) {
+            case "RSA":
+                /*
+                * For these suites, the server must use an RSA key, but the client
+                * may use either an RSA or DSA key.
+                */
+                return (client)
+                        ? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM
+                        : RSA_KEY_ALGORITHM;
+            case "DSA":
+                /* Same here, but server must use a DSA key */
+                return (client)
+                        ? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM
+                        : DSA_KEY_ALGORITHM;
+            case "ECDSA":
+                /* For this suit the server must use a ECDSA key , but the client
+                * may use either an RSA, DSA or ECDSA key. */
+                return (client)
+                        ? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM | ECDSA_KEY_ALGORITHM
+                        : ECDSA_KEY_ALGORITHM;
+            case "NULL":
+                return 0;
+            default:
+                throw new AssertionError(
+                        "Unrecognized key algorithm: " + keyAlgorithm);
+        }
     }
 
     /**
@@ -893,20 +910,24 @@ abstract class Utilities {
     static boolean permittedKeyAlgorithm(String keyAlgorithm,
 					 int permittedKeyAlgorithms)
     {
-	// Don't permit any, as that subjects endpoints to mitm attacks on weaker
-	// key excange protocols.
-//	if (permittedKeyAlgorithms == ANY_KEY_ALGORITHM) {
-//	    return true;
-//	} else 
-	if ("DSA".equals(keyAlgorithm)) {
-	    return (permittedKeyAlgorithms & DSA_KEY_ALGORITHM) != 0;
-	} else if ("ECDSA".equals(keyAlgorithm)) {
-	    return (permittedKeyAlgorithms & ECDSA_KEY_ALGORITHM) != 0;
-	} else if ("RSA".equals(keyAlgorithm)) {
-	    return (permittedKeyAlgorithms & RSA_KEY_ALGORITHM) != 0;
-	} else {
-	    return false;
-	}
+	if (null != keyAlgorithm){ 
+            // Don't permit any, as that subjects endpoints to mitm attacks on weaker
+            // key excange protocols.
+            //	if (permittedKeyAlgorithms == ANY_KEY_ALGORITHM) {
+            //	    return true;
+            //	} else
+            switch (keyAlgorithm) {
+                case "DSA":
+                    return (permittedKeyAlgorithms & DSA_KEY_ALGORITHM) != 0;
+                case "ECDSA":
+                    return (permittedKeyAlgorithms & ECDSA_KEY_ALGORITHM) != 0;
+                case "RSA":
+                    return (permittedKeyAlgorithms & RSA_KEY_ALGORITHM) != 0;
+                default:
+                    return false;
+            }
+        }
+        return false;
     }
 
     /**
@@ -928,11 +949,14 @@ abstract class Utilities {
 
     /**
      * Returns true if the cipher algorithm for the specified cipher suite is
-     * considered a strong cipher, otherwise false.
+     * considered a strong cipher and the key exchange has perfect forward
+     * secrecy (ephemeral), otherwise false.
      */
-    static boolean hasStrongCipherAlgorithm(String cipherSuite) {
+    static boolean hasStrongKeyCipherAlgorithms(String cipherSuite) {
 	String cipher = getCipherAlgorithm(cipherSuite);
-	return position(cipher, STRONG_ENCRYPTION_CIPHERS) != -1;
+        String key = getKeyExchangeAlgorithm(cipherSuite);
+        return ( position(key, EPHEMERAL_KEY_EXCHANGE_ALGORITHMS) != -1 &&
+                 position(cipher, STRONG_ENCRYPTION_CIPHERS) != -1);
     }
 
     /**
@@ -998,7 +1022,7 @@ abstract class Utilities {
 	if (array == null) {
 	    return "null";
 	}
-	StringBuffer buf = new StringBuffer("[");
+	StringBuilder buf = new StringBuilder("[");
 	for (int i = 0; i < array.length; i++) {
 	    if (i != 0) {
 		buf.append(", ");

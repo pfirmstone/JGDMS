@@ -336,7 +336,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
     /* -- Fields -- */
 
     /** Server logger */
-    static final Logger logger = Utilities.serverLogger;
+    static final Logger logger = Utilities.SERVER_LOGGER;
 
     /** Manager for HTTP server connections. */
     static final HttpServerManager httpServerManager;
@@ -879,7 +879,7 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 					    ServerSocket serverSocket)
 		throws IOException
 	    {
-		return new HttpsListenHandle(requestDispatcher, serverSocket);
+		return new HttpsListenHandle(requestDispatcher, serverSocket, this);
 	    }
 	}
 
@@ -887,10 +887,11 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
 	private static final class HttpsListenHandle extends SslListenHandle {
 
 	    HttpsListenHandle(RequestDispatcher requestDispatcher,
-			      ServerSocket serverSocket)
+                                ServerSocket serverSocket, 
+                                HttpsListenEndpoint listenEndpoint)
 		throws IOException
 	    {
-		super(requestDispatcher, serverSocket, null);
+		super(requestDispatcher, serverSocket, listenEndpoint);
 	    }
 
             @Override
@@ -1114,15 +1115,20 @@ public final class HttpsServerEndpoint implements ServerEndpoint {
             synchronized HttpServer getHttpServer() {
                 return httpServer;
             }
-
+ 
             /**
-             * @param newServer the httpServer to set, currentServer equal.
+             * Atomic, only set's server if it's reference is equal to the expected 
+             * currentServer.
+             * 
+             * @param newServer the httpServer to set
+             * @return the HttpServer.
              * 
              */
-            synchronized void setHttpServer(HttpServer newServer, HttpServer currentServer) {
-                if (this.httpServer.equals(currentServer)){
+            synchronized HttpServer setHttpServer(HttpServer newServer, HttpServer currentServer) {
+                if (this.httpServer == currentServer){
                     this.httpServer = newServer;
                 }
+                return this.httpServer;
             }
 	}
     }

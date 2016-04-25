@@ -583,11 +583,11 @@ public final class SslEndpoint
 		    }
 		});
 	    } catch (RuntimeException e) {
-		initLogger.log(Level.WARNING,
+		INIT_LOGGER.log(Level.WARNING,
 			       "Problem registering with discovery provider",
 			       e);
 	    } catch (Error e) {
-		initLogger.log(Level.WARNING,
+		INIT_LOGGER.log(Level.WARNING,
 			       "Problem registering with discovery provider",
 			       e);
 	    }

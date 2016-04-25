@@ -50,7 +50,7 @@ class ClientAuthManager extends AuthManager {
     /* -- Fields -- */
 
     /** Client logger */
-    private static final Logger logger = clientLogger;
+    private static final Logger logger = CLIENT_LOGGER;
 
     /** The server certificate chosen by the first handshake. */
     private X509Certificate serverCredential;
