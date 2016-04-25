@@ -253,8 +253,8 @@ public class LookupLocator implements Serializable {
 	if (!uri.isAbsolute()) throw new MalformedURLException("no scheme specified: " + url);
 	if (uri.isOpaque()) throw new MalformedURLException("not a hierarchical url: " + url);
         String scheme = uri.getScheme().toLowerCase();
-	if (!"jini".equals(scheme)|| !"https".equals(scheme)) 
-            throw new MalformedURLException("Invalid URL scheme: " + url);
+	if (!("jini".equals(scheme)|| "https".equals(scheme))) 
+            throw new MalformedURLException("Invalid URL scheme: " + scheme);
 
         String uriPath = uri.getPath();
         if ((uriPath.length() != 0) && (!uriPath.equals("/"))) {
