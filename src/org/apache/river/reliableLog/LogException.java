@@ -34,7 +34,7 @@ public class LogException extends IOException {
     private static final long serialVersionUID = 1870528169848832111L;
 
     /** @serial */
-    public Throwable detail;
+    public final Throwable detail;
 
     /**
      * Create a wrapper exception for exceptions that occur during a logging
@@ -42,6 +42,7 @@ public class LogException extends IOException {
      */
     public LogException() {
 	initCause(null);
+        detail = null;
     }
 
     /**
@@ -51,6 +52,7 @@ public class LogException extends IOException {
     public LogException(String s) {
 	super(s);
 	initCause(null);
+        detail = null;
     }
 
     /**
@@ -59,8 +61,7 @@ public class LogException extends IOException {
      * nested exception.
      */
     public LogException(String s, Throwable ex) {
-	super(s);
-        initCause(null);
+	super(s,ex);
 	detail = ex;
     }
 
@@ -69,18 +70,13 @@ public class LogException extends IOException {
      * if there is one.
      */
     public String getMessage() {
-	if (detail == null) 
+        Throwable cause = super.getCause();
+	if (cause == null) 
 	    return super.getMessage();
 	else
 	    return super.getMessage() + 
 		"; nested exception is: \n\t" +
-		detail.toString();
+		cause.toString();
     }
 
-    /**
-     * Returns the nested exception (the <i>cause</i>).
-     */
-    public Throwable getCause() {
-        return detail;
-    }
 }

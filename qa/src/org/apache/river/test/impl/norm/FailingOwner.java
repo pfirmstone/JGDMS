@@ -221,15 +221,20 @@ public class FailingOwner extends LeaseOwner {
 
 	final String m1 = toThrow.getMessage();
 	final String m2 = evt.getMessage();
+        final String cn1 = toThrow.getClass().getName();
+	final String cn2 = e.getThrowable().getClass().getName();
 	if (m2 == null && m1 != null) {
-	    setRsltIfNeeded("Exception thrown did not match one returned");
+	    setRsltIfNeeded("Exception thrown:\n"+ cn1+ "\ndid not match one returned:\n"+ cn2 + "\nmessages didn't match:\n " + m1 +"\n\nnull");
 	    return;
 	}
-
-	final String cn1 = toThrow.getClass().getName();
-	final String cn2 = e.getThrowable().getClass().getName();
-	if (!m1.equals(m2) || !cn1.equals(cn2))
-	    setRsltIfNeeded("Exception thrown did not match one returned");
+        if (m1 != null && !m1.equals(m2)){
+            setRsltIfNeeded("Exception thrown:\n"+ cn1 +"\ndid not match one returned:\n"+ cn2 + "\nmessages didn't match:\n" + m1 +"\n\n" + m2);
+	    return;
+        }
+        
+	
+	if (!cn1.equals(cn2))
+	    setRsltIfNeeded("Exception thrown did not match one returned, class names different: " + cn1 + " " + cn2);
     }
     
     /**

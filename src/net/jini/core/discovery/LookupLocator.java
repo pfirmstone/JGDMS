@@ -42,14 +42,23 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
 
 /**
- * LookupLocator supports unicast discovery, using either Discovery V1 or V2.
+ * LookupLocator supports unicast discovery, using either Discovery V1 or V2 or 
+ * https.
  * 
  * Version 1 of the unicast discovery protocol is deprecated.
  * Discovery V2 is used by default, unless otherwise set by Constraints.
  * <p>
- * It's main purpose now is to contain a host name and port number, it is now
+ * It's main purpose now is to contain a url used for unicast discovery of 
+ * a {@link ServiceRegistrar}, it is now
  * immutable, since River 2.2.1, this may break overriding classes.
- * 
+ * <p>
+ * <code>"jini"</code> Unicast Discovery may be performed using any Discovery 
+ * V1 or V2 provider and depending on routing and firewall rules,
+ * may be used to contact a {@link ServiceRegistrar}.  
+ * The <code>"https"</code> Unicast Discovery provider is neither
+ * Discovery V1 or V2 compliant, as firewall rules and proxy servers 
+ * that allow https communications are likely to prevent the handshake 
+ * required to select a <code>"jini"</code> Discovery provider.
  * <p>
  * LookupLocator is used as a parameter in LookupLocatorDiscovery constructors.  
  * LookupLocatorDiscovery has methods to perform Discovery using either 
@@ -417,7 +426,7 @@ public class LookupLocator implements Serializable {
     
     /**
      * Return the string form of this LookupLocator, as a URL of scheme
-     * <code>"jini"</code>.
+     * <code>"jini"</code> or <code>"https"</code>.
      */
     public String toString() {
         StringBuilder sb = new StringBuilder();

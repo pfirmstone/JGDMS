@@ -23,16 +23,19 @@
  * Provides a detail exception and a message.
  */
 public class TestFailedException extends java.lang.RuntimeException {
-    public Throwable detail;
+    public final Throwable detail;
 
-    public TestFailedException() {}
+    public TestFailedException() {
+        detail = null;
+    }
 
     public TestFailedException(String s) {
 	super(s);
+        detail = null;
     }
 
     public TestFailedException(String s, Throwable ex) {
-	super(s);
+	super(s, ex);
 	detail = ex;
     }
 

@@ -59,11 +59,12 @@ public class TestException extends Exception {
      * @return the detail message
      */
     public String getMessage(){
-        if (getCause() == null) {
+        Throwable cause = getCause();
+        if (cause == null) {
             return super.getMessage();
 	} else {
             return super.getMessage() + "; nested exception is: \n\t"
-                                      + getCause().getMessage();
+                                      + cause.getMessage();
 	}
     }
 }

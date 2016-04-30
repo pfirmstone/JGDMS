@@ -322,7 +322,8 @@ public @interface AtomicSerial {
 	 * advisable to pass a Collections empty collection instance for the
 	 * val parameter, to prevent a NullPointerException, in this case.
          *
-	 * @param <T> Type of object
+	 * @param <T> Type of object, note if T is an instance of Class<? extends SomeClass>
+         * the you must validate it, as this method can't.
          * @param  name the name of the field
          * @param  val the default value to use if <code>name</code> does not
          *         have a value

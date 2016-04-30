@@ -19,17 +19,17 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
+import java.io.OptionalDataException;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.rmi.RemoteException;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -53,7 +53,10 @@ class ThrowableSerializer implements Serializable {
 	    new ObjectStreamField("message", String.class),
 	    new ObjectStreamField("cause", Throwable.class),
 	    new ObjectStreamField("stack", StackTraceElement[].class),
-	    new ObjectStreamField("suppressed", Throwable[].class)
+	    new ObjectStreamField("suppressed", Throwable[].class),
+	    new ObjectStreamField("classname", String.class),
+            new ObjectStreamField("length", int.class),
+            new ObjectStreamField("eof", boolean.class),
 	};
     
     private static final Logger logger = Logger.getLogger("org.apache.river.api.io.ThrowableSerializer");
@@ -64,16 +67,39 @@ class ThrowableSerializer implements Serializable {
     private final Throwable cause;
     private final StackTraceElement[] stack;
     private final Throwable [] suppressed;
+    private final String classname; // To support InvalidClassException
+    private final int length; // To support OptionalDataException
+    private final boolean eof; // To support OptionalDataException
     
     ThrowableSerializer(Throwable t){
 	throwable = t;
 	clazz = t.getClass();
-	message = t.getMessage();
-	Throwable caus = t.getCause();
-	if (caus == t) cause = null;
-	else cause = caus;
+	cause = t.getCause();
 	stack = t.getStackTrace();
 	suppressed = t.getSuppressed();
+        if (t instanceof InvalidClassException) {
+            System.out.println(t);
+            System.out.println(t.getMessage());
+            t.printStackTrace(System.out);
+            classname = ((InvalidClassException)t).classname;
+            if (classname != null){
+                // work around overriding of Throwable.getMessage().
+                String mes = t.getMessage();
+                message = mes.substring(mes.indexOf(';') + 2);
+            } else {
+                message = t.getMessage();
+            }
+        } else {
+            classname = null;
+            message = t.getMessage();
+        }
+        if (t instanceof OptionalDataException) {
+            length = ((OptionalDataException)t).length;
+            eof = ((OptionalDataException)t).eof;
+        } else {
+            length = 0;
+            eof = false;
+        }
     }
     
     public ThrowableSerializer(GetArg arg) throws IOException{
@@ -81,7 +107,8 @@ class ThrowableSerializer implements Serializable {
     }
     
     private static Throwable check(GetArg arg) throws IOException{
-	Class<? extends Throwable> clas = Valid.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
+	Class<? extends Throwable>clas = Valid.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
+        if (!Throwable.class.isAssignableFrom(clas)) throw new InvalidObjectException("clazz must be assignable to Throwable");
 	logger.log(Level.FINER, "deserializing {0}", clas);
 	String message = arg.get("message", null, String.class);
 	Throwable cause = arg.get("cause", null, Throwable.class);
@@ -90,7 +117,47 @@ class ThrowableSerializer implements Serializable {
 	}
 	StackTraceElement[] stack = arg.get("stack", null, StackTraceElement[].class);
 	Throwable[] suppressed = arg.get("suppressed", null, Throwable[].class);
-	Throwable result = init(clas, message, cause);
+        String classname = arg.get("classname", null, String.class);
+        int length = arg.get("length", 0);
+        boolean eof = arg.get("eof", false);
+        Throwable result;
+        if (InvalidClassException.class.equals(clas)){
+            result = new InvalidClassException(classname, message);
+            if (cause != null) result.initCause(cause);
+        } else if (OptionalDataException.class.equals(clas)){
+            try {
+                if (length > 0) {
+                    Constructor<OptionalDataException> c 
+                        = OptionalDataException.class
+                                .getDeclaredConstructor(new Class[]{int.class});
+                    c.setAccessible(true);
+                    result = c.newInstance(new Object[]{length});
+                    if (cause != null) result.initCause(cause);
+                } else if (eof == true){
+                    Constructor<OptionalDataException> c 
+                        = OptionalDataException.class
+                                .getDeclaredConstructor(new Class[]{boolean.class});
+                    result = c.newInstance(new Object[]{eof});
+                    if (cause != null) result.initCause(cause);
+                } else {
+                    throw new InvalidObjectException("Failed invariant checks for OptionalDataException");
+                }
+            } catch (InstantiationException ex) {
+                throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+            } catch (IllegalAccessException ex) {
+                throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+            } catch (IllegalArgumentException ex) {
+                throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+            } catch (InvocationTargetException ex) {
+                throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+            } catch (NoSuchMethodException ex) {
+                return new org.apache.river.api.io.OptionalDataException(length, eof);
+            } catch (SecurityException ex) {
+                throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+            }
+        } else {
+            result = init(clas, message, cause);
+        }
 	if (stack != null) result.setStackTrace(stack);
 	// Only adds suppressed if enabled by Throwable protected constructor.
 	if (suppressed != null){ // compat with serial form of Throwable before Java 1.7
@@ -111,55 +178,56 @@ class ThrowableSerializer implements Serializable {
 	Throwable result;
 	try {
 	    Constructor [] cons = clas.getConstructors();
-	    for (int i = 0, l = cons.length; i < l; i++){
-		Class [] params = cons[i].getParameterTypes();		
-		if (Exception.class.isInstance(cause) && Arrays.equals(params, separams)){
-		    return (Throwable) cons[i].newInstance(new Object[]{message,(Exception) cause});
-		}
-		if (Error.class.isInstance(cause) && Arrays.equals(params, serparams)){
-		    return (Throwable) cons[i].newInstance(new Object[]{message,(Error) cause});
-		}
-		if (Arrays.equals(params, stparams)){
-		    return (Throwable) cons[i].newInstance(new Object[]{message, cause});
-		    
-		}
-		if (Arrays.equals(params, tsparams)){
-		    return (Throwable) cons[i].newInstance(new Object[]{cause, message});
-		    
-		}
-		if (Arrays.equals(params, sparam)){
-		    result = (Throwable) cons[i].newInstance(new Object[]{message});
-		    if (cause != null){
-			if (RemoteException.class.isAssignableFrom(clas)){
-			    ((RemoteException) result).detail = cause;
-			} else {
-			    try {
-				result.initCause(cause);
-			    } catch (IllegalStateException e){
-				throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
-			    }
-			} 
-		    }
-		    return result;
-		}
-                if (params.length == 0){
-                    result = (Throwable) cons[i].newInstance();
-		    if (cause != null){
-			if (RemoteException.class.isAssignableFrom(clas)){
-			    ((RemoteException) result).detail = cause;
-			} else {
-			    try {
-				result.initCause(cause);
-			    } catch (IllegalStateException e){
-				throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
-			    }
-			} 
-		    }
-		    return result;
+            if (Exception.class.isInstance(cause)){
+                Constructor c = getConstructor(cons, separams);
+                if (c != null){
+                    return (Throwable) c.newInstance(new Object[]{message,(Exception) cause});
                 }
-	    }
-	    throw throIO(new InstantiationException("No suitable constructor found for class " + clas));
-	} catch (SecurityException ex) {
+            }
+            if (Error.class.isInstance(cause)){
+                Constructor c = getConstructor(cons, serparams);
+                if (c != null){
+                    return (Throwable) c.newInstance(new Object[]{message,(Error) cause});
+                }
+            }
+            Constructor c = getConstructor(cons, stparams);
+            if (c != null){
+                return (Throwable) c.newInstance(new Object[]{message, cause});
+            } 
+            c = getConstructor(cons, tsparams);
+            if (c != null){
+                return (Throwable) c.newInstance(new Object[]{cause, message});
+            }
+            c = getConstructor(cons, sparam);
+            if (c != null){
+                result = (Throwable) c.newInstance(new Object[]{message});
+                if (cause != null){
+                    if (RemoteException.class.isAssignableFrom(clas)){
+                        ((RemoteException) result).detail = cause;
+                    } else {
+                        try {
+                            result.initCause(cause);
+                        } catch (IllegalStateException e){
+                            throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
+                        }
+                    } 
+                }
+                return result;
+            }
+            result = clas.newInstance();
+            if (cause != null){
+                if (RemoteException.class.isAssignableFrom(clas)){
+                    ((RemoteException) result).detail = cause;
+                } else {
+                    try {
+                        result.initCause(cause);
+                    } catch (IllegalStateException e){
+                        throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
+                    }
+                } 
+            }
+            return result;
+        } catch (SecurityException ex) {
 	    throw throIO(ex);
 	} catch (InstantiationException ex) {
 	    throw throIO(ex);
@@ -172,31 +240,15 @@ class ThrowableSerializer implements Serializable {
 	}
     }
     
-    static IOException throIO(Exception cause){
-	return new IOException(cause);
-    }
-
-    @Override
-    public int hashCode() {
-	int hash = 3;
-	hash = 31 * hash + Objects.hashCode(this.clazz);
-	hash = 31 * hash + Objects.hashCode(this.message);
-	hash = 31 * hash + Objects.hashCode(this.cause);
-	hash = 31 * hash + Arrays.deepHashCode(this.stack);
-	hash = 31 * hash + Arrays.deepHashCode(this.suppressed);
-	return hash;
+    static Constructor getConstructor(Constructor [] cons, Class [] paramTypes){
+        for (int i=0,l=cons.length; i<l; i++){
+            if (Arrays.equals(cons[i].getParameterTypes(), paramTypes)) return cons[i];
+        }
+        return null;
     }
     
-    @Override
-    public boolean equals(Object obj){
-	if (this == obj) return true;
-	if (!(obj instanceof ThrowableSerializer)) return false;
-	ThrowableSerializer that = (ThrowableSerializer) obj;
-	if (!Objects.equals(clazz, that.clazz)) return false;
-	if (!Objects.equals(message, that.message)) return false;
-	if (!Objects.equals(cause, that.cause)) return false;
-	if (!Objects.deepEquals(stack, that.stack)) return false;
-	return Objects.deepEquals(suppressed, that.suppressed);
+    static IOException throIO(Exception cause){
+	return new IOException(cause);
     }
     
     Object readResolve() throws ObjectStreamException {
@@ -204,7 +256,43 @@ class ThrowableSerializer implements Serializable {
 	// The following is for standard java serialization, as throwable will be null.
 	Throwable result;
 	try {
-	    result = init(clazz, message, cause);
+            if (InvalidClassException.class.equals(clazz)){
+                result = new InvalidClassException(classname, message);
+                if (cause != null) result.initCause(cause);
+            } else if (OptionalDataException.class.equals(clazz)){
+                try {
+                    if (length > 0 && eof == false) {
+                        Constructor<OptionalDataException> c;
+
+                            c = OptionalDataException.class
+                                    .getDeclaredConstructor(new Class[]{int.class});
+                            c.setAccessible(true);
+                            result = c.newInstance(new Object[]{length});
+
+                    } else if (eof == true && length == 0){
+                        Constructor<OptionalDataException> c 
+                            = OptionalDataException.class
+                                    .getDeclaredConstructor(new Class[]{boolean.class});
+                        result = c.newInstance(new Object[]{eof});
+                    } else {
+                        throw new InvalidObjectException("Failed invariant checks for OptionalDataException");
+                    }
+                } catch (InstantiationException ex) {
+                    throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+                } catch (IllegalAccessException ex) {
+                    throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+                } catch (IllegalArgumentException ex) {
+                    throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+                } catch (InvocationTargetException ex) {
+                    throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+                } catch (NoSuchMethodException ex) {
+                    return new org.apache.river.api.io.OptionalDataException(length, eof);
+                } catch (SecurityException ex) {
+                    throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
+                }
+            } else {
+                result = init(clazz, message, cause);
+            }
 	} catch (IOException ex) {
 	    InvalidObjectException e = new InvalidObjectException("unable to resolve");
 	    e.initCause(ex);
@@ -232,6 +320,9 @@ class ThrowableSerializer implements Serializable {
 	pf.put("cause", cause);
 	pf.put("stack", stack);
 	pf.put("suppressed", suppressed);
+        pf.put("classname", classname);
+        pf.put("length", length);
+        pf.put("eof", eof);
 	out.writeFields();
     }
     
