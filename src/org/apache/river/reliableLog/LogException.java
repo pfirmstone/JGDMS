@@ -48,6 +48,7 @@ public class LogException extends IOException {
     /**
      * For exceptions that occur during a logging operation, create a wrapper
      * exception with the specified description string.
+     * @param s description string
      */
     public LogException(String s) {
 	super(s);
@@ -59,6 +60,8 @@ public class LogException extends IOException {
      * For exceptions that occur during a logging operation, create a wrapper
      * exception with the specified description string and the specified
      * nested exception.
+     * @param s description string
+     * @param ex nested exception
      */
     public LogException(String s, Throwable ex) {
 	super(s,ex);
@@ -68,7 +71,9 @@ public class LogException extends IOException {
     /**
      * Produce the message; including the message from the nested exception
      * if there is one.
+     * @return the message produced.
      */
+    @Override
     public String getMessage() {
         Throwable cause = super.getCause();
 	if (cause == null) 

@@ -86,7 +86,7 @@ public abstract class MultiIPDiscovery {
 	IOException ioEx = null;
 	SecurityException secEx = null;
 	ClassNotFoundException cnfEx = null;
-	for (int i = 0; i < addrs.length; i++) {
+	for (int i = 0, l = addrs.length; i < l; i++) {
 	    try {
 		return getSingleResponse(addrs[i].getHostAddress(),
 				     connectionTimeout, port, dc, disco);

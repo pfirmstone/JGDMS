@@ -145,6 +145,7 @@ import org.apache.river.discovery.EncodeIterator;
 import org.apache.river.discovery.MulticastAnnouncement;
 import org.apache.river.discovery.MulticastRequest;
 import org.apache.river.discovery.UnicastResponse;
+import org.apache.river.discovery.https.DiscoveryUnicastHTTPS;
 import org.apache.river.logging.Levels;
 import org.apache.river.lookup.entry.BasicServiceType;
 import org.apache.river.proxy.CodebaseProvider;
@@ -369,6 +370,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private final long minRenewalInterval;
     /** Port for unicast discovery */
     private volatile int unicastPort;
+    private int httpsUnicastPort;
+    private boolean enableHttpsUnicast;
+    private Discovery httpsDiscovery;
     /** The groups we are a member of */
     private volatile String[] memberGroups; // accessed from DecodeRequestTask and Announce
     /** The groups we should join */
@@ -521,6 +525,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         lookupLocators = init.lookupLocators;
         memberGroups = init.memberGroups;
         unicastPort = init.unicastPort;
+	httpsUnicastPort = init.httpsUnicastPort;
+	enableHttpsUnicast = init.enableHttpsUnicast;
         lookupAttrs = init.lookupAttrs;
         discoer = init.discoer;
         listenerPreparer = init.listenerPreparer;
@@ -4815,6 +4821,38 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				  minMaxServiceLease));
     }
 
+    private void respondHttps(Socket socket) throws Exception {
+	try {
+	    try {
+		socket.setTcpNoDelay(true);
+		socket.setKeepAlive(true);		
+	    } catch (SocketException e) {
+		if (logger.isLoggable(Levels.HANDLED))
+		    logger.log(Levels.HANDLED,
+			       "problem setting socket options", e);
+	    }
+	    socket.setSoTimeout(
+	       unicastDiscoveryConstraints.getUnicastSocketTimeout(
+	           DEFAULT_SOCKET_TIMEOUT));
+	    
+	    httpsDiscovery.handleUnicastDiscovery(
+		new UnicastResponse(myLocator.getHost(),
+				    myLocator.getPort(),
+				    memberGroups,
+				    proxy),
+		socket,
+		unicastDiscoveryConstraints.getUnfulfilledConstraints(),
+		unicastDiscoverySubjectChecker,
+		Collections.EMPTY_LIST);	
+	} finally {
+	    try {
+		socket.close();
+	    } catch (IOException e) {
+		logger.log(Levels.HANDLED, "exception closing socket", e);
+	    }
+	}
+    }
+    
     /** Process a unicast discovery request, and respond. */
     private void respond(Socket socket) throws Exception {
 	try {
@@ -4930,6 +4968,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 String certFactoryType;
 	 String certPathEncoding;
 	 byte [] encodedCerts;
+	 private int httpsUnicastPort;
+	 boolean enableHttpsUnicast;
+	 Discovery httpsDiscovery;
         
         
         
@@ -5028,7 +5069,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             this.unicastPort = Config.getIntEntry(
                 config, COMPONENT, "initialUnicastDiscoveryPort",
                 0, 0, 0xFFFF);
-
+	    
+	    this.httpsUnicastPort = Config.getIntEntry(
+		    config, COMPONENT, "httpsUnicastDiscoveryPort",
+		    443, 0, 0xFFFF);
+	    this.enableHttpsUnicast = config.getEntry(COMPONENT, 
+		    "enableHttpsUnicast" ,Boolean.class , Boolean.FALSE);	    
             if (initialLookupAttributes != null && 
                 initialLookupAttributes.length > 0)
             {
@@ -5200,6 +5246,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 log.recover();
                 inRecovery = false;
             }
+	    if (enableHttpsUnicast){
+		httpsDiscovery = new DiscoveryUnicastHTTPS();
+	    }
             // log snapshot recovers myServiceID
             if (myServiceID == null) {
                 myServiceID = newServiceID();
@@ -5211,10 +5260,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 public Object run() throws Exception {
                     myRef = (Registrar) serverExporter.export(RegistrarImpl.this);
                     proxy = RegistrarProxy.getInstance(myRef, myServiceID);
-                    myLocator = (proxy instanceof RemoteMethodControl) ?
-                        new ConstrainableLookupLocator(
-                            unicastDiscoveryHost, unicast.port, null) :
-                        new LookupLocator(unicastDiscoveryHost, unicast.port);
+		    String uri;
+		    if (enableHttpsUnicast){
+			uri = "https://" + unicastDiscoveryHost + ":"+ httpsUnicastPort; 
+			myLocator = (proxy instanceof RemoteMethodControl) ?
+			    new ConstrainableLookupLocator(uri, null) :
+			    new LookupLocator(uri);
+		    } else {
+			myLocator = (proxy instanceof RemoteMethodControl) ?
+			    new ConstrainableLookupLocator(
+				unicastDiscoveryHost, unicast.port, null) :
+			    new LookupLocator(unicastDiscoveryHost, unicast.port);
+		    }
                     /* register myself */
                     Item item = new Item(new ServiceItem(myServiceID,
                                                          proxy,
@@ -6123,6 +6180,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    stream.writeObject(iter.next());
 	}
 	stream.writeObject(null);
+	stream.writeInt(httpsUnicastPort);
+	stream.writeBoolean(enableHttpsUnicast);
 	stream.flush();
 	logger.finer("wrote state snapshot");
     }
@@ -6180,6 +6239,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    unmarshalLocators(stream), recoveredLocatorPreparer, true);
 	recoverServiceRegistrations(stream, logVersion);
 	recoverEventRegistrations(stream);
+	httpsUnicastPort = stream.readInt();
+	enableHttpsUnicast = stream.readBoolean();
 	logger.finer("recovered state from snapshot");
     }
 
