@@ -21,14 +21,18 @@ package org.apache.river.api.io;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.rmi.RemoteException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -61,6 +65,34 @@ class ThrowableSerializer implements Serializable {
     
     private static final Logger logger = Logger.getLogger("org.apache.river.api.io.ThrowableSerializer");
     
+    /**
+     * detailMessage is part of Throwable's serial form, so is unlikely to
+     * change, however it is possible to have different fields than serial
+     * form.
+     */
+    private static final Field detailMessage;
+    
+    static {
+	detailMessage = AccessController.doPrivileged(new PrivilegedAction<Field>(){
+
+	    @Override
+	    public Field run() {
+		try {
+		    Field mes = Throwable.class.getDeclaredField("detailMessage");
+		    mes.setAccessible(true);
+		    return mes;
+		} catch (NoSuchFieldException ex) {
+		    logger.log(Level.FINE, "unable to access detailMessage field in Throwable", ex);
+		} catch (SecurityException ex) {
+		    logger.log(Level.FINE, "unable to access detailMessage field in Throwable", ex);
+		}
+		return null;
+	    }
+	    
+	});
+	
+    }
+    
     private final /*transient*/ Throwable throwable;
     private final Class<? extends Throwable> clazz;
     private final String message;
@@ -78,20 +110,9 @@ class ThrowableSerializer implements Serializable {
 	stack = t.getStackTrace();
 	suppressed = t.getSuppressed();
         if (t instanceof InvalidClassException) {
-            System.out.println(t);
-            System.out.println(t.getMessage());
-            t.printStackTrace(System.out);
             classname = ((InvalidClassException)t).classname;
-            if (classname != null){
-                // work around overriding of Throwable.getMessage().
-                String mes = t.getMessage();
-                message = mes.substring(mes.indexOf(';') + 2);
-            } else {
-                message = t.getMessage();
-            }
         } else {
             classname = null;
-            message = t.getMessage();
         }
         if (t instanceof OptionalDataException) {
             length = ((OptionalDataException)t).length;
@@ -100,6 +121,26 @@ class ThrowableSerializer implements Serializable {
             length = 0;
             eof = false;
         }
+	
+	if (detailMessage != null){
+	    String mess = null;
+	    try {
+		mess = (String) detailMessage.get(t);
+	    } catch (IllegalArgumentException ex) {
+		logger.log(Level.FINE, "unable to access detailMessage", ex);
+	    } catch (IllegalAccessException ex) {
+		logger.log(Level.FINE, "unable to access detailMessage", ex);
+	    }
+	    if (mess != null) {
+		message = mess;
+	    } else {
+		logger.log(Level.FINE, "Warning getMessage() may be overridden");
+		message = t.getMessage();
+	    }
+	} else {
+	    logger.log(Level.FINE,"Warning getMessage() may be overridden");
+	    message = t.getMessage();
+	}
     }
     
     public ThrowableSerializer(GetArg arg) throws IOException{
@@ -107,6 +148,7 @@ class ThrowableSerializer implements Serializable {
     }
     
     private static Throwable check(GetArg arg) throws IOException{
+	@SuppressWarnings("unchecked")
 	Class<? extends Throwable>clas = Valid.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
         if (!Throwable.class.isAssignableFrom(clas)) throw new InvalidObjectException("clazz must be assignable to Throwable");
 	logger.log(Level.FINER, "deserializing {0}", clas);
@@ -326,4 +368,14 @@ class ThrowableSerializer implements Serializable {
 	out.writeFields();
     }
     
+    /**
+     * 
+     * @param in
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     */
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+	in.defaultReadObject();
+    }
+
 }

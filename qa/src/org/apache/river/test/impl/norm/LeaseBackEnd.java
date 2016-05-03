@@ -18,9 +18,11 @@
 package org.apache.river.test.impl.norm;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.UnknownLeaseException;
@@ -29,7 +31,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
- * Interface that grators of test leases implement so the test lease proxy
+ * Interface that grantor of test leases implement so the test lease proxy
  * objects can communicate back to the grantor
  */
 public interface LeaseBackEnd extends Remote, ProxyTrust {
@@ -91,7 +93,16 @@ public interface LeaseBackEnd extends Remote, ProxyTrust {
 	throws LeaseMapException, RemoteException;
 
     @AtomicSerial
-    class RenewResults implements java.io.Serializable {
+    static class RenewResults implements java.io.Serializable {
+	private static final long serialVersionUID = -478467667281520549L;
+	
+	 private static final ObjectStreamField[] serialPersistentFields = 
+	{ 
+	    /** @serialField The name of the host at which to perform discovery. */
+	    new ObjectStreamField("granted", long[].class),
+	    /** @serialField The port number on the host at which to perform discovery. */
+	    new ObjectStreamField("denied", Throwable[].class)
+	};
 	/**
 	 * For each id passed to <code>renewAll</code>,
 	 * <code>granted[i]</code> is the granted lease time, or -1 if the
@@ -139,6 +150,19 @@ public interface LeaseBackEnd extends Remote, ProxyTrust {
 	public RenewResults(GetArg arg) throws IOException{
 	    this(arg.get("granted", null, long[].class),
 		 arg.get("denied", null, Throwable[].class));
+	}
+	
+	/**
+	 * @serialData 
+	 * @param out
+	 * @throws IOException 
+	 */
+	private void writeObject(ObjectOutputStream out) throws IOException {
+	    out.defaultWriteObject();
+	}
+	
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+	    in.defaultReadObject();
 	}
     }
 }
