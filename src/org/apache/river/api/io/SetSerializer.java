@@ -47,8 +47,8 @@ class SetSerializer<T> extends AbstractSet<T> implements SortedSet<T>, Serializa
     
     SetSerializer(GetArg arg) throws IOException {
 	// No invariant checks
-	content = (T[]) arg.get("content", new Object[0]);
-	comparator = (Comparator<? super T>) arg.get("comparator", null);
+	content = (T[]) arg.get("content", new Object[0], Object[].class);
+	comparator = arg.get("comparator", null, Comparator.class);
     }
     
     SetSerializer(T [] set){

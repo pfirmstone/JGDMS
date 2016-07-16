@@ -442,7 +442,7 @@ public final class BasicMethodConstraints
      * @throws IOException 
      */
     public BasicMethodConstraints(GetArg arg) throws IOException{
-	this(checkSerial((MethodDesc[])arg.get("descs", null)),
+	this(checkSerial(arg.get("descs", null, MethodDesc[].class)),
 	    (MethodDesc[]) arg.get("descs", null));
     }
     

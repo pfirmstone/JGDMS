@@ -39,7 +39,7 @@ class ListSerializer<T> extends AbstractList<T> implements Serializable {
     private final T[] elements;
     
     public ListSerializer(GetArg arg) throws IOException {
-	this((T[]) arg.get("elements", new Object [0]));
+	this((T[]) arg.get("elements", new Object [0], Object[].class));
     }
     
     private ListSerializer(T [] elem){

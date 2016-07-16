@@ -54,8 +54,8 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
     }
     
     MapSerializer(GetArg arg) throws IOException{
-	entrySet = (Entry<K, V>[]) arg.get("entrySet", new Object[0]);
-	comparator = (Comparator<? super K>) arg.get("comparator", null);
+	entrySet = arg.get("entrySet", new Entry[0], Entry[].class);
+	comparator = arg.get("comparator", null, Comparator.class);
     }
 
     @Override
