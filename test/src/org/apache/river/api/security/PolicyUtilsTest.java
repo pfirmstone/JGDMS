@@ -300,32 +300,6 @@ public class PolicyUtilsTest extends TestCase {
             }
         }
     }
-
-    /** Tests conversion of null, empty and non-empty heterogeneous collections. */
-    public void testToPermissionCollection() {
-        Permission p1 = new SecurityPermission("abc");
-        Permission p2 = new AllPermission();
-        Collection c1 = Arrays.asList(new Permission[] { p1, p2 });
-
-        PermissionCollection pc = PolicyUtils.toPermissionCollection(null);
-        assertNotNull(pc);
-        assertFalse(pc.elements().hasMoreElements());
-
-        pc = PolicyUtils.toPermissionCollection(new HashSet());
-        assertNotNull(pc);
-        assertFalse(pc.elements().hasMoreElements());
-
-        pc = PolicyUtils.toPermissionCollection(c1);
-        assertNotNull(pc);
-        Enumeration en = pc.elements();
-        Collection c2 = new HashSet();
-        while (en.hasMoreElements()){
-        c2.add(en.nextElement());
-        }
-        assertFalse(en.hasMoreElements());
-        assertTrue(c2.contains(p1));
-        assertTrue(c2.contains(p2));
-    }
     
     public void testInstantiatePermission() throws Throwable {
         String name = "abc";
