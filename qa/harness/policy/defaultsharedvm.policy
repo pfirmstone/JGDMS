@@ -22,7 +22,6 @@ grant {
       permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test
       permission org.apache.river.phoenix.ExecPermission "/bin/javax";
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
@@ -145,20 +144,34 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger.jar" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+// Not sure why this has changed, but required for JDK9 in following tests:
+//org/apache/river/test/impl/start/ActivateWrapperRegisterUnsharedImpl.td
+//org/apache/river/test/impl/start/ClassLoaderTest.td
+//org/apache/river/test/impl/start/ClasspathTest.td
+//org/apache/river/test/impl/start/CodebaseTest.td
+
+// grants needed by the activatable and non activatable groups
+
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-probe.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}reggie.jar" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice1.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultreggie.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice2.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
+};
+
+grant codebase "http://*/phoenix-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };

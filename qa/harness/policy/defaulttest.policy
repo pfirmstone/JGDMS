@@ -20,6 +20,125 @@ grant codebase "file:${{java.ext.dirs}}${/}-" {
     permission java.security.AllPermission "", "";
 };
 
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/reggie-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/norm-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/mercury-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/mahalo-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/fiddler-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/outrigger-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/jsk-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+
+grant codebase "http://*/phoenix-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/qa1-lookup-simulator-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant codebase "http://*/qa1-mercury-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant codebase "http://*/qa1-discoveryservice-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-fiddler-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-io-util-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-lookupservice-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-norm-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-reggie-race-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-renewalservice-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-servicediscovery-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-share-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-cb1-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-cb2-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-cb3-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-probe-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-testservice-common-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-testservice1-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-testservice2-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-start-testservicenocons-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+grant codebase "http://*/qa1-share-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.AllPermission "", "";
@@ -75,12 +194,13 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-io-marshalinputst
 
 // needed by various proxies
 
-grant { 
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+grant {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.ssl";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.action";
+    permission java.lang.RuntimePermission "getClassLoader";
     permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}-", "read";
     permission java.io.FilePermission "${org.apache.river.qa.home}${/}lib${/}-", "read";
     permission java.util.PropertyPermission "*", "read";
@@ -92,10 +212,16 @@ grant {
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.mercury";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.fiddler";
     permission java.net.NetPermission "getNetworkInformation";
-    permission java.net.URLPermission "http:*", "GET:";
-    permission java.util.logging.LoggingPermission "control";
-    permission java.lang.RuntimePermission "getenv.SOUL";
 };
+
+//JDK9
+//grant codebase "jrt:/jdk.security.auth" {
+//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore.password", "read";
+//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore", "read";
+//    permission javax.security.auth.AuthPermission "modifyPrincipals";
+//    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+//    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+//};
 
 // needed by some io tests
 

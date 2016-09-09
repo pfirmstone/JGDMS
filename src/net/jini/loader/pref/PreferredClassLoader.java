@@ -29,8 +29,10 @@ import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketPermission;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLPermission;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.security.AccessControlContext;
@@ -59,6 +61,7 @@ import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 import net.jini.loader.RemoteClassLoadingPermission;
 import org.apache.river.api.net.RFC3986URLClassLoader;
+import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.AdvisoryDynamicPermissions;
 import org.apache.river.api.security.AdvisoryPermissionParser;
 
@@ -389,8 +392,8 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	/*
 	 * Precompute the permissions required to access the loader.
 	 */
-	PermissionCollection permissions = new Permissions();
-	addPermissionsForURLs(urls, permissions, false);
+	PermissionCollection perm = new Permissions();
+	addPermissionsForURLs(urls, perm, false);
         /*
          * If a preferred list exists relative to the first URL of this
          * loader's path, sets this loader's PreferredResources according
@@ -441,7 +444,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
         preferredResources = pref;
 	advisoryPermissions = perms;
         this.permissions = new LinkedList<Permission>();
-        Enumeration<Permission> en = permissions.elements();
+        Enumeration<Permission> en = perm.elements();
         while(en.hasMoreElements()){
             this.permissions.add(en.nextElement());
         }
@@ -1226,22 +1229,9 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	 * The approach used here is taken from the similar method
 	 * getAccessControlContext() in the sun.applet.AppletPanel class.
 	 */
-	// begin with permissions granted to all code in current policy
-	PermissionCollection perms =
-	    AccessController.doPrivileged(new PrivilegedAction<PermissionCollection>() {
-		@Override
-		public PermissionCollection run() {
-		    CodeSource codesource =
-			new CodeSource(null, (Certificate[]) null);
-		    Policy p = java.security.Policy.getPolicy();
-		    if (p != null) {
-			return p.getPermissions(codesource);
-		    } else {
-			return new Permissions();
-		    }
-		}
-	    });
-
+	// We don't need to consult the policy here as the ProtectionDomain
+	// does so during the permission check, see comment further below.
+	PermissionCollection perms = new Permissions();
 	// createClassLoader permission needed to create loader in context
 	perms.add(new RuntimePermission("createClassLoader"));
 
@@ -1338,6 +1328,19 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 			 * throw a security exception.
 			 */
 			if (forLoader) {
+                            // URLPermission is required for JDK1.8 and JDK1.9
+                            try {
+                                perms.add(
+                                    new URLPermission(
+                                            Uri.urlToUri(url).toString(),
+                                            "GET:"
+                                    )
+                                );
+                            } catch (URISyntaxException ex) {
+                                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.FINE, "Unable to grant URLPermission", ex);
+                            } catch (IllegalArgumentException ex){
+                                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.FINE, "Unable to grant URLPermission", ex);
+                            }
 			    // get URL with meaningful host component
 			    URL hostURL = url;
 			    for (URLConnection conn = urlConnection;

@@ -581,8 +581,13 @@ public final class Security {
     private static final Guard authPerm = new AuthPermission("doAsPrivileged");
     
     /**
-     * Performs work as a particular Subject in the presence of untrusted code,
+     * Performs work as a particular Subject in the presence of less privileged code,
      * for distributed systems.
+     * <p>
+     * In River / Jini, ProtectionDomain's of smart proxy's are used to represent
+     * remote services in the current thread call stack, it is important that
+     * these services are not granted additional privileges over and above that
+     * necessary, when run in a thread of a more privileged user (Subject).
      * <p>
      * This method retrieves the current Threads AccessControlContext and
      * using a SubjectDomainCombiner subclass, prepends a new ProtectionDomain
@@ -627,8 +632,13 @@ public final class Security {
     }
     
     /**
-     * Performs work as a particular Subject in the presence of untrusted code,
+     * Performs work as a particular Subject in the presence of less privileged code,
      * for distributed systems.
+     * <p>
+     * In River / Jini, ProtectionDomain's of smart proxy's are used to represent
+     * remote services in the current thread call stack, it is important that
+     * these services are not granted additional privileges over and above that
+     * necessary, when run in a thread of a more privileged user (Subject).
      * <p>
      * This method retrieves the current Thread AccessControlContext and
      * using a SubjectDomainCombiner subclass, prepends a new ProtectionDomain

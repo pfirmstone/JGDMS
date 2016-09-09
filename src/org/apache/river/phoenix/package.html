@@ -216,11 +216,41 @@ new {@link net.jini.jeri.BasicJeriExporter}(
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Type: <td> <code>{@link net.jini.export.Exporter}</code>
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Default: <td> <code>new {@link org.apache.river.phoenix.RegistrySunExporter}()</code>
+        Default: <td> <code>null</code> Deprecated: <code> new {@link org.apache.river.phoenix.RegistrySunExporter}()</code>
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Description: <td> {@link java.rmi.registry.Registry} exporter
   </table>
 
+<table summary="Describes the registryRmiServerSocketFactory configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      registryRmiServerSocketFactory</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link java.rmi.server.RMIServerSocketFactory}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+        Default: <td> <code>{@link java.rmi.server.RMISocketFactory#getSocketFactory} 
+            if not null, otherwise {@link java.rmi.server.RMISocketFactory#getDefaultSocketFactory}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.server.RMIServerSocketFactory} registryRmiServerSocketFactory
+  </table>
+
+<table summary="Describes the registryRmiClientSocketFactory configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      registryRmiClientSocketFactory</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link java.rmi.server.RMIClientSocketFactory}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+        Default: <td> <code>{@link java.rmi.server.RMISocketFactory#getSocketFactory} 
+            if not null, otherwise {@link java.rmi.server.RMISocketFactory#getDefaultSocketFactory}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.server.RMIClientSocketFactory} registryRmiClientSocketFactory
+  </table>
+ 
   <table summary="Describes the instantiatorPreparer configuration entry"
          border="0" cellpadding="2">
     <tr valign="top">

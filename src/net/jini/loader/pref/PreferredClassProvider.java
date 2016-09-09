@@ -18,12 +18,6 @@
 
 package net.jini.loader.pref;
 
-import org.apache.river.concurrent.RC;
-import org.apache.river.concurrent.Ref;
-import org.apache.river.concurrent.Referrer;
-import org.apache.river.action.GetPropertyAction;
-import org.apache.river.logging.Levels;
-import org.apache.river.logging.LogUtil;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.lang.ref.ReferenceQueue;
@@ -42,10 +36,16 @@ import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
+import java.security.Policy;
 import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -56,7 +56,13 @@ import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 import net.jini.loader.LoadClass;
+import org.apache.river.action.GetPropertyAction;
 import org.apache.river.api.net.Uri;
+import org.apache.river.concurrent.RC;
+import org.apache.river.concurrent.Ref;
+import org.apache.river.concurrent.Referrer;
+import org.apache.river.logging.Levels;
+import org.apache.river.logging.LogUtil;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
@@ -282,7 +288,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
     private static final Permission getClassLoaderPermission =
 	new RuntimePermission("getClassLoader");
-
+    
     /**
      * value of "java.rmi.server.codebase" property, as cached at class
      * initialization time.  It may contain malformed URLs.
@@ -393,8 +399,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    sm.checkCreateClassLoader();
 	}
 	this.requireDlPerm = requireDlPerm;
-        ConcurrentMap<Referrer<ClassLoader>,Referrer<PermissionCollection>> inter =
-                new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<PermissionCollection>>();
+        ConcurrentMap<Referrer<ClassLoader>,Referrer<Collection<Permission>>> inter =
+                new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Collection<Permission>>>();
         classLoaderPerms = RC.concurrentMap(inter, Ref.WEAK_IDENTITY, Ref.STRONG, 5000L, 5000L);
 	initialized = true;
     }
@@ -409,7 +415,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * Map to hold permissions needed to check the URLs of
      * URLClassLoader objects.
      */
-    private final ConcurrentMap<ClassLoader,PermissionCollection> classLoaderPerms ;
+    private final ConcurrentMap<ClassLoader,Collection<Permission>> classLoaderPerms ;
     
     /*
      * Check permissions to load from the specified loader.  The
@@ -433,18 +439,22 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		((PreferredClassLoader) loader).checkPermissions();
 		
 	    } else {
-		PermissionCollection perms = classLoaderPerms.get(loader);
+		Collection<Permission> perms = classLoaderPerms.get(loader);
                 if (perms == null) {
-                    perms = new Permissions();
+		    PermissionCollection permiss = new Permissions();
                     // long operation so we don't want to synchronize here.
                     PreferredClassLoader.addPermissionsForURLs(
-                        urls, perms, false);
-                    perms.setReadOnly();
+                        urls, permiss, false);
+		    perms = new LinkedList<Permission>();
+		    Enumeration<Permission> en = permiss.elements();
+		    while(en.hasMoreElements()){
+			perms.add(en.nextElement());
+		    }
                     classLoaderPerms.putIfAbsent(loader, perms);// doesn't matter if they existed.
                 }
-                Enumeration<Permission> en = perms.elements();
-                while (en.hasMoreElements()) {
-                    sm.checkPermission(en.nextElement());
+                Iterator<Permission> it = perms.iterator();
+                while (it.hasNext()) {
+                    sm.checkPermission(it.next());
                 }
 	    }
 	}
@@ -891,6 +901,11 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		 * If access was denied to the knowledge of the class
 		 * loader's URLs, fall back to the default behavior.
 		 */
+                logger.log(
+                    Level.FINE,
+                    "Access denied to knowledge of class loader's URL's",
+                    e
+                );
 	    } catch (IOException e) {
 		/*
 		 * This shouldn't happen, although it is declared to be
@@ -898,6 +913,11 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		 * does happen, forget about this class loader's URLs and
 		 * fall back to the default behavior.
 		 */
+                logger.log(
+                    Level.FINE, 
+                    "IOException thrown while attempting to access class loader's URL's",
+                    e
+                );
 	    }
 	}
 

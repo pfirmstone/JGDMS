@@ -77,6 +77,19 @@ import java.security.Security;
  *         policy file name and verify that SecurityException is thrown.
  *    </li>
  * </ol>
+ * 
+ * <p>
+ * This test needs to be re-written taking into accont the following:
+ * <ul>
+ * <li>We cant use the sun.security.provider with JDK9.</li>
+ * <li>The policy should not be constructable without SecurityPermission("createPolicy.JavaPolicy").
+ * </li>
+ * <li>We need to check that an exception thrown during construction doesn't
+ * make the policy vulnerable to a finalizer attack.
+ * </li>
+ * </ul>
+ * </p>
+ *
  *
  */
 public class SecurityExceptionConstructor extends PolicyFileProviderTestBase {
@@ -88,8 +101,9 @@ public class SecurityExceptionConstructor extends PolicyFileProviderTestBase {
     private static final String CALLName1 = "new PolicyFileProvider(\"Bar\")";
 
     public SecurityExceptionConstructor(){
-        Security.setProperty("net.jini.security.policy.PolicyFileProvider.basePolicyClass",
-                "sun.security.provider.PolicyFile");
+	// Not compatible with JDK9.
+//        Security.setProperty("net.jini.security.policy.PolicyFileProvider.basePolicyClass",
+//                "sun.security.provider.PolicyFile");
     }
     
     /**

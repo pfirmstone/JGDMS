@@ -80,8 +80,8 @@ public class SecurityExceptionConstructor
         extends DynamicPolicyProviderTestBase {
     
     public SecurityExceptionConstructor(){
-        Security.setProperty("net.jini.security.policy.PolicyFileProvider.basePolicyClass",
-                "sun.security.provider.PolicyFile");
+//        Security.setProperty("net.jini.security.policy.PolicyFileProvider.basePolicyClass",
+//                "sun.security.provider.PolicyFile");
     }
 
     /**

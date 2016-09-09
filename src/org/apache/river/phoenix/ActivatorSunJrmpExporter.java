@@ -30,7 +30,9 @@ import java.rmi.server.ObjID;
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
+ * @deprecated
  */
+@Deprecated
 public class ActivatorSunJrmpExporter extends SunJrmpExporter {
     /**
      * Creates a JRMP exporter that exports on the standard port (1098).

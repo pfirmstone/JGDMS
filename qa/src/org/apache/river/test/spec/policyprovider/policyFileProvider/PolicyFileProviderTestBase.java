@@ -558,7 +558,10 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
      * 2. Call getPermissions() on PolicyFileProvider passing
      *    ProtectionDomain.
      * 3. Call getPermissions() on PolicyFileProvider passing
-     *    CodeSource.
+     *    CodeSource. - No longer tested as the sun policy
+     *    provider is no longer accessible and ConcurrentPolicyFile
+     *    returns empty Permissions, for all but privileged CodeSources
+     *    as a scalability optimisation.
      * 4. Call implies() on returned PermissionCollections passing
      *    permissions that granted in the policy file. Verify that
      *    implies() returns true.
@@ -612,7 +615,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              * Call getPermissions() on PolicyFileProvider passing
              * CodeSource.
              */
-            PermissionCollection pcCS = policy.getPermissions(cs);
+//            PermissionCollection pcCS = policy.getPermissions(cs);
 
             /*
              * Call implies() on returned PermissionCollections passing
@@ -620,7 +623,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              * implies() returns true.
              */
             checkImplies(pcPD, pma[IGRANTED], true);
-            checkImplies(pcCS, pma[IGRANTED], true);
+//            checkImplies(pcCS, pma[IGRANTED], true);
 
             /*
              * Call implies() on returned PermissionCollections passing
@@ -628,7 +631,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              * returns false.
              */
             checkImplies(pcPD, pma[INOTGRANTED], false);
-            checkImplies(pcCS, pma[INOTGRANTED], false);
+//            checkImplies(pcCS, pma[INOTGRANTED], false);
 
             /*
              * For ProtectionDomains that have
@@ -640,7 +643,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              */
             if (pd.getClassLoader() instanceof PreferredClassLoader) {
                 checkImplies(pcPD, pma[ICODEBASEGRANTED], true);
-                checkImplies(pcCS, pma[ICODEBASEGRANTED], true);
+//                checkImplies(pcCS, pma[ICODEBASEGRANTED], true);
             }
 
             if (pma[ICODEBASENOTGRANTED] == null) {
@@ -657,7 +660,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              */
             if (pd.getClassLoader() instanceof PreferredClassLoader) {
                 checkImplies(pcPD, pma[ICODEBASENOTGRANTED], false);
-                checkImplies(pcCS, pma[ICODEBASENOTGRANTED], false);
+//                checkImplies(pcCS, pma[ICODEBASENOTGRANTED], false);
             }
         }
     }
@@ -671,7 +674,10 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
      * 2. Call getPermissions() on PolicyFileProvider passing
      *    ProtectionDomain.
      * 3. Call getPermissions() on PolicyFileProvider passing
-     *    CodeSource.
+     *    CodeSource. - No longer tested as the sun policy
+     *    provider is no longer accessible and ConcurrentPolicyFile
+     *    returns empty Permissions, for all but privileged CodeSources
+     *    as a scalability optimisation.
      * 4. Verify that permissions that granted in the policy file
      *    are included in the Enumeration returned from
      *    PermissionCollection.elements() for permission collections
@@ -733,7 +739,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              * Call getPermissions() on PolicyFileProvider passing
              * CodeSource.
              */
-            PermissionCollection pcCS = policy.getPermissions(cs);
+//            PermissionCollection pcCS = policy.getPermissions(cs);
 
             /*
              * Verify that permissions that granted in the policy file
@@ -743,7 +749,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              * Policy.getPermissions(CodeSource).
              */
             checkElements(pcPD, pma[IGRANTED], true);
-            checkElements(pcCS, pma[IGRANTED], true);
+//            checkElements(pcCS, pma[IGRANTED], true);
 
             /*
              * Verify that permissions that not granted in the policy file
@@ -753,7 +759,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              * Policy.getPermissions(CodeSource).
              */
             checkElements(pcPD, pma[INOTGRANTED], false);
-            checkElements(pcCS, pma[INOTGRANTED], false);
+//            checkElements(pcCS, pma[INOTGRANTED], false);
 
             /*
              * For ProtectionDomains that have
@@ -767,7 +773,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              */
             if (pd.getClassLoader() instanceof PreferredClassLoader) {
                 checkElements(pcPD, pma[ICODEBASEGRANTED], true);
-                checkElements(pcCS, pma[ICODEBASEGRANTED], true);
+//                checkElements(pcCS, pma[ICODEBASEGRANTED], true);
             }
 
             if (pma[ICODEBASENOTGRANTED] == null) {
@@ -786,7 +792,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
              */
             if (pd.getClassLoader() instanceof PreferredClassLoader) {
                 checkElements(pcPD, pma[ICODEBASENOTGRANTED], false);
-                checkElements(pcCS, pma[ICODEBASENOTGRANTED], false);
+//                checkElements(pcCS, pma[ICODEBASENOTGRANTED], false);
             }
         }
     }
