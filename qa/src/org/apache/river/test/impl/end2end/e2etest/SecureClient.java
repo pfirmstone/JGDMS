@@ -206,7 +206,7 @@ class SecureClient implements Constants, TestClient, Runnable {
                 ServerAuthentication.YES,
                 ClientAuthentication.NO,
                 Confidentiality.YES,
-                Confidentiality.NO,
+                Confidentiality.YES,
                 Integrity.YES,
                 Integrity.NO,
                 Delegation.YES,

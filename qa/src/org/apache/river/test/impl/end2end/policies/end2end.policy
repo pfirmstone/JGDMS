@@ -8,15 +8,15 @@
  * The following grants all permission to jsk-platform.jar and qa1-wrapper.jar.
  * These files were previously installed in the extensions directory.
  */
-grant codebase "file:${org.apache.river.jsk.jars}${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.jars}${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.jars}${/}qa1-wrapper.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}qa${/}lib${/}qa1-wrapper.jar" {
     permission java.security.AllPermission "", "";
 };
 
@@ -24,7 +24,20 @@ grant codebase "file:${org.apache.river.qa.jars}${/}qa1-wrapper.jar" {
 // methods are called by the end-to-end test with no client
 // constraints, and there are no server constraints specified
 // for them.
-grant {
+grant { 
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=serverDSA,C=US\"", "listen";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.net.SocketPermission "*", "accept,connect,resolve";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=serverDSA\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=serverRSA\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=serverRSA\" peer javax.security.auth.x500.X500Principal \"CN=clientRSA2\"", "accept";
+    permission java.util.PropertyPermission "jsseWrapper.logArgs", "read";
     permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "unexport";
     permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "callAfterUnexport";
     permission org.apache.river.test.impl.end2end.e2etest.SecureServerPermission "getProxyVerifier";
