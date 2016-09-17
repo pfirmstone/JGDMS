@@ -144,6 +144,7 @@ public class MarshalOutputStream
      * @throws NullPointerException if <code>cl</code> is
      * <code>null</code>
      **/
+    @Override
     protected void annotateClass(Class cl) throws IOException {
 	writeAnnotation(ClassLoading.getClassAnnotation(cl));
     }
@@ -170,6 +171,7 @@ public class MarshalOutputStream
      * @throws NullPointerException if <code>cl</code> is
      * <code>null</code>
      **/
+    @Override
     protected void annotateProxyClass(Class cl) throws IOException {
 	writeAnnotation(ClassLoading.getClassAnnotation(cl));
     }

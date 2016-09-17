@@ -27,7 +27,9 @@ package net.jini.core.constraint;
  * in question will fail atomically
  * (in the client or in the server, depending on which side detected the violation).
  * Invariant validation is fine grained, which means every Object in the 
- * graph must have its invariants satisfied.
+ * graph must have its invariants satisfied, prior to java.lang.Object's 
+ * constructor being called.  This ensures that an object instance cannot be
+ * created if invariants are not satisfied.
  * <p>
  * Java's standard {@link java.io.ObjectOutputStream} and {@link java.io.ObjectInputStream}
  * check invariants after construction, circular links and finalizers allow
