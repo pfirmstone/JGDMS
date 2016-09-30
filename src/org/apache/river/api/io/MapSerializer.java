@@ -28,7 +28,8 @@ import java.util.SortedMap;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
- *
+ * Immutable map backed by an array.
+ * 
  * @author peter
  */
 @AtomicSerial
@@ -39,23 +40,35 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
     final Entry<K,V> [] entrySet;
     final Comparator<? super K> comparator;
     
-    MapSerializer(Map<K,V> map){
-	entrySet = new Entry [map.size()];
-	Set<Entry<K,V>> eSet = map.entrySet();
-	Iterator<Entry<K,V>> it = eSet.iterator();
+    private static Ent[] convert(Map map){
+        Ent [] entrySet = new Ent[map.size()];
+        Set<Entry> eSet = map.entrySet();
+	Iterator<Entry> it = eSet.iterator();
 	for (int i = 0; it.hasNext(); i++){
 	    entrySet[i] = new Ent(it.next());
 	}
-	if (map instanceof SortedMap){
-	    comparator = ((SortedMap<K,V>)map).comparator();
-	} else {
-	    comparator = null;
-	}
+        return entrySet;
+    }
+    
+    MapSerializer(Map<K,V> map){
+        this(
+                convert(map),
+                map instanceof SortedMap ?
+                        ((SortedMap<K,V>)map).comparator()
+                        : null
+        );
     }
     
     MapSerializer(GetArg arg) throws IOException{
-	entrySet = arg.get("entrySet", new Entry[0], Entry[].class);
-	comparator = arg.get("comparator", null, Comparator.class);
+        this(
+            arg.get("entrySet", new Ent[0], Ent[].class),
+            arg.get("comparator", null, Comparator.class)
+        );
+    }
+    
+    private MapSerializer(Ent[] set, Comparator<? super K> comp){
+        entrySet = set;
+        comparator = comp;
     }
 
     @Override
@@ -105,6 +118,11 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
 	
 	final K key;
 	final V value;
+        /* Classes are only here for compiler, atomic deserialization only
+         * checks these against keys and value, an attacker can supply 
+         * any class they want so, this isn't for security.  The client
+         * is responsible for type checking map contents before use 
+         */
 	final Class<? extends K> keyClass;
 	final Class<? extends V> valueClass;
 
@@ -165,7 +183,7 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
 
 	@Override
 	public V setValue(V value) {
-	    throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	    throw new UnsupportedOperationException("Not supported, SerialMap only intended for Serialization"); //To change body of generated methods, choose Tools | Templates.
 	}
 	
     }

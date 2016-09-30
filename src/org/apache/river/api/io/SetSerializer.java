@@ -28,7 +28,21 @@ import java.util.SortedSet;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
- *
+ * Immutable Set backed by an array.
+ * 
+ * The comparator in this set, does not determine order, the order of the
+ * content array is determined by the comparator when serialized, because
+ * the comparator or content may have been tampered with, in an untrusted
+ * de-serialization stream, it is not used, but only provided for the clients
+ * convenience.  The client must check the contents of the set as well as the
+ * comparator type before use.
+ * 
+ * The equals method must not be called on this set, until content types have
+ * been checked, to avoid gadget attacks.  This is the clients responsibility.
+ * 
+ * @param T - Client code is responsible for type checking the contents of this
+ *            Set after de-serialization, Valid provides suitable methods for 
+ *            doing so.
  * @author peter
  */
 @AtomicSerial
@@ -36,23 +50,48 @@ class SetSerializer<T> extends AbstractSet<T> implements SortedSet<T>, Serializa
     
     private static final long serialVersionUID = 1L;
     
-    T [] content;
-    Comparator<? super T> comparator;
+    private final T [] content;
+    private final Comparator<? super T> comparator;
     
+    /**
+     * @ throws NullPointerException if set is null.
+     */
     SetSerializer(Set<T> set){
-	content = set.toArray((T[]) new Object [set.size()]);
-	if (set instanceof SortedSet) comparator = ((SortedSet<T>)set).comparator();
-	else comparator = null;
+        this(
+            set.toArray((T[]) new Object [set.size()]),
+            set instanceof SortedSet ?
+                ((SortedSet<T>)set).comparator() 
+                : null 
+        );
     }
     
+    /**
+     * Atomic de-serialization constructor.
+     * @param arg provided by atomic de-serialization framework.
+     * @throws IOException if a problem occurs during de-serialization.
+     * @throws InvalidObjectException containing a ClassCastException cause 
+     *         if content is not an Object[] array type or comparator is not
+     *         an instance of Comparator.
+     */
     SetSerializer(GetArg arg) throws IOException {
-	// No invariant checks
-	content = (T[]) arg.get("content", new Object[0], Object[].class);
-	comparator = arg.get("comparator", null, Comparator.class);
+        this(
+            (T[]) arg.get("content", new Object[0], Object[].class),
+            arg.get("comparator", null, Comparator.class)
+        );
     }
     
     SetSerializer(T [] set){
-	content = set;
+	this(set, null);
+    }
+    
+    /**
+     * No exceptions thrown to avoid finalizer attack.
+     * @param set
+     * @param comp 
+     */
+    private SetSerializer(T [] set, Comparator<? super T> comp){
+        content = set;
+        comparator = comp;
     }
 
     @Override
