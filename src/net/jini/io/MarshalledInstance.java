@@ -28,17 +28,11 @@ import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.security.AccessController;
 import java.security.Guard;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
-import org.apache.river.api.io.AtomicMarshalInputStream;
-import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.DeSerializationPermission;
@@ -459,7 +453,7 @@ public class MarshalledInstance implements Serializable {
 	// locBytes is null if no annotations
 	final ByteArrayInputStream lin =
 	    (locBytes == null ? null : new ByteArrayInputStream(locBytes));
-	MarshalInput in = new MarshalFactoryInstance().createMarshalInput(
+	MarshalInput in = getMarshalFactory().createMarshalInput(
 		bin, lin, defaultLoader, verifyCodebaseIntegrity, 
 		verifierLoader, ctext);	    
 	in.useCodebaseAnnotations();
