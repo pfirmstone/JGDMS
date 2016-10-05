@@ -120,7 +120,6 @@ public interface ServiceRegistrar {
      *         the returned items array is only null if maxMatches is zero.
      * @throws java.rmi.RemoteException if a connection problem occurs.
      */
-    @Deprecated
     ServiceMatches lookup(ServiceTemplate tmpl, int maxMatches)
 	throws RemoteException;
     
