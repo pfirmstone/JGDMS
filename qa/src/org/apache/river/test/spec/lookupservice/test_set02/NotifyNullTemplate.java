@@ -32,7 +32,7 @@ public class NotifyNullTemplate extends NotifyExceptionTest {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notify(null, ServiceRegistrar.TRANSITION_MATCH_MATCH,
+	    getProxy().notiFy(null, ServiceRegistrar.TRANSITION_MATCH_MATCH,
 			      listener, null, Long.MAX_VALUE);
 	    throw new TestException("notify did not throw NullPointerException");
 	} catch (NullPointerException e) {

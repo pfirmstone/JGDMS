@@ -33,6 +33,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.*;
 import net.jini.core.lookup.*;
 import net.jini.export.Exporter;
+import net.jini.export.ProxyAccessor;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
@@ -41,6 +42,7 @@ import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
+import org.apache.river.test.spec.lookupservice.service.ServiceRegInitializer;
 
 /** Besides providing implementations for the abstract methods of the 
  *  super class (QATestEnvironment), this class is the common super class of 
@@ -962,6 +964,11 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
     {
 	Object reg = regProxy.register(srvcItem,Long.MAX_VALUE);
 	reg = getConfig().prepare("test.reggieServiceRegistrationPreparer", reg);
+	Object service = srvcItem.service;
+	if (service instanceof ServiceRegInitializer){
+	    reg = ((ServiceRegInitializer)service).setServiceRegistration(
+		    (ServiceRegistration) reg, srvcItem.attributeSets);
+	}
 	return (ServiceRegistration) reg;
     }
 
@@ -983,6 +990,11 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
     {
 	Object reg = regProxy.register(srvcItem,srvcLeaseDurMS);
 	reg = getConfig().prepare("test.reggieServiceRegistrationPreparer", reg);
+	Object service = srvcItem.service;
+	if (service instanceof ServiceRegInitializer){
+	    reg = ((ServiceRegInitializer)service).setServiceRegistration(
+		    (ServiceRegistration) reg, srvcItem.attributeSets);
+	}
 	return (ServiceRegistration) reg;
     }
 

@@ -18,7 +18,7 @@
 package org.apache.river.test.impl.mercury;
 
 import net.jini.core.event.RemoteEvent;
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 
 public class RemoteEventHandle
 {
@@ -55,8 +55,8 @@ public class RemoteEventHandle
 	long thisID = event.getID();
 	long tmpSeq = other.getSequenceNumber();
 	long thisSeq = event.getSequenceNumber();
-	MarshalledObject tmpObj = other.getRegistrationObject();
-	MarshalledObject thisObj = event.getRegistrationObject();
+	MarshalledInstance tmpObj = other.getRegistrationInstance();
+	MarshalledInstance thisObj = event.getRegistrationInstance();
 
 	if (!thisSrc.equals(tmpSrc)) {
 	    //System.out.println("RemoteEventHandle: equals: " +

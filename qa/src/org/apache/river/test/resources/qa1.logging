@@ -107,7 +107,6 @@ java.util.logging.FileHandler.level = INFO
 sun.rmi.level = SEVERE
 net.jini.level = SEVERE
 org.apache.river.level = SEVERE
-org.apache.river.level = SEVERE
 
 # For the LogManager
 org.apache.river.logging.LogManager.level = SEVERE
@@ -203,6 +202,7 @@ org.apache.river.start.level = SEVERE
 #org.apache.river.start.wrapper.level = SEVERE
 
 # For Reggie
+# Don't set to HANDLED causes stream corruption in tests invalid stream header: bad
 org.apache.river.reggie.level = SEVERE
 
 # For Mahalo

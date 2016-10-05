@@ -32,11 +32,7 @@ import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
-import net.jini.core.lease.UnknownLeaseException;
-import java.io.ObjectStreamException;
-import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.rmi.StubNotFoundException;
 import java.util.Vector;
 
 /** This class is used to test that all event notifications cease to be
@@ -98,7 +94,7 @@ public class EvntLeaseExpiration extends QATestRegistrar {
 	proxy = super.getProxy();
 	emptyTmpl = new ServiceTemplate(null,null,null);
 	EventRegistration evntReg
-	    = proxy.notify(emptyTmpl,
+	    = proxy.notiFy(emptyTmpl,
 			   ServiceRegistrar.TRANSITION_NOMATCH_MATCH |
 			   ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 			   ServiceRegistrar.TRANSITION_MATCH_MATCH,

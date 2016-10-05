@@ -18,31 +18,10 @@
 
 package org.apache.river.test.share;
 
-import org.apache.river.qa.harness.QATestEnvironment;
-
-
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-import org.apache.river.qa.harness.TestException;
-
-
-import net.jini.discovery.DiscoveryManagement;
-import net.jini.discovery.DiscoveryGroupManagement;
-import net.jini.discovery.DiscoveryEvent;
-import net.jini.discovery.DiscoveryChangeListener;
-import net.jini.discovery.DiscoveryListener;
-
-
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.entry.Entry;
-import net.jini.core.lookup.ServiceRegistrar;
-
-
-
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -51,12 +30,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.discovery.DiscoveryChangeListener;
+import net.jini.discovery.DiscoveryEvent;
+import net.jini.discovery.DiscoveryGroupManagement;
+import net.jini.discovery.DiscoveryListener;
+import net.jini.discovery.DiscoveryManagement;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.QATestEnvironment;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
 
 /**
  * This class is an abstract class that contains common functionality 
@@ -1117,7 +1107,8 @@ abstract public class BaseQATest extends QATestEnvironment {
     protected volatile QAConfig config = null;
     
     /* Private state */
-    private final List expectedServiceList = new CopyOnWriteArrayList();
+    private final List expectedServiceList 
+	    = Collections.synchronizedList(new ArrayList());
     private volatile boolean announcementsStopped = false;
     private volatile LookupServices lookupServices;
     private volatile LookupDiscoveryServices lookupDiscoveryServices;

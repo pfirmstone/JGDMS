@@ -28,15 +28,11 @@ import org.apache.river.test.spec.lookupservice.QATestUtils;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistration;
-import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.event.*;
 import net.jini.core.lease.*;
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.NoSuchObjectException;
-import java.io.IOException;
 
 /** This class is used to test that event lease renewal works as expected for
  *  N (currently N = 5) successive lease renewal attempts.
@@ -249,7 +245,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      */
     private void registerAllEvents() throws Exception {
         for(int i=0; i<evntRegs.length; i++) {
-	    evntRegs[i] = proxy.notify(srvcIDTmpls[i],
+	    evntRegs[i] = proxy.notiFy(srvcIDTmpls[i],
 				       ServiceRegistrar.TRANSITION_NOMATCH_MATCH  |
 				       ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 				       ServiceRegistrar.TRANSITION_MATCH_MATCH,

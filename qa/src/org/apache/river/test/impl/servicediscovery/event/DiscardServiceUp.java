@@ -18,21 +18,17 @@
 
 package org.apache.river.test.impl.servicediscovery.event;
 
+import java.rmi.RemoteException;
+import java.util.List;
 import java.util.logging.Level;
-
-import org.apache.river.test.spec.servicediscovery.AbstractBaseTest;
-import org.apache.river.test.share.DiscoveryServiceUtil;
-
-import net.jini.lookup.LookupCache;
 import net.jini.core.lease.Lease;
 import net.jini.core.lookup.ServiceItem;
-
-import java.rmi.RemoteException;
-
+import net.jini.lookup.LookupCache;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
-import java.util.List;
+import org.apache.river.test.share.DiscoveryServiceUtil;
+import org.apache.river.test.spec.servicediscovery.AbstractBaseTest;
 
 /**
  * This class verifies that the <code>ServiceDiscoveryManager</code> handles
@@ -385,22 +381,25 @@ public class DiscardServiceUp extends AbstractBaseTest {
                               +srvcItem.length+") != # services started "
                               +"("+nServices+")");
         }//endif
-        for(int i=0;i<srvcItem.length;i++) {
+        for(int i=0,n=srvcItem.length;i<n;i++) {
             if(srvcItem[i].service == null) {
                 logger.log(Level.FINE, ""+qStr+" -- service component of "
                                   +"returned service["+i+"] is null");
                 throw new TestException(" -- "+qStr+" -- service component "
                                   +"of returned service["+i+"] is null");
             }//endif
-            boolean srvcFound = false;
-            for(int j=0;i<expectedServiceList.size();j++) {
-                if((srvcItem[i].service).equals(expectedServiceList.get(j))) {
-                    logger.log(Level.FINE, ""+qStr+" -- expected "
-                                      +"service["+j+"] found in cache");
-                    srvcFound = true;
-                    break;// service exists in cache
-                }//endif
-            }//end loop (j)
+            boolean srvcFound = expectedServiceList.contains(srvcItem[i].service);
+	    if (srvcFound) {
+		logger.log(Level.FINE, "{0} -- expected service found in cache", qStr);
+	    }
+//            for(int j=0,l=expectedServiceList.size();i<l;j++) {
+//                if((srvcItem[i].service).equals(expectedServiceList.get(j))) {
+//                    logger.log(Level.FINE, ""+qStr+" -- expected "
+//                                      +"service["+j+"] found in cache");
+//                    srvcFound = true;
+//                    break;// service exists in cache
+//                }//endif
+//            }//end loop (j)
             if(!srvcFound) {
                 logger.log(Level.FINE, ""+qStr+" -- returned service["
                                   +i+"] is not equivalent to any of the "
@@ -421,16 +420,23 @@ public class DiscardServiceUp extends AbstractBaseTest {
             return;
         }//endif
         List expectedServiceList = getExpectedServiceList();
-        for(int i=0;i<srvcItem.length;i++) {
+        for(int i=0,l=srvcItem.length;i<l;i++) {
             if(srvcItem[i].service == null) continue;
-            for(int j=0;i<expectedServiceList.size();j++) {
-                if((srvcItem[i].service).equals(expectedServiceList.get(j))) {
-                    logger.log(Level.FINE, ""+qStr+" -- service["+j+"] found in "
+	    if (expectedServiceList.contains(srvcItem[i].service)){
+		int j = expectedServiceList.indexOf(srvcItem[i].service);
+		logger.log(Level.FINE, ""+qStr+" -- service["+j+"] found in "
                                       +"cache");
                     throw new TestException(" "+qStr+" -- service["+j+"] found "
 					    +"in cache");
-                 }//endif
-            }//end loop (j)
+	    }
+//            for(int j=0;i<expectedServiceList.size();j++) {
+//                if((srvcItem[i].service).equals(expectedServiceList.get(j))) {
+//                    logger.log(Level.FINE, ""+qStr+" -- service["+j+"] found in "
+//                                      +"cache");
+//                    throw new TestException(" "+qStr+" -- service["+j+"] found "
+//					    +"in cache");
+//                 }//endif
+//            }//end loop (j)
         }//end loop (i)
         logger.log(Level.FINE, ""+qStr+" -- no services in cache, as expected");
     }//end verifyServicesRemoved

@@ -37,6 +37,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.io.MarshalledInstance;
 
 import org.apache.river.test.impl.mercury.EMSTestBase;
 import org.apache.river.test.impl.mercury.TestUtils;
@@ -113,8 +114,8 @@ public class EMSFT_PULL extends EMSTestBase implements TimeConstants {
 	myTplCount += NUM_EVENTS;
 
 	RemoteEvent[] bogus = {
-	    new RemoteEvent(myGen, 9999, 9999, null),
-	    new RemoteEvent(myGen2, 1234, 1, null),
+	    new RemoteEvent(myGen, 9999, 9999, (MarshalledInstance)null),
+	    new RemoteEvent(myGen2, 1234, 1, (MarshalledInstance)null),
 	};
 
         // Collect events and verify

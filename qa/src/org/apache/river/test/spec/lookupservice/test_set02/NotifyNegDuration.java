@@ -33,7 +33,7 @@ public class NotifyNegDuration extends NotifyExceptionTest {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notify(new ServiceTemplate(null, null, null),
+	    getProxy().notiFy(new ServiceTemplate(null, null, null),
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,
 			      listener, null, -500);
 	    throw new TestException("notify did not "

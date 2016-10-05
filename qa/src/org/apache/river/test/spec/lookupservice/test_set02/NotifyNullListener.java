@@ -34,7 +34,7 @@ public class NotifyNullListener extends QATestRegistrar {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notify(new ServiceTemplate(null, null, null),
+	    getProxy().notiFy(new ServiceTemplate(null, null, null),
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,
 			      null, null, Long.MAX_VALUE);
 	    throw new TestException("notify did not throw NullPointerException");

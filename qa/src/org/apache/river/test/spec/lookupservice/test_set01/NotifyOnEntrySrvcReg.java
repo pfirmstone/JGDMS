@@ -74,7 +74,7 @@ public class NotifyOnEntrySrvcReg extends QATestRegistrar {
                 evntVec.add(srvcEvnt);
                 try {
                     QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
-                                          (new MarshalledInstance(srvcEvnt.getRegistrationObject()).get(false));
+                                          (srvcEvnt.getRegistrationInstance().get(false));
 
                     receivedTuples.add(new QATestUtils.SrvcAttrTuple
                                                        (srvcItems,tmplAttrs,
@@ -214,11 +214,11 @@ public class NotifyOnEntrySrvcReg extends QATestRegistrar {
                 n = k%(attrEntries.length);
 	        tmpl[k] = new ServiceTemplate(null,null,tmplAttrs[n]);
 		setStateAttrInfo(k,n,tmplAttrs,state);
-		proxy.notify(tmpl[k],transitionMask,listener,
+		proxy.notiFy(tmpl[k],transitionMask,listener,
 			     new MarshalledInstance
 				 (new QATestUtils.SrvcAttrTuple
 				     (srvcItems[k].service,
-				      tmplAttrs[n][0])).convertToMarshalledObject(),
+				      tmplAttrs[n][0])),
 			     Long.MAX_VALUE);
                 k++;
 	    }

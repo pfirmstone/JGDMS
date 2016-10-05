@@ -16,36 +16,35 @@
  * limitations under the License.
  */
 package org.apache.river.test.spec.lookupservice.test_set00;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-
+import java.io.IOException;
+import java.rmi.NoSuchObjectException;
+import java.rmi.RemoteException;
+import java.rmi.StubNotFoundException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Vector;
 import java.util.logging.Level;
-import org.apache.river.qa.harness.TestException;
-
-import org.apache.river.test.spec.lookupservice.QATestRegistrar;
-import org.apache.river.test.spec.lookupservice.QATestUtils;
-import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceEvent;
-import net.jini.core.lookup.ServiceItem;
-import net.jini.core.lookup.ServiceRegistration;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
+import net.jini.core.lookup.ServiceEvent;
+import net.jini.core.lookup.ServiceID;
+import net.jini.core.lookup.ServiceItem;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.ServiceRegistration;
+import net.jini.core.lookup.ServiceTemplate;
 import net.jini.io.MarshalledInstance;
-import java.rmi.StubNotFoundException;
-import java.rmi.RemoteException;
-import java.rmi.NoSuchObjectException;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Vector;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.test.spec.lookupservice.QATestRegistrar;
+import org.apache.river.test.spec.lookupservice.QATestUtils;
+import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
 
 /** This class is used to verify that after using templates containing only 
  *  a service ID to request notification of MATCH_MATCH|MATCH_NOMATCH events,
@@ -130,8 +129,8 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
             curSrvcID = srvcRegs[i].getServiceID();
             srvcIDTmpl[i] = new ServiceTemplate(curSrvcID,null,null);
 	    EventRegistration er;
-	    er = proxy.notify(srvcIDTmpl[i], regTransitions, listener,
-			      new MarshalledInstance(curSrvcID).convertToMarshalledObject(),
+	    er = proxy.notiFy(srvcIDTmpl[i], regTransitions, listener,
+			      new AtomicMarshalledInstance(curSrvcID),
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}

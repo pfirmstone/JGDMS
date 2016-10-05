@@ -19,9 +19,6 @@ package org.apache.river.test.spec.eventmailbox;
 
 import java.util.logging.Level;
 
-import java.rmi.RemoteException;
-import java.rmi.NoSuchObjectException;
-import java.rmi.ServerException;
 import java.util.Date;
 
 import org.apache.river.qa.harness.TestException;
@@ -30,10 +27,10 @@ import org.apache.river.qa.harness.QAConfig;
 import net.jini.event.EventMailbox;
 import net.jini.event.MailboxRegistration;
 import net.jini.core.lease.Lease;
-import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.io.MarshalledInstance;
 
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.qa.harness.Test;
@@ -113,8 +110,8 @@ public class EMSCET extends EMSTestBase implements TimeConstants {
 	}
 
 	RemoteEvent[] bogus = {
-	    new RemoteEvent(myGen, 9999, 9999, null),
-	    new RemoteEvent(myGen, 5678, 1234, null),
+	    new RemoteEvent(myGen, 9999, 9999, (MarshalledInstance)null),
+	    new RemoteEvent(myGen, 5678, 1234, (MarshalledInstance)null),
 	};
 
 	// Enable the first of our listener objects

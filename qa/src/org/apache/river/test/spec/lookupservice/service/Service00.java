@@ -18,18 +18,28 @@
 package org.apache.river.test.spec.lookupservice.service;
 import java.io.IOException;
 import java.io.Serializable;
+import java.rmi.server.ExportException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import net.jini.core.entry.Entry;
+import net.jini.core.lookup.ServiceRegistration;
+import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 @AtomicSerial
-public class Service00 implements Serializable {
+public class Service00 implements Serializable, ProxyAccessor, ServiceRegInitializer {
     public int i;
+    private transient BootStrapService service;
+    
     public Service00(int i) {
         this.i = i;
+	service = new BootStrapService(this);
     }
 
     public Service00(GetArg arg) throws IOException{
 	i = arg.get("i", 0);
+	service = null; // Not local.
     }
 
     public boolean equals(Object obj) {
@@ -45,5 +55,15 @@ public class Service00 implements Serializable {
         } catch (NullPointerException e) {
             return false;
 	}
+    }
+
+    @Override
+    public Object getProxy() {
+	return service == null ? null : service.getBootStrapProxy();
+    }
+
+    @Override
+    public ServiceRegistration setServiceRegistration(ServiceRegistration regist, Entry[] regAttr) {
+	return service.setServiceRegistration(regist, regAttr);
     }
 }

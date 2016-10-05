@@ -580,7 +580,7 @@
         harness-killer-dl.jar,
         jiniharness.jar" />
 
-    <target name="stubs" depends="compile,iiop.stubs" description="Compile stubs"/>
+    <target name="stubs" depends="compile,iiop.stubs,jrmp.stubs" description="Compile stubs"/>
         <!--harness-killer.stubs,
         nonactivatablegroup.stubs,
         qa1-fiddler.stubs,

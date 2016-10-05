@@ -16,12 +16,6 @@
  * limitations under the License.
  */
 package org.apache.river.test.spec.lookupservice.test_set02;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-
-import org.apache.river.test.spec.lookupservice.QATestRegistrar;
-import org.apache.river.test.spec.lookupservice.QATestUtils;
-import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,6 +31,12 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.test.spec.lookupservice.QATestRegistrar;
+import org.apache.river.test.spec.lookupservice.QATestUtils;
+import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
 
 /** This class is used to verify that after using templates containing a 
  *  combination of service types and attributes with Non-Null fields to
@@ -66,7 +66,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
                 evntVec.add(srvcEvnt);
                 try {
                     QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
-                                          (new MarshalledInstance(srvcEvnt.getRegistrationObject()).get(false));
+                                          (srvcEvnt.getRegistrationInstance().get(false));
 
                     receivedTuples.add(new QATestUtils.SrvcAttrTuple
                                                        (srvcItems,tmplAttrs,
@@ -250,13 +250,13 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
 						 tmplAttrs[j]);
 		sTmpl[i][j] = new ServiceTemplate(null,sClassType,
 						  tmplAttrs[j]);
-		proxy.notify(tmpl[i][j],
+		proxy.notiFy(tmpl[i][j],
 			     transitionMask,
 			     listener,
-			     new MarshalledInstance
+			     new AtomicMarshalledInstance
 				 (new QATestUtils.SrvcAttrTuple
 				     (srvcItems[nSrvcsPerClass*i].service,
-				      tmplAttrs[j][0])).convertToMarshalledObject(),
+				      tmplAttrs[j][0])),
 			     Long.MAX_VALUE);
 	    }
 	}

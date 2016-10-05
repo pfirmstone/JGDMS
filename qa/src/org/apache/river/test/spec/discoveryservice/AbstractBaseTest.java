@@ -914,7 +914,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
 
         private void setRegInfoHandback(RemoteDiscoveryEvent evnt) {
             int iHandback = -1;//for null handbacks
-            MarshalledInstance mHandback = new MarshalledInstance(evnt.getRegistrationObject());
+            MarshalledInstance mHandback = evnt.getRegistrationInstance();
             if(mHandback != null) {
                 try {
                     Integer handback = (Integer)mHandback.get(false);
@@ -1217,7 +1217,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  discovery service, requesting a lease with the given lease duration,
      *  and requesting that the given groups and/or locators be discovered.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void doRegistration(String[] groupsToDiscover,
                                   LookupLocator[] locatorsToDiscover,
@@ -1291,7 +1291,6 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  calls to waitForDiscovery and/or waitForDiscard will not expect
      *  events for those registrations.
      *  
-     *  @throws jave.rmi.RemoteException
      */
     protected void resetAllEventInfoAllRegs() {
         Set eSet = getRegistrationMap().entrySet();
@@ -1315,7 +1314,6 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  waitForDiscovery and/or waitForDiscard will not expect events for
      *  that registrations.
      *  
-     *  @throws jave.rmi.RemoteException
      */
     protected void resetAllEventInfoOneReg(Map.Entry regListenerPair) {
         RegistrationInfo regInfo  
@@ -1334,7 +1332,6 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  calls to waitForDiscovery will not expect discovery events for those
      *  registrations.
      *  
-     *  @throws jave.rmi.RemoteException
      */
     protected void resetDiscoveryEventInfoAllRegs() {
         Set eSet = getRegistrationMap().entrySet();
@@ -1358,7 +1355,6 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  calls to waitForDiscovery will not expect discovery events for that
      *  registration.
      *  
-     *  @throws jave.rmi.RemoteException
      */
     protected void resetDiscoveryEventInfoOneReg(Map.Entry regListenerPair) {
         RegistrationInfo regInfo  
@@ -1377,7 +1373,6 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  calls to waitForDiscard will not expect discard events for those
      *  registrations.
      *  
-     *  @throws jave.rmi.RemoteException
      */
     protected void resetDiscardEventInfoAllRegs() {
         Set eSet = getRegistrationMap().entrySet();
@@ -1401,7 +1396,6 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  calls to waitForDiscard will not expect discard events for that
      *  registration.
      *  
-     *  @throws jave.rmi.RemoteException
      */
     protected void resetDiscardEventInfoOneReg(Map.Entry regListenerPair) {
         RegistrationInfo regInfo  
@@ -1425,7 +1419,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  augments that registration's desired groups with the given set of
      *  groups.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void addGroupsAllRegs(String[] groups) throws RemoteException {
        lookupServices.addGroupsAllRegs(groups);
@@ -1438,7 +1432,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  of the pair, this method augments that registration's desired groups
      *  with the given set of groups.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void addGroupsOneReg(String[]  groups,
                                    Map.Entry regListenerPair)
@@ -1452,7 +1446,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  replaces that registration's desired groups with the given set of
      *  groups.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void setGroupsAllRegs(String[] groups) throws RemoteException {
         lookupServices.setGroupsAllRegs(groups);
@@ -1465,7 +1459,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  of the pair, this method replaces that registration's desired groups
      *  with the given set of groups.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void setGroupsOneReg(String[]  groups,
                                    Map.Entry regListenerPair)
@@ -1479,7 +1473,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  removes the given set of groups from that registration's desired
      *  groups.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void removeGroupsAllRegs(String[] groups) throws RemoteException{
         lookupServices.removeGroupsAllRegs(groups);
@@ -1492,7 +1486,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  of the pair, this method removes the given set of groups from that
      *  registration's desired groups.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void removeGroupsOneReg(String[]  groups,
                                       Map.Entry regListenerPair)
@@ -1505,7 +1499,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  for the registrations referenced in the given regMap, the removal
      *  of the given set of groups from each registration.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void removeGroupsRegMap(Map regMap, String[] groups)
                                                        throws RemoteException
@@ -1518,7 +1512,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  augments that registration's desired locators with the given set of
      *  locators.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void addLocatorsAllRegs(LookupLocator[] locators)
                                                       throws RemoteException
@@ -1533,7 +1527,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  of the pair, this method augments that registration's desired locators
      *  with the given set of locators.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void addLocatorsOneReg(LookupLocator[] locators,
                                      Map.Entry       regListenerPair)
@@ -1547,7 +1541,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  replaces that registration's desired locators with the given set of
      *  locators.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void setLocatorsAllRegs(LookupLocator[] locators)
                                                       throws RemoteException
@@ -1562,7 +1556,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  of the pair, this method replaces that registration's desired locators
      *  with the given set of locators.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void setLocatorsOneReg(LookupLocator[]  locators,
                                      Map.Entry regListenerPair)
@@ -1576,7 +1570,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  removes the given set of locators from that registration's desired
      *  locators.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void removeLocatorsAllRegs(LookupLocator[] locators)
                                                        throws RemoteException
@@ -1591,7 +1585,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  of the pair, this method removes the given set of locators from that
      *  registration's desired locators.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void removeLocatorsOneReg(LookupLocator[]  locators,
                                         Map.Entry regListenerPair)
@@ -1604,7 +1598,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  for the registrations referenced in the given regMap, the removal
      *  of the given set of locators from each registration.
      *  
-     *  @throws jave.rmi.RemoteException
+     *  @throws java.rmi.RemoteException
      */
     protected void removeLocatorsRegMap(Map regMap,
                                         LookupLocator[] locators)
@@ -2010,7 +2004,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      *  to discover the given registration by locator, then this method
      *  returns true; otherwise, it returns false.
      *
-     *  @throws jave.rmi.RemoteException upon failing to retrieve the locator
+     *  @throws java.rmi.RemoteException upon failing to retrieve the locator
      *          of the given registrar.
      */
     protected boolean discoverByLocAnyReg(ServiceRegistrar lookupProxy)
@@ -2278,6 +2272,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
      * @param reg the <code>LookupDiscoveryRegistration</code> providing
      *            the lease
      * @return the prepared lease
+     * @throws java.rmi.RemoteException
      */
     protected Lease getPreparedLease(LookupDiscoveryRegistration reg) 
 	throws RemoteException
