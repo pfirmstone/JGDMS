@@ -18,14 +18,15 @@
 
 package net.jini.export;
 
-import java.io.IOException;
-import net.jini.core.constraint.Integrity;
-import net.jini.loader.ClassLoading;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.rmi.Remote;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateFactory;
-import org.apache.river.api.security.RevocablePolicy;
+import net.jini.core.constraint.Integrity;
+import net.jini.loader.ClassLoading;
 import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.RevocablePolicy;
 
 /**
  * After authenticating a bootstrap token proxy, the ProxyPreparer can
@@ -46,7 +47,7 @@ import org.apache.river.api.security.PermissionGrant;
  * @see RevocablePolicy
  * @see PermissionGrant
  */
-public interface ServiceCodebaseAccessor {
+public interface ServiceCodebaseAccessor extends Remote {
     
     /**
      * Obtains the service class annotation as defined in
