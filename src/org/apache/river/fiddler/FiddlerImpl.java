@@ -183,13 +183,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
 	readyState.check();
         concurrentObj.readLock();
         try {
-            Entry[] result = thisServicesAttrs.clone();
-	    for (int i = 0, l = result.length; i < l; i++){
-		if (result[i] instanceof CloneableEntry){
-		   result[i] = ((CloneableEntry)result[i]).clone();
-		}
-	    }
-	    return result;
+	    return joinMgr.getAttributes();
         } finally {
             concurrentObj.readUnlock();
         }
