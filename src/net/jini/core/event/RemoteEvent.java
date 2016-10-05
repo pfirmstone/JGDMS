@@ -18,11 +18,12 @@
 
 package net.jini.core.event;
 
-import java.rmi.MarshalledObject;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream.GetField;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
+import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -96,36 +97,38 @@ public class RemoteEvent extends java.util.EventObject {
 	    new ObjectStreamField("source", Object.class),
 	    new ObjectStreamField("eventID", long.class),
 	    new ObjectStreamField("seqNum", long.class),
-	    new ObjectStreamField("handback", MarshalledObject.class)
+	    new ObjectStreamField("handback", MarshalledObject.class),
+	    new ObjectStreamField("miHandback", MarshalledInstance.class)
 	};
-
-    /**
-     * The event source.
-     *
-     * @serial
-     */
-    private final Object source;
 
     /**
      * The event identifier.
      *
      * @serial
      */
-    private final long eventID;
+    protected long eventID;
 
     /**
      * The event sequence number.
      *
      * @serial
      */
-    private final long seqNum;
+    protected long seqNum;
 
     /**
      * The handback object.
      *
      * @serial
      */
-    private final MarshalledObject handback;
+    @Deprecated
+    protected MarshalledObject handback;
+    
+    /**
+     * The registration handback object.
+     * 
+     * @serial
+     */
+    protected MarshalledInstance miHandback;
 
     private static Object check(GetArg arg) throws IOException {
 	Object source = Valid.notNull(arg.get("source", null),"source cannot be null");
@@ -133,6 +136,9 @@ public class RemoteEvent extends java.util.EventObject {
 	long seqNum = arg.get("seqNum", -1L);
 	if (seqNum < 0) throw new InvalidObjectException("seqNum may have overflowed, less than zero");
 	arg.get("handback", null, MarshalledObject.class); // Type check
+	try{
+	    arg.get("miHandback", null, MarshalledInstance.class); // Type check
+	} catch (IllegalArgumentException ex){} // Ignore, earlier version.
 	return source;
     }
     
@@ -146,6 +152,9 @@ public class RemoteEvent extends java.util.EventObject {
 	eventID = arg.get("eventID", -1L);
 	seqNum = arg.get("seqNum", -1L);
 	handback = (MarshalledObject) arg.get("handback", null);
+	try{
+	    miHandback = arg.get("miHandback", null, MarshalledInstance.class); // Type check
+	} catch (IllegalArgumentException ex){} // Ignore, earlier version.
     }
 
     /**
@@ -166,23 +175,41 @@ public class RemoteEvent extends java.util.EventObject {
      * @param handback  a <tt>MarshalledObject</tt> that was passed in 
      *                  as part of the original event registration.
      */
+    @Deprecated
     public RemoteEvent(Object source, long eventID, long seqNum,
 		       MarshalledObject handback) {
 	super(source);
-	this.source = source;
 	this.eventID = eventID;
 	this.seqNum = seqNum;
 	this.handback = handback;
+	this.miHandback = null;
     }
     
     /**
-     * The object on which the RemoteEvent initially occurred.
-     *
-     * @return   The object on which the RemoteEvent initially occurred.
+     * Constructs a RemoteEvent object.
+     * <p>
+     * The abstract state contained in a RemoteEvent object includes a 
+     * reference to the object in which the event occurred, a long which 
+     * identifies the kind of event relative to the object in which the 
+     * event occurred, a long which indicates the sequence number of this 
+     * instance of the event kind, and a MarshalledInstance that is to be 
+     * handed back when the notification occurs. The combination of the 
+     * event identifier and the object reference obtained from the 
+     * RemoteEvent object should uniquely identify the event type.
+     * 
+     * @param source    an <tt>Object</tt> representing the event source
+     * @param eventID   a <tt>long</tt> containing the event identifier
+     * @param seqNum    a <tt>long</tt> containing the event sequence number
+     * @param miHandback  a <tt>MarshalledInstance</tt> that was passed in 
+     *                  as part of the original event registration.
      */
-    @Override
-    public Object getSource(){
-        return source;
+    public RemoteEvent(Object source, long eventID, long seqNum,
+		       MarshalledInstance miHandback) {
+	super(source);
+	this.eventID = eventID;
+	this.seqNum = seqNum;
+	this.miHandback = miHandback;
+	handback = null;
     }
     
     /**
@@ -208,24 +235,31 @@ public class RemoteEvent extends java.util.EventObject {
 
     /**
      * Returns the handback object that was provided as a parameter to
-     * the event interest registration method, if any.
-     *
+     * the event interest registration method, if any.  
+     * 
      * @return the MarshalledObject that was provided as a parameter to
      *         the event interest registration method, if any. 
+     * @deprecated Use {@link #getRegistrationInstance() } instead.
      */
+    @Deprecated
     public MarshalledObject getRegistrationObject() {
 	return handback;
     }
     
     /**
      * Returns the handback object that was provided as a parameter to
-     * the event interest registration method, if any.
+     * the event interest registration method, if any.  Note that if the 
+     * handback object was a MarshalledObject, it will be returned as a
+     * MarshalledInstance.
      *
      * @return the MarshalledInstance that was provided as a parameter to
      *         the event interest registration method, if any. 
+     *	       Or the MarshalledObject that was provided, converted to a 
+     *	       MarshalledInstance.
      */
-    public MarshalledInstance getHandback() {
-	return new MarshalledInstance(getRegistrationObject());
+    public MarshalledInstance getRegistrationInstance() {
+	if ( miHandback == null && handback != null) return new MarshalledInstance(handback);
+	return miHandback;
     }
 
     /**
@@ -237,8 +271,14 @@ public class RemoteEvent extends java.util.EventObject {
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException
     {
-	stream.defaultReadObject();
-	super.source = source;
+	GetField fields = stream.readFields();
+	super.source = fields.get("source", null);
+	eventID = fields.get("eventID", 0L);
+	seqNum = fields.get("seqNum", 0L);
+	handback = (MarshalledObject) fields.get("handback", null);
+	try {
+	    miHandback = (MarshalledInstance) fields.get("miHandback", null);
+	} catch (IllegalArgumentException ex){} // Ignore, previous serial form.
     }
        
     /**
@@ -273,6 +313,7 @@ public class RemoteEvent extends java.util.EventObject {
 	fields.put("eventID", getID());
 	fields.put("seqNum", getSequenceNumber());
 	fields.put("handback", getRegistrationObject());
+	fields.put("miHandback", getRegistrationInstance());
 	stream.writeFields();
     }
 }
