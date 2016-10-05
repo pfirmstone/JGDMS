@@ -184,7 +184,7 @@ class ServiceEditor extends JFrame {
     if(registrar != null) {
       try {
 	EventRegistration reg =
-	    registrar.notify(stmpl,
+	    registrar.notiFy(stmpl,
 			     ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 			     ServiceRegistrar.TRANSITION_NOMATCH_MATCH |
 			     ServiceRegistrar.TRANSITION_MATCH_MATCH,

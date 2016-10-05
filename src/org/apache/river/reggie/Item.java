@@ -17,7 +17,12 @@
  */
 package org.apache.river.reggie;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
@@ -28,6 +33,8 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -44,9 +51,7 @@ import net.jini.export.ServiceAttributesAccessor;
 import net.jini.export.ServiceCodebaseAccessor;
 import net.jini.export.ServiceIDAccessor;
 import net.jini.export.ServiceProxyAccessor;
-import net.jini.jeri.BasicJeriTrustVerifier;
 import net.jini.security.Security;
-import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
@@ -145,9 +150,16 @@ final class Item implements Serializable, Cloneable {
     );
     
     /**
-     * This ensures the bootstrap proxy is a trusted jeri proxy.
+     * Returns the class loader for the specified proxy class.
      */
-    private static final TrustVerifier tv = new BasicJeriTrustVerifier();
+    private static ClassLoader getProxyLoader(final Class proxyClass) {
+	return (ClassLoader)
+	    AccessController.doPrivileged(new PrivilegedAction() {
+		public Object run() {
+		    return proxyClass.getClassLoader();
+		}
+	    });
+    }
 
     /**
      * ServiceItem.serviceID.
@@ -185,11 +197,6 @@ final class Item implements Serializable, Cloneable {
      * @serial
      */
     Proxy bootstrapProxy;
-
-    /**
-     * List view of attributeSets
-     */
-//    final List<EntryRep> attribSets;
      
     /**
      * Checks all invariants are satisfied during de-serialization.
@@ -200,23 +207,20 @@ final class Item implements Serializable, Cloneable {
      * @throws NullPointerException
      */
     private static boolean check(GetArg arg) throws IOException{
-	ServiceID serviceID = arg.get("serviceID", null, ServiceID.class);
+	arg.get("serviceID", null, ServiceID.class);
 	// serviceID is assigned by Reggie if null.
-	ServiceType serviceType = arg.get("serviceType", null, ServiceType.class);
+	arg.get("serviceType", null, ServiceType.class);
 	// serviceType allowed to be null
-	String codebase = arg.get("codebase", null, String.class);
+	arg.get("codebase", null, String.class);
 	// codebase allowed to be null
-	MarshalledWrapper service = Valid.notNull(
+	Valid.notNull(
 		arg.get("service", null, MarshalledWrapper.class), 
 		"service cannot be null");
-	EntryRep[] attributeSets = arg.get("attributeSets", null, EntryRep[].class);
 	// attributeSets can be null and can contain null
+	arg.get("attributeSets", null, EntryRep[].class);
 	Proxy bootstrapProxy = arg.get("bootstrapProxy", null, Proxy.class);
 	if (bootstrapProxy != null) {
-//	    Security.verifyObjectTrust(arg, null, context);
-	    if (Proxy.isProxyClass(bootstrapProxy.getClass()))
-	    return tv.isTrustedObject(bootstrapProxy, null);
-//	    return Proxy.isProxyClass(bootstrapProxy.getClass());
+	    if (Proxy.isProxyClass(bootstrapProxy.getClass())) return true;
 	}
 	return true;
     }
@@ -239,7 +243,6 @@ final class Item implements Serializable, Cloneable {
 	service = arg.get("service", null, MarshalledWrapper.class);
 	attributeSets = Valid.copy(arg.get("attributeSets", null, EntryRep[].class));
 	bootstrapProxy = arg.get("bootstrapProxy", null, Proxy.class);
-//	attribSets = Arrays.asList(attributeSets);
     }
 
     /**
@@ -258,33 +261,51 @@ final class Item implements Serializable, Cloneable {
 	    } catch (NoSuchObjectException e) {
 	    }
 	}
+	//  Now we need to create the bootstrap proxy for the new lookup method.
 	Object proxy;
-	if (svc instanceof ProxyAccessor){
+	if (svc instanceof ProxyAccessor){ // Obtain exported proxy
 	    proxy = ((ProxyAccessor)svc).getProxy();
 	} else {
 	    proxy = svc;
+	    // Proxy may not have been exported yet, it is legal for
+	    // a Serializable object to use writeReplace to export and serialize a proxy.
+	    // This occurs locally, so we don't require a codebase download.
+	    // REMIND: Should we set the context ClassLoader?
+	    if (!Proxy.isProxyClass(proxy.getClass()) && proxy instanceof Serializable){
+		try {
+		    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		    ObjectOutput out = new ObjectOutputStream(baos);
+		    out.writeObject(proxy);
+		    ByteArrayInputStream bain = new ByteArrayInputStream(baos.toByteArray());
+		    ObjectInput in = new ObjectInputStream(bain);
+		    proxy = in.readObject();
+		} catch (IOException ex) {
+		    Logger.getLogger(Item.class.getName()).log(Level.SEVERE, null, ex);
+		} catch (ClassNotFoundException ex) {
+		    Logger.getLogger(Item.class.getName()).log(Level.SEVERE, null, ex);
+		}
+	    }
 	}
-	if (proxy instanceof RemoteMethodControl 
-	    && proxy instanceof TrustEquivalence
+	Class proxyClass = proxy.getClass();
+	if (proxy instanceof RemoteMethodControl //JERI
+	    && proxy instanceof TrustEquivalence //JERI
 	    // REMIND: The next three interfaces may not be available locally.
 	    // so must be found in jsk-dl.jar
 	    && proxy instanceof ServiceIDAccessor
 	    && proxy instanceof ServiceProxyAccessor
 	    && proxy instanceof ServiceAttributesAccessor
+	    && Proxy.isProxyClass(proxyClass)
 	    ) 
 	{
-	    Class proxyClass = proxy.getClass();
-	    if (Proxy.isProxyClass(proxyClass) && tv.isTrustedObject(proxy, null)){
-		// REMIND: InvocationHandler must be available locally, for now
-		// it must be an instance of BasiceInvocationHandler.
-		InvocationHandler h = Proxy.getInvocationHandler(proxy);
-		if (proxy instanceof ServiceCodebaseAccessor){
-		    bootstrapProxy = (Proxy) 
-			Proxy.newProxyInstance(null, bootStrapSmartProxyInterfaces, h);
-		} else {
-		    bootstrapProxy = (Proxy) 
-			Proxy.newProxyInstance(null, bootStrapProxyInterfaces, h);		    
-		}
+	    // REMIND: InvocationHandler must be available locally, for now
+	    // it must be an instance of BasicInvocationHandler.
+	    InvocationHandler h = Proxy.getInvocationHandler(proxy);
+	    if (proxy instanceof ServiceCodebaseAccessor){
+		bootstrapProxy = (Proxy) 
+		    Proxy.newProxyInstance(getProxyLoader(proxyClass), bootStrapSmartProxyInterfaces, h);
+	    } else {
+		bootstrapProxy = (Proxy) 
+		    Proxy.newProxyInstance(getProxyLoader(proxyClass), bootStrapProxyInterfaces, h);		    
 	    }
 	}
 	serviceID = item.serviceID;
@@ -297,21 +318,16 @@ final class Item implements Serializable, Cloneable {
 	    throw new MarshalException("error marshalling arguments", e);
 	}
 	attributeSets = EntryRep.toEntryRep(item.attributeSets, true);
-//	attribSets = Arrays.asList(attributeSets);
     }
     
-    Item(ServiceID serviceID,
-            ServiceType serviceType,
-            String codebase,
-            MarshalledWrapper service,
-            EntryRep [] attrSets)
+    Item(ServiceID serviceID, ServiceType serviceType, String codebase, MarshalledWrapper service, EntryRep[] attrSets, Proxy bootstrap)
     {
         this.serviceID = serviceID;
         this.serviceType = serviceType;
         this.codebase = codebase;
         this.service = service;
         attributeSets = attrSets;
-//	attribSets = Arrays.asList(attributeSets);
+	this.bootstrapProxy = bootstrap;
     }
 
     /**
@@ -334,7 +350,7 @@ final class Item implements Serializable, Cloneable {
 	}
     }
     
-    public Object getProxy() {
+    public Proxy getProxy() {
 	return bootstrapProxy;
     }
 
@@ -348,7 +364,7 @@ final class Item implements Serializable, Cloneable {
 	    for (int i = attrSets.length; --i >= 0; ) {
 		attrSets[i] = (EntryRep)attrSets[i].clone();
 	    }
-	    return new Item(serviceID, serviceType, codebase, service, attrSets);
+	    return new Item(serviceID, serviceType, codebase, service, attrSets, null);
     }
 
     /**

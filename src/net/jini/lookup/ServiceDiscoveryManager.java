@@ -1873,17 +1873,18 @@ public class ServiceDiscoveryManager {
 	    ProxyPreparer bootstrapPreparer) 
     {
 	try {
+	    if (!(bootstrapProxy instanceof ServiceAttributesAccessor) &&
+		    !(bootstrapProxy instanceof ServiceIDAccessor) &&
+		    !(bootstrapProxy instanceof ServiceProxyAccessor)) return null;
 	    Object preparedProxy = bootstrapPreparer.prepareProxy(bootstrapProxy);
-	    if (!(preparedProxy instanceof ServiceAttributesAccessor) &&
-		    !(preparedProxy instanceof ServiceIDAccessor) &&
-		    !(preparedProxy instanceof ServiceProxyAccessor)) return null;
 	    Entry[] serviceAttributes =
 		    ((ServiceAttributesAccessor) preparedProxy).getServiceAttributes();
 	    ServiceID serviceID = ((ServiceIDAccessor) preparedProxy).serviceID();
 	    ServiceItem item = new ServiceItem(serviceID, bootstrapProxy, serviceAttributes);
-	    if (filter.check(item)) return item;
+	    if (filter == null || filter.check(item)) return item;
 	    return null;
 	} catch (IOException ex) {
+	    logger.log(Level.FINE, "IOException thrown while checking bootstrapProxy", ex);
 	    return null;
 	}
     }

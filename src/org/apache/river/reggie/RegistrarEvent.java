@@ -64,7 +64,9 @@ class RegistrarEvent extends ServiceEvent {
      * annotation loss (see bug 4745728).
      */
     private transient ServiceID servID;
-
+    
+    private transient Proxy bootstrap;
+    
     @ReadInput
     private static ReadObject getRO(){
 	return new RO();
@@ -74,9 +76,7 @@ class RegistrarEvent extends ServiceEvent {
 	Object serviceItem = arg.get("serviceItem", null);
 	if (serviceItem == null ||
 	    serviceItem instanceof ServiceItem ||
-	    serviceItem instanceof Item ||
-	    serviceItem instanceof ServiceProxyAccessor && 
-		Proxy.isProxyClass(serviceItem.getClass()))
+	    serviceItem instanceof Item )
 	{
 	    RO r = (RO) arg.getReader();
 	    if (r.servID instanceof ServiceID) return arg;
@@ -101,6 +101,7 @@ class RegistrarEvent extends ServiceEvent {
      * @param transition the transition that triggered the event
      * @param item the new state of the serviceItem, or null if deleted
      */
+    @Deprecated
     public RegistrarEvent(Object source,
 			  long eventID,
 			  long seqNo,
@@ -113,34 +114,55 @@ class RegistrarEvent extends ServiceEvent {
 	this.serviceItem = item;
 	servID = serviceID;
     }
+    
+    /**
+     * Simple constructor.
+     *
+     * @param source the ServiceRegistrar that generated the event
+     * @param eventID the registration eventID
+     * @param seqNo the sequence number of this event
+     * @param miHandback the client handback
+     * @param serviceID the serviceID of the serviceItem that triggered the event
+     * @param transition the transition that triggered the event
+     * @param item the new state of the serviceItem, or null if deleted
+     */
+    public RegistrarEvent(Object source,
+			  long eventID,
+			  long seqNo,
+			  MarshalledInstance miHandback,
+			  ServiceID serviceID,
+			  int transition,
+			  Object item)
+    {
+	super(source, eventID, seqNo, miHandback, null, transition);
+	this.serviceItem = item;
+	servID = serviceID;
+    }
 
     /**
      * Returns the new state of the serviceItem, or null if the serviceItem was deleted
      * from the lookup service.
      */
+    @Override
     public ServiceItem getServiceItem() {
 	if (serviceItem instanceof ServiceItem){
 	    return ((ServiceItem) serviceItem).clone();
 	} else if (serviceItem instanceof Item) {
+	    bootstrap = ((Item)serviceItem).getProxy();
 	    serviceItem = ((Item)serviceItem).get();
-	} else if (serviceItem instanceof ServiceProxyAccessor){
-	    try {
-		serviceItem = ((ServiceProxyAccessor) serviceItem).getServiceProxy();
-	    } catch (RemoteException ex) {
-		serviceItem = null;
-	    };
-	}
-	return (ServiceItem)serviceItem;
+	    return ((ServiceItem) serviceItem).clone();
+	} 
+	return null;
     }
     
+    @Override
     public Object getBootstrapProxy(){
+	if (bootstrap != null) return bootstrap;
 	if (serviceItem instanceof Item){
-	    return ((Item)serviceItem).bootstrapProxy;
-	} else if (serviceItem instanceof ServiceItem){
-	    return null;
-	} else {
-	    return serviceItem;
-	}
+	    bootstrap = ((Item)serviceItem).getProxy();
+	    return bootstrap;
+	} 
+	return null;
     }
 
     // javadoc inherited from ServiceEvent
