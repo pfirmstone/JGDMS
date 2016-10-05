@@ -803,6 +803,7 @@
             <arg path="${build.classes.dir}/net/jini/admin"/>
             <arg path="${build.classes.dir}/net/jini/entry"/>
             <arg path="${build.classes.dir}/net/jini/event"/>
+            <arg path="${build.classes.dir}/net/jini/export"/>
             <arg path="${build.classes.dir}/net/jini/lookup/entry"/>
             <arg path="${build.classes.dir}/net/jini/space"/>
             <arg path="${build.classes.dir}/org/apache/river/impl/lease/"/>
@@ -813,11 +814,12 @@
             <arg value="org.apache.river.landlord.LandlordLease"/>
             <arg value="org.apache.river.landlord.LandlordLeaseMap"/>
             <arg value="org.apache.river.landlord.LandlordProxyVerifier"/>
-			<arg value="org.apache.river.landlord.LeasedResource"/>
+            <arg value="org.apache.river.landlord.LeasedResource"/>
             <arg value="org.apache.river.logging.Levels"/>
             <arg value="org.apache.river.lookup.entry.BasicServiceType"/>
             <arg value="org.apache.river.resource.ServiceConfigurationError"/>
             <arg value="net.jini.export.ServiceProxyAccessor"/>
+            <arg value="net.jini.export.ServiceCodebaseAccessor"/>
             <arg value="net.jini.export.ServiceIDAccessor"/>
             <arg value="net.jini.export.ServiceAttributesAccessor"/>
             <arg value="net.jini.discovery.LookupDiscoveryRegistration"/>
