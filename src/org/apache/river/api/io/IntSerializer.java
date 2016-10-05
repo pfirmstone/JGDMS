@@ -34,7 +34,7 @@ class IntSerializer implements Externalizable {
     
     private int i;
     
-    IntSerializer(){}
+    public IntSerializer(){}
     
     IntSerializer(Integer i){
 	this.i = i;

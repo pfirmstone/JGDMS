@@ -24,6 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.Collection;
+import java.util.Collections;
 import net.jini.io.MarshalFactory;
 import net.jini.io.MarshalInput;
 import net.jini.io.MarshalOutput;
@@ -38,8 +39,50 @@ import net.jini.io.MarshalledInstance;
 @AtomicSerial
 public final class AtomicMarshalledInstance extends MarshalledInstance {
     
-    public AtomicMarshalledInstance(AtomicSerial.GetArg arg) throws IOException{
+    AtomicMarshalledInstance(AtomicSerial.GetArg arg) throws IOException{
 	super(arg);
+    }
+    
+    /**
+     * Creates a new <code>MarshalledInstance</code> from an
+     * existing <code>MarshalledObject</code>. An object equivalent
+     * to the object contained in the passed <code>MarshalledObject</code>
+     * will be contained in the new <code>AtomicMarshalledInstance</code>.
+     * <p>
+     * The object contained in the passed <code>MarshalledObject</code>
+     * will not be unmarshalled as part of this call.
+     * <p>
+     * Note that an AtomicMarshalledInstance, converted to a MarshalledObject
+     * can be deserialized, without support for using atomic input validation.
+     * A MarshalledObject converted to an AtomicMarshalledObject can only be
+     * deserialized if it was originally created as an AtomicMarshalledInstance.
+     * This functionality only exists for backward compatibility reasons.
+     * 
+     *
+     * @param mo The <code>MarshalledObject</code> that contains
+     *        the object the new <code>MarshalledInstance</code> should
+     *        contain
+     * @throws NullPointerException if <code>mo</code> is <code>null</code>
+     */
+    public AtomicMarshalledInstance(java.rmi.MarshalledObject mo) {
+	super(mo);
+    }
+    
+    /**
+     * Creates a new <code>MarshalledInstance</code> that contains the
+     * marshalled representation of the current state of the supplied
+     * object. The object is serialized with the semantics defined by
+     * <code>MarshalOutputStream</code>. The output stream used to marshal the
+     * object implements {@link ObjectStreamContext} and returns an empty
+     * collection from its {@link ObjectStreamContext#getObjectStreamContext
+     * getObjectStreamContext} method.
+     *
+     * @param obj The Object to be contained in the new 
+     *          <code>MarshalledInstance</code>
+     * @throws IOException if the object cannot be serialized
+     */
+    public AtomicMarshalledInstance(Object obj) throws IOException {
+	this(obj, Collections.EMPTY_SET);
     }
     
     /**
@@ -63,7 +106,12 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	super(obj, context, new AtomicMarshalFactoryInstance());
     }
     
-        static class AtomicMarshalFactoryInstance implements MarshalFactory {
+    @Override
+    protected final MarshalFactory getMarshalFactory(){
+	return new AtomicMarshalFactoryInstance();
+    }
+    
+    static class AtomicMarshalFactoryInstance implements MarshalFactory {
 
 	@Override
 	public MarshalInput createMarshalInput(InputStream objIn,
