@@ -178,19 +178,22 @@ final class LookupCacheImpl implements LookupCache {
 	    } else {
 		ServiceItem item = null;
 		ServiceID id;
+		//REMIND: Consider using the actual service proxy?
 		Object proxy = theEvent.getBootstrapProxy();
-		Entry [] attributes;
-		proxy = sdm.bootstrapProxyPreparer.prepareProxy(proxy);
-		try {
-		    id = ((ServiceIDAccessor)proxy).serviceID();
-		    attributes = ((ServiceAttributesAccessor)proxy).getServiceAttributes();
-		    item = new ServiceItem(id, proxy, attributes);
-		} catch (IOException ex) {
-		    sdm.logger.log(Level.FINE, 
-			"exception thrown while attempting to establish contact via a bootstrap proxy"
-			, ex
-		    );
-		    // Item will be null.
+		if (proxy != null){
+		    Entry [] attributes;
+		    proxy = sdm.bootstrapProxyPreparer.prepareProxy(proxy);
+		    try {
+			id = ((ServiceIDAccessor)proxy).serviceID();
+			attributes = ((ServiceAttributesAccessor)proxy).getServiceAttributes();
+			item = new ServiceItem(id, proxy, attributes);
+		    } catch (IOException ex) {
+			sdm.logger.log(Level.FINE, 
+			    "exception thrown while attempting to establish contact via a bootstrap proxy"
+			    , ex
+			);
+			// Item will be null.
+		    }
 		}
 		notifyServiceMap(
 		    theEvent.getSource(),

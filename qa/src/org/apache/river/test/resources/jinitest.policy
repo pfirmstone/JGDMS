@@ -7,17 +7,53 @@ grant codebase "file:${org.apache.river.test.home}${/}lib${/}fullloggingfilter.j
 	permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:c:\\-";
 };
 
-grant {
-        permission java.util.PropertyPermission "java.system.class.loader", "read";
-	permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}-", "read";
-        permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
-        permission java.net.URLPermission "http:*", "GET:";
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/reggie-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/jsk-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://*/qa1-lookup-simulator-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant codebase "http://*/phoenix-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 
 grant {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+    permission java.util.PropertyPermission "java.system.class.loader", "read";
+    permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}-", "read";
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.ssl";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.action";
+    permission java.lang.RuntimePermission "getClassLoader";
+};
+
+//JDK9
+// Java 8 sun policy provider cannot read, as there is no jrt URLHandler
+// ConcurrentPolicyFile can handle these as it uses RFC3968 URI.
+//grant codebase "jrt:/jdk.security.auth" {
+//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore.password" "read";
+//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore" "read";
+//    permission javax.security.auth.AuthPermission "modifyPrincipals";
+//    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+//    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+//};
+
+grant {
     permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test
     permission org.apache.river.phoenix.ExecPermission "/bin/javax";

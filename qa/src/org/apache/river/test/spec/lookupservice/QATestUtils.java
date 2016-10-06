@@ -529,7 +529,7 @@ public class QATestUtils {
 						    expdSrvcID+")");
 			} else {
 			    handbackSrvcID = 
-				(ServiceID)(new MarshalledInstance(evnt.getRegistrationObject()).get(false));
+				(ServiceID)(evnt.getRegistrationInstance().get(false));
 
 			    if ( !(handbackSrvcID.equals(expdSrvcID)) ) {
 				throw new TestException

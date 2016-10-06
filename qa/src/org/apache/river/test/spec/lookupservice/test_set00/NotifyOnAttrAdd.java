@@ -128,8 +128,8 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
             curSrvcID = srvcRegs[i].getServiceID();
             tmpl[i] = new ServiceTemplate(curSrvcID,null,null);
 	    EventRegistration er;
-	    er = proxy.notify(tmpl[i], regTransitions, listener,
-			      new MarshalledInstance(curSrvcID).convertToMarshalledObject(),
+	    er = proxy.notiFy(tmpl[i], regTransitions, listener,
+			      new MarshalledInstance(curSrvcID),
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}

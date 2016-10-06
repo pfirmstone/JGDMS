@@ -25,6 +25,7 @@ import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.ProtectionDomain;
+import java.security.SecurityPermission;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,11 +34,9 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.NavigableSet;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.UmbrellaGrantPermission;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A common superclass with utility methods for policy providers.
@@ -51,6 +50,19 @@ public abstract class AbstractPolicy extends Policy {
     protected final Comparator<Permission> comparator = new PermissionComparator();
 
     protected AbstractPolicy() {
+	this(check());
+    }
+    
+    private AbstractPolicy(boolean check){
+	super();
+    }
+    
+    private static boolean check(){
+	SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new SecurityPermission("createPolicy.JiniPolicy"));
+        }
+	return true;
     }
 
     /**
@@ -147,38 +159,6 @@ public abstract class AbstractPolicy extends Policy {
             pc.add(new GrantPermission(perms.toArray(new Permission[perms.size()])));
 	}
     }
-    
-    /** River-26 Mark Brouwer suggested making UmbrellaPermission's expandable
-     * from Dynamic Grants.
-     * @param perms  Collection containing UmbrellaPermission's to be
-     * expanded.  Note a Set will prevent duplicate GrantPermission objects,
-     * caveat emptor, a TreeSet using a PermissionComparator should
-     * be used to avoid calling equals on Permission objects with broken
-     * equals implementations like SocketPermission.
-     * 
-     * A policy administrator would usually expect that an 
-     * UmbrellaGrantPermission only grant Permissions for a specific 
-     * Policy and not expanded to merged or aggregate policies, which 
-     * may cause unforseen or unexpected Permission grants.  For that reason
-     * this method removes UmbrellaGrantPermission.
-     * 
-     * This expansion would probably be best performed in a PermissionGrant.
-     */
-//    protected final void expandUmbrella(Set<Permission> perms){
-//        if (perms.remove(umbrella)){
-//            Collection<Permission> grantPerms = new ArrayList<Permission>(perms.size()-1);
-//            Iterator<Permission> it = perms.iterator();
-//            while (it.hasNext()){
-//                Permission p = it.next();
-//                if ( p instanceof GrantPermission || 
-//                        p instanceof UmbrellaGrantPermission){
-//                    continue;
-//                }
-//                grantPerms.add(p);
-//            }
-//            perms.addAll(grantPerms);
-//        }
-//    }
 
     /**
      * Adds Permission objects contained in PermissionGrant's to a NavigableSet
@@ -199,7 +179,6 @@ public abstract class AbstractPolicy extends Policy {
                                        Class permClass, 
                                        boolean stopIfAll, 
                                        NavigableSet<Permission> setToAddPerms) {   
-//        if (grant == null) return;
         Iterator<PermissionGrant> grants = grant.iterator();
         if (permClass == null) {
             while (grants.hasNext()) {

@@ -17,29 +17,26 @@
  */
 package org.apache.river.test.spec.eventmailbox;
 
-import java.util.logging.Level;
-
-import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
+import java.rmi.RemoteException;
 import java.rmi.ServerException;
 
-import net.jini.event.PullEventMailbox;
-import net.jini.event.MailboxPullRegistration;
-import net.jini.core.lease.Lease;
+import java.util.logging.Level;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
-
+import net.jini.core.lease.Lease;
+import net.jini.event.MailboxPullRegistration;
+import net.jini.event.PullEventMailbox;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.constants.TimeConstants;
-
-import org.apache.river.test.impl.mercury.EMSTestBase;
-import org.apache.river.test.impl.mercury.TestUtils;
-import org.apache.river.test.impl.mercury.TestPullListener;
-import org.apache.river.test.impl.mercury.TestPullListenerImpl;
-import org.apache.river.test.impl.mercury.TestGenerator;
-
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
+import org.apache.river.test.impl.mercury.EMSTestBase;
+import org.apache.river.test.impl.mercury.TestGenerator;
+import org.apache.river.test.impl.mercury.TestPullListener;
+import org.apache.river.test.impl.mercury.TestPullListenerImpl;
+import org.apache.river.test.impl.mercury.TestUtils;
 
 public class EMSST_PULL extends EMSTestBase implements TimeConstants {
 
@@ -93,8 +90,8 @@ public class EMSST_PULL extends EMSTestBase implements TimeConstants {
 	}
 
 	RemoteEvent[] bogus = {
-	    new RemoteEvent(myGen, 9999, 9999, null),
-	    new RemoteEvent(myGen, 5678, 1234, null),
+	    new RemoteEvent(myGen, 9999, 9999, (MarshalledInstance) null),
+	    new RemoteEvent(myGen, 5678, 1234, (MarshalledInstance) null),
 	};
 
 	// 

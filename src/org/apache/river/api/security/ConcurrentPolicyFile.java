@@ -196,7 +196,7 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     // A specific parser for a particular policy file format.
     private final PolicyParser parser;
     
-    private static final Guard guard = new SecurityPermission("getPolicy");
+    private static final Guard guard = new SecurityPermission("createPolicy.JiniPolicy");
     
     private static final ProtectionDomain myDomain = 
         AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>(){
@@ -228,13 +228,13 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
      * This method is called during construction prior to the implicit
      * super() call to Object and prior to any final fields being assigned.
      */
-    private static PermissionGrant [] check(PolicyParser parser) throws PolicyInitializationException{
+    private static PermissionGrant [] readPolicyPermissionGrants(PolicyParser parser) throws PolicyInitializationException{
         guard.checkGuard(null);
         try {
             // Bug 4911907, do we need to do anything more?
             // The permissions for this domain must be retrieved before
             // construction is complete and this policy takes over.
-            return initialize(parser); // Instantiates myPermissions.
+            return readPoliciesNoCheckGuard(parser); // Instantiates myPermissions.
         } catch (SecurityException e){
             throw e;
         } catch (Exception e){
@@ -244,7 +244,7 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     
     protected ConcurrentPolicyFile(PolicyParser dpr, Comparator<Permission> comp) 
             throws PolicyInitializationException {
-        this (dpr, comp, check(dpr));
+        this (dpr, comp, readPolicyPermissionGrants(dpr));
     }
 
     /**
@@ -451,13 +451,13 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     @Override
     public void refresh() {
         try {
-            grantArray = initialize(parser);
+            grantArray = readPoliciesNoCheckGuard(parser);
         } catch (Exception ex) {
             System.err.println(ex);
         }
     }
     
-    private static PermissionGrant [] initialize(final PolicyParser parser) throws Exception{
+    private static PermissionGrant [] readPoliciesNoCheckGuard(final PolicyParser parser) throws Exception{
         try {
             Collection<PermissionGrant> fresh = AccessController.doPrivileged( 
                 new PrivilegedExceptionAction<Collection<PermissionGrant>>(){

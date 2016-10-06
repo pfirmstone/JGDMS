@@ -22,27 +22,25 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import javax.security.auth.Subject;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.OutboundRequest;
 import net.jini.jeri.OutboundRequestIterator;
-import net.jini.jeri.connection.Connection;
-import net.jini.jeri.connection.OutboundRequestHandle;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
 /**
  * A wrapper for the Endpoint object.
  */
+@AtomicSerial
 public class EndpointWrapper implements Endpoint, Serializable, TrustEquivalence {
+    private static final long serialVersionUID = 1L;
 
     Endpoint endpoint;
     String className;
@@ -51,6 +49,17 @@ public class EndpointWrapper implements Endpoint, Serializable, TrustEquivalence
     EndpointWrapper(Endpoint endpoint) {
         this.endpoint = endpoint;
         className = Util.getClassName(endpoint);
+    }
+    
+    EndpointWrapper(GetArg arg) throws IOException{
+        this(arg.get("endpoint", null, Endpoint.class),
+             arg.get("className", null, String.class)
+        );
+    }
+    
+    private EndpointWrapper(Endpoint endpoint, String className){
+        this.endpoint = endpoint;
+        this.className = className;
     }
 
     /* inherit javadoc */

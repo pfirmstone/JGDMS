@@ -18,29 +18,24 @@
 
 package org.apache.river.test.share;
 
-import org.apache.river.mahalo.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-
-import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.qa.harness.QAConfig;
-
+import java.rmi.RemoteException;
+import java.rmi.server.ExportException;
+import java.util.BitSet;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.TransactionException;
+import net.jini.core.transaction.UnknownTransactionException;
+import net.jini.core.transaction.server.ServerTransaction;
+import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.core.transaction.server.TransactionManager;
+import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-
 import org.apache.river.proxy.BasicProxyTrustVerifier;
-
-import java.io.*;
-import java.rmi.*;
-import java.rmi.registry.*;
-import java.rmi.server.*;
-import java.util.BitSet;
+import org.apache.river.qa.harness.QAConfig;
 
 /**
  *

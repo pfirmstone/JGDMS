@@ -35,6 +35,7 @@ grant {
 grant {
     permission java.security.SecurityPermission "setPolicy";
     permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "createAccessControlContext";
 

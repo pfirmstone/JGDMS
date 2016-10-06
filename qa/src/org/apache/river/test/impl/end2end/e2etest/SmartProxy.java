@@ -18,6 +18,7 @@
 
 package org.apache.river.test.impl.end2end.e2etest;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
@@ -37,6 +38,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import net.jini.jeri.BasicInvocationHandler;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 
 import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
@@ -44,6 +47,7 @@ import org.apache.river.test.impl.end2end.jssewrapper.Bridge;
 /**
  * An implementation of the smart proxy for the remote service.
  */
+@AtomicSerial
 final class SmartProxy implements SmartInterface,
                                   RemoteMethodControl,
                                   Serializable,
@@ -165,6 +169,10 @@ final class SmartProxy implements SmartInterface,
     this.remoteProxy = remoteProxy;
     this.coordinator = coordinator;
     }
+    
+    SmartProxy(GetArg arg) throws IOException{
+        this(arg.get("remoteProxy", null, Remote.class), null);
+    }
 
     /* Inherit javadoc */
     public Object invoke(TestMethod method,Object[] args)
@@ -273,12 +281,22 @@ final class SmartProxy implements SmartInterface,
     return new SingletonProxyTrustIterator(remoteProxy);
     }
 
+    @AtomicSerial
     static class Verifier implements TrustVerifier, Serializable {
+        private static final long serialVersionUID = 1L;
     private RemoteMethodControl remoteProxy;
 
     Verifier(SmartInterface smartProxy) {
         remoteProxy =
         (RemoteMethodControl) ((SmartProxy) smartProxy).remoteProxy;
+    }
+    
+    Verifier(GetArg arg) throws IOException{
+        this(arg.get("remoteProxy", null, RemoteMethodControl.class));
+    }
+    
+    private Verifier(RemoteMethodControl remoteProxy){
+        this.remoteProxy = remoteProxy;
     }
 
     public boolean isTrustedObject(Object obj, TrustVerifier.Context ctx)

@@ -18,11 +18,6 @@
 
 package org.apache.river.discovery.internal;
 
-import org.apache.river.discovery.DatagramBufferFactory;
-import org.apache.river.discovery.DiscoveryProtocolException;
-import org.apache.river.discovery.MulticastAnnouncement;
-import org.apache.river.discovery.MulticastRequest;
-import org.apache.river.discovery.UnicastResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -47,6 +42,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
+import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.ClientAuthentication;
 import net.jini.core.constraint.ClientMaxPrincipal;
 import net.jini.core.constraint.ClientMaxPrincipalType;
@@ -66,8 +62,15 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.io.context.AtomicValidationEnforcement;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
+import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.discovery.DatagramBufferFactory;
+import org.apache.river.discovery.DiscoveryProtocolException;
+import org.apache.river.discovery.MulticastAnnouncement;
+import org.apache.river.discovery.MulticastRequest;
+import org.apache.river.discovery.UnicastResponse;
 
 /**
  * Provides utility methods for plaintext data operations.
@@ -86,6 +89,7 @@ public class Plaintext {
 	supportedConstraints.add(ClientAuthentication.NO);
 	supportedConstraints.add(ServerAuthentication.NO);
 	supportedConstraints.add(Delegation.NO);
+	supportedConstraints.add(AtomicInputValidation.YES);
 	supportedConstraints.add(ClientMaxPrincipal.class);
 	supportedConstraints.add(ClientMaxPrincipalType.class);
 	supportedConstraints.add(ClientMinPrincipal.class);
@@ -428,8 +432,20 @@ public class Plaintext {
 	    // Note this instance is compatible with ObjectOutputStream,
 	    // it doesn't write annotations, it isn't compatible with
 	    // MarshalOutputStream
-	    new AtomicMarshalOutputStream(out, context, true).writeObject(
-		new MarshalledInstance(response.getRegistrar(), context));
+	    MarshalledInstance mi = null;
+	    Object registrar = response.getRegistrar();
+	    if (context != null){
+		for (Object o : context){
+		    if (o instanceof AtomicValidationEnforcement &&
+			    ((AtomicValidationEnforcement)o).enforced())
+		    {
+			mi = new AtomicMarshalledInstance(registrar, context);
+			break;
+		    }
+		}
+	    }
+	    if (mi == null) mi = new MarshalledInstance(registrar, context);
+	    new AtomicMarshalOutputStream(out, context, true).writeObject(mi);
 	} catch (RuntimeException e) {
 	    throw new DiscoveryProtocolException(null, e);
 	}
@@ -471,6 +487,18 @@ public class Plaintext {
 			verifierLoader,
 			context
 		).readObject();
+	    if (context != null){
+		for (Object o : context){
+		    if (o instanceof AtomicValidationEnforcement &&
+			    ((AtomicValidationEnforcement)o).enforced())
+		    {
+			if (!(mi instanceof AtomicMarshalledInstance))
+			    throw new IOException(
+			"Unable to deserialize ServiceRegistrar proxy, atomic input validation not supported");
+			break;
+		    }
+		}
+	    }
 	    ServiceRegistrar reg = (ServiceRegistrar) mi.get(
 		defaultLoader,
 		verifyCodebaseIntegrity,

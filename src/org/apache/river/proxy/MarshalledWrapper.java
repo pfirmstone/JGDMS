@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.ObjectStreamContext;
+import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -107,6 +108,30 @@ public class MarshalledWrapper implements Serializable {
 		    return ((IntegrityEnforcement) obj).integrityEnforced();
 		}
 	    }
+	return false;
+    }
+    
+       /**
+     * Returns the atomicity protection setting of the given stream, determined
+     * as follows: if the stream implements {@link ObjectStreamContext} and has
+     * in its context collection an object of type
+     * {@link AtomicValidationEnforcement}, the
+     * {@link AtomicValidationEnforcement#enforced enforced} method
+     * of that object is called and the resulting value returned; otherwise,
+     * <code>false</code> is returned.
+     *
+     * @param context
+     * @return integrity protection setting of the given stream
+     */
+    public static boolean atomicityEnforced(ObjectStreamContext context) {
+	Collection ctx =
+	    ((ObjectStreamContext) context).getObjectStreamContext();
+	for (Iterator i = ctx.iterator(); i.hasNext(); ) {
+	    Object obj = i.next();
+	    if (obj instanceof AtomicValidationEnforcement) {
+		return ((AtomicValidationEnforcement) obj).enforced();
+	    }
+	}
 	return false;
     }
 

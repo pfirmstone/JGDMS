@@ -18,19 +18,20 @@
 
 package org.apache.river.qa.harness;
 
-import org.apache.river.start.SharedActivationGroupDescriptor;
-import org.apache.river.start.ServiceDescriptor;
-import org.apache.river.start.SharedGroup;
-
 import java.io.File;
 import java.io.IOException;
-import java.rmi.activation.ActivationException;
+import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
-import java.util.logging.Logger;
+import java.rmi.activation.ActivationException;
 import java.util.logging.Level;
-
+import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import org.apache.river.start.ServiceDescriptor;
+import org.apache.river.start.SharedActivationGroupDescriptor;
+import org.apache.river.start.SharedGroup;
+
+import org.apache.river.start.SharedGroupBackEnd;
 
 /**
  * An admin for a shared activation group. 
@@ -308,7 +309,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
 	}
 	try {
 	    logger.log(Level.FINEST, "destroying sharedVM");
-	    ((SharedGroup) serviceRef).destroyVM();
+	    ((SharedGroupBackEnd) serviceRef).destroyVM();
 	} catch (ActivationException e) {
 	    throw new RemoteException("destroyVM failed", e);
 	}

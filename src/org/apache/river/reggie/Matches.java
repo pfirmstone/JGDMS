@@ -83,7 +83,8 @@ class Matches implements Serializable {
     }
     
     Object [] getProxys() {
-	List result = new ArrayList(totalMatches);
+	if (items == null) return new Object [0];
+	List result = new ArrayList(items.size());
 	Iterator<Item> it = items.iterator();
 	while (it.hasNext()) {
 	    Object proxy = it.next().getProxy();
@@ -98,5 +99,5 @@ class Matches implements Serializable {
     
     private void writeObject(ObjectOutputStream out) throws IOException {
 	out.defaultWriteObject();
-}
+    }
 }

@@ -21,6 +21,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -130,8 +131,11 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.ReadInput;
+import org.apache.river.api.io.AtomicSerial.ReadObject;
 import org.apache.river.api.util.Startable;
 import org.apache.river.config.Config;
 import org.apache.river.config.LocalHostLookup;
@@ -788,18 +792,49 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    arg.get("leaseID", null, Uuid.class),
 		    arg.get("tmpl", null, Template.class),
 		    arg.get("transitions", 0),
-		    null,
+		    ((RO)arg.getReader()).listener,
 		    arg.get("handback", null),
 		    arg.get("leaseExpiration", 0L),
 		    true
 		    );
 	    seqNo = arg.get("seqNo", 0L);
 	}
+	
+	@ReadInput
+	static ReadObject getReader(){
+	    return new RO();
+	}
+	
+	private static class RO implements ReadObject {
+	    
+	    RemoteEventListener listener;
+
+	    @Override
+	    public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+		
+		MarshalledInstance mi = (MarshalledInstance) input.readObject();
+		try {
+		    listener = (RemoteEventListener) mi.get(false);
+		} catch (Throwable e) {
+		    if (e instanceof Error &&
+			ThrowableConstants.retryable(e) ==
+			    ThrowableConstants.BAD_OBJECT)
+		    {
+			throw (Error) e;
+		    }
+		    logger.log(Level.WARNING,
+			       "failed to recover event listener", e);
+		}
+	    }
+	    
+	}
+	
 
 	/** Simple constructor */
 	public EventReg(long eventID, Uuid leaseID, Template tmpl,
 			int transitions, RemoteEventListener listener,
 			Object handback, long leaseExpiration, boolean newNotify) {
+	    if (listener == null) throw new NullPointerException("Listener cannot be null");
 	    this.eventID = eventID;
 	    this.leaseID = leaseID;
 	    this.tmpl = tmpl;
@@ -887,7 +922,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    throws IOException
 	{
 	    stream.defaultWriteObject();
-	    stream.writeObject(new MarshalledInstance(listener));
+	    stream.writeObject(new AtomicMarshalledInstance(listener));
 	}
 
 	/**
@@ -2179,12 +2214,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			new RegistrarEvent(proxy,
 			    reg.eventID,
 			    seqNo,
-			    reg.handback !=null ?
-				((MarshalledInstance) reg.handback).convertToMarshalledObject()
-				: null,
+			    (MarshalledInstance) reg.handback,
 			    sid,
 			    transition,
-			    item.bootstrapProxy
+			    item
 			)
 		    );
 		}
@@ -4057,7 +4090,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	for (int i = attrSets.length; --i >= 0; ) {
             attrSets[i] = new EntryRep(attrSets[i], true);
 	}
-	return new Item(item.getServiceID(), null, null, item.service, attrSets );
+	return new Item(item.getServiceID(), null, null, item.service, attrSets, item.bootstrapProxy );
     }
 
     /**

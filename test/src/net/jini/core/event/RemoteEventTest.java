@@ -49,7 +49,7 @@ public class RemoteEventTest {
     @SuppressWarnings("deprecation")
     public void setUp() {
 	try {
-	    m = new MarshalledInstance(s).convertToMarshalledObject();
+	    m = new MarshalledObject(s);
 	} catch (IOException ex) {
 	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
 	}

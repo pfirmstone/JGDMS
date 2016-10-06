@@ -16,13 +16,6 @@
  * limitations under the License.
  */
 package org.apache.river.test.spec.lookupservice.test_set00;
-import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.Test;
-
-import org.apache.river.qa.harness.TestException;
-import org.apache.river.test.spec.lookupservice.QATestRegistrar;
-import org.apache.river.test.spec.lookupservice.QATestUtils;
-import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
 import java.io.IOException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
@@ -46,6 +39,13 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.qa.harness.QAConfig;
+import org.apache.river.qa.harness.Test;
+import org.apache.river.qa.harness.TestException;
+import org.apache.river.test.spec.lookupservice.QATestRegistrar;
+import org.apache.river.test.spec.lookupservice.QATestUtils;
+import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
 
 /** This class is used to verify that after using templates containing only 
  *  a service ID to request notification of MATCH_MATCH|MATCH_NOMATCH events,
@@ -160,8 +160,8 @@ public class NotifyOnAttrMod extends QATestRegistrar {
         for (i=0;i<srvcRegs.length;i++) {
             curSrvcID = srvcRegs[i].getServiceID();
 	    EventRegistration er;
-	    er = proxy.notify(srvcIDTmpl[i],regTransitions,listener,
-			      new MarshalledInstance(curSrvcID).convertToMarshalledObject(),
+	    er = proxy.notiFy(srvcIDTmpl[i],regTransitions,listener,
+			      new AtomicMarshalledInstance(curSrvcID),
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}

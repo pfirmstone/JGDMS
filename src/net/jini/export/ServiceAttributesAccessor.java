@@ -19,14 +19,26 @@
 package net.jini.export;
 
 import java.io.IOException;
+import java.rmi.Remote;
 import net.jini.core.entry.Entry;
 
 /**
- * Provides a means to obtain 
+ * Provides a means to obtain attributes from a bootstrap proxy returned from
+ * {@link net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int) }
+ * 
+ * Services should implement this interface.
+ * 
+ * It's recommended that this is implemented using 
+ * {@link net.jini.lookup.JoinManager#getAttributes() }
+ * or equivalent, to manage attribute state, to ensure that lookup services
+ * and services registered therein maintain equivalent attributes.
  * 
  */
-public interface ServiceAttributesAccessor {
+public interface ServiceAttributesAccessor extends Remote {
     /**
+     * Allows clients to retrieve a services attributes prior to the service
+     * itself, this allows the clients to perform additional filtering, before
+     * a service code-base download is required.
      * 
      * @return
      * @throws IOException 

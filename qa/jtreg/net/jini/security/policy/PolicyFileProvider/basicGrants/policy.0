@@ -18,6 +18,7 @@ grant {
     permission java.util.PropertyPermission "test.src", "read";
     permission java.security.SecurityPermission "getProperty.*";
     permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
 };
 
 grant codeBase "file:/foo/*" {

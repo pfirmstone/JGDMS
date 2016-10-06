@@ -36,6 +36,7 @@ import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.UnknownEventException;
+import net.jini.io.MarshalledInstance;
 
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
@@ -122,8 +123,8 @@ public class UnknownEventRecoveryTest extends EMSTestBase
 	goodRelCount += 2;
 
 	RemoteEvent[] bogus = {
-	    new RemoteEvent(myGen, 9999, 9999, null),
-	    new RemoteEvent(myGen2, 1234, 1, null),
+	    new RemoteEvent(myGen, 9999, 9999, (MarshalledInstance)null),
+	    new RemoteEvent(myGen2, 1234, 1, (MarshalledInstance)null),
 	};
 
 	// Enable the first of our listener objects

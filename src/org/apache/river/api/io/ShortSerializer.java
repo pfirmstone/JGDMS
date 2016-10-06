@@ -29,7 +29,7 @@ import java.io.ObjectStreamException;
  */
 @Serializer(replaceObType = Short.class)
 @AtomicExternal
-class ShortSerializer implements Externalizable {
+public class ShortSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private short s;
@@ -38,7 +38,7 @@ class ShortSerializer implements Externalizable {
 	this.s = s;
     }
     
-    ShortSerializer(){}
+    public ShortSerializer(){}
     
     public ShortSerializer(ObjectInput in) throws IOException{
 	this(in.readShort());

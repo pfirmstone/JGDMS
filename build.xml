@@ -559,6 +559,7 @@
 
     <target name="compile" description="Build classes" depends="copy-resources,copy-extlibs">
         <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
+            <!--<compilerarg line="-addmods java.corba"/>-->
             <classpath refid="compile.classpath" />
         </javac-cmd>
     </target>	
@@ -750,6 +751,7 @@
         
         <!-- move to sep compile.extra target or add to compile target? -->
         <javac-cmd source.dir="${src-extra.dir}" dest.dir="${build.classes.dir}">
+            <!--<compilerarg line="-addmods java.corba"/>-->
         </javac-cmd>
         <jar destfile="${lib.dir}/extra.jar" index="false">
             <fileset dir="${build.classes.dir}">
@@ -801,6 +803,7 @@
             <arg path="${build.classes.dir}/net/jini/admin"/>
             <arg path="${build.classes.dir}/net/jini/entry"/>
             <arg path="${build.classes.dir}/net/jini/event"/>
+            <arg path="${build.classes.dir}/net/jini/export"/>
             <arg path="${build.classes.dir}/net/jini/lookup/entry"/>
             <arg path="${build.classes.dir}/net/jini/space"/>
             <arg path="${build.classes.dir}/org/apache/river/impl/lease/"/>
@@ -811,11 +814,12 @@
             <arg value="org.apache.river.landlord.LandlordLease"/>
             <arg value="org.apache.river.landlord.LandlordLeaseMap"/>
             <arg value="org.apache.river.landlord.LandlordProxyVerifier"/>
-			<arg value="org.apache.river.landlord.LeasedResource"/>
+            <arg value="org.apache.river.landlord.LeasedResource"/>
             <arg value="org.apache.river.logging.Levels"/>
             <arg value="org.apache.river.lookup.entry.BasicServiceType"/>
             <arg value="org.apache.river.resource.ServiceConfigurationError"/>
             <arg value="net.jini.export.ServiceProxyAccessor"/>
+            <arg value="net.jini.export.ServiceCodebaseAccessor"/>
             <arg value="net.jini.export.ServiceIDAccessor"/>
             <arg value="net.jini.export.ServiceAttributesAccessor"/>
             <arg value="net.jini.discovery.LookupDiscoveryRegistration"/>
@@ -1548,6 +1552,7 @@
             <arg value="org.apache.river.mercury.NonActivatableMercuryImpl"	/>
             <arg value="org.apache.river.mercury.TransientMercuryImpl"/>
             <arg value="org.apache.river.mercury.MercuryPermission"	/>
+            <arg value="org.apache.river.mercury.MailboxProxy$ConstrainableMailboxProxy"/>
             <!--<arg value="org.apache.river.mercury.MailboxImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/mercury.jar" index="false"
@@ -1577,6 +1582,7 @@
             <arg value="org.apache.river.mercury.ListenerProxy"	/>
             <arg value="org.apache.river.mercury.MailboxAdminProxy"	/>
             <!--<arg value="org.apache.river.mercury.MailboxImpl_Stub"/>-->
+            <arg value="org.apache.river.mercury.MailboxProxy$ConstrainableMailboxProxy"/>
             <arg value="org.apache.river.mercury.MailboxProxy"/>
             <arg value="org.apache.river.mercury.MercuryPermission"	/>
             <arg value="org.apache.river.mercury.RemoteEventDataCursor"/>
@@ -1782,12 +1788,12 @@
             <arg value="org.apache.river.phoenix.SystemAccessILFactory"/>
             <arg value="org.apache.river.phoenix.SystemAccessProxyTrustILFactory"/>
             <arg value="org.apache.river.phoenix.SystemPermission"/>
-            <arg value="org.apache.river.phoenix.AbstractActivator_Stub"/>
+            <!--<arg value="org.apache.river.phoenix.AbstractActivator_Stub"/>
             <arg value="org.apache.river.phoenix.AbstractInstantiator_Stub"	/>
-            <arg value="org.apache.river.phoenix.AbstractMonitor_Stub"/>
+            <arg value="org.apache.river.phoenix.AbstractMonitor_Stub"/>-->
             <arg value="org.apache.river.phoenix.AbstractRegistry_Skel"/>
             <arg value="org.apache.river.phoenix.AbstractRegistry_Stub"/>
-            <arg value="org.apache.river.phoenix.AbstractSystem_Stub"/>
+            <!--<arg value="org.apache.river.phoenix.AbstractSystem_Stub"/>-->
             <!--Why was the following class was missing from jar file,
             is this a bug with ClassDep?
             org.apache.river.phoenix.Activation depends on this:-->
@@ -1816,9 +1822,10 @@
             <arg value="org.apache.river.phoenix.ExecPermission"/>
             <arg value="org.apache.river.phoenix.InactiveGroupException"/>
             <arg value="org.apache.river.proxy.BasicProxyTrustVerifier"/>
-            <arg value="org.apache.river.phoenix.AbstractActivator_Stub"/>
+            <arg value="org.apache.river.phoenix.ActivationAdmin"/>
+            <!--<arg value="org.apache.river.phoenix.AbstractActivator_Stub"/>
             <arg value="org.apache.river.phoenix.AbstractMonitor_Stub"/>
-            <arg value="org.apache.river.phoenix.AbstractSystem_Stub"/>
+            <arg value="org.apache.river.phoenix.AbstractSystem_Stub"/>-->
             <arg value="org.apache.river.phoenix.AbstractRegistry_Stub"/>
         </classdep>
         <jar destfile="${lib-dl.dir}/phoenix-dl.jar" index="false">
@@ -1831,7 +1838,7 @@
             <arg path="${lib-dl.dir}/phoenix-dl.jar"/>
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
-            <arg line="-proxy org.apache.river.phoenix.AbstractSystem_Stub"/>
+            <!--<arg line="-proxy org.apache.river.phoenix.AbstractSystem_Stub"/>-->
             <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
@@ -1849,7 +1856,7 @@
             <arg value="org.apache.river.phoenix.AccessILFactory"/>
             <arg value="org.apache.river.phoenix.InstantiatorAccessExporter"/>
             <arg value="org.apache.river.phoenix.InstantiatorPermission"/>
-            <arg value="org.apache.river.phoenix.AbstractInstantiator_Stub"/>
+            <!--<arg value="org.apache.river.phoenix.AbstractInstantiator_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/phoenix-group.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${phoenix-group.deps}" />
@@ -1874,7 +1881,7 @@
     </target>
 
     <target name="phoenix.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="org/apache/river/phoenix/AbstractActivator.class" />
             <include name="org/apache/river/phoenix/AbstractMonitor.class" />
@@ -1884,7 +1891,15 @@
         <rmic base="${build.classes.dir}" stubversion="1.1">
             <classpath refid="river.jars" />
             <include name="org/apache/river/phoenix/AbstractRegistry.class" />
-        </rmic>
+        </rmic>-->
+        <exec executable="rmic">
+            <arg value="-v1.1"/>
+            <arg value="-classpath"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="-d"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="org.apache.river.phoenix.AbstractRegistry"/>
+        </exec>
     </target>
 
     <target name="reggie.jar" depends="stubs">
@@ -1996,7 +2011,7 @@
             <arg line="${jskprivate.include}"/>
             <arg line="-in org.apache.river.start"/>
             <arg value="org.apache.river.start.SharedGroupImpl"/>
-            <arg value="org.apache.river.start.SharedGroupImpl_Stub"/>
+            <!--<arg value="org.apache.river.start.SharedGroupImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/group.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${group.deps}" />
@@ -2012,7 +2027,7 @@
             <arg line="${jskprivate.include}"/>
             <arg line="-in org.apache.river.start"/>
             <arg value="org.apache.river.start.ProxyVerifier"/>
-            <arg value="org.apache.river.start.SharedGroupImpl_Stub"/>
+            <!--<arg value="org.apache.river.start.SharedGroupImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib-dl.dir}/group-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${group-dl.deps}" />
@@ -2024,7 +2039,9 @@
             <arg path="${lib-dl.dir}/group-dl.jar"/>
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
-            <arg line="-proxy org.apache.river.start.SharedGroupImpl_Stub"/>
+            <arg line="-api org.apache.river.start.SharedGroupBackEnd"/>
+            <arg line="-api org.apache.river.start.SharedGroup"/>
+            <!--<arg line="-proxy org.apache.river.start.SharedGroupImpl_Stub"/>-->
             <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
@@ -2068,10 +2085,10 @@
     </target>
 
     <target name="start.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="org/apache/river/start/SharedGroupImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="tools.copy-resources" depends="prep">
@@ -2269,6 +2286,7 @@
     <target name="compile-tests" depends="compile,prep-tests">
         <javac-cmd source.dir="${test.src.dir}" dest.dir="${test.classes.dir}"
                 source="6" target="6">
+            <!--<compilerarg line="-addmods java.corba"/>-->
             <classpath refid="test.compile.classpath" />
         </javac-cmd>
     </target>

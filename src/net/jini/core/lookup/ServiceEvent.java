@@ -20,6 +20,12 @@ package net.jini.core.lookup;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectOutputStream;
+import net.jini.core.entry.Entry;
+import net.jini.export.ServiceAttributesAccessor;
+import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
+import net.jini.io.MarshalledInstance;
+import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -89,6 +95,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @param serviceID the serviceID of the item that triggered the event
      * @param transition the transition that triggered the event
      */
+    @Deprecated
     public ServiceEvent(Object source,
 			long eventID,
 			long seqNo,
@@ -97,6 +104,28 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 			int transition)
     {
 	super(source, eventID, seqNo, handback);
+	this.serviceID = serviceID;
+	this.transition = transition;
+    }
+    
+    /**
+     * Simple constructor.
+     *
+     * @param source the source of this ServiceEvent
+     * @param eventID the registration eventID
+     * @param seqNo the sequence number of this event
+     * @param miHandback the client handback
+     * @param serviceID the serviceID of the item that triggered the event
+     * @param transition the transition that triggered the event
+     */
+    public ServiceEvent(Object source,
+			long eventID,
+			long seqNo,
+			MarshalledInstance miHandback,
+			ServiceID serviceID,
+			int transition)
+    {
+	super(source, eventID, seqNo, miHandback);
 	this.serviceID = serviceID;
 	this.transition = transition;
     }
@@ -146,7 +175,8 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	sBuffer.append(", source=").append(getSource()).append(
 	    ", eventID=").append(getID()).append(
 	    ", seqNum=").append(getSequenceNumber()).append(
-	    ", handback=").append(getRegistrationObject());
+	    ", handback=").append(getRegistrationObject()).append(
+	    ", miHandback=").append(getRegistrationInstance());
 	return sBuffer.append("]").toString();
     }
 
@@ -160,6 +190,29 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @return a <tt>ServiceItem</tt> object representing the service item value
      */
     public abstract ServiceItem getServiceItem();
+    
+    /**
+     * Convenience method that creates a ServiceItem, using a bootstrap proxy
+     * to communicate directly with the services origin server node, to authenticate,
+     * then download the current service proxy and attributes.
+     * 
+     * @param bootstrapProxyPrep
+     * @param serviceProxyPrep
+     * @return
+     * @throws IOException 
+     */
+    public ServiceItem getServiceItem(ProxyPreparer bootstrapProxyPrep,
+	    ProxyPreparer serviceProxyPrep) throws IOException 
+    {
+	Object proxy = getBootstrapProxy();
+	if (proxy == null) return null;
+	proxy = bootstrapProxyPrep.prepareProxy(proxy);
+	Object service = ((ServiceProxyAccessor) proxy).getServiceProxy();
+	service = serviceProxyPrep.prepareProxy(service);
+	Entry [] attributes = ((ServiceAttributesAccessor) proxy).getServiceAttributes();
+	ServiceID id = ((ServiceIDAccessor) proxy).serviceID();
+	return new ServiceItem(id, service, attributes);
+    }
     
     /**
      * Returns a bootstrap proxy from which the new state of the item can be

@@ -20,6 +20,7 @@ package org.apache.river.discovery.internal;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
+import java.util.Collection;
 import java.util.Iterator;
 import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
@@ -115,7 +116,7 @@ abstract class EndpointBasedProvider extends BaseProvider {
 		    atomicity = true;
 		    break;
 		}
-		// NYI: support ConstraintAlternatives containing Integrity
+		// NYI: support ConstraintAlternatives containing Atomicity
 	    }
 	}
 	return atomicity;

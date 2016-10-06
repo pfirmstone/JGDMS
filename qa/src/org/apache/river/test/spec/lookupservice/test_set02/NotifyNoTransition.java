@@ -32,7 +32,7 @@ public class NotifyNoTransition extends NotifyExceptionTest {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notify(new ServiceTemplate(null, null, null),
+	    getProxy().notiFy(new ServiceTemplate(null, null, null),
 			      0, listener, null, Long.MAX_VALUE);
 	    throw new TestException("notify did not "
 				  + "throw IllegalArgumentException");

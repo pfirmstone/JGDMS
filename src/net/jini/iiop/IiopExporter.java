@@ -114,6 +114,7 @@ public final class IiopExporter implements Exporter {
 	    throw new IllegalStateException(
 		"object already exported via this exporter");
 	} else if (getTieClass(impl.getClass()) == null) {
+            
 	    throw new ExportException("tie class unavailable");
 	}
 	ref = new WeakReference(impl);
@@ -221,6 +222,7 @@ public final class IiopExporter implements Exporter {
 	    try {
 		return Util.loadClass(tieClassName, codebase, loader);
 	    } catch (ClassNotFoundException ex) {
+                logger.log(Level.FINE, codebase, ex);
 	    }
 
 	    // second attempt futile, but try anyway to mimic Utility.loadTie()

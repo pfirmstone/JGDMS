@@ -18,8 +18,7 @@ org.apache.river.test.impl.start.SecurityTest1.classpath=<file:lib/qa1-start-tes
 org.apache.river.test.impl.start.SecurityTest1.codebase=http://${HOST}:${org.apache.river.test.port}/qa1-start-testservice1-dl.jar
 org.apache.river.test.impl.start.SecurityTest1.policyfile=<url:securityTest.testservice1.policy>
 org.apache.river.test.impl.start.SecurityTest1.log=none
-org.apache.river.test.impl.start.SecurityTest1.serverjvmargs=-Dnet.jini.security.policy.PolicyFileProvider.basePolicyClass=sun.security.provider.PolicyFile,\
--Dnet.jini.security.policy.DynamicPolicyProvider.basePolicyClass=net.jini.security.policy.PolicyFileProvider
+org.apache.river.test.impl.start.SecurityTest1.serverjvmargs=-Dnet.jini.security.policy.DynamicPolicyProvider.basePolicyClass=net.jini.security.policy.PolicyFileProvider
 org.apache.river.test.impl.start.SecurityTest1.serviceConfiguration=<url:configs/<config>/testservice.config>
 org.apache.river.test.impl.start.SecurityTest1.starterConfiguration=<url:configs/<config>/testservice.config>
 org.apache.river.test.impl.start.SecurityTest1.host=master

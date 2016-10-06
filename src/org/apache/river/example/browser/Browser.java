@@ -1294,7 +1294,7 @@ public class Browser extends JFrame {
 	    return;
 	try {
 	    EventRegistration reg =
-		lookup.notify(tmpl,
+		lookup.notiFy(tmpl,
 			      ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 			      ServiceRegistrar.TRANSITION_NOMATCH_MATCH |
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,

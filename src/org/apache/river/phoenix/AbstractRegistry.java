@@ -26,7 +26,9 @@ import java.rmi.registry.Registry;
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
+ * @deprecated
  */
+@Deprecated
 abstract class AbstractRegistry implements Registry {
     AbstractRegistry() {
     }

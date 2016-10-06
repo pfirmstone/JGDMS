@@ -34,8 +34,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscoveryService;
 
 /**
- *
- * @author peter
+ * 
  */
 public class LookupDiscoveryServices {
     /** the logger */

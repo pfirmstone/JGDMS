@@ -90,7 +90,10 @@ public abstract class EndpointBasedClient
 	    constraints = InvocationConstraints.EMPTY;
 	}
 	ConnectionInfo ci = getConnectionInfo(null, constraints);
-	checkIntegrity(endpointInternals.getUnfulfilledConstraints(ci.handle));
+	InvocationConstraints unfulfilled = 
+		endpointInternals.getUnfulfilledConstraints(ci.handle);
+	checkIntegrity(unfulfilled);
+	checkAtomicity(unfulfilled);
     }
 
     // documentation inherited from UnicastDiscoveryClient

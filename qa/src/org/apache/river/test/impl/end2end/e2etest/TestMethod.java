@@ -20,8 +20,13 @@ package org.apache.river.test.impl.end2end.e2etest;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
-import net.jini.core.constraint.*; // XXX make this explicit
+//import net.jini.core.constraint.*; // XXX make this explicit
 import java.util.ArrayList;
+import net.jini.core.constraint.ClientAuthentication;
+import net.jini.core.constraint.Confidentiality;
+import net.jini.core.constraint.Integrity;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.ServerAuthentication;
 
 /**
  * A class which encapsulates java.lang.reflect.Method to provide
@@ -108,9 +113,9 @@ class TestMethod {
         if (name.indexOf("Auth") >= 0) {
             constraintsList.add(ClientAuthentication.YES);
         }
-        if (name.indexOf("Noconf") >= 0) {
-            constraintsList.add(Confidentiality.NO);
-        }
+//        if (name.indexOf("Noconf") >= 0) {
+//            constraintsList.add(Confidentiality.NO);
+//        }
         if (name.indexOf("Conf") >= 0) {
             constraintsList.add(Confidentiality.YES);
         }

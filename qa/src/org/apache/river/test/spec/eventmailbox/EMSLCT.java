@@ -35,6 +35,7 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.io.MarshalledInstance;
 
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.qa.harness.Test;
@@ -98,8 +99,8 @@ public class EMSLCT extends EMSTestBase implements TimeConstants {
 	}
 
 	RemoteEvent[] bogus = {
-	    new RemoteEvent(myGen, 9999, 9999, null),
-	    new RemoteEvent(myGen, 5678, 1234, null),
+	    new RemoteEvent(myGen, 9999, 9999, (MarshalledInstance)null),
+	    new RemoteEvent(myGen, 5678, 1234, (MarshalledInstance)null),
 	};
 
 	// Enable the first of our listener objects

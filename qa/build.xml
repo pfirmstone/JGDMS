@@ -291,7 +291,7 @@
                 src/org/apache/river/qa/resources/qaDefaults.properties-->
                 <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
                 <!--<jvmarg value="-Xbootclasspath/a:${river-ext.lib-dir}"/>-->
-                <jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>
+                <!--<jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>-->
                 <!--Use the following security manager if you need to discover which jar
                 file requires a particular permission, note this only works for the harness here -->
                 <!--<jvmarg value="-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter"/>-->
@@ -315,13 +315,11 @@
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml=${harness.generateHtml}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
                 <!--<jvmarg value="-Dorg.apache.river.tool.SecurityPolicyWriter.Directory=${river.home}/qa/build/policy"/>-->
-
-                <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />
-                
+                <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />                
                 <!-- VM args for each test run: include our JDK extension directories
                 $${org.apache.river.qa.harness.globalvmargs},-Dorg.apache.river.test.home=$${org.apache.river.test.home},-Dorg.apache.river.test.port=$${org.apache.river.test.port},-Dorg.apache.river.qa.harness.policies=&lt;url: org/apache/river/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
                 <!--<jvmarg value="-Dorg.apache.river.qa.harness.globalvmargs=$${org.apache.river.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
-                <jvmarg value="-Dorg.apache.river.qa.harness.globalvmargs=$${org.apache.river.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs}"/>
+                <jvmarg value="-Dorg.apache.river.qa.harness.globalvmargs=$${org.apache.river.qa.harness.globalvmargs}"/>
                 <arg path="${harness.props}" />
                 <arg value="-testJar"/>
                 <arg path="${lib.dir}/jinitests.jar" />
@@ -332,6 +330,9 @@
                 <classpath>
                     <fileset dir="${lib.dir}">
                         <include name="jiniharness.jar"/>
+                    </fileset>
+                    <fileset dir="${lib-ext.dir}">
+                        <include name="jsk-policy.jar"/>
                     </fileset>
                     <fileset dir="${river.lib.dir}">
                         <include name="jsk-platform.jar"/>
@@ -579,8 +580,8 @@
         harness-killer-dl.jar,
         jiniharness.jar" />
 
-    <target name="stubs" depends="compile,
-        harness-killer.stubs,
+    <target name="stubs" depends="compile,iiop.stubs,jrmp.stubs" description="Compile stubs"/>
+        <!--harness-killer.stubs,
         nonactivatablegroup.stubs,
         qa1-fiddler.stubs,
         qa1-joinmanager.stubs,
@@ -595,13 +596,12 @@
         qa1-lookupservice.stubs,
         qa1-renewalservice.stubs,
         jrmp.stubs,
-        iiop.stubs"
-        description="Compile stubs"/>
-
+        iiop.stubs"-->
+        
     <target name="harness-killer.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/qa/harness/KillerImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="harness-killer.jar" depends="harness-killer.stubs">
@@ -614,7 +614,7 @@
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
             <arg value="org.apache.river.qa.harness.KillerImpl"/>
-            <arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>
+            <!--<arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/harness-killer.jar" index="false">
             <fileset dir="${river.classes.dir}" includesfile="${harness-killer.deps}" />
@@ -630,7 +630,7 @@
              <arg value="-files"/>
             <arg line="-in org.apache.river"/>
             <arg value="org.apache.river.qa.harness.VMKiller"/>
-            <arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>
+            <!--<arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/harness-killer-dl.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${harness-killer-dl.deps}" />
@@ -639,9 +639,9 @@
     </target>
 
     <target name="nonactivatablegroup.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/qa/harness/NonActivatableGroupImpl$$GroupImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="nonactivatablegroup.jar" depends="nonactivatablegroup.stubs">
@@ -654,7 +654,7 @@
             <arg line="${jskplatform.exclude}"/>
             <arg line="-out org.apache.river.start"	/>
             <arg value="org.apache.river.qa.harness.NonActivatableGroupImpl"/>
-            <arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
+            <!--<arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />
@@ -669,7 +669,7 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river"/>
-            <arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
+            <!--<arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup-dl.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup-dl.deps}" />
@@ -712,10 +712,10 @@
     </target>
 
     <target name="qa1-fiddler.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
             <include name="org/apache/river/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-fiddler-dl.jar" depends="qa1-fiddler.stubs">
@@ -730,8 +730,8 @@
             <arg line="-in org.apache.river.test"/>
             <arg value="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
             <arg value="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
-            <arg value="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
-            <arg value="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>
+            <!--<arg value="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
+            <arg value="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-fiddler-dl.jar" index="false" >
@@ -743,9 +743,9 @@
     </target>
 
     <target name="qa1-joinmanager.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/impl/joinmanager/LeaseRenewDurRFE$$RemoteTestServiceImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-joinmanager-dl.jar" depends="qa1-joinmanager.stubs">
@@ -762,7 +762,7 @@
             <arg value="org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE$$TestServiceProxy$$ConstrainableTestServiceProxy"/>
             <arg value="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
             <arg value="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
-            <arg value="org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE$$RemoteTestServiceImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.joinmanager.LeaseRenewDurRFE$$RemoteTestServiceImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-joinmanager-dl.jar" index="false" >
@@ -782,13 +782,13 @@
     </target>
 
     <target name="qa1-mercury.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/impl/mercury/TestListenerImpl.class" />
             <include name="org/apache/river/test/impl/mercury/TestPullListenerImpl.class" />
             <include name="org/apache/river/test/impl/mercury/TestGeneratorImpl.class" />
             <include name="org/apache/river/test/impl/mercury/DisableListenerImpl.class" />
             <include name="org/apache/river/test/impl/mercury/DisableNSOListenerImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-mercury.jar" depends="qa1-mercury.stubs">
@@ -805,15 +805,15 @@
             <arg value="org.apache.river.test.impl.mercury.REListenerImpl"/>
             <arg value="org.apache.river.test.impl.mercury.UEListenerImpl"/>
             <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.TestListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" >
@@ -831,15 +831,15 @@
             <arg value="org.apache.river.test.impl.mercury.REListenerImpl"/>
             <arg value="org.apache.river.test.impl.mercury.UEListenerImpl"/>
             <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.TestListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>-->
             <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl"/>
-            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" update="true">
@@ -858,11 +858,11 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river.test"/>
-            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
-            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury-dl.jar" index="false">
@@ -888,11 +888,11 @@
             <arg line="-hide org.apache.river.test"/>
             <arg value="org.apache.river.landlord.LandlordProxyVerifier"/>
             <arg value="org.apache.river.proxy.BasicProxyTrustVerifier"/>
-            <arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
-            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury-dl.jar" index="false" update="true">
@@ -921,10 +921,10 @@
     </target>
 
     <target name="qa1-norm.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/impl/norm/LeaseBackEndImpl.class" />
             <include name="org/apache/river/test/impl/norm/RemoteListener.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-norm-dl.jar" depends="qa1-norm.stubs">
@@ -950,8 +950,8 @@
             <arg value="org.apache.river.test.share.AttrTwo"/>
             <arg value="org.apache.river.test.impl.norm.LeaseBackEndImpl$$VerifierImpl"/>
             <arg value="org.apache.river.test.impl.norm.LocalLease$$VerifierImpl"/>
-            <arg value="org.apache.river.test.impl.norm.LeaseBackEndImpl_Stub"/>
-            <arg value="org.apache.river.test.impl.norm.RemoteListener_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.norm.LeaseBackEndImpl_Stub"/>
+            <arg value="org.apache.river.test.impl.norm.RemoteListener_Stub"/>-->
             <arg value="org.apache.river.test.impl.norm.TestLease"/>
 
         </classdep>
@@ -965,14 +965,14 @@
     </target>
 
     <target name="qa1-outrigger.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/impl/outrigger/transaction/SimpleEventListener.class" />
             <include name="org/apache/river/test/impl/outrigger/matching/ARemoteInterfaceImpl.class" />
             <include name="org/apache/river/test/impl/outrigger/matching/MonitoredSpaceListener.class" />
             <include name="org/apache/river/test/impl/outrigger/matching/TestSpaceListener.class" />
             <include name="org/apache/river/test/impl/outrigger/notify/ThrowRuntimeException$$Listener.class" />
             <include name="org/apache/river/test/impl/outrigger/leasing/LeasedSpaceListener.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-outrigger-dl.jar" depends="qa1-outrigger.stubs">
@@ -991,12 +991,12 @@
             <arg value="org.apache.river.test.impl.outrigger.matching.TestSpaceListener"/>
             <arg value="org.apache.river.test.impl.outrigger.notify.ThrowRuntimeException$$Listener"/>
             <arg value="org.apache.river.test.impl.outrigger.leasing.LeasedSpaceListener"/>
-            <arg value="org.apache.river.test.impl.outrigger.transaction.SimpleEventListener_Stub"/>
+            <!--<arg value="org.apache.river.test.impl.outrigger.transaction.SimpleEventListener_Stub"/>
             <arg value="org.apache.river.test.impl.outrigger.matching.ARemoteInterfaceImpl_Stub"/>
             <arg value="org.apache.river.test.impl.outrigger.matching.MonitoredSpaceListener_Stub"/>
             <arg value="org.apache.river.test.impl.outrigger.matching.TestSpaceListener_Stub"/>
             <arg value="org.apache.river.test.impl.outrigger.notify.ThrowRuntimeException$$Listener_Stub"/>
-            <arg value="org.apache.river.test.impl.outrigger.leasing.LeasedSpaceListener_Stub"/>
+            <arg value="org.apache.river.test.impl.outrigger.leasing.LeasedSpaceListener_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-outrigger-dl.jar" index="false" >
@@ -1156,11 +1156,11 @@
     </target>
 
     <target name="qa1-start.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/impl/start/ProbeImpl.class" />
             <include name="org/apache/river/test/impl/start/BadServiceProxyAccessorImpl.class" />
             <include name="org/apache/river/test/impl/start/TestServiceImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-start-probe-dl.jar" depends="qa1-start.stubs">
@@ -1175,8 +1175,8 @@
             <arg line="-in org.apache.river"/>
             <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
             <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
-            <arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
-            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-probe-dl.jar" index="false">
@@ -1197,8 +1197,8 @@
             <arg line="-in org.apache.river"/>
             <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
             <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
-            <arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
-            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>-->
             <arg line="org.apache.river.test.impl.start.UnsharedProbeImpl"/>
             <arg line="org.apache.river.test.impl.start.NoStubProbeImpl"/>
 
@@ -1217,8 +1217,8 @@
             <arg line="-hide org.apache.river.test"/>
             <arg line="org.apache.river.test.impl.start.ProbeImpl"/>
             <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl"/>
-            <arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
-            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.impl.start.ProbeImpl_Stub"/>
+            <arg line="org.apache.river.test.impl.start.BadServiceProxyAccessorImpl_Stub"/>-->
             <arg line="org.apache.river.test.impl.start.UnsharedProbeImpl"/>
             <arg line="org.apache.river.test.impl.start.NoStubProbeImpl"/>
 
@@ -1281,7 +1281,7 @@
         <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
             <fileset dir="${build.classes.dir}">
-                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />-->
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass2.class"/>
@@ -1294,7 +1294,7 @@
             <arg line="-in org.apache.river"/>
             <arg line="-hide org.apache.river.test"/>
             <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
-            <arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false" update="true">
@@ -1309,7 +1309,7 @@
         <jar destfile="${lib.dir}/qa1-start-testservice1-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="org/apache/river/test/impl/start/TestService.class" />
-                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>-->
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass2.class"/>
@@ -1333,7 +1333,7 @@
         <jar destfile="${lib.dir}/qa1-start-testservice2.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice2.deps}"/>
             <fileset dir="${build.classes.dir}">
-                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class" />-->
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass3.class"/>
@@ -1346,7 +1346,7 @@
             <arg line="-in org.apache.river"/>
             <arg line="-hide org.apache.river.test"/>
             <arg line="org.apache.river.test.impl.start.TestServiceImpl"/>
-            <arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.impl.start.TestServiceImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice2.jar" index="false" update="true">
@@ -1361,7 +1361,7 @@
         <jar destfile="${lib.dir}/qa1-start-testservice2-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="org/apache/river/test/impl/start/TestService.class" />
-                <include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>
+                <!--<include name="org/apache/river/test/impl/start/TestServiceImpl_Stub.class"/>-->
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass0.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass1.class"/>
                 <include name="org/apache/river/test/impl/start/TestServiceDummyClass3.class"/>
@@ -1451,9 +1451,9 @@
     </target>
 
     <target name="qa1-lookup-simulator.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/services/lookupsimulator/LookupSimulatorImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-lookup-simulator.jar" depends="qa1-lookup-simulator.stubs">
@@ -1467,7 +1467,7 @@
             <arg value="-files"/>
             <arg line="-in org.apache.river.test"/>
             <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false">
@@ -1482,7 +1482,7 @@
             <arg line="${jskplatform.exclude}"/>
             <arg line="-hide org.apache.river.test"/>
             <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false" update="true">
@@ -1505,7 +1505,7 @@
             <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorConstrainableProxy"/>
             <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorProxyVerifier"/>
             <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator-dl.jar" index="false">
@@ -1523,7 +1523,7 @@
             <arg line="${jskplatform.exclude}"/>
             <arg line="-hide org.apache.river.test"/>
             <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl"/>
-            <arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator-dl.jar" index="false" update="true">
@@ -1533,12 +1533,12 @@
     </target>
 
     <target name="qa1-share.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/share/KillVMUtil$$KillVMObjectImpl.class" />
             <include name="org/apache/river/test/share/TesterTransactionManager.class" />
             <include name="org/apache/river/test/share/LeaseBackEndImpl.class" />
             <include name="org/apache/river/test/share/TestParticipantImpl.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-share-dl.jar" depends="qa1-share.stubs">
@@ -1561,11 +1561,11 @@
             <arg line="org.apache.river.test.share.TesterTransactionManagerConstrainableProxy"/>
             <arg line="org.apache.river.test.share.TesterTransactionManagerProxyVerifier"/>
             <arg line="org.apache.river.test.share.LeaseBackEndImpl$$VerifierImpl"/>
-            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
             <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
             <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
-
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
         </classdep>
         <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
@@ -1583,10 +1583,11 @@
             <arg line="org.apache.river.test.share.TesterTransactionManagerConstrainableProxy"/>
             <arg line="org.apache.river.test.share.TesterTransactionManagerProxyVerifier"/>
             <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
-            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
             <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
             <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false" update="true">
@@ -1606,10 +1607,11 @@
             <arg value="-files"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>
-            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
             <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
             <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-reggie-race.jar" index="false">
@@ -1636,10 +1638,11 @@
             <arg line="net.jini.lookup.entry.ServiceInfo"/>
             <arg line="org.apache.river.lookup.entry.BasicServiceType"/>
             <arg line="org.apache.river.reliableLog.LogException"/>
-            <arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
             <arg line="org.apache.river.test.share.TesterTransactionManager_Stub"/>
             <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>
+            <arg line="org.apache.river.test.share.TestParticipantImpl_Stub"/>-->
+            <arg line="org.apache.river.test.share.TestParticipant"/>
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-reggie-race-dl.jar" index="false">
@@ -1668,11 +1671,11 @@
     </target>
 
     <target name="qa1-discoveryservice.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/share/DiscoveryServiceUtil$$BasicEventListener.class" />
             <include name="org/apache/river/test/spec/discoveryservice/lease/LeaseExpiration$$ServiceEventListener.class" />
             <include name="org/apache/river/test/spec/discoveryservice/AbstractBaseTest$$LDSEventListener.class"/>
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-discoveryservice-dl.jar" depends="qa1-discoveryservice.stubs">
@@ -1685,9 +1688,9 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river.test"/>
-            <arg line="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
+            <!--<arg line="org.apache.river.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
             <arg line="org.apache.river.test.spec.discoveryservice.lease.LeaseExpiration$$ServiceEventListener_Stub"/>
-            <arg line="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>
+            <arg line="org.apache.river.test.spec.discoveryservice.AbstractBaseTest$$LDSEventListener_Stub"/>-->
             <arg line="org.apache.river.test.share.AttributesUtil$$TestAttr00"/>
             <arg line="org.apache.river.test.share.AttributesUtil$$TestAttrSC00"/>
 
@@ -1726,9 +1729,17 @@
     </target>
 
     <target name="iiop.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
             <include name="org/apache/river/test/spec/iiop/util/TestRemoteObject.class" />
-        </rmic>
+        </rmic>-->
+        <exec executable="rmic">
+            <arg value="-iiop"/>
+            <arg value="-classpath"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="-d"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="org.apache.river.test.spec.iiop.util.TestRemoteObject"/>
+        </exec>
     </target>
 
     <target name="qa1-io-util-dl.jar" depends="compile">
@@ -1797,11 +1808,11 @@
     </target>
 
     <target name="qa1-javaspace.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/spec/javaspace/conformance/ParticipantImpl.class" />
             <include name="org/apache/river/test/spec/javaspace/conformance/NotifyCounter.class" />
             <include name="org/apache/river/test/spec/javaspace/conformance/TestEventListener05.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-javaspace-dl.jar" depends="qa1-javaspace.stubs">
@@ -1814,9 +1825,9 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river.test"/>
-            <arg line="org.apache.river.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
+            <!--<arg line="org.apache.river.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
             <arg line="org.apache.river.test.spec.javaspace.conformance.NotifyCounter_Stub"/>
-            <arg line="org.apache.river.test.spec.javaspace.conformance.TestEventListener05_Stub"/>
+            <arg line="org.apache.river.test.spec.javaspace.conformance.TestEventListener05_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-javaspace-dl.jar" index="false">
@@ -1829,13 +1840,21 @@
     </target>
 
     <target name="jrmp.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
             <include name="org/apache/river/test/spec/jrmp/util/TestRemoteObject.class" />
-        </rmic>
+        </rmic>-->
+        <exec executable="rmic">
+            <arg value="-iiop"/>
+            <arg value="-classpath"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="-d"/>
+            <arg value="${build.classes.dir}"/>
+            <arg value="org.apache.river.test.spec.jrmp.util.TestRemoteObject"/>
+        </exec>
     </target>
 
     <target name="qa1-lookupservice.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/spec/lookupservice/test_set00/EvntLeaseExpiration$$Listener.class" />
             <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrAdd$$Listener.class" />
             <include name="org/apache/river/test/spec/lookupservice/test_set00/NotifyOnAttrMod$$Listener.class" />
@@ -1862,7 +1881,7 @@
             <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyOnAttrSet$$Listener.class" />
             <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyOnComboAttrSet$$Listener.class" />
             <include name="org/apache/river/test/spec/lookupservice/test_set02/NotifyExceptionTest$$Listener.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-lookupservice-dl.jar" depends="qa1-lookupservice.stubs">
@@ -1875,7 +1894,7 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river.test.spec"/>
-            <arg line="org.apache.river.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
+            <!--<arg line="org.apache.river.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrAdd$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrMod$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrDel$$Listener_Stub"/>
@@ -1898,7 +1917,7 @@
             <arg line="org.apache.river.test.spec.lookupservice.test_set02.ExpiredLeaseMapCancel$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyOnAttrSet$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyOnComboAttrSet$$Listener_Stub"/>
-            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyExceptionTest$$Listener_Stub"/>
+            <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyExceptionTest$$Listener_Stub"/>-->
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookupservice-dl.jar" index="false">
@@ -1915,10 +1934,10 @@
     </target>
 
     <target name="qa1-renewalservice.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
+        <!--<rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="org/apache/river/test/share/LeaseBackEndImpl.class" />
             <include name="org/apache/river/test/share/RemoteListener.class" />
-        </rmic>
+        </rmic>-->
     </target>
 
     <target name="qa1-renewalservice-dl.jar" depends="qa1-renewalservice.stubs">
@@ -1932,8 +1951,8 @@
             <arg value="-files"/>
             <arg line="-in org.apache.river.test"/>
             <arg line="org.apache.river.test.share.LeaseBackEndImpl$$VerifierImpl"/>
-            <arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
-            <arg line="org.apache.river.test.share.RemoteListener_Stub"/>
+            <!--<arg line="org.apache.river.test.share.LeaseBackEndImpl_Stub"/>
+            <arg line="org.apache.river.test.share.RemoteListener_Stub"/>-->
             <arg line="org.apache.river.test.share.TestLease"/>
             <arg line="org.apache.river.test.share.ConstrainableTestLease"/>
             <arg line="org.apache.river.test.share.UnreadableTestLease"/>
@@ -1989,7 +2008,7 @@
             <arg line="-in net.jini.lookup"/>
             <arg line="-in org.apache.river.test"/>
             <arg line="-hide net.jini.lookup"/>
-            <arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
+            <!--<arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>-->
             <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
             <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
             <arg line="net.jini.lookup.entry.Name"/>
@@ -2011,7 +2030,7 @@
             <arg line="org.apache.river.proxy.BasicProxyTrustVerifier"/>
             <arg line="-show net.jini.lookup"/>
             <arg line="-show org.apache.river.proxy"/>
-            <arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
+            <!--<arg line="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>-->
             <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestService"/>
             <arg line="org.apache.river.test.spec.servicediscovery.AbstractBaseTest$$TestServiceIntAttr"/>
             <arg line="net.jini.lookup.entry.Name"/>

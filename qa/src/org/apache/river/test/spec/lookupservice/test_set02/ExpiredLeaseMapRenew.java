@@ -150,7 +150,7 @@ public class ExpiredLeaseMapRenew extends QATestRegistrar {
     private void registerAllEvents() throws Exception {
         for(int i=0; i<evntRegs.length; i++) {
 	    EventRegistration er;
-	    er = proxy.notify(srvcIDTmpls[i],
+	    er = proxy.notiFy(srvcIDTmpls[i],
 			      ServiceRegistrar.TRANSITION_NOMATCH_MATCH  |
 			      ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,

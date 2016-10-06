@@ -1354,7 +1354,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 
 	            "getLookupAttributes");
             }
-	    return lookupAttrs;
+	    return joiner.getAttributes();
 	} finally {
 	    concurrentObj.readUnlock();
 	}

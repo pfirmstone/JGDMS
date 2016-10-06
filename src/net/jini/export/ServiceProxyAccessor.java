@@ -18,6 +18,7 @@
 
 package net.jini.export;
 
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 /**
@@ -50,7 +51,7 @@ import java.rmi.RemoteException;
  * @see java.rmi.activation.ActivationID
  *
  **/
-public interface ServiceProxyAccessor {
+public interface ServiceProxyAccessor extends Remote {
 
     /**
      * Returns a proxy object for this object. This value should not be

@@ -37,7 +37,9 @@ import net.jini.export.Exporter;
  * @author Sun Microsystems, Inc.
  *
  * @since 2.0
+ * @deprecated
  */
+@Deprecated
 public class SunJrmpExporter implements Exporter {
 
     /**
