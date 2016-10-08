@@ -254,6 +254,7 @@ public class MarshalInputStream
      * Returns the collection of context information objects that
      * was passed to this stream's constructor.
      **/
+    @Override
     public Collection getObjectStreamContext() {
 	return context;
     }

@@ -41,7 +41,7 @@ public interface MarshalFactory {
      * @return 
      * @throws java.io.IOException 
      */
-    MarshalInput createMarshalInput(InputStream objIn, 
+    MarshalInstanceInput createMarshalInput(InputStream objIn, 
 	    InputStream locIn,
 	    ClassLoader defaultLoader,
 	    boolean verifyCodebaseIntegrity,
@@ -56,6 +56,6 @@ public interface MarshalFactory {
      * @return 
      * @throws java.io.IOException 
      */
-    MarshalOutput createMarshalOutput(OutputStream objOut, OutputStream locOut, Collection context) throws IOException;
+    MarshalInstanceOutput createMarshalOutput(OutputStream objOut, OutputStream locOut, Collection context) throws IOException;
     
 }

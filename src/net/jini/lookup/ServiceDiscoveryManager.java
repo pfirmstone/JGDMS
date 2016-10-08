@@ -1624,7 +1624,8 @@ public class ServiceDiscoveryManager {
                         if (sItemSet.size() >= maxMatches) {
                             return sItemSet.toArray(new ServiceItem[sItemSet.size()]);
                         }
-                    }                } catch (Exception e) {
+                    }                
+		} catch (Exception e) {
                     logger.log(Level.INFO,
                             "Exception occurred during query, "
                             + "discarding proxy",
@@ -1876,15 +1877,45 @@ public class ServiceDiscoveryManager {
 	    if (!(bootstrapProxy instanceof ServiceAttributesAccessor) &&
 		    !(bootstrapProxy instanceof ServiceIDAccessor) &&
 		    !(bootstrapProxy instanceof ServiceProxyAccessor)) return null;
+	    // The bootstrap proxy preparer can authenticate, dynamically
+	    // grant permission to download and deserialize the service proxy.
+	    // The service proxy can be trusted, however no constraints have
+	    // been applied to the service proxy yet.
 	    Object preparedProxy = bootstrapPreparer.prepareProxy(bootstrapProxy);
+	    // getServiceAttributes may try to download code, the bootstrapPreparer
+	    // should have authenticated and authorised any code downloads.
 	    Entry[] serviceAttributes =
 		    ((ServiceAttributesAccessor) preparedProxy).getServiceAttributes();
 	    ServiceID serviceID = ((ServiceIDAccessor) preparedProxy).serviceID();
 	    ServiceItem item = new ServiceItem(serviceID, bootstrapProxy, serviceAttributes);
-	    if (filter == null || filter.check(item)) return item;
+	    try {
+		if (filter == null){ // No local filter, retrieve service proxy.
+		    item.service = 
+			((ServiceProxyAccessor) preparedProxy).getServiceProxy();
+		    return item;
+		}
+		// The ServiceItemFilter should mutate the ServiceItem.service
+		// field after preparing the proxy and retrieving the 
+		// service proxy using ServiceProxyAccessor.
+		if (filter.check(item)) return item;
+	    } catch (SecurityException | ClassCastException ex){
+		logger.log(Level.FINE, 
+		    "Exception thrown while filtering ServiceItem containing bootstrap proxy, downloading service proxy and trying again, suggest rewriting your filter", ex);
+		// If ClassCastException, then filter has attempted to cast the
+		// bootstrap proxy to the service type, it is likely to be 
+		// an older filter implementation that doesn't know about
+		// ServiceProxyAccessor.
+		// If SecurityException, then proxy preparation failed, which
+		// is probably due to the filter not expecting a bootstrap
+		// proxy and attempting to apply method constraints.
+		// SOLUTION: Download service proxy and retry filter.
+		item.service = 
+			((ServiceProxyAccessor) preparedProxy).getServiceProxy();
+		if (filter.check(item)) return item;
+	    } 
 	    return null;
 	} catch (IOException ex) {
-	    logger.log(Level.FINE, "IOException thrown while checking bootstrapProxy", ex);
+	    logger.log(Level.FINE, "IOException thrown while checking bootstrapProxy, filtering and downloading service proxy", ex);
 	    return null;
 	}
     }
@@ -2191,7 +2222,7 @@ public class ServiceDiscoveryManager {
 	init.useInsecureLookup = (init.thisConfig.getEntry(COMPONENT_NAME,
 		"useInsecureLookup",
 		Boolean.class,
-		Boolean.TRUE));
+		Boolean.FALSE));
         return init;
     }//end init
 

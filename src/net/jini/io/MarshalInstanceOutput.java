@@ -24,6 +24,6 @@ import java.io.ObjectOutput;
  *
  * @author peter
  */
-public interface MarshalOutput extends ObjectOutput, ObjectStreamContext {
-    
+public interface MarshalInstanceOutput extends ObjectOutput, ObjectStreamContext {
+    public boolean hadAnnotations();
 }

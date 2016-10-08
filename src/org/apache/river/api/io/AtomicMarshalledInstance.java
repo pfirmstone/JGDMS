@@ -26,8 +26,8 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import net.jini.io.MarshalFactory;
-import net.jini.io.MarshalInput;
-import net.jini.io.MarshalOutput;
+import net.jini.io.MarshalInstanceInput;
+import net.jini.io.MarshalInstanceOutput;
 import net.jini.io.MarshalledInstance;
 
 /**
@@ -114,7 +114,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
     static class AtomicMarshalFactoryInstance implements MarshalFactory {
 
 	@Override
-	public MarshalInput createMarshalInput(InputStream objIn,
+	public MarshalInstanceInput createMarshalInput(InputStream objIn,
 		InputStream locIn, 
 		ClassLoader defaultLoader,
 		boolean verifyCodebaseIntegrity,
@@ -132,7 +132,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	}
 
 	@Override
-	public MarshalOutput createMarshalOutput(OutputStream objOut, 
+	public MarshalInstanceOutput createMarshalOutput(OutputStream objOut, 
 		OutputStream locOut, Collection context) throws IOException 
 	{
 	    return new AtomicMarshalledInstanceOutputStream(objOut, locOut, context);
@@ -140,7 +140,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
     }
 	
     private static class AtomicMarshalledInstanceOutputStream
-        extends AtomicMarshalOutputStream implements MarshalOutput
+        extends AtomicMarshalOutputStream implements MarshalInstanceOutput
     {
 	/** The stream on which location objects are written. */
 	private final ObjectOutputStream locOut;
@@ -170,6 +170,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 * Returns <code>true</code> if any non-<code>null</code> location
 	 * annotations have been written to this stream.
 	 */
+	@Override
 	public boolean hadAnnotations() {
 	    return hadAnnotations;
 	}
@@ -197,7 +198,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
      * @see MarshalledInstanceOutputStream
      */  
     private static class AtomicMarshalledInstanceInputStream
-        extends AtomicMarshalInputStream implements MarshalInput
+        extends AtomicMarshalInputStream implements MarshalInstanceInput
     {
 	/**
 	 * The stream from which annotations will be read.  If this is

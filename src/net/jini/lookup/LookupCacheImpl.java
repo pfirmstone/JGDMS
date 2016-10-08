@@ -58,6 +58,7 @@ import net.jini.core.lookup.ServiceTemplate;
 import net.jini.export.Exporter;
 import net.jini.export.ServiceAttributesAccessor;
 import net.jini.export.ServiceIDAccessor;
+import net.jini.export.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
@@ -503,16 +504,38 @@ final class LookupCacheImpl implements LookupCache {
 			item = itemReg.getItem().clone();
 			filteredItem = item.clone();
 			//retry the filter
-			if (cache.sdm.filterPassed(filteredItem, cache.filter)) {
-			    itemToSend = cache.addFilteredItemToMap(item, filteredItem, itemReg);
-			    if (itemToSend == null) {
+			if (cache.sdm.useInsecureLookup){
+			    if (cache.sdm.filterPassed(filteredItem, cache.filter)) {
+				itemToSend = cache.addFilteredItemToMap(item, filteredItem, itemReg);
+				if (itemToSend == null) return;
+			    } else {
+				//'quietly' remove the item
+				cache.removeServiceIdMapSendNoEvent(serviceID, itemReg);
 				return;
-			    }
+			    } //endif
 			} else {
-			    //'quietly' remove the item
-			    cache.removeServiceIdMapSendNoEvent(serviceID, itemReg);
-			    return;
-			} //endif
+			    // We're dealing with a bootstrap proxy.
+			    // The filter may not be expecting a bootstrap proxy.
+			    try {
+				if(cache.sdm.filterPassed(filteredItem, cache.filter))
+				    itemToSend = cache.addFilteredItemToMap(item, filteredItem, itemReg);
+				if (itemToSend == null) return;
+			    } catch (SecurityException | ClassCastException ex){
+				ServiceDiscoveryManager.logger.log(Level.FINE, 
+				    "Exception caught, while attempting to filter a bootstrap proxy", ex);
+				try {
+				    filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
+				    if(cache.sdm.filterPassed(filteredItem, cache.filter))
+					itemToSend = cache.addFilteredItemToMap(item, filteredItem, itemReg);
+				    if (itemToSend == null) return;
+				} catch (RemoteException ex1) {
+				    ServiceDiscoveryManager.logger.log(Level.FINE, 
+					"Exception thrown while attempting to obtain service proxy from bootstrap",
+					ex1);
+				    return;
+				}
+			    }
+			}
 		    } //endif
 		    /* Either the filter was retried and passed, in which case,
 		     * the filtered itemCopy was placed in the map and
@@ -1421,11 +1444,45 @@ final class LookupCacheImpl implements LookupCache {
 	    return null;
 	}
 	if (filter == null) {
-	    return addFilteredItemToMap(item, item, itemReg);
+	    ServiceItem filteredItem = item.clone();
+	    if (sdm.useInsecureLookup){
+		return addFilteredItemToMap(item, filteredItem, itemReg);
+	    } else {
+		try {
+		    filteredItem.service =
+			    ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
+		    return addFilteredItemToMap(item, filteredItem, itemReg);
+		} catch (RemoteException ex) {
+		    ServiceDiscoveryManager.logger.log(Level.FINE,
+			    "Exception thrown while trying to download service proxy",
+			    ex);
+		    discardRetryLater(item, sendEvent, itemReg);
+		    return null;
+		}
+	    }
 	} //endif
 	/* Make a copy to filter because the filter may modify it. */
 	ServiceItem filteredItem = item.clone();
-	boolean pass = filter.check(filteredItem);
+	boolean pass;
+	if (sdm.useInsecureLookup){
+	    pass = filter.check(filteredItem);
+	} else {
+	    try {
+		pass = filter.check(filteredItem);
+	    } catch (ClassCastException | SecurityException ex){ 
+		try {
+		    // Filter didn't expect bootstrap proxy
+		    filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
+		    pass = filter.check(filteredItem);
+		} catch (RemoteException ex1) {
+		    ServiceDiscoveryManager.logger.log(Level.SEVERE, 
+			"Exception thrown while trying to download service proxy",
+			ex1);
+		    discardRetryLater(item, sendEvent, itemReg);
+		    return null;
+		}
+	    }
+	}
 	/* Handle filter fail */
 	if (!pass) {
 	    boolean notify = false;

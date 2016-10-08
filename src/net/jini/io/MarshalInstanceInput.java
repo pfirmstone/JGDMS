@@ -24,7 +24,7 @@ import java.io.ObjectInput;
  * 
  * @author peter
  */
-public interface MarshalInput extends ObjectInput, ObjectStreamContext {
+public interface MarshalInstanceInput extends ObjectInput, ObjectStreamContext {
     
     /**
      * Enables the use of codebase annotation strings written by the

@@ -38,6 +38,7 @@ import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
+import net.jini.export.ProxyAccessor;
 import net.jini.lease.DesiredExpirationListener;
 import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
@@ -54,6 +55,8 @@ import org.apache.river.test.share.BaseQATest;
 import org.apache.river.test.share.DiscoveryServiceUtil;
 import org.apache.river.test.share.GroupsUtil;
 import org.apache.river.test.share.LocatorsUtil;
+import org.apache.river.test.spec.lookupservice.service.BootStrapService;
+import org.apache.river.test.spec.lookupservice.service.ServiceRegInitializer;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -113,11 +116,14 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      */
     @AtomicSerial
     public static class TestService implements Serializable, Administrable,
-                                               TestServiceInterface
+                                               TestServiceInterface, ProxyAccessor,
+					       ServiceRegInitializer
     {
         public final int i;
+	private transient BootStrapService bootStrapService;
         public TestService(int i) {
             this.i = i;
+	    bootStrapService = new BootStrapService(this);
         }//end constructor
 	
 	public TestService(GetArg arg) throws IOException{
@@ -142,6 +148,16 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
         public Object getAdmin() throws RemoteException {
             return null;
         }//end getAdmin
+
+	@Override
+	public Object getProxy() {
+	    return bootStrapService.getBootStrapProxy();
+	}
+
+	@Override
+	public ServiceRegistration setServiceRegistration(ServiceRegistration regist, Entry[] regAttr) {
+	    return bootStrapService.setServiceRegistration(regist, regAttr);
+	}
     }//end class TestService
 
     /** Class with an equals method that emulates Object.equals(). This class
@@ -802,11 +818,14 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
                 ServiceRegistration srvcReg =
                  lookupProxy.register(new ServiceItem(srvcID,testService,null),
                                       Long.MAX_VALUE);
+		
 		Lease srvcLease = null;
 		try {
 		    srvcReg = (ServiceRegistration) getConfig().prepare(
 				   "test.reggieServiceRegistrationPreparer",
 				   srvcReg);
+		    srvcReg = ((ServiceRegInitializer) testService)
+				.setServiceRegistration(srvcReg, null);
 		    srvcLease = (Lease) getConfig().prepare(
 				   "test.reggieServiceRegistrationPreparer",
 				   srvcReg.getLease());

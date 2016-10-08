@@ -849,7 +849,7 @@
             <arg value="-files"/>
             <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
-            <arg line="-in org.apache.river"/>
+            <arg line="-in com.sun.jini"/>
             <arg line="${jskplatform.exclude}"/>
             <arg path="${build.classes.dir}/org/apache/river/admin"/>
             <arg path="${build.classes.dir}/org/apache/river/config"/>
@@ -863,12 +863,20 @@
             <arg path="${build.classes.dir}/org/apache/river/thread"/>
             <arg path="${build.classes.dir}/org/apache/river/system"/> <!--qa suite dep-->
             <arg path="${build.classes.dir}/net/jini"/>
-            <arg path="${build.classes.dir}/org/apache/river/impl/lease"/>
-            <arg path="${build.classes.dir}/org/apache/river/impl/thread"/>
             <arg path="${build.classes.dir}/org/apache/river/impl"/>
+            <arg path="${build.classes.dir}/com/sun/jini/admin"/>
+            <arg path="${build.classes.dir}/com/sun/jini/config"/>
+            <arg path="${build.classes.dir}/com/sun/jini/constants"/> <!--qa suite dep-->
+            <arg path="${build.classes.dir}/com/sun/jini/landlord"/>
+            <arg path="${build.classes.dir}/com/sun/jini/lease"/>
+            <arg path="${build.classes.dir}/com/sun/jini/lookup/entry"/>
+            <arg path="${build.classes.dir}/com/sun/jini/proxy"/>
+            <arg path="${build.classes.dir}/com/sun/jini/reliableLog"/>
+            <arg path="${build.classes.dir}/com/sun/jini/start"/>
             <arg value="org.apache.river.logging.Levels"/>
             <arg value="org.apache.river.phoenix.ActivationAdmin"/>
             <arg value="org.apache.river.start.LifeCycle"/>
+            <arg value="com.sun.jini.logging.Levels"/>
             <arg value="net.jini.export.ServiceProxyAccessor"/>
         </classdep>
         <jar destfile="${lib.dir}/jsk-lib.jar"
@@ -881,6 +889,7 @@
             <arg line="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg line="-api org.apache.river.start.LifeCycle"/>
+            <arg line="-api com.sun.jini.start.LifeCycle"/>
             <arg line="-api net.jini.export.ServiceProxyAccessor"/>
             <classpath refid="river.classes"/>
         </preferredlistgen>
@@ -895,7 +904,6 @@
             <arg value="-files"/>
             <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
-            <arg line="-in org.apache.river"/>
             <arg line="-out net.jini.lookup"/>
             <arg line="-out org.apache.river.api.lookup"/>
             <arg line="-skip net.jini.config.GroovyConfig"/>
