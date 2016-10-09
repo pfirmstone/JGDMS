@@ -1,0 +1,3 @@
+testClass=DefaultDiscoverPublic
+testCategories=servicediscovery,servicediscovery_spec,specservicediscovery
+include0=servicediscovery_1.properties

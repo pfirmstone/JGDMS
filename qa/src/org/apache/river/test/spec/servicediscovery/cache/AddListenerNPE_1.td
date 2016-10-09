@@ -1,0 +1,5 @@
+testClass=AddListenerNPE
+testCategories=servicediscovery,servicediscovery_spec,servicediscoverycache,specservicediscovery,specservicediscoverycache
+include0=../servicediscovery_1.properties
+# no .prop in servicediscovery_1.properties
+

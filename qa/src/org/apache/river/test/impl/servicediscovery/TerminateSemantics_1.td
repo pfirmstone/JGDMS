@@ -1,0 +1,3 @@
+include0=servicediscovery_1.properties
+testClass=TerminateSemantics
+testCategories=servicediscovery,servicediscovery_impl,implservicediscovery
