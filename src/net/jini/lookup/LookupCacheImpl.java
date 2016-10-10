@@ -293,25 +293,15 @@ final class LookupCacheImpl implements LookupCache {
 			|| Thread.currentThread().isInterrupted()) {
 		    // eventReg.lease is final and is already safely published
 		    cache.sdm.cancelLease(eventReg.lease);
-		    return;
 		} else {
 		    EventReg existed
 			    = cache.eventRegMap.putIfAbsent(reg, eventReg);
-		    while (existed != null) {
-			// Cancel existing lease.
-			cache.sdm.cancelLease(existed.lease);
-			boolean replaced
-				= cache.eventRegMap.replace(reg, existed, eventReg);
-			if (replaced) {
-			    break;
-			} else {
-			    existed = cache.eventRegMap.putIfAbsent(reg, eventReg);
-			}
+		    if (existed != null){ // A listener has already been registered.
+			cache.sdm.cancelLease(eventReg.lease);
+			return;
 		    }
 		    /* Execute the lookup only if there were no problems */
-		    synchronized (eventReg) {
-			cache.lookup(reg, eventReg);
-		    }
+		    cache.lookup(reg);
 		} //endif
 	    } catch (Exception e) {
 		cache.sdm.fail(e,
@@ -321,9 +311,10 @@ final class LookupCacheImpl implements LookupCache {
 			"Exception occurred while attempting to register with the lookup service event mechanism",
 			cache.bCacheTerminated
 		);
-	    }
-	    ServiceDiscoveryManager.logger.finest(
+	    } finally {
+		ServiceDiscoveryManager.logger.finest(
 		    "ServiceDiscoveryManager - RegisterListenerTask completed");
+	    }
 	} //end run
     } //end class LookupCacheImpl.RegisterListenerTask
 
@@ -376,8 +367,8 @@ final class LookupCacheImpl implements LookupCache {
 		    } else if (itemReg.hasNoProxys()) {
 			//no more LUSs, remove from map
 			item = itemReg.getFilteredItem();
-			iter.remove();
-			if (!itemReg.isDiscarded()) {
+			boolean removed = cache.serviceIdMap.remove(srvcID, itemReg);
+			if (!itemReg.isDiscarded() && removed) {
 			    cache.removeServiceNotify(item);
 			}
 		    } //endif
@@ -426,77 +417,75 @@ final class LookupCacheImpl implements LookupCache {
 	@Override
 	public void run() {
 	    ServiceDiscoveryManager.logger.finest("ServiceDiscoveryManager - " + "ServiceDiscardTimerTask started");
-	    /* Exit if this cache has already been terminated. */
-	    if (cache.bCacheTerminated) {
-		return;
-	    }
-	    /* Simply return if a MATCH_NOMATCH event arrived for this
-	     * item prior to this task running and as a result, the item
-	     * was removed from the map.
-	     */
-	    if (!cache.serviceIdMap.containsKey(serviceID)) {
-		return;
-	    }
-	    long curDur = endTime - System.currentTimeMillis();
-	    synchronized (this) {
-		/* Wait until interrupted or time expires */
-		while (curDur > 0) {
-		    try {
-			this.wait(curDur);
-		    } catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			return; // Task cancelled
-		    }
-		    /* Exit if this cache was terminated while waiting. */
-		    if (cache.bCacheTerminated) {
-			return;
-		    }
-		    /* Either the wait period has completed or has been
-		     * interrupted. If the service ID is no longer in
-		     * in the serviceIdMap, then it's assumed that a
-		     * MATCH_NOMATCH event must have arrived which could be
-		     * viewed as an indication that the service's lease
-		     * expired, which then could be interpreted as meaning
-		     * the service is actually down, and will be
-		     * re-discovered when it comes back on line. In that
-		     * case, exit the thread.
-		     */
-		    if (!cache.serviceIdMap.containsKey(serviceID)) {
-			return;
-		    }
-		    curDur = endTime - System.currentTimeMillis();
-		} //end loop
-	    } //end sync
-	    /* The thread was not interrupted, time expired.
-	     *
-	     * If the service ID is still contained in the serviceIdMap,
-	     * then a MATCH_NOMATCH event did not arrive, which is
-	     * interpreted here to mean that the service is still up.
-	     * The service ID will still be in the map if one (or both)
-	     * of the following is true:
-	     *  - the client discarded an unreachable service that never
-	     *    actually went down (so it's lease never expired, and
-	     *    a MATCH_NOMATCH event was never received)
-	     *  - upon applying the cache's filter to the service, the
-	     *    filter returned indefinite, and this task was queued
-	     *    to request that filtering be retried at a later time
-	     *
-	     * For the first case above, the service is "un-discarded" so
-	     * the service will be available to the client again. For the
-	     * second case, the filter is retried. If the service passes
-	     * the filter, the service is "un-discarded"; otherwise, it is
-	     * 'quietly' removed from the map (because a service removed
-	     * event was already sent when the service was originally
-	     * discarded.
-	     */
-	    ServiceItemReg itemReg = cache.serviceIdMap.get(serviceID);
-	    if (itemReg != null) {
-		//Discarded status hasn't changed
-		ServiceItem itemToSend;
-		synchronized (itemReg) {
-		    if (!itemReg.unDiscard()) {
-			return; // "un-discards"
-		    }
+	    try {
+		/* Exit if this cache has already been terminated. */
+		if (cache.bCacheTerminated) {
+		    return;
+		}
+		/* Simply return if a MATCH_NOMATCH event arrived for this
+		 * item prior to this task running and as a result, the item
+		 * was removed from the map.
+		 */
+		if (!cache.serviceIdMap.containsKey(serviceID)) {
+		    return;
+		}
+		long curDur = endTime - System.currentTimeMillis();
+		synchronized (this) {
+		    /* Wait until interrupted or time expires */
+		    while (curDur > 0) {
+			try {
+			    this.wait(curDur);
+			} catch (InterruptedException e) {
+			    Thread.currentThread().interrupt();
+			    return; // Task cancelled
+			}
+			/* Exit if this cache was terminated while waiting. */
+			if (cache.bCacheTerminated) {
+			    return;
+			}
+			/* Either the wait period has completed or has been
+			 * interrupted. If the service ID is no longer in
+			 * in the serviceIdMap, then it's assumed that a
+			 * MATCH_NOMATCH event must have arrived which could be
+			 * viewed as an indication that the service's lease
+			 * expired, which then could be interpreted as meaning
+			 * the service is actually down, and will be
+			 * re-discovered when it comes back on line. In that
+			 * case, exit the thread.
+			 */
+			if (!cache.serviceIdMap.containsKey(serviceID)) {
+			    return;
+			}
+			curDur = endTime - System.currentTimeMillis();
+		    } //end loop
+		} //end sync
+		/* The thread was not interrupted, time expired.
+		 *
+		 * If the service ID is still contained in the serviceIdMap,
+		 * then a MATCH_NOMATCH event did not arrive, which is
+		 * interpreted here to mean that the service is still up.
+		 * The service ID will still be in the map if one (or both)
+		 * of the following is true:
+		 *  - the client discarded an unreachable service that never
+		 *    actually went down (so it's lease never expired, and
+		 *    a MATCH_NOMATCH event was never received)
+		 *  - upon applying the cache's filter to the service, the
+		 *    filter returned indefinite, and this task was queued
+		 *    to request that filtering be retried at a later time
+		 *
+		 * For the first case above, the service is "un-discarded" so
+		 * the service will be available to the client again. For the
+		 * second case, the filter is retried. If the service passes
+		 * the filter, the service is "un-discarded"; otherwise, it is
+		 * 'quietly' removed from the map (because a service removed
+		 * event was already sent when the service was originally
+		 * discarded.
+		 */
+		ServiceItemReg itemReg = cache.serviceIdMap.get(serviceID);
+		if (itemReg != null) {
+		    //Discarded status hasn't changed
+		    ServiceItem itemToSend;
+		    if (!itemReg.unDiscard()) return; // "un-discards"
 		    ServiceItem item;
 		    ServiceItem filteredItem = null;
 		    itemToSend = itemReg.getFilteredItem();
@@ -548,8 +537,10 @@ final class LookupCacheImpl implements LookupCache {
 		     */
 		    cache.addServiceNotify(itemToSend);
 		}
+		
+	    } finally {
+		ServiceDiscoveryManager.logger.finest("ServiceDiscoveryManager - " + "ServiceDiscardTimerTask completed");
 	    }
-	    ServiceDiscoveryManager.logger.finest("ServiceDiscoveryManager - " + "ServiceDiscardTimerTask completed");
 	} //end run
     }
 
@@ -633,7 +624,8 @@ final class LookupCacheImpl implements LookupCache {
 	 * exists, and it's not already discarded, then queue a task
 	 * to discard the given serviceReference.
 	 */
-	Iterator<Map.Entry<ServiceID, ServiceItemReg>> iter = getServiceIdMapEntrySetIterator();
+	Iterator<Map.Entry<ServiceID, ServiceItemReg>> iter = serviceIdMap.entrySet().iterator();
+//		getServiceIdMapEntrySetIterator();
 	ServiceItem filteredItem;
 	ServiceID sid;
 	while (iter.hasNext()) {
@@ -653,11 +645,6 @@ final class LookupCacheImpl implements LookupCache {
 	    } //end sync
 	} //end loop
     } //end LookupCacheImpl.discard
-
-    /* Returns the iterator of entry set in the copy of the ServiceIdMap */
-    private Iterator<Map.Entry<ServiceID, ServiceItemReg>> getServiceIdMapEntrySetIterator() {
-	return serviceIdMap.entrySet().iterator();
-    } //end LookupCacheImpl.getServiceIdMapEntrySetIterator
 
     /**
      * This method returns a <code>ServiceItem</code> array containing elements
@@ -684,7 +671,8 @@ final class LookupCacheImpl implements LookupCache {
      */
     private ServiceItem[] getServiceItems(ServiceItemFilter filter2) {
 	List<ServiceItem> items = new LinkedList<ServiceItem>();
-	Iterator<Map.Entry<ServiceID, ServiceItemReg>> iter = getServiceIdMapEntrySetIterator();
+	Iterator<Map.Entry<ServiceID, ServiceItemReg>> iter = 
+		serviceIdMap.entrySet().iterator();
 	while (iter.hasNext()) {
 	    Map.Entry<ServiceID, ServiceItemReg> e = iter.next();
 	    ServiceItemReg itemReg = e.getValue();
@@ -898,20 +886,18 @@ final class LookupCacheImpl implements LookupCache {
 		} else if (transition == ServiceRegistrar.TRANSITION_NOMATCH_MATCH || transition == ServiceRegistrar.TRANSITION_MATCH_MATCH) {
 		    newOldService(reg, item, transition == ServiceRegistrar.TRANSITION_MATCH_MATCH);
 		} //endif(transition)
-	    } else if (delta == 0) {
-	    } else if (delta < 0) {
-	    } else {
-		//gap in event sequence, request snapshot
-		lookup(reg, eReg);
-	    } //endif
+		return;
+	    } 
+	    if (delta == 0) return; // Repeat event, ignore.
+	    if (delta < 0) return; // Old event, ignore.
 	} //end sync(eReg)
-    } //end LookupCacheImpl.notifyServiceMap
-
+	//gap in event sequence, request snapshot
+	lookup(reg);
+    }
     /**
      * Requests a "snapshot" of the given registrar's state.
      */
-    private void lookup(ProxyReg reg, EventReg eReg) {
-	assert Thread.holdsLock(eReg);
+    private void lookup(ProxyReg reg) {
 	ServiceRegistrar proxy = reg.getProxy();
 	ServiceItem[] items;
 	/* For the given lookup, get all services matching the tmpl */
@@ -952,21 +938,34 @@ final class LookupCacheImpl implements LookupCache {
 	    ServiceItemReg itemReg = e.getValue();
 	    ServiceRegistrar prxy;
 	    ServiceItem item;
-	    synchronized (itemReg) {
-		item = itemReg.removeProxy(reg.getProxy()); //disassociate the LUS
-		if (item != null) {
-		    // new LUS chosen to track changes
-		    prxy = itemReg.getProxy();
-		    itemMatchMatchChange(srvcID, itemReg, prxy, item, false);
-		} else if (itemReg.hasNoProxys()) {
-		    //no more LUSs, remove from map
-		    item = itemReg.getFilteredItem();
-		    iter.remove();
-		    if (!itemReg.isDiscarded()) {
-			removeServiceNotify(item);
-		    }
-		} //endif
-	    }
+	    item = itemReg.removeProxy(reg.getProxy()); //disassociate the LUS
+	    if (item != null) {
+		// new LUS chosen to track changes
+		prxy = itemReg.getProxy();
+		itemMatchMatchChange(srvcID, itemReg, prxy, item, false);
+	    } 
+	    /*
+	     * Removal cannot be performed atomically.  Investigated alternate
+	     * means of removal, such as weak reference, with ref queue to perform
+	     * removeServiceNotify.
+	     * Presently we can't guarantee that some other section of code,
+	     * doesn't hold a reference to the ServiceItemReg and is about to
+	     * perform some operation on it after removal occurs.
+	     */
+//	    else {
+//		boolean removed = false;
+//		boolean notDiscarded = false;
+//		synchronized (itemReg){ 
+//		    if (itemReg.hasNoProxys()){ //no more LUSs, remove from map
+//			removed = serviceIdMap.remove(srvcID, itemReg);
+//			item = itemReg.getFilteredItem();
+//			notDiscarded = !itemReg.isDiscarded();
+//		    }
+//		}
+////		if (removed && item != null && item.service != null && notDiscarded) {
+////		    removeServiceNotify(item);
+////		}
+//	    } //endif
 	} //end loop
 	/* 2. Handle "new" and "old" items from the given lookup */
 	for (int i = 0, l = items.length; i < l; i++) {
@@ -1018,6 +1017,7 @@ final class LookupCacheImpl implements LookupCache {
 	    ServiceItemReg existed = serviceIdMap.putIfAbsent(thisTaskSid, itemReg);
 	    if (existed != null) {
 		itemReg = existed;
+		if (itemReg.isDiscarded()) return;
 		previouslyDiscovered = true;
 	    }
 	} else if (itemReg.isDiscarded()) {
@@ -1030,10 +1030,9 @@ final class LookupCacheImpl implements LookupCache {
 	    itemMatchMatchChange(thisTaskSid, itemReg, reg.getProxy(), item, matchMatchEvent);
 	} else {
 	    //b. newly discovered item
-	    ServiceItem newFilteredItem;
-	    synchronized (itemReg) {
-		newFilteredItem = filterMaybeDiscard(thisTaskSid, itemReg, item, false);
-	    }
+	    ServiceItem newFilteredItem
+		    = filterMaybeDiscard(thisTaskSid, itemReg, item, false);
+	    
 	    if (newFilteredItem != null) {
 		addServiceNotify(newFilteredItem);
 	    } //endif
@@ -1189,16 +1188,16 @@ final class LookupCacheImpl implements LookupCache {
 		//(!matchMatchEvent && !same version) ==> re-registration
 		versionChanged = true;
 	    } //endif
-	    /* Now apply the filter, and send events if appropriate */
-	    newFilteredItem = filterMaybeDiscard(srvcID, itemReg, newItem, notifyServiceRemoved);
-	}
+	} //end sync itemReg
+	/* Now apply the filter, and send events if appropriate */
+	newFilteredItem = filterMaybeDiscard(srvcID, itemReg, newItem, notifyServiceRemoved);
 	if (newFilteredItem != null) {
 	    /* Passed the filter, okay to send event(s). */
-	    if (attrsChanged) {
+	    if (attrsChanged && oldFilteredItem != null) {
 		changeServiceNotify(newFilteredItem, oldFilteredItem);
 	    }
 	    if (versionChanged) {
-		if (notifyServiceRemoved) {
+		if (notifyServiceRemoved && oldFilteredItem != null) {
 		    removeServiceNotify(oldFilteredItem);
 		} //endif
 		addServiceNotify(newFilteredItem);
@@ -1315,7 +1314,7 @@ final class LookupCacheImpl implements LookupCache {
 	    this.sl = sl;
 	    this.lookupCache = lookupCache;
 	}
-
+	
 	@Override
 	public void run() {
 	    ServiceDiscoveryEvent event;
@@ -1494,7 +1493,7 @@ final class LookupCacheImpl implements LookupCache {
 		} else {
 		    removeServiceIdMapSendNoEvent(srvcID, itemReg);
 		} //endif
-		if (notify) {
+		if (notify && oldFilteredItem != null) {
 		    removeServiceNotify(oldFilteredItem);
 		}
 	    } //endif
@@ -1520,14 +1519,14 @@ final class LookupCacheImpl implements LookupCache {
      */
     private ServiceItem addFilteredItemToMap(ServiceItem item, ServiceItem filteredItem, ServiceItemReg itemReg) {
 	ServiceID id = item.serviceID;
-	assert Thread.holdsLock(itemReg);
-	if (itemReg == serviceIdMap.get(id)) {
+//	assert Thread.holdsLock(itemReg);
+	synchronized (itemReg){
 	    cancelDiscardTask(id);
 	    itemReg.replaceProxyUsedToTrackChange(null, item);
 	    itemReg.setFilteredItem(filteredItem);
-	    return filteredItem;
+	    if (itemReg.equals(serviceIdMap.get(id))) return filteredItem;
+	    return null;
 	}
-	return null;
     } //end LookupCacheImpl.addFilteredItemToMap
 
     /**
@@ -1553,7 +1552,7 @@ final class LookupCacheImpl implements LookupCache {
 	    itemReg.setFilteredItem(null);
 	    Future f = serviceDiscardTimerTaskMgr.submit(new ServiceDiscardTimerTask(this, item.serviceID));
 	    serviceDiscardFutures.put(item.serviceID, f);
-	    if (sendEvent) {
+	    if (sendEvent && oldFilteredItem != null) {
 		removeServiceNotify(oldFilteredItem); // Maybe send anyway?
 	    }
 	}
@@ -1591,7 +1590,7 @@ final class LookupCacheImpl implements LookupCache {
 	    }
 	    if (itemRegProxy != null) {
 		itemMatchMatchChange(srvcID, itemReg, itemRegProxy, newItem, false);
-	    } else if (notify) {
+	    } else if (notify && filteredItem != null) {
 		removeServiceNotify(filteredItem);
 	    }
 	} //endif
