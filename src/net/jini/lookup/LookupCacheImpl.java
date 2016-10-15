@@ -356,7 +356,7 @@ final class LookupCacheImpl implements LookupCache {
 		/* mutating the map would not have been allowed while
 		 * iterating when using a standard map.
 		 */
-		ServiceRegistrar proxy = null;
+		ServiceRegistrar proxy;
 		ServiceItem item;
 		synchronized (itemReg) {
 		    item = itemReg.removeProxy(reg.getProxy()); //disassociate the LUS
@@ -499,7 +499,7 @@ final class LookupCacheImpl implements LookupCache {
 				if (itemToSend == null) return;
 			    } else {
 				//'quietly' remove the item
-				cache.removeServiceIdMapSendNoEvent(serviceID, itemReg);
+				cache.serviceIdMap.remove(serviceID, itemReg);
 				return;
 			    } //endif
 			} else {
@@ -952,20 +952,20 @@ final class LookupCacheImpl implements LookupCache {
 	     * doesn't hold a reference to the ServiceItemReg and is about to
 	     * perform some operation on it after removal occurs.
 	     */
-//	    else {
-//		boolean removed = false;
-//		boolean notDiscarded = false;
-//		synchronized (itemReg){ 
-//		    if (itemReg.hasNoProxys()){ //no more LUSs, remove from map
-//			removed = serviceIdMap.remove(srvcID, itemReg);
-//			item = itemReg.getFilteredItem();
-//			notDiscarded = !itemReg.isDiscarded();
-//		    }
-//		}
-////		if (removed && item != null && item.service != null && notDiscarded) {
-////		    removeServiceNotify(item);
-////		}
-//	    } //endif
+	    else {
+		boolean removed = false;
+		boolean notDiscarded = false;
+		synchronized (itemReg){ 
+		    if (itemReg.hasNoProxys()){ //no more LUSs, remove from map
+			removed = serviceIdMap.remove(srvcID, itemReg);
+			item = itemReg.getFilteredItem();
+			notDiscarded = !itemReg.isDiscarded();
+		    }
+		}
+		if (removed && item != null && item.service != null && notDiscarded) {
+		    removeServiceNotify(item);
+		}
+	    } //endif
 	} //end loop
 	/* 2. Handle "new" and "old" items from the given lookup */
 	for (int i = 0, l = items.length; i < l; i++) {
@@ -1042,9 +1042,9 @@ final class LookupCacheImpl implements LookupCache {
     /**
      * Removes an entry in the serviceIdMap, but sends no notification.
      */
-    private boolean removeServiceIdMapSendNoEvent(ServiceID sid, ServiceItemReg itemReg) {
-	return serviceIdMap.remove(sid, itemReg);
-    } //end LookupCacheImpl.removeServiceIdMapSendNoEvent
+//    private boolean removeServiceIdMapSendNoEvent(ServiceID sid, ServiceItemReg itemReg) {
+//	return serviceIdMap.remove(sid, itemReg);
+//    } //end LookupCacheImpl.removeServiceIdMapSendNoEvent
 
     /**
      * Returns the element in the given items array having the given ServiceID.
@@ -1489,9 +1489,9 @@ final class LookupCacheImpl implements LookupCache {
 	    if (itemReg != null) {
 		if (sendEvent) {
 		    oldFilteredItem = itemReg.getFilteredItem();
-		    notify = removeServiceIdMapSendNoEvent(srvcID, itemReg);
+		    notify = serviceIdMap.remove(srvcID, itemReg);
 		} else {
-		    removeServiceIdMapSendNoEvent(srvcID, itemReg);
+		    serviceIdMap.remove(srvcID, itemReg);
 		} //endif
 		if (notify && oldFilteredItem != null) {
 		    removeServiceNotify(oldFilteredItem);
@@ -1580,11 +1580,11 @@ final class LookupCacheImpl implements LookupCache {
 		} else if (itemReg.hasNoProxys()) {
 		    if (itemReg.isDiscarded()) {
 			/* Remove item from map and wake up the discard task */
-			removeServiceIdMapSendNoEvent(srvcID, itemReg);
+			serviceIdMap.remove(srvcID, itemReg);
 			cancelDiscardTask(srvcID);
 		    } else {
 			//remove item from map and send removed event
-			notify = removeServiceIdMapSendNoEvent(srvcID, itemReg);
+			notify = serviceIdMap.remove(srvcID, itemReg);
 		    } //endif
 		} //endif
 	    }
@@ -1608,159 +1608,8 @@ final class LookupCacheImpl implements LookupCache {
     } //end LookupCacheImpl.cancelDiscardTask
 
     /**
-     * Used in the LookupCache. For each LookupCache, there is a HashMap that
-     * maps ServiceId to a ServiceItemReg. The ServiceItemReg class helps track
-     * where the ServiceItem comes from.
+     *      
      */
-    final static class ServiceItemReg {
-	/* Maps ServiceRegistrars to their latest registered item */
-
-	private final Map<ServiceRegistrar, ServiceItem> items;
-	/* The ServiceRegistrar currently being used to track changes */
-	private ServiceRegistrar proxy;
-	/* Flag that indicates that the ServiceItem has been discarded. */
-	private boolean bDiscarded;
-	/* The discovered service, prior to filtering. */
-	private ServiceItem item;
-	/* The discovered service, after filtering. */
-	private ServiceItem filteredItem;
-	/* Creates an instance of this class, and associates it with the given
-	 * lookup service proxy.
-	 */
-
-	public ServiceItemReg(ServiceRegistrar proxy, ServiceItem item) {
-	    this.bDiscarded = false;
-	    items = new HashMap<ServiceRegistrar, ServiceItem>();
-	    this.proxy = proxy;
-	    items.put(proxy, item);
-	    this.item = item;
-	    filteredItem = null;
-	}
-
-	/* Adds the given proxy to the 'proxy-to-item' map. This method is
-	 * called by the newOldService method.  Returns false if the proxy is being used
-	 * to track changes, true otherwise.
-	 */
-	public boolean proxyNotUsedToTrackChange(ServiceRegistrar proxy, ServiceItem item) {
-	    synchronized (this) {
-		items.put(proxy, item);
-		return !proxy.equals(this.proxy);
-	    }
-	}
-
-	/**
-	 * Replaces the proxy used to track change if the proxy passed in is non
-	 * null, also replaces the ServiceItem.
-	 *
-	 * @param proxy replacement proxy
-	 * @param item replacement item.
-	 */
-	public void replaceProxyUsedToTrackChange(ServiceRegistrar proxy, ServiceItem item) {
-	    synchronized (this) {
-		if (proxy != null) {
-		    this.proxy = proxy;
-		}
-		this.item = item;
-	    }
-	}
-	/* Removes the given proxy from the 'proxy-to-item' map. This method
-	 * is called from the lookup, handleMatchNoMatch methods and 
-	 * ProxyRegDropTask.  If this proxy was being used to track changes, 
-	 * then pick a new one and return its current item, else return null.
-	 */
-
-	public ServiceItem removeProxy(ServiceRegistrar proxy) {
-	    synchronized (this) {
-		items.remove(proxy);
-		if (proxy.equals(this.proxy)) {
-		    if (items.isEmpty()) {
-			this.proxy = null;
-		    } else {
-			Map.Entry ent = (Map.Entry) items.entrySet().iterator().next();
-			this.proxy = (ServiceRegistrar) ent.getKey();
-			return (ServiceItem) ent.getValue();
-		    }//endif
-		}//endif
-	    }
-	    return null;
-	}
-	/* Determines if the 'proxy-to-item' map contains any mappings.
-	 */
-
-	public boolean hasNoProxys() {
-	    synchronized (this) {
-		return items.isEmpty();
-	    }
-	}
-	/* Returns the flag indicating whether the ServiceItem is discarded. */
-
-	public boolean isDiscarded() {
-	    synchronized (this) {
-		return bDiscarded;
-	    }
-	}
-
-	/* Discards if not discarded and returns true if successful */
-	public boolean discard() {
-	    synchronized (this) {
-		if (!bDiscarded) {
-		    bDiscarded = true;
-		    return true;
-		}
-		return false;
-	    }
-	}
-
-	/* Undiscards if discarded and returns true if successful */
-	public boolean unDiscard() {
-	    synchronized (this) {
-		if (bDiscarded) {
-		    bDiscarded = false;
-		    return true;
-		}
-		return false;
-	    }
-	}
-
-	/**
-	 * @return the proxy
-	 */
-	public ServiceRegistrar getProxy() {
-	    synchronized (this) {
-		return proxy;
-	    }
-	}
-
-	/**
-	 * @return the filteredItem
-	 */
-	public ServiceItem getFilteredItem() {
-	    synchronized (this) {
-		return filteredItem;
-	    }
-	}
-
-	/**
-	 * @param filteredItem the filteredItem to set
-	 */
-	public void setFilteredItem(ServiceItem filteredItem) {
-	    synchronized (this) {
-		this.filteredItem = filteredItem;
-	    }
-	}
-
-	/**
-	 * @return the item
-	 */
-	public ServiceItem getItem() {
-	    synchronized (this) {
-		return item;
-	    }
-	}
-    }
-
-    /**
-     *      */
     final static class CacheTaskDependencyManager implements FutureObserver {
 
 	// CacheTasks pending completion.
