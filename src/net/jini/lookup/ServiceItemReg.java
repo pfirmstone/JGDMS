@@ -31,13 +31,13 @@ final class ServiceItemReg {
     /* Maps ServiceRegistrars to their latest registered item */
     private final Map<ServiceRegistrar, ServiceItem> items;
     /* The ServiceRegistrar currently being used to track changes */
-    private ServiceRegistrar proxy;
+    private volatile ServiceRegistrar proxy;
     /* Flag that indicates that the ServiceItem has been discarded. */
-    private boolean bDiscarded;
+    private volatile boolean bDiscarded;
     /* The discovered service, prior to filtering. */
-    private ServiceItem item;
+    private volatile ServiceItem item;
     /* The discovered service, after filtering. */
-    private ServiceItem filteredItem;
+    private volatile ServiceItem filteredItem;
     /* Creates an instance of this class, and associates it with the given
      * lookup service proxy.
      */
@@ -56,10 +56,8 @@ final class ServiceItemReg {
      * to track changes, true otherwise.
      */
     public boolean proxyNotUsedToTrackChange(ServiceRegistrar proxy, ServiceItem item) {
-        synchronized (this) {
-            items.put(proxy, item);
-            return !proxy.equals(this.proxy);
-        }
+        items.put(proxy, item);
+        return !proxy.equals(this.proxy);
     }
 
     /**
@@ -70,12 +68,10 @@ final class ServiceItemReg {
      * @param item replacement item.
      */
     public void replaceProxyUsedToTrackChange(ServiceRegistrar proxy, ServiceItem item) {
-        synchronized (this) {
-            if (proxy != null) {
-                this.proxy = proxy;
-            }
-            this.item = item;
+        if (proxy != null) {
+            this.proxy = proxy;
         }
+        this.item = item;
     }
     /* Removes the given proxy from the 'proxy-to-item' map. This method
      * is called from the lookup, handleMatchNoMatch methods and
@@ -84,92 +80,74 @@ final class ServiceItemReg {
      */
 
     public ServiceItem removeProxy(ServiceRegistrar proxy) {
-        synchronized (this) {
-            items.remove(proxy);
-            if (proxy.equals(this.proxy)) {
-                if (items.isEmpty()) {
-                    this.proxy = null;
-                } else {
-                    Map.Entry ent = (Map.Entry) items.entrySet().iterator().next();
-                    this.proxy = (ServiceRegistrar) ent.getKey();
-                    return (ServiceItem) ent.getValue();
-                } //endif
+        items.remove(proxy);
+        if (proxy.equals(this.proxy)) {
+            if (items.isEmpty()) {
+                this.proxy = null;
+            } else {
+                Map.Entry ent = (Map.Entry) items.entrySet().iterator().next();
+                this.proxy = (ServiceRegistrar) ent.getKey();
+                return (ServiceItem) ent.getValue();
             } //endif
-        }
+        } //endif
         return null;
     }
     /* Determines if the 'proxy-to-item' map contains any mappings.
      */
 
     public boolean hasNoProxys() {
-        synchronized (this) {
-            return items.isEmpty();
-        }
+        return items.isEmpty();
     }
     /* Returns the flag indicating whether the ServiceItem is discarded. */
 
     public boolean isDiscarded() {
-        synchronized (this) {
-            return bDiscarded;
-        }
+        return bDiscarded;
     }
 
     /* Discards if not discarded and returns true if successful */
     public boolean discard() {
-        synchronized (this) {
-            if (!bDiscarded) {
-                bDiscarded = true;
-                return true;
-            }
-            return false;
+        if (!bDiscarded) {
+            bDiscarded = true;
+            return true;
         }
+        return false;
     }
 
     /* Undiscards if discarded and returns true if successful */
     public boolean unDiscard() {
-        synchronized (this) {
-            if (bDiscarded) {
-                bDiscarded = false;
-                return true;
-            }
-            return false;
+        if (bDiscarded) {
+            bDiscarded = false;
+            return true;
         }
+        return false;
     }
 
     /**
      * @return the proxy
      */
     public ServiceRegistrar getProxy() {
-        synchronized (this) {
-            return proxy;
-        }
+        return proxy;
     }
 
     /**
      * @return the filteredItem
      */
     public ServiceItem getFilteredItem() {
-        synchronized (this) {
-            return filteredItem;
-        }
+        return filteredItem;
     }
 
     /**
      * @param filteredItem the filteredItem to set
      */
     public void setFilteredItem(ServiceItem filteredItem) {
-        synchronized (this) {
-            this.filteredItem = filteredItem;
-        }
+        this.filteredItem = filteredItem;
     }
 
     /**
      * @return the item
      */
     public ServiceItem getItem() {
-        synchronized (this) {
-            return item;
-        }
+        return item;
     }
     
 }

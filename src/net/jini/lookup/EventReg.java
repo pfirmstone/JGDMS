@@ -37,6 +37,8 @@ final class EventReg {
     private long seqNo;
     /* The Event notification lease */
     final Lease lease;
+    /* Event Suspension */
+    boolean suspended;
 
     EventReg(Object source, long eventID, long seqNo, Lease lease) {
 	this.source = source;
@@ -59,6 +61,26 @@ final class EventReg {
 	} else {
 	    return difference; // Return a negative or zero value
 	}
+    }
+    
+    boolean nonContiguousEvent(long seqNo){
+        assert Thread.holdsLock(this);
+        long difference = seqNo = this.seqNo;
+        this.notifyAll();
+        if (difference > 1) return true;
+        return false;
+    }
+    
+    void suspendEvents() {
+        suspended = true;
+    }
+    
+    boolean eventsSuspended(){
+        return suspended;
+    }
+    
+    void releaseEvents() {
+        suspended = false;
     }
     
 } //end class ServiceDiscoveryManager.EventReg
