@@ -275,7 +275,7 @@ final class LookupCacheImpl implements LookupCache {
 		    cache.sdm.cancelLease(eventReg.lease);
 		} else {
                     /* Execute the lookup only if there were no problems */
-		    cache.lookup(reg, eventReg);
+		    cache.lookup(reg);
                     /* Place in map after lookup is complete to prevent processing
                      * of events that start arriving before lookup has completed.
                      */
@@ -307,7 +307,7 @@ final class LookupCacheImpl implements LookupCache {
     private static final class ProxyRegDropTask extends CacheTask {
 
 	final LookupCacheImpl cache;
-	final EventReg eReg;
+	EventReg eReg;
 
 	public ProxyRegDropTask(ProxyReg reg,
 		EventReg eReg,
@@ -322,8 +322,40 @@ final class LookupCacheImpl implements LookupCache {
 	public void run() {
 	    ServiceDiscoveryManager.logger.finest(
 		    "ServiceDiscoveryManager - ProxyRegDropTask started");
-	    //lease has already been cancelled by removeProxyReg
-	    cache.eventRegMap.remove(reg, eReg);
+	    
+            // Maybe registrar was discarded before the RegisterLookupListener 
+            // task completed?
+            // That's ok this task should execute after RegisterLookupListener.
+            if (eReg == null) {
+                eReg = cache.eventRegMap.remove(reg);
+                if (eReg != null) {
+                    try {
+                        cache.sdm.leaseRenewalMgr.remove(eReg.lease);
+                    } catch (Exception e) {
+                        ServiceDiscoveryManager.logger.log(Level.FINER, 
+                                "exception occurred while removing an " 
+                                        + "event registration lease", e);
+                    }
+                } //endif
+            }
+            if (eReg != null) { 
+                synchronized (eReg){ //lease has already been cancelled by removeProxyReg or above.
+                    while (eReg.eventsSuspended()) { 
+                        // Lookup is in progress, due to non contiguous 
+                        // event.
+                        try {
+                            eReg.wait(200L);
+                        } catch (InterruptedException e){
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                    // We've woken up holding the lock on eReg, events and lookup
+                    // cannot proceed until we release this lock.
+                    // Before lookup can start adding state to the serviceIdMap
+                    // it first checks the eReg is not discarded.
+                    if (eReg.discard()) cache.eventRegMap.remove(reg, eReg);
+                }
+            }
 	    /* For each itemReg in the serviceIdMap, disassociate the
 	     * lookup service referenced here from the itemReg; and
 	     * if the itemReg then has no more lookup services associated
@@ -846,7 +878,7 @@ final class LookupCacheImpl implements LookupCache {
 	    }
 	} //endif
 	t = new ProxyRegDropTask(reg, eReg, taskSeqN.getAndIncrement(), this);
-	cacheTaskDepMgr.removeUselessTask(reg);
+	cacheTaskDepMgr.removeUselessTask(reg); //Possibly RegisterListenerTask before it commences execution.
 	cacheTaskDepMgr.submit(t);
     } //end LookupCacheImpl.removeProxyReg
 
@@ -935,9 +967,10 @@ final class LookupCacheImpl implements LookupCache {
                 // will tend to do.  Waiting too long should also be avoided.
                 // Replicating the state of a ServiceRegistrar is difficult and
                 // certainly not perfect, so losing track of it is best avoided.
-                // Lookup, which is often referred to as LookupTask 
-                // (since refactored to the lookup method) in the qa tests,
-                // creates initial state.
+                // Lookup, which is often referred to as LookupTask in the qa tests
+                // (since refactored to the lookup method to reduce init delay),
+                // is performed by RegisterListenerTask which also syncs initial
+                // state with the registrar.
                 // If events are processed during establishment 
                 // of the initial state then LookupCache cannot determine
                 // what changes have occurred.  Once initial state
@@ -1045,6 +1078,7 @@ final class LookupCacheImpl implements LookupCache {
 	/* Look for any gaps in the event sequence. */
         long delta;
         synchronized (eReg) {
+            if (eReg.discarded()) return;
             if (eReg.nonContiguousEvent(seqNo)){
                 // 10 seconds wait period has expired, we must perform lookup.
                 eReg.suspendEvents(); // Stop events messing up local state during update.
@@ -1094,7 +1128,7 @@ final class LookupCacheImpl implements LookupCache {
         if (delta < 0) return; // Old event, ignore.
         try {
             //gap in event sequence, request snapshot
-            lookup(reg, eReg);
+            lookup(reg);
         } finally {
             synchronized (eReg) {
                 eReg.releaseEvents(); // Resume processing ServiceEvents.
@@ -1106,7 +1140,7 @@ final class LookupCacheImpl implements LookupCache {
      * 
      * Lookup is mutually exclusive with events.
      */
-    private void lookup(ProxyReg reg, EventReg eReg) {
+    private void lookup(ProxyReg reg) {
         ServiceRegistrar proxy = reg.getProxy();
         ServiceItem[] items;
         /* For the given lookup, get all services matching the tmpl */
@@ -1140,7 +1174,7 @@ final class LookupCacheImpl implements LookupCache {
             if (Thread.currentThread().isInterrupted()) {
                 continue; // skip
             }
-            DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(this, reg.getProxy(), true);
+            DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(this, reg.getProxy(), false);
             serviceIdMap.computeIfPresent(srvcID, dlcl);
             if (dlcl.itemRegProxy != null) {
                 itemMatchMatchChange(srvcID, dlcl.itmReg, dlcl.itemRegProxy, dlcl.newItem, false);

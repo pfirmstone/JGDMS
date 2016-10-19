@@ -39,6 +39,8 @@ final class EventReg {
     final Lease lease;
     /* Event Suspension */
     boolean suspended;
+    /* Discarded Registrar */
+    boolean discarded;
 
     EventReg(Object source, long eventID, long seqNo, Lease lease) {
 	this.source = source;
@@ -81,6 +83,16 @@ final class EventReg {
     
     void releaseEvents() {
         suspended = false;
+    }
+    
+    boolean discard() {
+        if (discarded) return false;
+        discarded = true;
+        return true;
+    }
+    
+    boolean discarded(){
+        return discarded;
     }
     
 } //end class ServiceDiscoveryManager.EventReg
