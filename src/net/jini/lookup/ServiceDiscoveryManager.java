@@ -19,6 +19,7 @@ package net.jini.lookup;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -56,6 +57,7 @@ import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.action.GetLongAction;
 import org.apache.river.logging.Levels;
 import org.apache.river.lookup.entry.LookupAttributes;
 
@@ -218,7 +220,7 @@ import org.apache.river.lookup.entry.LookupAttributes;
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  * Default: <td> <code>new
  *             {@link java.util.concurrent/ThreadPoolExecutor
- *                     ThreadPoolExecutor}( 10, 10, 15, TimeUnit.SECONDS, new LinkedBlockingQueue(),
+ *                     ThreadPoolExecutor}( 6, 6, 15, TimeUnit.SECONDS, new LinkedBlockingQueue(),
  * new NamedThreadFactory( "SDM lookup cache", false ))</code>
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
@@ -240,12 +242,12 @@ import org.apache.river.lookup.entry.LookupAttributes;
  * <code>discardExecutorService</code></font>
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- * Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+ * Type: <td> {@link java.util.concurrent/ScheduledExecutorService ScheduledExecutorService}
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  * Default: <td> <code>new
- *             {@link java.util.concurrent/ThreadPoolExecutor
- *                     ThreadPoolExecutor}( 10, 10, 15, TimeUnit.SECONDS, new LinkedBlockingQueue(),
+ *             {@link java.util.concurrent/ScheduledThreadPoolExecutor
+ *                     ScheduledThreadPoolExecutor}( 4,
  * new NamedThreadFactory( "SDM discard timer", false ))</code>
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
@@ -258,6 +260,43 @@ import org.apache.river.lookup.entry.LookupAttributes;
  * application that employs this utility.
  * </table>
  * </a>
+ *  *
+ * <a name="ServiceEventExecutorService">
+ * <table summary="Describes the ServiceEventExecutorService configuration entry"
+ * border="0" cellpadding="2">
+ * <tr valign="top">
+ * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" align="left" colspan="2"> <font size="+1">
+ * <code>ServiceEventExecutorService</code></font>
+ *
+ * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+ *
+ * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * Default: <td> <code>new
+ *             {@link java.util.concurrent/ThreadPoolExecutor
+ *                     ThreadPoolExecutor}( 1, 1, 15, TimeUnit.SECONDS, new PriorityBlockingQueue(256),
+ * new NamedThreadFactory( "SDM ServiceEvent: " +toString(), false ))</code>
+ *
+ * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * Description:
+ * <td> The ExecutorService object that processes incoming ServiceEvent's.  This
+ * executor is wrapped by an {@link org.apache.river.thread.ExtensibleExecutorService}
+ * that implements a {@link java.lang.Comparable} {@link java.util.concurrent.FutureTask},
+ * which orders the ServiceEvent's in the {@link java.util.concurrent.PriorityBlockingQueue}.
+ * <p>
+ * A single threaded executor is usually sufficient for most purposes, and is 
+ * usually seldom found in a running state, testing has shown a single threaded
+ * executor is very unlikely to perform unnecessary lookup's, while a
+ * ThreadPoolExecutor with 4 threads will perform lookup for about 1% of cases.  
+ * This can be measured by setting the SDM logger to fine.
+ * <p>
+ * For the purpose of testing, it is beneficial to use a ThreadPoolExecutor with
+ * numerous threads, as this will test the alternate execution paths that 
+ * include lookup.
+ * </table>
+ * </a>
+ * 
  * <a name="discardWait">
  * <table summary="Describes the discardWait configuration entry" border="0"
  * cellpadding="2">
@@ -614,6 +653,16 @@ public class ServiceDiscoveryManager {
     
     final ProxyPreparer bootstrapProxyPreparer;
     final boolean useInsecureLookup;
+    private final static String DISCARD_PROPERTY = "org.apache.river.sdm.discardWait";
+
+    /**
+     * @return the discardWait
+     */
+    long getDiscardWait() {
+        long disWait = AccessController.doPrivileged(new GetLongAction(DISCARD_PROPERTY, discardWait));
+        logger.log(Level.FINEST, "discard wait = {0}", disWait);
+        return disWait;
+    }
 
 
     /**
@@ -1071,7 +1120,7 @@ public class ServiceDiscoveryManager {
 	bootstrapProxyPreparer = init.bootstrapProxyPreparer;
 	useInsecureLookup = init.useInsecureLookup;
         leaseRenewalMgr = init.leaseRenewalMgr;
-        discardWait = init.discardWait.longValue();
+        discardWait = init.discardWait;
         discMgr = init.discMgr;
         discMgrInternal = init.discMgrInternal;
         discMgrListener = new DiscMgrListener();
@@ -2143,7 +2192,7 @@ public class ServiceDiscoveryManager {
         ProxyPreparer eventLeasePreparer;
 	ProxyPreparer bootstrapProxyPreparer;
         LeaseRenewalManager leaseRenewalMgr;
-        Long discardWait = Long.valueOf(2 * (5 * 60 * 1000));
+        long discardWait;
         DiscoveryManagement discMgr;
         boolean discMgrInternal;
 	boolean useInsecureLookup;
@@ -2205,7 +2254,7 @@ public class ServiceDiscoveryManager {
         init.discardWait = (init.thisConfig.getEntry(COMPONENT_NAME,
                 "discardWait",
                 long.class,
-                init.discardWait));
+                600000L));
         /* Discovery manager */
         init.discMgr = discoveryMgr;
         if (init.discMgr == null) {
@@ -2245,7 +2294,7 @@ public class ServiceDiscoveryManager {
      * as well as when second-stage filtering is performed in the
      * <code>LookupCache</code>.
      */
-    boolean filterPassed(ServiceItem item, ServiceItemFilter filter) {
+    static boolean filterPassed(ServiceItem item, ServiceItemFilter filter) {
         if ((item == null) || (item.service == null)) {
             return false;
         }

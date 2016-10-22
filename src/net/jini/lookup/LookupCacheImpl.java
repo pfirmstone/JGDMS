@@ -23,28 +23,33 @@ import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.config.ConfigurationException;
 import net.jini.core.entry.Entry;
 import net.jini.core.event.RemoteEvent;
@@ -104,24 +109,31 @@ final class LookupCacheImpl implements LookupCache {
     private volatile boolean bCacheTerminated = false;
     /* Contains the ServiceDiscoveryListener's that receive local events */
     private final Collection<ServiceDiscoveryListener> sItemListeners;
-    /* Map from ServiceID to ServiceItemReg, all ServiceItemReg mutations 
-     * are protected using atoimc BiFunction's and computIfPresent
+    /* Map from ServiceID to ServiceItemReg, this basically holds the replicated
+     * filtered cache of ServiceRegistrar's, containing all the services
+     * and attributes the client has registered interest in.
+     * Regarding synchronization of state, all ServiceItemReg mutations 
+     * are guarded using atoimc BiFunction's with computIfPresent calls,
      * now that mutations of ServiceItemReg are essentially atomic, the
-     * next step will be to make ServiceItemReg immutable, and replace 
-     * instead of mutate and decide on identity, so that when a later
-     * atomic operation that occurs after filtering depends on an atomic
-     * operation that preceded it, we can check whether an intervening action
-     * has occurred. */
+     * next step would be to make ServiceItemReg immutable, and replace 
+     * instead of mutate and decide on a sutiable identity, so that when a later
+     * atomic operation occurring after filtering depends on an atomic
+     * operation that preceded it, we can check whether an interleved atomic action
+     * has occurred. At present interleaved atomic actions are prevented by
+     * limiting access to a single thread for each EventReg in eventRegMap
+     * for registration, events and lookup.  Removal from serviceIdMap only 
+     * occurs through discard and insertion when newOldService is called
+     * by RegisterListenerTask or HandleServiceEventTask, both occur
+     * atomically and mutually exclusive (for an EventReg), hence mutating
+     * atomic operations are unlikely to be interleaved, we also check that we 
+     * have the same ServiceItemReg instance between dependant atomic operations.
+     * and check whether a ServiceItemReg or EventReg has been discarded.
+     * The atomic operations are separated by filtering, which may include 
+     * remote calls. */
     private final ConcurrentMap<ServiceID, ServiceItemReg> serviceIdMap;
-//    /* Replacement for serviceIdMap */
-//    private ConcurrentMap<ServiceID, ServiceReg> serviceMap;
-//    /* Weak value, it will be removed if ServiceReg is removed from serviceMap */
-//    private ConcurrentMap<ServiceID, ServiceReg> discardedServiceMap;
-//    /* Weak set of values, so ProxyReg is removed when  removed from EventReg map */
-//    private ConcurrentMap<ServiceID, Set<ProxyReg>> serviceRegs;
-//    /* Possibly not required */
-//    private ConcurrentMap<ProxyReg,Set<ServiceReg>> regServiceMap;
-//    /* Map from ProxyReg to EventReg: (proxyReg, {source,id,seqNo,lease})*/
+    /* Map from ProxyReg to EventReg: (proxyReg, {source,id,seqNo,lease})
+     * This map is used to assist with managing event registrations with
+     * each ServiceRegistar and replicating filtered state using ServiceEvents */
     private final ConcurrentMap<ProxyReg, EventReg> eventRegMap;
     /* Template current cache instance should use for primary matching */
     private final ServiceTemplate tmpl;
@@ -136,7 +148,7 @@ final class LookupCacheImpl implements LookupCache {
     /**
      * For tasks waiting on verification events after service discard
      */
-    private volatile ExecutorService serviceDiscardTimerTaskMgr;
+    private volatile ScheduledExecutorService serviceDiscardTimerTaskMgr;
     private final ConcurrentMap<ServiceID, Future> serviceDiscardFutures;
     /**
      * Whenever a ServiceIdTask is created in this cache, it is assigned a
@@ -274,16 +286,23 @@ final class LookupCacheImpl implements LookupCache {
 		    // eventReg.lease is final and is already safely published
 		    cache.sdm.cancelLease(eventReg.lease);
 		} else {
-                    /* Execute the lookup only if there were no problems */
-		    cache.lookup(reg);
-                    /* Place in map after lookup is complete to prevent processing
-                     * of events that start arriving before lookup has completed.
-                     */
+                    eventReg.suspendEvents();
 		    EventReg existed
 			    = cache.eventRegMap.putIfAbsent(reg, eventReg);
 		    if (existed != null){ // A listener has already been registered.
 			cache.sdm.cancelLease(eventReg.lease);
-		    }
+		    } else {
+                        try {
+                            /* Execute the lookup only if there were no problems */
+                            cache.lookup(reg);
+                        } finally {
+                            synchronized (eventReg){
+                                eventReg.releaseEvents();
+                                eventReg.notify();
+                            }
+                        }
+                    }
+                    
 		} //endif
 	    } catch (Exception e) {
 		cache.sdm.fail(e,
@@ -307,7 +326,7 @@ final class LookupCacheImpl implements LookupCache {
     private static final class ProxyRegDropTask extends CacheTask {
 
 	final LookupCacheImpl cache;
-	EventReg eReg;
+	final EventReg eReg;
 
 	public ProxyRegDropTask(ProxyReg reg,
 		EventReg eReg,
@@ -326,35 +345,21 @@ final class LookupCacheImpl implements LookupCache {
             // Maybe registrar was discarded before the RegisterLookupListener 
             // task completed?
             // That's ok this task should execute after RegisterLookupListener.
-            if (eReg == null) {
-                eReg = cache.eventRegMap.remove(reg);
-                if (eReg != null) {
+            synchronized (eReg){ //lease has already been cancelled by removeProxyReg or above.
+                while (eReg.eventsSuspended()) { 
+                    // Lookup is in progress, due to non contiguous 
+                    // event.
                     try {
-                        cache.sdm.leaseRenewalMgr.remove(eReg.lease);
-                    } catch (Exception e) {
-                        ServiceDiscoveryManager.logger.log(Level.FINER, 
-                                "exception occurred while removing an " 
-                                        + "event registration lease", e);
+                        eReg.wait(200L);
+                    } catch (InterruptedException e){
+                        Thread.currentThread().interrupt();
                     }
-                } //endif
-            }
-            if (eReg != null) { 
-                synchronized (eReg){ //lease has already been cancelled by removeProxyReg or above.
-                    while (eReg.eventsSuspended()) { 
-                        // Lookup is in progress, due to non contiguous 
-                        // event.
-                        try {
-                            eReg.wait(200L);
-                        } catch (InterruptedException e){
-                            Thread.currentThread().interrupt();
-                        }
-                    }
-                    // We've woken up holding the lock on eReg, events and lookup
-                    // cannot proceed until we release this lock.
-                    // Before lookup can start adding state to the serviceIdMap
-                    // it first checks the eReg is not discarded.
-                    if (eReg.discard()) cache.eventRegMap.remove(reg, eReg);
                 }
+                // We've woken up holding the lock on eReg, events and lookup
+                // cannot proceed until we release this lock.
+                // Before lookup can start adding state to the serviceIdMap
+                // it first checks the eReg is not discarded.
+                if (eReg.discard()) cache.eventRegMap.remove(reg, eReg);
             }
 	    /* For each itemReg in the serviceIdMap, disassociate the
 	     * lookup service referenced here from the itemReg; and
@@ -366,7 +371,7 @@ final class LookupCacheImpl implements LookupCache {
 	    while (iter.hasNext()) {
 		Map.Entry<ServiceID, ServiceItemReg> e = iter.next();
 		ServiceID srvcID = e.getKey();
-                DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(cache, reg.getProxy(), false);
+                DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(cache, reg.getProxy());
                 cache.serviceIdMap.computeIfPresent(srvcID, dlcl);
                 if (dlcl.itemRegProxy != null) {
                     cache.itemMatchMatchChange(srvcID, dlcl.itmReg, dlcl.itemRegProxy, dlcl.newItem, false);
@@ -405,13 +410,11 @@ final class LookupCacheImpl implements LookupCache {
     private static final class ServiceDiscardTimerTask implements Runnable {
 
 	private final ServiceID serviceID;
-	private final long endTime;
 	private final LookupCacheImpl cache;
 
 	public ServiceDiscardTimerTask(LookupCacheImpl cache, ServiceID serviceID) {
 	    this.serviceID = serviceID;
 	    this.cache = cache;
-	    this.endTime = cache.sdm.discardWait + System.currentTimeMillis();
 	} //end constructor
 
 	@Override
@@ -422,46 +425,7 @@ final class LookupCacheImpl implements LookupCache {
 		if (cache.bCacheTerminated) {
 		    return;
 		}
-		/* Simply return if a MATCH_NOMATCH event arrived for this
-		 * item prior to this task running and as a result, the item
-		 * was removed from the map.
-		 */
-		if (!cache.serviceIdMap.containsKey(serviceID)) {
-		    return;
-		}
-		long curDur = endTime - System.currentTimeMillis();
-		synchronized (this) {
-		    /* Wait until interrupted or time expires */
-		    while (curDur > 0) {
-			try {
-			    this.wait(curDur);
-			} catch (InterruptedException e) {
-			    Thread.currentThread().interrupt();
-			    return; // Task cancelled
-			}
-			/* Exit if this cache was terminated while waiting. */
-			if (cache.bCacheTerminated) {
-			    return;
-			}
-			/* Either the wait period has completed or has been
-			 * interrupted. If the service ID is no longer in
-			 * in the serviceIdMap, then it's assumed that a
-			 * MATCH_NOMATCH event must have arrived which could be
-			 * viewed as an indication that the service's lease
-			 * expired, which then could be interpreted as meaning
-			 * the service is actually down, and will be
-			 * re-discovered when it comes back on line. In that
-			 * case, exit the thread.
-			 */
-			if (!cache.serviceIdMap.containsKey(serviceID)) {
-			    return;
-			}
-			curDur = endTime - System.currentTimeMillis();
-		    } //end loop
-		} //end sync
-		/* The thread was not interrupted, time expired.
-		 *
-		 * If the service ID is still contained in the serviceIdMap,
+		/* If the service ID is still contained in the serviceIdMap,
 		 * then a MATCH_NOMATCH event did not arrive, which is
 		 * interpreted here to mean that the service is still up.
 		 * The service ID will still be in the map if one (or both)
@@ -501,7 +465,7 @@ final class LookupCacheImpl implements LookupCache {
 			filteredItem = item.clone();
 			//retry the filter
 			if (cache.sdm.useInsecureLookup){
-			    if (cache.sdm.filterPassed(filteredItem, cache.filter)) {
+			    if (ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)) {
                                 addFilteredItemToMap = true;
 			    } else {
 				//'quietly' remove the item
@@ -512,7 +476,7 @@ final class LookupCacheImpl implements LookupCache {
 			    // We're dealing with a bootstrap proxy.
 			    // The filter may not be expecting a bootstrap proxy.
 			    try {
-				if(cache.sdm.filterPassed(filteredItem, cache.filter)){
+				if(ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)){
                                     addFilteredItemToMap = true;
                                 } else {
                                     //'quietly' remove the item
@@ -524,7 +488,7 @@ final class LookupCacheImpl implements LookupCache {
 				    "Exception caught, while attempting to filter a bootstrap proxy", ex);
 				try {
 				    filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
-				    if(cache.sdm.filterPassed(filteredItem, cache.filter)){
+				    if(ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)){
                                         addFilteredItemToMap = true;
                                     } else {
                                         //'quietly' remove the item
@@ -674,12 +638,10 @@ final class LookupCacheImpl implements LookupCache {
 	if (maxMatches < 1) {
 	    throw new IllegalArgumentException("maxMatches must be > 0");
 	}
-	List<ServiceItem> items = new LinkedList<ServiceItem>();
 	ServiceItem[] sa = getServiceItems(myFilter);
 	int len = sa.length;
-	if (len == 0) {
-	    return new ServiceItem[0];
-	}
+	if (len == 0 || len <= maxMatches) return sa;
+        List<ServiceItem> items = new LinkedList<>();
 	int rand = sdm.random.nextInt(Integer.MAX_VALUE) % len;
 	for (int i = 0; i < len; i++) {
 	    items.add(sa[(i + rand) % len]);
@@ -708,8 +670,8 @@ final class LookupCacheImpl implements LookupCache {
             ServiceID sid = e.getKey();
             ServiceItem filteredItem = itmReg.getFilteredItem();
             if (filteredItem != null && (filteredItem.service).equals(serviceReference)) {
-                Discard dis = new Discard(this, itmReg, filteredItem);
-                serviceIdMap.compute(sid, dis);
+                Discard dis = new Discard(this, itmReg, filteredItem, sdm.getDiscardWait());
+                serviceIdMap.computeIfPresent(sid, dis);
             }
 	} //end loop
     } //end LookupCacheImpl.discard
@@ -720,21 +682,27 @@ final class LookupCacheImpl implements LookupCache {
         LookupCacheImpl cache;
         ServiceItemReg expected;
         ServiceItem filteredItem;
+        long discardWait;
         
-        Discard(LookupCacheImpl cache, ServiceItemReg itmReg, ServiceItem filteredItem){
+        Discard(LookupCacheImpl cache, ServiceItemReg itmReg, ServiceItem filteredItem, long discardWait){
             this.cache = cache;
             this.expected = itmReg;
             this.filteredItem = filteredItem;
+            this.discardWait = discardWait;
         }
 
         @Override
         public ServiceItemReg apply(ServiceID sid, ServiceItemReg itmReg) {
             if (!expected.equals(itmReg)) return itmReg;
+            // This should be safe if the client performs authentication while
+            // filtering, trust the client to do the right thing.
             if (!filteredItem.equals(itmReg.getFilteredItem())) return itmReg;
             if (itmReg.discard()) {
                 Future f = 
-                    cache.serviceDiscardTimerTaskMgr.submit(
-                        new ServiceDiscardTimerTask(cache, sid)
+                    cache.serviceDiscardTimerTaskMgr.schedule(
+                        new ServiceDiscardTimerTask(cache, sid),
+                        discardWait,
+                        TimeUnit.MILLISECONDS
                     );
                 cache.serviceDiscardFutures.put(sid, f);
                 cache.removeServiceNotify(filteredItem);
@@ -767,40 +735,56 @@ final class LookupCacheImpl implements LookupCache {
      * produce an indefinite result when that <code>filter</code> is applied.
      */
     private ServiceItem[] getServiceItems(ServiceItemFilter filter2) {
-	List<ServiceItem> items = new LinkedList<ServiceItem>();
-	Iterator<Map.Entry<ServiceID, ServiceItemReg>> iter = 
-		serviceIdMap.entrySet().iterator();
-	while (iter.hasNext()) {
-	    Map.Entry<ServiceID, ServiceItemReg> e = iter.next();
-	    ServiceItemReg itemReg = e.getValue();
-	    Object serviceToDiscard;
-	    ServiceItem itemToFilter;
-	    synchronized (itemReg) {
-		if ((itemReg.isDiscarded()) || (itemReg.getFilteredItem() == null)) {
-		    continue;
-		}
-		/* Make a copy because the filter may change it to null */
-		itemToFilter = itemReg.getFilteredItem().clone();
-		serviceToDiscard = itemReg.getItem().service;
-	    }
+        FilteredItems items = new FilteredItems(this, filter2);
+        serviceIdMap.forEach(items);
+        return items.result();
+    } //end LookupCacheImpl.getServiceItems
+    
+    private static class FilteredItems implements BiConsumer<ServiceID, ServiceItemReg> {
+        
+        private final List<ServiceItem> items;
+        private final ServiceItemFilter filter2;
+        private final LookupCacheImpl cache;
+        
+        FilteredItems(LookupCacheImpl cache, ServiceItemFilter filter2){
+            this.items = new LinkedList<>();
+            this.filter2 = filter2;
+            this.cache = cache;
+        }
+
+        @Override
+        public void accept(ServiceID sid, ServiceItemReg itemReg) {
+	    ServiceItem itemToFilter = itemReg.getFilteredItem();
+            if ((itemToFilter == null) || (itemReg.isDiscarded())) return;
+            /* Make a copy because the filter may change it to null */
+            itemToFilter = itemToFilter.clone();
 	    /* Apply the filter */
 	    boolean pass = (filter2 == null) || (filter2.check(itemToFilter));
 	    /* Handle filter fail - skip to next item */
-	    if (!pass) {
-		continue;
-	    }
+	    if (!pass) return;
 	    /* Handle filter pass - add item to return set */
 	    if (itemToFilter.service != null) {
 		items.add(itemToFilter);
-		continue;
+		return;
 	    } //endif(pass)
 	    /* Handle filter indefinite - discard the item */
-	    discard(serviceToDiscard);
-	} //end loop
-	ServiceItem[] ret = new ServiceItem[items.size()];
-	items.toArray(ret);
-	return ret;
-    } //end LookupCacheImpl.getServiceItems
+            Discard dis = 
+                    new Discard(
+                            cache, 
+                            itemReg, 
+                            itemToFilter, 
+                            cache.sdm.getDiscardWait()
+                    );
+            cache.serviceIdMap.computeIfPresent(sid, dis);
+        }
+        
+        ServiceItem[] result(){
+            ServiceItem[] ret = new ServiceItem[items.size()];
+            items.toArray(ret);
+            return ret;
+        }
+        
+    }
 
     ServiceItem [] processBootStrapProxys(Object [] proxys){
 	int length = proxys.length;
@@ -876,10 +860,10 @@ final class LookupCacheImpl implements LookupCache {
 	    } catch (Exception e) {
 		ServiceDiscoveryManager.logger.log(Level.FINER, "exception occurred while removing an " + "event registration lease", e);
 	    }
-	} //endif
-	t = new ProxyRegDropTask(reg, eReg, taskSeqN.getAndIncrement(), this);
-	cacheTaskDepMgr.removeUselessTask(reg); //Possibly RegisterListenerTask before it commences execution.
-	cacheTaskDepMgr.submit(t);
+            t = new ProxyRegDropTask(reg, eReg, taskSeqN.getAndIncrement(), this);
+            cacheTaskDepMgr.removeUselessTask(reg); //Possibly RegisterListenerTask before it commences execution.
+            cacheTaskDepMgr.submit(t);
+        } //endif
     } //end LookupCacheImpl.removeProxyReg
 
     /* Throws IllegalStateException if this lookup cache has been
@@ -901,6 +885,7 @@ final class LookupCacheImpl implements LookupCache {
         if (theEvent.getSource() == null) {
 	    return;
 	}
+        ServiceDiscoveryManager.logger.log(Level.FINE, "HandleServiceEventTask submitted");
 	incomingEventExecutor.submit(new HandleServiceEventTask(this, theEvent));
     }
 
@@ -913,7 +898,7 @@ final class LookupCacheImpl implements LookupCache {
      * and others are executing, it isn't a safe way to ensure any kind of
      * consistency or ordering.
      */
-    private static class HandleServiceEventTask implements Runnable {
+    private static class HandleServiceEventTask implements Runnable, Comparable {
         
         private final LookupCacheImpl cache;
         private final ServiceEvent theEvent;
@@ -922,6 +907,7 @@ final class LookupCacheImpl implements LookupCache {
         private volatile ProxyReg reg;
         private volatile EventReg eReg;
         private volatile long timestamp;
+        private volatile ServiceItem item;
         
         HandleServiceEventTask(LookupCacheImpl cache, ServiceEvent event){
             this.cache = cache;
@@ -930,8 +916,36 @@ final class LookupCacheImpl implements LookupCache {
 
         @Override
         public void run() {
+            if (item == null){
+                if (cache.sdm.useInsecureLookup){
+                    item = theEvent.getServiceItem();
+                } else {
+                    ServiceID id;
+                    //REMIND: Consider using the actual service proxy?  No, that
+                    // would cause unnecessary download, need to allow clients the
+                    // opportunity to filter first, then clients also need to
+                    // prepare during filtering before actual service proxy is 
+                    // safe for use.
+                    Object proxy = theEvent.getBootstrapProxy();
+                    if (proxy != null){
+                        Entry [] attributes;
+                        try {
+                            proxy = cache.sdm.bootstrapProxyPreparer.prepareProxy(proxy);
+                            id = ((ServiceIDAccessor)proxy).serviceID();
+                            attributes = ((ServiceAttributesAccessor)proxy).getServiceAttributes();
+                            item = new ServiceItem(id, proxy, attributes);
+                        } catch (IOException ex) {
+                            cache.sdm.logger.log(Level.FINE, 
+                                "exception thrown while attempting to establish contact via a bootstrap proxy"
+                                , ex
+                            );
+                            // Item will be null.
+                        }
+                    }
+                }
+            }
             /* Search eventRegMap for ProxyReg corresponding to event. */
-            if (reg == null || eReg == null) {
+            FIND_ProxyReg: while (reg == null || eReg == null) {
                 Set<Map.Entry<ProxyReg, EventReg>> set = cache.eventRegMap.entrySet();
                 Iterator<Map.Entry<ProxyReg, EventReg>> iter = set.iterator();
                 while (iter.hasNext()) {
@@ -939,96 +953,94 @@ final class LookupCacheImpl implements LookupCache {
                     eReg = e.getValue();
                     if (theEvent.getID() == eReg.eventID && theEvent.getSource().equals(eReg.source)) {
                         reg = e.getKey();
-                        break;
+                        break FIND_ProxyReg;
                     } //endif
                 } //end loop
+                try {
+                    cache.incomingEventExecutor.submit(this);
+                    Thread.sleep(50L);
+                    return;
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
             }
-            if (reg == null || eReg == null) {
-                // ServiceEvent arrived before EventReg in map, place back in queue.
-                // We're still waiting for RegisterListenerTask to
-                // establish initial registrar state.
-                cache.incomingEventExecutor.submit(this);
+            if (timestamp == 0){
+                timestamp = System.currentTimeMillis();
+            } else {
+                // We've done this before.
+                if (!cache.eventRegMap.containsKey(reg)) return; // Discarded.
+            }
+            long currentTime = System.currentTimeMillis();
+            long delta = 0;
+            boolean resubmit = false;
+            int waiting = 0;
+            synchronized (eReg){
+                if (eReg.discarded()) return;
+                if (eReg.nonContiguousEvent(theEvent.getSequenceNumber()) 
+                    && (currentTime - timestamp < 500)) // 1/2 seconds.
+                {
+                    resubmit = true;
+                    eReg.notifyAll();
+                } else {
+                    while (eReg.eventsSuspended()){ // We're next.
+                        try {
+                            waiting ++;
+                            eReg.wait(100L);
+                            waiting --;
+                            if (eReg.discarded()) return;
+                            // Give priority to contiguous events.
+                            if (waiting > 0 && eReg.nonContiguousEvent(
+                                                theEvent.getSequenceNumber()))
+                            {
+                                eReg.notifyAll();
+                                resubmit = true;
+                                break;
+                            }
+                        } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                    }
+                    if (!resubmit){
+                        eReg.suspendEvents();
+                        delta = eReg.updateSeqNo(theEvent.getSequenceNumber());
+                    }
+                }
+            }
+            if (resubmit){ // To avoid churn and free up thread.
+                try {
+                    cache.incomingEventExecutor.submit(this);
+                    Thread.sleep(50L);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
                 return;
-            } else {
-                if (timestamp == 0){
-                    timestamp = System.currentTimeMillis();
-                }
-                boolean tryAgain = false;
-                synchronized (eReg){
-                    tryAgain = eReg.nonContiguousEvent(theEvent.getSequenceNumber()) || eReg.eventsSuspended();
-                }
-                // If time is less than ten seconds, allow a little more
-                // time for earlier events to arrive.
-                // Eventually we may have to accept the need to call
-                // lookup again, however we want to avoid doing so
-                // as it can be a very expensive call.
-                // Lookup should only really be executed if we have genuinely lost
-                // an event, rather than one just arriving out of order as they
-                // will tend to do.  Waiting too long should also be avoided.
-                // Replicating the state of a ServiceRegistrar is difficult and
-                // certainly not perfect, so losing track of it is best avoided.
-                // Lookup, which is often referred to as LookupTask in the qa tests
-                // (since refactored to the lookup method to reduce init delay),
-                // is performed by RegisterListenerTask which also syncs initial
-                // state with the registrar.
-                // If events are processed during establishment 
-                // of the initial state then LookupCache cannot determine
-                // what changes have occurred.  Once initial state
-                // has been established, then it is safe to accept
-                // events.  This occurs because there' a time delay 
-                // between registering an event listener and duplicating
-                // the registrars state locally.
-                if (tryAgain){
-                    if (System.currentTimeMillis() - timestamp < 10000){
-                        cache.incomingEventExecutor.submit(this);
-                        return;
-                    }
-                }
-                    
-                
             }
-            if (cache.sdm.useInsecureLookup){
-                    cache.notifyServiceMap(                        
-                        theEvent.getSequenceNumber(),
-                        theEvent.getServiceID(),
-                        theEvent.getServiceItem(),
-                        theEvent.getTransition(),
-                        reg, 
-                        eReg
-                    );
-            } else {
-                ServiceItem item = null;
-                ServiceID id;
-                //REMIND: Consider using the actual service proxy?  No, that
-                // would cause unnecessary download, need to allow clients the
-                // opportunity to filter first, then clients also need to
-                // prepare during filtering before actual service proxy is 
-                // safe for use.
-                Object proxy = theEvent.getBootstrapProxy();
-                if (proxy != null){
-                    Entry [] attributes;
-                    try {
-                        proxy = cache.sdm.bootstrapProxyPreparer.prepareProxy(proxy);
-                        id = ((ServiceIDAccessor)proxy).serviceID();
-                        attributes = ((ServiceAttributesAccessor)proxy).getServiceAttributes();
-                        item = new ServiceItem(id, proxy, attributes);
-                    } catch (IOException ex) {
-                        cache.sdm.logger.log(Level.FINE, 
-                            "exception thrown while attempting to establish contact via a bootstrap proxy"
-                            , ex
-                        );
-                        // Item will be null.
-                    }
-                }
-                cache.notifyServiceMap(                    
-                    theEvent.getSequenceNumber(),
+            try {
+                cache.notifyServiceMap(delta,
                     theEvent.getServiceID(),
                     item,
                     theEvent.getTransition(),
-                    reg, 
-                    eReg
-                );
+                    reg);
+            } finally {
+                synchronized (eReg){
+                    eReg.releaseEvents();
+                    eReg.notifyAll();
+                }
             }
+            
+        }
+
+        @Override
+        public int compareTo(Object o) {
+            if (!(o instanceof HandleServiceEventTask)) return 0;
+            HandleServiceEventTask that = (HandleServiceEventTask) o;
+            long dif = this.theEvent.getSequenceNumber() - that.theEvent.getSequenceNumber();
+            if (dif == 0) return 0;
+            if (dif < 0) return -1; // Which means that.theEvent is larger than this.theEvent
+            return 1;
         }
     }
     
@@ -1068,37 +1080,16 @@ final class LookupCacheImpl implements LookupCache {
      * that is ultimately c by the RegisterListenerTask (whose listener
      * registration caused this method to be invoked in the first place).
      */
-    private void notifyServiceMap(long seqNo,
+    private void notifyServiceMap(long delta,
                                   ServiceID sid,
                                   ServiceItem item,
                                   int transition,
-                                  ProxyReg reg,
-                                  EventReg eReg) 
+                                  ProxyReg reg) 
     {
 	/* Look for any gaps in the event sequence. */
-        long delta;
-        synchronized (eReg) {
-            if (eReg.discarded()) return;
-            if (eReg.nonContiguousEvent(seqNo)){
-                // 10 seconds wait period has expired, we must perform lookup.
-                eReg.suspendEvents(); // Stop events messing up local state during update.
-                /* The sequence number will now be updated atomically to the
-                 * current value, any events arriving prior to lookup will
-                 * be discarded, while those arriving after will commence after local
-                 * state has be synchronized with the registrar, after the lookup
-                 * method terminates. 
-                 * The possiblity still exists for an event to be sent, after
-                 * this event was sent by the Registrar, but prior to the 
-                 * lookup call synchronizing state with the Registrar.  We need
-                 * to be careful, that state changes that are duplicated
-                 * are idempotent in this case, when ServiceEvents are 
-                 * allowed to resume.
-                 */
-            }
-            delta = eReg.updateSeqNo(seqNo);
-        }
         if (delta == 1) {
             //no gap, handle current event
+            ServiceDiscoveryManager.logger.log(Level.FINE, "No gap, handle current ServiceEvent");
             /* Fix for Bug ID 4378751. The conditions described by that
              * bug involve a ServiceItem (corresponding to a previously
              * discovered service ID) having a null service field. A
@@ -1124,16 +1115,17 @@ final class LookupCacheImpl implements LookupCache {
             } //endif(transition)
             return;
         } 
-        if (delta == 0) return; // Repeat event, ignore.
-        if (delta < 0) return; // Old event, ignore.
-        try {
-            //gap in event sequence, request snapshot
-            lookup(reg);
-        } finally {
-            synchronized (eReg) {
-                eReg.releaseEvents(); // Resume processing ServiceEvents.
-            }
-        }
+        if (delta == 0) {// Repeat event, ignore.
+            ServiceDiscoveryManager.logger.log(Level.FINE, "Repeat ServiceEvent, ignore");
+            return;
+        } 
+        if (delta < 0) { // Old event, ignore.
+            ServiceDiscoveryManager.logger.log(Level.FINE, "Old ServiceEvent, ignore");
+            return;
+        } 
+        //gap in event sequence, request snapshot
+        ServiceDiscoveryManager.logger.log(Level.FINE, "Gap in ServiceEvent sequence, performing lookup");
+        lookup(reg);
     }
     /**
      * Requests a "snapshot" of the given registrar's state.
@@ -1168,13 +1160,9 @@ final class LookupCacheImpl implements LookupCache {
             Map.Entry<ServiceID, ServiceItemReg> e = iter.next();
             ServiceID srvcID = e.getKey();
             ServiceItem itemInSnapshot = findItem(srvcID, items);
-            if (itemInSnapshot != null) {
-                continue; //not an orphan
-            }
-            if (Thread.currentThread().isInterrupted()) {
-                continue; // skip
-            }
-            DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(this, reg.getProxy(), false);
+            if (itemInSnapshot != null) continue; //not an orphan
+            if (Thread.currentThread().isInterrupted()) return; // skip
+            DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(this, reg.getProxy());
             serviceIdMap.computeIfPresent(srvcID, dlcl);
             if (dlcl.itemRegProxy != null) {
                 itemMatchMatchChange(srvcID, dlcl.itmReg, dlcl.itemRegProxy, dlcl.newItem, false);
@@ -1227,10 +1215,10 @@ final class LookupCacheImpl implements LookupCache {
              * The reg key is not placed into eventRegMap until the initial
              * lookup has completed.
              */
-//	    if (!eventRegMap.containsKey(reg)) {
-//		/* reg must have been discarded, simply return */
-//		return;
-//	    } //endif
+	    if (!eventRegMap.containsKey(reg)) {
+		/* reg must have been discarded, simply return */
+		return;
+	    } //endif
 	    // else
 	    itemReg = new ServiceItemReg(reg.getProxy(), item);
 	    ServiceItemReg existed = serviceIdMap.putIfAbsent(thisTaskSid, itemReg);
@@ -1612,8 +1600,8 @@ final class LookupCacheImpl implements LookupCache {
 	} catch (ConfigurationException e) {
 	    /* use default */
 	    eventNotificationExecutor = 
-                    new ThreadPoolExecutor(1, 30, 15, TimeUnit.SECONDS, 
-                            new ArrayBlockingQueue<Runnable>(20),
+                    new ThreadPoolExecutor(1, 1, 15L, TimeUnit.SECONDS, 
+                            new LinkedBlockingQueue<Runnable>(),
                             new NamedThreadFactory("SDM event notifier: " + toString(), false),
                             new ThreadPoolExecutor.CallerRunsPolicy());
 	}
@@ -1629,7 +1617,7 @@ final class LookupCacheImpl implements LookupCache {
             );
 	} catch (ConfigurationException e) {
 	    /* use default */
-	    cacheTaskMgr = new ThreadPoolExecutor(1, 10, 15, TimeUnit.SECONDS,
+	    cacheTaskMgr = new ThreadPoolExecutor(6, 6, 15L, TimeUnit.SECONDS,
                     new LinkedBlockingQueue<Runnable>(),
                     new NamedThreadFactory("SDM lookup cache: " + toString(), false)
             );
@@ -1653,7 +1641,7 @@ final class LookupCacheImpl implements LookupCache {
 	});
 	cacheTaskDepMgr = new CacheTaskDependencyManager(cacheTaskMgr);
 	/* Get a special-purpose task manager for this cache from the
-	 * configuration. That task manager will be used to manage the
+	 * configuration. That Executor will be used to manage the
 	 * various instances of the special-purpose task, executed by
 	 * this instance of the lookup cache, that waits on verification
 	 * events after a previousy discovered service has been discarded.
@@ -1663,18 +1651,18 @@ final class LookupCacheImpl implements LookupCache {
                 sdm.thisConfig.getEntry(
                     ServiceDiscoveryManager.COMPONENT_NAME,
                     "discardExecutorService",
-                    ExecutorService.class
+                    ScheduledExecutorService.class
                 );
 	} catch (ConfigurationException e) {
 	    /* use default */
 	    serviceDiscardTimerTaskMgr = 
-                new ThreadPoolExecutor(1, 10, 15, TimeUnit.SECONDS,
-                    new LinkedBlockingQueue<Runnable>(),
+                new ScheduledThreadPoolExecutor(
+                    4,
                     new NamedThreadFactory("SDM discard timer: " + toString(), false)
                 );
 	}
         /* ExecutorService for processing incoming events.
-         *
+         * 
          */
         try {
             incomingEventExecutor = sdm.thisConfig.getEntry(
@@ -1684,13 +1672,28 @@ final class LookupCacheImpl implements LookupCache {
             );
         } catch (ConfigurationException e){
             incomingEventExecutor = 
-                new ThreadPoolExecutor(1, 16, 15, TimeUnit.SECONDS,
-                    new LinkedBlockingQueue(),
-                    new NamedThreadFactory("SDM ServiceEvent: " + this.toString(), false),
+                new ThreadPoolExecutor(1, 1, 15L, TimeUnit.SECONDS,
+                    new PriorityBlockingQueue(256),
+                    new NamedThreadFactory("SDM ServiceEvent: " + toString(), false),
                     new ThreadPoolExecutor.DiscardPolicy()
                 );
         }
-        
+        incomingEventExecutor = new ExtensibleExecutorService(incomingEventExecutor,
+            new ExtensibleExecutorService.RunnableFutureFactory()
+            {
+
+                @Override
+                public <T> RunnableFuture<T> newTaskFor(Runnable r, T value) {
+                    return new ComparableFutureTask<>(r,value);
+                }
+
+                @Override
+                public <T> RunnableFuture<T> newTaskFor(Callable<T> c) {
+                    return new ComparableFutureTask<>(c);
+                }
+                
+            }
+        );
 	// Moved here from constructor to avoid publishing this reference
 	lookupListenerProxy = lookupListener.export();
 	Iterator<ProxyReg> it = sdm.proxyRegSet.iterator();
@@ -1698,6 +1701,43 @@ final class LookupCacheImpl implements LookupCache {
 	    addProxyReg(it.next());
 	}
     } //end LookupCacheImpl.initCache
+    
+    /**
+     * This enables a BlockingPriorityQueue to arrange tasks in an
+     * ExecutorService.
+     * 
+     * @param <V> 
+     */
+    private static class ComparableFutureTask<V> extends FutureTask<V> 
+                                implements Comparable<ComparableFutureTask> 
+    {
+        
+        private final Object task;
+
+        public ComparableFutureTask(Runnable runnable, V result) {
+            super(runnable, result);
+            task = runnable;
+        }
+        
+        public ComparableFutureTask(Callable<V> callable){
+            super(callable);
+            task = callable;
+        }
+
+        @Override
+        public int compareTo(ComparableFutureTask o) {
+            if (task instanceof Comparable && o.task instanceof Comparable){
+                return ((Comparable)task).compareTo(o.task);
+            }
+            ServiceDiscoveryManager.logger.log(
+                    Level.FINEST, 
+                    "task not instanceof Comparable {0}",
+                    task.getClass().getCanonicalName()
+            );
+            return 0;
+        }
+
+    }
 
     /**
      * Applies the first-stage <code>filter</code> associated with the current
@@ -1776,7 +1816,7 @@ final class LookupCacheImpl implements LookupCache {
         }//endif
         PostEventState pes = 
                 new PostEventState(this, itemReg, item, filteredItem, sendEvent,
-                        pass, discardRetryLater, addFilteredItemToMap);
+                        pass, discardRetryLater, addFilteredItemToMap, sdm.getDiscardWait());
         serviceIdMap.computeIfPresent(srvcID, pes);
         if (pes.notifyRemoved && pes.oldFilteredItem != null) {
             removeServiceNotify(pes.oldFilteredItem);
@@ -1797,10 +1837,12 @@ final class LookupCacheImpl implements LookupCache {
         boolean notifyRemoved = false;
         final ServiceItemReg expected;
         final LookupCacheImpl cache;
+        final long discardWait;
         
         PostEventState(LookupCacheImpl cache, ServiceItemReg itemReg,
                 ServiceItem item, ServiceItem filteredItem, boolean sendEvent,
-                boolean pass, boolean discardRetryLater, boolean addFilteredItemToMap)
+                boolean pass, boolean discardRetryLater,
+                boolean addFilteredItemToMap, long discardWait)
         {
             this.cache = cache;
             this.expected = itemReg;
@@ -1810,6 +1852,7 @@ final class LookupCacheImpl implements LookupCache {
             this.pass = pass;
             this.discardRetryLater = discardRetryLater;
             this.addFilteredItemToMap = addFilteredItemToMap;
+            this.discardWait = discardWait;
         }
 
         @Override
@@ -1831,15 +1874,11 @@ final class LookupCacheImpl implements LookupCache {
             } //endif(fail)
             if (addFilteredItemToMap){
                 /**
-                 * Convenience method called by <code>filterMaybeDiscard</code> that finds
-                 * the <code>ServiceItemReg</code> element in the <code>serviceIdMap</code>
-                 * that corresponds to the given <code>ServiceItem</code> and, if such an
-                 * element is found, replaces the <code>item</code> field of that element
+                 * Replaces the <code>item</code> field of itemReg
                  * with the given <code>item</code> parameter; and sets the
-                 * <code>filteredItem</code> field of that element to the value contained in
+                 * <code>filteredItem</code> field of itemReg to the value contained in
                  * the <code>filteredItem</code> parameter.
                  */
-//                filteredItemPass = addFilteredItemToMap(item, filteredItem, itemReg);
                 cache.cancelDiscardTask(id);
                 itemReg.replaceProxyUsedToTrackChange(null, item);
                 itemReg.setFilteredItem(filteredItem);
@@ -1848,16 +1887,10 @@ final class LookupCacheImpl implements LookupCache {
             /* Handle filter indefinite */
             if (discardRetryLater){
                 /**
-                 * Convenience method called by <code>filterMaybeDiscard</code> that finds
-                 * in the <code>serviceIdMap</code>, the <code>ServiceItemReg</code> element
-                 * corresponding to the given <code>ServiceItem</code>, sets a service
+                 * Sets a service
                  * removed event, and queues a <code>ServiceDiscardTimerTask</code> to retry
-                 * the filter at a later time. If the <code>serviceIdMap</code> does not
-                 * contain a <code>ServiceItemReg</code> corresponding to the given
-                 * <code>ServiceItem</code>, then this method simply returns.
-                 */
-//                discardRetryLater(item, sendEvent, itemReg);
-                /* If there's been any change in what is being discarded for
+                 * the filter at a later time.
+                 * If there's been any change in what is being discarded for
                  * filter retry, then update the item field in the map to
                  * capture that change; and set the filteredItem field to
                  * to null to guarantee that the filter is re-applied to
@@ -1866,11 +1899,14 @@ final class LookupCacheImpl implements LookupCache {
                 if (itemReg.discard()) {
                     itemReg.replaceProxyUsedToTrackChange(null, item);
                     itemReg.setFilteredItem(null);
-                    Future f = cache.serviceDiscardTimerTaskMgr.submit(new ServiceDiscardTimerTask(cache, item.serviceID));
+                    Future f = cache.serviceDiscardTimerTaskMgr.schedule(
+                            new ServiceDiscardTimerTask(cache, item.serviceID),
+                            discardWait,
+                            TimeUnit.MILLISECONDS
+                    );
                     cache.serviceDiscardFutures.put(item.serviceID, f);
                     if (sendEvent) {
                         notifyRemoved = true;
-//                        removeServiceNotify(oldFilteredItem); // Maybe send anyway?
                     }
                 }
             }
@@ -1887,7 +1923,7 @@ final class LookupCacheImpl implements LookupCache {
      * discarded; otherwise, sends a removed event.
      */
     private void handleMatchNoMatch(ServiceRegistrar proxy, ServiceID srvcID) {
-        DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(this, proxy, false);
+        DissociateLusCleanUpOrphan dlcl = new DissociateLusCleanUpOrphan(this, proxy);
         serviceIdMap.computeIfPresent(srvcID, dlcl);
         if (dlcl.itemRegProxy != null) {
             itemMatchMatchChange(srvcID, dlcl.itmReg, dlcl.itemRegProxy, dlcl.newItem, false);
@@ -1910,9 +1946,8 @@ final class LookupCacheImpl implements LookupCache {
         ServiceItemReg itmReg;
         ServiceItem newItem;
         ServiceItem filteredItem;
-        boolean leaveOrphan;
         
-        DissociateLusCleanUpOrphan(LookupCacheImpl cache, ServiceRegistrar proxy, boolean leaveOrphan){
+        DissociateLusCleanUpOrphan(LookupCacheImpl cache, ServiceRegistrar proxy){
             this.itmReg = null;
             this.notify = false;
             this.itemRegProxy = null;
@@ -1920,7 +1955,6 @@ final class LookupCacheImpl implements LookupCache {
             this.proxy = proxy;
             this.newItem = null;
             this.filteredItem = null;
-            this.leaveOrphan = leaveOrphan;
         }
         
         @Override
@@ -1932,12 +1966,9 @@ final class LookupCacheImpl implements LookupCache {
                 itemRegProxy = itemReg.getProxy();
             } 
             /**
-             * The lookup method must not execute the next block of code, if
-             * it does so, it may remove ServiceItemReg's that are about to 
-             * be updated.  This section of code should only be executed after
-             * receiving a MATCH_NOMATCH event or when a Registrar is discarded.
+             *
              */
-            else if (!leaveOrphan && itemReg.hasNoProxys()) {
+            else if (itemReg.hasNoProxys()) {
                 if (itemReg.isDiscarded()) {
                     /* Remove item from map and wake up the discard task */
                     itmReg = null;
