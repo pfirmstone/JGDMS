@@ -133,14 +133,14 @@ final class ServiceItemReg {
      * @return the filteredItem
      */
     public ServiceItem getFilteredItem() {
-        return filteredItem;
+        return filteredItem == null ? null : filteredItem.clone();
     }
 
     /**
      * @param filteredItem the filteredItem to set
      */
     public void setFilteredItem(ServiceItem filteredItem) {
-        this.filteredItem = filteredItem;
+        this.filteredItem = filteredItem == null ? null : filteredItem.clone();
     }
 
     /**

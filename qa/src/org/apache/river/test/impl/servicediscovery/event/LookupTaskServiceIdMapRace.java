@@ -32,29 +32,20 @@ import net.jini.lookup.LookupCache;
 import net.jini.lookup.ServiceDiscoveryEvent;
 import net.jini.lookup.ServiceDiscoveryManager;
 
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.lookup.ServiceRegistrar;
-
-import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
 /**
- * This test attempts to simulate the following race condition that
- * can occur between an instance of UnmapProxyTask (created and queued
- * in LookupTask) and instances of NewOldServiceTask that are created
- * and queued by NotifyEventTask:
+ * Tests the LookupCache reports the correct number of services added and
+ * no services removed,
+ * when registering with a lookup service to receive event notifications 
+ * of services added, while querying the lookup service to establish the cache's
+ * initial state and receiving events at the same time.
  *
  * - 1 LUS {L0}
  * - N (~250) services {s0, s1, ..., sN-1}, to be registered in L0
  * - M (~24) SDMs, each with 1 cache with template matching all si's
  *   {SDM_0/C0, SDM_1/C1, ... SDM_M-1/CM-1}
- *
- * Through the shear number of service registrations, caches, and events,
- * this test attempts to produce the conditions that cause the regular
- * occurrence of the race between an instance of UnmapProxyTask and
- * instances of NewOldServiceTask produced by NotifyEventTask when a
- * service event is received from L0.
  *
  * This test starts lookup L0 during construct. Then, when the test begins
  * running, half the services are registered with L0, followed by the
@@ -68,20 +59,47 @@ import java.util.logging.Level;
  * When an SDM_i/cach_i pair is created, an instance of RegisterListenerTask
  * is queued and executed. RegisterListenerTask registers a remote event
  * listener with L0's event mechanism. When the services are registered with
- * L0, that listener receives service events; which causes NotifyEventTask
+ * L0, that listener receives service events; which causes HandleServiceEventTask
  * to be queued and executed. After RegisterListerTask registers for events
- * with L0, but before RegisterListenerTask exits, an instance of LookupTask
- * is queued and executed. LookupTask retrieves from L0 a "snapshot" of its
+ * with L0, but before RegisterListenerTask exits, lookup is executed.
+ * The lookup(ProxyReg) method retrieves from L0 a "snapshot" of its
  * state. Thus, while events begin to arrive informing each cache of the
- * services that are registering with L0, LookupTask is querying L0 for
+ * services that are registering with L0, lookup is querying L0 for
  * its current state.
  *                   
- * Upon receipt of a service event, NotifyEventTask queues a NewOldServiceTask
+ * Upon receipt of a contiguous service event, HandleServiceEventTask calls newOldService
  * to determine if the service corresponding to the event represents a new
  * service that has been added, a change to a previously-registered service,
  * or the removal of a service from L0. If the event corresponds to a newly
  * registered service, the service is added to the cache's serviceIdMap and
  * a serviceAdded event is sent to any listeners registered with the cache.
+ * 
+ * Upon receipt of a non contiguous service event, after a half second delay,
+ * waiting for a contiguous event, the HandleServiceEventTask calls
+ * lookup to refresh the cache, which in turn calls newOldService to 
+ * determine if the service corresponding to the event represents a new
+ * service that has been added, a change to a previously-registered service,
+ * or the removal of a service from L0. If the event corresponds to a newly
+ * registered service, the service is added to the cache's serviceIdMap and
+ * a serviceAdded event is sent to any listeners registered with the cache.
+ * 
+ * Lookup, discard and event processing are now mutually exclusive for each
+ * EventRegistration (implemented in EventReg), event's remain enqueued 
+ * until the EventReg releases events.
+ * 
+ * <B>Historical (the implementation has changed):</B>
+ * 
+ * This test attempts to simulate the following race condition that
+ * can occur between an instance of UnmapProxyTask (created and queued
+ * in LookupTask) and instances of NewOldServiceTask that are created
+ * and queued by NotifyEventTask:
+ * 
+ * Through the shear number of service registrations, caches, and events,
+ * this test attempts to produce the conditions that cause the regular
+ * occurrence of the race between an instance of UnmapProxyTask and
+ * instances of NewOldServiceTask produced by NotifyEventTask when a
+ * service event is received from L0.
+ * 
  * That is,
  *
  * Service event received

@@ -22,6 +22,7 @@ import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,8 +30,14 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -60,6 +67,7 @@ import net.jini.security.ProxyPreparer;
 import org.apache.river.action.GetLongAction;
 import org.apache.river.logging.Levels;
 import org.apache.river.lookup.entry.LookupAttributes;
+import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * The <code>ServiceDiscoveryManager</code> class is a helper utility class that
@@ -275,7 +283,7 @@ import org.apache.river.lookup.entry.LookupAttributes;
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  * Default: <td> <code>new
  *             {@link java.util.concurrent/ThreadPoolExecutor
- *                     ThreadPoolExecutor}( 1, 1, 15, TimeUnit.SECONDS, new PriorityBlockingQueue(256),
+ *                     ThreadPoolExecutor}( 2, 2, 15, TimeUnit.SECONDS, new PriorityBlockingQueue(256),
  * new NamedThreadFactory( "SDM ServiceEvent: " +toString(), false ))</code>
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
@@ -290,6 +298,10 @@ import org.apache.river.lookup.entry.LookupAttributes;
  * executor is very unlikely to perform unnecessary lookup's, while a
  * ThreadPoolExecutor with 4 threads will perform lookup for about 1% of cases.  
  * This can be measured by setting the SDM logger to fine.
+ * <p>
+ * There is however an issue that does occur when running a single threaded
+ * executor, the lookup events that occur, seem to occur because of a problem
+ * when registering 
  * <p>
  * For the purpose of testing, it is beneficial to use a ThreadPoolExecutor with
  * numerous threads, as this will test the alternate execution paths that 
@@ -497,8 +509,6 @@ import org.apache.river.lookup.entry.LookupAttributes;
  * Description:
  * <td> Preparer for bootstrap proxy results returned by lookup services 
  * that are discovered and used by this utility.
- * This item is used only by the service discovery
- * manager, and not by any cache that is created.
  * <p>
  * The following methods of the proxy returned by this preparer are invoked by
  * this utility:
@@ -528,8 +538,9 @@ import org.apache.river.lookup.entry.LookupAttributes;
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  * Description:
- * <td> When true, ServiceDiscoveryManager and LookupCache use {@link net.jini.core.lookup.ServiceRegistrar#lookup(net.jini.core.lookup.ServiceTemplate, int) 
- * instead of {@link net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int) 
+ * <td> When true, ServiceDiscoveryManager and LookupCache use 
+ * {@link net.jini.core.lookup.ServiceRegistrar#lookup(net.jini.core.lookup.ServiceTemplate, int)}
+ * instead of {@link net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int)}
  * to perform service discovery.
  * </table>
  * </a>
@@ -654,15 +665,45 @@ public class ServiceDiscoveryManager {
     final ProxyPreparer bootstrapProxyPreparer;
     final boolean useInsecureLookup;
     private final static String DISCARD_PROPERTY = "org.apache.river.sdm.discardWait";
+    private static final ExecutorService logExec = Executors.newSingleThreadExecutor(new NamedThreadFactory("SDM logger", false));
+    
+    static void log(Level level, String message){
+        log(level, message, null, null);
+    }
+    
+    static void log(Level level, String message, Throwable thrown){
+        log(level, message, null, thrown);
+    }
+    
+    static void log(Level level, String message, Object[] parameters){
+        log(level, message, parameters, null);
+    }
+    
+    static void log(Level level, String message, Object[] parameters, Throwable thrown){
+        LogRecord record = new LogRecord(level, message);
+        record.setParameters(parameters);
+        record.setThrown(thrown);
+        logExec.submit(() -> { logger.log(record);});
+    }
 
+    static void logp(Level logLevel, String sourceClass, String sourceMethod, String message, Throwable thrown) {
+        LogRecord record = new LogRecord(logLevel, message);
+        record.setSourceClassName(sourceClass);
+        record.setSourceMethodName(sourceMethod);
+        record.setThrown(thrown);
+        logExec.submit(() -> { logger.log(record);});
+    }
     /**
      * @return the discardWait
      */
     long getDiscardWait() {
         long disWait = AccessController.doPrivileged(new GetLongAction(DISCARD_PROPERTY, discardWait));
-        logger.log(Level.FINEST, "discard wait = {0}", disWait);
+        if (logger.isLoggable(Level.FINEST))
+            log(Level.FINEST, "discard wait = {0}", new Object[]{ disWait});
         return disWait;
     }
+
+    
 
 
     /**
@@ -732,7 +773,8 @@ public class ServiceDiscoveryManager {
                         cache.terminate();
                     }
                 } catch (InterruptedException ex) {
-                    logger.log(Level.FINEST, "SDM lookup cache terminator interrupted", ex);
+                    if (logger.isLoggable(Level.FINEST))
+                        log(Level.FINEST, "SDM lookup cache terminator interrupted", ex);
                     Thread.currentThread().interrupt();
                 }
             }
@@ -766,10 +808,14 @@ public class ServiceDiscoveryManager {
     /* The LeaseRenewalManager to use (passed in, or create one). */
     final LeaseRenewalManager leaseRenewalMgr;
     /* Contains all of the discovered lookup services (ServiceRegistrar). */
+    final WriteLock proxyRegSetWrite;
+    final ReadLock proxyRegSetRead;
     final Set<ProxyReg> proxyRegSet;
     /* Random number generator for use in lookup. */
     final Random random = new Random();
     /* Contains all of the instances of LookupCache that are requested. */
+    final WriteLock cachesWrite;
+    final ReadLock cachesRead;
     private final List<LookupCache> caches;
 
     /* Flag to indicate if the ServiceDiscoveryManager has been terminated. */
@@ -800,17 +846,20 @@ public class ServiceDiscoveryManager {
         @Override
         public void discovered(DiscoveryEvent e) {
             ServiceRegistrar[] proxys = e.getRegistrars();
-            ArrayList<ProxyReg> newProxys = new ArrayList<ProxyReg>(1);
-            for (int i = 0; i < proxys.length; i++) {
+            for (int i = 0, l = proxys.length; i < l; i++) {
                 /* Prepare each lookup service proxy before using it. */
                 try {
                     proxys[i]
                             = (ServiceRegistrar) registrarPreparer.prepareProxy(proxys[i]);
-                    logger.log(Level.FINEST, "ServiceDiscoveryManager - "
+                    if (logger.isLoggable(Level.FINEST)){
+                        log(Level.FINEST, "ServiceDiscoveryManager - "
                             + "discovered lookup service proxy prepared: {0}",
-                            proxys[i]);
+                            new Object []{proxys[i]}
+                        );
+                    }
                 } catch (Exception e1) {
-                    logger.log(Level.INFO,
+                    if (logger.isLoggable(Level.INFO))
+                        log(Level.INFO,
                             "failure preparing discovered ServiceRegistrar "
                             + "proxy, discarding the proxy",
                             e1);
@@ -818,15 +867,15 @@ public class ServiceDiscoveryManager {
                     continue;
                 }
                 ProxyReg reg = new ProxyReg(proxys[i]);
+                boolean added;
                 // Changed to only add to newProxys if actually new 7th Jan 2014
-                if (proxyRegSet.add(reg)) {
-                    newProxys.add(reg);
+                proxyRegSetWrite.lock();
+                try{
+                    added = proxyRegSet.add(reg);
+                } finally {
+                    proxyRegSetWrite.unlock();
                 }
-            }//end loop
-            Iterator<ProxyReg> iter = newProxys.iterator();
-            while (iter.hasNext()) {
-                ProxyReg reg = iter.next();
-                cacheAddProxy(reg);
+                if (added) cacheAddProxy(reg);
             }//end loop
         }//end DiscMgrListener.discovered
 
@@ -841,7 +890,8 @@ public class ServiceDiscoveryManager {
                     drops.add(reg);
                 } else {
                     //River-337
-                    logger.severe("discard error, proxy was null");
+                    if (logger.isLoggable(Level.SEVERE))
+                        log(Level.SEVERE, "discard error, proxy was null");
                     //throw new RuntimeException("discard error");
                 }//endif
             }//end loop
@@ -864,12 +914,15 @@ public class ServiceDiscoveryManager {
      * Adds the given proxy to all the caches maintained by the SDM.
      */
     private void cacheAddProxy(ProxyReg reg) {
-        synchronized (caches) {
+        cachesRead.lock();
+        try{
             Iterator iter = caches.iterator();
             while (iter.hasNext()) {
                 LookupCacheImpl cache = (LookupCacheImpl) iter.next();
                 cache.addProxyReg(reg);
             }//end loop
+        } finally { 
+            cachesRead.unlock();
         }
     }//end cacheAddProxy
 
@@ -877,12 +930,15 @@ public class ServiceDiscoveryManager {
      * Removes the given proxy from all the caches maintained by the SDM.
      */
     private void dropProxy(ProxyReg reg) {
-        synchronized (caches) {
+        cachesRead.lock();
+        try {
             Iterator iter = caches.iterator();
             while (iter.hasNext()) {
                 LookupCacheImpl cache = (LookupCacheImpl) iter.next();
                 cache.removeProxyReg(reg);
             }//end loop
+        } finally {
+            cachesRead.unlock();
         }
     }//end dropProxy
 
@@ -1112,8 +1168,15 @@ public class ServiceDiscoveryManager {
     }//end constructor
 
     private ServiceDiscoveryManager(Initializer init) {
-        this.proxyRegSet = Collections.newSetFromMap(new ConcurrentHashMap<ProxyReg, Boolean>());
-        this.caches = new ArrayList<LookupCache>(32);
+        // Key's added only if absent.
+        this.proxyRegSet = new HashSet<>();
+        ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
+        proxyRegSetRead = rwl.readLock();
+        proxyRegSetWrite = rwl.writeLock();
+        this.caches = new ArrayList<>(32);
+        ReentrantReadWriteLock rwl2 = new ReentrantReadWriteLock();
+        cachesWrite = rwl2.writeLock();
+        cachesRead = rwl2.readLock();
         thisConfig = init.thisConfig;
         registrarPreparer = init.registrarPreparer;
         eventLeasePreparer = init.eventLeasePreparer;
@@ -1134,12 +1197,17 @@ public class ServiceDiscoveryManager {
      * Returns array of ServiceRegistrar created from the proxyRegSet
      */
     private ServiceRegistrar[] buildServiceRegistrar() {
-        List<ServiceRegistrar> proxys = new LinkedList<ServiceRegistrar>();
-        Iterator<ProxyReg> iter = proxyRegSet.iterator();
-        while (iter.hasNext()) {
-            ProxyReg reg = iter.next();
-            proxys.add(reg.getProxy());
-        }//end loop
+        List<ServiceRegistrar> proxys = new LinkedList<>();
+        proxyRegSetRead.lock();
+        try {
+            Iterator<ProxyReg> iter = proxyRegSet.iterator();
+            while (iter.hasNext()) {
+                ProxyReg reg = iter.next();
+                proxys.add(reg.getProxy());
+            }//end loop
+        } finally {
+            proxyRegSetRead.unlock();
+        }
         return proxys.toArray(new ServiceRegistrar[proxys.size()]);
     }//end buildServiceRegistrar
 
@@ -1238,7 +1306,8 @@ public class ServiceDiscoveryManager {
 		if (matches == null) continue;
                 sItem = getMatchedServiceItem(matches, filter);
             } catch (Exception e) {
-                logger.log(Level.INFO,
+                if (logger.isLoggable(Level.INFO))
+                    log(Level.INFO,
                         "Exception occurred during query, discarding proxy",
                         e);
                 discard(proxy);
@@ -1517,8 +1586,11 @@ public class ServiceDiscoveryManager {
         terminatorThread.interrupt();
         /* Terminate all caches: cancel event leases, un-export listeners */
         List<LookupCache> terminate;
-        synchronized (caches) {
+        cachesRead.lock();
+        try{
             terminate = new ArrayList<LookupCache>(caches);
+        } finally {
+            cachesRead.unlock();
         }
         Iterator iter = terminate.iterator();
         while (iter.hasNext()) {
@@ -1675,9 +1747,9 @@ public class ServiceDiscoveryManager {
                         }
                     }                
 		} catch (Exception e) {
-                    logger.log(Level.INFO,
-                            "Exception occurred during query, "
-                            + "discarding proxy",
+                    if (logger.isLoggable(Level.INFO))
+                        log(Level.INFO,
+                            "Exception occurred during query, discarding proxy",
                             e);
                     discard(proxy);
                 }
@@ -1948,7 +2020,8 @@ public class ServiceDiscoveryManager {
 		// service proxy using ServiceProxyAccessor.
 		if (filter.check(item)) return item;
 	    } catch (SecurityException | ClassCastException ex){
-		logger.log(Level.FINE, 
+                if (logger.isLoggable(Level.FINE))
+                    log(Level.FINE, 
 		    "Exception thrown while filtering ServiceItem containing bootstrap proxy, downloading service proxy and trying again, suggest rewriting your filter", ex);
 		// If ClassCastException, then filter has attempted to cast the
 		// bootstrap proxy to the service type, it is likely to be 
@@ -1964,7 +2037,8 @@ public class ServiceDiscoveryManager {
 	    } 
 	    return null;
 	} catch (IOException ex) {
-	    logger.log(Level.FINE, "IOException thrown while checking bootstrapProxy, filtering and downloading service proxy", ex);
+            if (logger.isLoggable(Level.FINE))
+                log(Level.FINE, "IOException thrown while checking bootstrapProxy, filtering and downloading service proxy", ex);
 	    return null;
 	}
     }
@@ -1989,10 +2063,14 @@ public class ServiceDiscoveryManager {
         }
         LookupCacheImpl cache = new LookupCacheImpl(tmpl, filter, listener, leaseDuration, this);
         cache.initCache();
-        synchronized (caches) {
+        cachesWrite.lock();
+        try {
             caches.add(cache);
+        } finally {
+            cachesWrite.unlock();
         }
-        logger.finest("ServiceDiscoveryManager - LookupCache created");
+        if (logger.isLoggable(Level.FINEST))
+            log(Level.FINE, "ServiceDiscoveryManager - LookupCache created");
         return cache;
     }//end createLookupCache
     
@@ -2002,9 +2080,12 @@ public class ServiceDiscoveryManager {
      * @return true if removed.
      */
     boolean removeLookupCache(LookupCache cache){
-	synchronized (caches) {
-	    return caches.remove(cache);
-	}
+        cachesWrite.lock();
+        try {
+            return caches.remove(cache);
+        } finally {
+            cachesWrite.unlock();
+        }
     }
 
     /**
@@ -2012,18 +2093,14 @@ public class ServiceDiscoveryManager {
      * given proxy.
      */
     ProxyReg removeReg(ServiceRegistrar proxy) {
-        Iterator<ProxyReg> iter = proxyRegSet.iterator();
-        while (iter.hasNext()) {
-            ProxyReg reg = iter.next();
-            // ProxyReg hashcode is same as proxy - optimisation
-            if (reg.hashCode() == proxy.hashCode()) {
-                if (reg.getProxy().equals(proxy)) {
-                    iter.remove();
-                    return reg;
-                }
-            }
-        }//end loop
-        return null;
+        ProxyReg pReg = new ProxyReg(proxy);
+        proxyRegSetWrite.lock();
+        try{
+            if(proxyRegSet.remove(pReg)) return pReg;
+            return null;
+        } finally {
+            proxyRegSetWrite.unlock();
+        }
     }//end removeReg
 
     /**
@@ -2063,7 +2140,7 @@ public class ServiceDiscoveryManager {
             }//endif
         }//end sync(this)
         if ((e != null) && (logger.isLoggable(logLevel))) {
-            logger.logp(logLevel, sourceClass, sourceMethod, msg, e);
+            logp(logLevel, sourceClass, sourceMethod, msg, e);
         }//endif
         try {
             if (discardProxy) {
@@ -2071,12 +2148,14 @@ public class ServiceDiscoveryManager {
             }
         } catch (IllegalStateException e1) {
             if (logger.isLoggable(logLevel)) {
-                logger.logp(logLevel,
-                        sourceClass,
-                        sourceMethod,
-                        "failure discarding lookup service proxy, "
-                        + "discovery manager already terminated",
-                        e1);
+                logp(
+                    logLevel,
+                    sourceClass,
+                    sourceMethod,
+                    "failure discarding lookup service proxy, "
+                    + "discovery manager already terminated",
+                    e1
+                );
             }//endif
         }
     }//end fail
@@ -2095,7 +2174,8 @@ public class ServiceDiscoveryManager {
         try {
             leaseRenewalMgr.cancel(lease);
         } catch (Exception e) {
-            logger.log(Level.FINER,
+            if (logger.isLoggable(Level.FINER))
+                log(Level.FINER,
                     "exception occurred while cancelling an event "
                     + "registration lease",
                     e);
@@ -2138,8 +2218,11 @@ public class ServiceDiscoveryManager {
          */
         Lease eventLease = e.getLease();
         eventLease = (Lease) eventLeasePreparer.prepareProxy(eventLease);
-        logger.log(Level.FINEST, "ServiceDiscoveryManager - proxy to event "
-                + "registration lease prepared: {0}", eventLease);
+        if (logger.isLoggable(Level.FINEST))
+            log(Level.FINEST, 
+                "ServiceDiscoveryManager - proxy to event registration lease prepared: {0}", 
+                new Object []{eventLease}
+            );
         /* Management the lease on the event registration */
         leaseRenewalMgr.renewFor(eventLease,
                 duration,
@@ -2234,7 +2317,7 @@ public class ServiceDiscoveryManager {
                 ProxyPreparer.class,
                 new BasicProxyPreparer());
 	init.bootstrapProxyPreparer = init.thisConfig.getEntry(COMPONENT_NAME,
-                "bootstrapProxyPreparer",
+                "bootstrapPreparer",
                 ProxyPreparer.class,
                 new BasicProxyPreparer());
         /* Lease renewal manager */
