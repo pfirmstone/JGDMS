@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -29,7 +28,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -64,6 +62,7 @@ import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.action.GetBooleanAction;
 import org.apache.river.action.GetLongAction;
 import org.apache.river.logging.Levels;
 import org.apache.river.lookup.entry.LookupAttributes;
@@ -533,7 +532,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * Type: <td> {@link java.lang.Boolean}
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- * Default: <td> <code>new {@link java.lang.Boolean#FALSE}()
+ * Default: <td> <code>new {@link java.lang.Boolean}("FALSE")
  * </code>
  *
  * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
@@ -665,6 +664,7 @@ public class ServiceDiscoveryManager {
     final ProxyPreparer bootstrapProxyPreparer;
     final boolean useInsecureLookup;
     private final static String DISCARD_PROPERTY = "org.apache.river.sdm.discardWait";
+    private final static String INSECURE_LOOKUP_PROPERTY = "org.apache.river.sdm.insecureLookup";
     private static final ExecutorService logExec = Executors.newSingleThreadExecutor(new NamedThreadFactory("SDM logger", false));
     
     static void log(Level level, String message){
@@ -701,6 +701,19 @@ public class ServiceDiscoveryManager {
         if (logger.isLoggable(Level.FINEST))
             log(Level.FINEST, "discard wait = {0}", new Object[]{ disWait});
         return disWait;
+    }
+
+    /**
+     * @return the useInsecureLookup
+     */
+    boolean isUseInsecureLookup() {
+        if (AccessController.doPrivileged(new GetBooleanAction(INSECURE_LOOKUP_PROPERTY))) {
+            if (logger.isLoggable(Level.CONFIG)){
+                log(Level.CONFIG, "useInsecureLookup = {0}", new Object[]{true});
+            }
+            return true;
+        }
+        return useInsecureLookup;
     }
 
     
@@ -1297,7 +1310,7 @@ public class ServiceDiscoveryManager {
             try {
                 int maxMatches = ((filter != null) ? Integer.MAX_VALUE : 1);
 		Object [] matches;
-		if (useInsecureLookup){
+		if (isUseInsecureLookup()){
 		    ServiceMatches sm = proxy.lookup(tmpl, maxMatches);
 		    matches = sm.items;
 		} else {
@@ -1709,7 +1722,7 @@ public class ServiceDiscoveryManager {
                     }
                     /* Query the current lookup for matching service(s). */
 		    Object [] result;
-		    if (useInsecureLookup){
+		    if (isUseInsecureLookup()){
 			ServiceMatches matches = proxy.lookup(tmpl, max);
 			result = matches.items;
 		    } else {
@@ -1732,7 +1745,7 @@ public class ServiceDiscoveryManager {
                         Object obj = result[(j + r) % nItems];
                         if (obj == null) continue;
 			ServiceItem sItem;
-			if (useInsecureLookup){
+			if (isUseInsecureLookup()){
 			    sItem = (ServiceItem) obj;
 			    if (!filterPassed(sItem, filter)) continue;
 			} else {
@@ -1969,7 +1982,7 @@ public class ServiceDiscoveryManager {
                 Object sItem = sm[(i + rand) % len];
                 if (sItem == null) continue;
 		ServiceItem item = null;
-		if (useInsecureLookup){
+		if (isUseInsecureLookup()){
 		    item = (ServiceItem) sItem;
 		    if (filterPassed(item, filter)) return item;
 		} else {
@@ -2061,7 +2074,7 @@ public class ServiceDiscoveryManager {
         if (tmpl == null) {
             tmpl = new ServiceTemplate(null, null, null);
         }
-        LookupCacheImpl cache = new LookupCacheImpl(tmpl, filter, listener, leaseDuration, this);
+        LookupCacheImpl cache = new LookupCacheImpl(tmpl, filter, listener, leaseDuration, this, isUseInsecureLookup());
         cache.initCache();
         cachesWrite.lock();
         try {
@@ -2202,7 +2215,7 @@ public class ServiceDiscoveryManager {
         int transition = (ServiceRegistrar.TRANSITION_NOMATCH_MATCH
                 | ServiceRegistrar.TRANSITION_MATCH_NOMATCH
                 | ServiceRegistrar.TRANSITION_MATCH_MATCH);
-	if (useInsecureLookup){
+	if (isUseInsecureLookup()){
 	    e = proxy.notify(tmpl, transition, listenerProxy, null, duration);
 	} else {
 	    e = proxy.notiFy(tmpl, transition, listenerProxy, null, duration);

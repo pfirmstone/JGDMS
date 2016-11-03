@@ -19,15 +19,15 @@ package org.apache.river.qa.harness;
 
 import java.io.File;
 import java.io.Serializable;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.net.URL;
-import java.rmi.server.RMIClassLoader;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.Properties;
+import java.util.Set;
 import java.util.StringTokenizer;
 import net.jini.loader.ClassLoading;
 
@@ -237,11 +237,13 @@ public class TestDescription implements Serializable {
      *                       or is empty
      */
     private void updateDescriptionProps(Properties props) throws TestException {
-	Enumeration keys = props.keys();
-	while (keys.hasMoreElements()) {
-	    String key = (String) keys.nextElement();
+	Set<Entry<Object,Object>> keys = props.entrySet();
+        Iterator <Entry<Object,Object>> it = keys.iterator();
+	while (it.hasNext()) {
+            Entry<Object,Object> ent = it.next();
+	    String key = (String) ent.getKey();
 	    if (keyOK(key)) {
-		properties.setProperty(key, (String) props.get(key));
+		properties.setProperty(key, (String) ent.getValue());
 	    }
 	}
     }
@@ -300,7 +302,7 @@ public class TestDescription implements Serializable {
 	}
 
 	/* not an 'include', so check for existance */
-	return (properties.getProperty(key) == null);
+	return (!properties.containsKey(key));
     }
 
     /**
@@ -636,6 +638,15 @@ public class TestDescription implements Serializable {
 	    }
 	    propAdd(cmdList, props[i], props[i + 1]);
         }
+        // Add test description properties
+        Properties tdProp = getProperties();
+        Set<Entry<Object,Object>> tdPropSet = tdProp.entrySet();
+        Iterator<Entry<Object,Object>> it = tdPropSet.iterator();
+        while (it.hasNext()){
+            Entry<Object,Object> ent = it.next();
+            propAdd(cmdList, (String) ent.getKey(), (String) ent.getValue());
+        }
+        
 	cmdList.add(getWrapperClassName());
 	String[] args = getTestArgs();
 	for (int i = 0; i < args.length; i++) {

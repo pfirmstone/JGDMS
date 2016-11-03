@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.Random;
@@ -69,6 +70,7 @@ import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.RFC3986URLClassLoader;
 import org.apache.river.start.ClassLoaderUtil;
 import org.apache.river.system.CommandLine.BadInvocationException;
@@ -289,12 +291,12 @@ public final class QAConfig implements Serializable {
 	this(arg.get("uniqueString", null, String.class),
 	    arg.get("overrideProviders", null, List.class),
 	    arg.get("failureAnalyzers", null, List.class),
-	    arg.get("configProps", null, Properties.class),
-	    arg.get("configSetProps", null, Properties.class),
-	    arg.get("defaultProps", null, Properties.class),
+	    (Properties) Valid.copyMap(arg.get("configProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
+	    (Properties) Valid.copyMap(arg.get("configSetProps", null, Map.class),(Map) new Properties(), String.class, String.class, 1),
+	    (Properties) Valid.copyMap(arg.get("defaultProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    arg.get("td", null, TestDescription.class),
-	    arg.get("dynamicProps", null, Properties.class),
-	    arg.get("propertyOverrides", null, Properties.class),
+	    (Properties) Valid.copyMap(arg.get("dynamicProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
+	    (Properties) Valid.copyMap(arg.get("propertyOverrides", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    arg.get("args", null, String[].class),
 	    arg.get("configTags", null, String[].class),
 	    arg.get("currentTag", null, String.class),
@@ -2385,6 +2387,7 @@ public final class QAConfig implements Serializable {
     String getParameterString(String key) {
 	String previousVal = "";
 	String val = defaultProps.getProperty(key);
+        logger.log(Level.FINER, "defaultProps for key: {0} returned: {1}", new Object[]{key, val});
 	String source = null;
 	try {
 	    if (val != null) {
@@ -2392,17 +2395,20 @@ public final class QAConfig implements Serializable {
 		previousVal = resolver.resolveReference(val, key, previousVal);
 	    }
 	    val = configSetProps.getProperty(key);
+            logger.log(Level.FINER, "configSetProps for key: {0} returned: {1}", new Object[]{key, val});
 	    if (val != null) {
 		source = "configurationSet property file";
 		previousVal = resolver.resolveReference(val, key, previousVal);
 	    }
 	    val = configProps.getProperty(key);
+            logger.log(Level.FINER, "configProps for key: {0} returned: {1}", new Object[]{key, val});
 	    if (val != null) {
 		source = "user configuration file";
 		previousVal = resolver.resolveReference(val, key, previousVal);
 	    }
 	    if (td != null) {
 		val = td.getProperty(key);
+                logger.log(Level.FINER, "td property for key: {0} returned: {1}", new Object[]{key, val});
 		if (val != null) {
 		    source = "test description properties";
 		    previousVal = 
@@ -2518,6 +2524,7 @@ public final class QAConfig implements Serializable {
      */
     private String getConfigurationName() throws TestException {
 	String name = "-";
+        logger.log(Level.FINER, "currentTag: {0}", currentTag);
 	if (!currentTag.equals("none")) {
 	    name = getStringConfigVal("testConfiguration", "-");
         }
@@ -2580,18 +2587,20 @@ public final class QAConfig implements Serializable {
 	try {
 	    String[] overrides = getTestOverrides();
 	    configName = getConfigurationName();
+            logger.log(Level.FINE, "Configuration name: {0}", configName);
 	    String[] options = new String[overrides.length + 1];
 	    options[0] = configName;
 	    System.arraycopy(overrides, 0, options, 1, overrides.length);
 	    logger.log(Level.FINER, "Test Configuration options:");
-	    for (int i = 0; i < options.length; i++) {
-		logger.log(Level.FINER, "   " + options[i]);
+	    for (int i = 0, l = options.length; i < l; i++) {
+		logger.log(Level.FINER, "   {0}", options[i]);
 	    }
 	    if (currentTag.equals("none")) {
 		configuration = new ConfigurationFile(options);
 	    } else {
 		configuration = new QAConfiguration(options, this);
 	    }
+            logger.log(Level.FINE, "Test configuration loaded: {0}", configuration);
 	} catch (ConfigurationException e) {
 	    if (getBooleanConfigVal("testConfigurationOptional",false)) {
 		logger.log(Level.FINE, 
