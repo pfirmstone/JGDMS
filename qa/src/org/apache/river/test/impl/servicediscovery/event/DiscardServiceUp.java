@@ -196,7 +196,7 @@ public class DiscardServiceUp extends AbstractBaseTest {
             discardWait = nLookupServices*nServices*discardWait;
             if(discardWait > MAX_DISCARD_WAIT) discardWait = MAX_DISCARD_WAIT;
             System.setProperty("org.apache.river.sdm.discardWait",
-                               (new Long(discardWait)).toString());
+                               Long.toString(discardWait));
             addedWait = discardWait + deltaWait;
         } else {//services not down, adjust addedWait
             long waitFactor = 1;

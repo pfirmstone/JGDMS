@@ -72,7 +72,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
      * Creates a new <code>MarshalledInstance</code> that contains the
      * marshalled representation of the current state of the supplied
      * object. The object is serialized with the semantics defined by
-     * <code>MarshalOutputStream</code>. The output stream used to marshal the
+     * <code>AtomicMarshalOutputStream</code>. The output stream used to marshal the
      * object implements {@link ObjectStreamContext} and returns an empty
      * collection from its {@link ObjectStreamContext#getObjectStreamContext
      * getObjectStreamContext} method.
