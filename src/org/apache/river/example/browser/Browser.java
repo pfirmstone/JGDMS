@@ -17,12 +17,6 @@
  */
 package org.apache.river.example.browser;
 
-import org.apache.river.admin.DestroyAdmin;
-import org.apache.river.config.Config;
-import org.apache.river.logging.Levels;
-import org.apache.river.outrigger.JavaSpaceAdmin;
-import org.apache.river.proxy.BasicProxyTrustVerifier;
-import org.apache.river.start.LifeCycle;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
@@ -38,8 +32,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.rmi.server.ExportException;
 import java.security.AccessController;
@@ -115,16 +109,23 @@ import net.jini.lease.LeaseListener;
 import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.lookup.DiscoveryAdmin;
-import net.jini.lookup.ui.factory.JFrameFactory;
+import net.jini.lookup.SafeServiceRegistrar;
 import net.jini.lookup.entry.UIDescriptor;
+import net.jini.lookup.ui.factory.JFrameFactory;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-import net.jini.space.JavaSpace05;
 import net.jini.space.JavaSpace;
+import net.jini.space.JavaSpace05;
+import org.apache.river.admin.DestroyAdmin;
+import org.apache.river.config.Config;
+import org.apache.river.logging.Levels;
+import org.apache.river.outrigger.JavaSpaceAdmin;
+import org.apache.river.proxy.BasicProxyTrustVerifier;
+import org.apache.river.start.LifeCycle;
 
 /*
  * This is not great user interface design. It was a quick-and-dirty hack
@@ -144,7 +145,7 @@ public class Browser extends JFrame {
     private transient ClassLoader ccl;
     transient Configuration config;
     private transient DiscoveryGroupManagement disco;
-    private transient ServiceRegistrar lookup = null;
+    private transient SafeServiceRegistrar lookup = null;
     private transient Object eventSource = null;
     private transient long eventID = 0;
     private transient long seqNo = Long.MAX_VALUE;
@@ -606,6 +607,7 @@ public class Browser extends JFrame {
     }
 
     private void addOne(ServiceRegistrar registrar) {
+	if(!(registrar instanceof SafeServiceRegistrar)) return;
 	LookupLocator loc;
 	try {
 	    loc = registrar.getLocator();
@@ -618,7 +620,7 @@ public class Browser extends JFrame {
 	    host += ":" + loc.getPort();
 	JRadioButtonMenuItem reg =
 	    new RegistrarMenuItem(host, registrar.getServiceID());
-	reg.addActionListener(wrap(new Lookup(registrar)));
+	reg.addActionListener(wrap(new Lookup((SafeServiceRegistrar)registrar)));
 	if (!(registrars.getMenuComponent(0)
 	      instanceof JRadioButtonMenuItem))
 	    registrars.removeAll();
@@ -1232,9 +1234,9 @@ public class Browser extends JFrame {
     }
 
     private class Lookup implements ActionListener {
-	private ServiceRegistrar registrar;
+	private SafeServiceRegistrar registrar;
 
-	public Lookup(ServiceRegistrar registrar) {
+	public Lookup(SafeServiceRegistrar registrar) {
 	    this.registrar = registrar;
 	}
 

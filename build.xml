@@ -627,35 +627,110 @@
     <target name="checkconfigurationfile.jar"
 		depends="jarwrapper.jar">
         <delete file="${lib.dir}/checkconfigurationfile.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/checkconfigurationfile.mf"/>
             <arg path="${lib.dir}/checkconfigurationfile.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="checkconfigurationfile.deps" location="${build.deps.dir}/checkconfigurationfile.deps" />
+        <classdep output="${checkconfigurationfile.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.CheckConfigurationFile"/>
+        </classdep>
+        <jar destfile="${lib.dir}/checkconfigurationfile.jar" index="false"
+                manifest="${src.manifest.dir}/checkconfigurationfile.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${checkconfigurationfile.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/checkconfig.properties" />
+        </jar>
+        <preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/checkconfigurationfile.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>
     </target>
 
     <target name="checkser.jar"	depends="jarwrapper.jar">
         <delete file="${lib.dir}/checkser.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/checkser.mf"/>
             <arg path="${lib.dir}/checkser.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="checkser.deps" location="${build.deps.dir}/checkser.deps" />
+        <classdep output="${checkser.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.CheckSer"/>
+        </classdep>
+        <jar destfile="${lib.dir}/checkser.jar" index="false"
+                manifest="${src.manifest.dir}/checkser.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${checkser.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/checkser.properties" />
+        </jar>
+        <preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/checkser.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>
     </target>
 
     <target name="classdep.jar"	depends="jarwrapper.jar">
         <delete file="${lib.dir}/classdep.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/classdep.mf"/>
             <arg path="${lib.dir}/classdep.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="classdep.deps" location="${build.deps.dir}/classdep.deps" />
+        <classdep output="${classdep.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.ClassDep"/>
+        </classdep>
+        <jar destfile="${lib.dir}/classdep.jar" index="false"
+                manifest="${src.manifest.dir}/classdep.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${classdep.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/classdep.properties" />
+        </jar>
+        <preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/classdep.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>
     </target>
     
-    <target name="classdepend.jar" depends="jarwrapper.jar">
+    <!--<target name="classdepend.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/classdepend.jar" quiet="true"/>
         <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/classdepend.mf"/>
@@ -663,68 +738,206 @@
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
         </jarwrapper>
-    </target>
+    </target>-->
 
     <target name="classserver.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/classserver.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg path="${lib.dir}/classserver.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="classserver.deps" location="${build.deps.dir}/classserver.deps" />
+        <classdep output="${classserver.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.ClassServer"/>
+        </classdep>
+        <jar destfile="${lib.dir}/classserver.jar" index="false"
+                manifest="${src.manifest.dir}/classserver.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${classserver.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/classserver.properties" />
+        </jar>
+        <preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/classserver.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>
     </target>
 
     <target name="computedigest.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/computedigest.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/computedigest.mf"/>
             <arg path="${lib.dir}/computedigest.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="computedigest.deps" location="${build.deps.dir}/computedigest.deps" />
+        <classdep output="${computedigest.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.ComputeDigest"/>
+        </classdep>
+        <jar destfile="${lib.dir}/computedigest.jar" index="false"
+                manifest="${src.manifest.dir}/computedigest.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${computedigest.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/computedigest.properties" />
+        </jar>
+        <preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/computedigest.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>
     </target>
 
     <target name="computehttpmdcodebase.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/computehttpmdcodebase.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/computehttpmdcodebase.mf"/>
             <arg path="${lib.dir}/computehttpmdcodebase.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="computehttpmdcodebase.deps" location="${build.deps.dir}/computehttpmdcodebase.deps" />
+        <classdep output="${computehttpmdcodebase.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.ComputeHttpmdCodebase"/>
+        </classdep>
+        <jar destfile="${lib.dir}/computehttpmdcodebase.jar" index="false"
+                manifest="${src.manifest.dir}/computehttpmdcodebase.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${computehttpmdcodebase.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/computecodebase.properties" />
+        </jar>
+        <preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/computehttpmdcodebase.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>
     </target>
 
     <target name="jarwrapper.jar" depends="tools.jar">
         <delete file="${lib.dir}/jarwrapper.jar" quiet="true"/>
-        <jarwrapper classpathref="jarwrapper.classes.classpath">
+        <!--<jarwrapper classpathref="jarwrapper.classes.classpath">
             <arg value="-manifest=${src.manifest.dir}/jarwrapper.mf"/>
             <arg path="${lib.dir}/jarwrapper.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="jarwrapper.deps" location="${build.deps.dir}/jarwrapper.deps" />
+        <classdep output="${jarwrapper.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.JarWrapper"/>
+        </classdep>
+        <jar destfile="${lib.dir}/jarwrapper.jar" index="false"
+                manifest="${src.manifest.dir}/jarwrapper.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${jarwrapper.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/jarwrapper.properties" />
+        </jar>
+        <preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/jarwrapper.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>
     </target>
 
     <target name="preferredlistgen.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/preferredlistgen.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/preferredlistgen.mf"/>
             <arg path="${lib.dir}/preferredlistgen.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="preferredlistgen.deps" location="${build.deps.dir}/preferredlistgen.deps" />
+        <classdep output="${preferredlistgen.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.PreferredListGen"/>
+        </classdep>
+        <jar destfile="${lib.dir}/preferredlistgen.jar" index="false"
+                manifest="${src.manifest.dir}/preferredlistgen.mf">
+            
+            <fileset dir="${build.classes.dir}"  includesfile="${preferredlistgen.deps}" />
+            <fileset dir="${src.dir}" includes="org/apache/river/tool/resources/preferredlistgen.properties" />
+        </jar>
+        <!--<preferredlistgen>
+            <arg line="-cp"	/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/jarwrapper.jar"/>
+            <classpath refid="river.jars"/>
+        </preferredlistgen>-->
     </target>
 
     <target name="envcheck.jar"	depends="jarwrapper.jar">
         <delete file="${lib.dir}/envcheck.jar" quiet="true"/>
-        <jarwrapper>
+        <!--<jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/envcheck.mf"/>
             <arg path="${lib.dir}/envcheck.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </jarwrapper>
+        </jarwrapper>-->
+        <property name="envcheck.deps" location="${build.deps.dir}/envcheck.deps" />
+        <classdep output="${envcheck.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg pathref="classdep.classes.classpath"/>
+            <arg value="-files"	/>
+            <arg line="${jskprivate.include}"/>
+            <arg line="-in org.apache.river.tool"/>
+            <arg line="-in org.apache.river.start"/>
+            <arg line="-out org.objectweb.asm"/>
+            <arg value="org.apache.river.tool.envcheck.EnvCheck"/>
+        </classdep>
         <jar destfile="${lib.dir}/envcheck.jar"
 	       update="true"
 	       index="false">
+            <fileset dir="${build.classes.dir}"  includesfile="${envcheck.deps}" />
             <fileset dir="${src.manifest.dir}/tools"
 		      includes="META-INF/services/org.apache.river.tool.envcheck.Plugin"/>
         </jar>
@@ -792,8 +1005,27 @@
             <arg value="-files"/>
             <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
-            <arg line="-in org.apache.river"/>
-            <arg line="${jskplatform.exclude}"/>
+            <arg line="-in com.sun.jini"/>
+            <!--<arg line="${jskplatform.exclude}"/> -in net.jini.export-->
+            <arg line="-out org.apache.river.discovery"/>
+            <arg line="-out net.jini.activation"/>
+            <arg line="-out net.jini.config"/>
+            <arg line="-out net.jini.constraint"/>
+            <arg line="-out net.jini.core"/>
+            <arg line="-out net.jini.id"/>
+            <arg line="-out net.jini.iiop"/>
+            <arg line="-out net.jini.io"/>
+            <arg line="-out net.jini.jeri"/>
+            <arg line="-out net.jini.jrmp"/>
+            <arg line="-out net.jini.loader"/>
+            <arg line="-out net.jini.security"/>
+            <arg line="-out net.jini.url"/>
+            <arg line="-out org.apache.river.api"/>
+            <arg line="-skip net.jini.discovery.ConstrainableLookupLocator"/>
+            <arg line="-skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier"/>
+            <arg line="-skip org.apache.river.config.ConfigUtil"/>
+            <arg line="-skip org.apache.river.config.KeyStores"/>
+            <arg line="-skip org.apache.river.logging.LogManager"/>
             <arg line="-skip net.jini.lookup.entry.EntryBeans"/>
             <arg path="${build.classes.dir}/org/apache/river/admin"/>
             <arg path="${build.classes.dir}/org/apache/river/lease"/>
@@ -801,6 +1033,8 @@
             <arg path="${build.classes.dir}/org/apache/river/api/io"/>
             <arg path="${build.classes.dir}/org/apache/river/impl"/>
             <arg path="${build.classes.dir}/net/jini/admin"/>
+            <arg path="${build.classes.dir}/com/sun/jini/admin"/>
+            <arg path="${build.classes.dir}/com/sun/jini/proxy"/>
             <arg path="${build.classes.dir}/net/jini/entry"/>
             <arg path="${build.classes.dir}/net/jini/event"/>
             <arg path="${build.classes.dir}/net/jini/export"/>
@@ -815,15 +1049,20 @@
             <arg value="org.apache.river.landlord.LandlordLeaseMap"/>
             <arg value="org.apache.river.landlord.LandlordProxyVerifier"/>
             <arg value="org.apache.river.landlord.LeasedResource"/>
+            <arg value="com.sun.jini.landlord.Landlord"/>
+            <arg value="com.sun.jini.landlord.LandlordProxyVerifier"/>
+            <arg value="com.sun.jini.landlord.LeasedResource"/>
             <arg value="org.apache.river.logging.Levels"/>
             <arg value="org.apache.river.lookup.entry.BasicServiceType"/>
             <arg value="org.apache.river.resource.ServiceConfigurationError"/>
+            <arg value="org.apache.river.start.SharedGroup"/>
             <arg value="net.jini.export.ServiceProxyAccessor"/>
             <arg value="net.jini.export.ServiceCodebaseAccessor"/>
             <arg value="net.jini.export.ServiceIDAccessor"/>
             <arg value="net.jini.export.ServiceAttributesAccessor"/>
             <arg value="net.jini.discovery.LookupDiscoveryRegistration"/>
             <arg value="net.jini.discovery.LookupDiscoveryService"/>
+            <arg value="net.jini.discovery.LookupDiscoveryServiceSafely"/>
             <arg value="net.jini.discovery.LookupUnmarshalException"/>
             <arg value="net.jini.discovery.RemoteDiscoveryEvent"/>
             <arg value="net.jini.lease.LeaseRenewalService"/>
@@ -831,6 +1070,7 @@
             <arg value="net.jini.lease.LeaseUnmarshalException"/>
             <arg value="net.jini.lease.RenewalFailureEvent"/>
             <arg value="net.jini.lookup.DiscoveryAdmin"/>
+            <arg value="net.jini.lookup.SafeServiceRegistrar"/>
             <!--<arg value="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>-->
         </classdep>
         <jar destfile="${lib-dl.dir}/jsk-dl.jar"
@@ -850,6 +1090,7 @@
             <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
+            <arg line="-skip org.apache.river.config.builder.Example"/>
             <arg line="${jskplatform.exclude}"/>
             <arg path="${build.classes.dir}/org/apache/river/admin"/>
             <arg path="${build.classes.dir}/org/apache/river/config"/>
@@ -870,13 +1111,12 @@
             <arg path="${build.classes.dir}/com/sun/jini/landlord"/>
             <arg path="${build.classes.dir}/com/sun/jini/lease"/>
             <arg path="${build.classes.dir}/com/sun/jini/lookup/entry"/>
-            <arg path="${build.classes.dir}/com/sun/jini/proxy"/>
             <arg path="${build.classes.dir}/com/sun/jini/reliableLog"/>
-            <arg path="${build.classes.dir}/com/sun/jini/start"/>
             <arg value="org.apache.river.logging.Levels"/>
             <arg value="org.apache.river.phoenix.ActivationAdmin"/>
             <arg value="org.apache.river.start.LifeCycle"/>
-            <arg value="com.sun.jini.logging.Levels"/>
+            <arg value="com.sun.jini.start.LifeCycle"/>
+            <arg value="com.sun.jini.config.Config"/>
             <arg value="net.jini.export.ServiceProxyAccessor"/>
         </classdep>
         <jar destfile="${lib.dir}/jsk-lib.jar"
@@ -891,23 +1131,31 @@
             <arg line="-api org.apache.river.start.LifeCycle"/>
             <arg line="-api com.sun.jini.start.LifeCycle"/>
             <arg line="-api net.jini.export.ServiceProxyAccessor"/>
+            <arg line="-api net.jini.export.ServiceCodebaseAccessor"/>
+            <arg line="-api net.jini.export.ServiceIDAccessor"/>
+            <arg line="-api net.jini.export.ServiceAttributesAccessor"/>
             <classpath refid="river.classes"/>
         </preferredlistgen>
     </target>
-
-    <target name="jsk-platform.jar"	depends="jsk-resources.jar">
-        <property name="jsk-platform.deps" location="${build.deps.dir}/jsk-platform.deps"/>
+    
+    <!--<target name="platform-dl.jar"      depends="jsk-resources.jar">
+        <property name="platform-dl.deps" location="${build.deps.dir}/platform-dl.deps"/>
         <classdep output="${jsk-platform.deps}"
                 classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river"/>
+            <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-out net.jini.lookup"/>
             <arg line="-out org.apache.river.api.lookup"/>
             <arg line="-skip net.jini.config.GroovyConfig"/>
             <arg line="-skip net.jini.config.Component"/>
+            <arg line="-skip net.jini.export.ServiceProxyAccessor"/>
+            <arg line="-skip net.jini.export.ServiceCodebaseAccessor"/>
+            <arg line="-skip net.jini.export.ServiceIDAccessor"/>
+            <arg line="-skip net.jini.export.ServiceAttributesAccessor"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
@@ -926,8 +1174,105 @@
             <arg value="net.jini.discovery.ConstrainableLookupLocatorTrustVerifier"/>
             <arg path="${build.classes.dir}/org/apache/river/discovery"/>
             <arg value="org.apache.river.config.ConfigUtil"/>
+            <arg value="com.sun.jini.config.ConfigUtil"/>
+            <arg value="org.apache.river.config.Config"/>
             <arg value="org.apache.river.config.KeyStores"/>
             <arg value="org.apache.river.logging.LogManager"/>
+            <arg value="com.sun.jini.logging.Levels"/>
+            <arg value="org.apache.river.export.ExportPermission"/>
+            <arg value="org.apache.river.export.Exporter"/>
+            <arg value="org.apache.river.export.NoSuchObjectException"/>
+            <arg value="org.apache.river.export.ProxyAccessor"/>
+            <arg value="org.apache.river.export.ServerContext"/>
+        </classdep>
+        <jar destfile="${lib.dir}/platform-dl.jar"
+		     index="false"
+		     manifest="${src.manifest.dir}/jsk-platform.mf">
+            <fileset dir="${build.classes.dir}"  includesfile="${jsk-platform.deps}"/>
+            <fileset dir="${src.dir}">
+                <include name="org/apache/river/impl/messages.properties"/>
+            </fileset>
+        </jar>
+        <preferredlistgen>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/jsk-platform.jar"/>
+            <arg line="-cp"/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-api net/jini/activation/-"/>
+            <arg line="-api net/jini/config/-"/>
+            <arg line="-api net/jini/constraint/-"/>
+            <arg line="-api net/jini/core/-"/>
+            <arg line="-api net/jini/export/-"/>
+            <arg line="-api net/jini/id/-"/>
+            <arg line="-api net/jini/iiop/-"/>
+            <arg line="-api net/jini/io/-"/>
+            <arg line="-api net/jini/jeri/-"/>
+            <arg line="-api net/jini/jrmp/-"/>
+            <arg line="-api net/jini/loader/-"/>
+            <arg line="-api net/jini/security/-"/>
+            <arg line="-api net/jini/url/-"/>
+            <arg line="-api net.jini.discovery.ConstrainableLookupLocator"/>
+            <arg line="-api net.jini.discovery.ConstrainableLookupLocatorTrustVerifier"/>
+            <arg line="-api net.jini.security.AuthenticationPermission$AuthenticationPermissionCollection"/>
+            <arg line="-api net.jini.security.GrantPermission$GrantPermissionCollection"/>
+            <arg line="-api org/apache/river/discovery/"/>
+            <arg line="-api org/apache/river/discovery/kerberos/-"/>
+            <arg line="-api org/apache/river/discovery/plaintext/-"/>
+            <arg line="-api org/apache/river/discovery/ssl/-"/>
+            <arg line="-api org/apache/river/discovery/x500/-"/>
+            <arg line="-api org.apache.river.config.ConfigUtil"/>
+            <arg line="-api org.apache.river.config.KeyStores"/>
+            <arg line="-api org.apache.river.logging.LogManager"/>
+            <arg line="-api org/apache/river/api/-"/>
+            <classpath refid="river.classes"/>
+        </preferredlistgen>
+    </target>-->
+
+    <target name="jsk-platform.jar"	depends="jsk-resources.jar">
+        <property name="jsk-platform.deps" location="${build.deps.dir}/jsk-platform.deps"/>
+        <classdep output="${jsk-platform.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg path="${build.classes.dir}"/>
+            <arg value="-files"/>
+            <arg line="-in org.apache.river"/>
+            <arg line="-in com.sun.jini"/>
+            <arg line="-in net.jini"/>
+            <arg line="-out net.jini.lookup"/>
+            <arg line="-out org.apache.river.api.lookup"/>
+            <arg line="-skip net.jini.config.GroovyConfig"/>
+            <arg line="-skip net.jini.config.Component"/>
+            <arg line="-skip net.jini.export.ServiceProxyAccessor"/>
+            <arg line="-skip net.jini.export.ServiceCodebaseAccessor"/>
+            <arg line="-skip net.jini.export.ServiceIDAccessor"/>
+            <arg line="-skip net.jini.export.ServiceAttributesAccessor"/>
+            <arg path="${build.classes.dir}/net/jini/activation"/>
+            <arg path="${build.classes.dir}/net/jini/config"/>
+            <arg path="${build.classes.dir}/net/jini/constraint"/>
+            <arg path="${build.classes.dir}/net/jini/core"/>
+            <arg path="${build.classes.dir}/net/jini/export"/>
+            <arg path="${build.classes.dir}/net/jini/id"/>
+            <arg path="${build.classes.dir}/net/jini/iiop"/>
+            <arg path="${build.classes.dir}/net/jini/io"/>
+            <arg path="${build.classes.dir}/net/jini/jeri"/>
+            <arg path="${build.classes.dir}/net/jini/jrmp"/>
+            <arg path="${build.classes.dir}/net/jini/loader"/>
+            <arg path="${build.classes.dir}/net/jini/security"/>
+            <arg path="${build.classes.dir}/net/jini/url"/>
+            <arg path="${build.classes.dir}/org/apache/river/api"/>
+            <arg value="net.jini.discovery.ConstrainableLookupLocator"/>
+            <arg value="net.jini.discovery.ConstrainableLookupLocatorTrustVerifier"/>
+            <arg path="${build.classes.dir}/org/apache/river/discovery"/>
+            <arg value="org.apache.river.config.ConfigUtil"/>
+            <arg value="com.sun.jini.config.ConfigUtil"/>
+            <arg value="org.apache.river.config.KeyStores"/>
+            <arg value="org.apache.river.logging.LogManager"/>
+            <arg value="com.sun.jini.logging.Levels"/>
+            <arg value="org.apache.river.export.ExportPermission"/>
+            <arg value="org.apache.river.export.Exporter"/>
+            <arg value="org.apache.river.export.NoSuchObjectException"/>
+            <arg value="org.apache.river.export.ProxyAccessor"/>
+            <arg value="org.apache.river.export.ServerContext"/>
         </classdep>
         <jar destfile="${lib.dir}/jsk-platform.jar"
 		     index="false"
@@ -982,10 +1327,12 @@
             <arg value="net.jini.security.policy.DynamicPolicyProvider"/>
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
             <arg value="org.apache.river.api.security.ConcurrentPolicyFile"/>
+            <arg value="org.apache.river.api.security.RemotePolicyProvider"/>
+            <arg value="org.apache.river.api.security.RemotePolicy"/>
+            <arg value="org.apache.river.api.common.Beta"/>
             <arg value="org.apache.river.api.net.RFC3986URLClassLoader"/>
             <arg line="-in org.apache.river"/>
             <arg line="-in net.jini"/>
-            <arg line="-in org.apache.river"/>
         </classdep>
         <jar destfile="${lib-ext.dir}/jsk-policy.jar"
 		     index="false">
@@ -1703,8 +2050,16 @@
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
-            <arg line="${jskprivate.include}"/>
+            <!--<arg line="${jskprivate.include}"/>-->
             <arg line="-in org.apache.river.outrigger.snaplogstore"	/>
+            <!--<arg line="-out org.apache.river.outrigger"	/>
+            <arg line="-skip org.apache.river.outrigger.LogOps"	/>
+            <arg line="-skip org.apache.river.outrigger.Recover"	/>
+            <arg line="-skip org.apache.river.outrigger.StorableObject"	/>
+            <arg line="-skip org.apache.river.outrigger.StorableResource"	/>
+            <arg line="-skip org.apache.river.outrigger.Store"	/>
+            <arg line="-skip org.apache.river.outrigger.StoredObject"	/>
+            <arg line="-skip org.apache.river.outrigger.StoredResource"	/>-->
             <arg value="org.apache.river.outrigger.snaplogstore.LogStore"/>
         </classdep>
         <jar destfile="${lib.dir}/outrigger-snaplogstore.jar" index="false">
@@ -2076,9 +2431,18 @@
                 classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
+            <arg path="${build.classes.dir}/com/sun/jini/start"/>
             <arg value="-files"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-in org.apache.river" />
+            <arg line="-in com.sun.jini" />
+            <arg value="com.sun.jini.start.ServiceDescriptor"/>
+            <arg value="com.sun.jini.start.AggregatePolicyProvider"/>
+            <arg value="com.sun.jini.start.ClassLoaderUtil"/>
+            <arg value="com.sun.jini.start.LifeCycle"/>
+            <arg value="com.sun.jini.start.LoaderSplitPolicyProvider"/>
+            <arg value="com.sun.jini.start.NonActivatableServiceDescriptor"/>
+            <arg value="com.sun.jini.start.ServiceProxyAccessor"/>
             <arg value="org.apache.river.start.ServiceStarter"/>
             <arg value="org.apache.river.start.SharedActivatableServiceDescriptor"/>
             <arg value="org.apache.river.start.SharedActivationGroupDescriptor"	/>
@@ -2090,6 +2454,15 @@
                 <include name="org/apache/river/start/resources/**"	/>
             </fileset>
         </jar>
+        <!--<preferredlistgen>
+            <arg line="-jar"/>
+            <arg path="${lib.dir}/start.jar"/>
+            <arg line="-cp"/>
+            <arg path="${build.classes.dir}"/>
+            <arg line="-api org.apache.river.start.LifeCycle"/>
+            <arg line="-api com.sun.jini.start.LifeCycle"/>
+            <classpath refid="river.classes"/>
+        </preferredlistgen>-->
     </target>
 
     <target name="start.stubs" depends="compile">

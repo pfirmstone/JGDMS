@@ -25,6 +25,7 @@ import org.apache.river.qa.harness.TestException;
 
 import org.apache.river.test.spec.lookupservice.QATestRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.lookup.SafeServiceRegistrar;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
@@ -124,7 +125,7 @@ public class DefLookupByIntfc extends QATestRegistrar {
 	for (int i=0; i<nClasses; i++) {
 	    for (int j=0; j<super.INTERFACES.length;j++) {
 		if (super.INTFC_IMPL_MATRIX[i][j] == 0)  continue;
-                    intfcM = proxy.lookUp(intfcClassTmpls[i][j],
+                    intfcM = ((SafeServiceRegistrar)proxy).lookUp(intfcClassTmpls[i][j],
                                           Integer.MAX_VALUE);
 		if(intfcM.length != expectedNMatchesIntfc[i][j]) {
 		    String message = "totalMatches ("+

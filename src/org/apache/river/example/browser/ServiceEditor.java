@@ -17,10 +17,6 @@
  */
 package org.apache.river.example.browser;
 
-import org.apache.river.admin.DestroyAdmin;
-import org.apache.river.config.Config;
-import org.apache.river.logging.Levels;
-import org.apache.river.proxy.BasicProxyTrustVerifier;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Rectangle;
@@ -71,10 +67,15 @@ import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.DiscoveryAdmin;
+import net.jini.lookup.SafeServiceRegistrar;
 import net.jini.lookup.entry.UIDescriptor;
 import net.jini.lookup.ui.factory.JFrameFactory;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.admin.DestroyAdmin;
+import org.apache.river.config.Config;
+import org.apache.river.logging.Levels;
+import org.apache.river.proxy.BasicProxyTrustVerifier;
 
 /**
  * ServiceEditor is a gui-based utility to add/modify
@@ -97,7 +98,7 @@ class ServiceEditor extends JFrame {
 
   private Browser browser;
   private ServiceItem item;
-  private ServiceRegistrar registrar;
+  private SafeServiceRegistrar registrar;
   protected Object admin;
   private ServiceTemplate stmpl;
   private NotifyReceiver receiver;
@@ -110,7 +111,7 @@ class ServiceEditor extends JFrame {
 
   public ServiceEditor(ServiceItem item,
 		       Object admin,
-		       ServiceRegistrar registrar,
+		       SafeServiceRegistrar registrar,
 		       Browser browser)
     {
     super("ServiceItem Editor");

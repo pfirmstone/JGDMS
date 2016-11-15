@@ -40,6 +40,10 @@
 	            <!-- exclude jline, this is brought in transitively because of groovy -->
                 <exclude>jline:*</exclude>              
                 <exclude>groovy:*</exclude> 
+                <exclude>commons-collections:*</exclude>
+                <exclude>commons-lang:*</exclude>
+                <exclude>high-scale-lib:*</exclude>
+                <exclude>velocity:*</exclude>
                 <exclude>org.apache.river:river-dl:jar</exclude>
 	            <exclude>org.apache.river.reggie:reggie-dl:jar</exclude>
 	            <exclude>org.apache.river.outrigger:outrigger-dl:jar</exclude>

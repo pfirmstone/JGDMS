@@ -1,2 +1,3 @@
 Manifest-Version: 1.0
-Main-Class: org.apache.river.tool.GenTrustedClasses
+Main-Class: org.apache.river.tool.ClassDep
+Class-Path: asm-5.0.1.jar asm-commons-5.0.1.jar

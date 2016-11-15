@@ -26,6 +26,7 @@ import java.util.logging.Level;
 import org.apache.river.test.spec.lookupservice.QATestRegistrar;
 import org.apache.river.test.spec.lookupservice.QATestUtils;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.lookup.SafeServiceRegistrar;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
@@ -137,7 +138,7 @@ public class DefSrvcLeaseExpiration extends QATestRegistrar {
 	    if(proxy.lookup(srvcIDTmpls[i]) != null) {
 		throw new TestException("srvcIDTmpls["+i+"] != null");
 	    }
-	    matches = proxy.lookUp(srvcIDTmpls[i],Integer.MAX_VALUE);
+	    matches = ((SafeServiceRegistrar)proxy).lookUp(srvcIDTmpls[i],Integer.MAX_VALUE);
             if ( matches.length != 0) {
                 throw new TestException("totalMatches != 0");
 	    }

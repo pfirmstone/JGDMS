@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.lookup.SafeServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.export.ServiceProxyAccessor;
@@ -126,7 +127,7 @@ public class DefLookupBySuper extends QATestRegistrar {
 	     */
 	    for (int j=1; j<chainLen[i];j++) {
 		if (super.expectedNMatchesSuper[i][j] == 0)  continue;
-		superM = proxy.lookUp(superClassTmpls[i][j],
+		superM = ((SafeServiceRegistrar)proxy).lookUp(superClassTmpls[i][j],
 				      Integer.MAX_VALUE);
 		if(superM.length != expectedNMatchesSuper[i][j]) {
 		    String message = 

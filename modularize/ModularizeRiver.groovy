@@ -20,13 +20,17 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 def jarMap = [
-        "../lib-ext/jsk-policy.jar"           : "apache-river/river-policy",
+        "../lib-ext/jsk-policy.jar"         : "apache-river/river-policy",
         "../lib/jsk-platform.jar"           : "apache-river/river-platform",
         "../lib/jsk-resources.jar"          : "apache-river/river-resources",
-        "../lib/start.jar"                  : "apache-river/river-start",
         "../lib-dl/jsk-dl.jar"              : "apache-river/river-dl",
         "../lib/serviceui.jar"              : "apache-river/river-dl",
         "../lib/jsk-lib.jar"                : "apache-river/river-lib",
+        "../lib/start.jar"                  : "apache-river/river-start",
+        "../lib/destroy.jar"                : "apache-river/river-destroy",
+        "../lib/sharedvm.jar"               : "apache-river/river-sharedvm",
+        "../lib-dl/group-dl.jar"            : "apache-river/river-services/group/group-dl",
+        "../lib/group.jar"                  : "apache-river/river-services/group/group-service",
         "../lib-dl/mahalo-dl.jar"           : "apache-river/river-services/mahalo/mahalo-dl",
         "../lib/mahalo.jar"                 : "apache-river/river-services/mahalo/mahalo-service",
         "../lib-dl/mercury-dl.jar"          : "apache-river/river-services/mercury/mercury-dl",
@@ -37,10 +41,27 @@ def jarMap = [
         "../lib/outrigger.jar"              : "apache-river/river-services/outrigger/outrigger-service",
         "../lib/outrigger-snaplogstore.jar" : "apache-river/river-services/outrigger/outrigger-snaplogstore",
         "../lib-dl/reggie-dl.jar"           : "apache-river/river-services/reggie/reggie-dl",
-        "../lib/reggie.jar"                 : "apache-river/river-services/reggie/reggie-service"]
+        "../lib/reggie.jar"                 : "apache-river/river-services/reggie/reggie-service",
+        "../lib-dl/phoenix-dl.jar"          : "apache-river/phoenix-activation/phoenix-dl",
+        "../lib/phoenix.jar"                : "apache-river/phoenix-activation/phoenix",
+        "../lib/phoenix-init.jar"           : "apache-river/phoenix-activation/phoenix-init",
+        "../lib/phoenix-group.jar"          : "apache-river/phoenix-activation/phoenix-group",
+        "../lib/checkconfigurationfile.jar" : "apache-river/tools/checkconfigurationfile",
+        "../lib/checkser.jar"               : "apache-river/tools/checkser",
+        "../lib/classdep.jar"               : "apache-river/tools/classdep",
+        "../lib/classserver.jar"            : "apache-river/tools/classserver",
+        "../lib/computedigest.jar"          : "apache-river/tools/computedigest",
+        "../lib/computehttpmdcodebase.jar"  : "apache-river/tools/computehttpmdcodebase",
+        "../lib/envcheck.jar"               : "apache-river/tools/envcheck",
+        "../lib/jarwrapper.jar"             : "apache-river/tools/jarwrapper",
+        "../lib/preferredlistgen.jar"       : "apache-river/tools/preferredlistgen"
+]
 
 def policy = []
 def platform = []
+def sharedvm = []
+def start = []
+def destroy = []
 def lib = []
 def lib_dl = []
 def dlMap = [:]
@@ -86,6 +107,27 @@ for(Map.Entry<String, String> entry : jarMap.entrySet()) {
                     } else {
                         prepAndCopy(zipFile, zipEntry, src, target)
                     }
+                } else if(jar.contains("start")) {
+                    start << zipEntry.getName()
+                    if (skip(zipEntry, policy, platform, lib_dl, lib )){
+                        println "\t- ${zipEntry.getName()}"
+                    } else {
+                        prepAndCopy(zipFile, zipEntry, src, target)
+                    }
+                } else if(jar.contains("destroy")) {
+                    destroy << zipEntry.getName()
+                    if (skip(zipEntry, policy, platform, lib_dl, start, lib)){
+                        println "\t- ${zipEntry.getName()}"
+                    } else {
+                        prepAndCopy(zipFile, zipEntry, src, target)
+                    }
+                } else if(jar.contains("sharedvm")) {
+                    sharedvm << zipEntry.getName()
+                    if (skip(zipEntry, policy, platform, lib_dl, start, lib, destroy)){
+                        println "\t- ${zipEntry.getName()}"
+                    } else {
+                        prepAndCopy(zipFile, zipEntry, src, target)
+                    }
                 } else {
                     if(jar.contains("-dl")) {
                         String key = getKeyName(jar)
@@ -95,7 +137,7 @@ for(Map.Entry<String, String> entry : jarMap.entrySet()) {
                         dlJarClassList << zipEntry.name
                         dlMap.put key, dlJarClassList
 
-                        if(skip(zipEntry, policy, platform, lib_dl, lib)) {
+                        if(skip(zipEntry, policy, platform, lib_dl, start, lib, destroy, sharedvm)) {
                             println "\tSkip ${zipEntry.getName()}"
                         } else {
                             prepAndCopy(zipFile, zipEntry, src, target)
@@ -103,7 +145,7 @@ for(Map.Entry<String, String> entry : jarMap.entrySet()) {
                     } else {
                         String key = getKeyName(jar)
                         dlJarClassList = dlMap.get(key)
-                        if(skip(zipEntry, policy, platform, lib_dl, lib, dlJarClassList as List)) {
+                        if(skip(zipEntry, policy, platform, lib_dl, start, lib, destroy, sharedvm, dlJarClassList as List)) {
                             println "\tSkip ${zipEntry.getName()}"
                         } else {
                             prepAndCopy(zipFile, zipEntry, src, target)

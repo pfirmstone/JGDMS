@@ -21,6 +21,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.lookup.SafeServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.export.ServiceProxyAccessor;
@@ -91,7 +92,7 @@ public class DefLookupByClass extends QATestRegistrar {
     public void run() throws Exception {
 	Object [] exactM;
 	for (int i=0; i<nClasses; i++) {
-	    exactM = proxy.lookUp(exactClassTmpls[i],Integer.MAX_VALUE);
+	    exactM = ((SafeServiceRegistrar)proxy).lookUp(exactClassTmpls[i],Integer.MAX_VALUE);
 	    if (exactM.length != expectedNMatchesExact[i]) {
 		throw new TestException
 		    ("totalMatches ("+exactM.length+
