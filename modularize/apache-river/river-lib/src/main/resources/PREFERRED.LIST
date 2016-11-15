@@ -1,0 +1,12 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: com/sun/jini/start/*
+Preferred: false
+
+Name: net/jini/export/*
+Preferred: false
+
+Name: org/apache/river/start/*
+Preferred: false
