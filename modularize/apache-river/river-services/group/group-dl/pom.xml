@@ -26,7 +26,7 @@
     <groupId>org.apache.river.group</groupId>
     <artifactId>group-dl</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Mahalo Service Download classes</name> 
+    <name>Module :: Group Service Download classes</name> 
    
 	<dependencies>
         <dependency>

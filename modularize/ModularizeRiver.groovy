@@ -199,11 +199,16 @@ void copy(src, source, target) {
         File targetFile = new File(target)
         File parent = targetFile.getParentFile()
         parent.mkdirs()
-        def writer = targetFile.newWriter()
-        writer << file.text
-        writer.flush()
-        writer.close()
-        println String.format("\tcp %-100s to %s", file.path, target)
+        String moveFile = file.toString()
+        String dir = parent.toString()
+//        def writer = targetFile.newWriter()
+//        writer << file.text
+//        writer.flush()
+//        writer.close()
+        println String.format("\tgit mv %-100s to %s", file.path, target)
+        String command = "git mv " + moveFile + " " + dir
+        def p = command.execute()
+        p.waitFor()
     } else {
         println "\tNOT FOUND: ${file.path}"
     }
