@@ -35,6 +35,36 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 
 /**
+ * <code>
+ * public class Example {
+ * 
+ *     public static void main(String[] args) throws ConfigurationException
+ *     {
+ *         System.setSecurityManager(new SecurityManager() {
+ *
+ *            @Override
+ *            public void checkPermission(Permission perm)
+ *            {
+ *                // ignore
+ *            }
+ *
+ *         } );
+ *
+ *
+ *         VelocityConfigurationBuilder cb = new VelocityConfigurationBuilder();
+ *
+ *         cb.setServicePort(1234);
+ *         
+ *         //TODO: cb.setThisHere(true);
+ *         //TODO: cb.setThatThere(false);
+ *  
+ *         ServiceStarter.main(cb.createConfiguration());
+ *     }
+ *
+ *  }
+ *
+ * </code>
+ *
  */
 public class VelocityConfigurationBuilder
     implements ConfigurationFactory
