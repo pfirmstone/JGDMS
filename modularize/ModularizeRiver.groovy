@@ -42,6 +42,8 @@ def jarMap = [
         "../lib/outrigger-snaplogstore.jar" : "apache-river/river-services/outrigger/outrigger-snaplogstore",
         "../lib-dl/reggie-dl.jar"           : "apache-river/river-services/reggie/reggie-dl",
         "../lib/reggie.jar"                 : "apache-river/river-services/reggie/reggie-service",
+        "../lib-dl/fiddler-dl.jar"          : "apache-river/river-services/fiddler/fiddler-dl",
+        "../lib/fiddler.jar"                : "apache-river/river-services/fiddler/fiddler-service",
         "../lib-dl/phoenix-dl.jar"          : "apache-river/phoenix-activation/phoenix-dl",
         "../lib/phoenix.jar"                : "apache-river/phoenix-activation/phoenix",
         "../lib/phoenix-init.jar"           : "apache-river/phoenix-activation/phoenix-init",
