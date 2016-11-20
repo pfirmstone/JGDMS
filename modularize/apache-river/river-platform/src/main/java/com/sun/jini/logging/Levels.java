@@ -33,10 +33,6 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
 * Defines additional {@link Level} values.
-* <p>
-* See the {@link LogManager} class for one way to use the <code>FAILED</code>
-* and <code>HANDLED</code> logging levels in standard logging configuration
-* files.</p>
 *
 * @since 2.0
 */

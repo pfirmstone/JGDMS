@@ -19,8 +19,8 @@
 package net.jini.core.constraint;
 
 /**
- * Represents an invariant constraint on {@link ObjectInput} and 
- * {@link ObjectOutput}, covering data transmitted in band as part
+ * Represents an invariant constraint on {@link java.io.ObjectInput} and 
+ * {@link java.io.ObjectOutput}, covering data transmitted in band as part
  * of the remote call itself. 
  * If an invariant violation on in-band data is detected during a remote
  * call, a {@link java.io.InvalidObjectException} will be thrown, construction of the Object

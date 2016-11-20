@@ -230,7 +230,7 @@ import org.apache.river.logging.LogUtil;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.loader.pref.PreferredClassProvider</code> to log

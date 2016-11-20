@@ -27,8 +27,10 @@ import org.apache.river.action.GetBooleanAction;
  * multicast discovery protocols.
  * <p>
  * The following properties if set, provide support for IPv6:
+ * <ul>
  * <li>net.jini.discovery.IPv6=TRUE
  * <li>net.jini.discovery.GLOBAL_ANNOUNCE=TRUE
+ * </ul>
  * <p>
  * Note that support for global announcement must be specifically set to
  * be enabled.  There is no support for global request, for obvious reasons.

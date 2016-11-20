@@ -39,5 +39,15 @@
             <artifactId>river-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.river.phoenix-activation</groupId>
+            <artifactId>phoenix-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.phoenix-activation</groupId>
+            <artifactId>phoenix-dl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

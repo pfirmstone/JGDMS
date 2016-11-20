@@ -73,7 +73,7 @@ import net.jini.security.Security;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ * <!-- Implementation Specifics -->
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.config</code> to log information at the following logging

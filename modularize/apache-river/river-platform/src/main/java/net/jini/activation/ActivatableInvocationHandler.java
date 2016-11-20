@@ -72,8 +72,6 @@ import org.apache.river.logging.Levels;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl
- *
  * This implementation recognizes the following system property:
  * <ul>
  * <li><code>org.apache.river.activation.enableActivateGrant</code> - This

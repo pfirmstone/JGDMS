@@ -69,8 +69,8 @@ import net.jini.security.policy.DynamicPolicy;
  * @see java.security.AccessControlContext
  * @see java.security.Permission
  * @see PermissionGrant
- * @see DelegatePermission
- * @see DelegateSecurityManager
+ * <code> see DelegatePermission</code>
+ * <code> see DelegateSecurityManager</code>
  * @since 3.0.0
  */
 public interface RevocablePolicy extends DynamicPolicy {

@@ -186,7 +186,7 @@ import org.ietf.jgss.GSSName;
  * (DGC); if DGC is enabled using {@link net.jini.jeri.BasicJeriExporter},
  * all DGC remote calls through this provider will silently fail.
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * This class uses the following {@link Logger} to log information
  * at the following logging levels: <p>

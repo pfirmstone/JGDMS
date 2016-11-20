@@ -438,7 +438,7 @@ public final class BasicMethodConstraints
      * Constructor for {@link AtomicSerial}.
      * 
      * @see AtomicSerial
-     * @param arg
+     * @param arg GetArg serial fields
      * @throws IOException 
      */
     public BasicMethodConstraints(GetArg arg) throws IOException{

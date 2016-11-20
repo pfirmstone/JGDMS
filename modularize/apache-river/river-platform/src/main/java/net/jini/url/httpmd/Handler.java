@@ -99,7 +99,7 @@ import java.util.logging.Logger;
  * @see HttpmdUtil
  * @since 2.0
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  * <p>
  * This implementation of HTTPMD URLs uses the {@link Logger} named
  * <code>net.jini.url.httpmd</code> to log information at the following logging

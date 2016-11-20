@@ -197,7 +197,7 @@ import net.jini.security.SecurityContext;
  * @see ConfidentialityStrength
  * @since 2.0
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * This implementation uses the <a
  * href="http://java.sun.com/j2se/1.4/docs/guide/security/jsse/JSSERefGuide.html"

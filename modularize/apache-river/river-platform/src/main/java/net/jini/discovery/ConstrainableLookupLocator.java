@@ -50,7 +50,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author	Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * This class supports use of the following constraint types to control unicast
  * discovery behavior:

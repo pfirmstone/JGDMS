@@ -67,7 +67,7 @@ import org.apache.river.resource.Service;
  * verifying codebase integrity, and for dynamically granting permissions.
  * This class cannot be instantiated.
  *
- * @org.apache.river.impl
+ * 
  * This implementation uses the {@link Logger} named
  * <code>net.jini.security.integrity</code> to log information at
  * the following levels:

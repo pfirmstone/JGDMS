@@ -93,7 +93,7 @@ import org.apache.river.logging.Levels;
  * @see		BasicInvocationDispatcher
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * This implementation's {@link #invoke invoke} method throws {@link
  * IllegalArgumentException} if a remote invocation is to be made and

@@ -189,7 +189,7 @@ import org.ietf.jgss.GSSName;
  * (DGC); if DGC is enabled using {@link net.jini.jeri.BasicJeriExporter},
  * all DGC remote calls through this provider will silently fail.
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * This Kerberos provider implementation uses the <a
  * href="http://www.ietf.org/rfc/rfc2853.txt"> Java(TM) GSS-API</a> to

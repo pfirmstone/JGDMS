@@ -44,8 +44,8 @@ import org.apache.river.api.security.PermissionGrantBuilderImp.NullPermissionGra
  * <p>
  * <code>PermissionGrant</code> does not implement <code>Serializable</code> for security reasons, 
  * however classes extending PermissionGrant may implement Serializable,
- * but are forced to use the Serializable Builder Pattern. 
- * {@link http://wiki.apache.org/river/Serialization}
+ * but are forced to use the
+ * <a href=http://wiki.apache.org/river/Serialization>Serializable Builder Pattern</a>.
  * <p>
  * <code>PermissionGrant</code>'s are security sensitive objects and can
  * provide an attacker with information about granted <code>Permission</code>.  
@@ -160,7 +160,7 @@ public abstract class PermissionGrant {
      * security check.
      * <p>
      * @param decorated PermissionGrant to be decorated.
-     * @throws IllegalArguementException if decorated is privileged
+     * @throws IllegalArgumentException if decorated is privileged
      * @throws SecurityException if caller doesn't have {@link java.lang.RuntimePermission}
      * "getProtectionDomain" or "getClassLoader".
      */
@@ -246,12 +246,16 @@ public abstract class PermissionGrant {
      * 
      * If this method returns false, follow up using the ProtectionDomain for a
      * more specific test, which may return true.
+     * @param cl - ClassLoader possibly implied
+     * @param pal - Principal's possibly implied
+     * @return true if the ClassLoader and Principal's are implied.
      */
     public abstract boolean implies(ClassLoader cl, Principal[] pal);
     /**
      * Checks if this PermissionGrant applies to the passed in CodeSource
      * and Principal's.
      * @param codeSource
+     * @param pal
      * @return true if implies.
      */
     public abstract boolean implies(CodeSource codeSource, Principal[] pal);

@@ -52,7 +52,7 @@ import net.jini.jeri.RequestDispatcher;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.connection.ServerConnectionManager</code> to

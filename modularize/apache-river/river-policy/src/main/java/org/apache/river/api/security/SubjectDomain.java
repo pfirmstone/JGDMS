@@ -22,7 +22,7 @@ import java.security.ProtectionDomain;
 import javax.security.auth.Subject;
 
 /**
- * A Marker interface used by {@link net.jini.security.Security} to mark
+ * A Marker interface used by <code>net.jini.security.Security</code> to mark
  * a {@link java.security.ProtectionDomain} added to the stack that represents an
  * authenticated {@link javax.security.auth.Subject} with 
  * {@link java.security.Principal}'s.
@@ -35,7 +35,7 @@ import javax.security.auth.Subject;
  * <p>
  * However in a distributed system, because code trust and Subject's are 
  * separate concerns, methods have been provided in 
- * {@link net.jini.security.Security} to push a <code>SubjectDomain</code>
+ * <code>net.jini.security.Security</code> to push a <code>SubjectDomain</code>
  * onto the stack instead of injecting Principal's into all ProtectionDomain's on 
  * the stack, this avoids mistakenly elevating privileges of less trusted
  * code, if present on a call stack at the time the doAs subject method is called.
@@ -59,10 +59,10 @@ import javax.security.auth.Subject;
  * SubjectDomain is a dynamic ProtectionDomain, it contains no Permission,
  * it always consults the current {@link java.security.Policy}.
  * 
- * @see net.jini.security.Security#doAs(javax.security.auth.Subject, java.security.PrivilegedAction) 
- * @see net.jini.security.Security#doAs(javax.security.auth.Subject, java.security.PrivilegedExceptionAction) 
- * @see net.jini.security.Security#doAsPrivileged(javax.security.auth.Subject, java.security.PrivilegedAction, net.jini.security.SecurityContext) 
- * @see net.jini.security.Security#doAsPrivileged(javax.security.auth.Subject, java.security.PrivilegedExceptionAction, net.jini.security.SecurityContext) 
+ * <br><code>see net.jini.security.Security#doAs(javax.security.auth.Subject, java.security.PrivilegedAction)</code>
+ * <br><code>see net.jini.security.Security#doAs(javax.security.auth.Subject, java.security.PrivilegedExceptionAction)</code>
+ * <br><code>see net.jini.security.Security#doAsPrivileged(javax.security.auth.Subject, java.security.PrivilegedAction, net.jini.security.SecurityContext) </code>
+ * <br><code>see net.jini.security.Security#doAsPrivileged(javax.security.auth.Subject, java.security.PrivilegedExceptionAction, net.jini.security.SecurityContext)</code> 
  * @see net.jini.security.policy.DynamicPolicyProvider
  * @see org.apache.river.api.security.ConcurrentPolicyFile
  * 

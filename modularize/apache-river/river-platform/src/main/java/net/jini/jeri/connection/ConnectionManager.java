@@ -62,7 +62,7 @@ import net.jini.jeri.OutboundRequestIterator;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.connection.ConnectionManager</code> to log information at

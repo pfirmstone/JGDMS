@@ -39,7 +39,7 @@ import net.jini.security.Security;
  * #createGroup createGroup} method of this class to be called.  The
  * standard <code>rmid</code> does not do this.
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ * <!-- Implementation Specifics -->
  *
  * Unlike <code>rmid</code>, <a
  * href="../../../org/apache/river/phoenix/package-summary.html#package_description">phoenix</a>

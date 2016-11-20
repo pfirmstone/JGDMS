@@ -24,7 +24,7 @@ import java.security.Principal;
 /**
  * Interface implemented by security policy providers that may support dynamic
  * granting of permissions at run-time.  The <code>grant</code> methods of the
- * {@link net.jini.security.Security} class delegate to the
+ * <code>net.jini.security.Security</code> class delegate to the
  * methods declared by this interface when this interface is implemented by the
  * installed security policy provider.  Permissions are granted on the
  * granularity of class loader; granting a permission requires (of the calling

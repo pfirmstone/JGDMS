@@ -92,9 +92,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.5</version>
+                <version>2.10.4</version>
                 <inherited>false</inherited>
-                <configuration><aggregate>true</aggregate></configuration>
+                <configuration>
+                    <aggregate>true</aggregate>
+                    <additionalparam>-Xdoclint:none</additionalparam>
+                </configuration>
                 <reportSets>
                     <reportSet>
                         <id>aggregate</id>
@@ -292,6 +295,7 @@
         <module>river-services/mercury</module>
         <module>river-services/norm</module>
         <module>river-services/group</module>
+        <module>river-services/fiddler</module>
         <module>tools</module>
         <module>phoenix-activation</module>
         <module>dist</module>

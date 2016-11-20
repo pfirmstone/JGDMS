@@ -305,7 +305,7 @@ import net.jini.security.SecurityContext;
  * @author	Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.BasicJeriExporter</code> to log

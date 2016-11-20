@@ -123,7 +123,7 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
  * @see		BasicInvocationHandler
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * This implementation uses the following system property:
  * <dl>

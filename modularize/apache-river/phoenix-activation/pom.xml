@@ -35,6 +35,7 @@
         <module>phoenix</module>
         <module>phoenix-group</module>
         <module>phoenix-init</module>
+        <module>phoenix-common</module>
     </modules>
 
 </project>

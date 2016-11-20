@@ -61,7 +61,7 @@ import org.apache.river.api.io.AtomicMarshalInputStream;
  * operation of {@link net.jini.security.Security#verifyObjectTrust
  * Security.verifyObjectTrust}.
  *
- * @org.apache.river.impl
+ * 
  * This implementation uses the {@link Logger} named
  * <code>net.jini.security.trust</code> to log
  * information at the following levels:

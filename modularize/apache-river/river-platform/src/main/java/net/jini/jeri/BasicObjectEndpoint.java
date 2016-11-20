@@ -183,7 +183,7 @@ import org.apache.river.logging.Levels;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  *
- * @org.apache.river.impl
+ * 
  *
  * <p>This implementation uses the {@link Logger} named
  * <code>net.jini.jeri.BasicObjectEndpoint</code> to log information
