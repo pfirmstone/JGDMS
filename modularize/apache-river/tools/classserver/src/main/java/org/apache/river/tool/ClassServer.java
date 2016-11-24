@@ -62,7 +62,7 @@ import org.apache.river.api.util.Startable;
  * <li><a href="#running">Examples for running ClassServer</a>
  * </ul>
  * <p>
- * <a name="logging"><h3>Logging</h3></a>
+ * <h3><a name="logging">Logging</a></h3>
  * <p>
  *
  * This implementation uses the {@link Logger} named
@@ -72,7 +72,7 @@ import org.apache.river.api.util.Startable;
  * <table border="1" cellpadding="5"
  *         summary="Describes logging performed by ClassServer at different
  *	   logging levels">
- * <caption halign="center" valign="top"><b><code>
+ * <caption><b><code>
  *    org.apache.river.tool.ClassServer</code></b></caption>
  *
  * <tr> <th scope="col">Level</th> <th scope="col">Description</th> </tr>
@@ -110,13 +110,13 @@ import org.apache.river.api.util.Startable;
  * </table>
  *
  * <p>
- * <a name="running"><h3>Examples for running ClassServer</h3></a>
+ * <h3><a name="running">Examples for running ClassServer</a></h3>
  * <p>
  *
  * This server can be run directly from the 
  * {@linkplain #main command line}
  * or as a nonactivatable service under the 
- * {@linkplain org.apache.river.start.ServiceStarter}.
+ * <code> org.apache.river.start.ServiceStarter</code>.
  * <p>
  * An example of running directly from the command line is:
  * <blockquote><pre>
@@ -337,8 +337,8 @@ public class ClassServer extends Thread implements Startable {
      * supported by {@link #main main}, except for the <code>-stop</code>
      * option.
      * 
-     * If constructed by {@link org.apache.river.start.ServiceStarter},
-     * {@link Commission#start() }, is called automatically, otherwise {@link #start()}
+     * If constructed by <code> org.apache.river.start.ServiceStarter </code>,
+     * {@link Startable#start() }, is called automatically, otherwise {@link #start()}
      * must be called manually after construction.
      *
      * @param args command line options

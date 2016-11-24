@@ -24,7 +24,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
- * Initialization data for {@link ActivationGroupImpl}, to control the
+ * Initialization data for <code> ActivationGroupImpl</code>, to control the
  * activation group's configuration. An instance of this is specified
  * in the <code>ActivationGroupDesc</code> for the group.
  *

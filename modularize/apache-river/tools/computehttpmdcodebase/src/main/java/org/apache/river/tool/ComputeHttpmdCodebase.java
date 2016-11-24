@@ -48,8 +48,8 @@ import net.jini.url.httpmd.HttpmdUtil;
  * is installed, <var><b>your_host</b></var> is the host where the HTTP server
  * for the <code>sdm-dl.jar</code> JAR file will be running, and
  * <var><b>http_port</b></var> is the port for that server. This command prints
- * out the download codebase for use by a client that uses the {@link
- * net.jini.lookup.ServiceDiscoveryManager}, using an HTTPMD URL to guarantee
+ * out the download codebase for use by a client that uses the <code>
+ * net.jini.lookup.ServiceDiscoveryManager</code>, using an HTTPMD URL to guarantee
  * integrity for the classes in the <code>sdm-dl.jar</code> JAR file. The
  * message digest will be computed using the <code>md5</code> algorithm, and
  * the <code>0</code> will be replaced by the computed digest.

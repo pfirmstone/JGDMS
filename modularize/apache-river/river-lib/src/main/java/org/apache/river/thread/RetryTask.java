@@ -236,8 +236,8 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
     }
 
     /**
-     * Return the time this task was created, or the last
-     * time {@link #reset reset} was called.
+     * Return the time this task was created.
+     * @return the time this task was created.
      */
     public long startTime() {
 	return startTime;

@@ -29,14 +29,14 @@ import java.rmi.RemoteException;
  * and/or it's remote activatable reference, if any, to allow the service
  * to return the object of its choice for a client-side reference. 
  * When a non-activatable service is created,  
- * {@link NonActivatableServiceDescriptor#create(net.jini.config.Configuration)
- * NonActivatableServiceDescriptor.create()}, 
+ * <code> NonActivatableServiceDescriptor#create(net.jini.config.Configuration)
+ * NonActivatableServiceDescriptor.create()</code>, 
  * returns the result from <code>&lt;impl&gt;.getServiceProxy()</code>, 
  * if supported, where <code>&lt;impl&gt;</code> is the service implementation
  * instance.
  * When an activatable service is created,    
- * {@link SharedActivatableServiceDescriptor#create(net.jini.config.Configuration)
- * SharedActivatableServiceDescriptor.create()}, 
+ * <code> SharedActivatableServiceDescriptor#create(net.jini.config.Configuration)
+ * SharedActivatableServiceDescriptor.create()</code>, 
  * returns the result of <code>&lt;act_ref&gt;.getServiceProxy()</code>,
  * if supported, where <code>&lt;act_ref&gt;</code> is the service reference
  * returned by the call to
@@ -46,8 +46,8 @@ import java.rmi.RemoteException;
  *
  * @since 2.0
  *
- * @see org.apache.river.start.NonActivatableServiceDescriptor
- * @see org.apache.river.start.SharedActivatableServiceDescriptor
+ * <br><code>see org.apache.river.start.NonActivatableServiceDescriptor</code>
+ * <br><code>see org.apache.river.start.SharedActivatableServiceDescriptor</code>
  * @see java.rmi.activation.ActivationID
  *
  **/

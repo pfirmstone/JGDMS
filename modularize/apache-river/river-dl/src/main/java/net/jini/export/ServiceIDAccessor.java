@@ -27,7 +27,7 @@ import net.jini.core.lookup.ServiceID;
  * proxy.
  * 
  * Services that wish to support the 
- * {@link net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int) } 
+ * <code> net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int) </code> 
  * method must implement this remote interface.
  * 
  */

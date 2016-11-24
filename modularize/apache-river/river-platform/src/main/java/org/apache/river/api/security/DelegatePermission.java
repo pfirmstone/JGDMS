@@ -105,7 +105,7 @@ import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
  * Specification</i>:
  * <pre>
  * <i>Target</i>:
- *   <i>DelimiterDeclaration</i><sub>opt</sub> <i>Permissions</i> ;<sub>opt</sub>
+ *   <i>DelimiterDeclaration</i>opt <i>Permissions</i> ;opt
  *   
  * <i>DelimiterDeclaration</i>:
  *   delim = <i>DelimiterCharacter</i>

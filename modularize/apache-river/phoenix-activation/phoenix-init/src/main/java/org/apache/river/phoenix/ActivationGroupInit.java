@@ -50,7 +50,7 @@ import org.apache.river.api.security.CombinerSecurityManager;
  * 
  * @since 2.0
  */
-class ActivationGroupInit {
+public class ActivationGroupInit {
     private ActivationGroupInit() {}
 
     /**

@@ -180,7 +180,7 @@ public interface LeaseRenewalSet {
     /**
      * The event id for all <code>ExpirationWarningEvent</code> objects.
      *
-     * @see ExpirationWarningEvent
+     * <code>see ExpirationWarningEvent</code>
      */
     final static public long EXPIRATION_WARNING_EVENT_ID = 1;
 

@@ -25,7 +25,7 @@ import net.jini.id.ReferentUuid;
  * 
  * @author Sun Microsystems, Inc.
  *
- * @see LeasePeriodPolicy
+ * <br><code>see LeasePeriodPolicy</code>
  * @since 2.0
  */
 public interface LeasedResource {

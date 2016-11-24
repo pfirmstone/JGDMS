@@ -195,7 +195,7 @@ import org.ietf.jgss.GSSName;
  *     server logger performed by endpoint classes in this package at
  *     different logging levels">
  * 
- *     <caption halign="center" valign="top"><b><code>
+ *     <caption><b><code>
  * 	net.jini.jeri.kerberos.server</code></b></caption>
  * 
  *     <tr> <th scope="col"> Level <th scope="col"> Description
@@ -239,7 +239,7 @@ import org.ietf.jgss.GSSName;
  * This implementation uses the standard <a
  * href="http://www.ietf.org/rfc/rfc2853.txt">Java(TM) GSS-API</a>.
  * Additionally, for each inbound connection established, it invokes
- * {@link GSSUtil#createSubject GSSUtil.createSubject} to construct a
+ * <code> GSSUtil.createSubject </code> to construct a
  * <code>Subject</code> instance, which encapsulates the principal and
  * delegated credential, if any, of the corresponding remote caller.
  *

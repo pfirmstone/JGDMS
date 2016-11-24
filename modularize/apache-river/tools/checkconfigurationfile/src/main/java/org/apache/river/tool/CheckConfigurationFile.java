@@ -133,8 +133,8 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  * 
  * where <var><b>install_dir</b></var> is the directory where the River-Internet release
  * is installed, and <var><b>your-norm.config</b></var> is a configuration
- * source file intended for use with the transient {@linkplain
- * org.apache.river.norm Norm} service implementation. This command will print out
+ * source file intended for use with the transient <code>
+ * org.apache.river.norm Norm </code> service implementation. This command will print out
  * any problems that it detects in the configuration file, including entries
  * that are not recognized or have the wrong type for the Norm service.
  *

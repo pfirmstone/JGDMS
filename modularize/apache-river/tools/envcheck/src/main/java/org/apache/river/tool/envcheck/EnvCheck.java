@@ -101,7 +101,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     option is a hint that stack traces are desired. It is the responsibility
  *     of the individual plugin implementation to honor this option.
  * </dd>
- * <br>
+ * 
  * <dt><b><code>-explain</code></b>
  * <dd>By default, the output of a validity check will be a short message with
  *     enough detail to allow a knowledgeable user to interpret it; however, it
@@ -112,7 +112,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     is the responsibility of the individual plugin implementation to honor
  *     this option.
  * </dd>
- * <br>
+ * 
  * <dt><b><code>-level</code> <var>info|warning|error</var></b>
  * <dd>The tool supports three severity levels for message generation. 
  * <p>
@@ -133,7 +133,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     This option is used to set the level at which message records are
  *     generated. The default value is <var>warning</var>.
  * </dd>
- * <br>
+ * 
  * <dt><b><code>-plugin</code> <var>file</var></b>
 
  * <dd>Identifies a JAR file containing user supplied plugins that will be run
@@ -146,7 +146,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *     <code>org.apache.river.tool.envcheck.Plugin</code> interface. This option
  *     may be supplied zero or more times.
  * </dd>
- * <br>
+ * 
  * <dt><b><code>-security</code></b>
  * <dd>A plugin specific option that is recognized by one of the bundled
  *     plugins.  Specifying this option will activate a number of JAAS and JSSE
@@ -170,7 +170,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  *           -Djava.security.policy=<var><b>my_policy</b></var> \
  *           -Djava.server.rmi.codebase=http://myhost/myservice-dl.jar \
  *           myservice.MyServiceImpl
- * </blockquote></pre>
+ * </pre></blockquote>
  * In this case, the tool is limited to performing validity checks on the
  * classpath, policy, and codebase values identified by the system properties
  * and options provided on the service command line. The <code>-level</code>,
@@ -185,7 +185,7 @@ import org.apache.river.api.net.RFC3986URLClassLoader;
  * java -jar <var><b>install_dir</b></var>/lib/envcheck.jar -level error \
  *      java -Djava.security.policy=<var><b>my_starterpolicy</b></var> \
  *           -jar <var><b>install_dir</b></var>/lib/start.jar reggie.config
- * </blockquote></pre>
+ * </pre></blockquote>
  * The tool can perform many more checks in this case because the
  * bundled plugins include built-in knowledge about the service starter
  * and its public configuration entries. The tool options used will minimize
@@ -885,7 +885,7 @@ public class EnvCheck {
      * <code>launch(d, g, taskName, null)</code>.
      *
      * @param d the services descriptor, which may be <code>null</code>
-     * @param gd the group descriptor, which may be <code>null</code
+     * @param gd the group descriptor, which may be <code>null</code>
      * @param taskName the name of the subtask to run
      * @return the result or exception returned by the subtask supplied as a
      *         serialized object written on the subtask's
@@ -966,7 +966,7 @@ public class EnvCheck {
      * <p>
      *
      * @param d the service descriptor, which may be <code>null</code>
-     * @param gd the group descriptor, which may be <code>null</code
+     * @param gd the group descriptor, which may be <code>null</code>
      * @param taskName the name of the subtask to run
      * @param args the arguments to pass to the child VM, which may be 
      *             <code>null</code>

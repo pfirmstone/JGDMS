@@ -129,14 +129,14 @@ import org.apache.river.api.util.Startable;
  *          security property"
  *          border="0" cellpadding="2">
  *     <tr valign="top">
- *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *       <th scope="col"> <font size="+1">&#X2022;</font>
  *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
  *       org.apache.river.start.servicePolicyProvider</code></font>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>
  *         "net.jini.security.policy.DynamicPolicyProvider"
  *         </code>
- *     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Description: <td> The fully qualified class name of a
  *       dynamic policy provider (see {@link net.jini.security.policy.DynamicPolicy})
  *       which will be used to "wrap" all service policy files. 
@@ -147,8 +147,8 @@ import org.apache.river.api.util.Startable;
  *   public &lt;impl&gt;(Policy servicePolicy)
  *           </pre></blockquote>
  *           where,
- *           <LI><UL>servicePolicy - is the service policy object to be wrapped
- *           </UL>
+ *           <LI>servicePolicy - is the service policy object to be wrapped
+ *           
  *       <LI> implement {@link net.jini.security.policy.DynamicPolicy}
  *       <LI> be a public, non-interface, non-abstract class
  *       </UL>

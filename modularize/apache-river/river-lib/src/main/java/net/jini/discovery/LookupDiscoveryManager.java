@@ -36,7 +36,7 @@ import net.jini.core.discovery.LookupLocator;
  * facilities on their behalf.
  * <p>
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#ldmConfigEntries">Configuring LookupDiscoveryManager</a>

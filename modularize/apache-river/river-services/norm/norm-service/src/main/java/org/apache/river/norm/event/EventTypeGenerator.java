@@ -34,7 +34,7 @@ import org.apache.river.thread.WakeupManager;
  * Factory class for <code>EventType</code> objects.  All
  * <code>EventType</code> objects created by the same generator (or
  * associated with the same generator by a
- * <code>EventType.restoreTransientState<code> call) will use the same
+ * <code>EventType.restoreTransientState</code> call) will use the same
  * thread pool to manage their event send threads.
  *
  * @author Sun Microsystems, Inc.

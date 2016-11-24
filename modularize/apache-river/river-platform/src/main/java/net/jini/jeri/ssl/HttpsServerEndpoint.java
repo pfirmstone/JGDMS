@@ -227,7 +227,7 @@ import net.jini.security.SecurityContext;
  *	  logger performed by the HttpsServerEndpoint class at different
  *	  logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
+ * <caption><b><code>
  *	    net.jini.jeri.ssl.init</code></b></caption>
  *     
  * <tr> <th scope="col"> Level <th scope="col"> Description
@@ -241,7 +241,7 @@ import net.jini.security.SecurityContext;
  *	  logger performed by the HttpsServerEndpoint class at different
  *	  logging levels">
  *
- * <caption halign="center" valign="top"><b><code>
+ * <caption><b><code>
  *	    net.jini.jeri.ssl.server</code></b></caption>
  *     
  * <tr> <th scope="col"> Level <th scope="col"> Description

@@ -153,7 +153,7 @@ import org.apache.river.config.Config;
  *          entry"
  *          border="0" cellpadding="2">
  *     <tr valign="top">
- *       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *       <th scope="col"> <font size="+1">&#X2022;</font>
  *       <th scope="col" align="left" colspan="2"> <font size="+1"><code>
  *       activationSystemPreparer</code></font>
  *     <tr valign="top"> <td> &nbsp; <th scope="row" align="right">

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInput;
+import java.io.Externalizable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -42,7 +43,7 @@ import java.security.PrivilegedExceptionAction;
  * <p>
  * The constructor replaces the readExternal method in Externalizable.
  * 
- * @see Externalizable.
+ * @see Externalizable
  * @author peter
  */
 @Retention(RetentionPolicy.RUNTIME)

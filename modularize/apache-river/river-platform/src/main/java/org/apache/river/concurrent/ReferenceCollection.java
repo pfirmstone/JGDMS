@@ -20,16 +20,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.io.WriteAbortedException;
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
 import java.util.AbstractCollection;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * A Collection of Reference Objects, the developer may chose any Collection
@@ -51,7 +46,6 @@ import java.util.logging.Logger;
  * collection in a multi read, single write collection for scalability.
  * 
  * @see Ref
- * @see ConcurrentCollections#multiReadCollection(java.util.Collection) 
  * @author Peter Firmstone.
  */
 class ReferenceCollection<T> extends AbstractCollection<T> 

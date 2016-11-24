@@ -29,6 +29,7 @@ import net.jini.io.MarshalFactory;
 import net.jini.io.MarshalInstanceInput;
 import net.jini.io.MarshalInstanceOutput;
 import net.jini.io.MarshalledInstance;
+import net.jini.io.ObjectStreamContext;
 
 /**
  * Implementation of MarshalledInstance that performs input validation 

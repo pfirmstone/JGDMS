@@ -46,6 +46,7 @@ import java.io.SerializablePermission;
 import java.io.StreamCorruptedException;
 import java.io.UTFDataFormatException;
 import java.io.WriteAbortedException;
+import java.io.BufferedReader;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -87,7 +88,7 @@ import org.apache.river.impl.Messages;
  *      <li>Object construction using the first non serializable superclass zero
  *      arg constructor.</li>
  * </ul>
- *</p>
+ * <p>
  *    <h2>De-serialization Supported:</h2>
  * <p>
  * <ul>
@@ -103,12 +104,12 @@ import org.apache.river.impl.Messages;
  *      <li>{@link net.jini.core.entry.Entry}, stream data will be checked against
  *      each field type.</li>
  * </ul>
- * </p><p>
+ * <p>
  *      Any of the above classes that have the appropriate {@link DeSerializationPermission},
  *      {@link Serializable} object's that have only primitive serial form, don't
  *      require {@link DeSerializationPermission}.
  *      The Serialization stream protocol.
- *</p>
+ * <p>
  *    <h2>Informational:</h2>
  * <p>
  *      Collection, List Set, SortedSet, Map and SortedMap, are replaced in

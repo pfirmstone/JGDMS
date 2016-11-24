@@ -157,7 +157,7 @@ See takeSnapshot() for exact details of what gets stored.
 See recoverSnapshot() for exact details of what gets retrieved.
 */
 
-class MailboxImpl implements MailboxBackEnd, TimeConstants, 
+public class MailboxImpl implements MailboxBackEnd, TimeConstants, 
     ServerProxyTrust, ProxyAccessor, Startable,
     ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
  

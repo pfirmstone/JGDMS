@@ -48,7 +48,7 @@ public abstract class AbstractEntry implements CloneableEntry {
     
     /**
      * Clone has been implemented to allow utilities such as
-     * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
+     * <code> net.jini.lookup.ServiceDiscoveryManager </code> to avoid sharing 
      * internally stored instances with client code.
      * 
      * Entry's that have mutable fields, for example arrays or collections,

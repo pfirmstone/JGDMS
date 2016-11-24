@@ -95,7 +95,7 @@ public abstract class CharacterEncoder {
 
     /**
      * Encode the suffix that ends every output line. By default
-     * this method just prints a <newline> into the output stream.
+     * this method just prints a <i>newline</i> into the output stream.
      */
     protected void encodeLineSuffix(OutputStream aStream) throws IOException {
 	pStream.println();

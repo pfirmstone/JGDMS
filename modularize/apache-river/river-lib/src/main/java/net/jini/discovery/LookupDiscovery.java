@@ -35,7 +35,7 @@ import net.jini.core.constraint.MethodConstraints;
  * to lookup services - based on no information other than lookup service
  * group membership - much simpler for both services and clients.
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#ldConfigEntries">Configuring LookupDiscovery</a>

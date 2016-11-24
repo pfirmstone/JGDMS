@@ -114,7 +114,7 @@ import net.jini.security.AccessPermission;
  * </tr>
  * <tr>
  * <td>org.apache.river.phoenix.ActivationAdmin.getActivationGroups</td>
- * <td>invoking {@link org.apache.river.phoenix.ActivationAdmin#getActivationGroups
+ * <td>invoking <code> org.apache.river.phoenix.ActivationAdmin.getActivationGroups</code>
  * ActivationAdmin.getActivationGroups}</td>
  * <td>The caller can obtain the activation group identifiers and
  * descriptors for all registered activation groups</td>
@@ -122,7 +122,7 @@ import net.jini.security.AccessPermission;
  * <tr>
  * <td>org.apache.river.phoenix.ActivationAdmin.getActivatableObjects</td>
  * <td>invoking
- * {@link org.apache.river.phoenix.ActivationAdmin#getActivatableObjects
+ * <code> org.apache.river.phoenix.ActivationAdmin.getActivatableObjects</code>
  * ActivationAdmin.getActivatableObjects}</td>
  * <td>The caller can obtain the activation identifiers and
  * descriptors for all registered activatable objects in an activation group

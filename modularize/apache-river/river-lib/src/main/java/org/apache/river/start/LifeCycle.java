@@ -23,13 +23,13 @@ package org.apache.river.start;
  * services started by the 
  * {@linkplain org.apache.river.start service starter}. Services
  * started via a 
- * {@link org.apache.river.start.NonActivatableServiceDescriptor} get passed a 
+ * <code> org.apache.river.start.NonActivatableServiceDescriptor </code> get passed a 
  * reference to a <code>LifeCycle</code> object, which can be used by the
  * server to inform the hosting environment that it can release any resources
  * associated with the server (presumably because the server is terminating).
- *
- * @see org.apache.river.start.NonActivatableServiceDescriptor
- * @see org.apache.river.start.ServiceStarter
+ * <p>
+ * <br><code> org.apache.river.start.NonActivatableServiceDescriptor</code>
+ * <br><code> org.apache.river.start.ServiceStarter</code>
  *
  * @author Sun Microsystems, Inc.
  *

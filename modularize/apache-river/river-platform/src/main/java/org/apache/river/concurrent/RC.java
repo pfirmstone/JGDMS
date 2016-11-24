@@ -231,7 +231,7 @@ public class RC {
      * @param internal NavigableSet for holding Referrer objects.
      * @param type Referrer implementation required.
      * @param gcCycle scheduled cleaning task interval in milliseconds.
-     * @return NavigableSet<Referrer<T>> decorated as NavigableSet<T>
+     * @return NavigableSet&lt;Referrer&lt;T&gt;&gt; decorated as NavigableSet&lt;T&gt;
      */
     public static <T> NavigableSet<T> navigableSet(
             NavigableSet<Referrer<T>> internal, Ref type, long gcCycle){
@@ -258,7 +258,7 @@ public class RC {
      * @param internal Deque for holding Referrer objects.
      * @param type Referrer implementation required.
      * @param gcCycle scheduled cleaning task interval in milliseconds.
-     * @return Deque<Referrer<T>> decorated as Deque<T>
+     * @return Deque&lt;Referrer&lt;T&gt;&gt; decorated as Deque&lt;T&gt;
      */
     public static <T> Deque<T> deque(Deque<Referrer<T>> internal, Ref type, long gcCycle){
         return new ReferenceDeque<T>(internal, type, true, gcCycle);

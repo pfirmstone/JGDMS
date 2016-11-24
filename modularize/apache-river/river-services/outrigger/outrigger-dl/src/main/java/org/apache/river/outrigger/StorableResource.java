@@ -24,7 +24,7 @@ import org.apache.river.landlord.LeasedResource;
  * objects that represent leased resources and must persist their state.
  *
  * @param <T> the type of the StorableObject
- * @see LogOps
+ * <br><code>see LogOps </code>
  *
  * @author Sun Microsystems, Inc.
  *

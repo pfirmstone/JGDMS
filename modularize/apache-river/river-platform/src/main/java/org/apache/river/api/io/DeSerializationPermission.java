@@ -35,10 +35,12 @@ import java.security.BasicPermission;
  * classes that can participate in atomic de-serialization.
  * <p>
  * There are only four types:
+ * <ul>
  * <li>ATOMIC</li>
  * <li>EXTERNALIZABLE</li>
  * <li>MARSHALLED</li>
  * <li>PROXY</li>
+ * </ul>
  *<p>
  * Permissions should only be granted to domains that are trusted to read in a
  * serial stream from an untrusted data source.
@@ -62,10 +64,12 @@ public class DeSerializationPermission extends BasicPermission {
      * from an {@link AtomicMarshalInputStream} requires permission to do so.
      * 
      * @param type one of the following 
+     * <ul>
      * <li>ATOMIC - Classes that implement {@link AtomicSerial} or {@link AtomicExternal}</li>
-     * <li>EXTERNALIZABLE - Classes that implement {@link Externalizable}</li>
+     * <li>EXTERNALIZABLE - Classes that implement {@link java.io.Externalizable}</li>
      * <li>MARSHALLED - {@link net.jini.io.MarshalledInstance} or {@link java.rmi.MarshalledObject}</li>
      * <li>PROXY - any class extending {@link java.lang.reflect.Proxy}, dynamically generated proxy's already have this permission.</li>
+     * </ul>
      */
     public DeSerializationPermission(String type) {
 	super(type);

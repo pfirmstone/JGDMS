@@ -194,7 +194,7 @@ import org.apache.river.logging.Levels;
  *	  logger performed by the SslEndpoint class at different logging
  *	  levels">
  *
- * <caption halign="center" valign="top"><b><code>
+ * <caption><b><code>
  *	    net.jini.jeri.ssl.init</code></b></caption>
  *     
  * <tr> <th scope="col"> Level <th scope="col"> Description
@@ -209,7 +209,7 @@ import org.apache.river.logging.Levels;
  *	  logger performed by the SslEndpoint class at different logging
  *	  levels">
  *
- * <caption halign="center" valign="top"><b><code>
+ * <caption><b><code>
  *	    net.jini.jeri.ssl.client</code></b></caption>
  *     
  * <tr> <th scope="col"> Level <th scope="col"> Description

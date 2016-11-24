@@ -41,7 +41,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * unicast discovery, and apply only to its {@link LookupLocator#getRegistrar()
  * getRegistrar()} and {@link LookupLocator#getRegistrar(int)
  * getRegistrar(int)} methods.  The constraints may also be used by other
- * utilities, such as {@link LookupLocatorDiscovery}, to determine how unicast
+ * utilities, such as <code> LookupLocatorDiscovery </code>, to determine how unicast
  * discovery should be performed on behalf of a given
  * <code>ConstrainableLookupLocator</code> instance.  Untrusted
  * <code>ConstrainableLookupLocator</code> instances can be verified using the

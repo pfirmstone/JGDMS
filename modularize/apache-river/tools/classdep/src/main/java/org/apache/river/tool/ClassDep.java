@@ -95,7 +95,7 @@ import java.util.TreeSet;
  * result. For example, if you include <code>jini-ext.jar</code> then you
  * should explicitly include <code>jini-core.jar</code> as well, because
  * <code>jini-core.jar</code> is in the <code>Class-Path</code> manifest
- * entry of <code>jini-ext.jar</code>.</dd>
+ * entry of <code>jini-ext.jar</code>.
  *
  * <a name="processing"></a>
  * <h3>Processing Options</h3>
@@ -127,7 +127,7 @@ import java.util.TreeSet;
  * specified zero or more times. Each class you specify with this option
  * needs to be in a package that is defined to be "inside" the graph (as
  * described further below).</dd>
- * <p>
+ * 
  * <dt><b><var>directory</var></b>
  * <dd>This option specifies the root directory of a tree of compiled class
  * files, all of which are to be included as roots of the dependency
@@ -231,7 +231,7 @@ import java.util.TreeSet;
  * might specify:
  * <pre>-in com.corp.foo -in org.apache.river -in net.jini</pre>
  * </dd>
- * <p>
+ * 
  * <dt><b><code>-out</code> <var>package-prefix</var></b>
  * <dd>Specifies a namespace of "outside" packages. Any classes in this
  * package or a subpackage of it are excluded from the dependency graph (and
@@ -254,7 +254,7 @@ import java.util.TreeSet;
  * in the dependency graph, then you would specify:
  * <pre>-out com.corp.foo.test -out com.corp.foo.qa</pre>
  * </dd>
- * <p>
+ * 
  * <dt><b><code>-skip</code> <var>class</var></b>
  * <dd>Specifies the fully qualified name of a specific class to exclude
  * from the dependency graph. This option allows an individual class to be
@@ -262,7 +262,7 @@ import java.util.TreeSet;
  * in to be considered outside.  This option can be specified zero or more
  * times.
  * </dd> 
- * <p>
+ * 
  * <dt><b><code>-outer</code></b>
  * <dd>By default, if a static nested class is included in the dependency
  * graph, all references from that static nested class to its immediate
@@ -273,7 +273,7 @@ import java.util.TreeSet;
  * enclosing class.) This option causes all such references to be considered
  * rather than ignored.  Note that this option is needed very infrequently.</dd>
  * </dl>
- * <p>
+ * <dl>
  * <dt><b><code>-newdirbehavior</code></b>
  * <dd>This option causes the utility to select classes, to serve as root for
  * the dependency checking, from the directory argument based on the
@@ -311,7 +311,7 @@ import java.util.TreeSet;
  * are referenced directly by the classes in your JAR file. The
  * <code>-edges</code> option can be used to display this information.
  * </dd>
- * <p>
+ * 
  * <dt><b><code>-show</code> <var>package-prefix</var></b>
  * <dd>Displays the classes that are in the specified package or a
  * subpackage of it. This option can be specified zero or more times. If no
@@ -325,7 +325,7 @@ import java.util.TreeSet;
  * application depends on, you might not specify any <code>-in</code>
  * options, but limit the output by specifying:
  * <pre>-show java -show javax</pre></dd>
- * <p>
+ * 
  * <dt><b><code>-hide</code> <var>package-prefix</var></b>
  * <dd>Specifies a namespace of packages which should not be displayed. Any
  * classes in this package or a subpackage of it are excluded from the
@@ -338,7 +338,7 @@ import java.util.TreeSet;
  * For example, to determine which non-core classes from the
  * <code>net.jini</code> namespace you use, you might specify:
  * <pre>-show net.jini -hide net.jini.core</pre></dd>
- * <p>
+ * 
  * <dt><b><code>-files</code></b>
  * <dd>By default, fully qualified class names are displayed, with package
  * names delimited by ".". This option causes the output to be in filename
@@ -359,7 +359,7 @@ import java.util.TreeSet;
  * http://java.sun.com/j2se/1.4/docs/guide/jar/jar.html</a>
  * </ul>
  * </dd>
- * <p>
+ * 
  * <dt><b><code>-tell</code> <var>class</var></b>
  * <dd>Specifies the fully qualified name of a class for which dependency
  * information is desired. This option causes the tool to display

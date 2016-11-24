@@ -24,12 +24,12 @@ import net.jini.core.entry.Entry;
 
 /**
  * Provides a means to obtain attributes from a bootstrap proxy returned from
- * {@link net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int) }
+ * <code> net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int) </code>
  * 
  * Services should implement this interface.
  * 
  * It's recommended that this is implemented using 
- * {@link net.jini.lookup.JoinManager#getAttributes() }
+ * <code> net.jini.lookup.JoinManager#getAttributes() </code>
  * or equivalent, to manage attribute state, to ensure that lookup services
  * and services registered therein maintain equivalent attributes.
  * 

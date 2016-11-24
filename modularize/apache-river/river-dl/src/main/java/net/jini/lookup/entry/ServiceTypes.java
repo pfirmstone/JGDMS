@@ -32,7 +32,7 @@ public class ServiceTypes extends AbstractEntry {
     
     /**
      * 
-     * @param serviceTypes 
+     * @param serviceType 
      */
     public ServiceTypes(Class serviceType){
 	this.serviceType = serviceType;

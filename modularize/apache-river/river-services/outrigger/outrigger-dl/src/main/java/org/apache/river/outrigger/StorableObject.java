@@ -22,11 +22,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 /**
+ * <p>
  * Interface that must be implemented by objects that must persist their
  * state.
- *
+ * </p>
  * @param <T> The type of the object to be restored 
- * @see LogOps
+ * <br><code>see LogOps </code>
  *
  * @author Sun Microsystems, Inc.
  *

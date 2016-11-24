@@ -42,7 +42,7 @@ import org.apache.velocity.app.VelocityEngine;
  *     {
  *         System.setSecurityManager(new SecurityManager() {
  *
- *            @Override
+ *            
  *            public void checkPermission(Permission perm)
  *            {
  *                // ignore

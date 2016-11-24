@@ -213,7 +213,7 @@ import org.ietf.jgss.GSSName;
  *     client logger performed by endpoint classes in this package at
  *     different logging levels">
  * 
- *     <caption halign="center" valign="top"><b><code>
+ *     <caption><b><code>
  * 	net.jini.jeri.kerberos.client</code></b></caption>
  * 
  *     <tr> <th scope="col"> Level <th scope="col"> Description

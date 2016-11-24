@@ -28,7 +28,7 @@ public interface CloneableEntry extends Entry, Cloneable {
 
     /**
      * Clone has been implemented in AbstractEntry to allow utilities such as
-     * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
+     * <code> net.jini.lookup.ServiceDiscoveryManager </code> to avoid sharing 
      * internally stored mutable Entry instances with client code.
      * 
      * Entry's that have mutable fields, for example arrays or collections,

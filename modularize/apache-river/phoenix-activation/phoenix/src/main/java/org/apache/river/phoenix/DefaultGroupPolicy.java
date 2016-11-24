@@ -40,7 +40,7 @@ public class DefaultGroupPolicy implements GroupPolicy {
     /**
      * Checks permissions for the specified group descriptor. If the group
      * class name in the descriptor is not <code>null</code> and is not
-     * {@link ActivationGroupImpl}, or if the class location or the
+     * <code> ActivationGroupImpl</code>, or if the class location or the
      * initialization data in the descriptor is not <code>null</code>, an
      * <code>AccessControlException</code> is thrown. For each property in
      * the descriptor's property overrides, {@link #checkPermission

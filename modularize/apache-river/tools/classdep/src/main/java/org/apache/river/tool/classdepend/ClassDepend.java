@@ -328,7 +328,7 @@ public class ClassDepend {
      * @param cdp The parameters for filtration.
      * @see ClassDependParameters
      * @see ClassDependencyRelationship
-     * @return Set<ClassDependencyRelationShip> result The result after filtration.
+     * @return Set&lt;ClassDependencyRelationShip&gt; result The result after filtration.
      */
     public Set filterClassDependencyRelationShipMap(Map dependencyRelationShipMap, ClassDependParameters cdp){
         Set result = new HashSet(); // final result

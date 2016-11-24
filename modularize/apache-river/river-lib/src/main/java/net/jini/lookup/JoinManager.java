@@ -97,7 +97,7 @@ import org.apache.river.thread.WakeupManager;
  * this class will create an instance of this class in the service's address
  * space to manage the entity's join state locally.
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#jmConfigEntries">Configuring JoinManager</a>
@@ -105,9 +105,7 @@ import org.apache.river.thread.WakeupManager;
  * </ul>
  *
  * <a name="jmConfigEntries">
- * <p>
  * <b><font size="+1">Configuring JoinManager</font></b>
- * <p>
  * </a>
  *
  * This implementation of <code>JoinManager</code> supports the following
@@ -118,18 +116,18 @@ import org.apache.river.thread.WakeupManager;
  * entry is retrieved from the configuration only once per instance of
  * this utility, where each such retrieval is performed in the constructor.
  * 
- * <a name="discoveryManager">
+ * <a name="discoveryManager"></a>
  * <table summary="Describes the discoveryManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>discoveryManager</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link net.jini.discovery.DiscoveryManagement}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code> new 
  *    {@link net.jini.discovery.LookupDiscoveryManager#LookupDiscoveryManager(
  *       java.lang.String[],
@@ -140,7 +138,7 @@ import org.apache.river.thread.WakeupManager;
  *                       new {@link net.jini.core.discovery.LookupLocator}[0],
  *                       null, config)</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The object used to manage the discovery processing
  *            performed by this utility. This entry will be retrieved
@@ -149,24 +147,24 @@ import org.apache.river.thread.WakeupManager;
  *            not be shared with other components in the application that
  *            employs this utility.
  * </table>
- * </a>
- * <a name="leaseManager">
+ * 
+ * <a name="leaseManager"></a>
  * <table summary="Describes the leaseManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>leaseManager</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link net.jini.lease.LeaseRenewalManager}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code> new 
  *       {@link net.jini.lease.LeaseRenewalManager#LeaseRenewalManager(
  *         net.jini.config.Configuration) LeaseRenewalManager}(config)</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The object used to manage each service lease returned
  *            to this utility when the service is registered with the
@@ -174,22 +172,22 @@ import org.apache.river.thread.WakeupManager;
  *            be retrieved from the configuration only if no lease 
  *            renewal manager is specified in the constructor.
  * </table>
- * </a>
- * <a name="maxLeaseDuration">
+ * 
+ * <a name="maxLeaseDuration"></a>
  * <table summary="Describes the maxLeaseDuration
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>maxLeaseDuration</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>long</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>Lease.FOREVER</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The maximum lease duration (in milliseconds) that is requested
  *            from each discovered lookup service on behalf of the service;
@@ -199,23 +197,23 @@ import org.apache.river.thread.WakeupManager;
  *            while the service is up, and lease expiration will occur sooner
  *            when the service goes down.
  * </table>
- * </a>
- * <a name="registrarPreparer">
+ * 
+ * <a name="registrarPreparer"></a>
  * <table summary="Describes the registrarPreparer configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>registrarPreparer</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  *                     </code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *   Description:
  *     <td> Preparer for the proxies to the lookup services that are
  *          discovered and used by this utility. 
@@ -226,23 +224,23 @@ import org.apache.river.thread.WakeupManager;
  *         <li>{@link net.jini.core.lookup.ServiceRegistrar#register register}
  *       </ul>
  * </table>
- * </a>
- * <a name="registrationPreparer">
+ * 
+ * <a name="registrationPreparer"></a>
  * <table summary="Describes the registrationPreparer configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>registrationPreparer</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  *                     </code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *   Description:
  *     <td> Preparer for the proxies to the registrations returned to
  *          this utility upon registering the service with each discovered
@@ -263,23 +261,23 @@ import org.apache.river.thread.WakeupManager;
  *                                                           setAttributes}
  *       </ul>
  * </table>
- * </a>
- * <a name="serviceLeasePreparer">
+ * 
+ * <a name="serviceLeasePreparer"></a>
  * <table summary="Describes the serviceLeasePreparer configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>serviceLeasePreparer</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *       Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  *                     </code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *   Description:
  *     <td> Preparer for the leases returned to this utility through
  *          the registrations with each discovered lookup service with
@@ -288,55 +286,55 @@ import org.apache.river.thread.WakeupManager;
  *          Currently, none of the methods on the service lease returned
  *          by this preparer are invoked by this implementation of the utility.
  * </table>
- * </a>
- * <a name="executorService">
+ * 
+ * <a name="executorService"></a>
  * <table summary="Describes the executorService configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>executorService</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ *     Type: <td> {@link java.util.concurrent.ExecutorService ExecutorService}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new 
- *             {@link java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+ *             {@link java.util.concurrent.ThreadPoolExecutor ThreadPoolExecutor}(
  *                   15,
  *                   15,
  *                   15,
  *                   TimeUnit.SECONDS,
- *                   new {@link java.util.concurrent/LinkedBlockingQueue LinkedBlockingQueue}(),
- *                   new {@link org.apache.river.impl.thread.NamedThreadFactory NamedThreadFactory}("JoinManager executor thread", false))</code>
+ *                   new {@link java.util.concurrent.LinkedBlockingQueue LinkedBlockingQueue}(),
+ *                   new {@link NamedThreadFactory NamedThreadFactory}("JoinManager executor thread", false))</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The object that pools and manages the various threads
  *            executed by this utility. This object
  *            should not be shared with other components in the
  *            application that employs this utility.
  * </table>
- * </a>
- * <a name="wakeupManager">
+ *
+ * <a name="wakeupManager"></a>
  * <table summary="Describes the wakeupManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>wakeupManager</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> {@link org.apache.river.thread.WakeupManager}
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>new 
  *     {@link org.apache.river.thread.WakeupManager#WakeupManager(
  *          org.apache.river.thread.WakeupManager.ThreadDesc)
  *     WakeupManager}(new 
  *     {@link org.apache.river.thread.WakeupManager.ThreadDesc}(null,true))</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> Object that pools and manages the various tasks that are
  *            initially executed by the object corresponding to the
@@ -352,33 +350,33 @@ import org.apache.river.thread.WakeupManager;
  *            with other components in the application that employs this
  *            utility.
  * </table>
- * </a>
- * <a name="wakeupRetries">
+ * 
+ * <a name="wakeupRetries"></a>
  * <table summary="Describes the wakeupRetries
  *                configuration entry" border="0" cellpadding="2">
  *   <tr valign="top">
- *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ *     <th scope="col" > <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>wakeupRetries</code></font>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Type: <td> <code>int</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Default: <td> <code>6</code>
  * 
- *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ *   <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *     Description:
  *       <td> The maximum number of times a failed task is allowed to
  *            be executed by the object corresponding to the 
  *            <a href="#wakeupManager"><code>wakeupManager</code></a>
  *            entry of this component.
  * </table>
- * </a>
+ * 
  * <a name="jmLogging">
- * <p>
+ * 
  * <b><font size="+1">Logging</font></b>
- * <p>
+ * 
  * </a>
  *
  * This implementation of <code>JoinManager</code> uses the
@@ -389,7 +387,7 @@ import org.apache.river.thread.WakeupManager;
  *         summary="Describes the information logged by JoinManager,
  *                 and the levels at which that information is logged">
  *
- * <caption halign="center" valign="top">
+ * <caption>
  *   <b><code>net.jini.lookup.JoinManager</code></b>
  * </caption>
  *

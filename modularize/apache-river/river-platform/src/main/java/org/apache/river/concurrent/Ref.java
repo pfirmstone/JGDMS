@@ -32,7 +32,7 @@ import java.util.concurrent.Future;
  * Reference Key disappears due to garbage collection, or SOFT reference keys
  * aren't garbage collected as expected.
  * </p><p>
- * Map implementations delete their key -> value mapping when either the 
+ * Map implementations delete their key -&gt; value mapping when either the 
  * key or value References become unreachable. ConcurrentMap's will retry until
  * putIfAbsent is successful when an existing Referrer key is cleared.
  * </p><p>

@@ -19,6 +19,7 @@ package com.sun.jini.config;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.config.NoSuchEntryException;
 
 /**
  * Provided for backward compatibility, migrate to new name space.

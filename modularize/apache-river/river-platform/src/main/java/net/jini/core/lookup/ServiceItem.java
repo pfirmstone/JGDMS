@@ -111,7 +111,7 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
     
     /**
      * Clone has been implemented to allow utilities such as
-     * {@link net.jini.lookup.ServiceDiscoveryManager} to avoid sharing 
+     * <code> net.jini.lookup.ServiceDiscoveryManager </code> to avoid sharing 
      * internally stored instances with client code.
      * 
      * A deep copy clone is made

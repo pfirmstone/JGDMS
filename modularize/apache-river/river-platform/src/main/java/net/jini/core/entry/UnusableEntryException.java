@@ -170,7 +170,7 @@ public class UnusableEntryException extends Exception {
      * <li> if <code>nestedExceptions</code> or any element of 
      *     <code>nestedExceptions</code> is <code>null</code>
      * </ul>
-     * @param s ObjectInputStream
+     * @param in ObjectInputStream
      * @throws ClassNotFoundException if class not found.
      * @throws IOException if a problem occurs during de-serialization.
      */

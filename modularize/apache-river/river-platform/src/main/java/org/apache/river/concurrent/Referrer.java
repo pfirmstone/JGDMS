@@ -52,25 +52,25 @@ public interface Referrer<T> {
      * <p>
      * Equals is calculated on IDENTITY or EQUALITY.
      * </p>
-     * IDENTITY calculation:<BR>
-     * <BR><CODE>
-     * if (this == o) return true;<BR>
-     * if (!(o instanceof Referrer)) return false;<BR>
-     * Object k1 = get();<BR>
-     * Object k2 = ((Referrer) o).get();<BR>
-     * if ( k1 != null && k1 == k2 ) return true;<BR>
-     * return ( k1 == null && k2 == null && hashCode() == o.hashCode());<BR>
+     * IDENTITY calculation:<br>
+     * <p><CODE>
+     * if (this == o) return true;<br>
+     * if (!(o instanceof Referrer)) return false;<br>
+     * Object k1 = get();<br>
+     * Object k2 = ((Referrer) o).get();<br>
+     * if ( k1 != null &amp;&amp; k1 == k2 ) return true;<br>
+     * return ( k1 == null &amp;&amp; k2 == null &amp;&amp; hashCode() == o.hashCode());<br>
      * </CODE>
-     * <BR>
-     * EQUALITY calculation:<BR>
-     * <BR><CODE>
-     * if (this == o)  return true; // Same reference.<BR>
-     * if (!(o instanceof Referrer))  return false;<BR>
-     * Object k1 = get();<BR>
-     * Object k2 = ((Referrer) o).get();<BR>
-     * if ( k1 != null && k1.equals(k2)) return true;<BR>
-     * return ( k1 == null && k2 == null && hashCode() == o.hashCode());<BR>
-     * <BR>
+     * <p>
+     * EQUALITY calculation:<br>
+     * <p><CODE>
+     * if (this == o)  return true; // Same reference.<br>
+     * if (!(o instanceof Referrer))  return false;<br>
+     * Object k1 = get();<br>
+     * Object k2 = ((Referrer) o).get();<br>
+     * if ( k1 != null &amp;&amp; k1.equals(k2)) return true;<br>
+     * return ( k1 == null &amp;&amp; k2 == null &amp;&amp; hashCode() == o.hashCode());<br>
+     * </CODE>
      *
      * @see Ref
      * @param o

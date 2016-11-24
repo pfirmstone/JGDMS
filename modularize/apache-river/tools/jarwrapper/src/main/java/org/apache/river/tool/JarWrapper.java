@@ -72,7 +72,7 @@ import java.util.regex.Pattern;
  *   <li> {@linkplain #main Processing Options}
  * </ul>
  * <p>
- * <a name="applicability"><h3>Applicability</h3></a>
+ * <h3><a name="applicability">Applicability</a></h3>
  * <p>
  * The <code>JarWrapper</code> tool is applicable in the following deployment
  * situations, which may overlap:
@@ -80,18 +80,18 @@ import java.util.regex.Pattern;
  *   <li> If a codebase contains multiple JAR files which declare preferred
  *	  resources, <code>JarWrapper</code> can be used to produce a wrapper
  *	  JAR file with a combined preferred list.  Preferred resources are
- *	  described in the documentation for the {@link net.jini.loader.pref}
+ *	  described in the documentation for the <code> net.jini.loader.pref</code>
  *	  package.
  *        <p>
  *   <li> If a codebase contains multiple JAR files and requires integrity
  *	  protection, <code>JarWrapper</code> can be used to produce a wrapper
  *	  JAR file with a <code>Class-Path</code> attribute that uses HTTPMD
  *	  URLs.  HTTPMD URLs are described in the documentation for the
- *	  {@link net.jini.url.httpmd} package.
+ *	  <code> net.jini.url.httpmd</code> package.
  *        <p>
  *   <li> If an application or service packaged as an executable JAR file
  *	  refers to classes specified at deployment time (e.g., via a
- *	  {@link net.jini.config.Configuration Configuration}) which are not
+ *	  <code> net.jini.config.Configuration Configuration </code>) which are not
  *	  present in the JAR file or its <code>Class-Path</code>,
  *	  <code>JarWrapper</code> can be used to produce a wrapper JAR file
  *	  which includes the extra classes in its <code>Class-Path</code> while
@@ -100,7 +100,7 @@ import java.util.regex.Pattern;
  *	  file.
  * </ul>
  * <p>
- * <a name="running"><h3>Using the Tool</h3></a>
+ * <h3><a name="running">Using the Tool</a></h3>
  * <code>JarWrapper</code> can be run directly from the
  * {@linkplain #main command line} or can be invoked programmatically using the
  * {@link #wrap wrap} method.
@@ -140,7 +140,7 @@ import java.util.regex.Pattern;
  * </pre></blockquote>
  *
  * <p>
- * <a name="logging"><h3>Logging</h3></a>
+ * <h3><a name="logging">Logging</a></h3>
  * <p>
  * <code>JarWrapper</code> uses the {@link Logger} named
  * <code>org.apache.river.tool.JarWrapper</code> to log information at the
@@ -149,7 +149,7 @@ import java.util.regex.Pattern;
  * <table border="1" cellpadding="5"
  * 	  summary="Describes logging performed by JarWrapper at different
  *		   logging levels">
- * <caption halign="center" valign="top"><b><code>
+ * <caption><b><code>
  *    org.apache.river.tool.JarWrapper</code></b></caption>
  *
  *   <tr> <th scope="col"> Level   <th scope="col"> Description </tr>
@@ -308,8 +308,7 @@ public class JarWrapper {
      * then all resources contained in it and its transitively referenced JAR
      * files (again, excluding those previously encountered) are considered not
      * preferred.  Preferred lists are described further in the documentation
-     * for {@link net.jini.loader.pref.PreferredClassLoader
-     * PreferredClassLoader}.
+     * for <code> net.jini.loader.pref.PreferredClassLoader</code>.
      * <p>
      * If any of the top-level source JAR files declare a
      * <code>Main-Class</code> manifest entry, then the wrapper JAR file will

@@ -25,11 +25,11 @@ package org.apache.river.api.util;
  * <p>
  * All services in River now implement Startable to avoid 
  * exporting a service during construction, for JMM compliance.
- * 
- * @see org.apache.river.start.ServiceDescriptor
- * @see org.apache.river.start.ActivateWrapper
- * @see org.apache.river.start.SharedGroupImpl
- * @see org.apache.river.start.NonActivatableServiceDescriptor
+ * <p>
+ * <br><code>see org.apache.river.start.ServiceDescriptor</code>
+ * <br><code>see org.apache.river.start.ActivateWrapper</code>
+ * <br><code>see org.apache.river.start.SharedGroupImpl</code>
+ * <br><code>see org.apache.river.start.NonActivatableServiceDescriptor</code>
  * @see net.jini.export.Exporter
  * @since 3.0.0
  */

@@ -128,7 +128,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * @see LeaseException
  * @see LeaseRenewalEvent 
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul>

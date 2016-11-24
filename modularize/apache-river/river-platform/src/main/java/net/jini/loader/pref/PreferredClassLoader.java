@@ -125,7 +125,7 @@ import org.apache.river.api.security.AdvisoryPermissionParser;
  *
  * This specification defines only version 1.0, but
  * <code>PreferredClassLoader</code> will parse any version
- * 1.<i>x</i>, <i>x</i>>=0 with the format and semantics specified
+ * 1.<i>x</i>, <i>x</i>&lt;=0 with the format and semantics specified
  * here.
  *
  * <p>After the version number line, a preferred list comprises an

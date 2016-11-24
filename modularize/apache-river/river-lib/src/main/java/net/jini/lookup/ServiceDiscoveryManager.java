@@ -179,7 +179,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * space to manage the state of discovered services and their associated lookup
  * services locally.
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#sdmConfigEntries">Configuring ServiceDiscoveryManager</a>
@@ -187,9 +187,9 @@ import org.apache.river.thread.NamedThreadFactory;
  * </ul>
  *
  * <a name="sdmConfigEntries">
- * <p>
+ * 
  * <b><font size="+1">Configuring ServiceDiscoveryManager</font></b>
- * <p>
+ * 
  * </a>
  *
  * This implementation of <code>ServiceDiscoveryManager</code> supports the
@@ -213,24 +213,24 @@ import org.apache.river.thread.NamedThreadFactory;
  * caches that are created.
  *
  *
- * <a name="cacheExecutorService">
+ * <a name="cacheExecutorService"></a>
  * <table summary="Describes the cacheExecutorService configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>cacheExecutorService</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- * Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ * Type: <td> {@link java.util.concurrent.ExecutorService ExecutorService}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>new
- *             {@link java.util.concurrent/ThreadPoolExecutor
+ *             {@link java.util.concurrent.ThreadPoolExecutor
  *                     ThreadPoolExecutor}( 6, 6, 15, TimeUnit.SECONDS, new LinkedBlockingQueue(),
  * new NamedThreadFactory( "SDM lookup cache", false ))</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> The object that pools and manages the various threads executed by each
  * of the lookup caches created by this utility. There is one such
@@ -239,25 +239,25 @@ import org.apache.river.thread.NamedThreadFactory;
  * retrieved and employed by that cache. This object should not be shared with
  * other components in the application that employs this utility.
  * </table>
- * </a>
- * <a name="discardExecutorService">
+ * 
+ * <a name="discardExecutorService"></a>
  * <table summary="Describes the discardExecutorService configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>discardExecutorService</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- * Type: <td> {@link java.util.concurrent/ScheduledExecutorService ScheduledExecutorService}
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ * Type: <td> {@link java.util.concurrent.ScheduledExecutorService ScheduledExecutorService}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>new
- *             {@link java.util.concurrent/ScheduledThreadPoolExecutor
+ *             {@link java.util.concurrent.ScheduledThreadPoolExecutor
  *                     ScheduledThreadPoolExecutor}( 4,
  * new NamedThreadFactory( "SDM discard timer", false ))</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> The object that pools and manages the threads, executed by a cache, that
  * wait on verification events after a previousy discovered service has been
@@ -266,26 +266,26 @@ import org.apache.river.thread.NamedThreadFactory;
  * cache. This object should not be shared with other components in the
  * application that employs this utility.
  * </table>
- * </a>
+ * 
  *  *
- * <a name="ServiceEventExecutorService">
+ * <a name="ServiceEventExecutorService"></a>
  * <table summary="Describes the ServiceEventExecutorService configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>ServiceEventExecutorService</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- * Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
+ * Type: <td> {@link java.util.concurrent.ExecutorService ExecutorService}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>new
- *             {@link java.util.concurrent/ThreadPoolExecutor
+ *             {@link java.util.concurrent.ThreadPoolExecutor
  *                     ThreadPoolExecutor}( 2, 2, 15, TimeUnit.SECONDS, new PriorityBlockingQueue(256),
  * new NamedThreadFactory( "SDM ServiceEvent: " +toString(), false ))</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> The ExecutorService object that processes incoming ServiceEvent's.  This
  * executor is wrapped by an {@link org.apache.river.thread.ExtensibleExecutorService}
@@ -306,23 +306,23 @@ import org.apache.river.thread.NamedThreadFactory;
  * numerous threads, as this will test the alternate execution paths that 
  * include lookup.
  * </table>
- * </a>
  * 
- * <a name="discardWait">
+ * 
+ * <a name="discardWait"></a>
  * <table summary="Describes the discardWait configuration entry" border="0"
  * cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>discardWait</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> <code>long</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>2*(5*60*1000)</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> The value used to affect the behavior of the mechanism that handles the
  * <i>service discard problem</i> described in this utility's specification.
@@ -335,19 +335,19 @@ import org.apache.river.thread.NamedThreadFactory;
  * only by the caches (both internal and external) that are created by this
  * utility, and not by the utility itself.
  * </table>
- * </a>
- * <a name="discoveryManager">
+ * 
+ * <a name="discoveryManager"></a>
  * <table summary="Describes the discoveryManager configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>discoveryManager</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> {@link net.jini.discovery.DiscoveryManagement}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code> new
  *    {@link net.jini.discovery.LookupDiscoveryManager#LookupDiscoveryManager(
  *      java.lang.String[],
@@ -357,7 +357,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * java.lang.String[] {""}, new
  * {@link net.jini.core.discovery.LookupLocator}[0], null, config)</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> The object used to manage the discovery processing performed by this
  * utility. This entry will be retrieved from the configuration only if no
@@ -366,23 +366,23 @@ import org.apache.river.thread.NamedThreadFactory;
  * this utility. This item is used only by the service discovery manager, and
  * not by any cache that is created.
  * </table>
- * </a>
- * <a name="eventLeasePreparer">
+ * 
+ * <a name="eventLeasePreparer"></a>
  * <table summary="Describes the eventLeasePreparer configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>eventLeasePreparer</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> {@link net.jini.security.ProxyPreparer}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  * </code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> Preparer for the leases returned when a cache registers with the event
  * mechanism of any of the discovered lookup services. This item is used only by
@@ -391,19 +391,19 @@ import org.apache.river.thread.NamedThreadFactory;
  * <p>
  * Currently, no methods of the returned proxy are invoked by this utility.
  * </table>
- * </a>
- * <a name="eventListenerExporter">
+ * 
+ * <a name="eventListenerExporter"></a>
  * <table summary="Describes the eventListenerExporter configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>eventListenerExporter</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> {@link net.jini.export.Exporter}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code> new
  *                {@link net.jini.jeri.BasicJeriExporter#BasicJeriExporter(
  *                                        net.jini.jeri.ServerEndpoint,
@@ -412,12 +412,12 @@ import org.apache.river.thread.NamedThreadFactory;
  *                                        boolean) BasicJeriExporter}(
  *              {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance
  *                                      TcpServerEndpoint.getInstance}(0),<br>
- * &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp new
+ * &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; new
  * {@link net.jini.jeri.BasicILFactory}(),<br>
- * &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp
+ * &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
  * false, false)</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> Exporter for the remote event listener that each cache supplies to the
  * lookup services whose event mechanisms those caches register with. Note that
@@ -431,24 +431,24 @@ import org.apache.river.thread.NamedThreadFactory;
  * VM in which this utility runs to "go away" when desired; and not be kept
  * alive simply because the listener is still exported.
  * </table>
- * </a>
- * <a name="leaseManager">
+ *
+ * <a name="leaseManager"></a>
  * <table summary="Describes the leaseManager configuration entry" border="0"
  * cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>leaseManager</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> {@link net.jini.lease.LeaseRenewalManager}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code> new
  *       {@link net.jini.lease.LeaseRenewalManager#LeaseRenewalManager(
  *        net.jini.config.Configuration) LeaseRenewalManager}(config)</code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> The object used to manage any event leases returned to a cache that has
  * registered with the event mechanism of the various discovered lookup
@@ -457,23 +457,23 @@ import org.apache.river.thread.NamedThreadFactory;
  * by the caches (both internal and external) that are created by this utility,
  * and not by the utility itself.
  * </table>
- * </a>
- * <a name="registrarPreparer">
+ *
+ * <a name="registrarPreparer"></a>
  * <table summary="Describes the registrarPreparer configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>registrarPreparer</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> {@link net.jini.security.ProxyPreparer}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  * </code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> Preparer for the proxies to the lookup services that are discovered and
  * used by this utility. This item is used only by the service discovery
@@ -487,24 +487,24 @@ import org.apache.river.thread.NamedThreadFactory;
  * </ul>
  *
  * </table>
- * </a>
  * 
- * <a name="bootstrapPreparer">
+ * 
+ * <a name="bootstrapPreparer"></a>
  * <table summary="Describes the bootstrapPreparer configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>bootstrapPreparer</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> {@link net.jini.security.ProxyPreparer}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  * </code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> Preparer for bootstrap proxy results returned by lookup services 
  * that are discovered and used by this utility.
@@ -512,42 +512,42 @@ import org.apache.river.thread.NamedThreadFactory;
  * The following methods of the proxy returned by this preparer are invoked by
  * this utility:
  * <ul>
- * <li>{@link net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int)  lookup}
- * <li>{@link net.jini.core.lookup.ServiceRegistrar#notify notify}
+ * <li>{@link SafeServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int)  lookup}
+ * <li>{@link SafeServiceRegistrar#notiFy notiFy}
  * </ul>
  *
  * </table>
- * </a>
+ * 
  * 
  *
- * <a name="useInsecureLookup">
+ * <a name="useInsecureLookup"></a>
  * <table summary="Describes the useInsecureLookup configuration entry"
  * border="0" cellpadding="2">
  * <tr valign="top">
- * <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+ * <th scope="col" > <font size="+1">&#X2022;</font>
  * <th scope="col" align="left" colspan="2"> <font size="+1">
  * <code>useInsecureLookup</code></font>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Type: <td> {@link java.lang.Boolean}
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Default: <td> <code>new {@link java.lang.Boolean}("FALSE")
  * </code>
  *
- * <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+ * <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  * Description:
  * <td> When true, ServiceDiscoveryManager and LookupCache use 
  * {@link net.jini.core.lookup.ServiceRegistrar#lookup(net.jini.core.lookup.ServiceTemplate, int)}
- * instead of {@link net.jini.core.lookup.ServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int)}
+ * instead of {@link SafeServiceRegistrar#lookUp(net.jini.core.lookup.ServiceTemplate, int)}
  * to perform service discovery.
  * </table>
- * </a>
+ * 
  * 
  * <a name="sdmLogging">
- * <p>
+ * 
  * <b><font size="+1">Logging</font></b>
- * <p>
+ * 
  * </a>
  *
  * This implementation of <code>ServiceDiscoveryManager</code> uses the
@@ -560,7 +560,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * logged">
  *
  *
- * <caption halign="center" valign="top">
+ * <caption>
  * <b><code>net.jini.lookup.ServiceDiscoveryManager</code></b>
  * </caption>
  *

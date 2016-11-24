@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  * 
  * This allows an ExecutorService to be provided by Configuration or a pool
  * to be shared without requiring that all implementations also share the same
- * type of RunnableFuture<T>.
+ * type of RunnableFuture&lt;T&gt;.
  * 
  * @author Peter Firmstone
  */
@@ -97,7 +97,7 @@ public class ExtensibleExecutorService extends AbstractExecutorService {
          * Returns a <tt>RunnableFuture</tt> for the given runnable and default
          * value.
          *
-         * @param runnable the runnable task being wrapped
+         * @param r the runnable task being wrapped
          * @param value the default value for the returned future
          * @return a <tt>RunnableFuture</tt> which when run will run the
          * underlying runnable and which, as a <tt>Future</tt>, will yield
@@ -108,7 +108,7 @@ public class ExtensibleExecutorService extends AbstractExecutorService {
         /**
          * Returns a <tt>RunnableFuture</tt> for the given callable task.
          *
-         * @param callable the callable task being wrapped
+         * @param c the callable task being wrapped
          * @return a <tt>RunnableFuture</tt> which when run will call the
          * underlying callable and which, as a <tt>Future</tt>, will yield
          * the callable's result as its result and provide for

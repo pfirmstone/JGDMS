@@ -45,7 +45,7 @@ import java.util.StringTokenizer;
  * descriptors of the service starter <code>Configuration</code> are examined
  * (excepting <code>SharedActivationGroupDescriptors</code>, which do not have a
  * codebase). First, an existence check is performed; the codebase string must
- * be non-null and have length > 0 after white space is trimmed. Non-existence
+ * be non-null and have length &gt; 0 after white space is trimmed. Non-existence
  * is reported as an error. Then the codebase is decomposed into tokens (URL
  * strings). Each component in a codebase is checked for the following:
  * <ul>

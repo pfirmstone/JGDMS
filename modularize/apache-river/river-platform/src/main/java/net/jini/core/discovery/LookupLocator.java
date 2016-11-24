@@ -67,7 +67,7 @@ import org.apache.river.api.net.Uri;
  * and enables the use of constraints.
  *
  * @since 1.0
- * @see net.jini.discovery.LookupLocatorDiscovery
+ * <br><code>see net.jini.discovery.LookupLocatorDiscovery</code>
  * @see net.jini.discovery.ConstrainableLookupLocator
  */
 @AtomicSerial

@@ -44,9 +44,9 @@ public interface SafeServiceRegistrar extends ServiceRegistrar{
      * smart proxy.  Only in the case of a smart proxy, will the Bootstrap proxy
      * implement ServiceCodebaseAccessor, which is an optional interface.
      * 
-     * For this method to be secure, the client must use {@link AtomicInputValidation},
-     * {@link ConfidentialityStrength, ConfidentialityStrength#STRONG} and
-     * {@link Integrity}
+     * For this method to be secure, the client must use <code> AtomicInputValidation</code>,
+     * <code> ConfidentialityStrength, ConfidentialityStrength#STRONG} </code> and
+     * <code> Integrity </code>
      * 
      * @param tmpl
      * @param maxProxies

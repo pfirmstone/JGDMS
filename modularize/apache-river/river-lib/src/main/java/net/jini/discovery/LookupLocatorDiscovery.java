@@ -46,7 +46,7 @@ import org.apache.river.thread.NamedThreadFactory;
  * or its subclass {@link net.jini.discovery.ConstrainableLookupLocator
  * ConstrainableLookupLocator}.
  *
- * @org.apache.river.impl <!-- Implementation Specifics -->
+ *  <!-- Implementation Specifics -->
  *
  * The following implementation-specific items are discussed below:
  * <ul><li> <a href="#lldConfigEntries">Configuring LookupLocatorDiscovery</a>
