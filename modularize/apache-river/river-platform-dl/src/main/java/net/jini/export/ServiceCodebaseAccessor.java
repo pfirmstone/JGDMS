@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.rmi.Remote;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateFactory;
-import net.jini.core.constraint.Integrity;
-import net.jini.loader.ClassLoading;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.RevocablePolicy;
 
@@ -42,7 +40,8 @@ import org.apache.river.api.security.RevocablePolicy;
  * 
  * Certificates et al are sent in encoded format.  The choice was made not
  * to Serialize Certificate or CodeSigner in case the CertificateFactory
- * provider isn't installed.
+ * provider isn't installed and to also allow low level {@link java.io.DataInput} and
+ * {@link java.io.DataOutput} based communication.
  * 
  * @see RevocablePolicy
  * @see PermissionGrant
@@ -51,14 +50,10 @@ public interface ServiceCodebaseAccessor extends Remote {
     
     /**
      * Obtains the service class annotation as defined in
-     * {@link ClassLoading#getClassAnnotation(Class)}.
-     * 
-     * When an Integrity constraint is specified, 
+     * <code> ClassLoading.getClassAnnotation(Class)</code>.
      * 
      * @return the codebase annotation.
      * @throws IOException 
-     * @see ClassLoading
-     * @see Integrity
      */
     public String getClassAnnotation() throws IOException;
     

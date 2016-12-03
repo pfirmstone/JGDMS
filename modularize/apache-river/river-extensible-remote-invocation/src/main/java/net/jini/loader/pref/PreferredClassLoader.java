@@ -59,7 +59,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
-import net.jini.loader.RemoteClassLoadingPermission;
 import org.apache.river.api.net.RFC3986URLClassLoader;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.AdvisoryDynamicPermissions;

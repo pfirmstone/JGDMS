@@ -149,7 +149,7 @@ import org.apache.river.logging.LogUtil;
  * domain names to IP addresses, for this reason, when using strict {@link URL}
  * codebase annotations, the IP address of each codebase at the time they're resolved
  * is part of the codebase annotations identity.  {@link Uri} identity on the other hand is 
- * determined by RFC3986 normalization and is more flexible the codebase server 
+ * determined by RFC3986 normalization and is more flexible, allowing the codebase server 
  * to change its IP address or be replicated by other codebase servers 
  * different IP addresses, provided they can be reached by their domain name
  * address.

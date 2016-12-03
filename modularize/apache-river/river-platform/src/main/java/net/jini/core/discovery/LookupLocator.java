@@ -105,7 +105,7 @@ public class LookupLocator implements Serializable {
      * 
      * @serial
      */
-    protected final String scheme;
+    private final String scheme;
     
     /**
      * The timeout after which we give up waiting for a response from
@@ -312,7 +312,7 @@ public class LookupLocator implements Serializable {
      * @return scheme string.
      */
     public String scheme() {
-        return scheme;
+        return scheme == null ? "jini" : scheme;
     }
 
     /**
@@ -420,7 +420,7 @@ public class LookupLocator implements Serializable {
                 return disco.doUnicastDiscovery(
                         s, dc.getUnfulfilledConstraints(), null, null, null);
             }
-        }.getResponse(scheme, host, port, constraints);
+        }.getResponse(scheme(), host, port, constraints);
         return resp.getRegistrar();
     }
     
@@ -430,7 +430,7 @@ public class LookupLocator implements Serializable {
      */
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(scheme).append("://").append(getHost0(host)).append(":").append(port).append("/");
+        sb.append(scheme()).append("://").append(getHost0(host)).append(":").append(port).append("/");
         return sb.toString();
     }
 
@@ -491,7 +491,7 @@ public class LookupLocator implements Serializable {
 	    throws IOException, ClassNotFoundException{
         oin.defaultReadObject();
 	try {
-	    parseURI("jini", host, port);
+	    parseURI(scheme(), host, port);
 	} catch (NullPointerException ex){
 	    InvalidObjectException e = new InvalidObjectException(
 		    "Invariants not satisfied during deserialization");

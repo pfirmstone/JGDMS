@@ -35,7 +35,11 @@
             <artifactId>river-start</artifactId>
             <version>${project.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-destroy</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.river.reggie</groupId>
             <artifactId>reggie-service</artifactId>
@@ -65,7 +69,86 @@
             <artifactId>norm-service</artifactId>
             <version>${project.version}</version>
         </dependency>
-		
+        
+        <dependency>
+            <groupId>org.apache.river.fiddler</groupId>
+            <artifactId>fiddler-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.river.group</groupId>
+            <artifactId>group-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>groovy-config</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.river.phoenix-activation</groupId>
+            <artifactId>phoenix</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.river.phoenix-activation</groupId>
+            <artifactId>phoenix-group</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.phoenix-activation</groupId>
+            <artifactId>phoenix-init</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+	<dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>checkconfigurationfile</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>checkser</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>classdep</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>classserver</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>computedigest</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>computehttpmdcodebase</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>envcheck</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>jarwrapper</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river.tools</groupId>
+            <artifactId>preferredlistgen</artifactId>
+            <version>${project.version}</version>
+        </dependency>	
     </dependencies>    
 
     <build>

@@ -25,7 +25,7 @@
 		<relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>org.apache.river</groupId>
-    <artifactId>river-dl</artifactId>
+    <artifactId>river-lib-dl</artifactId>
     <url>http://river.apache.org</url>
     <name>Module :: River Service DL Library</name>
 

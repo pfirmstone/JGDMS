@@ -36,6 +36,11 @@
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy-all</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-extensible-remote-invocation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 		
     </dependencies>
 

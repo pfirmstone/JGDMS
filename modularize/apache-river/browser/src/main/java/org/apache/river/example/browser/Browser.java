@@ -28,6 +28,9 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.IOException;
+import java.io.ObjectStreamException;
+import java.io.ObjectStreamField;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -35,17 +38,16 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
-import java.rmi.server.ExportException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
@@ -121,6 +123,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.space.JavaSpace;
 import net.jini.space.JavaSpace05;
 import org.apache.river.admin.DestroyAdmin;
+import org.apache.river.api.util.Startable;
 import org.apache.river.config.Config;
 import org.apache.river.logging.Levels;
 import org.apache.river.outrigger.JavaSpaceAdmin;
@@ -137,42 +140,49 @@ import org.apache.river.start.LifeCycle;
  *
  * @author Sun Microsystems, Inc.
  */
-public class Browser extends JFrame {
+public class Browser extends JFrame implements Startable {
+    private static final long serialVersionUID = 2218152788101871451L;
+    /**
+     * By defining serial persistent fields, we don't need to use transient field identifiers.
+     * All fields can be final and this object becomes immutable.
+     */
+    private static final ObjectStreamField[] serialPersistentFields = {};
+    
     static final String BROWSER = "org.apache.river.example.browser";
     static final Logger logger = Logger.getLogger(BROWSER);
 
-    private transient SecurityContext ctx;
-    private transient ClassLoader ccl;
-    transient Configuration config;
-    private transient DiscoveryGroupManagement disco;
-    private transient SafeServiceRegistrar lookup = null;
-    private transient Object eventSource = null;
-    private transient long eventID = 0;
-    private transient long seqNo = Long.MAX_VALUE;
-    private transient ActionListener exiter;
-    private transient ServiceTemplate tmpl;
-    private transient Listener listen;
-    private transient LookupListener adder;
-    private transient Lease elease = null;
-    transient ProxyPreparer leasePreparer;
-    transient ProxyPreparer servicePreparer;
-    transient ProxyPreparer adminPreparer;
-    private transient MethodConstraints locatorConstraints;
-    transient LeaseRenewalManager leaseMgr;
-    private transient LeaseListener lnotify;
-    private transient List ignoreInterfaces;
-    private transient JTextArea text;
-    private transient JMenu registrars;
-    private transient JCheckBoxMenuItem esuper;
-    private transient JCheckBoxMenuItem ssuper;
-    private transient JCheckBoxMenuItem sclass;
-    private transient boolean isAdmin;
-    private volatile transient boolean autoConfirm;
-    private transient JList list;
-    private transient DefaultListModel listModel;
-    private transient DefaultListModel dummyModel = new DefaultListModel();
-    private transient JScrollPane listScrollPane;
-
+    private final SecurityContext ctx;
+    private final ClassLoader ccl;
+    final Configuration config;
+    private final DiscoveryGroupManagement disco;
+    private SafeServiceRegistrar lookup; /* mutable, guarded by this */
+    private Object eventSource; /* mutable, guarded by this */
+    private long eventID; /* mutable, guarded by this */
+    private long seqNo; /* mutable, guarded by this */
+    private final ActionListener exiter;
+    private final ServiceTemplate tmpl;
+    private final Listener listen;
+    private final LookupListener adder;
+    private Lease elease; /* mutable, guarded by this */
+    final ProxyPreparer leasePreparer;
+    final ProxyPreparer servicePreparer;
+    final ProxyPreparer adminPreparer;
+    private final MethodConstraints locatorConstraints;
+    final LeaseRenewalManager leaseMgr;
+    private final LeaseListener lnotify;
+    private final List ignoreInterfaces;
+    private final JTextArea text;
+    private final JMenu registrars;
+    private final JCheckBoxMenuItem esuper;
+    private final JCheckBoxMenuItem ssuper;
+    private final JCheckBoxMenuItem sclass;
+    private final boolean isAdmin;
+    private final boolean autoConfirm;
+    private final JList list;
+    private final DefaultListModel listModel;
+    private final DefaultListModel dummyModel = new DefaultListModel();
+    private final JScrollPane listScrollPane;
+    
     /**
      * Creates an instance with the given action listener for the Exit
      * menu item and the given configuration. The action listener defaults
@@ -180,103 +190,163 @@ public class Browser extends JFrame {
      * overridden by a configuration entry. The configuration
      * defaults to an empty configuration.
      *
-     * @param exiter the action listener, or <code>null</code>
      * @param config the configuration, or <code>null</code>
+     * @throws net.jini.config.ConfigurationException
+     * @throws java.io.IOException
      */
-    public Browser(ActionListener exiter, Configuration config)
+    public Browser(Configuration config)
 	throws ConfigurationException, IOException
     {
-	if (exiter == null)
-	    exiter = new Exit();
-	if (config == null)
-	    config = EmptyConfiguration.INSTANCE;
-	init(exiter, config);
+	this(new Initializer(null, config == null ? EmptyConfiguration.INSTANCE : config));
     }
+    
+    private static class Initializer {
+	private SecurityContext ctx;
+	private ClassLoader ccl;
+	private Configuration config;
+	private DiscoveryGroupManagement disco;
+	private SafeServiceRegistrar lookup;
+	private Object eventSource;
+	private ActionListener exiter;
+	private ServiceTemplate tmpl;
+	private ProxyPreparer leasePreparer;
+	private ProxyPreparer servicePreparer;
+	private ProxyPreparer adminPreparer;
+	private MethodConstraints locatorConstraints;
+	private LeaseRenewalManager leaseMgr;
+	private List ignoreInterfaces;
+	private boolean isAdmin;
+	private boolean autoConfirm;
+	private final Exporter listenerExporter;
+	private final LifeCycle lc;
 
-    private void init(ActionListener exiter, Configuration config)
-	throws ConfigurationException, IOException
-    {
-	exiter = wrap((ActionListener)
-	    Config.getNonNullEntry(config, BROWSER, "exitActionListener",
-				   ActionListener.class, exiter));
-	this.exiter = exiter;
-	this.config = config;
-	ctx = Security.getContext();
-	ccl = Thread.currentThread().getContextClassLoader();
-	leaseMgr = (LeaseRenewalManager)
-	    Config.getNonNullEntry(config, BROWSER, "leaseManager",
-				   LeaseRenewalManager.class,
-				   new LeaseRenewalManager(config));
-	isAdmin = ((Boolean) config.getEntry(
-				 BROWSER, "folderView",
-				 boolean.class, Boolean.TRUE)).booleanValue();
-	leasePreparer = (ProxyPreparer)
-	    Config.getNonNullEntry(config, BROWSER, "leasePreparer",
-				   ProxyPreparer.class,
-				   new BasicProxyPreparer());
-	servicePreparer = (ProxyPreparer)
-	    Config.getNonNullEntry(config, BROWSER, "servicePreparer",
-				   ProxyPreparer.class,
-				   new BasicProxyPreparer());
-	adminPreparer = (ProxyPreparer)
-	    Config.getNonNullEntry(config, BROWSER, "adminPreparer",
-				   ProxyPreparer.class,
-				   new BasicProxyPreparer());
-	locatorConstraints = (MethodConstraints)
-	    config.getEntry(BROWSER, "locatorConstraints",
-			    MethodConstraints.class, null);
-	ignoreInterfaces = Arrays.asList((String[])
-	    Config.getNonNullEntry(config, BROWSER, "uninterestingInterfaces",
-				   String[].class,
-				   new String[]{
-			    "java.io.Serializable",
-			    "java.rmi.Remote",
-			    "net.jini.admin.Administrable",
-			    "net.jini.core.constraint.RemoteMethodControl",
-			    "net.jini.id.ReferentUuid",
-			    "net.jini.security.proxytrust.TrustEquivalence"}));
-	autoConfirm = ((Boolean) config.getEntry(
-					BROWSER, "autoConfirm", boolean.class,
-	    				Boolean.FALSE)).booleanValue();
-	listen = new Listener();
-	try {
-	    DiscoveryManagement disco = (DiscoveryManagement)
-		Config.getNonNullEntry(config, BROWSER, "discoveryManager",
-				       DiscoveryManagement.class);
-	    if (!(disco instanceof DiscoveryGroupManagement)) {
-		throw new ConfigurationException(
-			      "discoveryManager does not " +
-			      " support DiscoveryGroupManagement");
-	    } else if (!(disco instanceof DiscoveryLocatorManagement)) {
-		throw new ConfigurationException(
-			      "discoveryManager does not " +
-			      " support DiscoveryLocatorManagement");
+	public Initializer(LifeCycle lc, Configuration config) throws ConfigurationException, IOException {
+	    this.lc = lc;
+	    this.exiter = 
+		Config.getNonNullEntry(config, BROWSER, "exitActionListener",
+						   ActionListener.class, null);
+	    this.config = config;
+	    ctx = Security.getContext();
+	    ccl = Thread.currentThread().getContextClassLoader();
+	    leaseMgr = 
+		Config.getNonNullEntry(config, BROWSER, "leaseManager",
+				       LeaseRenewalManager.class,
+				       new LeaseRenewalManager(config));
+	    isAdmin = config.getEntry(
+		    BROWSER, "folderView",
+		    boolean.class, Boolean.TRUE);
+	    leasePreparer = 
+		Config.getNonNullEntry(config, BROWSER, "leasePreparer",
+				       ProxyPreparer.class,
+				       new BasicProxyPreparer());
+	    servicePreparer = 
+		Config.getNonNullEntry(config, BROWSER, "servicePreparer",
+				       ProxyPreparer.class,
+				       new BasicProxyPreparer());
+	    adminPreparer = 
+		Config.getNonNullEntry(config, BROWSER, "adminPreparer",
+				       ProxyPreparer.class,
+				       new BasicProxyPreparer());
+	    locatorConstraints = 
+		config.getEntry(BROWSER, "locatorConstraints",
+				MethodConstraints.class, null);
+	    ignoreInterfaces = Arrays.asList((String[])
+		Config.getNonNullEntry(config, BROWSER, "uninterestingInterfaces",
+				       String[].class,
+				       new String[]{
+				"java.io.Serializable",
+				"java.rmi.Remote",
+				"net.jini.admin.Administrable",
+				"net.jini.core.constraint.RemoteMethodControl",
+				"net.jini.id.ReferentUuid",
+				"net.jini.security.proxytrust.TrustEquivalence"}));
+	    autoConfirm =  config.getEntry(
+					    BROWSER, "autoConfirm", boolean.class,
+					    Boolean.FALSE);
+	    listenerExporter = 
+		    Config.getNonNullEntry(config, BROWSER, "listenerExporter",
+					   Exporter.class,
+					   new BasicJeriExporter(
+						 TcpServerEndpoint.getInstance(0),
+						 new BasicILFactory(),
+						 false, false));
+	    try {
+		DiscoveryManagement discoMan = 
+		    Config.getNonNullEntry(config, BROWSER, "discoveryManager",
+					   DiscoveryManagement.class);
+		if (!(discoMan instanceof DiscoveryGroupManagement)) {
+		    throw new ConfigurationException(
+				  "discoveryManager does not " +
+				  " support DiscoveryGroupManagement");
+		} else if (!(discoMan instanceof DiscoveryLocatorManagement)) {
+		    throw new ConfigurationException(
+				  "discoveryManager does not " +
+				  " support DiscoveryLocatorManagement");
+		}
+		this.disco = (DiscoveryGroupManagement) discoMan;
+		String[] groups = this.disco.getGroups();
+		if (groups == null || groups.length > 0) {
+		    throw new ConfigurationException(
+				  "discoveryManager cannot have initial groups");
+		}
+		if (((DiscoveryLocatorManagement) discoMan).getLocators().length > 0)
+		{
+		    throw new ConfigurationException(
+				  "discoveryManager cannot have initial locators");
+		}
+	    } catch (NoSuchEntryException e) {
+		disco = new LookupDiscoveryManager(new String[0],
+						   new LookupLocator[0], null,
+						   config);
 	    }
-	    this.disco = (DiscoveryGroupManagement) disco;
-	    String[] groups = this.disco.getGroups();
-	    if (groups == null || groups.length > 0) {
-		throw new ConfigurationException(
-			      "discoveryManager cannot have initial groups");
-	    }
-	    if (((DiscoveryLocatorManagement) disco).getLocators().length > 0)
-	    {
-		throw new ConfigurationException(
-			      "discoveryManager cannot have initial locators");
-	    }
-	} catch (NoSuchEntryException e) {
-	    disco = new LookupDiscoveryManager(new String[0],
-					       new LookupLocator[0], null,
-					       config);
+	    disco.setGroups((String[]) config.getEntry(BROWSER,
+						       "initialLookupGroups",
+						       String[].class,
+						       null));
+	    ((DiscoveryLocatorManagement) disco).setLocators((LookupLocator[])
+		Config.getNonNullEntry(config, BROWSER, "initialLookupLocators",
+				       LookupLocator[].class,
+				       new LookupLocator[0]));
+	    tmpl = new ServiceTemplate(null, new Class[0], new Entry[0]);
 	}
-	disco.setGroups((String[]) config.getEntry(BROWSER,
-						   "initialLookupGroups",
-						   String[].class,
-						   null));
-	((DiscoveryLocatorManagement) disco).setLocators((LookupLocator[])
-	    Config.getNonNullEntry(config, BROWSER, "initialLookupLocators",
-				   LookupLocator[].class,
-				   new LookupLocator[0]));
-	tmpl = new ServiceTemplate(null, new Class[0], new Entry[0]);
+    }
+	
+    private Browser(Initializer init){
+	this.elease = null;
+	this.seqNo = Long.MAX_VALUE;
+	this.eventID = 0;
+	ctx = init.ctx;
+	ccl = init.ccl;
+	config = init.config;
+	disco = init.disco;
+	lookup = init.lookup;
+	eventSource = init.eventSource;
+	final LifeCycle lc = init.lc;
+	exiter = wrap(
+	    init.exiter == null ?
+		lc != null ?
+		    new ActionListener() {
+			public void actionPerformed(ActionEvent ev) {
+			    Browser.this.dispose();
+			    cancelLease();
+			    listen.unexport();
+			    lc.unregister(Browser.this);
+			}
+		    }
+		: new Exit()
+	    :
+	    init.exiter
+	);
+	tmpl = init.tmpl;
+	leasePreparer = init.leasePreparer;
+	servicePreparer = init.servicePreparer;
+	adminPreparer = init.adminPreparer;
+	locatorConstraints = init.locatorConstraints;
+	leaseMgr = init.leaseMgr;
+	ignoreInterfaces = init.ignoreInterfaces;
+	isAdmin = init.isAdmin;
+	autoConfirm = init.autoConfirm;
+	listen = new Listener(init.listenerExporter);
 	setTitle("Service Browser");
 	JMenuBar bar = new JMenuBar();
 	JMenu file = new JMenu("File");
@@ -335,7 +405,7 @@ public class Browser extends JFrame {
 	    border.setTitlePosition(TitledBorder.TOP);
 	    border.setTitleJustification(TitledBorder.LEFT);
 	    bpanel.setBorder(border);
-      
+
 	    listModel = new DefaultListModel();
 	    list = new JList(listModel);
 	    list.setFixedCellHeight(20);
@@ -346,21 +416,28 @@ public class Browser extends JFrame {
 	    listScrollPane = new JScrollPane(list);
 	    bpanel.add(listScrollPane, "Center");
 	    getContentPane().add(bpanel, "South");
+	} else {
+	    list = null;
+	    listModel = null;
+	    listScrollPane = null;
 	}
 	text = new JTextArea(genText(false), textRows, 40);
 	text.setEditable(false);
 	JScrollPane scroll = new JScrollPane(text);
 	getContentPane().add(scroll, "Center");
-
 	validate();
+	adder = new LookupListener();
+	lnotify = new LeaseNotify();
+    }
+    
+    public void start() throws Exception {
+	listen.start();
 	SwingUtilities.invokeLater(wrap(new Runnable() {
 	    public void run() {
 		pack();
-		show();
+		setVisible(true);
 	    }
 	}));
-	adder = new LookupListener();
-	lnotify = new LeaseNotify();
 	((DiscoveryManagement) disco).addDiscoveryListener(adder);
     }
 
@@ -377,19 +454,19 @@ public class Browser extends JFrame {
      *
      * @param args command line arguments
      * @param lc life cycle callback, or <code>null</code>.
+     * @throws net.jini.config.ConfigurationException
+     * @throws javax.security.auth.login.LoginException
+     * @throws java.io.IOException
      */
     public Browser(String[] args, final LifeCycle lc)
 	throws ConfigurationException, LoginException, IOException
     {
-	final ActionListener exiter = new ActionListener() {
-		public void actionPerformed(ActionEvent ev) {
-		    Browser.this.dispose();
-		    cancelLease();
-		    listen.unexport();
-		    if (lc != null)
-			lc.unregister(Browser.this);
-		}
-	    };
+	this(init(args, lc));
+    }
+    
+    private static Initializer init(String[] args, final LifeCycle lc) 
+	    throws ConfigurationException, IOException, LoginException
+    {
 	final Configuration config =
 	    ConfigurationProvider.getInstance(
 				    args, Browser.class.getClassLoader());
@@ -397,18 +474,17 @@ public class Browser extends JFrame {
 	    (LoginContext) config.getEntry(BROWSER, "loginContext",
 					   LoginContext.class, null);
 	if (login == null) {
-	    init(exiter, config);
+	    return new Initializer(lc, config);
 	} else {
 	    login.login();
 	    try {
-		Subject.doAsPrivileged(
+		return Subject.doAsPrivileged(
 		    login.getSubject(),
-		    new PrivilegedExceptionAction() {
-			    public Object run()
+		    new PrivilegedExceptionAction<Initializer>() {
+			    public Initializer run()
 				throws ConfigurationException, IOException
 			    {
-				init(exiter, config);
-				return null;
+				return new Initializer(lc, config);
 			    }
 			},
 		    null);
@@ -436,7 +512,7 @@ public class Browser extends JFrame {
     private String genText(boolean match) {
 	StringBuffer buf = new StringBuffer();
 	if (tmpl.serviceTypes.length > 0) {
-	    for (int i = 0; i < tmpl.serviceTypes.length; i++) {
+	    for (int i = 0, l = tmpl.serviceTypes.length ; i < l ; i++) {
 		buf.append(tmpl.serviceTypes[i].getName());
 		buf.append("\n");
 	    }
@@ -451,7 +527,7 @@ public class Browser extends JFrame {
 			    Entry[] entries,
 			    boolean showNulls)
     {
-	for (int i = 0; i < entries.length; i++) {
+	for (int i = 0, l = entries.length; i < l; i++) {
 	    Entry ent = entries[i];
 	    if (ent == null) {
 		buf.append("null\n");
@@ -461,7 +537,7 @@ public class Browser extends JFrame {
 	    buf.append(": ");
 	    try {
 		Field[] fields = ent.getClass().getFields();
-		for (int j = 0; j < fields.length; j++) {
+		for (int j = 0, len = fields.length; j < len; j++) {
 		    if (!valid(fields[j]))
 			continue;
 		    Object val = fields[j].get(ent);
@@ -473,6 +549,7 @@ public class Browser extends JFrame {
 		    }
 		}
 	    } catch (Exception e) {
+		logger.log(Level.FINE, "Exception thrown: ", e);
 	    }
 	    buf.append("\n");
 	}
@@ -493,13 +570,17 @@ public class Browser extends JFrame {
 	    list.revalidate();
 	    listScrollPane.validate();
 	}
+	SafeServiceRegistrar lookup;
+	synchronized (Browser.this){
+	    lookup = this.lookup;
+	}
 	if (lookup == null) {
 	    String[] groups = disco.getGroups();
 	    if (groups == null) {
 		buf.append("Groups: <all>\n");
 	    } else if (groups.length > 0) {
 		buf.append("Groups:");
-		for (int i = 0; i < groups.length; i++) {
+		for (int i = 0, l = groups.length; i < l; i++) {
 		    String group = groups[i];
 		    if (group.length() == 0)
 			group = "public";
@@ -546,7 +627,7 @@ public class Browser extends JFrame {
 	}
 
 	if (matches.items != null) {
-	    for (int i = 0; i < matches.items.length; i++) {
+	    for (int i = 0, l = matches.items.length ; i < l ; i++) {
 		if (matches.items[i].service != null) {
 		    try {
 			matches.items[i].service =
@@ -561,7 +642,7 @@ public class Browser extends JFrame {
 	}
 
 	if(isAdmin){
-	    for (int i = 0; i < matches.items.length; i++)
+	    for (int i = 0, l = matches.items.length ; i < l; i++)
 	        listModel.addElement(new ServiceListItem(matches.items[i]));
 	    list.setModel(listModel);
 	    list.clearSelection();
@@ -586,7 +667,7 @@ public class Browser extends JFrame {
 	    if (!match)
 	        return;
 	    buf.append("\n\n");
-	    for (int i = 0; i < matches.items.length; i++) {
+	    for (int i = 0, l = matches.items.length; i < l; i++) {
 	        ServiceItem item = matches.items[i];
 		buf.append("Service ID: ");
 		buf.append(item.serviceID);
@@ -637,31 +718,35 @@ public class Browser extends JFrame {
     }
 
     static Class[] getInterfaces(Class c) {
-	Set set = new HashSet();
+	Set<Class> set = new HashSet<Class>();
 	for ( ; c != null; c = c.getSuperclass()) {
 	    Class[] ifs = c.getInterfaces();
 	    for (int i = ifs.length; --i >= 0; )
 		set.add(ifs[i]);
 	}
-	return (Class[]) set.toArray(new Class[set.size()]);
+	return set.toArray(new Class[set.size()]);
     }
 
     private class Services implements MenuListener {
-	private JMenu menu;
+	private final JMenu menu;
 
 	public Services(JMenu menu) {
 	    this.menu = menu;
 	}
 
 	public void menuSelected(MenuEvent ev) {
+	    SafeServiceRegistrar lookup;
+	    synchronized (Browser.this){
+		lookup = Browser.this.lookup;
+	    }
 	    if (lookup == null) {
 		addNone(menu);
 		return;
 	    }
-	    Vector all = new Vector();
+	    List all = new LinkedList();
 	    Class[] types = tmpl.serviceTypes;
 	    for (int i = 0; i < types.length; i++) {
-		all.addElement(types[i]);
+		all.add(types[i]);
 		JCheckBoxMenuItem item =
 		    new JCheckBoxMenuItem(types[i].getName(), true);
 		    item.addActionListener(wrap(new Service(types[i], i)));
@@ -678,10 +763,10 @@ public class Browser extends JFrame {
 		    addNone(menu);
 		return;
 	    }
-	    for (int i = 0; i < types.length; i++) {
+	    for (int i = 0, len = types.length; i < len; i++) {
 		Class[] stypes;
 		if (types[i] == null) {
-		    all.addElement(new JMenuItem("null"));
+		    all.add(new JMenuItem("null"));
 		    continue;
 		}
 		if (types[i].isInterface() || sclass.getState()) {
@@ -689,16 +774,16 @@ public class Browser extends JFrame {
 		} else {
 		    stypes = getInterfaces(types[i]);
 		}
-		for (int j = 0; j < stypes.length; j++) {
+		for (int j = 0, l = stypes.length; j < l; j++) {
 		    addType(stypes[j], all);
 		}
 	    }
 	}
 
-	private void addType(Class type, Vector all) {
+	private void addType(Class type, List all) {
 	    if (all.contains(type))
 		return;
-	    all.addElement(type);
+	    all.add(type);
 	    JCheckBoxMenuItem item =
 		new JCheckBoxMenuItem(type.getName(), false);
 	    item.addActionListener(wrap(new Service(type, -1)));
@@ -708,7 +793,7 @@ public class Browser extends JFrame {
 	    if (sclass.getState() && type.getSuperclass() != null)
 		addType(type.getSuperclass(), all);
 	    Class[] stypes = type.getInterfaces();
-	    for (int i = 0; i < stypes.length; i++) {
+	    for (int i = 0, l = stypes.length; i < l; i++) {
 		addType(stypes[i], all);
 	    }
 	}
@@ -736,15 +821,15 @@ public class Browser extends JFrame {
 	return autoConfirm;
     }
 
-    ActionListener wrap(ActionListener l) {
+    final ActionListener wrap(ActionListener l) {
 	return (ActionListener) wrap((Object) l, ActionListener.class);
     }
 
-    MenuListener wrap(MenuListener l) {
+    final MenuListener wrap(MenuListener l) {
 	return (MenuListener) wrap((Object) l, MenuListener.class);
     }
 
-    MouseListener wrap(MouseListener l) {
+    final MouseListener wrap(MouseListener l) {
 	return (MouseListener) wrap((Object) l, MouseListener.class);
     }
 
@@ -752,7 +837,7 @@ public class Browser extends JFrame {
 	return (WindowListener) wrap((Object) a, WindowListener.class);
     }
 
-    Runnable wrap(Runnable r) {
+    final Runnable wrap(Runnable r) {
 	return (Runnable) wrap((Object) r, Runnable.class);
     }
 
@@ -775,9 +860,9 @@ public class Browser extends JFrame {
 	{
 	    if (method.getDeclaringClass() == Object.class) {
 		if ("equals".equals(method.getName()))
-		    return Boolean.valueOf(proxy == args[0]);
+		    return proxy == args[0];
 		else if ("hashCode".equals(method.getName()))
-		    return Integer.valueOf(System.identityHashCode(proxy));
+		    return System.identityHashCode(proxy);
 	    }
 	    try {
 		return AccessController.doPrivileged(
@@ -834,8 +919,8 @@ public class Browser extends JFrame {
     }
 
     private class Service implements ActionListener {
-	private Class type;
-	private int index;
+	private final Class type;
+	private final int index;
 
 	public Service(Class type, int index) {
 	    this.type = type;
@@ -862,13 +947,17 @@ public class Browser extends JFrame {
     }
 
     private class Entries implements MenuListener {
-	private JMenu menu;
+	private final JMenu menu;
 
 	public Entries(JMenu menu) {
 	    this.menu = menu;
 	}
 
 	public void menuSelected(MenuEvent ev) {
+	    SafeServiceRegistrar lookup;
+	    synchronized (Browser.this){
+		lookup = Browser.this.lookup;
+	    }
 	    if (lookup == null) {
 		addNone(menu);
 		return;
@@ -892,8 +981,8 @@ public class Browser extends JFrame {
 		    addNone(menu);
 		return;
 	    }
-	    Vector all = new Vector();
-	    for (int i = 0; i < types.length; i++) {
+	    List all = new LinkedList();
+	    for (int i = 0, l = types.length; i < l; i++) {
 		if (types[i] == null)
 		    menu.add(new JMenuItem("null"));
 		else
@@ -901,10 +990,10 @@ public class Browser extends JFrame {
 	    }
 	}
 
-	private void addType(Class type, Vector all) {
+	private void addType(Class type, List all) {
 	    if (all.contains(type))
 		return;
-	    all.addElement(type);
+	    all.add(type);
 	    JCheckBoxMenuItem item =
 		new JCheckBoxMenuItem(typeName(type), false);
 	    item.addActionListener(wrap(new AttrSet(type)));
@@ -924,7 +1013,7 @@ public class Browser extends JFrame {
     }
 
     private class AttrSet implements ActionListener {
-	private Class type;
+	private final Class type;
 
 	public AttrSet(Class type) {
 	    this.type = type;
@@ -948,8 +1037,8 @@ public class Browser extends JFrame {
     }
 
     private class Fields implements MenuListener {
-	private JMenu menu;
-	private int index;
+	private final JMenu menu;
+	private final int index;
 
 	public Fields(JMenu menu, int index) {
 	    this.menu = menu;
@@ -963,7 +1052,7 @@ public class Browser extends JFrame {
 	    menu.add(match);
 	    Entry ent = tmpl.attributeSetTemplates[index];
 	    Field[] fields = ent.getClass().getFields();
-	    for (int i = 0; i < fields.length; i++) {
+	    for (int i = 0, l = fields.length; i < l; i++) {
 		Field field = fields[i];
 		if (!valid(field))
 		    continue;
@@ -996,7 +1085,7 @@ public class Browser extends JFrame {
     }
 
     private class Unmatch implements ActionListener {
-	private int index;
+	private final int index;
 
 	public Unmatch(int index) {
 	    this.index = index;
@@ -1015,9 +1104,9 @@ public class Browser extends JFrame {
     }
 
     private class Values implements MenuListener {
-	private JMenu menu;
-	private int index;
-	private Field field;
+	private final JMenu menu;
+	private final int index;
+	private final Field field;
 
 	public Values(JMenu menu, int index, Field field) {
 	    this.menu = menu;
@@ -1026,6 +1115,10 @@ public class Browser extends JFrame {
 	}
 
 	public void menuSelected(MenuEvent ev) {
+	    SafeServiceRegistrar lookup;
+	    synchronized (Browser.this){
+		lookup = Browser.this.lookup;
+	    }
 	    Object[] values;
 	    try {
 		values = lookup.getFieldValues(tmpl, index, field.getName());
@@ -1055,9 +1148,9 @@ public class Browser extends JFrame {
     }
 
     private class Value implements ActionListener {
-	private int index;
-	private Field field;
-	private Object value;
+	private final int index;
+	private final Field field;
+	private final Object value;
 
 	public Value(int index, Field field, Object value) {
 	    this.index = index;
@@ -1075,42 +1168,48 @@ public class Browser extends JFrame {
 	}
     }
 
-    private class Listener implements RemoteEventListener, ServerProxyTrust {
+    private class Listener implements RemoteEventListener, ServerProxyTrust, 
+	    Startable, Serializable 
+    {
 	private final Exporter exporter;
-	final RemoteEventListener proxy;
+	RemoteEventListener proxy;
 
-	public Listener() throws ConfigurationException, ExportException {
-	    exporter = (Exporter)
-		Config.getNonNullEntry(config, BROWSER, "listenerExporter",
-				       Exporter.class,
-				       new BasicJeriExporter(
-					     TcpServerEndpoint.getInstance(0),
-					     new BasicILFactory(),
-					     false, false));
-	    proxy = (RemoteEventListener) exporter.export(this);
+	public Listener(Exporter exporter) {
+	    this.exporter = exporter;
 	}
 
 	public void notify(final RemoteEvent ev) {
 	    SwingUtilities.invokeLater(wrap(new Runnable() {
 		public void run() {
-		    if (eventID == ev.getID() &&
-			seqNo < ev.getSequenceNumber() &&
-			eventSource != null &&
-			eventSource.equals(ev.getSource()))
-		    {
-			seqNo = ev.getSequenceNumber();
-			setText(false);
+		    synchronized (Browser.this){
+			if (eventID == ev.getID() &&
+			    seqNo < ev.getSequenceNumber() &&
+			    eventSource != null &&
+			    eventSource.equals(ev.getSource()))
+			{
+			    seqNo = ev.getSequenceNumber();
+			    setText(false);
+			}
 		    }
 		}
 	    }));
 	}
 
-	public TrustVerifier getProxyVerifier() {
+	public synchronized TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(proxy);
 	}
 
 	void unexport() {
 	    exporter.unexport(true);
+	}
+
+	@Override
+	public synchronized void start() throws Exception {
+	    proxy = (RemoteEventListener) exporter.export(this);
+	}
+	
+	private synchronized Object writeReplace() throws ObjectStreamException {
+	    return proxy;
 	}
     }
 
@@ -1120,11 +1219,13 @@ public class Browser extends JFrame {
 	    final ServiceRegistrar[] newregs = e.getRegistrars();
 	    SwingUtilities.invokeLater(wrap(new Runnable() {
 		public void run() {
-		    for (int i = 0; i < newregs.length; i++) {
+		    for (int i = 0, l = newregs.length; i < l; i++) {
 			addOne(newregs[i]);
 		    }
-		    if (lookup == null)
-			setText(false);
+		    synchronized (Browser.this){
+			if (lookup == null)
+			    setText(false);
+		    }
 		}
 	    }));
 	}
@@ -1133,13 +1234,15 @@ public class Browser extends JFrame {
 	    final ServiceRegistrar[] regs = e.getRegistrars();
 	    SwingUtilities.invokeLater(wrap(new Runnable() {
 		public void run() {
-		    for (int i = 0; i < regs.length; i++) {
+		    for (int i = 0, l = regs.length; i < l; i++) {
 			ServiceID id = regs[i].getServiceID();
-			if (lookup != null &&
-			    id.equals(lookup.getServiceID()))
-			{
-			    lookup = null;
-			    seqNo = Long.MAX_VALUE;
+			synchronized (Browser.this){
+			    if (lookup != null &&
+				id.equals(lookup.getServiceID()))
+			    {
+				lookup = null;
+				seqNo = Long.MAX_VALUE;
+			    }
 			}
 			for (int j = 0;
 			     j < registrars.getMenuComponentCount();
@@ -1158,8 +1261,10 @@ public class Browser extends JFrame {
 			    }
 			}
 		    }
-		    if (lookup == null)
-			resetTmpl();
+		    synchronized (Browser.this){
+			if (lookup == null)
+			    resetTmpl();
+		    }
 		}
 	    }));
 	}
@@ -1234,19 +1339,21 @@ public class Browser extends JFrame {
     }
 
     private class Lookup implements ActionListener {
-	private SafeServiceRegistrar registrar;
+	private final SafeServiceRegistrar registrar;
 
 	public Lookup(SafeServiceRegistrar registrar) {
 	    this.registrar = registrar;
 	}
 
 	public void actionPerformed(ActionEvent ev) {
-	    if (lookup == registrar) {
-		lookup = null;
-	    } else {
-		lookup = registrar;
+	    synchronized (Browser.this){
+		if (lookup == registrar) {
+		    lookup = null;
+		} else {
+		    lookup = registrar;
+		}
+		seqNo = Long.MAX_VALUE;
 	    }
-	    seqNo = Long.MAX_VALUE;
 	    for (int i = 0; i < registrars.getMenuComponentCount(); i++) {
 		JMenuItem item = (JMenuItem)registrars.getMenuComponent(i);
 		if (item != ev.getSource())
@@ -1278,34 +1385,45 @@ public class Browser extends JFrame {
     }
 
     private void cancelLease() {
-	if (elease != null) {
+	Lease lease = null;
+	synchronized (Browser.this){
+	    if (elease != null){
+		lease = elease;
+		elease = null;
+		eventSource = null;
+	    }
+	}
+	if (lease != null) {
 	    try {
-		leaseMgr.cancel(elease);
+		leaseMgr.cancel(lease);
 	    } catch (Throwable t) {
 		logger.log(Levels.HANDLED, "lease cancellation failed", t);
 	    }
-	    elease = null;
-	    eventSource = null;
 	}
     }
 
     private void update() {
 	setText(false);
 	cancelLease();
-	if (lookup == null)
-	    return;
+	synchronized (Browser.this){
+	    if (lookup == null)
+		return;
+	}
 	try {
 	    EventRegistration reg =
 		lookup.notiFy(tmpl,
 			      ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 			      ServiceRegistrar.TRANSITION_NOMATCH_MATCH |
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,
-			      listen.proxy, null, Lease.ANY);
-	    elease = (Lease) leasePreparer.prepareProxy(reg.getLease());
-	    leaseMgr.renewUntil(elease, Lease.ANY, lnotify);
-	    eventSource = reg.getSource();
-	    eventID = reg.getID();
-	    seqNo = reg.getSequenceNumber();
+			      listen, null, Lease.ANY);
+	    Lease lease = (Lease) leasePreparer.prepareProxy(reg.getLease());
+	    leaseMgr.renewUntil(lease, Lease.ANY, lnotify);
+	    synchronized(Browser.this){
+		elease = lease;
+		eventSource = reg.getSource();
+		eventID = reg.getID();
+		seqNo = reg.getSequenceNumber();
+	    }
 	} catch (Throwable t) {
 	    failure(t);
 	}
@@ -1313,6 +1431,10 @@ public class Browser extends JFrame {
 
     private void failure(Throwable t) {
 	logger.log(Level.INFO, "call to lookup service failed", t);
+	SafeServiceRegistrar lookup;
+	    synchronized (Browser.this){
+		lookup = Browser.this.lookup;
+	    }
 	((DiscoveryManagement) disco).discard(lookup);
     }
 
@@ -1364,7 +1486,7 @@ public class Browser extends JFrame {
     }
 
     private class ServiceListItem {
-        private ServiceItem item;
+        private final ServiceItem item;
         private boolean isAccessible;
 	private Object admin = null;
 
@@ -1379,13 +1501,13 @@ public class Browser extends JFrame {
 
 	    HashSet set = new HashSet();
 	    Class[] infs = getInterfaces(item.service.getClass());
-	    for(int j = 0; j < infs.length; j++)
+	    for(int j = 0, l = infs.length; j < l; j++)
 	        set.add(infs[j].getName());
 
 	    // remove known interfaces
 	    set.removeAll(ignoreInterfaces);
 
-	    String title = null;
+	    String title;
 	    if(set.size() == 1) {
 	        Iterator iter = set.iterator();
 	        title = (String) iter.next();
@@ -1441,7 +1563,7 @@ public class Browser extends JFrame {
 	private boolean isUI() {
 	    Entry[] attrs = item.attributeSets;
 	    if ((attrs != null) && (attrs.length != 0)) {
-		for (int i = 0; i < attrs.length; i++) {
+		for (int i = 0, l = attrs.length; i < l; i++) {
 		    if (attrs[i] instanceof UIDescriptor) {
 			return true;
 		    }
@@ -1468,6 +1590,7 @@ public class Browser extends JFrame {
 		return icons[1];
 	}
 
+	@Override
         public String toString() {
 	    return isAccessible() ?
 		item.service.getClass().getName() : "Unknown service";
@@ -1475,16 +1598,21 @@ public class Browser extends JFrame {
     }
 
     private class MouseReceiver extends MouseAdapter {
-        private ServiceListPopup popup;
+        private final ServiceListPopup popup;
 
         public MouseReceiver(ServiceListPopup popup) {
 	  this.popup = popup;
 	}
 
+	@Override
         public void mouseClicked(MouseEvent ev) {
 	    if(ev.getClickCount() >= 2){
 		ServiceListItem listItem = getTargetListItem(ev);
 		if(listItem != null) {
+		    SafeServiceRegistrar lookup;
+		    synchronized (Browser.this){
+			lookup = Browser.this.lookup;
+		    }
 		    ServiceItem item = listItem.getServiceItem();
 		    if(listItem.isAdministrable())
 			new ServiceEditor(item, listItem.getAdmin(), lookup,
@@ -1496,6 +1624,7 @@ public class Browser extends JFrame {
 	    }
 	}
 
+	@Override
         public void mouseReleased(MouseEvent ev) {
 	    if(ev.isPopupTrigger() && (getTargetListItem(ev) != null)) {
 	        popup.setServiceItem(getTargetListItem(ev));
@@ -1503,6 +1632,7 @@ public class Browser extends JFrame {
 	    }
 	}
 
+	@Override
         public void mousePressed(MouseEvent ev) {
 	    if(ev.isPopupTrigger() && (getTargetListItem(ev) != null)) {
 	        popup.setServiceItem(getTargetListItem(ev));
@@ -1577,7 +1707,10 @@ public class Browser extends JFrame {
 
         public void actionPerformed(ActionEvent ev) {
 	    String command = ev.getActionCommand();
-
+	    SafeServiceRegistrar lookup;
+	    synchronized (Browser.this){
+		lookup = Browser.this.lookup;
+	    }
 	    if(command.equals("showInfo")){
 	        Class[] infs = getInterfaces(item.service.getClass());
 		String[] msg = new String[3 + infs.length];
@@ -1628,7 +1761,6 @@ public class Browser extends JFrame {
 						  e.getMessage(),
 						  e.getClass().getName(),
 						  JOptionPane.WARNING_MESSAGE);
-		    return;
 		}
 	    }
 	}
@@ -1650,7 +1782,7 @@ public class Browser extends JFrame {
 
 	    Entry[] attrs = item.attributeSets;
 	    if ((attrs != null) && (attrs.length != 0)) {
-		for (int i = 0; i < attrs.length; i++) {
+		for (int i = 0, l = attrs.length; i < l; i++) {
 		    if (attrs[i] instanceof UIDescriptor) {
 			UIDescriptor desc = (UIDescriptor) attrs[i];
 			if (!"javax.swing".equals(desc.toolkit)) {
@@ -1666,6 +1798,7 @@ public class Browser extends JFrame {
 
     private class Exiter extends WindowAdapter {
 
+	@Override
 	public void windowClosing(WindowEvent e) {
 	    Browser.this.exiter.actionPerformed(
 		new ActionEvent(e.getSource(), e.getID(),
@@ -1682,6 +1815,7 @@ public class Browser extends JFrame {
 	/**
 	 * Cancels any lookup service event registration lease and
 	 * calls {@link System#exit System.exit}<code>(0)</code>.
+	 * @param ev
 	 */
 	public void actionPerformed(ActionEvent ev) {
 	    Object src = ev.getSource();
@@ -1719,7 +1853,9 @@ public class Browser extends JFrame {
 	    PrivilegedExceptionAction action =
 		new PrivilegedExceptionAction() {
 		    public Object run() throws Exception {
-			return new Browser(null, config);
+			Browser b = new Browser(config);
+			b.start();
+			return b;
 		    }
 		};
 	    if (login != null) {

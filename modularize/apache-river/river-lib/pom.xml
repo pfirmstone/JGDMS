@@ -35,7 +35,7 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>river-dl</artifactId>
+            <artifactId>river-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

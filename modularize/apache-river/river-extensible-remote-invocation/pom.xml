@@ -24,42 +24,23 @@
         <version>3.0-SNAPSHOT</version>
     </parent>
     <groupId>org.apache.river</groupId>
-    <artifactId>river-platform</artifactId>
+    <artifactId>river-extensible-remote-invocation</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: River Platform</name>
+    <name>Module :: River Extensible Remote Invocation</name>
     <description>Apache River Remote Micro Services Platform
     </description>
 
      <dependencies>  
-		 
          <dependency>
             <groupId>org.apache.river</groupId>
             <artifactId>river-policy</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.river</groupId>
-            <artifactId>river-extensible-remote-invocation</artifactId>
-            <version>${project.version}</version>
+          <groupId>com.boundary</groupId>
+          <artifactId>high-scale-lib</artifactId>
+          <version>${high.scale.lib.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.river</groupId>
-            <artifactId>river-platform-dl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-         <dependency>
-             <groupId>${project.groupId}</groupId>
-             <artifactId>river-resources</artifactId>
-             <version>${project.version}</version>
-         </dependency>     
-        
-		<dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-        </dependency>
-		
-        
-		
     </dependencies>
 
     <reporting>

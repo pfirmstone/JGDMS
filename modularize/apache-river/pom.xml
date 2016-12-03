@@ -283,12 +283,14 @@
 
     <modules>
         <module>river-policy</module>
+        <module>river-platform-dl</module> 
+        <module>river-extensible-remote-invocation</module>
         <module>river-platform</module> 
         <module>river-start</module>
         <module>river-destroy</module>
         <module>river-resources</module> 
         <module>river-lib</module>
-        <module>river-dl</module>
+        <module>river-lib-dl</module>
         <module>river-services/outrigger</module>
         <module>river-services/reggie</module>
         <module>river-services/mahalo</module>
@@ -298,6 +300,7 @@
         <module>river-services/fiddler</module>
         <module>tools</module>
         <module>phoenix-activation</module>
+        <module>groovy-config</module>
         <module>dist</module>
   </modules>
     

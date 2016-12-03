@@ -31,7 +31,6 @@ package net.jini.core.entry;
  *
  * @author Sun Microsystems, Inc.
  *
- * @see net.jini.core.lookup.ServiceRegistrar
  *
  * @since 1.0
  */

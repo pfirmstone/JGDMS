@@ -28,10 +28,15 @@
     <url>http://river.apache.org</url>
     <name>Module :: Fiddler LookupDiscoveryService Download classes</name> 
    
-	<dependencies>
+    <dependencies>
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-dl</artifactId>
+            <artifactId>river-platform-dl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

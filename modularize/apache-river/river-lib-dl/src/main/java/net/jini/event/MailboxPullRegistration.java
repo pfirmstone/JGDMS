@@ -30,8 +30,8 @@ import net.jini.core.lease.Lease;
  * a client manages its registration and its notification processing. 
  * Event mailbox clients use this interface to:
  * <UL>
- * <LI>Manage the lease for this registration.
- * <LI>Obtain a <code>RemoteEventListener</code> reference that
+ * <LI>Manage the {@link Lease} for this registration.
+ * <LI>Obtain a {@link RemoteEventListener} reference that
  *     can be registered with event generators. This listener will
  *     then store any received events for this registration.
  * <LI>Synchronously or asynchronously collect any event notifications 
@@ -69,6 +69,6 @@ public interface MailboxPullRegistration extends MailboxRegistration {
      * @throws java.rmi.RemoteException if there is
      *  a communication failure between the client and the service.
      */
-    public void addUnknownEvents(Collection unknownEvents)
+    public void addUnknownEvents(Collection<? extends RemoteEvent> unknownEvents)
 		    throws RemoteException;
 }

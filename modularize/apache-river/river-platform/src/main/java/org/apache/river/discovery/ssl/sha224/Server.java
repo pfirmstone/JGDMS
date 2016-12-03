@@ -18,7 +18,6 @@
 
 package org.apache.river.discovery.ssl.sha224;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.security.AccessController;
@@ -27,9 +26,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
 import java.util.Collection;
 import javax.net.ServerSocketFactory;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.export.ProxyAccessor;
-import net.jini.export.ServiceCodebaseAccessor;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.ssl.SslServerEndpoint;

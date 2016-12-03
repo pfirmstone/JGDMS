@@ -38,18 +38,61 @@
 			<useProjectArtifact>false</useProjectArtifact>      
             <excludes>  
 	            <!-- exclude jline, this is brought in transitively because of groovy -->
+                <exclude>asm:*</exclude>
+                <exclude>asm-commons:*</exclude>
+                <exclude>asm-tree:*</exclude>
+                <exclude>backport-util-concurrent:*</exclude>
                 <exclude>jline:*</exclude>              
                 <exclude>groovy:*</exclude> 
+                <exclude>classworlds:*</exclude>
                 <exclude>commons-collections:*</exclude>
                 <exclude>commons-lang:*</exclude>
+                <exclude>commons-cli:*</exclude>
+                <exclude>commons-codec:*</exclude>
+                <exclude>commons-exec:*</exclude>
+                <exclude>commons-httpclient:*</exclude>
+                <exclude>doxia-logging-api:*</exclude>
+                <exclude>doxia-sink-api:*</exclude>
                 <exclude>high-scale-lib:*</exclude>
+                <exclude>jackrabbit-jcr-commons:*</exclude>
+                <exclude>jackrabbit-webdav:*</exclude>
+                <exclude>jcl-over-slf4j:*</exclude>
+                <exclude>jsch:*</exclude>
+                <exclude>junit:*</exclude>
+                <exclude>org.codehaus.mojo:*</exclude>
+                <exclude>org.codehaus.plexus:*</exclude>
+                <exclude>org.apache.maven:*</exclude>
+                <exclude>maven-artifact:*</exclude>
+                <exclude>maven-artifact-manager:*</exclude>
+                <exclude>maven-core:*</exclude>
+                <exclude>maven-model:*</exclude>
+                <exclude>maven-error-diagnostics:*</exclude>
+                <exclude>maven-plugin-api:*</exclude>
+                <exclude>maven-plugin-descriptor:*</exclude>
+                <exclude>maven-plugin-parameter-documenter:*</exclude>
+                <exclude>maven-plugin-registry:*</exclude>
+                <exclude>maven-profile:*</exclude>
+                <exclude>maven-project:*</exclude>
+                <exclude>maven-reporting-api:*</exclude>
+                <exclude>maven-repository-metadata:*</exclude>
+                <exclude>maven-settings:*</exclude>
+                <exclude>maven-toolchain:*</exclude>
+                <exclude>nekohtml:*</exclude>
+                <exclude>org.sonatype.plexus:*</exclude>
+                <exclude>org.slf4j:*</exclude>
+                <exclude>org.apache.maven.wagon:*</exclude>
+                <exclude>xercesMinimal:*</exclude>
                 <exclude>velocity:*</exclude>
-                <exclude>org.apache.river:river-dl:jar</exclude>
-	            <exclude>org.apache.river.reggie:reggie-dl:jar</exclude>
-	            <exclude>org.apache.river.outrigger:outrigger-dl:jar</exclude>
-				<exclude>org.apache.river.mahalo:mahalo-dl:jar</exclude>
-				<exclude>org.apache.river.mercury:mercury-dl:jar</exclude>
-				<exclude>org.apache.river.norm:norm-dl:jar</exclude>				
+                <exclude>org.apache.river:river-lib-dl:jar</exclude>
+                <exclude>org.apache.river:river-platform-dl:jar</exclude>
+                <exclude>org.apache.river.reggie:reggie-dl:jar</exclude>
+                <exclude>org.apache.river.outrigger:outrigger-dl:jar</exclude>
+                <exclude>org.apache.river.mahalo:mahalo-dl:jar</exclude>
+                <exclude>org.apache.river.mercury:mercury-dl:jar</exclude>
+                <exclude>org.apache.river.norm:norm-dl:jar</exclude>	
+                <exclude>org.apache.river.fiddler:fiddler-dl:jar</exclude>
+                <exclude>org.apache.river.phoenix-activation:phoenix-dl:jar</exclude>	
+                <exclude>org.apache.river.group:group-dl:jar</exclude>		
             </excludes>
             <outputDirectory>lib</outputDirectory>
 	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
@@ -60,12 +103,16 @@
 			<useProjectArtifact>false</useProjectArtifact>
             <useStrictFiltering>true</useStrictFiltering>
             <includes>
-                <include>org.apache.river:river-dl:jar</include>
+                <include>org.apache.river:river-platform-dl:jar</include>
+                <include>org.apache.river:river-lib-dl:jar</include>
                 <include>org.apache.river.reggie:reggie-dl:jar</include>
                 <include>org.apache.river.outrigger:outrigger-dl:jar</include>
-				<include>org.apache.river.mahalo:mahalo-dl:jar</include>
-				<include>org.apache.river.mercury:mercury-dl:jar</include>
-				<include>org.apache.river.norm:norm-dl:jar</include>								
+                <include>org.apache.river.mahalo:mahalo-dl:jar</include>
+                <include>org.apache.river.mercury:mercury-dl:jar</include>
+                <include>org.apache.river.norm:norm-dl:jar</include>
+                <include>org.apache.river.fiddler:fiddler-dl:jar</include>
+                <include>org.apache.river.phoenix-activation:phoenix-dl:jar</include>	
+                <include>org.apache.river.group:group-dl:jar</include>							
             </includes>
             <outputDirectory>lib-dl</outputDirectory>
 	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->

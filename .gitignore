@@ -83,3 +83,6 @@
 /modularize/apache-river/phoenix-activation/phoenix-group/target/
 /modularize/apache-river/phoenix-activation/phoenix-init/target/
 /modularize/apache-river/target/
+/modularize/apache-river/groovy-config/target/
+/modularize/apache-river/river-lib-dl/target/
+/modularize/apache-river/browser/target/
