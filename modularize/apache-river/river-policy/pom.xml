@@ -31,15 +31,28 @@
     <url>http://river.apache.org</url>
     <name>Module :: River Policy</name>
     <description></description>
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.6</version>
+            <scope>test</scope>
+        </dependency>
+        <!--<dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-start</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>-->
+    </dependencies>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
 
-	<licenses>
-	    <license>
-	        <name>The Apache Software License, Version 2.0</name>
-	        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-	    </license>
-	</licenses>
-  
-	<organization>
+    <organization>
         <name>The Apache Software Foundation</name>
         <url>http://www.apache.org/</url>
     </organization>
@@ -121,6 +134,10 @@
                     </execution>
                 </executions>
             </plugin>  
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
     

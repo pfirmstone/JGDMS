@@ -22,7 +22,7 @@
 
 package org.apache.river.api.security;
 
-import org.apache.river.start.SharedActivationPolicyPermission;
+//import org.apache.river.start.SharedActivationPolicyPermission;
 import java.net.URISyntaxException;
 import java.security.KeyStore;
 import java.util.Properties;

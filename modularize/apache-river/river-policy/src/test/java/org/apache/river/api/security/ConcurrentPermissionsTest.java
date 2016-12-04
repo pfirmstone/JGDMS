@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.PropertyPermission;
 import java.util.logging.LoggingPermission;
 import net.jini.security.AccessPermission;
-import net.jini.security.AccessPermission;
-import net.jini.security.AuthenticationPermission;
 import net.jini.security.AuthenticationPermission;
 import org.junit.After;
 import org.junit.AfterClass;

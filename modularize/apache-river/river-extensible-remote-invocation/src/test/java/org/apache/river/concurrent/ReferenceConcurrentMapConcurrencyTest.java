@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
 package org.apache.river.concurrent;
 
 import edu.illinois.imunit.Schedules;
@@ -30,11 +30,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-
+*/
 /**
  *
  * @author Peter Firmstone.
  */
+/*
 @RunWith(IMUnitRunner.class)
 public class ReferenceConcurrentMapConcurrencyTest {
     private ConcurrentMap<Integer,String> map;
@@ -163,3 +164,4 @@ public class ReferenceConcurrentMapConcurrencyTest {
     }
     
 }
+*/

@@ -86,3 +86,12 @@
 /modularize/apache-river/groovy-config/target/
 /modularize/apache-river/river-lib-dl/target/
 /modularize/apache-river/browser/target/
+/modularize/apache-river/river-services/outrigger/target/
+/modularize/apache-river/river-services/reggie/target/
+/modularize/apache-river/river-services/mahalo/target/
+/modularize/apache-river/river-services/mercury/target/
+/modularize/apache-river/river-services/norm/target/
+/modularize/apache-river/river-services/group/target/
+/modularize/apache-river/tools/target/
+/modularize/apache-river/river-services/fiddler/target/
+/modularize/apache-river/phoenix-activation/target/

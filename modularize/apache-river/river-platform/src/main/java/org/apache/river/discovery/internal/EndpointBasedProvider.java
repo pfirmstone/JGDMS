@@ -65,8 +65,9 @@ abstract class EndpointBasedProvider extends BaseProvider {
 	    InvocationConstraint c = (InvocationConstraint) i.next();
 	    if (c == Integrity.YES) {
 		integrity = true;
-	    } else if (!(c instanceof Integrity) || 
-		    !(c instanceof AtomicInputValidation)) {
+	    } else if (c instanceof AtomicInputValidation){
+		// ignore
+	    } else if (!(c instanceof Integrity)) {
 		throw new UnsupportedConstraintException(
 		    "cannot satisfy constraint: " + c);
 	    }
@@ -101,8 +102,9 @@ abstract class EndpointBasedProvider extends BaseProvider {
 	    InvocationConstraint c = (InvocationConstraint) i.next();
 	    if (c == AtomicInputValidation.YES) {
 		atomicity = true;
-	    } else if (!(c instanceof Integrity) || 
-		    !(c instanceof AtomicInputValidation)) {
+	    } else if (c instanceof Integrity){
+		// ignore
+	    } else if (!(c instanceof AtomicInputValidation)) {
 		throw new UnsupportedConstraintException(
 		    "cannot satisfy constraint: " + c);
 	    }

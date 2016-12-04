@@ -94,10 +94,10 @@ import java.io.ObjectInputStream;
  * </table>
  * <p>
  * This class, and simple subclasses of it, can be used (for example) with
- * {@link net.jini.jeri.BasicInvocationDispatcher}. It is
+ * <code> net.jini.jeri.BasicInvocationDispatcher</code>. It is
  * recommended that a simple subclass of this class be defined for each
  * remote object implementation class that can be exported using an
- * {@link net.jini.export.Exporter}, to allow separation of
+ * <code> net.jini.export.Exporter</code>, to allow separation of
  * grants in policy files.
  *
  * @author Sun Microsystems, Inc.

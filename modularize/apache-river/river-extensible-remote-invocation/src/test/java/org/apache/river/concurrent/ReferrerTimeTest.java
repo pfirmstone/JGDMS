@@ -64,7 +64,7 @@ public class ReferrerTimeTest {
         Comparator<Referrer<Integer>> ci = RC.comparator(comparator);
          ConcurrentNavigableMap<Referrer<Integer>, Referrer<String>> internal 
                 = new ConcurrentSkipListMap<Referrer<Integer>, Referrer<String>>(ci);
-        instance = RC.concurrentNavigableMap(internal, Ref.TIME, Ref.STRONG, 60L, 60L);
+        instance = RC.concurrentNavigableMap(internal, Ref.TIME, Ref.STRONG, 600L, 600L);
         ints = new Integer[5];
         ints[0] = 0;
         ints[1] = 1;
@@ -82,7 +82,7 @@ public class ReferrerTimeTest {
     public void testCleanerIteration() throws InterruptedException{
         System.out.println("testCleanerIteration");
         long start = System.nanoTime();
-        Thread.sleep(180L);
+        Thread.sleep(1800L);
         long finish = System.nanoTime();
         System.out.println(finish - start);
         assertTrue(instance.keySet().isEmpty());
@@ -98,7 +98,7 @@ public class ReferrerTimeTest {
         keys.remove(ints[1]);
         assertFalse(instance.containsKey(ints[1]));
     }
-    
+   
     @Test
     public void testCleanerRetains() throws InterruptedException{
         System.out.println("testCleanerRetains");
@@ -108,7 +108,7 @@ public class ReferrerTimeTest {
         instance.putIfAbsent(ints[3], "Three");
         instance.putIfAbsent(ints[4], "Four");
         for (int i=0; i<6; i++){
-            Thread.sleep(20L);
+            Thread.sleep(200L);
             for( int j=0; j<5 ; j++){
                 System.out.println(instance.get(ints[j]));
             }
@@ -127,7 +127,7 @@ public class ReferrerTimeTest {
         instance.putIfAbsent(ints[3], "Three");
         instance.putIfAbsent(ints[4], "Four");
         for (int i=0; i<6; i++){
-            Thread.sleep(30L);
+            Thread.sleep(300L);
             System.out.println(instance.get(ints[1]));
         }
         assertTrue(instance.containsKey(ints[1]));
@@ -136,7 +136,7 @@ public class ReferrerTimeTest {
         assertFalse(instance.containsKey(ints[3]));
         assertFalse(instance.containsKey(ints[4]));
     }
-    
+   
     @Test
     public void TestQueueFuture() throws InterruptedException 
     {
