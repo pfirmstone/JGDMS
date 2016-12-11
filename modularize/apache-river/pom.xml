@@ -57,7 +57,7 @@
 
     <reporting>
         <excludeDefaults>true</excludeDefaults>
-        <plugins>        
+        <plugins>                   
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-project-info-reports-plugin</artifactId>
@@ -176,8 +176,12 @@
 -->
 	
     <repositories>
-		<!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in river-platform -->
         <repository>
+            <id>local-snapshots</id>
+            <url>file:\C:\Users\Peter\Documents\repo</url>
+        </repository>
+		<!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in river-platform -->
+        <!--<repository>
 		    <id>boundary-site</id>
 		    <url>http://maven.boundary.com/artifactory/repo</url>
         </repository>
@@ -185,9 +189,17 @@
         <repository>
 		    <id>hashnot</id>
 		    <url>http://mvn.hashnot.com/content/groups/public</url>
-        </repository>
+        </repository>-->
 		
     </repositories>
+    
+    <distributionManagement>
+        <snapshotRepository>
+            <id>local-snapshots</id>
+            <layout>default</layout>
+            <url>file:\C:\Users\Peter\Documents\repo</url>
+        </snapshotRepository>
+    </distributionManagement>
 	
     <dependencyManagement>
         <dependencies>

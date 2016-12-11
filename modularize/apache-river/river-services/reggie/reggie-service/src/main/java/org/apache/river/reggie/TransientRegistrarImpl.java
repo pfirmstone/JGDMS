@@ -26,14 +26,17 @@ import net.jini.config.Configuration;
  *
  * @author Sun Microsystems, Inc.
  */
-class TransientRegistrarImpl extends RegistrarImpl {
+public class TransientRegistrarImpl extends RegistrarImpl {
 
     /**
      * Constructs a TransientRegistrarImpl based on a configuration obtained
      * using the provided arguments.  If lifeCycle is non-null, then its
      * unregister method is invoked during service shutdown.
+     * @param configArgs
+     * @param lifeCycle
+     * @throws java.lang.Exception
      */
-    TransientRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
+    public TransientRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
 	throws Exception
     {
 	super(configArgs, null, false, lifeCycle);
@@ -45,8 +48,11 @@ class TransientRegistrarImpl extends RegistrarImpl {
      * unregister method is invoked during service shutdown.
      *
      * It has the new (Embedded)NonActivatableServiceDescriptor service signature.
+     * @param config
+     * @param lifeCycle
+     * @throws java.lang.Exception
      */
-    TransientRegistrarImpl(Configuration config, LifeCycle lifeCycle)
+    public TransientRegistrarImpl(Configuration config, LifeCycle lifeCycle)
 	throws Exception
     {
 	super(config, null, false, lifeCycle);

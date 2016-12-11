@@ -35,6 +35,7 @@ import java.rmi.activation.ActivationGroupID;
 import java.rmi.server.UID;
 import java.security.Permission;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -261,6 +262,7 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    serializers.put(CommandEnvironment.class, CmdEnv.class);
 	    serializers.put(StackTraceElement.class, StackTraceElementSerializer.class);
             serializers.put(X500Principal.class, X500PrincipalSerializer.class);
+	    serializers.put(Date.class, DateSerializer.class);
 	}
 	
 	    @Override

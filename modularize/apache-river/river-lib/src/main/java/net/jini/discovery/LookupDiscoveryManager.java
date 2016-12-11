@@ -98,7 +98,7 @@ import net.jini.core.discovery.LookupLocator;
  * @see net.jini.discovery.DiscoveryLocatorManagement
  * 
  */
-public final class LookupDiscoveryManager extends AbstractLookupDiscoveryManager 
+public class LookupDiscoveryManager extends AbstractLookupDiscoveryManager 
                                     implements DiscoveryManagement,
                                                DiscoveryGroupManagement,
                                                DiscoveryLocatorManagement

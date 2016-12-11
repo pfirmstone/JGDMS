@@ -1356,6 +1356,8 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      * the given set of groups and the given set of locators. Whenever a
      * lookup service is discovered, discarded, or changed, the appropriate
      * notification will be sent to the appropriate listener.
+     * 
+     * REMIND: Should we implement Startable instead?
      */
     void beginDiscovery()    
     {

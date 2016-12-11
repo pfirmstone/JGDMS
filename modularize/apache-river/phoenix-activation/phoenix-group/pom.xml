@@ -36,7 +36,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-dl</artifactId>
+            <artifactId>river-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

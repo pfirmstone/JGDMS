@@ -174,7 +174,7 @@
     </build>
 
     <properties>
-        <high.scale.lib.version>1.0.3</high.scale.lib.version>
+        <high.scale.lib.version>1.0.6</high.scale.lib.version>
     </properties>
     
 </project>
