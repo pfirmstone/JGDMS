@@ -34,5 +34,10 @@
             <artifactId>group-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-activation-platform</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

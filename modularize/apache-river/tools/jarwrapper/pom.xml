@@ -26,7 +26,7 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>jarwrapper</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Jar wrapper</name>
+    <name>Tool :: Jar wrapper</name>
     <description> A tool for generating "wrapper" JAR files.  A wrapper JAR file contains a
         Class-Path manifest attribute listing a group of JAR files to
         be loaded from a common codebase.  It may also, depending on applicability

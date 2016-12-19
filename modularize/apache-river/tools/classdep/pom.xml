@@ -26,7 +26,7 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>classdep</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: ClassDep</name>
+    <name>Tool :: ClassDep</name>
     <description>Tool used to analyze a set of classes and determine on what other classes
       they directly or indirectly depend. Typically this tool is used to
       compute the necessary and sufficient set of classes to include in a JAR

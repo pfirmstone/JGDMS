@@ -31,7 +31,12 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-extensible-remote-invocation</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

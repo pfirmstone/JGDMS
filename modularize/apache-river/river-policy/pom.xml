@@ -38,12 +38,6 @@
             <version>4.6</version>
             <scope>test</scope>
         </dependency>
-        <!--<dependency>
-            <groupId>org.apache.river</groupId>
-            <artifactId>river-start</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>-->
     </dependencies>
     <licenses>
         <license>
@@ -73,18 +67,6 @@
                     <top><![CDATA[<h2>River-Internet Project ${project.version} API Documentation</h2>]]></top>
                     <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
                     <excludePackageNames></excludePackageNames>
-                    <additionalDependencies>
-                        <additionalDependency>
-                          <groupId>org.apache.river</groupId>
-                          <artifactId>river-platform</artifactId>
-                          <version>${project.version}</version>
-                        </additionalDependency>
-                        <additionalDependency>
-                          <groupId>org.apache.river</groupId>
-                          <artifactId>river-lib</artifactId>
-                          <version>${project.version}</version>
-                        </additionalDependency>
-                    </additionalDependencies>
                 </configuration>
                 
             </plugin>

@@ -44,12 +44,12 @@
         </dependency>
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform-dl</artifactId>
+            <artifactId>river-service-platform-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -125,7 +125,7 @@
                         <manifestEntries>
                             <Implementation-Version>${project.version}</Implementation-Version>
                             <Main-Class>org.apache.river.example.browser.Browser</Main-Class>
-                            <Class-Path>river-resources-${project.version}.jar river-platform-${project.version}.jar river-extensible-remote-invocation-${project.version}.jar river-lib-dl-${project.version}.jar river-lib-${project.version}.jar outrigger-dl-${project.version}.jar</Class-Path>
+                            <Class-Path>river-resources-${project.version}.jar river-service-platform-${project.version}.jar river-extensible-remote-invocation-${project.version}.jar river-lib-dl-${project.version}.jar river-lib-${project.version}.jar outrigger-dl-${project.version}.jar</Class-Path>
                         </manifestEntries>
                     </archive>
                 </configuration>

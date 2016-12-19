@@ -84,7 +84,7 @@
                 <exclude>xercesMinimal:*</exclude>
                 <exclude>velocity:*</exclude>
                 <exclude>org.apache.river:river-lib-dl:jar</exclude>
-                <exclude>org.apache.river:river-platform-dl:jar</exclude>
+                <exclude>org.apache.river:river-service-platform-dl:jar</exclude>
                 <exclude>org.apache.river.reggie:reggie-dl:jar</exclude>
                 <exclude>org.apache.river.outrigger:outrigger-dl:jar</exclude>
                 <exclude>org.apache.river.mahalo:mahalo-dl:jar</exclude>
@@ -103,7 +103,7 @@
 			<useProjectArtifact>false</useProjectArtifact>
             <useStrictFiltering>true</useStrictFiltering>
             <includes>
-                <include>org.apache.river:river-platform-dl:jar</include>
+                <include>org.apache.river:river-service-platform-dl:jar</include>
                 <include>org.apache.river:river-lib-dl:jar</include>
                 <include>org.apache.river.reggie:reggie-dl:jar</include>
                 <include>org.apache.river.outrigger:outrigger-dl:jar</include>

@@ -26,7 +26,7 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>checkconfigurationfile</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Check ConfigurationFile</name>
+    <name>Tool :: Check ConfigurationFile</name>
     <description>Checks the format of the source for a Jini ConfigurationFile. The source
          is specified with either a file, URL, or standard input, as well as with
          override options. The checks include syntax and static type checking, and
@@ -36,7 +36,7 @@
     <dependencies>       
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

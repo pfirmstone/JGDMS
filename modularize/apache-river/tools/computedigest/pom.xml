@@ -26,14 +26,14 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>computedigest</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Compute message digest</name>
+    <name>Tool :: Compute message digest</name>
     <description>Prints the message digest for the contents of a URL. This utility is run
      from the command line.</description>
 
     <dependencies>       
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

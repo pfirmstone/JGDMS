@@ -149,7 +149,6 @@ import org.apache.river.discovery.EncodeIterator;
 import org.apache.river.discovery.MulticastAnnouncement;
 import org.apache.river.discovery.MulticastRequest;
 import org.apache.river.discovery.UnicastResponse;
-import org.apache.river.discovery.https.DiscoveryUnicastHTTPS;
 import org.apache.river.logging.Levels;
 import org.apache.river.lookup.entry.BasicServiceType;
 import org.apache.river.proxy.CodebaseProvider;
@@ -5280,7 +5279,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 inRecovery = false;
             }
 	    if (enableHttpsUnicast){
-		httpsDiscovery = new DiscoveryUnicastHTTPS();
+		httpsDiscovery = Discovery.getUnicastHttps(null);
 	    }
             // log snapshot recovers myServiceID
             if (myServiceID == null) {

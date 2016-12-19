@@ -37,6 +37,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-foundation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
           <groupId>com.boundary</groupId>
           <artifactId>high-scale-lib</artifactId>
           <version>${high.scale.lib.version}</version>

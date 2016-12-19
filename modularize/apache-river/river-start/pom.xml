@@ -36,7 +36,7 @@
 
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -58,7 +58,7 @@
                         <manifestEntries>
                             <Main-Class>org.apache.river.start.ServiceStarter</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>river-platform.jar</Class-Path>
+                            <Class-Path>river-service-platform.jar</Class-Path>
                         </manifestEntries>
                     </archive>
                 </configuration>

@@ -34,8 +34,12 @@
             <artifactId>mahalo-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
-
-		<dependency>
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-activation-platform</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.river</groupId>
             <artifactId>river-lib</artifactId>
             <version>${project.version}</version>

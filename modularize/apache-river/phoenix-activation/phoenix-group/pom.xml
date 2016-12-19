@@ -31,7 +31,17 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-jrmp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-activation-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

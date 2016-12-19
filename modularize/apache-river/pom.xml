@@ -74,7 +74,7 @@
                             <report>project-team</report>
                             <report>scm</report>
                             <report>index</report>
-                            <!--<report>findbugs</report>-->
+                            <report>findbugs</report>
                         </reports>
                         <configuration>
                             <aggregate>true</aggregate>
@@ -157,7 +157,15 @@
         </developer>
         <!-- FILL IN THE REST OF YOUR DEVELOPERS -->
     </developers>
-
+    
+    <distributionManagement>
+        <snapshotRepository>
+            <id>local-snapshots</id>
+            <layout>default</layout>
+            <url>file:\C:\Users\Peter\Documents\repo</url>
+        </snapshotRepository>
+    </distributionManagement>
+    
 <!--
     <distributionManagement>
         <repository>
@@ -180,7 +188,7 @@
             <id>local-snapshots</id>
             <url>file:\C:\Users\Peter\Documents\repo</url>
         </repository>
-		<!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in river-platform -->
+		<!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in river-service-platform -->
         <!--<repository>
 		    <id>boundary-site</id>
 		    <url>http://maven.boundary.com/artifactory/repo</url>
@@ -193,14 +201,6 @@
 		
     </repositories>
     
-    <distributionManagement>
-        <snapshotRepository>
-            <id>local-snapshots</id>
-            <layout>default</layout>
-            <url>file:\C:\Users\Peter\Documents\repo</url>
-        </snapshotRepository>
-    </distributionManagement>
-	
     <dependencyManagement>
         <dependencies>
 
@@ -295,12 +295,17 @@
 
     <modules>
         <module>river-policy</module>
-        <module>river-platform-dl</module> 
+        <module>river-foundation</module>
+        <module>river-activation-platform</module>
         <module>river-extensible-remote-invocation</module>
-        <module>river-platform</module> 
+        <module>river-registrar-discovery-providers</module>
+        <module>river-service-platform-dl</module> 
+        <module>river-service-platform</module> 
         <module>river-start</module>
         <module>river-destroy</module>
         <module>river-resources</module> 
+        <module>river-iiop</module>
+        <module>river-jrmp</module>
         <module>river-lib</module>
         <module>river-lib-dl</module>
         <module>river-services/outrigger</module>

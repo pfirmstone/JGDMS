@@ -26,7 +26,7 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>checkser</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Check serialversionUid</name>
+    <name>Tool :: Check serialversionUid</name>
     <description>Tool to check for serializable classes that do not have explicit
          serialVersionUID fields.
     </description>

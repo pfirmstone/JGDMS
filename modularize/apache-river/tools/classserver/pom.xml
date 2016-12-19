@@ -26,14 +26,14 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>classserver</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Class Server</name>
+    <name>Tool :: Class Server</name>
     <description>A simple HTTP server, for serving up JAR and class files. </description>
 
     <dependencies>       
 
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

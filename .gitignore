@@ -95,3 +95,9 @@
 /modularize/apache-river/tools/target/
 /modularize/apache-river/river-services/fiddler/target/
 /modularize/apache-river/phoenix-activation/target/
+/modularize/apache-river/river-base-platform/target/
+/modularize/apache-river/river-activation-platform/target/
+/modularize/apache-river/river-iiop/target/
+/modularize/apache-river/river-jrmp/target/
+/modularize/apache-river/river-registrar-discovery-providers/target/
+/modularize/apache-river/river-foundation/target/

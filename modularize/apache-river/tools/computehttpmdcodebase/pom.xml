@@ -26,7 +26,7 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>computehttpmdcodebase</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Compute httpmd codebase</name>
+    <name>Tool :: Compute httpmd codebase</name>
     <description>Computes the message digests for a codebase with HTTPMD URLs. 
         This utility is run from the main command line.
         A description of HTTPMD URLs can be found in the net.jini.url.httpmd
@@ -36,7 +36,7 @@
     <dependencies>       
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

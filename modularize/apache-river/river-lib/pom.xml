@@ -22,7 +22,7 @@
         <artifactId>river</artifactId>
         <groupId>org.apache</groupId>
         <version>3.0-SNAPSHOT</version>
-		<relativePath>../pom.xml</relativePath>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>org.apache.river</groupId>
     <artifactId>river-lib</artifactId>
@@ -40,7 +40,12 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>river-extensible-remote-invocation</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

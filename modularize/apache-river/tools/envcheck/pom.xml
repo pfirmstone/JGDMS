@@ -26,7 +26,7 @@
     <groupId>org.apache.river.tools</groupId>
     <artifactId>envcheck</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Environment Check</name>
+    <name>Tool :: Environment Check</name>
     <description>Tool used to perform validity checks on the run-time environment of a client
           or service. The output of this tool is a report; command-line options
           control the verbosity and severity level at which report entries are
@@ -38,7 +38,7 @@
     <dependencies>       
         <dependency>
             <groupId>org.apache.river</groupId>
-            <artifactId>river-platform</artifactId>
+            <artifactId>river-service-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
