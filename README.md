@@ -1,4 +1,4 @@
-# river-internet
+# JGDMS - Java/Jini Global Distributed Micro Services.
 ## This software is forked from Apache River trunk, it is designed with internet security in mind and provides:
 * ObjectInput and ObjectOutput implementations for hardening deserialization in the presence of untrusted input.
 * TLSv1.2 Encrypted endpoints for RPC communication over untrusted networks, using RSA and Ephemeral Diffie Hellman key exchange and AES with GCM, non-epheremal DH key exchanges are prohibited.
