@@ -46,7 +46,7 @@ class ServiceReg {
     private final int hash;
     
     ServiceReg(ServiceRegistrar registrar, ServiceItem item, ServiceItem filteredItem){
-        this.items = new HashMap<>();
+        this.items = new HashMap<ProxyReg, ServiceItem>();
         this.registrar = registrar != null ? new ProxyReg(registrar) : null;
         this.item = item != null ? new ServiceItemContainer(item): null;
         MarshalledInstance srvc = null;
@@ -65,7 +65,7 @@ class ServiceReg {
     }
     
     private ServiceReg(ProxyReg registrar, MarshalledInstance service, ServiceItemContainer item, ServiceItem filteredItem){
-        this.items = new HashMap<>();
+        this.items = new HashMap<ProxyReg, ServiceItem>();
         this.registrar = registrar;
         this.item = item;
         this.service = service;

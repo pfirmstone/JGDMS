@@ -28,6 +28,7 @@
     <url>http://river.apache.org</url>
     <name>Module :: Phoenix</name>    
 
+    <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
@@ -103,7 +104,7 @@
                         <arg value="au.net.zeus.jgdms.phoenix.AbstractRegistry"/>
                     </exec>-->
             </plugin>
-            <plugin>
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.2</version>
@@ -116,8 +117,18 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
-            </plugin>  
-
+            </plugin>-->
+            <plugin>
+              <groupId>biz.aQute.bnd</groupId>
+              <artifactId>bnd-maven-plugin</artifactId>
+              <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
              <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>

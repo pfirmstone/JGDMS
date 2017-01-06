@@ -18,7 +18,6 @@
 
 package net.jini.jrmp;
 
-import org.apache.river.jeri.internal.runtime.Util;
 import java.net.InetAddress;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
@@ -64,11 +63,22 @@ public class JrmpServerContext implements ServerContext.Spi {
 	    Collection context = Collections.EMPTY_LIST;
 	    if (addr != null) {
 		context = new ArrayList(1);
-		Util.populateContext(context, addr);
+		populateContext(context, addr);
 	    } 
 	    return Collections.unmodifiableCollection(context);
 	} catch (ServerNotActiveException ex) {
 	    return null;
+	}
+    }
+    
+    void populateContext(Collection context, final InetAddress addr) {
+	if (context == null) {
+	    throw new NullPointerException("context is null");
+	}
+	if (addr != null) {
+	    context.add(new ClientHost(){
+		public InetAddress getClientHost() { return addr; }
+	    });
 	}
     }
 }

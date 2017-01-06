@@ -31,7 +31,7 @@
         It acts as both the class path for the container virtual machine (VM) for the Java platform
         that executes non-activatable services, and as the setup VM for activatable services.
     </description>
-
+    <packaging>jar</packaging>
     <dependencies>  
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
@@ -58,7 +58,7 @@
 
     <build>
         <plugins>
-            <plugin>
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.2</version>
@@ -71,9 +71,19 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
-            </plugin>  
-
-             <plugin>
+            </plugin>--> 
+            <plugin>
+              <groupId>biz.aQute.bnd</groupId>
+              <artifactId>bnd-maven-plugin</artifactId>
+              <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>2.1.1</version>
@@ -87,8 +97,7 @@
                     </execution>
                 </executions>
             </plugin>
-
-	    </plugins>
+        </plugins>
     </build>
 
     

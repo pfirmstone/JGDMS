@@ -29,7 +29,9 @@
     <name>Module :: JGDMS Activation Platform</name>
     <description>Apache JGDMS Activation Platform
     </description>
-
+    
+    <packaging>jar</packaging>
+    
      <dependencies>  
 		 
          <dependency>
@@ -103,11 +105,21 @@
         </plugins>
     </reporting>
     <build>
-        <plugins>            
+        <plugins>  
             <plugin>
+              <groupId>biz.aQute.bnd</groupId>
+              <artifactId>bnd-maven-plugin</artifactId>
+              <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>          
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>2.2</version>
                 <configuration>
                     <archive>                
                         <manifestEntries>
@@ -116,9 +128,9 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
-            </plugin> 
+            </plugin>-->
 
-            <plugin>
+            <!--<plugin>
                <groupId>org.codehaus.gmaven</groupId>
                <artifactId>gmaven-plugin</artifactId>
                <configuration>
@@ -142,7 +154,7 @@
                         <version>${groovy.version}</version>
                     </dependency>
                 </dependencies>
-            </plugin>						
+            </plugin>-->						
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

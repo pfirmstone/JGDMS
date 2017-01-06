@@ -27,7 +27,7 @@
     <artifactId>mercury-service</artifactId>
     <url>http://river.apache.org</url>
     <name>Module :: Mercury Service Implementation</name>    
-
+    <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms.mercury</groupId>
@@ -45,4 +45,19 @@
             <version>${project.version}</version>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+              <groupId>biz.aQute.bnd</groupId>
+              <artifactId>bnd-maven-plugin</artifactId>
+              <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

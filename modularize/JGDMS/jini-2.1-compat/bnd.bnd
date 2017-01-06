@@ -1,0 +1,12 @@
+-exportcontents: \
+    com.sun.jini.admin,\
+    com.sun.jini.config,\
+    com.sun.jini.constants,\
+    com.sun.jini.landlord,\
+    com.sun.jini.logging,\
+    com.sun.jini.lookup,\
+    com.sun.jini.proxy,\
+    com.sun.jini.reliableLog,\
+    com.sun.jini.start,\
+    com.sun.jini.thread
+-sources: true

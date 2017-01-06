@@ -1,0 +1,3 @@
+-exportcontents: \
+    net.jini.lookup.ui.factory
+-sources: false

@@ -27,7 +27,7 @@
     <artifactId>outrigger-service</artifactId>
     <url>http://river.apache.org</url>
     <name>Module :: Outrigger Service Implementation</name>    
-
+    <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms.outrigger</groupId>
@@ -67,4 +67,19 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+              <groupId>biz.aQute.bnd</groupId>
+              <artifactId>bnd-maven-plugin</artifactId>
+              <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -505,8 +505,31 @@ final class LookupCacheImpl implements LookupCache {
                                     remove = true;
                                     notify = false;
                                 } //endif
-			    } catch (SecurityException | ClassCastException ex){
+			    } catch (SecurityException ex){
                                 if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
+                                    ServiceDiscoveryManager.log(Level.FINE, 
+                                        "Exception caught, while attempting to filter a bootstrap proxy", ex);
+                                }
+				try {
+				    filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
+				    if(ServiceDiscoveryManager.filterPassed(filteredItem, cache.filter)){
+                                        addFilteredItemToMap = true;
+                                    } else {
+                                        //'quietly' remove the item
+                                        remove = true;
+                                        notify = false;
+                                    } //endif
+				} catch (RemoteException ex1) {
+				    if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
+                                        ServiceDiscoveryManager.log(Level.FINE, 
+                                            "Exception caught, while attempting to filter a bootstrap proxy", ex1);
+                                    }
+                                    //'quietly' remove the item
+                                    remove = true;
+                                    notify = false;
+				}
+			    } catch (ClassCastException ex){
+				if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE)){
                                     ServiceDiscoveryManager.log(Level.FINE, 
                                         "Exception caught, while attempting to filter a bootstrap proxy", ex);
                                 }
@@ -680,7 +703,7 @@ final class LookupCacheImpl implements LookupCache {
 	ServiceItem[] sa = getServiceItems(myFilter);
 	int len = sa.length;
 	if (len == 0 || len <= maxMatches) return sa;
-        List<ServiceItem> items = new LinkedList<>();
+        List<ServiceItem> items = new LinkedList<ServiceItem>();
 	int rand = sdm.random.nextInt(Integer.MAX_VALUE) % len;
 	for (int i = 0; i < len; i++) {
 	    items.add(sa[(i + rand) % len]);
@@ -783,7 +806,7 @@ final class LookupCacheImpl implements LookupCache {
         private final LookupCacheImpl cache;
         
         FilteredItems(LookupCacheImpl cache, ServiceItemFilter filter2){
-            this.items = new LinkedList<>();
+            this.items = new LinkedList<ServiceItem>();
             this.filter2 = filter2;
             this.cache = cache;
         }
@@ -1946,12 +1969,12 @@ final class LookupCacheImpl implements LookupCache {
 
                 @Override
                 public <T> RunnableFuture<T> newTaskFor(Runnable r, T value) {
-                    return new ComparableFutureTask<>(r,value);
+                    return new ComparableFutureTask<T>(r,value);
                 }
 
                 @Override
                 public <T> RunnableFuture<T> newTaskFor(Callable<T> c) {
-                    return new ComparableFutureTask<>(c);
+                    return new ComparableFutureTask<T>(c);
                 }
                 
             }
@@ -2079,7 +2102,7 @@ final class LookupCacheImpl implements LookupCache {
             } else {
                 try {
                     pass = filter.check(filteredItem);
-                } catch (ClassCastException | SecurityException ex){ 
+                } catch (SecurityException ex){ 
                     try {
                         // Filter didn't expect bootstrap proxy
                         filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
@@ -2092,7 +2115,20 @@ final class LookupCacheImpl implements LookupCache {
                             );
                         discardRetryLater = true;
                     }
-                }
+                } catch (ClassCastException ex){
+		    try {
+                        // Filter didn't expect bootstrap proxy
+                        filteredItem.service = ((ServiceProxyAccessor) filteredItem.service).getServiceProxy();
+                        pass = filter.check(filteredItem);
+                    } catch (RemoteException ex1) {
+                        if (ServiceDiscoveryManager.logger.isLoggable(Level.FINE))
+                            ServiceDiscoveryManager.log(Level.FINE, 
+                                "Exception thrown while trying to download service proxy",
+                                ex1
+                            );
+                        discardRetryLater = true;
+                    }
+		}
             }
             /* Handle filter pass */
             if (pass && !discardRetryLater && filteredItem.service != null) {

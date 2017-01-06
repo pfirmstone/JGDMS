@@ -27,7 +27,7 @@
     <artifactId>phoenix-common</artifactId>
     <url>http://river.apache.org</url>
     <name>Module :: Phoenix Common</name>    
-
+    <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
@@ -46,4 +46,19 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+              <groupId>biz.aQute.bnd</groupId>
+              <artifactId>bnd-maven-plugin</artifactId>
+              <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -680,18 +680,26 @@ public class ServiceDiscoveryManager {
     }
     
     static void log(Level level, String message, Object[] parameters, Throwable thrown){
-        LogRecord record = new LogRecord(level, message);
+        final LogRecord record = new LogRecord(level, message);
         record.setParameters(parameters);
         record.setThrown(thrown);
-        logExec.submit(() -> { logger.log(record);});
+	logExec.submit(new Runnable(){
+	    public void run() {
+		logger.log(record);
+	    }
+	});
     }
 
     static void logp(Level logLevel, String sourceClass, String sourceMethod, String message, Throwable thrown) {
-        LogRecord record = new LogRecord(logLevel, message);
+        final LogRecord record = new LogRecord(logLevel, message);
         record.setSourceClassName(sourceClass);
         record.setSourceMethodName(sourceMethod);
         record.setThrown(thrown);
-        logExec.submit(() -> { logger.log(record);});
+	logExec.submit(new Runnable(){
+	    public void run() {
+		logger.log(record);
+	    }
+	});
     }
     /**
      * @return the discardWait
@@ -1184,11 +1192,11 @@ public class ServiceDiscoveryManager {
 
     private ServiceDiscoveryManager(Initializer init) {
         // Key's added only if absent.
-        this.proxyRegSet = new HashSet<>();
+        this.proxyRegSet = new HashSet<ProxyReg>();
         ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
         proxyRegSetRead = rwl.readLock();
         proxyRegSetWrite = rwl.writeLock();
-        this.caches = new ArrayList<>(32);
+        this.caches = new ArrayList<LookupCache>(32);
         ReentrantReadWriteLock rwl2 = new ReentrantReadWriteLock();
         cachesWrite = rwl2.writeLock();
         cachesRead = rwl2.readLock();
@@ -1212,7 +1220,7 @@ public class ServiceDiscoveryManager {
      * Returns array of ServiceRegistrar created from the proxyRegSet
      */
     private ServiceRegistrar[] buildServiceRegistrar() {
-        List<ServiceRegistrar> proxys = new LinkedList<>();
+        List<ServiceRegistrar> proxys = new LinkedList<ServiceRegistrar>();
         proxyRegSetRead.lock();
         try {
             Iterator<ProxyReg> iter = proxyRegSet.iterator();
@@ -2034,7 +2042,7 @@ public class ServiceDiscoveryManager {
 		// field after preparing the proxy and retrieving the 
 		// service proxy using ServiceProxyAccessor.
 		if (filter.check(item)) return item;
-	    } catch (SecurityException | ClassCastException ex){
+	    } catch (SecurityException ex) {
                 if (logger.isLoggable(Level.FINE))
                     log(Level.FINE, 
 		    "Exception thrown while filtering ServiceItem containing bootstrap proxy, downloading service proxy and trying again, suggest rewriting your filter", ex);
@@ -2049,7 +2057,22 @@ public class ServiceDiscoveryManager {
 		item.service = 
 			((ServiceProxyAccessor) preparedProxy).getServiceProxy();
 		if (filter.check(item)) return item;
-	    } 
+	    } catch (ClassCastException ex){
+		if (logger.isLoggable(Level.FINE))
+                    log(Level.FINE, 
+		    "Exception thrown while filtering ServiceItem containing bootstrap proxy, downloading service proxy and trying again, suggest rewriting your filter", ex);
+		// If ClassCastException, then filter has attempted to cast the
+		// bootstrap proxy to the service type, it is likely to be 
+		// an older filter implementation that doesn't know about
+		// ServiceProxyAccessor.
+		// If SecurityException, then proxy preparation failed, which
+		// is probably due to the filter not expecting a bootstrap
+		// proxy and attempting to apply method constraints.
+		// SOLUTION: Download service proxy and retry filter.
+		item.service = 
+			((ServiceProxyAccessor) preparedProxy).getServiceProxy();
+		if (filter.check(item)) return item;
+	    }
 	    return null;
 	} catch (IOException ex) {
             if (logger.isLoggable(Level.FINE))
