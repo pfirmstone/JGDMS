@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package net.jini.export;
+package net.jini.lookup;
 
 import java.io.IOException;
 import java.rmi.Remote;

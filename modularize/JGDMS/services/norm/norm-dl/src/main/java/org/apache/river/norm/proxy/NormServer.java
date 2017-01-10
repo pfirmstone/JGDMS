@@ -33,7 +33,7 @@ import net.jini.lease.LeaseRenewalService;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.landlord.Landlord;
 import org.apache.river.proxy.ThrowThis;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 
 /**
  * This interface is the private wire protocol to that the various

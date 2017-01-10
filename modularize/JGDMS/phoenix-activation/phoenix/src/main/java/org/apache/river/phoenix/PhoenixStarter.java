@@ -19,7 +19,7 @@
 package org.apache.river.phoenix;
 
 import org.apache.river.start.lifecycle.LifeCycle;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 
 /**
  * Used to start phoenix from the {@link

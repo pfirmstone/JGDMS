@@ -30,7 +30,7 @@ import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;

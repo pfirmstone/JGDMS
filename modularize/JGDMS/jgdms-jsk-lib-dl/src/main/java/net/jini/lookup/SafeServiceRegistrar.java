@@ -54,9 +54,9 @@ public interface SafeServiceRegistrar extends ServiceRegistrar{
      * RemoteMethodControl, ServiceProxyAccessor and ServiceAttributesAccessor
      * @throws RemoteException 
      * @see net.jini.core.constraint.RemoteMethodControl
-     * @see net.jini.export.ServiceProxyAccessor
-     * @see net.jini.export.ServiceAttributesAccessor
-     * @see net.jini.export.ServiceCodebaseAccessor
+     * @see net.jini.lookup.ServiceProxyAccessor
+     * @see net.jini.lookup.ServiceAttributesAccessor
+     * @see net.jini.lookup.ServiceCodebaseAccessor
      */
     Object [] lookUp(ServiceTemplate tmpl, int maxProxies) throws RemoteException;
     

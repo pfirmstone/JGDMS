@@ -50,11 +50,6 @@
             <artifactId>phoenix-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>1.5.0</version>
-        </dependency>
     </dependencies>
     
     <build>
@@ -118,6 +113,17 @@
                     </archive>
                 </configuration>
             </plugin>-->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin> 
             <plugin>
               <groupId>biz.aQute.bnd</groupId>
               <artifactId>bnd-maven-plugin</artifactId>

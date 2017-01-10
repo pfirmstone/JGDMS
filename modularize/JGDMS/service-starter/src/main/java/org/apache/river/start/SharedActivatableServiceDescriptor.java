@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.config.Configuration;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;

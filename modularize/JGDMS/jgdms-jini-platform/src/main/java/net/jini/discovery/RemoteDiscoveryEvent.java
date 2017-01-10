@@ -19,22 +19,27 @@ package net.jini.discovery;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
+import net.jini.io.ObjectStreamContext;
+import net.jini.io.context.AtomicValidationEnforcement;
+import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.proxy.MarshalledWrapper;
 
 /**
  * Whenever the lookup discovery service discovers or discards a lookup
@@ -105,6 +110,65 @@ import org.apache.river.proxy.MarshalledWrapper;
 public class RemoteDiscoveryEvent extends RemoteEvent {
 
     private static final long serialVersionUID = -9171289945014585248L;
+    
+    /**
+     * Returns the integrity protection setting of the given stream, determined
+     * as follows: if the stream implements {@link ObjectStreamContext} and has
+     * in its context collection an object of type
+     * {@link IntegrityEnforcement}, the
+     * {@link IntegrityEnforcement#integrityEnforced integrityEnforced} method
+     * of that object is called and the resulting value returned; otherwise,
+     * <code>false</code> is returned.
+     *
+     * @param stream the given stream
+     * @return integrity protection setting of the given stream
+     */
+    static boolean integrityEnforced(ObjectInput stream) {
+	if (stream instanceof ObjectStreamContext) {
+	    return  integrityEnforced(((ObjectStreamContext) stream));
+	}
+	return false;
+    }
+    
+    /**
+     * Returns the integrity protection setting in the given ObjectStreamContext.
+     * @param context
+     * @return 
+     */
+    static boolean integrityEnforced(ObjectStreamContext context) {
+	Collection ctx = context.getObjectStreamContext();
+	    for (Iterator i = ctx.iterator(); i.hasNext(); ) {
+		Object obj = i.next();
+		if (obj instanceof IntegrityEnforcement) {
+		    return ((IntegrityEnforcement) obj).integrityEnforced();
+		}
+	    }
+	return false;
+    }
+    
+    /**
+     * Returns the atomicity protection setting of the given stream, determined
+     * as follows: if the stream implements {@link ObjectStreamContext} and has
+     * in its context collection an object of type
+     * {@link AtomicValidationEnforcement}, the
+     * {@link AtomicValidationEnforcement#enforced enforced} method
+     * of that object is called and the resulting value returned; otherwise,
+     * <code>false</code> is returned.
+     *
+     * @param context
+     * @return integrity protection setting of the given stream
+     */
+    static boolean atomicityEnforced(ObjectStreamContext context) {
+	Collection ctx =
+	    ((ObjectStreamContext) context).getObjectStreamContext();
+	for (Iterator i = ctx.iterator(); i.hasNext(); ) {
+	    Object obj = i.next();
+	    if (obj instanceof AtomicValidationEnforcement) {
+		return ((AtomicValidationEnforcement) obj).enforced();
+	    }
+	}
+	return false;
+    }
 
     /**
      * Flag indicating whether the event is a discovery event or a discard
@@ -211,8 +275,8 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
 	regs = ((ServiceRegistrar[]) arg.get("regs", null)).clone();
 	groups = new HashMap<ServiceID, String[]>(
 		(Map<ServiceID, String[]>) arg.get("groups", null));
-	integrity = MarshalledWrapper.integrityEnforced(arg);
-	atomic = MarshalledWrapper.atomicityEnforced(arg);
+	integrity = integrityEnforced(arg);
+	atomic = atomicityEnforced(arg);
     }
 
     /**
@@ -679,7 +743,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
                                             +"failure - source field is null");
         }//endif
         /* Retrieve the value of the integrity flag */
-        integrity = MarshalledWrapper.integrityEnforced(s);
+        integrity = integrityEnforced(s);
 	atomic = false; // Atomic streams don't call readObject.
     }//end readObject
 

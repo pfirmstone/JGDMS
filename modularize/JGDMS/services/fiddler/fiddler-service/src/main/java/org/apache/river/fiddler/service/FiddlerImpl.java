@@ -80,9 +80,9 @@ import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.RemoteDiscoveryEvent;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
-import net.jini.export.ServiceAttributesAccessor;
-import net.jini.export.ServiceIDAccessor;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceAttributesAccessor;
+import net.jini.lookup.ServiceIDAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
@@ -3238,7 +3238,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
 
     /* -------------------------------------------------------------------- 
      * BEGIN org.apache.river.fiddler.proxy.Fiddler
-     *                          --> net.jini.export.ServiceProxyAccessor
+     *                          --> net.jini.lookup.ServiceProxyAccessor
      */
     /**
      * Public method that facilitates the use of the mechanism provided by
@@ -3261,7 +3261,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
     }//end getServiceProxy
 
     /*  END org.apache.river.fiddler.proxy.Fiddler 
-     *                        --> net.jini.export.ServiceProxyAccessor   */
+     *                        --> net.jini.lookup.ServiceProxyAccessor   */
     /* -------------------------------------------------------------------- */
 
     /* -------------------------------------------------------------------- 

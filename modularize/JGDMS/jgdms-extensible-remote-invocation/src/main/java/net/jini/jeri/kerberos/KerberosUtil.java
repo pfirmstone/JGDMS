@@ -274,7 +274,13 @@ class KerberosUtil {
 	} else if (c instanceof ServerAuthentication) {
 	    return c == ServerAuthentication.YES;
 	} else if (c instanceof Delegation) {
-	    return config.deleg == (c == Delegation.YES);
+	    if ( config.deleg == (c == Delegation.YES)){
+		try {
+		    Class.forName("com.sun.security.jgss.GSSUtil");
+		    return true;
+		} catch (ClassNotFoundException ex){} // Ignore
+	    }
+	    return false;
 	} else if (c instanceof ClientMinPrincipal) {
 	    Set elems = ((ClientMinPrincipal) c).elements();
 	    if (elems.size() > 1) {

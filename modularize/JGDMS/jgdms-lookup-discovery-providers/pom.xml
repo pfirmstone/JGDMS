@@ -39,6 +39,11 @@
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-jsk-lib-dl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-extensible-remote-invocation</artifactId>
             <version>3.0-SNAPSHOT</version>
             <type>jar</type>
@@ -52,12 +57,7 @@
              <groupId>${project.groupId}</groupId>
              <artifactId>jgdms-resources</artifactId>
              <version>${project.version}</version>
-         </dependency>     
-        
-		<dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-        </dependency>
+         </dependency>  
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -113,7 +113,18 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>          
+            </plugin>   
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>        
             <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>

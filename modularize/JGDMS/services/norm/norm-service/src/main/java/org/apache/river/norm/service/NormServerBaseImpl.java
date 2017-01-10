@@ -90,9 +90,9 @@ import org.apache.river.thread.InterruptedStatusThread;
 import org.apache.river.norm.proxy.*;
 import java.security.AccessControlContext;
 import java.security.AccessController;
-import net.jini.export.ServiceAttributesAccessor;
-import net.jini.export.ServiceIDAccessor;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceAttributesAccessor;
+import net.jini.lookup.ServiceIDAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.loader.ClassLoading;
 
 /**

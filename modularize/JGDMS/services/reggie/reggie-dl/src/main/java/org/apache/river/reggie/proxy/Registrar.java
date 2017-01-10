@@ -28,7 +28,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistration;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import net.jini.lookup.DiscoveryAdmin;

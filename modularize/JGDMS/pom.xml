@@ -28,7 +28,7 @@
     <name>Zeus Project Services Pty Ltd</name>
   </organization>
 
-  <issueManagement>
+  <!--<issueManagement>
     <system>JIRA</system>
     <url>https://issues.apache.org/jira/browse/RIVER</url>
   </issueManagement>
@@ -42,7 +42,7 @@
   <ciManagement>
     <system>hudson</system>
     <url>https://builds.apache.org/view/M-R/view/River/</url>
-  </ciManagement>
+  </ciManagement>-->
 
   <reporting>
     <excludeDefaults>true</excludeDefaults>
@@ -71,7 +71,7 @@
           </reportSet>
         </reportSets>
       </plugin>
-      <plugin>
+      <!--<plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-deploy-plugin</artifactId>
         <version>2.2</version>
@@ -81,7 +81,7 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>2.10.4</version>
         <inherited>false</inherited>
-        <!--<configuration>
+        <configuration>
           <aggregate>true</aggregate>
           <additionalparam>-Xdoclint:none</additionalparam>
         </configuration>-->
@@ -103,9 +103,9 @@
               <report>aggregate</report>
             </reports>
           </reportSet>
-        </reportSets>-->
+        </reportSets>
       </plugin>
-      <!--
+      
             <plugin>
                 <artifactId>maven-jxr-plugin</artifactId>
                 <inherited>false</inherited>
@@ -213,12 +213,15 @@
               <useDefaultManifestFile>true</useDefaultManifestFile>
           </configuration>
         </plugin>
-        <!--<plugin>
-          <groupId>org.apache.felix</groupId>
-          <artifactId>maven-bundle-plugin</artifactId>
-          <version>2.5.4</version>
-          <extensions>true</extensions>
-        </plugin>-->
+        <plugin>
+            <groupId>org.owasp</groupId>
+            <artifactId>dependency-check-maven</artifactId>
+            <version>1.4.4.1</version>
+            <configuration>
+                <cveValidForHours>12</cveValidForHours>
+                <failBuildOnCVSS>4</failBuildOnCVSS>
+            </configuration>
+        </plugin>
         <plugin>
             <groupId>biz.aQute.bnd</groupId>
             <artifactId>bnd-maven-plugin</artifactId>
@@ -313,6 +316,8 @@
     <module>groovy-config</module>
     <module>dist</module>
     <module>browser</module>
+    <module>extra</module>
+    <!--CVE-2015-6420 vulnerable <module>velocity-config</module>-->
   </modules>
 
 </project>

@@ -40,7 +40,7 @@ import javax.security.auth.Subject;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.export.ProxyAccessor;
-import net.jini.export.ServiceCodebaseAccessor;
+import net.jini.lookup.ServiceCodebaseAccessor;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;

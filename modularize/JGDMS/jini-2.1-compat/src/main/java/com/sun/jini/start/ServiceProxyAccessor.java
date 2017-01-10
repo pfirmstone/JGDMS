@@ -21,6 +21,6 @@ package com.sun.jini.start;
  * Provided for backward compatibility, migrate to new name space.
  */
 @Deprecated
-public interface ServiceProxyAccessor extends net.jini.export.ServiceProxyAccessor {
+public interface ServiceProxyAccessor extends net.jini.lookup.ServiceProxyAccessor {
     
 }
