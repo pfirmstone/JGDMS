@@ -55,7 +55,7 @@ import java.rmi.Remote;
 import java.security.SecureRandom;
 
 import net.jini.config.ConfigurationException;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.start.LifeCycle;
 import net.jini.security.proxytrust.ServerProxyTrust;
 

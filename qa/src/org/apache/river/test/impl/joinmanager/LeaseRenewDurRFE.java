@@ -25,7 +25,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.start.SharedActivatableServiceDescriptor;
 import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
 import org.apache.river.start.SharedActivationGroupDescriptor;

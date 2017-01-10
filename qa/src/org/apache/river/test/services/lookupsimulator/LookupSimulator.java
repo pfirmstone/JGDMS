@@ -34,7 +34,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
 
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 
 /**
  * This interface defines the private protocol between client-side
