@@ -24,47 +24,32 @@
         <version>3.0-SNAPSHOT</version>
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
-    <artifactId>jgdms-lookup-discovery-providers</artifactId>
+    <artifactId>jgdms-jeri</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: JGDMS ServiceRegistrar Discovery Providers</name>
-    <description>Apache JGDMS ServiceRegistrar Discovery Providers
+    <name>Module :: JGDMS Extensible Remote Invocation</name>
+    <description>Apache JGDMS Remote Micro Services Platform
     </description>
+    
     <packaging>jar</packaging>
+
      <dependencies>  
-		 
          <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jini-platform</artifactId>
+            <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib-dl</artifactId>
-            <version>${project.version}</version>
+          <groupId>com.boundary</groupId>
+          <artifactId>high-scale-lib</artifactId>
+          <version>${high.scale.lib.version}</version>
         </dependency>
-        <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-extensible-remote-invocation</artifactId>
-            <version>3.0-SNAPSHOT</version>
-            <type>jar</type>
-        </dependency>
-        <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-url-integrity</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-         <dependency>
-             <groupId>${project.groupId}</groupId>
-             <artifactId>jgdms-resources</artifactId>
-             <version>${project.version}</version>
-         </dependency>  
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.6</version>
             <scope>test</scope>
         </dependency>
-     </dependencies>
+    </dependencies>
 
     <reporting>
         <plugins>
@@ -87,7 +72,7 @@
                     <additionalDependencies>
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
-                          <artifactId>jgdms-jsk-lib</artifactId>
+                          <artifactId>jgdms-lib</artifactId>
                           <version>${project.version}</version>
                         </additionalDependency>
                         <additionalDependency>
@@ -113,7 +98,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>   
+            </plugin>          
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
@@ -124,7 +109,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>        
+            </plugin> 
             <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -163,7 +148,7 @@
                         <version>${groovy.version}</version>
                     </dependency>
                 </dependencies>
-            </plugin>-->						
+            </plugin>-->					
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -209,15 +194,11 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-            </plugin>
         </plugins>
     </build>
 
     <properties>
-        <high.scale.lib.version>1.0.3</high.scale.lib.version>
+        <high.scale.lib.version>1.0.6</high.scale.lib.version>
     </properties>
     
 </project>

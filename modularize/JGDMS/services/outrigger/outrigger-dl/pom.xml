@@ -31,12 +31,12 @@
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-extensible-remote-invocation</artifactId>
+            <artifactId>jgdms-jeri</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib-dl</artifactId>
+            <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

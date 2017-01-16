@@ -27,7 +27,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
-    <artifactId>jgdms-jini-platform</artifactId>
+    <artifactId>jgdms-platform</artifactId>
     <url>http://river.apache.org</url>
     <name>Module :: JGDMS Jini Platform</name>
     <description>JGDMS Jini Platform, Policy provider, SecurityManager, Constraints and Proxy preparation</description>

@@ -31,7 +31,7 @@
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib-dl</artifactId>
+            <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

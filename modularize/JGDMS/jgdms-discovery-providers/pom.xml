@@ -24,25 +24,29 @@
         <version>3.0-SNAPSHOT</version>
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
-    <artifactId>jgdms-activation-platform</artifactId>
+    <artifactId>jgdms-discovery-providers</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: JGDMS Activation Platform</name>
-    <description>Apache JGDMS Activation Platform
+    <name>Module :: JGDMS Lookup Discovery Providers</name>
+    <description>Apache JGDMS Lookup Discovery Providers
     </description>
-    
     <packaging>jar</packaging>
-    
      <dependencies>  
 		 
          <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jini-platform</artifactId>
+            <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-extensible-remote-invocation</artifactId>
+            <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-jeri</artifactId>
+            <version>3.0-SNAPSHOT</version>
+            <type>jar</type>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
@@ -53,16 +57,14 @@
              <groupId>${project.groupId}</groupId>
              <artifactId>jgdms-resources</artifactId>
              <version>${project.version}</version>
-         </dependency>     
+         </dependency>  
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.6</version>
             <scope>test</scope>
         </dependency>
-        
-		
-    </dependencies>
+     </dependencies>
 
     <reporting>
         <plugins>
@@ -85,7 +87,7 @@
                     <additionalDependencies>
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
-                          <artifactId>jgdms-jsk-lib</artifactId>
+                          <artifactId>jgdms-lib</artifactId>
                           <version>${project.version}</version>
                         </additionalDependency>
                         <additionalDependency>
@@ -111,7 +113,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>       
+            </plugin>   
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
@@ -122,10 +124,11 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>    
+            </plugin>        
             <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+                <version>2.2</version>
                 <configuration>
                     <archive>                
                         <manifestEntries>

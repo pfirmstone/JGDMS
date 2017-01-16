@@ -26,15 +26,15 @@
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jgdms-url-integrity</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: JGDMS Service Platform</name>
-    <description>JGDMS Remote Micro Services Platform
+    <name>Module :: JGDMS URL providers and Integrity</name>
+    <description>JGDMS URL provider and Integrity verifiers.
     </description>
     <packaging>jar</packaging>
      <dependencies>  
 		 
          <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jini-platform</artifactId>
+            <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
          <dependency>
@@ -44,7 +44,7 @@
          </dependency>   
          <dependency>
              <groupId>${project.groupId}</groupId>
-             <artifactId>jgdms-extensible-remote-invocation</artifactId>
+             <artifactId>jgdms-jeri</artifactId>
              <version>${project.version}</version>
          </dependency>
         <dependency>
@@ -78,7 +78,7 @@
                     <additionalDependencies>
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
-                          <artifactId>jgdms-jsk-lib</artifactId>
+                          <artifactId>jgdms-lib</artifactId>
                           <version>${project.version}</version>
                         </additionalDependency>
                         <additionalDependency>

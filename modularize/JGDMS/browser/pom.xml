@@ -36,12 +36,12 @@
 		 
          <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jini-platform</artifactId>
+            <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-extensible-remote-invocation</artifactId>
+            <artifactId>jgdms-jeri</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -51,17 +51,17 @@
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib-dl</artifactId>
+            <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib-dl-ui-factory</artifactId>
+            <artifactId>jgdms-ui-factory</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib</artifactId>
+            <artifactId>jgdms-lib</artifactId>
             <version>${project.version}</version>
         </dependency>
          <dependency>
@@ -102,7 +102,7 @@
                     <additionalDependencies>
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
-                          <artifactId>jgdms-jsk-lib</artifactId>
+                          <artifactId>jgdms-lib</artifactId>
                           <version>${project.version}</version>
                         </additionalDependency>
                         <additionalDependency>
@@ -137,7 +137,7 @@
                         <manifestEntries>
                             <Implementation-Version>${project.version}</Implementation-Version>
                             <Main-Class>org.apache.river.example.browser.Browser</Main-Class>
-                            <Class-Path>jgdms-resources-${project.version}.jar jgdms-url-integrity-${project.version}.jar jgdms-extensible-remote-invocation-${project.version}.jar jgdms-jsk-lib-dl-${project.version}.jar jgdms-jsk-lib-${project.version}.jar outrigger-dl-${project.version}.jar</Class-Path>
+                            <Class-Path>jgdms-resources-${project.version}.jar jgdms-url-integrity-${project.version}.jar jgdms-jeri-${project.version}.jar jgdms-lib-dl-${project.version}.jar jgdms-lib-${project.version}.jar outrigger-dl-${project.version}.jar</Class-Path>
                         </manifestEntries>
                     </archive>
                 </configuration>

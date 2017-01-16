@@ -35,7 +35,7 @@
     <dependencySets>
         <!-- The lib directory are service implementation jars and their transitive requirements -->
         <dependencySet>      
-			<useProjectArtifact>false</useProjectArtifact>      
+			<useProjectArtifact>false</useProjectArtifact> 
             <excludes>  
 	            <!-- exclude jline, this is brought in transitively because of groovy -->
                 <exclude>asm:*</exclude>

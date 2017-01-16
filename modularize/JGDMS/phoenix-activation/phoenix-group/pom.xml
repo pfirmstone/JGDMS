@@ -41,12 +41,12 @@
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-activation-platform</artifactId>
+            <artifactId>jgdms-activation</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib-dl</artifactId>
+            <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

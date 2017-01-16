@@ -32,7 +32,7 @@
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib</artifactId>
+            <artifactId>jgdms-lib</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -108,7 +108,7 @@
                         <manifestEntries>
                             <Main-Class>org.apache.river.phoenix.Activation</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>jgdms-url-integrity-${project.version}.jar, jgdms-jsk-lib-${project.version}.jar, phoenix-dl-${project.version}.jar</Class-Path>
+                            <Class-Path>jgdms-url-integrity-${project.version}.jar, jgdms-lib-${project.version}.jar, phoenix-dl-${project.version}.jar</Class-Path>
                         </manifestEntries>
                     </archive>
                 </configuration>

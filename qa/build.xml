@@ -340,6 +340,9 @@
                         <include name="high-scale-lib.jar"/>
                         <include name="tools.jar"/>
                     </fileset>
+                    <fileset dir="${river.lib-dl.dir}">
+                        <include name="jgdms-jsk-lib-dl-3.0-SNAPSHOT.jar"/>
+                    </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>
                 <sysproperty key="SOUL" value="${soul}"/>

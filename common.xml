@@ -35,8 +35,8 @@
     <property name="src-doc" value="src-doc"/>
     <property name="poms" value="poms"/>
     <property name="configentry" value="configentry"/>
-    <property name="lib" value="lib"/>
-    <property name="lib-dl" value="lib-dl"/>
+    <property name="lib" value="modularize/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT/lib"/>
+    <property name="lib-dl" value="modularize/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT/lib-dl"/>
     <property name="lib-ext" value="lib-ext"/>
     <property name="doc.spec.api" value="${doc}/specs/api"/>
     <property name="doc.api" value="${doc}/api"/>

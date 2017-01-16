@@ -35,7 +35,7 @@
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jini-platform</artifactId>
+            <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

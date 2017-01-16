@@ -36,17 +36,17 @@
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-activation-platform</artifactId>
+            <artifactId>jgdms-activation</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jsk-lib</artifactId>
+            <artifactId>jgdms-lib</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jini-platform</artifactId>
+            <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         

@@ -137,3 +137,10 @@
 /modularize/JGDMS/services/fiddler/target/
 /modularize/JGDMS/tools/target/
 /modularize/JGDMS/phoenix-activation/target/
+/modularize/JGDMS/jgdms-jeri/target/
+/modularize/JGDMS/jgdms-ui-factory/target/
+/modularize/JGDMS/jgdms-activation/target/
+/modularize/JGDMS/jgdms-lib/target/
+/modularize/JGDMS/jgdms-lib-dl/target/
+/modularize/JGDMS/jgdms-discovery-providers/target/
+/modularize/JGDMS/jgdms-platform/target/

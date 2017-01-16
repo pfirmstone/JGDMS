@@ -25,9 +25,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
-    <artifactId>jgdms-jsk-lib</artifactId>
+    <artifactId>jgdms-lib</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: JGDMS Service Library</name>
+    <name>Module :: Velocity configuration provider</name>
     <description>This artifact contains the JGDMS utility APIs that are not tied
         to a specific service implementation.</description>
         <!--This module is currently reported by the dependency-check-maven 
@@ -39,7 +39,7 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>jgdms-jsk-lib-dl</artifactId>
+            <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

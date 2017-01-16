@@ -288,21 +288,21 @@
   </properties>
 
   <modules>
-    <module>jgdms-jini-platform</module>
     <module>jgdms-collections</module>
     <module>jgdms-pref-class-loader</module>
-    <module>jgdms-activation-platform</module>
-    <module>jgdms-extensible-remote-invocation</module>
-    <module>jgdms-lookup-discovery-providers</module>
+    <module>jgdms-activation</module>
+    <module>jgdms-platform</module>
+    <module>jgdms-jeri</module>
+    <module>jgdms-discovery-providers</module>
     <module>jgdms-url-integrity</module>
     <module>service-starter</module>
     <module>jgdms-destroy</module>
     <module>jgdms-resources</module>
     <module>jgdms-iiop</module>
     <module>jgdms-jrmp</module>
-    <module>jgdms-jsk-lib</module>
-    <module>jgdms-jsk-lib-dl</module>
-    <module>jgdms-jsk-lib-dl-ui-factory</module>
+    <module>jgdms-lib</module>
+    <module>jgdms-lib-dl</module>
+    <module>jgdms-ui-factory</module>
     <module>jini-2.1-compat</module>
     <module>services/outrigger</module>
     <module>services/reggie</module>
