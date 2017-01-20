@@ -74,7 +74,7 @@ public class MulticastServiceFinder implements ServiceFinder {
     /**
      * Locates a new service using a default <code>ServiceItemFilter</code>
      * 
-     * @see findNewService(final ServiceTemplate template, final ServiceItemFilter filter)
+     * @see #findNewService(net.jini.core.lookup.ServiceTemplate, net.jini.lookup.ServiceItemFilter)
      */
     public Object findNewService(final ServiceTemplate template) throws RemoteException {
         return findNewService(template, new ServiceItemFilter() {

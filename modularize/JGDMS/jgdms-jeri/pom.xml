@@ -91,6 +91,14 @@
             <plugin>
               <groupId>biz.aQute.bnd</groupId>
               <artifactId>bnd-maven-plugin</artifactId>
+              <configuration>
+                    <archive>                
+                        <manifestEntries>
+                                <Implementation-Version>${project.version}</Implementation-Version>
+                            <Class-Path>jgdms-resources-${project.version}.jar high-scale-lib-${high.scale.lib.version}.jar</Class-Path>
+                        </manifestEntries>
+                    </archive>
+              </configuration>
               <executions>
                     <execution>
                         <goals>

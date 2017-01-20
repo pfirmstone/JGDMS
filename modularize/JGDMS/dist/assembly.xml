@@ -83,7 +83,7 @@
                 <exclude>org.apache.maven.wagon:*</exclude>
                 <exclude>xercesMinimal:*</exclude>
                 <exclude>velocity:*</exclude>
-                <exclude>au.net.zeus.jgdms:jgdms-jsk-lib-dl:jar</exclude>
+                <exclude>au.net.zeus.jgdms:jgdms-lib-dl:jar</exclude>
                 <exclude>au.net.zeus.jgdms.reggie:reggie-dl:jar</exclude>
                 <exclude>au.net.zeus.jgdms.outrigger:outrigger-dl:jar</exclude>
                 <exclude>au.net.zeus.jgdms.mahalo:mahalo-dl:jar</exclude>
@@ -102,7 +102,7 @@
 			<useProjectArtifact>false</useProjectArtifact>
             <useStrictFiltering>true</useStrictFiltering>
             <includes>
-                <include>au.net.zeus.jgdms:jgdms-jsk-lib-dl:jar</include>
+                <include>au.net.zeus.jgdms:jgdms-lib-dl:jar</include>
                 <include>au.net.zeus.jgdms.reggie:reggie-dl:jar</include>
                 <include>au.net.zeus.jgdms.outrigger:outrigger-dl:jar</include>
                 <include>au.net.zeus.jgdms.mahalo:mahalo-dl:jar</include>
