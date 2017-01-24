@@ -37,6 +37,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.entry.Entry;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.io.MarshalledInstance;
+import net.jini.lookup.SafeServiceRegistrar;
 import java.rmi.StubNotFoundException;
 import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
@@ -214,7 +215,7 @@ public class NotifyOnEntrySrvcReg extends QATestRegistrar {
                 n = k%(attrEntries.length);
 	        tmpl[k] = new ServiceTemplate(null,null,tmplAttrs[n]);
 		setStateAttrInfo(k,n,tmplAttrs,state);
-		proxy.notiFy(tmpl[k],transitionMask,listener,
+		((SafeServiceRegistrar)proxy).notiFy(tmpl[k],transitionMask,listener,
 			     new MarshalledInstance
 				 (new QATestUtils.SrvcAttrTuple
 				     (srvcItems[k].service,

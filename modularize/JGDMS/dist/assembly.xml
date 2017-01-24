@@ -38,9 +38,9 @@
 			<useProjectArtifact>false</useProjectArtifact> 
             <excludes>  
 	            <!-- exclude jline, this is brought in transitively because of groovy -->
-                <exclude>asm:*</exclude>
+                <!--<exclude>asm:*</exclude>
                 <exclude>asm-commons:*</exclude>
-                <exclude>asm-tree:*</exclude>
+                <exclude>asm-tree:*</exclude>-->
                 <exclude>backport-util-concurrent:*</exclude>
                 <exclude>jline:*</exclude>              
                 <exclude>groovy:*</exclude> 

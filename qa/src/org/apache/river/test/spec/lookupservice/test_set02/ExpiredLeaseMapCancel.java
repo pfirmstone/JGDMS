@@ -35,6 +35,7 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.lease.*;
 import net.jini.core.event.*;
+import net.jini.lookup.SafeServiceRegistrar;
 
 /** This class is used to test LeaseMapException throws by LeaseMap cancelAll().
  *  It creates nInstances of ServiceLease and nInstances of EventLease,
@@ -150,7 +151,7 @@ public class ExpiredLeaseMapCancel extends QATestRegistrar {
     private void registerAllEvents() throws Exception {
         for(int i=0; i<evntRegs.length; i++) {
 	    EventRegistration er;
-	    er = proxy.notiFy(srvcIDTmpls[i],
+	    er = ((SafeServiceRegistrar)proxy).notiFy(srvcIDTmpls[i],
 			      ServiceRegistrar.TRANSITION_NOMATCH_MATCH  |
 			      ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,

@@ -65,8 +65,7 @@
                         <manifestEntries>
                             <Main-Class>org.apache.river.tool.ClassDep</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>asm-5.0.1.jar</Class-Path>
-                            <Class-Path>asm-commons-5.0.1.jar</Class-Path>
+                            <Class-Path>asm-5.0.1.jar asm-commons-5.0.1.jar</Class-Path>
                         </manifestEntries>
                     </archive>
                 </configuration>

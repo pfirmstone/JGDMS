@@ -29,9 +29,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import org.apache.river.start.ServiceDescriptor;
 import org.apache.river.start.SharedActivationGroupDescriptor;
-import org.apache.river.start.SharedGroup;
-
-import org.apache.river.start.SharedGroupBackEnd;
+import org.apache.river.start.group.SharedGroup;
 
 /**
  * An admin for a shared activation group. 
@@ -309,7 +307,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
 	}
 	try {
 	    logger.log(Level.FINEST, "destroying sharedVM");
-	    ((SharedGroupBackEnd) serviceRef).destroyVM();
+	    ((SharedGroup) serviceRef).destroyVM();
 	} catch (ActivationException e) {
 	    throw new RemoteException("destroyVM failed", e);
 	}

@@ -29,7 +29,7 @@ import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.start.SharedActivatableServiceDescriptor;
 import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
 import org.apache.river.start.SharedActivationGroupDescriptor;
-import org.apache.river.start.SharedGroup;
+import org.apache.river.start.group.SharedGroup;
 import org.apache.river.test.spec.joinmanager.AbstractBaseTest;
 import java.io.File;
 import java.io.IOException;

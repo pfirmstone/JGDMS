@@ -304,6 +304,8 @@
     <module>jgdms-lib-dl</module>
     <module>jgdms-ui-factory</module>
     <module>jini-2.1-compat</module>
+    <module>jsk-platform</module>
+    <module>jsk-lib</module>
     <module>services/outrigger</module>
     <module>services/reggie</module>
     <module>services/mahalo</module>

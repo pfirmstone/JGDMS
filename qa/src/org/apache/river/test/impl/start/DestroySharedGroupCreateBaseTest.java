@@ -19,7 +19,7 @@ package org.apache.river.test.impl.start;
 
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
-import org.apache.river.start.DestroySharedGroup;
+import org.apache.river.start.destroy.DestroySharedGroup;
 import org.apache.river.start.ServiceDescriptor;
 
 import net.jini.config.Configuration;

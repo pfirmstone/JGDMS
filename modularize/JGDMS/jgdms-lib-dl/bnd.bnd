@@ -11,6 +11,7 @@
     net.jini.lookup.ui.factory,\
     net.jini.space,\
     org.apache.river.admin,\
+    org.apache.river.fiddler,\
     org.apache.river.landlord,\
     org.apache.river.lease,\
     org.apache.river.lookup.entry,\

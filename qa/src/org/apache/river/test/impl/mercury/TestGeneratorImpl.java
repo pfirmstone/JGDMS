@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 package org.apache.river.test.impl.mercury;
-import org.apache.river.start.LifeCycle;
+import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.landlord.Landlord;
 import org.apache.river.landlord.Landlord.RenewResults;

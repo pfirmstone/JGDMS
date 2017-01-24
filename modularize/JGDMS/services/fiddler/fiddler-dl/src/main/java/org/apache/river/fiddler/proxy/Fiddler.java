@@ -18,7 +18,7 @@
 package org.apache.river.fiddler.proxy;
 
 import net.jini.discovery.LookupDiscoveryRegistration;
-
+import org.apache.river.fiddler.FiddlerAdmin;
 import org.apache.river.proxy.ThrowThis;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.id.Uuid;

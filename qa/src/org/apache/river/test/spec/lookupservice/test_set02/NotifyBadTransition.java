@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 import org.apache.river.qa.harness.TestException;
 import net.jini.core.lookup.ServiceTemplate;
+import net.jini.lookup.SafeServiceRegistrar;
 import java.rmi.RemoteException;
 
 /**
@@ -32,7 +33,7 @@ public class NotifyBadTransition extends NotifyExceptionTest {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notiFy(new ServiceTemplate(null, null, null),
+	    ((SafeServiceRegistrar)getProxy()).notiFy(new ServiceTemplate(null, null, null),
 			      1<<5, listener, null, Long.MAX_VALUE);
 	    throw new TestException("notify did not "
 				  + "throw IllegalArgumentException");

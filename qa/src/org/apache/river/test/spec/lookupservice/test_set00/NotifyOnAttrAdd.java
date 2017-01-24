@@ -36,6 +36,7 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.entry.Entry;
 import net.jini.io.MarshalledInstance;
+import net.jini.lookup.SafeServiceRegistrar;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -128,7 +129,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
             curSrvcID = srvcRegs[i].getServiceID();
             tmpl[i] = new ServiceTemplate(curSrvcID,null,null);
 	    EventRegistration er;
-	    er = proxy.notiFy(tmpl[i], regTransitions, listener,
+	    er = ((SafeServiceRegistrar)proxy).notiFy(tmpl[i], regTransitions, listener,
 			      new MarshalledInstance(curSrvcID),
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);

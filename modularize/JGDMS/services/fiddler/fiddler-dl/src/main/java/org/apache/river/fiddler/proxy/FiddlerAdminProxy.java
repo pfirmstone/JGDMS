@@ -19,6 +19,7 @@ package org.apache.river.fiddler.proxy;
 
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.proxy.ConstrainableProxyUtil;
+import org.apache.river.fiddler.FiddlerAdmin;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;

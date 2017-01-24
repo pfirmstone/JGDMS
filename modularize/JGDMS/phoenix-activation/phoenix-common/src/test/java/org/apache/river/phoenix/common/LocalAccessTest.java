@@ -25,16 +25,18 @@ import java.util.Collection;
 import junit.framework.TestCase;
 import net.jini.export.ServerContext;
 import net.jini.io.context.ClientHost;
+import org.apache.river.resource.ServiceConfigurationError;
 
 public class LocalAccessTest extends TestCase {
 
     public void testNoServerContext() {
         try {
             LocalAccess.check();
-        }
-        catch(AccessControlException e) {
+        } catch(AccessControlException e) {
             fail("unexpected: " + e);
-        }
+        } catch(ServiceConfigurationError e){
+	    // Ignore
+	}
     }
 
     public void testNoClientHost() {

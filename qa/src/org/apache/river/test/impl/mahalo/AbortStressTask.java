@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 package org.apache.river.test.impl.mahalo;
-import org.apache.river.thread.WakeupManager;
+import org.apache.river.thread.wakeup.WakeupManager;
 import java.rmi.RemoteException;
 import java.util.concurrent.ExecutorService;
 import net.jini.core.transaction.TransactionException;

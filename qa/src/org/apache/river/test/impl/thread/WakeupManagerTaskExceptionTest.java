@@ -21,7 +21,7 @@ package org.apache.river.test.impl.thread;
 import org.apache.river.qa.harness.TestException;
 
 //jini imports
-import org.apache.river.thread.WakeupManager;
+import org.apache.river.thread.wakeup.WakeupManager;
 
 /**
  * This class implements a regression test to bugID 4879941 "WakeupManager

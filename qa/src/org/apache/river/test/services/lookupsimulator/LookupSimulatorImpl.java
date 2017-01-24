@@ -56,7 +56,7 @@ import java.security.SecureRandom;
 
 import net.jini.config.ConfigurationException;
 import net.jini.lookup.ServiceProxyAccessor;
-import org.apache.river.start.LifeCycle;
+import org.apache.river.start.lifecycle.LifeCycle;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import org.apache.river.config.Config;

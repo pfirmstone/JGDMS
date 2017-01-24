@@ -22,6 +22,8 @@ import net.jini.id.Uuid;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import org.apache.river.proxy.ConstrainableProxyUtil;
+import org.apache.river.outrigger.AdminIterator;
+import org.apache.river.outrigger.JavaSpaceAdmin;
 
 /**
  * Constrainable subclass of <code>IteratorProxy</code>

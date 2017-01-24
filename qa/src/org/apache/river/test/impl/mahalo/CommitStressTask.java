@@ -21,6 +21,7 @@ import net.jini.core.transaction.server.*;
 import org.apache.river.mahalo.*;
 import org.apache.river.mahalo.log.*;
 import org.apache.river.thread.*;
+import org.apache.river.thread.wakeup.*;
 import java.util.*;
 import java.rmi.*;
 import java.util.concurrent.ExecutorService;

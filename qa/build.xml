@@ -134,7 +134,7 @@
         </delete>
     </target>
 
-    <target name="harness-runtime" depends="river-runtime,jars,jinitests.jar" description="builds the complete harness" />
+    <target name="harness-runtime" depends="jars,jinitests.jar" description="builds the complete harness" />
 
     <!-- == check if river-runtime needs rebuilding == -->
 
@@ -437,9 +437,9 @@
                 verbose="${verbose}"
                 >
             <bottom><![CDATA[${api.copyright}]]></bottom>
-            <classpath>
+            <!--<classpath>
                 <fileset refid="asm.jars"/>
-            </classpath>
+            </classpath>-->
             <sourcepath>
                 <pathelement path="${src.dir}/../../src/"/>
                 <pathelement path="${src.dir}"/>

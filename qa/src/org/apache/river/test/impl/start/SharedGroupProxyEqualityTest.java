@@ -23,7 +23,7 @@ import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
 import org.apache.river.start.ServiceStarter;
-import org.apache.river.start.SharedGroup;
+import org.apache.river.start.group.SharedGroup;
 
 import java.io.*;
 import java.rmi.*;

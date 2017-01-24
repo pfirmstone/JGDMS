@@ -118,8 +118,8 @@ import org.apache.river.outrigger.proxy.ConstrainableSpaceProxy2;
 import org.apache.river.outrigger.proxy.StorableObject;
 import org.apache.river.outrigger.proxy.StorableResource;
 import org.apache.river.outrigger.proxy.OutriggerQueryCookie;
-import org.apache.river.outrigger.proxy.JavaSpaceAdmin;
 import org.apache.river.outrigger.proxy.ProxyVerifier;
+import org.apache.river.outrigger.JavaSpaceAdmin;
 
 /**
  * A basic implementation of a JavaSpaces<sup>TM</sup> 

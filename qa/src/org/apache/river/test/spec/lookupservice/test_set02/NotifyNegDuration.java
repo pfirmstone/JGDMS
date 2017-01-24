@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import org.apache.river.qa.harness.TestException;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
+import net.jini.lookup.SafeServiceRegistrar;
 import java.rmi.RemoteException;
 
 /**
@@ -33,7 +34,7 @@ public class NotifyNegDuration extends NotifyExceptionTest {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notiFy(new ServiceTemplate(null, null, null),
+	    ((SafeServiceRegistrar)getProxy()).notiFy(new ServiceTemplate(null, null, null),
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,
 			      listener, null, -500);
 	    throw new TestException("notify did not "

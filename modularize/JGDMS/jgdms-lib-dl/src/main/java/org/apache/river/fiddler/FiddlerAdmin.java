@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.river.fiddler.proxy;
+package org.apache.river.fiddler;
 
 import net.jini.admin.JoinAdmin;
 import org.apache.river.admin.DestroyAdmin;

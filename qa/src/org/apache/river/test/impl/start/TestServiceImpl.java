@@ -25,7 +25,7 @@ import java.rmi.MarshalledObject;
 
 import org.apache.river.config.Config;
 import org.apache.river.test.impl.start.TestService;
-import org.apache.river.start.LifeCycle;
+import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
