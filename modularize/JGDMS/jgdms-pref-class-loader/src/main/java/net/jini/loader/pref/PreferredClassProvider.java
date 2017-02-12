@@ -63,6 +63,8 @@ import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
 import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogUtil;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
@@ -255,6 +257,13 @@ import org.apache.river.logging.LogUtil;
  *
  * </table>
  **/
+
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="java.rmi.server.RMIClassLoaderSpi")
 public class PreferredClassProvider extends RMIClassLoaderSpi {
     
     /**

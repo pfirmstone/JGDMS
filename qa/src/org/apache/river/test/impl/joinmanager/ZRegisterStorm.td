@@ -4,8 +4,8 @@ include0=joinmanager.properties
 
 # Uses the reggie implementation of the lookup service
 
-net.jini.core.lookup.ServiceRegistrar.classpath=${org.apache.river.jsk.home}$/lib$/reggie.jar
-net.jini.core.lookup.ServiceRegistrar.codebase=http://${HOST}:${org.apache.river.jsk.port}/reggie-dl.jar http://${HOST}:${org.apache.river.jsk.port}/jsk-dl.jar
+net.jini.core.lookup.ServiceRegistrar.classpath=${org.apache.river.jsk.home}$/lib$/reggie-service-3.0-SNAPSHOT.jar$:${org.apache.river.jsk.home}$/lib-dl$/reggie-dl-3.0-SNAPSHOT.jar
+net.jini.core.lookup.ServiceRegistrar.codebase=http://${HOST}:${org.apache.river.jsk.port}/reggie-dl-3.0-SNAPSHOT.jar http://${HOST}:${org.apache.river.jsk.port}/jgdms-lib-dl-3.0-SNAPSHOT.jar
 
 net.jini.lookup.nLookupServices=1
 net.jini.lookup.nAddLookupServices=0

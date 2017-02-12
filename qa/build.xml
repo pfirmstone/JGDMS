@@ -302,7 +302,7 @@
                 <!--<jvmarg value="-Djava.security.debug=access" />-->
                 <jvmarg value="-Djava.util.logging.config.file=${log.config.file}" />
                 <jvmarg value="-Djava.util.logging.manager=org.apache.river.logging.LogManager"/>
-                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}" />
+                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}/modularize/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT" />
                 <jvmarg value="-Dorg.apache.river.qa.home=${basedir}" />
                 <!--We have a problem with path to properties and the src directory
                 it appears that the src directory was added later, however links
@@ -332,16 +332,27 @@
                         <include name="jiniharness.jar"/>
                     </fileset>
                     <fileset dir="${lib-ext.dir}">
-                        <include name="jsk-policy.jar"/>
+                        <!--<include name="jsk-policy.jar"/>-->
+                        <include name="jgdms-platform-3.0-SNAPSHOT.jar"/>
                     </fileset>
                     <fileset dir="${river.lib.dir}">
-                        <include name="jsk-platform.jar"/>
-                        <include name="jsk-lib.jar"/>
+                        <include name="jgdms-collections-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-jeri-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-jrmp-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-lib-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-platform-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-pref-class-loader-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
+                        <include name="classdep-3.0-SNAPSHOT.jar"/>
+                        <include name="classserver-3.0-SNAPSHOT.jar"/>
+                        <include name="asm-5.0.1.jar"/>
+                        <include name="asm-commons-5.0.1.jar"/>
                         <include name="high-scale-lib.jar"/>
-                        <include name="tools.jar"/>
                     </fileset>
                     <fileset dir="${river.lib-dl.dir}">
-                        <include name="jgdms-jsk-lib-dl-3.0-SNAPSHOT.jar"/>
+                        <include name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>

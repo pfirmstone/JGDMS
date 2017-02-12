@@ -30,6 +30,11 @@
     <packaging>pom</packaging>
 
     <dependencies>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-discovery-providers</artifactId>
+            <version>${project.version}</version>
+        </dependency>
        	<dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>service-starter</artifactId>

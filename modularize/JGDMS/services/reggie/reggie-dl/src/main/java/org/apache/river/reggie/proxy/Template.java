@@ -92,7 +92,7 @@ public class Template implements Serializable {
     }
     
     public int attributeSetTemplatesLength(){
-	return attributeSetTemplates.length;
+	return attributeSetTemplates != null ? attributeSetTemplates.length : 0;
     }
 
     /**

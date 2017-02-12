@@ -53,7 +53,7 @@
                 <exclude>commons-httpclient:*</exclude>
                 <exclude>doxia-logging-api:*</exclude>
                 <exclude>doxia-sink-api:*</exclude>
-                <exclude>high-scale-lib:*</exclude>
+                <!--<exclude>high-scale-lib:*</exclude>-->
                 <exclude>jackrabbit-jcr-commons:*</exclude>
                 <exclude>jackrabbit-webdav:*</exclude>
                 <exclude>jcl-over-slf4j:*</exclude>

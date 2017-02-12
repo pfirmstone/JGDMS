@@ -23,7 +23,9 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
+import java.net.URL;
 import java.security.AccessController;
+import java.security.CodeSource;
 import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.Collections;
@@ -123,7 +125,12 @@ class GetArgImpl extends AtomicSerial.GetArg {
 	    return null;
 	}
 	InvalidObjectException e = new InvalidObjectException("Input validation failed");
-	e.initCause(new ClassCastException("Attempt to assign object of incompatible type"));
+	e.initCause(new ClassCastException("Attempt to assign object of incompatible type: "
+		+ result.getClass().toString() + "\n"
+		+ AccessController.doPrivileged(new Codebase(result.getClass()))
+		+ "Should be and instance of: " + type.toString() + "\n"
+		+ AccessController.doPrivileged(new Codebase(type))
+	));
 	throw e;
     }
 
@@ -205,6 +212,32 @@ class GetArgImpl extends AtomicSerial.GetArg {
 	}
     }
     
-    
+    private static class Codebase implements PrivilegedAction<String> {
+	
+	private final Class claz;
+	
+	Codebase(Class claz){
+	    this.claz = claz;
+	}
+
+	public String run() {
+	    StringBuilder sb = new StringBuilder(128);
+	    CodeSource cs = claz.getProtectionDomain().getCodeSource();
+	    sb.append("CodeSource: ");
+	    sb.append(cs == null ? "null" : cs.toString());
+	    sb.append("\n");
+	    ClassLoader cl = claz.getClassLoader();
+	    while (cl != null) {
+		sb.append("ClassLoader: ");
+		sb.append(cl.toString());
+		cl = cl.getParent();
+		sb.append(", Parent ");
+	    }
+	    sb.append("ClassLoader: Java system boot loader");
+	    sb.append("\n");
+	    return sb.toString();
+	}
+	
+    }
     
 }

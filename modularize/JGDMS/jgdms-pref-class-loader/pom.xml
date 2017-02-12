@@ -44,6 +44,11 @@
             <version>4.6</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>biz.aQute.bnd</groupId>
+            <artifactId>biz.aQute.bnd.annotation</artifactId>
+            <version>3.3.0</version>
+        </dependency>
     </dependencies>
     <licenses>
         <license>
