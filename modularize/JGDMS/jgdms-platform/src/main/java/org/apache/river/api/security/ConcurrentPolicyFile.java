@@ -543,4 +543,13 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
         
         return applicable;
     }
+    
+    public String toString(){
+	String nl = "\n";
+	StringBuilder b = new StringBuilder(256);
+	b.append(super.toString()).append(nl);
+	b.append("Policy file grants:\n");
+	b.append(Arrays.asList(grantArray)).append(nl);
+	return b.toString();
+    }
 }

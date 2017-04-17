@@ -31,6 +31,8 @@ import org.apache.river.discovery.MulticastRequest;
 import org.apache.river.discovery.UnicastResponse;
 import org.apache.river.discovery.internal.UnicastClient;
 import org.apache.river.discovery.internal.UnicastServer;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * This exists as a separate https protocol because the jini discovery protocol
@@ -48,6 +50,12 @@ import org.apache.river.discovery.internal.UnicastServer;
  * 
  * @author Peter Firmstone
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="org.apache.river.discovery.Discovery")
 public class DiscoveryUnicastHTTPS extends Discovery {
      
     private final UnicastServer server = new Server();

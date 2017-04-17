@@ -34,3 +34,6 @@ Preferred: false
 
 Name: org/apache/river/api/-
 Preferred: false
+
+Name: org/apache/river/landlord/-
+Preferred: false

@@ -35,6 +35,7 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.start.group.SharedGroup;
+import org.apache.river.start.group.proxy.SharedGroupBackEnd;
 
 /**
  *  This is created and discarded during construction of (@link SharedGroupImpl).
@@ -93,7 +94,13 @@ class SharedGroupImplInit {
 		    activationID,
 		    new BasicJeriExporter(
 			TcpServerEndpoint.getInstance(0), 
-			new BasicILFactory(), false, true)),
+			new BasicILFactory(
+			    null,
+			    null,
+			    SharedGroupBackEnd.class.getClassLoader()),
+			false,
+			true)
+		),
 		activationID);
 	if (exporter == null) {
              throw new ConfigurationException(SharedGroupImpl.START_PACKAGE 

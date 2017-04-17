@@ -21,6 +21,8 @@ import java.rmi.RemoteException;
 import javax.net.SocketFactory;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import net.jini.security.TrustVerifier;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Trust verifier for verifying the Jini extensible remote
@@ -34,6 +36,12 @@ import net.jini.security.TrustVerifier;
  * @see KerberosEndpoint
  * @since 2.0
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="net.jini.security.TrustVerifier")
 public class KerberosTrustVerifier implements TrustVerifier {
 
     /**

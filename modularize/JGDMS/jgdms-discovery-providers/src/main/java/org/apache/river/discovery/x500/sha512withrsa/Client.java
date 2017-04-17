@@ -20,12 +20,20 @@ package org.apache.river.discovery.x500.sha512withrsa;
 
 import org.apache.river.discovery.internal.MulticastClient;
 import org.apache.river.discovery.internal.X500Client;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Implements the client side of the
  * <code>net.jini.discovery.x500.SHA512withRSA</code> format.
  *
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="org.apache.river.discovery.DiscoveryFormatProvider")
 public class Client extends MulticastClient
 {
     

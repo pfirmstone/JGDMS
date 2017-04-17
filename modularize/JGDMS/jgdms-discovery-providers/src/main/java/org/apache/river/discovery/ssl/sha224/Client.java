@@ -35,12 +35,20 @@ import org.apache.river.discovery.internal.EndpointBasedClient;
 import org.apache.river.jeri.internal.EndpointInternals;
 import org.apache.river.jeri.internal.SslEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastClient;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Implements the client side of the <code>net.jini.discovery.ssl.sha224</code>
  * unicast discovery format.
  *
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="org.apache.river.discovery.DiscoveryFormatProvider")
 public class Client extends UnicastClient {
     
     public Client() {

@@ -53,6 +53,7 @@ import org.apache.river.config.Config;
 import org.apache.river.fiddler.service.FiddlerImpl.LocalLogHandler;
 import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.thread.NamedThreadFactory;
+import org.apache.river.fiddler.proxy.Fiddler;
 
 /**
  * Initialization common to all modes in which instances of this service
@@ -239,7 +240,12 @@ class FiddlerInit {
 
             /* Handle items and duties related to exporting this service. */
             ServerEndpoint endpoint = TcpServerEndpoint.getInstance(0);
-            InvocationLayerFactory ilFactory = new BasicILFactory();
+            InvocationLayerFactory ilFactory = 
+		    new BasicILFactory(
+			null,
+			null,
+			Fiddler.class.getClassLoader()
+		    );
             Exporter defaultExporter = new BasicJeriExporter(endpoint,
                                                              ilFactory,
                                                              false,

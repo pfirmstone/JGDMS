@@ -108,6 +108,9 @@ public class ParticipantProxy implements TransactionParticipant, ReferentUuid,
 
     /**
      * Read this object back and validate state.
+     * @param in stream used to de-serialize.
+     * @throws IOException
+     * @throws ClassNotFoundException
      */
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
@@ -124,21 +127,25 @@ public class ParticipantProxy implements TransactionParticipant, ReferentUuid,
     /** 
      * We should always have data in the stream, if this method
      * gets called there is something wrong.
+     * @throws InvalidObjectException
      */
     private void readObjectNoData() throws InvalidObjectException {
 	throw new 
 	    InvalidObjectException("SpaceProxy should always have data");
     }
 
+    @Override
     public String toString() {
 	return getClass().getName() + " for " + spaceUuid + 
 	    " (through " + space + ")";
     }
 
+    @Override
     public boolean equals(Object other) {
 	return ReferentUuids.compare(this, other);
     }
 
+    @Override
     public int hashCode() {
 	return spaceUuid.hashCode();
     }

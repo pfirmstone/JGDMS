@@ -5068,7 +5068,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                         this.activationID,
                         new BasicJeriExporter(
                             TcpServerEndpoint.getInstance(0),
-                            new BasicILFactory())),
+                            new BasicILFactory(null, null, Registrar.class.getClassLoader()))),
                     this.activationID);
             } else {
                 this.activationID = null;
@@ -5078,7 +5078,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     config, COMPONENT, "serverExporter", Exporter.class,
                     new BasicJeriExporter(
                         TcpServerEndpoint.getInstance(0),
-                        new BasicILFactory()));
+                        new BasicILFactory(null, null, Registrar.class.getClassLoader())));
             }
 
             /* fetch "initial*" config entries, first time starting up */

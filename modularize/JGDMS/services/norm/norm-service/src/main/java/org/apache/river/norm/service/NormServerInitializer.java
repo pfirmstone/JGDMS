@@ -22,6 +22,7 @@ import org.apache.river.config.Config;
 import org.apache.river.landlord.FixedLeasePeriodPolicy;
 import org.apache.river.landlord.LeasePeriodPolicy;
 import org.apache.river.norm.event.EventTypeGenerator;
+import org.apache.river.norm.proxy.NormServer;
 import org.apache.river.start.lifecycle.LifeCycle;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -127,7 +128,13 @@ class NormServerInitializer {
      *	       from the configuration
      */
     Exporter getExporter(Configuration config) throws ConfigurationException {
-        return (Exporter) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, "serverExporter", Exporter.class, new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory()));
+        return (Exporter) Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"serverExporter", Exporter.class,
+		new BasicJeriExporter(
+			TcpServerEndpoint.getInstance(0),
+			new BasicILFactory(null, null, NormServer.class.getClassLoader())
+		)
+	);
     }
     
 }

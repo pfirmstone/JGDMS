@@ -35,10 +35,10 @@ import net.jini.space.JavaSpace;
  *
  * @author Sun Microsystems, Inc.
  *
- * @see JavaSpaceAdmin
+ * @see org.apache.river.outrigger.JavaSpaceAdmin
  */
 // @see OutriggerServerImpl#AdminProxy
-interface OutriggerAdmin  extends Remote, DestroyAdmin, JoinAdmin {
+public interface OutriggerAdmin  extends Remote, DestroyAdmin, JoinAdmin {
     /** Return the space administered by this object. 
      * @return JavaSpace administered by this object.
      * @throws RemoteException if a communication related exception occurs.

@@ -213,6 +213,9 @@ public final class ProxyVerifier implements Serializable, TrustVerifier {
     /**
      * Verifies that the server reference implements
      * <code>TrustEquivalence</code>.
+     * @param in stream used to de-serialize.
+     * @throws IOException
+     * @throws ClassNotFoundException
      */
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException

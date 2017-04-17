@@ -126,7 +126,7 @@ import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.api.util.Startable;
 import org.apache.river.config.Config;
 import org.apache.river.logging.Levels;
-import org.apache.river.outrigger.proxy.JavaSpaceAdmin;
+import org.apache.river.outrigger.JavaSpaceAdmin;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.start.lifecycle.LifeCycle;
 

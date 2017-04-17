@@ -26,6 +26,8 @@ import java.rmi.UnmarshalException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationID;
 import java.rmi.server.UID;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.proxy.MarshalledWrapper;
@@ -35,7 +37,7 @@ import org.apache.river.proxy.MarshalledWrapper;
  * 
  * @since 2.0
  */
-@AtomicSerial //To prevent replacement by serializer in stream constructor not implemented.
+@AtomicSerial //To prevent replacement by serializer in stream, constructor not implemented.
 public class AID extends ActivationID {
     private static final long serialVersionUID = 681896091039721074L;
 
@@ -80,7 +82,8 @@ public class AID extends ActivationID {
  	try {
  	    MarshalledWrapper marshalledProxy =
 		activator.activate(this, force);
- 	    return (Remote) marshalledProxy.get();
+	    ClassLoader loader = classLoader();
+ 	    return (Remote) marshalledProxy.get(loader, loader);
  	} catch (RemoteException e) {
  	    throw e;
  	} catch (java.io.IOException e) {
@@ -89,6 +92,16 @@ public class AID extends ActivationID {
  	    throw new UnmarshalException("activation failed", e);
 	}
 	
+    }
+    
+    private ClassLoader classLoader(){
+	return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>(){
+
+	    public ClassLoader run() {
+		return AID.class.getClassLoader();
+	    }
+	    
+	});
     }
     
     public UID getUID() {

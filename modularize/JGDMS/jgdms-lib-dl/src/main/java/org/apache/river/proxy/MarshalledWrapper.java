@@ -202,6 +202,40 @@ public class MarshalledWrapper implements Serializable {
     public Object get() throws IOException, ClassNotFoundException {
 	return instance.get(integrity);
     }
+    
+    /**
+     * Returns the result of calling the 
+     * {@link MarshalledInstance#get(ClassLoader, boolean, ClassLoader, Collection)
+     * get} method of the wrapped <code>MarshalledInstance</code>, passing the
+     * integrity value sampled during deserialization as the
+     * <code>verifyCodebaseIntegrity</code> argument.  If this
+     * <code>MarshalledWrapper</code> instance was not produced by
+     * deserialization or was deserialized from a stream with no integrity
+     * protection setting, then a <code>verifyCodebaseIntegrity</code> value of
+     * <code>false</code> is used.
+     *
+     * @param defaultLoader the class loader value (possibly
+     *	      <code>null</code>) to pass as the <code>defaultLoader</code>
+     *        argument to <code>RMIClassLoader</code> methods
+     * @param verifierLoader the class loader value (possibly
+     *        <code>null</code>) to pass to {@link
+     *        net.jini.security.Security#verifyCodebaseIntegrity
+     *        Security.verifyCodebaseIntegrity}, if
+     *        <code>verifyCodebaseIntegrity</code> is <code>true</code>
+     * @return the object unmarshalled by the wrapped
+     * <code>MarshalledInstance</code>
+     * @throws IOException if an <code>IOException</code> occurs during
+     * unmarshalling
+     * @throws ClassNotFoundException if any classes necessary for
+     * reconstructing the object being unmarshalled cannot be found
+     * @since JGDMS-3.1
+     */
+    public Object get(final ClassLoader defaultLoader,
+		      final ClassLoader verifierLoader)
+	throws IOException, ClassNotFoundException 
+    {
+	return instance.get(defaultLoader, integrity, verifierLoader, null);
+    }
 
     /**
      * Returns the <code>MarshalledInstance</code> wrapped by this

@@ -1270,12 +1270,15 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * granting automatic permissions to classes defined by the
      * loader.  A given permission is only added to the collection if
      * it is not already implied by the collection.
+     * @param urls
+     * @param perms
+     * @param forLoader
      **/
     static void addPermissionsForURLs(URL[] urls,
 				      PermissionCollection perms,
 				      boolean forLoader)
     {
-	for (int i = 0; i < urls.length; i++) {
+	for (int i = 0, l = urls.length; i < l; i++) {
 	    URL url = urls[i];
 	    try {
 		URLConnection urlConnection = url.openConnection();

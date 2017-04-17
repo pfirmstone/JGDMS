@@ -56,7 +56,7 @@ import org.apache.river.landlord.LandlordLease;
 
 /**
  * This class is the client-side proxy for the Outrigger
- * implementation of a JavaSpaces<sup><font size=-2>TM</font></sup>
+ * implementation of a JavaSpaces<sup>TM</sup>
  * service.  <code>OutriggerServerImpl</code> implements the
  * <code>OutriggerSpace</code> interface, and each
  * <code>SpaceProxy2</code> object holds a reference to the remote
@@ -167,17 +167,20 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		arg.get("serverMaxServerQueryTimeout", -1L));
     }
 
+    @Override
     public String toString() {
 	return getClass().getName() + " for " + spaceUuid + 
 	    " (through " + space + ")";
     }
 
     // inherit doc comment
+    @Override
     public boolean equals(Object other) {
 	return ReferentUuids.compare(this, other);
     }
 
     // inherit doc comment
+    @Override
     public int hashCode() {
 	return spaceUuid.hashCode();
     }
@@ -615,7 +618,7 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		final Collection entries = new LinkedList();
 		Collection exceptions = null;
 		
-		for (int i=0;i<reps.length;i++) {
+		for (int i=0,l=reps.length; i<l; i++) {
 		    try {
 			entries.add(entryFrom(reps[i]));
 		    } catch (UnusableEntryException e) {
@@ -689,7 +692,12 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
      * the given context (e.g. constrainable v. not) 
      */
 
-    /** Create a new lease with the specified id and initial duration */
+    /** Create a new lease with the specified id and initial duration
+     * @param uuid lease id
+     * @param duration lease duration in milliseconds, note actual lease duration
+     *			granted may be less.
+     * @return  new LandlordLease.
+     */
     final protected Lease newLease(Uuid uuid, long duration) {
 	long expiration = duration + System.currentTimeMillis();
 
@@ -700,7 +708,11 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 	return constructLease(uuid, expiration);
     }
 
-    /** Create a new lease with the specified id and initial expiration */
+    /** Create a new lease with the specified id and initial expiration
+     * @param uuid lease id.
+     * @param expiration time lease expires, in milliseconds since epoch.
+     * @return new LandlordLease.
+     */
     protected Lease constructLease(Uuid uuid, long expiration) {
 	return new LandlordLease(uuid, space, spaceUuid, expiration);
     }

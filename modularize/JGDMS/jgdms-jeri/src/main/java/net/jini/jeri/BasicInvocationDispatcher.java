@@ -1268,7 +1268,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	      Modifier.isPublic(method.getModifiers())))
 	{
 	    throw new IllegalArgumentException(
-		"method not public or set accessible");
+		"method not public or set accessible: " + method.toString());
 	}
 	
 	Class decl = method.getDeclaringClass();

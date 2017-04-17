@@ -30,6 +30,8 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Trust verifier for dynamic proxies and object endpoints used in Jini
@@ -40,6 +42,12 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="net.jini.security.TrustVerifier")
 public class BasicJeriTrustVerifier implements TrustVerifier {
 
     /**

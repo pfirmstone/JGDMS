@@ -110,15 +110,15 @@ public class LandlordLease extends AbstractLease implements ReferentUuid, ID<Uui
 
     LandlordLease(GetArg arg) throws IOException {
 	super(check(arg));
-	cookie = (Uuid) arg.get("cookie", null);
-	landlord = (Landlord) arg.get("landlord", null);
-	landlordUuid = (Uuid) arg.get("landlordUuid", null);
+	cookie = arg.get("cookie", null, Uuid.class);
+	landlord = arg.get("landlord", null, Landlord.class);
+	landlordUuid = arg.get("landlordUuid", null, Uuid.class);
     }
     
     private static GetArg check(GetArg arg) throws IOException {
-	Uuid cookie = (Uuid) arg.get("cookie", null);
-	Landlord landlord = (Landlord) arg.get("landlord", null);
-	Uuid landlordUuid = (Uuid) arg.get("landlordUuid", null);
+	Uuid cookie = arg.get("cookie", null, Uuid.class);
+	Landlord landlord = arg.get("landlord", null, Landlord.class);
+	Uuid landlordUuid = arg.get("landlordUuid", null, Uuid.class);
 	if (cookie == null)
 	    throw new InvalidObjectException("null cookie reference");
 

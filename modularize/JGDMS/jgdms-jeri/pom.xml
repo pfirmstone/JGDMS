@@ -31,8 +31,13 @@
     </description>
     
     <packaging>jar</packaging>
-
      <dependencies>  
+         <dependency>
+            <groupId>biz.aQute.bnd</groupId>
+            <artifactId>biz.aQute.bnd.annotation</artifactId>
+            <version>3.3.0</version>
+            <scope>compile</scope>
+        </dependency>
          <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>

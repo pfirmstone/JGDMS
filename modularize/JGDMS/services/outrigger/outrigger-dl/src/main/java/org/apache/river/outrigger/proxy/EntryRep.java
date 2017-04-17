@@ -141,6 +141,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
      * then the failure of one codebase could make all entries inaccessible.
      * Each entry is usable insofar as the codebase under which it was
      * written is usable.
+     * @param other object to share this entry's generic data with.
      */
     public synchronized void shareWith(EntryRep other) {
 	className = other.className;
@@ -423,6 +424,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     /**
      * The <code>EntryRep</code> that marks a ``match any'' request.
      * This is used to represent a <code>null</code> template.
+     * @return null object template entry.
      */
     public static EntryRep matchAnyEntryRep() {
 	return matchAnyRep;
@@ -437,18 +439,17 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     }
 
     /**
-     * Return the class name that is used by the ``match any'' EntryRep
+     * @return class name that is used by the ``match any'' EntryRep
      */
     public static String matchAnyClassName() {
 	return matchAnyRep.classFor();
     }
 
     /**
-     * Return an <code>Entry</code> object built out of this
+     * @return An <code>Entry</code> object built out of this
      * <code>EntryRep</code> This is used by the client-side proxy to
      * convert the <code>EntryRep</code> it gets from the space server
      * into the actual <code>Entry</code> object it represents.
-     *
      * @throws UnusableEntryException
      *		    One or more fields in the entry cannot be
      *		    deserialized, or the class for the entry type
@@ -566,6 +567,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     }
 
     // inherit doc comment
+    @Override
     public int hashCode() {
 	return className.hashCode();
     }
@@ -577,6 +579,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
      *
      * @see #matches
      */
+    @Override
     public boolean equals(Object o) {
 	// The other passed in was null--obviously not equal
 	if (o == null)
@@ -664,7 +667,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     }
 
     /**
-     * Return the ID.
+     * @return the ID.
      */
     public Uuid id() {
 	return id;
@@ -684,14 +687,14 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     }
 
     /**
-     * Return the <code>MarshalledObject</code> for the given field.
+     * @return the <code>MarshalledObject</code> for the given field.
      */
     public MarshalledInstance value(int fieldNum) {
             return values[fieldNum];
     }
 
     /**
-     * Return the number of fields in this kind of entry.
+     * @return the number of fields in this kind of entry.
      */
     public int numFields() {
         synchronized (this){
@@ -701,28 +704,28 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     }
 
     /**
-     * Return the class name for this entry.
+     * @return the class name for this entry.
      */
     public String classFor() {
 	return className;
     }
 
     /**
-     * Return the array names of superclasses of this entry type.
+     * @return the array names of superclasses of this entry type.
      */
     public String[] superclasses() {
 	return superclasses != null ? superclasses.clone() : new String [0];
     }
 
     /**
-     * Return the hash of this entry type.
+     * @return the hash of this entry type.
      */
     public long getHash() {
 	return hash;
     }
 
     /**
-     * Return the array of superclass hashes of this entry type.
+     * @return the array of superclass hashes of this entry type.
      */
     public long[] getHashes() {
 	return hashes != null ? hashes.clone() : new long[0];
@@ -732,6 +735,8 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
      * See if the other object matches the template object this
      * represents.  (Note that even though "this" is a template, it may
      * have no wildcards -- a template can have all values.)
+     * @param other object to check if it matches this objects template.
+     * @return true if matches the template object this EntryRep represents.
      */
     public boolean matches(EntryRep other) {
 	/*
@@ -759,12 +764,15 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	return true;	     // no mismatches, so must be OK
     }
 
+    @Override
     public String toString() {
 	return ("EntryRep[" + className + "]");
     }
 
     /**
-     * Return <code>true</code> if this entry represents an object that
+     * @param otherClass class name of class or interface this is the same or
+     * superclass of the object that this EntryRep represents.
+     * @return <code>true</code> if this entry represents an object that
      * is at least the type of the <code>otherClass</code>.
      */
     public boolean isAtLeastA(String otherClass) {
@@ -804,6 +812,9 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
      * Use <code>readObject</code> method to capture whether or
      * not integrity was being enforced when this object was
      * unmarshalled, and to perform basic integrity checks.
+     * @param in stream used to de-serialize.
+     * @throws IOException
+     * @throws ClassNotFoundException
      */
     private void readObject(ObjectInputStream in)
 	throws IOException, ClassNotFoundException
@@ -833,12 +844,17 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     /** 
      * We should always have data in the stream, if this method
      * gets called there is something wrong.
+     * @throws InvalidObjectException
      */
     private void readObjectNoData() throws InvalidObjectException {
 	throw new 
 	    InvalidObjectException("SpaceProxy should always have data");
     }
 
+    /**
+     * @param out stream to write out default serial form.
+     * @throws IOException 
+     */
     private void writeObject(ObjectOutputStream out) throws IOException {
 	out.defaultWriteObject();
     }

@@ -33,7 +33,6 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
@@ -47,7 +46,6 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UID;
 import java.security.CodeSource;
 import java.security.PrivilegedExceptionAction;
-import java.security.ProtectionDomain;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -70,6 +68,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
@@ -80,6 +80,7 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
+import net.jini.id.Uuid;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
 import net.jini.io.MarshalledInstance;
@@ -95,17 +96,16 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.CombinerSecurityManager;
+import org.apache.river.phoenix.common.AccessILFactory;
+import org.apache.river.phoenix.common.ActivationGroupData;
+import org.apache.river.phoenix.dl.AID;
+import org.apache.river.phoenix.dl.Activator;
+import org.apache.river.phoenix.dl.ConstrainableAID;
+import org.apache.river.phoenix.dl.InactiveGroupException;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.proxy.MarshalledWrapper;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
-import org.apache.river.phoenix.common.ActivationGroupData;
-import org.apache.river.phoenix.common.AccessILFactory;
-import org.apache.river.phoenix.dl.Activator;
-import org.apache.river.phoenix.dl.ConstrainableAID;
-import org.apache.river.phoenix.dl.AID;
-import org.apache.river.phoenix.dl.InactiveGroupException;
-import org.apache.river.activation.ActivationAdmin;
 
 /**
  * Phoenix main class.
@@ -279,17 +279,17 @@ class Activation implements Serializable {
                           File.separator + "bin" + File.separator + "java");
             System.arraycopy(opts, 0, command, 1, opts.length);
             command[command.length - 1] =
-                "org.apache.river.phoenix.ActivationGroupInit";
+                "org.apache.river.phoenix.init.ActivationGroupInit";
             shutdownHook = new ShutdownHook();
             Runtime.getRuntime().addShutdownHook(shutdownHook);
             groupPreparer = getPreparer(config, "instantiatorPreparer");
-            groupData = new MarshalledInstance(
-                new ActivationGroupData((String[]) config.getEntry(
+	    String [] groupConf = config.getEntry(
                         PHOENIX, 
                         "groupConfig",
                         String[].class,
-                        configOptions
-                ))).convertToMarshalledObject();
+                        configOptions);
+	    ActivationGroupData agd = new ActivationGroupData(groupConf);
+            groupData = new MarshalledInstance(agd).convertToMarshalledObject();
             outputHandler = (GroupOutputHandler) config.getEntry(
                     PHOENIX, "groupOutputHandler", GroupOutputHandler.class,
                     new GroupOutputHandler() {
@@ -307,8 +307,14 @@ class Activation implements Serializable {
                     });
 
             groupLocation = (String)
-                config.getEntry(PHOENIX, "groupLocation",
-                                String.class, getDefaultGroupLocation());
+                config.getEntry(
+		    PHOENIX, 
+		    "groupLocation",
+		    String.class, 
+		    getDefaultGroupLocation(
+			Activation.class.getProtectionDomain().getCodeSource()
+		    )
+		);
 
             ActivationGroupID[] gids = (ActivationGroupID[])
                 groupTable.keySet().toArray(
@@ -317,15 +323,15 @@ class Activation implements Serializable {
             ServerEndpoint se = TcpServerEndpoint.getInstance(PHOENIX_PORT);
             activatorExporter =
                 getExporter(config, "activatorExporter",
-                            new BasicJeriExporter(se, new BasicILFactory(),
-                                                  false, true,
-                                                 PhoenixConstants.ACTIVATOR_UUID));
+		    new BasicJeriExporter(se, new BasicILFactory(),
+					  false, true,
+					 (Uuid) PhoenixConstants.ACTIVATOR_UUID));
             system = new SystemImpl();
             systemExporter =
                 getExporter(config, "systemExporter",
-                            new BasicJeriExporter(se, new SystemAccessILFactory(),
-                                                  false, true,
-                                         PhoenixConstants.ACTIVATION_SYSTEM_UUID));
+		    new BasicJeriExporter(se, new SystemAccessILFactory(),
+					  false, true,
+					 (Uuid) PhoenixConstants.ACTIVATION_SYSTEM_UUID));
             monitor = new MonitorImpl();
             monitorExporter =
                 getExporter(config, "monitorExporter",
@@ -353,18 +359,25 @@ class Activation implements Serializable {
         }
         
     }
+    
+    // \\w\\-:/\\\\
 
-    private static String getDefaultGroupLocation() {
-	ProtectionDomain pd = Activation.class.getProtectionDomain();
-	CodeSource cs = pd.getCodeSource();
+    private static Pattern phoenix = Pattern.compile("(.+phoenix)([\\w.-]*jar)");
+    
+    static String getDefaultGroupLocation(CodeSource cs) {
 	URL location = null;
 	if (cs != null) {
 	    location = cs.getLocation();
 	}
 	if (location != null) {
 	    String loc = location.toString();
-	    if (loc.endsWith(".jar")) {
-		return loc.substring(0, loc.length() - 4) + "-group.jar";
+	    Matcher m = phoenix.matcher(loc);
+	    if (m.matches()){
+		StringBuilder b = new StringBuilder(120);
+		b.append(m.group(1));
+		b.append("-group");
+		b.append(m.group(2));
+		return b.toString();
 	    }
 	}
 	return null;
@@ -396,7 +409,7 @@ class Activation implements Serializable {
     private static int getInt(Configuration config, String name, int defValue)
 	throws ConfigurationException
     {
-	return ((Integer) config.getEntry(PHOENIX, name, int.class,
+	return ( config.getEntry(PHOENIX, name, int.class,
 					  Integer.valueOf(defValue))).intValue();
     }
 
@@ -1384,7 +1397,7 @@ class Activation implements Serializable {
 			    loc = activation.groupLocation;
 			}
 			gd = new ActivationGroupDesc(
-				"org.apache.river.phoenix.ActivationGroupImpl",
+				"org.apache.river.phoenix.group.ActivationGroupImpl",
 				loc,
 				data,
 				gd.getPropertyOverrides(),

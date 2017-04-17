@@ -59,6 +59,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.logging.Levels;
 import org.apache.river.proxy.MarshalledWrapper;
+import org.apache.river.proxy.Bootstrap;
 
 /**
  * An Item contains the fields of a ServiceItem packaged up for
@@ -97,33 +98,6 @@ public final class Item implements Serializable, Cloneable {
 	Logger.getLogger("org.apache.river.reggie");
     
     /**
-     * The bootstrap proxy must be limited to the following interfaces, in case
-     * additional interfaces implemented by the proxy aren't available remotely.
-     */
-    private static final Class[] bootStrapProxyInterfaces = 
-	{
-	    ServiceProxyAccessor.class, 
-	    ServiceAttributesAccessor.class,
-	    ServiceIDAccessor.class,
-	    RemoteMethodControl.class,
-	    TrustEquivalence.class
-	};
-    
-    /**
-     * The bootstrap proxy for smart proxy's must be limited to the following
-     * interfaces, in case additional interfaces implemented by the proxy
-     * aren't available remotely.
-     */
-    private static final Class[] bootStrapSmartProxyInterfaces = 
-	{
-	    ServiceCodebaseAccessor.class,
-	    ServiceProxyAccessor.class, 
-	    ServiceAttributesAccessor.class,
-	    ServiceIDAccessor.class,
-	    RemoteMethodControl.class,
-	    TrustEquivalence.class
-	};
-    /**
      * Flag to enable JRMP impl-to-stub replacement during marshalling of
      * service proxy.
      */
@@ -138,27 +112,6 @@ public final class Item implements Serializable, Cloneable {
 	    b = Boolean.FALSE;
 	}
 	enableImplToStubReplacement = b.booleanValue();
-    }
-    
-    /**
-     * At this stage we're not concerned about client constraints, just the
-     * servers.
-     */
-    private static final Collection context = Collections.singleton(
-	new BasicMethodConstraints(
-		new InvocationConstraints((InvocationConstraint []) null, null))
-    );
-    
-    /**
-     * Returns the class loader for the specified proxy class.
-     */
-    private static ClassLoader getProxyLoader(final Class proxyClass) {
-	return (ClassLoader)
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
-		    return proxyClass.getClassLoader();
-		}
-	    });
     }
 
     /**
@@ -262,52 +215,7 @@ public final class Item implements Serializable, Cloneable {
 	    }
 	}
 	//  Now we need to create the bootstrap proxy for the new lookup method.
-	Object proxy;
-	if (svc instanceof ProxyAccessor){ // Obtain exported proxy
-	    proxy = ((ProxyAccessor)svc).getProxy();
-	} else {
-	    proxy = svc;
-	    // Proxy may not have been exported yet, it is legal for
-	    // a Serializable object to use writeReplace to export and serialize a proxy.
-	    // This occurs locally, so we don't require a codebase download.
-	    // REMIND: Should we set the context ClassLoader?
-	    if (!Proxy.isProxyClass(proxy.getClass()) && proxy instanceof Serializable){
-		try {
-		    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		    ObjectOutput out = new ObjectOutputStream(baos);
-		    out.writeObject(proxy);
-		    ByteArrayInputStream bain = new ByteArrayInputStream(baos.toByteArray());
-		    ObjectInput in = new ObjectInputStream(bain);
-		    proxy = in.readObject();
-		} catch (IOException ex) {
-		    Logger.getLogger(Item.class.getName()).log(Level.SEVERE, null, ex);
-		} catch (ClassNotFoundException ex) {
-		    Logger.getLogger(Item.class.getName()).log(Level.SEVERE, null, ex);
-		}
-	    }
-	}
-	Class proxyClass = proxy.getClass();
-	if (proxy instanceof RemoteMethodControl //JERI
-	    && proxy instanceof TrustEquivalence //JERI
-	    // REMIND: The next three interfaces may not be available locally.
-	    // so must be found in jsk-dl.jar
-	    && proxy instanceof ServiceIDAccessor
-	    && proxy instanceof ServiceProxyAccessor
-	    && proxy instanceof ServiceAttributesAccessor
-	    && Proxy.isProxyClass(proxyClass)
-	    ) 
-	{
-	    // REMIND: InvocationHandler must be available locally, for now
-	    // it must be an instance of BasicInvocationHandler.
-	    InvocationHandler h = Proxy.getInvocationHandler(proxy);
-	    if (proxy instanceof ServiceCodebaseAccessor){
-		bootstrapProxy = (Proxy) 
-		    Proxy.newProxyInstance(getProxyLoader(proxyClass), bootStrapSmartProxyInterfaces, h);
-	    } else {
-		bootstrapProxy = (Proxy) 
-		    Proxy.newProxyInstance(getProxyLoader(proxyClass), bootStrapProxyInterfaces, h);		    
-	    }
-	}
+	bootstrapProxy = Bootstrap.create(svc);
 	serviceID = item.serviceID;
 	ServiceTypeBase stb = ClassMapper.toServiceTypeBase(svc.getClass());
 	serviceType = stb.type;

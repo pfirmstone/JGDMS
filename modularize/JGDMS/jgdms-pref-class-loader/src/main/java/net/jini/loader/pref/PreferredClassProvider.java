@@ -556,7 +556,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     {
 	checkInitialized();
 	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,
+	    logger.log(Level.FINE, //logging here can cause deadlock
 		       "name=\"{0}\", codebase={1}, defaultLoader={2}",
 		       new Object[] {
 			   name,

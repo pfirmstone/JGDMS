@@ -932,10 +932,12 @@ public class OutriggerServerImpl
 
             /* What we use for the default (or in the default activatable case
              * what we make the underlying exporter).
+	     * Use the ClassLoader of the proxy bundle, the ActivationExporter
+	     * will use this also, from the passed in basicExporter.
              */
             final Exporter basicExporter = 
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                                      new BasicILFactory(), false, true);
+                                      new BasicILFactory(null, null, OutriggerServer.class.getClassLoader()), false, true);
             if (activationID == null) {
                 h.exporter = (Exporter)Config.getNonNullEntry(config,
                     COMPONENT_NAME,	"serverExporter", Exporter.class,
@@ -2884,6 +2886,7 @@ public class OutriggerServerImpl
      *
      * @see JavaSpaceAdmin
      */
+    @Override
     public Object getAdmin() {
 	opsLogger.entering("OutriggerServerImpl", "getAdmin");
 	return adminProxy;
@@ -2891,12 +2894,14 @@ public class OutriggerServerImpl
 
     // purposefully inherit doc comment
     // Implementation of the OutriggerAdmin interface
+    @Override
     public JavaSpace space() {
 	opsLogger.entering("OutriggerServerImpl", "space");
 	return spaceProxy;
     }
 
     // purposefully inherit doc comment
+    @Override
     public Uuid contents(EntryRep tmpl, Transaction tr)
 	throws TransactionException, RemoteException
     {
@@ -2923,6 +2928,7 @@ public class OutriggerServerImpl
 	return uuid;
     }
 
+    @Override
     public EntryRep[] nextReps(Uuid iterationUuid, int max, 
 			       Uuid entryUuid) 
 	throws NoSuchObjectException 
@@ -2938,6 +2944,7 @@ public class OutriggerServerImpl
 	return iterImpl.nextReps(max, entryUuid);
     }
 
+    @Override
     public void delete(Uuid iterationUuid, Uuid entryUuid) 
 	throws NoSuchObjectException 
     {
@@ -2952,6 +2959,7 @@ public class OutriggerServerImpl
 	iterImpl.delete(entryUuid);
     }
 
+    @Override
     public void close(Uuid iterationUuid) throws NoSuchObjectException {
 	iteratorLogger.entering("OutriggerServerImpl", "close");
 
@@ -2969,6 +2977,7 @@ public class OutriggerServerImpl
      * itself and related objects, and then destroys the persistent
      * state.
      */
+    @Override
     public void destroy() {
 	iteratorLogger.entering("OutriggerServerImpl", "destroy");
 

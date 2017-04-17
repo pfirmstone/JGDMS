@@ -113,7 +113,7 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         synchronized (loggerLock){
             if (logger != null) return logger;
             logger = 
-            Logger.getLogger("org.apache.river.tool.SecurityPolicyProvider");
+            Logger.getLogger("org.apache.river.tool.SecurityPolicyWriter");
             return logger;
         }
     }

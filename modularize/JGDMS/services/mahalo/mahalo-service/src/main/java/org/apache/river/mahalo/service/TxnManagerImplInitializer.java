@@ -91,7 +91,7 @@ class TxnManagerImplInitializer {
         }
         // Get activatable settings, if activated
         if (activationID != null) {
-            ProxyPreparer activationSystemPreparer = (ProxyPreparer) 
+            ProxyPreparer activationSystemPreparer =  
                     Config.getNonNullEntry(config, TxnManager.MAHALO,
                     "activationSystemPreparer", ProxyPreparer.class, 
                     new BasicProxyPreparer());
@@ -105,7 +105,7 @@ class TxnManagerImplInitializer {
                 TxnManagerImpl.initLogger.log(Level.CONFIG, 
                         "Prepared activation system is: {0}", activationSystem);
             }
-            ProxyPreparer activationIdPreparer = (ProxyPreparer) 
+            ProxyPreparer activationIdPreparer =  
                     Config.getNonNullEntry(config, TxnManager.MAHALO, 
                     "activationIdPreparer", ProxyPreparer.class, new BasicProxyPreparer());
             if (TxnManagerImpl.initLogger.isLoggable(Level.CONFIG)) {
@@ -118,13 +118,13 @@ class TxnManagerImplInitializer {
                         "Prepared activationID is: {0}", activationID);
             }
             activationPrepared = true;
-            exporter = (Exporter) Config.getNonNullEntry(config, 
+            exporter = Config.getNonNullEntry(config, 
                     TxnManager.MAHALO, 
                     "serverExporter", 
                     Exporter.class, 
                     new ActivationExporter(activationID, 
                         new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-                            new BasicILFactory(), 
+                            new BasicILFactory(null, null, TxnManager.class.getClassLoader()), 
                             false, 
                             true)
                         ), 
@@ -133,7 +133,18 @@ class TxnManagerImplInitializer {
                 TxnManagerImpl.initLogger.log(Level.CONFIG, "Activatable service exporter is: {0}", exporter);
             }
         } else {
-            exporter = (Exporter) Config.getNonNullEntry(config, TxnManager.MAHALO, "serverExporter", Exporter.class, new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory(), false, true));
+            exporter = Config.getNonNullEntry(
+		    config, 
+		    TxnManager.MAHALO, 
+		    "serverExporter", 
+		    Exporter.class,
+		    new BasicJeriExporter(
+			    TcpServerEndpoint.getInstance(0),
+			    new BasicILFactory(null, null, TxnManager.class.getClassLoader()),
+			    false,
+			    true
+		    )
+	    );
             if (TxnManagerImpl.initLogger.isLoggable(Level.CONFIG)) {
                 TxnManagerImpl.initLogger.log(Level.CONFIG, "Non-activatable service exporter is: {0}", exporter);
             }

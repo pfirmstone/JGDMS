@@ -31,7 +31,6 @@
     </description>
     <packaging>jar</packaging>
      <dependencies>  
-		 
          <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>
@@ -63,6 +62,12 @@
             <artifactId>junit</artifactId>
             <version>4.6</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>biz.aQute.bnd</groupId>
+            <artifactId>biz.aQute.bnd.annotation</artifactId>
+            <version>3.3.0</version>
+            <scope>compile</scope>
         </dependency>
      </dependencies>
 

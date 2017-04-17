@@ -99,6 +99,9 @@ public class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
 
     /**
      * Read this object back and validate state.
+     * @param in stream used to de-serialize.
+     * @throws IOException
+     * @throws ClassNotFoundException
      */
     private void readObject(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException
@@ -115,6 +118,7 @@ public class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
     /** 
      * We should always have data in the stream, if this method
      * gets called there is something wrong.
+     * @throws InvalidObjectException
      */
     private void readObjectNoData() throws InvalidObjectException {
 	throw new 

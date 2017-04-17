@@ -20,6 +20,8 @@ package net.jini.url.file;
 
 import java.net.URL;
 import net.jini.security.IntegrityVerifier;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Integrity verifier for FILE URLs. This class is intended to be specified
@@ -34,6 +36,12 @@ import net.jini.security.IntegrityVerifier;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="net.jini.security.IntegrityVerifier")
 public class FileIntegrityVerifier implements IntegrityVerifier {
     /**
      * Returns <code>true</code> if the specified URL uses the "file"

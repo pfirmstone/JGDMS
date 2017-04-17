@@ -39,6 +39,7 @@ public class OutriggerQueryCookie
     /**
      * Create a new <code>OutriggerQueryCookie</code> with
      * the specified value for the <code>startTime</code>.
+     * @param startTime start time in milliseconds since epoch.
      */
     public OutriggerQueryCookie(long startTime) {
 	this.startTime = startTime;

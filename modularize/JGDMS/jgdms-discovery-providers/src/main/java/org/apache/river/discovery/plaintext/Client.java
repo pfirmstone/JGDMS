@@ -33,6 +33,8 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Implements the client side of the <code>net.jini.discovery.plaintext</code>
@@ -41,6 +43,12 @@ import net.jini.io.UnsupportedConstraintException;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="org.apache.river.discovery.DiscoveryFormatProvider")
 public class Client
     implements MulticastRequestEncoder,
 	       MulticastAnnouncementDecoder,

@@ -23,6 +23,7 @@ import org.apache.river.constants.TimeConstants;
 import org.apache.river.landlord.FixedLeasePeriodPolicy;
 import org.apache.river.landlord.LeasePeriodPolicy;
 import org.apache.river.logging.Levels;
+import org.apache.river.mercury.proxy.MailboxBackEnd;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.thread.InterruptedStatusThread;
@@ -103,7 +104,7 @@ class MailboxImplInit {
         context = AccessController.getContext();
         // Get activation specific configuration items, if activated
         if (activationID != null) {
-            ProxyPreparer activationSystemPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "activationSystemPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+            ProxyPreparer activationSystemPreparer = Config.getNonNullEntry(config, MailboxImpl.MERCURY, "activationSystemPreparer", ProxyPreparer.class, new BasicProxyPreparer());
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "activationSystemPreparer: {0}", activationSystemPreparer);
             }
@@ -111,7 +112,7 @@ class MailboxImplInit {
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
                 MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Prepared activation system is: {0}", activationSystem);
             }
-            ProxyPreparer activationIdPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "activationIdPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+            ProxyPreparer activationIdPreparer = Config.getNonNullEntry(config, MailboxImpl.MERCURY, "activationIdPreparer", ProxyPreparer.class, new BasicProxyPreparer());
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "activationIdPreparer: {0}", activationIdPreparer);
             }
@@ -120,14 +121,36 @@ class MailboxImplInit {
                 MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Prepared activationID is: {0}", activationID);
             }
             activationPrepared = true;
-            exporter = (Exporter) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "serverExporter", Exporter.class, new ActivationExporter(activationID, new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory(), false, true)), activationID);
+            exporter = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		    "serverExporter", Exporter.class,
+		    new ActivationExporter(
+			    activationID, 
+			    new BasicJeriExporter(
+				    TcpServerEndpoint.getInstance(0),
+				    new BasicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
+				    false,
+				    true
+			    )
+		    ), 
+		    activationID);
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Activatable service exporter is: {0}", exporter);
             }
             this.activationID = activationID;
         } else {
             //Get non-activatable configuration items
-            exporter = (Exporter) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "serverExporter", Exporter.class, new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory(), false, true));
+            exporter = Config.getNonNullEntry(
+		    config, 
+		    MailboxImpl.MERCURY,
+		    "serverExporter",
+		    Exporter.class,
+		    new BasicJeriExporter(
+			    TcpServerEndpoint.getInstance(0),
+			    new BasicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
+			    false,
+			    true
+		    )
+	    );
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Non-activatable service exporter is: {0}", exporter);
             }

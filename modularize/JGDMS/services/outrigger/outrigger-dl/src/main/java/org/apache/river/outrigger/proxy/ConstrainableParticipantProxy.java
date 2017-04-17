@@ -49,6 +49,8 @@ public final class ConstrainableParticipantProxy extends ParticipantProxy
      *              space.
      * @param spaceUuid The universally unique ID for the
      *              space
+     * @param methodConstraints the client method constraints to place on
+     *                          this proxy (may be <code>null</code>).
      * @throws NullPointerException if <code>space</code> or
      *         <code>spaceUuid</code> is <code>null</code>.
      */

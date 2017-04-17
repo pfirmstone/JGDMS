@@ -154,10 +154,10 @@ which obtains a
 and invokes <code>create()</code> on each array
 element. All the array elements are assumed to be 
 <code>SharedActivatableServiceDescriptor</code>s that are configured to
-run {@link org.apache.river.start.SharedGroup} implementations 
-(see provided implementation: {@link org.apache.river.start.SharedGroupImpl}).
+run {@link org.apache.river.start.group.SharedGroup} implementations 
+(see provided implementation: {@link org.apache.river.start.group.service.SharedGroupImpl}).
 Once created, each element's 
-{@link org.apache.river.start.SharedGroup#destroyVM() destroyVM()}
+{@link org.apache.river.start.group.SharedGroup#destroyVM() destroyVM()}
 method will be invoked and its associated group log will be deleted.
 <P>
 <em>Notes:</em> Group destruction:

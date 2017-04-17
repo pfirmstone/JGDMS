@@ -201,7 +201,7 @@ class ThrowableSerializer implements Serializable {
             result = init(clas, message, cause);
         }
 	if (stack != null) result.setStackTrace(stack);
-	// Only adds suppressed if enabled by Throwable protected constructor.
+	// Only adds suppressed if enabled, that is not disabled by Throwable protected constructor.
 	if (suppressed != null){ // compat with serial form of Throwable before Java 1.7
 	    for (int i = 0, l = suppressed.length; i < l; i++){
 		result.addSuppressed(suppressed[i]);
@@ -215,6 +215,7 @@ class ThrowableSerializer implements Serializable {
     private static final Class[] serparams = new Class[]{String.class, Error.class};
     private static final Class[] tsparams = new Class[]{Throwable.class, String.class};
     private static final Class[] sparam = new Class[]{String.class};
+    private static final Class[] tparam = new Class[]{Throwable.class};
     
     static Throwable init(Class<? extends Throwable> clas, String message, Throwable cause) throws IOException {
 	Throwable result;
@@ -240,6 +241,12 @@ class ThrowableSerializer implements Serializable {
             if (c != null){
                 return (Throwable) c.newInstance(new Object[]{cause, message});
             }
+	    if (message == null){/* Some Throwable's don't allow initCause */
+		c = getConstructor(cons, tparam);
+		if (c != null){
+		    return (Throwable) c.newInstance(new Object[]{cause});
+		}
+	    }
             c = getConstructor(cons, sparam);
             if (c != null){
                 result = (Throwable) c.newInstance(new Object[]{message});
@@ -250,13 +257,20 @@ class ThrowableSerializer implements Serializable {
                         try {
                             result.initCause(cause);
                         } catch (IllegalStateException e){
-                            throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
+			    /* Previously an IOException was thrown, however
+			     * this can cause breakages, while the alternative
+			     * of dropping the cause leads to data loss.
+			     * The most useful option at this time is to add
+			     * this and the cause as suppressed exceptions.
+			    */
+			    result.addSuppressed(cause);
+			    result.addSuppressed(e);
                         }
                     } 
                 }
                 return result;
             }
-            result = clas.newInstance();
+            result = clas.newInstance(); /* None of the above constructors match */
             if (cause != null){
                 if (RemoteException.class.isAssignableFrom(clas)){
                     ((RemoteException) result).detail = cause;
@@ -264,7 +278,14 @@ class ThrowableSerializer implements Serializable {
                     try {
                         result.initCause(cause);
                     } catch (IllegalStateException e){
-                        throw new IOException("Unable to construct " + clas + " cause already defined: " + result.getCause(), e);
+			/* Previously an IOException was thrown, however
+			 * this can cause breakages, while the alternative
+			 * of dropping the cause leads to data loss.
+			 * The most useful option at this time is to add
+			 * this and the cause as suppressed exceptions.
+			*/
+			result.addSuppressed(cause);
+			result.addSuppressed(e);
                     }
                 } 
             }

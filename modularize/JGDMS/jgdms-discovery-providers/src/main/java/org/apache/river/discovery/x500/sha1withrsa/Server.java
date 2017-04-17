@@ -20,6 +20,8 @@ package org.apache.river.discovery.x500.sha1withrsa;
 
 import org.apache.river.discovery.internal.MulticastServer;
 import org.apache.river.discovery.internal.X500Server;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Implements the server side of the
@@ -28,6 +30,12 @@ import org.apache.river.discovery.internal.X500Server;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="org.apache.river.discovery.DiscoveryFormatProvider")
 public class Server extends MulticastServer
 {
 

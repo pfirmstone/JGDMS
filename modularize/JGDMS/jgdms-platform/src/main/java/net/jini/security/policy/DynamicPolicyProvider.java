@@ -571,5 +571,16 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         guard.checkGuard(null);
         return dynamicPolicyGrants.add(p);
     }
+    
+    public String toString(){
+	String nl = "\n";
+	StringBuilder b = new StringBuilder(256);
+	b.append(super.toString()).append(nl);
+	b.append("Dynamic Grants:\n");
+	b.append(dynamicPolicyGrants).append(nl);
+	b.append("Base Policy:\n");
+	b.append(basePolicy).append(nl);
+	return b.toString();
+    }
 
 }

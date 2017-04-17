@@ -20,6 +20,8 @@ package org.apache.river.discovery;
 
 import java.rmi.RemoteException;
 import net.jini.security.TrustVerifier;
+import aQute.bnd.annotation.headers.RequireCapability;
+import aQute.bnd.annotation.headers.ProvideCapability;
 
 /**
  * Trust verifier for instances of the constraint classes defined in the {@link
@@ -30,6 +32,12 @@ import net.jini.security.TrustVerifier;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="net.jini.security.TrustVerifier")
 public class DiscoveryConstraintTrustVerifier implements TrustVerifier {
 
     /**
