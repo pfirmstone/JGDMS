@@ -15,6 +15,7 @@
 
 package org.apache.river.concurrent;
 
+import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
@@ -212,6 +213,15 @@ class ReferenceProcessor<T> implements ReferenceQueuingFactory<T, Referrer<T>> {
             try {
                 for ( Object t = queue.poll(); t != null; t = queue.poll()){ 
                     col.remove(t);
+		    if (t instanceof Referrer){
+			Object referent = ((Referrer)t).get();
+			if (referent instanceof AutoCloseable){
+			   try{
+			       // Release any resources held by the referent.
+			       ((AutoCloseable) referent).close();
+			   } catch (Exception ex){} // Ignore
+                }
+		    }
                 }
             }catch(Exception e){
                 e.printStackTrace(System.err);

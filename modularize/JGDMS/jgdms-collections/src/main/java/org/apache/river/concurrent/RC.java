@@ -80,8 +80,9 @@ import java.util.Iterator;
  * removal of enqued references is performed by background Executor threads.
  * Your chosen encapsulated {@link Collection} must also be mutable.  
  * Objects will be removed automatically from encapsulated Collections when 
- * they are eligible for garbage collection, external synchronisation of 
- * decorated collections is not supported.
+ * they are eligible for garbage collection, object's that implement AutoCloseable
+ * will automatically have their resources freed after removal,
+ * external synchronisation of decorated collections is not supported.  
  * </p><p>
  * If you're using Iterators, you must synchronise on the underlying Collection
  * or Map, if iterating through keys or values, this doesn't apply to 
