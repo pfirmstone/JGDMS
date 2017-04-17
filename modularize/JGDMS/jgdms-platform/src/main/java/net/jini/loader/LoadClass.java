@@ -20,6 +20,8 @@ package net.jini.loader;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Collection;
+import java.util.List;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
@@ -28,10 +30,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.river.thread.NamedThreadFactory;
 
 /**
@@ -97,15 +101,7 @@ public class LoadClass {
         }
         ExecutorService exec = loaderMap.get(loader);
         if (exec == null) {
-            exec = new ThreadPoolExecutor(
-                    1,
-                    1,
-                    0,
-                    TimeUnit.SECONDS,
-                    new LinkedBlockingQueue(),
-                    new NamedThreadFactory(loader.toString(), false),
-                    new ThreadPoolExecutor.CallerRunsPolicy()
-            );
+            exec = new AutoCloseableExecutor(loader.toString());
             ExecutorService existed = loaderMap.putIfAbsent(loader, exec);
             if (existed != null) {
                 exec = existed;
@@ -177,6 +173,93 @@ public class LoadClass {
             }
         }
 
+    }
+
+    private static class AutoCloseableExecutor implements ExecutorService, AutoCloseable {
+
+	private final ExecutorService decorated;
+	
+	AutoCloseableExecutor(String loaderName){
+	    decorated = new ThreadPoolExecutor(
+                    1,
+                    1,
+                    0,
+                    TimeUnit.SECONDS,
+                    new LinkedBlockingQueue(),
+                    new NamedThreadFactory(loaderName, false),
+                    new ThreadPoolExecutor.CallerRunsPolicy());
+}
+	
+	@Override
+	public void shutdown() {
+	    decorated.shutdown();
+	}
+
+	@Override
+	public List<Runnable> shutdownNow() {
+	    return decorated.shutdownNow();
+	}
+
+	@Override
+	public boolean isShutdown() {
+	    return decorated.isShutdown();
+	}
+
+	@Override
+	public boolean isTerminated() {
+	    return decorated.isTerminated();
+	}
+
+	@Override
+	public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+	    return decorated.awaitTermination(timeout, unit);
+	}
+
+	@Override
+	public <T> Future<T> submit(Callable<T> task) {
+	    return decorated.submit(task);
+	}
+
+	@Override
+	public <T> Future<T> submit(Runnable task, T result) {
+	    return decorated.submit(task, result);
+	}
+
+	@Override
+	public Future<?> submit(Runnable task) {
+	    return decorated.submit(task);
+	}
+
+	@Override
+	public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
+	    return decorated.invokeAll(tasks);
+	}
+
+	@Override
+	public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+	    return decorated.invokeAll(tasks, timeout, unit);
+	}
+
+	@Override
+	public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
+	    return decorated.invokeAny(tasks);
+	}
+
+	@Override
+	public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+	    return decorated.invokeAny(tasks, timeout, unit);
+	}
+
+	@Override
+	public void execute(Runnable command) {
+	    decorated.execute(command);
+	}
+
+	@Override
+	public void close() throws SecurityException {
+	    decorated.shutdown();
+	}
+	
     }
 
 }
