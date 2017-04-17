@@ -1,4 +1,4 @@
-org.apache.river.qa.harness.verifier=org.apache.river.qa.harness.SkipNonSunJDKTestVerifier
+#org.apache.river.qa.harness.verifier=org.apache.river.qa.harness.SkipNonSunJDKTestVerifier
 testClass=LeaseRenewDurRFE
 testCategories=joinmanager,joinmanager_impl
 
@@ -58,6 +58,7 @@ testCategories=joinmanager,joinmanager_impl
 net.jini.lookup.nLookupServices=1
 net.jini.lookup.nAddLookupServices=0
 net.jini.core.lookup.ServiceRegistrar.port=6060
+org.apache.river.sdm.insecureLookup=true
 
 # Prevent Phoenix from being started by the harness
 # during setup. Set this property in the test itself,

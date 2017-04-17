@@ -97,6 +97,7 @@ import net.jini.url.httpmd.HttpmdUtil;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.util.Startable;
+import org.apache.river.action.GetPropertyAction;
 
 /**
  * This class verifies that the current implementation of the 
@@ -136,6 +137,10 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
     private String host;
     private String jiniPort;
     private String qaPort;
+    private String group_dl_jar;
+    private String jsk_dl_jar;
+    private String jsk_lib_jar;
+    private String jsk_platform_jar;
 
     private String qaHome;
     private String qaHarnessLib;
@@ -234,7 +239,15 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 
         qaHome = sysConfig.getStringConfigVal("org.apache.river.qa.home",
                                               "/vob/qa");
-        builder.append(qaHome).append(sep).append("lib");
+	group_dl_jar = AccessController.doPrivileged(new GetPropertyAction(
+		"org.apache.river.start.group.dl.jar"));
+	jsk_dl_jar = AccessController.doPrivileged(new GetPropertyAction(
+		"net.jini.lib.dl.jar"));
+	jsk_lib_jar = AccessController.doPrivileged(new GetPropertyAction(
+		"org.apache.river.lib.jar"));
+	jsk_platform_jar = AccessController.doPrivileged(new GetPropertyAction(
+		"net.jini.platform.jar"));
+	        builder.append(qaHome).append(sep).append("lib");
         qaHarnessLib = builder.toString();
         builder.delete(0, builder.length());
         qaTestHome = sysConfig.getStringConfigVal("org.apache.river.test.home",
@@ -243,8 +256,8 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         qaTestLib = builder.toString();
         builder.delete(0, builder.length());
         builder.append(qaTestHome).append(sep).append("src").append(sep)
-                .append("com").append(sep).append("sun").append(sep)
-                .append("jini").append(sep).append("test");
+                .append("org").append(sep).append("apache").append(sep)
+                .append("river").append(sep).append("test");
         qaTest = builder.toString();
         builder.delete(0,builder.length());
         builder.append(qaTest).append(sep).append("spec");
@@ -281,12 +294,12 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                    ("java.util.logging.config.file","/vob/qa/src/qa1.logging");
         /* lookup discovery */
         List lookupsStarted = getLookupServices().getLookupsStarted();
-        LookupLocator[] locs = toLocatorArray(lookupsStarted);
+        locs = toLocatorArray(lookupsStarted);
         mainListener.setLookupsToDiscover(lookupsStarted, locs);
         ldm = getLookupDiscoveryManager(locs);
         waitForDiscovery(mainListener);//won't get past here if discovery fails
         /* lookup service */
-        ServiceRegistrar lus = (ldm.getRegistrars())[0];
+	lus = (ldm.getRegistrars())[0];
         /* default maximum lease duration from the lookup service */
         int idSeed  = SERVICE_BASE_VALUE + 9999;
         // deliberate, not a bug.
@@ -351,8 +364,9 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         String servicePolicyFile = policyAll;
         builder.append(qaHarnessLib).append(sep).append("jiniharness.jar")
                 .append(pSep).append(jiniLib).append(sep)
-                .append("jsk-platform.jar").append(pSep)
-                .append(jiniLib).append(sep).append("jsk-lib.jar").append(pSep)
+                .append(jsk_platform_jar).append(pSep)
+                .append(jiniLib).append(sep).append(jsk_lib_jar).append(pSep)
+		.append(jiniLibDL).append(sep).append(jsk_dl_jar).append(pSep)
                 .append(qaTestLib).append(sep).append("jinitests.jar");
         String serviceClasspath  = builder.toString();
         builder.delete(0, builder.length());
@@ -774,11 +788,11 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
     }//end sharedVMProperties
 
     private String groupCodebase() throws Exception {
-        String codebase = "http://"+host+":"+jiniPort+"/group-dl.jar";
+        String codebase = "http://"+host+":"+jiniPort+"/"+group_dl_jar;
         if(secureProto) {
             codebase = HttpmdUtil.computeDigestCodebase
                          (jiniLibDL, 
-                          "httpmd://"+host+":"+jiniPort+"/group-dl.jar;sha=0");
+                          "httpmd://"+host+":"+jiniPort+"/"+group_dl_jar+";sha=0");
         }//endif
         return codebase;
     }//end groupCodebase
@@ -786,14 +800,14 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
     private String serviceCodebase() throws Exception {
         String serviceCodebase =
                           "http://"+host+":"+qaPort+"/qa1-joinmanager-dl.jar "
-                         +"http://"+host+":"+jiniPort+"/jsk-dl.jar";
+                         +"http://"+host+":"+jiniPort+"/"+jsk_dl_jar;
         if(secureProto) {
             String qaPart = HttpmdUtil.computeDigestCodebase
                 (qaTestLib, 
                  "httpmd://"+host+":"+qaPort+"/qa1-joinmanager-dl.jar;sha=0");
             String jiniPart = HttpmdUtil.computeDigestCodebase
                           (jiniLibDL, 
-                           "httpmd://"+host+":"+jiniPort+"/jsk-dl.jar;sha=0");
+                           "httpmd://"+host+":"+jiniPort+"/"+jsk_dl_jar+";sha=0");
             serviceCodebase = qaPart+" "+jiniPart;
         }//endif
         return serviceCodebase;

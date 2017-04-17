@@ -1,15 +1,36 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mercury.dl.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
-    permission java.security.AllPermission "", "";
-};
 
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.collections.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}" {
+    permission java.security.AllPermission "", "";
 };

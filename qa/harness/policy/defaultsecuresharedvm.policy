@@ -1,20 +1,24 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}phoenix-init.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.init.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}phoenix-group.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.group.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.platform.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -32,7 +36,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}group.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
@@ -40,21 +44,21 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}group.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecuregroup.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}fiddler.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.fiddler.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultfiddler.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecurefiddler.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mahalo.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmahalo.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecuremahalo.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
@@ -63,28 +67,28 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury.jar" {
 
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}norm.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultnorm.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecurenorm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultoutrigger.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecureoutrigger.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}reggie.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultreggie.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecurereggie.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsharedvm.policy";
@@ -96,7 +100,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}group.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-group.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
@@ -104,21 +108,21 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}group.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuregroup.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}fiddler.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.fiddler.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecurefiddler.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mahalo.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuremahalo.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
@@ -127,30 +131,142 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury.jar" {
 
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}norm.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultnorm.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecurenorm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecureoutrigger.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}reggie.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultreggie.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecurereggie.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}sharedvm.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuresharedvm.policy";
 };
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultgroup.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecuregroup.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.fiddler.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultfiddler.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecurefiddler.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmahalo.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecuremahalo.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmercuryh.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecuremercury.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultnorm.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecurenorm.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultoutrigger.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecureoutrigger.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultreggie.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecurereggie.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-group.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultgroup.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuregroup.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.fiddler.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecurefiddler.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuremahalo.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmercuryh.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuremercury.policy";
+
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultnorm.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecurenorm.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecureoutrigger.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultreggie.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecurereggie.policy";
+};
+

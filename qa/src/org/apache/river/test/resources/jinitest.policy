@@ -7,6 +7,10 @@ grant codebase "file:${org.apache.river.test.home}${/}lib${/}fullloggingfilter.j
 	permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:c:\\-";
 };
 
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.tool.classserver.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
 // Discovery providers that don't perform authentication don't grant
 // DeSerializationPermission, so it's granted here.
 grant codebase "http://*/reggie-dl.jar" {
@@ -32,6 +36,7 @@ grant codebase "http://*/phoenix-dl.jar" {
 
 grant {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
     permission java.util.PropertyPermission "java.system.class.loader", "read";
     permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}-", "read";
     permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
@@ -107,16 +112,10 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}" {
         "java.security.AllPermission \"\", \"\"";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}high-scale-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.cliffc.high_scale_lib.jar}" {
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}custard-apple-1.0.3.jar" {
-    permission java.lang.RuntimePermission "modifyThreadGroup";
-    permission java.lang.RuntimePermission "setContextClassLoader";
-    permission java.lang.RuntimePermission "modifyThread";
 };
 
 // grants for various test services, placed here for simplicity, but
@@ -168,12 +167,17 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury_bogus.jar" {
 
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mahalo.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.test.home}${/}src${/}com${/}sun${/}jini${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.testJar}!/org/apache/river/test/impl/mahalo/bogusMahaloImpl.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mahalo.dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.test.home}${/}src${/}com${/}sun${/}jini${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.testJar}!/org/apache/river/test/impl/mahalo/bogusMahaloImpl.policy";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.test.home}${/}src${/}com${/}sun${/}jini${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.testJar}!/org/apache/river/test/impl/mahalo/bogusMahaloImpl.policy";
 };

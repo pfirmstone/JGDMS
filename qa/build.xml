@@ -677,18 +677,18 @@
     </target>
 
     <target name="nonactivatablegroup-dl.jar" depends="nonactivatablegroup.stubs">
-        <property name="nonactivatablegroup-dl.deps" location="${build.deps.dir}/nonactivatablegroup-dl.deps" />
+        <!--<property name="nonactivatablegroup-dl.deps" location="${build.deps.dir}/nonactivatablegroup-dl.deps" />
         <classdep output="${nonactivatablegroup-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in org.apache.river"/>
+            <arg line="-in org.apache.river"/>-->
             <!--<arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>-->
-        </classdep>
+        <!--</classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup-dl.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup-dl.deps}" />
             <fileset dir="${build.classes.dir}"  includesfile="${nonactivatablegroup-dl.deps}" />
-        </jar>
+        </jar>-->
     </target>
 
     <target name="mergedpolicyprovider.jar" depends="compile">
@@ -872,6 +872,8 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in org.apache.river.test"/>
+            <arg value="org.apache.river.test.impl.mercury.TestGenerator"/>
+            <arg value="org.apache.river.test.impl.mercury.TestListener"/>
             <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
@@ -888,11 +890,11 @@
             <fileset dir="${build.classes.dir}">
                 <include name="org/apache/river/test/impl/mercury/MyUnknownEventException.class"/>
             </fileset>
-            <fileset dir="${river.classes.dir}">
+            <!--<fileset dir="${river.classes.dir}">
                 <include name="net/jini/lookup/entry/Name.class"/>
-            </fileset>
+            </fileset>-->
         </jar>
-        <classdep output="${qa1-mercury-dl.deps}">
+        <!--<classdep output="${qa1-mercury-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
@@ -901,18 +903,18 @@
             <arg line="${jskplatform.exclude}"/>
             <arg line="-hide org.apache.river.test"/>
             <arg value="org.apache.river.landlord.LandlordProxyVerifier"/>
-            <arg value="org.apache.river.proxy.BasicProxyTrustVerifier"/>
+            <arg value="org.apache.river.proxy.BasicProxyTrustVerifier"/>-->
             <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestPullListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestGeneratorImpl_Stub"/>-->
 
-        </classdep>
+        <!--</classdep>
         <jar destfile="${lib.dir}/qa1-mercury-dl.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
-        </jar>
+        </jar>-->
     </target>
 
     <target name="qa1-mercury-bogusimpl.jar" depends="compile">
@@ -1834,19 +1836,19 @@
         <!--
         <delete file="${lib.dir}/qa1-javaspace-dl.jar" quiet="true"/>
         -->
-        <classdep output="${qa1-javaspace-dl.deps}">
+        <!--<classdep output="${qa1-javaspace-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in org.apache.river.test"/>
+            <arg line="-in org.apache.river.test"/>-->
             <!--<arg line="org.apache.river.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
             <arg line="org.apache.river.test.spec.javaspace.conformance.NotifyCounter_Stub"/>
             <arg line="org.apache.river.test.spec.javaspace.conformance.TestEventListener05_Stub"/>-->
 
-        </classdep>
+        <!--</classdep>-->
         <jar destfile="${lib.dir}/qa1-javaspace-dl.jar" index="false">
-            <fileset dir="${build.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
+            <!--<fileset dir="${build.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
+            <fileset dir="${river.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>-->
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
             </fileset>
@@ -1903,11 +1905,11 @@
         <!--
         <delete file="${lib.dir}/qa1-lookupservice-dl.jar" quiet="true"/>
         -->
-        <classdep output="${qa1-lookupservice-dl.deps}">
+        <!--<classdep output="${qa1-lookupservice-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
-            <arg line="-in org.apache.river.test.spec"/>
+            <arg line="-in org.apache.river.test.spec"/>-->
             <!--<arg line="org.apache.river.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrAdd$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set00.NotifyOnAttrMod$$Listener_Stub"/>
@@ -1933,10 +1935,10 @@
             <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyOnComboAttrSet$$Listener_Stub"/>
             <arg line="org.apache.river.test.spec.lookupservice.test_set02.NotifyExceptionTest$$Listener_Stub"/>-->
 
-        </classdep>
+        <!--</classdep>-->
         <jar destfile="${lib.dir}/qa1-lookupservice-dl.jar" index="false">
-            <fileset dir="${build.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
+            <!--<fileset dir="${build.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
+            <fileset dir="${river.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>-->
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
                 <include name="org/apache/river/test/spec/lookupservice/attribute/**/*"/>

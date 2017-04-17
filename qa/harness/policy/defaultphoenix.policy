@@ -1,25 +1,53 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}phoenix.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.common.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.dl.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.collections.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.pref.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activation.jar}" {
     permission java.security.AllPermission "", "";
 };
 
 grant codebase "file:${org.apache.river.qa.harness.harnessJar}
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 
 };
 
 grant codebase "file:${org.apache.river.qa.harness.testJar}
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 
 };
@@ -27,7 +55,7 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}
 // not sure the following is necessary, but just in case
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 
 };
@@ -38,53 +66,53 @@ grant {
 };
 
 grant {
-      permission org.apache.river.phoenix.ExecOptionPermission "*";
+      permission org.apache.river.phoenix.dl.ExecOptionPermission "*";
     // for a start test
-      permission org.apache.river.phoenix.ExecPermission "/bin/javax";
+      permission org.apache.river.phoenix.dl.ExecPermission "/bin/javax";
 };
 
 
 //X500 Principals
 grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Norm"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 
 grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 
 };
@@ -92,43 +120,43 @@ grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
 //Kerberos policy grants
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 };
 
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
 {
-      permission org.apache.river.phoenix.SystemPermission
+      permission org.apache.river.phoenix.dl.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
 
 };

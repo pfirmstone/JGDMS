@@ -1,12 +1,16 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}reggie.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.lib.dl.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 

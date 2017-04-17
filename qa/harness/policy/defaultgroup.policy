@@ -1,12 +1,8 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}group.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.start.group.dl.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -14,3 +10,26 @@ grant {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.collections.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}" {
+    permission java.security.AllPermission "", "";
+};
