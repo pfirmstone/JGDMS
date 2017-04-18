@@ -149,28 +149,28 @@
 		<fileset dir="${root}/dep-libs/groovy" includes="**/*.jar" />
     </path>
 	
-	<taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc">
+	<!--<taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc">
 	    <classpath refid="groovy.jars"/>
-	</taskdef>
+	</taskdef>-->
 	
-    <fileset id="velocity.jars" dir="${root}/dep-libs/velocity">
+    <!--<fileset id="velocity.jars" dir="${root}/dep-libs/velocity">
         <include name="velocity-1.7.jar" />
-    </fileset>
+    </fileset>-->
     
-    <fileset id="high-scale-lib.jars" dir="${root}/dep-libs/high-scale-lib">
+    <!--<fileset id="high-scale-lib.jars" dir="${root}/dep-libs/high-scale-lib">
         <include name="high-scale-lib.jar" />
-    </fileset>
+    </fileset>-->
     
-    <fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">
+    <!--<fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">
         <include name="dnsjava-2.1.3.jar" />
-    </fileset>
+    </fileset>-->
     
 
-    <path id="compile.classpath" >
+    <!--<path id="compile.classpath" >
         <fileset refid="asm.jars" />
         <fileset refid="velocity.jars" />
         <fileset refid="high-scale-lib.jars" />
-    </path>
+    </path>-->
 
 
     <!--<path id="asm.classpath">

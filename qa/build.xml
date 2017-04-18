@@ -1092,13 +1092,13 @@
         <jar destfile="${lib.dir}/jinitests.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />
-            <fileset dir="${river.src.dir}">
+            <!--<fileset dir="${river.src.dir}">
                 <include name="org/apache/river/start/resources/**/*" />
                 <exclude name="org/apache/river/start/resources/**/*.svn" />
             </fileset>
             <fileset dir="${src.dir}">
                 <include name="interopExclusionList.txt" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 

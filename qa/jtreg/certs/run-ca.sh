@@ -27,7 +27,7 @@
 #DSTCROOT=/home/tjb/lib/jcsi/jcsi_v1.0b1
 
 # JCSI has been replaced with Bouncy Castle
-BC_LIB=${RIVER_HOME}/dep-libs/bouncy-castle
+BC_LIB=lib/bouncy-castle
 JTREG_DIR=${RIVER_HOME}/qa/jtreg
 
 # JCSI uses a different format for requesting Cipher algorithms than is
