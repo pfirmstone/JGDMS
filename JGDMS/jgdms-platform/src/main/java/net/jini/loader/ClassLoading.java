@@ -27,11 +27,11 @@ import java.security.Guard;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.Security;
+import org.apache.river.resource.Service;
 
 /**
  * Provides static methods for loading classes using {@link
@@ -44,10 +44,10 @@ import net.jini.security.Security;
  * the system property "java.rmi.server.RMIClassLoaderSpi", or alternatively,
  * {@link RMIClassLoaderSpi} may also be defined by {@link RMIClassLoader}
  * using a provider visible to the {@link ClassLoader} returned by 
- * {@link ClassLoader#getSystemClassLoader} with {@link ServiceLoader}.
+ * {@link ClassLoader#getSystemClassLoader} with {@link Service}.
  * </p><p>
  * As explained in River-336 this isn't always practical for IDE's or other 
- * frameworks.  To solve River-336, ClassLoading now uses {@link ServiceLoader}
+ * frameworks.  To solve River-336, ClassLoading now uses {@link Service}
  * to determine a {@link RMIClassLoaderSpi} provider, however unlike 
  * {@link RMIClassLoader}, by default it uses ClassLoading's {@link ClassLoader#getResources} 
  * instance to find providers.
@@ -132,9 +132,8 @@ public final class ClassLoading {
                         return null;
                     }
                 }
-                ServiceLoader<RMIClassLoaderSpi> loader 
-                   = ServiceLoader.load(RMIClassLoaderSpi.class, providerLoader);
-                Iterator<RMIClassLoaderSpi> iter = loader.iterator();
+                Iterator<RMIClassLoaderSpi> iter = 
+			Service.providers(RMIClassLoaderSpi.class, providerLoader);
                 RMIClassLoaderSpi spi;
                 try {
                     while ( iter.hasNext() ) {
@@ -201,7 +200,7 @@ public final class ClassLoading {
 	protected Object initialValue() { return new WeakHashMap(); }
     };
     
-        /**
+    /**
      * Returns a class loader that loads classes from the given codebase
      * RFC3986 compliant URI path.
      *

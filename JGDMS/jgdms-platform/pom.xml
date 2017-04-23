@@ -57,6 +57,17 @@
             <version>3.3.0</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.core</artifactId>
+            <version>4.1.0</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.util.tracker</artifactId>
+            <version>1.5.1</version>
+        </dependency>
     </dependencies>
     <licenses>
         <license>

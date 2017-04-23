@@ -23,10 +23,10 @@ import java.net.UnknownHostException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
-import java.util.ServiceLoader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.api.common.Beta;
+import org.apache.river.resource.Service;
 
 /**
  * Provides river with the external host network identity.
@@ -43,39 +43,31 @@ public class LocalHostLookup
                 @Override
                 public LocalHostLookupSpi run()
                 {
-                    return initSpi();
+		    Iterator<LocalHostLookupSpi> iter = 
+			    Service.providers(LocalHostLookupSpi.class,
+				    LocalHostLookup.class.getClassLoader());
+		    if( iter.hasNext() ) {
+			try {
+			    LocalHostLookupSpi firstSpi = iter.next();
+			    logger.log(Level.CONFIG, "loaded: {0}", firstSpi);
+			    checkForLoopback(firstSpi);
+			    return firstSpi ;
+			} catch (Exception e) {
+			    logger.log( Level.SEVERE, "error loading LocalHostLookupSpi: {0}", new Object[]{e});
+			    throw new Error(e);
+			}
+		    }
+
+		    final DefaultLocalHostLookupProvider defaultLocalHostLookupProvider = new DefaultLocalHostLookupProvider();
+		    checkForLoopback(defaultLocalHostLookupProvider);
+
+		    return defaultLocalHostLookupProvider;
                 }
 
             }
 
         );
     
-    private static LocalHostLookupSpi initSpi()
-    {
-        ServiceLoader<LocalHostLookupSpi> loader = ServiceLoader.load(LocalHostLookupSpi.class);
-
-        Iterator<LocalHostLookupSpi> iter = loader.iterator();
-
-        if( iter.hasNext() ) {
-            try {
-                LocalHostLookupSpi firstSpi = iter.next();
-                logger.log(Level.CONFIG, "loaded: {0}", firstSpi);
-                checkForLoopback(firstSpi);
-                return firstSpi ;
-            } catch (Exception e) {
-                logger.log( Level.SEVERE, "error loading LocalHostLookupSpi: {0}", new Object[]{e});
-                throw new Error(e);
-            }
-        }
-
-        final DefaultLocalHostLookupProvider defaultLocalHostLookupProvider = new DefaultLocalHostLookupProvider();
-        checkForLoopback(defaultLocalHostLookupProvider);
-
-        return defaultLocalHostLookupProvider;
-    }
-
-
-
     public static InetAddress getLocalHost() throws UnknownHostException
     {
         return spi.getLocalHost();

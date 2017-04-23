@@ -127,6 +127,11 @@ public final class Service {
 		Logger.getLogger(Service.class.getName());
 
     private static final String prefix = "META-INF/services/";
+    private static volatile boolean osgi = false;
+    
+    static void setOsgi(){
+	osgi = true;
+    }
 
     private Service() { }
 
@@ -343,6 +348,7 @@ public final class Service {
     public static <S> Iterator<S> providers(Class<S> service, ClassLoader loader)
 	throws ServiceConfigurationError
     {
+	if (osgi) return OSGiServiceIterator.providers(service);
 	return new LazyIterator(service, loader);
     }
 
