@@ -17,7 +17,7 @@
  !-->
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
 <html>
-<title>Release Notes for org.apache.river.reggie</title>
+<title>Historical bug fixes</title>
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
     <a id="top"></a>
@@ -151,83 +151,6 @@
          successfully downloaded by a client.<br>
          ClassServer now writes to System.err.  Error message used to be
          written to System.out.
-        </td>
-    </tr><tr>
-        <td>4353391</td>
-        <td><p>LookupCache.terminate() can cause an InternalError in the task
-                thread.</p>
-            <p>
-                Prior to fixing this bug, the service discovery manager passed 
-                the listener implementation, rather than its stub, to the lookup 
-                service proxy's notify method.  Under normal circumstances,
-                RMI automatically replaces the implementation with the stub,
-                assuming the implementation is exported.  However when the
-                terminate method on a LookupCache is called, the implementation
-                gets unexported and, because of the way the service discovery manager
-                manages its task queue, terminate doesn't manage to do anything
-                about in-progress or pending tasks for the LookupCache, such as
-                calling notify.</p>
-            <p>
-                Because of the change that went into Java 2 SDK, v 1.2.2, if a
-                remote object isn't a stub and isn't an exported implementation,
-                RMI will simply try to marshal it rather than throwing a
-                StubNotFoundException.  However, the service discovery manager's
-                listener implementation extends UnicastRemoteObject, which
-                ultimately extends RemoteObject, and RemoteObject has a writeObject
-                method that throws an InternalError (because prior to the 1.2.2
-                change, this wasn't supposed to be able to happen.
-            </p>
-            
-        </td>
-    </tr><tr>
-        <td>4367215</td>
-        <td>ServiceDiscoveryManager: An ArrayIndexOutOfBoundsException can occur because
-        totalMatches is used as the number of discovered services to process rather than
-        items.length.<p>
-            Prior to fixing this bug, the service discovery manager assumed that
-            the value of ServiceMatches.items.length as the number of services returned from a 
-            query on a number of services returned from a query on a lookup service.
-            This meant that an ArrayIndexOutOfBoundsException could occur if totalMatches
-            ever exceeded the number of services actually returned (which can
-            happen when more services matching the template are currently
-            registered than the maximum number of services requested.
-        </p>
-        </td>
-    </tr><tr>
-        <td>4340939</td>
-        <td><p>Two versions of ServiceDiscoveryManager.lookup contain a potential
-                race condition.</p>
-            <p>
-                When one of the blocking lookup methods (that takes a waitDur 
-                argument) is called, the method starts tasks to send events to
-                the internal ServiceDiscoveryListener when a matching services
-                appear, and then waits in a loop for notifications to occur.
-                The call to object.notifyAll that interrupts the waiting thread
-                is made in the ServiceDiscoveryListener when remote events 
-                arrive signaling state changes related to services of interest.
-            </p>
-            <p>
-                Prior to fixing this bug, the call to notifyAll was not guaranteed to always
-                occur after the waiting thread entered the wait state.  If the call
-                to notifyAll happened to occur prior to the wait state being
-                entered, then the lookup method could unnecessarily block for the
-                full amount of time.
-            </p>
-        </td>
-    </tr><tr>
-        <td>4366369</td>
-        <td><p>The service discovery manager should trap exceptions that occur
-                in the task thread.</p>
-            <p>
-                Prior to fixing this bug, if an exception occurred in one of the
-                tasks being executed by the service discovery manager's task
-                thread, the exception was not caught, the encompassing task
-                thread would die, and no more tasks would be executed, 
-                rendering the current instance of the service discovery manager
-                incapable of processing any more tasks.  With this bug fix,
-                not only are such exceptions trapped, but if debugging is 
-                enabled, the stack trace will be displayed.
-            </p>
         </td>
     </tr><tr>
         <td>4287125</td>

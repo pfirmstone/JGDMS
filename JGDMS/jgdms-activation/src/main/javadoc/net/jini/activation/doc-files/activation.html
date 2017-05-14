@@ -20,14 +20,14 @@
       vlink="#cc1877" alink="#ffffff">
 
 <title>Notes on Java(TM) RMI Activation and How it is Used in the 
-River-Internet release</title>
+JGDMS release</title>
 
 <center><h1>Notes on Java(TM) RMI Activation and How it is Used 
-<br>in the River-Internet Release</h1></center>
+<br>in the JGDMS Release</h1></center>
  
 
 All of the contributed River technology-enabled service (<em>River
-service</em>) implementations in the River-Internet release 
+service</em>) implementations in the JGDMS release 
 support three modes of operation: transient,
 persistent/non-activatable, and persistent/activatable.  The lifecycle of
 the services in the first two modes is relatively straightforward and is
@@ -47,7 +47,7 @@ system and what impact using activation has on the way services
 are started and run.
 <p>
 
-If you are new to the River-Internet release or doing day-to-day development, you
+If you are new to the JGDMS release or doing day-to-day development, you
 probably don't need to use the activatable mode of the contributed
 implementations. The non-activatable modes are considerably simpler to deal
 with and understand. The activatable mode may be necessary or helpful in
@@ -72,7 +72,7 @@ activation system will restart it as necessary.
 <li><em>Demand driven activation</em> &#151; An activatable service can be
 written in such a way that it only requires a running VM when it is
 servicing a client request. Note that the contributed service
-implementations in the River-Internet release do not exploit this feature of
+implementations in the JGDMS release do not exploit this feature of
 activation.
 
 </ul>
@@ -186,7 +186,7 @@ quite a few other services in the process.
 
 A better approach is to tell the service that you no longer need it and
 that it should destroy itself. The administration interfaces of all the
-service implementations in the River-Internet release support the <a
+service implementations in the JGDMS release support the <a
 href=../api/org/apache/river/admin/DestroyAdmin.html>
 <code>org.apache.river.admin.DestroyAdmin</code></a> interface. Invoking the <a
 href=../api/org/apache/river/admin/DestroyAdmin.html#destroy><code>destroy</code></a>
@@ -198,7 +198,7 @@ means if there are no other non-daemon threads, the VM will exit). Invoking
 daemon, and any other services registered with it, intact and
 available. When the <a
 href=../api/org/apache/river/example/browser/package-summary.html>example
-service browser</a> that ships with the River-Internet release is started with the
+service browser</a> that ships with the JGDMS release is started with the
 <code>folderView</code> configuration entry set to <code>true</code> (which
 is the default), it can be used to destroy services that implement
 <code>DestroyAdmin</code>.

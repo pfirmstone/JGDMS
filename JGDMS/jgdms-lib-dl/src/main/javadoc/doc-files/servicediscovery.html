@@ -33,14 +33,14 @@
 <H3>Description</H3>
 
 The class
-<a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>net.jini.lookup.ServiceDiscoveryManager</code></a>
+<a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>net.jini.lookup.ServiceDiscoveryManager</code></a>
 is a utility class that can be used to help a Jini technology-enabled 
 service or client (<i>Jini service</i> or <i>Jini client</i>) 
 acquire services of interest that are registered with lookup services 
 with which the service or client wishes to interact.
 <p>
 The specification for the
-<a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
+<a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
 utility is contained in the  <i>Jini Service Discovery Utilities Specification</i>, 
 which is available in <a href="../specs/html/servicediscutil-spec.html">html</a>.
 <p>
@@ -67,16 +67,16 @@ lookup snapshot is processed.
        changes occurred with respect to the configuration.
        <p>
        A full list of supported configuration entries is given in this utility's
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html#sdmConfigEntries"> class documentation</a>.
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html#sdmConfigEntries"> class documentation</a>.
        <p>
 
   <dt> <b>Logging</b>
   <dd> In this release, no changes have occurred with respect to the logging mechanism
        employed by the service discovery manager implementation, which logs diagnostic information to the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/util/logging/Logger.html"> <code>Logger</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/util/logging/Logger.html"> <code>Logger</code></a>
        named <code>net.jini.lookup.ServiceDiscoveryManager</code>. For a description of the
        information that is logged, as well as the associated logging levels, refer to the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html#sdmLogging"> class documentation</a>.
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html#sdmLogging"> class documentation</a>.
        <p>
 
   <dt> <b>Bug Fixes of Interest</b>
@@ -194,11 +194,11 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
   <p>
   <dt><b>6208587: SDM should create default LDM only when no DiscoveryManagement is configured</b><dt>
   <dd> Prior to interrogating the configuration for a
-       <a href="../api/net/jini/discovery/DiscoveryManagement.html"> <code>DiscoveryManagement</code></a>
+       <a href="../net/jini/discovery/DiscoveryManagement.html"> <code>DiscoveryManagement</code></a>
        item (entry name = <b><i>discoveryManager</i></b>), a default
-       <a href="../api/net/jini/discovery/LookupDiscoveryManager.html"> <code>LookupDiscoveryManager</code></a>
+       <a href="../net/jini/discovery/LookupDiscoveryManager.html"> <code>LookupDiscoveryManager</code></a>
        is first created. Although that manager is initialized to discover no groups and no locators,
-       the <a href="../api/net/jini/discovery/LookupDiscovery.html"> <code>LookupDiscovery</code></a>
+       the <a href="../net/jini/discovery/LookupDiscovery.html"> <code>LookupDiscovery</code></a>
        instance used by the default discovery manager to perform group discovery creates
        a thread to listen for and process multicast announcements, as well as
        additional, related threads. Thus, if a deployer configures a <i>discoveryManagement</i>
@@ -215,9 +215,9 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
        <p>
        The ability to appropriately compare two different service references
        is very important to the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
        in general, and the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        in particular. Currently, there are three mechanisms used to accurately
        compare service references. Each mechanism is applied in different situations,
        to achieve different goals.
@@ -231,40 +231,40 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
        new version is also important so that consistent state may be maintained,       and entities that wish to know about such events can be informed.
        Finally, when an entity wishes to discard (make eligible for rediscovery)
        a particular service reference received from the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>,
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>,
        it is important for the <code>LookupCache</code> to be able to compare the
        reference provided by the entity to each of the previously stored references
        so that the appropriate reference can be accurately selected for discard.       <p>
-       <b>Comparison by <a href="../api/net/jini/core/lookup/ServiceID.html"> <code>net.jini.core.lookup.ServiceID</code></a></b>
+       <b>Comparison by <a href="../net/jini/core/lookup/ServiceID.html"> <code>net.jini.core.lookup.ServiceID</code></a></b>
        <p>
        To identify, and thus avoid storing, duplicate service references, the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
-       compares the instances of <a href="../api/net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       compares the instances of <a href="../net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>
        associated with each reference. Recall that an individual well-behaved service of
        interest will usually register with multiple lookup services, and for
        each lookup service with which that service registers, the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        will receive a separate event containing a reference to the service. When the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        receives events from multiple lookup services, the
-       <a href="../api/net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>
+       <a href="../net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>
        (retrieved from the service reference in the event) is used to distinguish the
        service references from each other. In this way, when a new event arrives containing
        a reference associated with the same service as an already-stored reference,
-       the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        can determine whether or not the new reference is a duplicate; in which case, the
        duplicate is ignored.
        <p>
-       <b>Comparison by <a href="../api/net/jini/io/MarshalledInstance.html"> <code>net.jini.io.MarshalledInstance.fullyEquals</code></a></b>
+       <b>Comparison by <a href="../net/jini/io/MarshalledInstance.html"> <code>net.jini.io.MarshalledInstance.fullyEquals</code></a></b>
        <p>
        With respect to determining when a previously discovered service has been
-       replaced with a new version, the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> typically relies
+       replaced with a new version, the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> typically relies
        on the event mechanism of the lookup service(s) with which that service is
        registered to indicate that such an event has occurred. But there are
        situations where the events from the lookup services do not provide enough
        information to make such a determination. In those cases, the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> employs
-       <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> employs
+       <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
        to make the determination.
        <p>
        When a well-behaved service is replaced with a new version, the new
@@ -275,7 +275,7 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
        sends a service-removed event (<code>TRANSITION_MATCH_NOMATCH</code>), and
        then sends a separate service-added event (<code>TRANSITION_NOMATCH_MATCH</code>).
        In this case, there is no ambiguity, and thus no need for the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        to compare the new and old service references. This is because the
        combination of service-removed and service-added events from each
        lookup service is an explicit indication that the service has been
@@ -283,56 +283,56 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
        service only sends a service-changed event (<code>TRANSITION_MATCH_MATCH</code>)
        when the attributes of the service have been modified; not when the
        service itself has been changed (replaced). Thus, if the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        receives a <code>TRANSITION_MATCH_MATCH</code> event, then it is guaranteed
        that the service referenced in that event has not been replaced with a new
        version.
        <p>
-       Whenever the following conditions are satisfied, the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
-       will use <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
+       Whenever the following conditions are satisfied, the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       will use <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
        to compare two service references:
        <p>
          <ul>
-           <li> The references are duplicates (same <a href="../api/net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>)
+           <li> The references are duplicates (same <a href="../net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>)
            <li> The <b><i>possibility</i></b> exists that the references may refer to different versions of the service
          </ul>
        <p>
        When determining whether or not these conditions (in particular, the
-       second condition) are satisfied, the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> generally
+       second condition) are satisfied, the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> generally
        takes a conservative approach. That is, only when it is absolutely
        sure that two duplicates refer to the same version (such as when a
        <code>TRANSITION_MATCH_MATCH</code> event is received), will the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        refrain from using
-       <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
+       <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
        to compare the duplicate references; otherwise, duplicate references are
        always compared using
-       <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>.
+       <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>.
        <p>
-       One example of a situation where the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
-       employs <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
+       One example of a situation where the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       employs <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
        is the situation
        where a lookup service of interest is newly discovered or rediscovered.
-       In this situation, the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       In this situation, the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        retrieves a snapshot of the services of interest that currently reside in that
        lookup service. This is done so that previously undiscovered service references,
        as well as new versions of previously discovered service references, can
        both be stored, duplicates can be ignored, and clients can be sent the
        appropriate notifications. Whenever a reference from the snapshot is a
        duplicate of a previously discovered service reference, the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        always compares the two references using
-       <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>.
+       <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>.
        This is because the possibility always exists that the references may refer to different
        versions of the service.
        <p>
        Another example of a situation where the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
-       employs <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       employs <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
        is when a <code>TRANSITION_NOMATCH_MATCH</code> event is received that
        contains a reference that is a duplicate of a previously discovered
        reference. When such an event is received, the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        must allow for the possibility that the reference contained
        in the event refers to a different version of the service
        than that referenced by the previously discovered service reference.
@@ -341,7 +341,7 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
        (remove/add) event pair, or it may be a notification of the initial
        registration of a new version of the service with one of the (multiple)
        lookup services targeted by the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        during the service discovery process.
        <p>
        To understand the last example described above, consider the situation
@@ -351,7 +351,7 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
        will send the same event -- a <code>TRANSITION_NOMATCH_MATCH</code>
        event -- to indicate that a new service has registered with the
        associated lookup service. In this case, there is no ambiguity for the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>;
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>;
        the second reference can be safely ignored because the references are
        duplicates that refer to the exact same service.
        <p>
@@ -360,10 +360,10 @@ event 7 --> Service3 added: Event ID = 1 - seq# 3</pre>
        lookup service will still send a <code>TRANSITION_NOMATCH_MATCH</code> event, but
        if the appropriate action is not taken to determine that the old version
        of the service has been replaced, the new version of the service will
-       be ignored by the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>.
+       be ignored by the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>.
        This is because the two references will have the same
-       <a href="../api/net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>,
-       and thus the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/core/lookup/ServiceID.html"> <code>ServiceID</code></a>,
+       and thus the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        will identify the two references as duplicates; ultimately ignoring the new reference.
        Of course, if the service is well-behaved, because the new version of the service will
        eventually reregister with the first lookup service, that lookup service
@@ -371,89 +371,89 @@ will
        eventually send a <code>TRANSITION_MATCH_NOMATCH</code> event followed by a
        <code>TRANSITION_NOMATCH_MATCH</code> event to indicate that the service
 has been
-       replaced. But the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       replaced. But the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        must still identify and handle this situation in order to prevent possible state
        corruption, even though that corruption may be only temporary.
        <p>
        Thus, whenever a <code>TRANSITION_NOMATCH_MATCH</code> event is received
 and the
        associated service reference is a duplicate of a previously discovered
-       reference, the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       reference, the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        will always compare the two references using
-       <a href="../api/net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
+       <a href="../net/jini/io/MarshalledInstance.html"> <code>MarshalledInstance.fullyEquals</code></a>
        to determine whether or not the references refer to the same version of the service.
        When they do reference the same version, the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        ignores the duplicate reference; otherwise, the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        sends a service-removed event followed by a service-added event to indicate
        that the old version of the service has been replaced.
        <p>
-       <b>Comparison by <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a></b>
+       <b>Comparison by <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a></b>
        <p>
-       The mechanism employed by the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> to select (from
+       The mechanism employed by the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a> to select (from
        storage) a given reference for discard is the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
        method provided by the discovered service itself. The
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        relies on the provider of each service to override the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
        method with an implementation that allows
        for the identification of the service reference an entity wishes to
        be discarded. Although the default implementation of
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
        often times may be sufficient for proper identification, service providers
        are still encouraged to provide each service with its own well-defined
-       implementation of <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>.
+       implementation of <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>.
        <p>
        In addition to the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
        method, each service should also
        provide a proper implementation of the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#hashCode"> <code>hashCode</code></a> method.
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#hashCode"> <code>hashCode</code></a> method.
        This is because references to the service may be stored in, or interact with,
        container classes (for example,
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/util/HashMap.html"> <code>HashMap</code></a>)
-       where the service's <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
-       and <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#hashCode"> <code>hashCode</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/util/HashMap.html"> <code>HashMap</code></a>)
+       where the service's <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
+       and <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#hashCode"> <code>hashCode</code></a>
        methods may be invoked "under the covers" by the container object with
        which the service is interacting. From the point of view of the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
-       and the <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>,
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
+       and the <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>,
        providing an appropriate implementation for both the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#equals"> <code>equals</code></a>
        method and the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/lang/Object.html#hashCode"> <code>hashCode</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#hashCode"> <code>hashCode</code></a>
        method is a key characteristic of good behavior in a Jini service.
 
        <p>
        <b>Note 2: The Service Discovery Filtering Mechanism</b>
        <p>
        The specification of the
-       <a href="../api/net/jini/lookup/ServiceItemFilter.html"> <code>ServiceItemFilter</code></a>
+       <a href="../net/jini/lookup/ServiceItemFilter.html"> <code>ServiceItemFilter</code></a>
        interface specifies what it means to <i>filter</i> a service reference selected as a
        candidate for discovery. In particular, instances of
-       <a href="../api/net/jini/lookup/ServiceItemFilter.html"> <code>ServiceItemFilter</code></a>
+       <a href="../net/jini/lookup/ServiceItemFilter.html"> <code>ServiceItemFilter</code></a>
        can be defined to perform proxy preparation. Thus, through the client-defined filter
        (through the
-       <a href="../api/net/jini/lookup/ServiceItemFilter.html#check"> <code>check</code></a>
+       <a href="../net/jini/lookup/ServiceItemFilter.html#check"> <code>check</code></a>
        method), clients can request that the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>,
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>,
        rather than the client itself, perform any desired proxy preparation
        as part of the service discovery process.
        <p>
        To understand why this is important, consider what can happen when
        the client performs preparation of its discovered proxies outside of the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>.
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>.
        When proxy preparation is performed outside of the service discovery
        manager, the client risks encountering a cycle where a matching service is
        discovered by the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>,
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>,
        is found to be untrusted when the client prepares the proxy, is discarded       by the client because it is untrusted, and is then ultimately rediscovered
        because it still matches the original discovery criteria. Such a cycle
        will generally repeat indefinitely because the service is not likely to
        become trusted at any point in the future. Supplying the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
+       <a href="../net/jini/lookup/ServiceDiscoveryManager.html"> <code>ServiceDiscoveryManager</code></a>
        with the means to perform proxy preparation on the client's behalf
        provides the client with a mechanism for avoiding such a cycle.
        <p>
@@ -466,15 +466,15 @@ the
        <b>Note 3: The Service Discovery Event Mechanism</b>
        <p>
        The specification of the
-       <a href="../api/net/jini/lookup/ServiceDiscoveryListener.html"> <code>ServiceDiscoveryListener</code></a>
+       <a href="../net/jini/lookup/ServiceDiscoveryListener.html"> <code>ServiceDiscoveryListener</code></a>
        interface describes how the filtering mechanism and the event mechanism provided by instances of
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>net.jini.lookup.LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>net.jini.lookup.LookupCache</code></a>
        interact.
        <p>
        Additionally, this specification specifies that instances of the
-       <a href="../api/net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
+       <a href="../net/jini/lookup/LookupCache.html"> <code>LookupCache</code></a>
        use the method
-       <a href="../api/net/jini/io/MarshalledInstance.html"> <code>net.jini.io.MarshalledInstance.fullyEquals</code></a>
+       <a href="../net/jini/io/MarshalledInstance.html"> <code>net.jini.io.MarshalledInstance.fullyEquals</code></a>
        to determine when a service has changed in some fundamental way (for example,
        when a service is replaced with a new version).
        <p>
@@ -491,6 +491,96 @@ the
     utility.
 <p>
 -->
+
+<Hr>
+
+<h3>Historical bug fixes in Jini 1.1</h3>
+
+<table>
+    
+    <tr>
+        <td>Bug ID</td>
+        <td>Description</td>
+    </tr>
+    <tr>
+        <td>4353391</td>
+        <td><p>LookupCache.terminate() can cause an InternalError in the task
+                thread.</p>
+            <p>
+                Prior to fixing this bug, the service discovery manager passed 
+                the listener implementation, rather than its stub, to the lookup 
+                service proxy's notify method.  Under normal circumstances,
+                RMI automatically replaces the implementation with the stub,
+                assuming the implementation is exported.  However when the
+                terminate method on a LookupCache is called, the implementation
+                gets unexported and, because of the way the service discovery manager
+                manages its task queue, terminate doesn't manage to do anything
+                about in-progress or pending tasks for the LookupCache, such as
+                calling notify.</p>
+            <p>
+                Because of the change that went into Java 2 SDK, v 1.2.2, if a
+                remote object isn't a stub and isn't an exported implementation,
+                RMI will simply try to marshal it rather than throwing a
+                StubNotFoundException.  However, the service discovery manager's
+                listener implementation extends UnicastRemoteObject, which
+                ultimately extends RemoteObject, and RemoteObject has a writeObject
+                method that throws an InternalError (because prior to the 1.2.2
+                change, this wasn't supposed to be able to happen.
+            </p>
+            
+        </td>
+    </tr><tr>
+        <td>4367215</td>
+        <td>ServiceDiscoveryManager: An ArrayIndexOutOfBoundsException can occur because
+        totalMatches is used as the number of discovered services to process rather than
+        items.length.<p>
+            Prior to fixing this bug, the service discovery manager assumed that
+            the value of ServiceMatches.items.length as the number of services returned from a 
+            query on a number of services returned from a query on a lookup service.
+            This meant that an ArrayIndexOutOfBoundsException could occur if totalMatches
+            ever exceeded the number of services actually returned (which can
+            happen when more services matching the template are currently
+            registered than the maximum number of services requested.
+        </p>
+        </td>
+    </tr><tr>
+        <td>4340939</td>
+        <td><p>Two versions of ServiceDiscoveryManager.lookup contain a potential
+                race condition.</p>
+            <p>
+                When one of the blocking lookup methods (that takes a waitDur 
+                argument) is called, the method starts tasks to send events to
+                the internal ServiceDiscoveryListener when a matching services
+                appear, and then waits in a loop for notifications to occur.
+                The call to object.notifyAll that interrupts the waiting thread
+                is made in the ServiceDiscoveryListener when remote events 
+                arrive signaling state changes related to services of interest.
+            </p>
+            <p>
+                Prior to fixing this bug, the call to notifyAll was not guaranteed to always
+                occur after the waiting thread entered the wait state.  If the call
+                to notifyAll happened to occur prior to the wait state being
+                entered, then the lookup method could unnecessarily block for the
+                full amount of time.
+            </p>
+        </td>
+    </tr><tr>
+        <td>4366369</td>
+        <td><p>The service discovery manager should trap exceptions that occur
+                in the task thread.</p>
+            <p>
+                Prior to fixing this bug, if an exception occurred in one of the
+                tasks being executed by the service discovery manager's task
+                thread, the exception was not caught, the encompassing task
+                thread would die, and no more tasks would be executed, 
+                rendering the current instance of the service discovery manager
+                incapable of processing any more tasks.  With this bug fix,
+                not only are such exceptions trapped, but if debugging is 
+                enabled, the stack trace will be displayed.
+            </p>
+        </td>
+    </tr>
+</table>
 
 </ul>
 <hr>

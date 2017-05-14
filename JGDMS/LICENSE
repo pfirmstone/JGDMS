@@ -201,9 +201,9 @@
    limitations under the License.
 
 
-River-Internet SUBCOMPONENTS:
+JGDMS SUBCOMPONENTS:
 
-River-Internet includes some external software components. Your use of these
+JGDMS includes some external software components. Your use of these
 components is subject to the terms and conditions of the following licenses:
 
 ASM libraries (tools/asm-3.2.jar and tools/asm-commons-3.2.jar)

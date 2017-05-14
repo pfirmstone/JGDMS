@@ -24,6 +24,6 @@ package org.apache.river.constants;
  *
  */
 public interface VersionConstants {
-    /** Current version of the River-Internet release */ 
+    /** Current version of the JGDMS release */ 
     String SERVER_VERSION = "3.0.0";
 }

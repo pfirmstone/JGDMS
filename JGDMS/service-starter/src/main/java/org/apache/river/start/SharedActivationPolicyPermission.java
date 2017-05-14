@@ -63,7 +63,7 @@ import org.apache.river.api.net.Uri;
  * import codebase to use 
  * <code><VAR><B>policy_dir</B></VAR>${/}policy.fiddler</code> for their
  * policy file, where <VAR><B>install_dir</B></VAR> is the installation
- * directory of the River-Internet release and <VAR><B>policy_dir</B></VAR> is the
+ * directory of the JGDMS release and <VAR><B>policy_dir</B></VAR> is the
  * pathname to the directory containing the policy file.
  *
  * @author Sun Microsystems, Inc.

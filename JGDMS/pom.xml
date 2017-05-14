@@ -16,7 +16,7 @@
 
   <inceptionYear>2016</inceptionYear>
 
-  <url>https://pfirmstone.github.io/river-internet/</url>
+  <url>https://pfirmstone.github.io/JGDMS/</url>
 
   <licenses>
     <license>
@@ -25,10 +25,6 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
-
-  <organization>
-    <name>Zeus Project Services Pty Ltd</name>
-  </organization>
 
   <!--<issueManagement>
     <system>JIRA</system>

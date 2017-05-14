@@ -153,6 +153,8 @@ public class MarshalledInstance implements Serializable {
      * 
      * This constructor calls a chain of internal constructors and static
      * methods that prevent finalizer attacks.
+     * 
+     * It is advisable for overriding classes to be stateless.
      *
      * @param obj The Object to be contained in the new 
      *          <code>MarshalledInstance</code>
@@ -541,7 +543,7 @@ public class MarshalledInstance implements Serializable {
      *         <code>false</code>
      */
     @Override
-    public boolean equals(Object obj) {
+    public final boolean equals(Object obj) {
 	if (obj == this)
 	    return true;
 
@@ -564,8 +566,16 @@ public class MarshalledInstance implements Serializable {
      * @return The hash code for this object
      */
     @Override
-    public int hashCode() {
+    public final int hashCode() {
 	return hash;
+    }
+    
+    /**
+     * Null reference check for marshaled instance.
+     * @return true if MarshalledInstance contains a null reference.
+     */
+    public final boolean isNull() {
+	return objBytes == null;
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {

@@ -24,14 +24,14 @@
 <title>Jini Join Utilities Release Notes</title>
 
 <center><h1>Jini Join Utilities
-  <BR>River-Internet v3.0.0 Release Notes
+  <BR>JGDMS v3.0.0 Release Notes
 </h1></center>
 <HR>
 <UL>
 <H3>Description</H3>
 
 The class
-<a href="../api/net/jini/lookup/JoinManager.html"> <code>net.jini.lookup.JoinManager</code></a>
+<a href="../net/jini/lookup/JoinManager.html"> <code>net.jini.lookup.JoinManager</code></a>
 is a utility class that, along with supporting interfaces and classes, 
 encapsulates functionality that can help Jini technology-enabled services 
 (<i>Jini services</i>) demonstrate good behavior in their discovery- 
@@ -41,7 +41,7 @@ service discovery and registration (<i>joining</i>), as well as lease
 renewal and attribute management.
 <p>
 The specification for the 
-<a href="../api/net/jini/lookup/JoinManager.html"> <code>JoinManager</code></a> 
+<a href="../net/jini/lookup/JoinManager.html"> <code>JoinManager</code></a> 
 utility (join manager) is contained in the  <i>Jini Join Utilities Specification</i>,
 which is available in <a href="../specs/html/joinutil-spec.html">html</a>.
 <p>
@@ -79,17 +79,17 @@ Improve logging for JoinManager at INFO and WARNING level
        described <a href="#rfe6202650"> below</a>.
        <p>
        A full list of supported configuration entries is given in this utility's
-       <a href="../api/net/jini/lookup/JoinManager.html#jmConfigEntries"> class
+       <a href="../net/jini/lookup/JoinManager.html#jmConfigEntries"> class
 documentation</a>.
        <p>
 
   <dt> <b>Logging</b>
   <dd> In this release, no changes have occurred with respect to the logging mechanism
        employed by the join manager implementation; which logs diagnostic information to the
-       <a href="http://java.sun.com/j2se/1.4/docs/api/java/util/logging/Logger.html"> <code>Logger</code></a>
+       <a href="https://docs.oracle.com/javase/8/docs/api/java/util/logging/Logger.html"> <code>Logger</code></a>
        named <code>net.jini.lookup.JoinManager</code>. For a description of the
        information that is logged, as well as the associated logging levels, refer to the
-       <a href="../api/net/jini/lookup/JoinManager.html#jmLogging"> class documentation</a>.
+       <a href="../net/jini/lookup/JoinManager.html#jmLogging"> class documentation</a>.
        <p>
 
   <dt> <b>New Feature Enhancements</b>
@@ -97,7 +97,7 @@ documentation</a>.
        the join manager:
   <p>
   <dt><b>4879947: JoinManager should support changing the service proxy</b><dt>
-  <dd> The <a href="../api/net/jini/lookup/JoinManager.html"> public API</a> of
+  <dd> The <a href="../net/jini/lookup/JoinManager.html"> public API</a> of
 the
        join manager has been enhanced with a new method having two versions:
 
@@ -205,11 +205,11 @@ cancel service's lease with the discarded lookup service</code></pre>
   <p>
   <dt><b>6181162: JoinManager should create default LDM only when no DiscoveryManagement is configured</b><dt>
   <dd> Prior to interrogating the configuration for a
-       <a href="../api/net/jini/discovery/DiscoveryManagement.html"> <code>DiscoveryManagement</code></a>
+       <a href="../net/jini/discovery/DiscoveryManagement.html"> <code>DiscoveryManagement</code></a>
        item (entry name = <b><i>discoveryManager</i></b>), a default
-       <a href="../api/net/jini/discovery/LookupDiscoveryManager.html"> <code>LookupDiscoveryManager</code></a>
+       <a href="../net/jini/discovery/LookupDiscoveryManager.html"> <code>LookupDiscoveryManager</code></a>
        is first created. Although that manager is initialized to discover no groups and no locators,
-       the <a href="../api/net/jini/discovery/LookupDiscovery.html"> <code>LookupDiscovery</code></a>
+       the <a href="../net/jini/discovery/LookupDiscovery.html"> <code>LookupDiscovery</code></a>
        instance used by the default discovery manager to perform group discovery creates
        a thread to listen for and process multicast announcements, as well as
        additional, related threads. Thus, if a deployer configures a <i>discoveryManagement</i>
@@ -221,7 +221,7 @@ cancel service's lease with the discarded lookup service</code></pre>
   <p>
   <dt><b>6215208: JoinManager race - repeated UnknownLeaseException-Reregistration-UnknownLeaseException</b><dt>
   <dd> A race condition was discovered in which an
-       <a href="../api/net/jini/core/lease/UnknownLeaseException.html"> <code>UnknownLeaseException</code></a>
+       <a href="../net/jini/core/lease/UnknownLeaseException.html"> <code>UnknownLeaseException</code></a>
        followed by a re-registration can repeatedly occur. This condition is
        intitiated by a discard of the lookup service coincident with a service
        lease expiration.
@@ -237,10 +237,38 @@ cancel service's lease with the discarded lookup service</code></pre>
 <p>
 <H3>Known Issues (& Workarounds)</H3>
     Currently, there are no known issues regarding the 
-    <a href="../api/net/jini/lookup/JoinManager.html"> <code>JoinManager</code></a>
+    <a href="../net/jini/lookup/JoinManager.html"> <code>JoinManager</code></a>
     utility.
 <p>
 -->
+
+
+<Hr>
+
+<h3>Historical bug fixes in Jini 1.1</h3>
+
+<table>
+    
+    <tr>
+        <td>Bug ID</td>
+        <td>Description</td>
+    </tr>
+    <tr>
+        <td>4193558</td>
+        <td>JoinManager now checks that objects are Serializable.  JoinManager
+        used to take any object, but only Serializable objects would work;
+        others would fail silently.  Now the JoinManager constructor checks
+        that its object argument is in fact Serializable.</td>
+    </tr><tr>
+        <td>4216812</td>
+        <td>JoinManager no longer allows you to join all lookup services by passing
+        null as the group's argument.
+        According to JoinManager's documentation, using null value for groups should
+        be equivalent to using an empty array.  However, JoinManager incorrectly joined
+        all lookup services.  The behaviour has been corrected to match the
+        documentation.</td>
+    </tr>
+</table>
 
 </ul>
 <hr>
@@ -259,7 +287,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 </body>
 </html>
 

@@ -22,12 +22,12 @@
 
 <a name="TOP"></a>
 <center><h1>Jini Specification Important Additions<br>
-    River-Internet Release v3.0.0-b1</h1></center>
+    JGDMS Release v3.0.0-b1</h1></center>
 
 <br>
 
 <p>This document provides an overview of the implementation details of
-Jini Specification Additions included in River-Internet and
+Jini Specification Additions included in JGDMS and
 explains how these components fit together.  Much of this
 information is available in the package, interface, and class
 documentation, but this document provides a higher-level overview
@@ -39,7 +39,7 @@ and indicates where to find more information.
 <p>The Jini system architecture consists of three categories:
 <i>programming model</i>, <i>infrastructure</i>, and <i>services</i>.
 
-<p>River-Internet provides the following Jini service implementations:
+<p>JGDMS provides the following Jini service implementations:
 
 <ul>
 <li> Lookup Service (reggie)
@@ -50,7 +50,7 @@ and indicates where to find more information.
 <li> JavaSpaces Service (outrigger)
 </ul>
 
-<p>River-Internet releases and the Jini v2.0 release provide additional
+<p>JGDMS releases and the Jini v2.0 release provide additional
 components to the first two
 categories (programming model and infrastructure) of the Jini
 architecture.  The component additions can be summarized as follows:
@@ -75,7 +75,7 @@ remote invocation (Jini ERI)</a>
 
 <p><i>Configuring Services</i>
 
-<p>Each service included in River-Internet supports being
+<p>Each service included in JGDMS supports being
 configured using a <code>Configuration</code>.  Most of the
 services were previously configured via system properties.  These
 services can now be configured via entries in the configuration.
@@ -100,7 +100,7 @@ The main goals for the additions in the Jini architecture are to:
 is to provide the new programming models and infrastructure
 necessary to support and manage security in Jini technology-based
 distributed applications.  The previous Jini architecture lacked
-direct support for a type of security many Jini / River-Internet applications
+direct support for a type of security many Jini / JGDMS applications
 need, namely basic network security for remote calls to
 services.  This goal is addressed by the new security
 infrastructure and constraint-based remote invocation model.
@@ -191,7 +191,7 @@ simply invokes a method on the service's proxy to initiate remote
 communication to the service object, an invocation that follows
 the same general semantics as the Java RMI model.
 
-<p>The server-side implementation model for Jini / River-Internet applications,
+<p>The server-side implementation model for Jini / JGDMS applications,
 however, is not uniform.  An application developer typically
 implements a service and exports that service in a way that ties
 the service directly to a specific implementation and model of
@@ -303,7 +303,7 @@ proxies.
 The following is a code snippet from the <a
 href="../source/src/org/apache/river/example/hello/index.html"><i>hello</i>
 example</a> client, which is part of a comprehensive example included
-in the River-Internet release:
+in the JGDMS release:
 
 <p>
 <pre>
@@ -554,7 +554,7 @@ verifiers from a resource,
 in this distribution, is part of the file
 <code>jsk-resources.jar</code>, which is referenced by
 <code>jsk-platform.jar</code>.  These built-in trust verifiers are
-provided to verify instances of classes in the River-Internet release.  The
+provided to verify instances of classes in the JGDMS release.  The
 following table lists these trust verifier implementations along with
 a description of the instances they verify:
 
@@ -1156,7 +1156,7 @@ and to reference a <code>Configuration</code>.
 explicitly in a configuration.  Applications typically program to the
 interfaces of these providers, but not their implementations.  Many
 applications can utilize the implementations available in the 
-River-Internet release, and therefore, don't need to worry about how to implement a
+JGDMS release, and therefore, don't need to worry about how to implement a
 specific interface, only how to use it.
 
 <blockquote>

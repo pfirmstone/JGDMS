@@ -86,7 +86,7 @@
                     </links>
                     <detectLinks>true</detectLinks>
                     <breakiterator>true</breakiterator>
-                    <top><![CDATA[<h2>River-Internet Project ${project.version} API Documentation</h2>]]></top>
+                    <top><![CDATA[<h2>JGDMS Project ${project.version} API Documentation</h2>]]></top>
                     <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
                     <excludePackageNames></excludePackageNames>
                     <additionalDependencies>

@@ -40,7 +40,7 @@ import net.jini.url.httpmd.HttpmdUtil;
  * </pre>
  * </blockquote>
  *
- * where <var><b>install_dir</b></var> is the directory where the River-Internet release
+ * where <var><b>install_dir</b></var> is the directory where the JGDMS release
  * is installed. This command prints out the message digest for the
  * <code>reggie.jar</code> JAR file, using the <code>SHA-1</code> algorithm.
  *

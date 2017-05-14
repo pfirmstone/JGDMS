@@ -111,7 +111,7 @@ import java.util.regex.Pattern;
  * <dt><b><code>-cp</code> <var>input_classpath</var></b>
  * <dd>Identifies the classpath for all of the classes that might need to be
  * included in the dependency analysis. Typically this will include all of your
- * application classes, classes from the River-Internet release, and any other classes on
+ * application classes, classes from the JGDMS release, and any other classes on
  * which your classes might depend. It is safe to include more classes than are
  * actually necessary because the tool limits the scope of the preferred list to
  * those classes actually included in the JAR files being analyzed.  It is not

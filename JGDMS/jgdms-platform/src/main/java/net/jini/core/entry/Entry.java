@@ -18,16 +18,41 @@
 package net.jini.core.entry;
 
 /**
- * This class is the supertype of all entries that can be stored in a
- * Jini Lookup service.
  * <p>
- * Each field of an entry must be a public reference (object) type.
- * You cannot store primitive types in fields of an
- * <code>Entry</code>.  An <code>Entry</code> may have any number of
- * methods or constructors.  Each field is serialized separately, so
- * references between two fields of an entry will not be reconstituted
- * to be shared references, but instead to separate copies of the
- * original object.
+ * This class is the supertype of all entries that can be stored in a Jini
+ * Lookup service.
+ * </p><p>
+ * Each field of an entry must be a public reference (object) type. You cannot
+ * store primitive types in fields of an <code>Entry</code>. An
+ * <code>Entry</code> may have any number of methods or constructors. Each field
+ * is serialized separately, so references between two fields of an entry will
+ * not be reconstituted to be shared references, but instead to separate copies
+ * of the original object.
+ * </p><p>
+ * Implementors notes:
+ * <ul>
+ * <li> New public non-final fields added to an Entry after deployment must be
+ * appended below existing fields to avoid breaking backward compatiblity.
+ * <li> If an Entry implementation is extended by a child class, new public,
+ * non-final fields cannot be added to the parent class, doing so will break
+ * backward compatibility with the child class.
+ * <li> Changing the order of fields in an existing Entry implementation will
+ * break backward compatibility.
+ * <li> Removing fields from an Entry after deployment will break backward
+ * compatiblity.
+ * </ul>
+ * <p>
+ * Recommended practice for backward compatible evolution of Entry's:
+ * </p>
+ * <ol>
+ * <li> Do not change or add public non-final fields to an Entry after
+ * deployment, subclass instead.
+ * <li> Only append public non-final fields to a final Entry class.
+ * <li> Use super-types and interfaces for fields where possible, to allow more
+ * flexibility.
+ * <li> Only use org.apache.river.lookup.util.ConsistentMap or
+ * org.apache.river.lookup.util.ConsistentSet Collection types, or use arrays.
+ * </ol>
  *
  * @author Sun Microsystems, Inc.
  *

@@ -31,8 +31,8 @@ import java.security.ProtectionDomain;
  * <p>
  * See "Inside Java 2 Platform Security" 2nd Edition, ISBN:0-201-78791-1, page 176.
  * <p>
- * Delegate implementations are available separately from the River-Internet
- * release.
+ * Delegate implementations are available separately from the JGDMS
+ * release at <a href="river.apache.org">Apache River</a>.
  * <p>
  * Delegates can be enabled at runtime by using the DelegateSecurityManager,
  * but only for code that utilises delegates.
