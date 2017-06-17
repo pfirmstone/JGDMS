@@ -54,7 +54,7 @@ public final class GetLeasesResult implements Serializable {
 
     /**
      * Creates an object that holds the results of a call to 
-     * <code>org.apache.river.norm.service.NormServerBaseImpl.getLeases</code>.
+     * <code>org.apache.river.norm.NormServerBaseImpl.getLeases</code>.
      *
      * @param marshalledLeases the leases being returned by the call
      */

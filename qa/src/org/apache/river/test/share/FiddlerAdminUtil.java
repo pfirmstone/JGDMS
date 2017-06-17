@@ -22,7 +22,7 @@ import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.QAConfig;
 
-import org.apache.river.fiddler.FiddlerAdmin;
+import org.apache.river.admin.FiddlerAdmin;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.security.ProxyPreparer;
@@ -38,19 +38,19 @@ import java.rmi.RemoteException;
  * that particular implementation of that service.
  *
  * @see net.jini.admin.Administrable
- * @see org.apache.river.fiddler.FiddlerAdmin
+ * @see org.apache.river.admin.FiddlerAdmin
  */
 public class FiddlerAdminUtil {
 
     /** Determines if the input object implements both the 
      *  <code>net.jini.admin.Administrable</code> and the
-     *  <code>org.apache.river.fiddler.FiddlerAdmin</code> interfaces,
+     *  <code>org.apache.river.admin.FiddlerAdmin</code> interfaces,
      *  and if yes, returns a proxy to an instance of the
-     *  <code>org.apache.river.fiddler.FiddlerAdmin</code> interface.
+     *  <code>org.apache.river.admin.FiddlerAdmin</code> interface.
      * 
      *  @param serviceObj instance of an object that implements both
      *                    <code>net.jini.admin.Administrable</code> and
-     *                    <code>org.apache.river.fiddler.FiddlerAdmin</code>,
+     *                    <code>org.apache.river.admin.FiddlerAdmin</code>,
      *                    whose implementation can be used to administer the
      *                    fiddler implementation of the lookup discovery 
      *                    service.
@@ -65,9 +65,9 @@ public class FiddlerAdminUtil {
      *         when the input parameter does not implement either of the
      *         necessary administration interfaces.
      *
-     *  @return a <code>org.apache.river.fiddler.FiddlerAdmin</code> instance
+     *  @return a <code>org.apache.river.admin.FiddlerAdmin</code> instance
      *          if the input object is administrable and implements the
-     *          <code>org.apache.river.fiddler.FiddlerAdmin</code> interface.
+     *          <code>org.apache.river.admin.FiddlerAdmin</code> interface.
      */
     public static FiddlerAdmin getFiddlerAdmin(Object serviceObj)
                                                throws ClassNotFoundException,
@@ -82,7 +82,7 @@ public class FiddlerAdminUtil {
         Class administrableClass
                              = Class.forName("net.jini.admin.Administrable");
         Class fiddlerAdminClass
-                   = Class.forName("org.apache.river.fiddler.FiddlerAdmin");
+                   = Class.forName("org.apache.river.admin.FiddlerAdmin");
         if( !administrableClass.isAssignableFrom(serviceObj.getClass()) ) {
             throw new TestException("the service under test "
                                       +"does not implement the "
@@ -93,7 +93,7 @@ public class FiddlerAdminUtil {
         if( !fiddlerAdminClass.isAssignableFrom(admin.getClass()) ) {
             throw new TestException("the service under test "
                                       +"does not implement the "
-                                      +"org.apache.river.fiddler.FiddlerAdmin "
+                                      +"org.apache.river.admin.FiddlerAdmin "
                                       +"interface");
         }
 	Configuration c = QAConfig.getConfig().getConfiguration();

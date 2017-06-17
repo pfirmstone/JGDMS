@@ -21,8 +21,8 @@ import java.rmi.RemoteException;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.id.Uuid;
-import org.apache.river.outrigger.AdminIterator;
-import org.apache.river.outrigger.JavaSpaceAdmin;
+import org.apache.river.admin.AdminIterator;
+import org.apache.river.admin.JavaSpaceAdmin;
 
 /**
  * The iterator that is returned to the client.

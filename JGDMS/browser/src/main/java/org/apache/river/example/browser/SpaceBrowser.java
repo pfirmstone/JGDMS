@@ -17,8 +17,8 @@
  */
 package org.apache.river.example.browser;
 
-import org.apache.river.outrigger.JavaSpaceAdmin;
-import org.apache.river.outrigger.AdminIterator;
+import org.apache.river.admin.JavaSpaceAdmin;
+import org.apache.river.admin.AdminIterator;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.lease.Lease;

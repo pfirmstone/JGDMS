@@ -38,7 +38,7 @@
     <property name="lib" value="lib"/>
     <property name="lib-dl" value="lib-dl"/>
     <property name="lib-ext" value="lib-ext"/>
-    <property name="dist" value="modularize/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT/"/>
+    <property name="dist" value="JGDMS/dist/target/JGDMS-3.0-SNAPSHOT/"/>
     <property name="doc.spec.api" value="${doc}/specs/api"/>
     <property name="doc.api" value="${doc}/api"/>
     <property name="build" value="build"/>

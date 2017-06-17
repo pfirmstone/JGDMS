@@ -302,7 +302,7 @@
                 <!--<jvmarg value="-Djava.security.debug=access" />-->
                 <jvmarg value="-Djava.util.logging.config.file=${log.config.file}" />
                 <jvmarg value="-Djava.util.logging.manager=org.apache.river.logging.LogManager"/>
-                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}/modularize/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT" />
+                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT" />
                 <jvmarg value="-Dorg.apache.river.qa.home=${basedir}" />
                 <!--We have a problem with path to properties and the src directory
                 it appears that the src directory was added later, however links
@@ -631,7 +631,7 @@
             <!--<arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/harness-killer.jar" index="false">
-            <fileset dir="${river.classes.dir}" includesfile="${harness-killer.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${harness-killer.deps}" />-->
             <fileset dir="${build.classes.dir}" includesfile="${harness-killer.deps}" />
         </jar>
     </target>
@@ -647,7 +647,7 @@
             <!--<arg value="org.apache.river.qa.harness.KillerImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/harness-killer-dl.jar" index="false">
-            <fileset dir="${river.classes.dir}"  includesfile="${harness-killer-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}"  includesfile="${harness-killer-dl.deps}" />-->
             <fileset dir="${build.classes.dir}"  includesfile="${harness-killer-dl.deps}" />
         </jar>
     </target>
@@ -671,7 +671,7 @@
             <!--<arg value="org.apache.river.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup.jar" index="false">
-            <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />
+            <!--<fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />-->
             <fileset dir="${build.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />
         </jar>
     </target>
@@ -701,7 +701,7 @@
             <arg value="org.apache.river.qa.harness.MergedPolicyProvider"/>
         </classdep>
         <jar destfile="${lib-ext.dir}/mergedpolicyprovider.jar" index="false" >
-            <fileset dir="${river.classes.dir}" includesfile="${mergedpolicyprovider.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${mergedpolicyprovider.deps}"/>-->
             <fileset dir="${build.classes.dir}" includesfile="${mergedpolicyprovider.deps}"/>
         </jar>
     </target>
@@ -750,9 +750,9 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-fiddler-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-fiddler-dl.deps}" />
-            <fileset dir="${river.classes.dir}">
+            <!--<fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -781,17 +781,17 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-joinmanager-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-joinmanager-dl.deps}" />
-            <fileset dir="${river.classes.dir}">
+            <!--<fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
     <target name="qa1-mahalo-dl.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-mahalo-dl.jar" index="false" >
-            <fileset dir="${river.classes.dir}">
+            <!--<fileset dir="${river.classes.dir}">
                 <include name="net/jini/lookup/entry/Name.class"/>
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -832,7 +832,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-mercury.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mercury.deps}" />-->
         </jar>
         <classdep output="${qa1-mercury.deps}">
             <arg value="-cp"/>
@@ -858,7 +858,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-mercury.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-mercury.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mercury.deps}" />-->
         </jar>
     </target>
 
@@ -874,6 +874,7 @@
             <arg line="-in org.apache.river.test"/>
             <arg value="org.apache.river.test.impl.mercury.TestGenerator"/>
             <arg value="org.apache.river.test.impl.mercury.TestListener"/>
+            <arg value="org.apache.river.test.impl.mercury.DisableListener"/>
             <!--<arg value="org.apache.river.test.impl.mercury.DisableListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
             <arg value="org.apache.river.test.impl.mercury.TestListenerImpl_Stub"/>
@@ -886,7 +887,7 @@
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mercury-dl.deps}" />-->
             <fileset dir="${build.classes.dir}">
                 <include name="org/apache/river/test/impl/mercury/MyUnknownEventException.class"/>
             </fileset>
@@ -973,10 +974,10 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-norm-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-norm-dl.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-norm-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-norm-dl.deps}" />
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1017,10 +1018,10 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-outrigger-dl.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-outrigger-dl.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-outrigger-dl.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-outrigger-dl.deps}" />
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1057,7 +1058,7 @@
                 <include name="**/*" />
             </metainf>
             <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />-->
             <fileset dir="${build.classes.dir}" includes="${resources}"
                 excludes="org/apache/river/qa*, org/apache/river/tool*" />
         </jar>
@@ -1073,7 +1074,7 @@
         </classdep>
         <jar destfile="${lib.dir}/jinitests.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />-->
         </jar>
         <classdep output="${jinitests.deps}">
             <arg value="-cp"/>
@@ -1091,7 +1092,7 @@
         </classdep>
         <jar destfile="${lib.dir}/jinitests.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
-            <fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />-->
             <!--<fileset dir="${river.src.dir}">
                 <include name="org/apache/river/start/resources/**/*" />
                 <exclude name="org/apache/river/start/resources/**/*.svn" />
@@ -1117,7 +1118,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-mainwrapper.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${qa1-mainwrapper.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-mainwrapper.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-mainwrapper.deps}"/>-->
         </jar>
     </target>
 
@@ -1136,7 +1137,7 @@
         </classdep>
         <jar destfile="${lib.dir}/jiniharness.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${jiniharness.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${jiniharness.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${jiniharness.deps}"/>-->
             <fileset dir="${basedir}">
                 <include name="harness/**" />
             </fileset>
@@ -1161,13 +1162,13 @@
         </classdep>
         <jar destfile="${lib.dir}/qaman.jar" index="false" manifest="${src.dir}/manifest/qa1.mf">
             <fileset dir="${build.classes.dir}" includesfile="${qaman.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qaman.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qaman.deps}"/>-->
             <fileset dir="${build.classes.dir}">
                 <include name="org/apache/river/qaman/**/*" />
             </fileset>
-            <fileset dir="${river.classes.dir}">
+            <!--<fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/start/resources/**/*" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1197,7 +1198,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-probe-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-probe-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe-dl.deps}"/>-->
         </jar>
     </target>
 
@@ -1221,7 +1222,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-probe.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe.deps}"/>-->
         </jar>
         <classdep output="${qa1-start-probe.deps}">
             <arg value="-cp"/>
@@ -1241,7 +1242,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-probe.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe.deps}"/>-->
         </jar>
     </target>
 
@@ -1278,7 +1279,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-tests.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-tests.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-tests.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-tests.deps}"/>-->
         </jar>
     </target>
 
@@ -1314,10 +1315,10 @@
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false" update="true">
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/start/resources/**/*" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1366,10 +1367,10 @@
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice2.jar" index="false" update="true">
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice2.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice2.deps}"/>
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/start/resources/**/*" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1401,7 +1402,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice-common.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice-common.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice-common.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice-common.deps}"/>-->
         </jar>
     </target>
 
@@ -1420,7 +1421,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice-common-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice-common-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice-common-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-start-testservice-common-dl.deps}"/>-->
         </jar>
     </target>
 
@@ -1503,7 +1504,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-lookup-simulator.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-lookup-simulator.deps}"/>-->
         </jar>
     </target>
 
@@ -1544,7 +1545,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-lookup-simulator-dl.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-lookup-simulator-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-lookup-simulator-dl.deps}"/>-->
         </jar>
     </target>
 
@@ -1585,7 +1586,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-share-dl.deps}"/>-->
         </jar>
         <classdep output="${qa1-share-dl.deps}">
             <arg value="-cp"/>
@@ -1608,7 +1609,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-share-dl.jar" index="false" update="true">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-share-dl.deps}"/>-->
         </jar>
     </target>
 
@@ -1632,10 +1633,10 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-reggie-race.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-reggie-race.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-reggie-race.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-reggie-race.deps}"/>
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/start/resources/**/*" />
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1663,7 +1664,7 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-reggie-race-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-reggie-race-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-reggie-race-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-reggie-race-dl.deps}"/>-->
         </jar>
     </target>
 
@@ -1682,7 +1683,7 @@
         </classdep>
         <jar destfile="${lib.dir}/fullloggingfilter.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${fullloggingfilter.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${fullloggingfilter.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${fullloggingfilter.deps}"/>-->
         </jar>
     </target>
 
@@ -1713,10 +1714,10 @@
         </classdep>
         <jar destfile="${lib.dir}/qa1-discoveryservice-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-discoveryservice-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-discoveryservice-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-discoveryservice-dl.deps}"/>
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1848,10 +1849,10 @@
         <!--</classdep>-->
         <jar destfile="${lib.dir}/qa1-javaspace-dl.jar" index="false">
             <!--<fileset dir="${build.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>-->
+            <fileset dir="${river.classes.dir}" includesfile="${qa1-javaspace-dl.deps}"/>
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
-            </fileset>
+            </fileset>-->
         </jar>
     </target>
 
@@ -1938,11 +1939,11 @@
         <!--</classdep>-->
         <jar destfile="${lib.dir}/qa1-lookupservice-dl.jar" index="false">
             <!--<fileset dir="${build.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>-->
+            <fileset dir="${river.classes.dir}" includesfile="${qa1-lookupservice-dl.deps}"/>
             <fileset dir="${river.classes.dir}">
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
                 <include name="org/apache/river/test/spec/lookupservice/attribute/**/*"/>
-            </fileset>
+            </fileset>-->
             <fileset dir="${build.classes.dir}">
                 <include name="org/apache/river/test/spec/lookupservice/attribute/**/*"/>
             </fileset>
@@ -1991,7 +1992,7 @@
 
         </classdep>
         <jar destfile="${lib.dir}/qa1-renewalservice-dl.jar" index="false" update="true">
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-renewalservice-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-renewalservice-dl.deps}"/>-->
         </jar>
     </target>
 
@@ -2052,7 +2053,7 @@
             <arg line="net.jini.lookup.entry.Name"/>
         </classdep>
         <jar destfile="${lib.dir}/qa1-servicediscovery-dl.jar" index="false" update="true">
-            <fileset dir="${river.classes.dir}" includesfile="${qa1-servicediscovery-dl.deps}"/>
+            <!--<fileset dir="${river.classes.dir}" includesfile="${qa1-servicediscovery-dl.deps}"/>-->
         </jar>
     </target>
 

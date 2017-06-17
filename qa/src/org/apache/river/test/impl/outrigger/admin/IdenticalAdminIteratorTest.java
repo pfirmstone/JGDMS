@@ -28,8 +28,8 @@ import net.jini.core.entry.Entry;
 import net.jini.space.JavaSpace;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.admin.Administrable;
-import org.apache.river.outrigger.JavaSpaceAdmin;
-import org.apache.river.outrigger.AdminIterator;
+import org.apache.river.admin.JavaSpaceAdmin;
+import org.apache.river.admin.AdminIterator;
 
 // Test harness specific classes
 import org.apache.river.qa.harness.QAConfig;

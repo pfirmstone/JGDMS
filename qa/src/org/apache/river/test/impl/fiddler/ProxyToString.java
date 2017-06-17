@@ -24,7 +24,7 @@ import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.test.spec.discoveryservice.AbstractBaseTest;
 import org.apache.river.test.share.DiscoveryServiceUtil;
 
-import org.apache.river.fiddler.FiddlerAdmin;
+import org.apache.river.admin.FiddlerAdmin;
 import org.apache.river.qa.harness.Test;
 
 import net.jini.admin.Administrable;

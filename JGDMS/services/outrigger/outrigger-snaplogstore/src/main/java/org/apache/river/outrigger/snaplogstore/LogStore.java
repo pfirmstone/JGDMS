@@ -18,10 +18,10 @@
 package org.apache.river.outrigger.snaplogstore;
 
 import org.apache.river.config.Config;
-import org.apache.river.outrigger.service.LogOps;
-import org.apache.river.outrigger.service.Recover;
-import org.apache.river.outrigger.service.OutriggerServerImpl;
-import org.apache.river.outrigger.service.Store;
+import org.apache.river.outrigger.LogOps;
+import org.apache.river.outrigger.Recover;
+import org.apache.river.outrigger.OutriggerServerImpl;
+import org.apache.river.outrigger.Store;
 import org.apache.river.system.FileSystem;
 
 import java.io.File;
@@ -36,7 +36,7 @@ import net.jini.space.InternalSpaceException;
 /**
  * @author Sun Microsystems, Inc.
  *
- * @see org.apache.river.outrigger.service.OutriggerServerImpl
+ * @see org.apache.river.outrigger.OutriggerServerImpl
  */
 public class LogStore implements Store {
     private volatile LogOutputFile	log;

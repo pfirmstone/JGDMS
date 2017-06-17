@@ -19,9 +19,9 @@ package org.apache.river.outrigger.snaplogstore;
 
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.logging.Levels;
-import org.apache.river.outrigger.service.Recover;
-import org.apache.river.outrigger.service.StoredObject;
-import org.apache.river.outrigger.service.OutriggerServerImpl;
+import org.apache.river.outrigger.Recover;
+import org.apache.river.outrigger.StoredObject;
+import org.apache.river.outrigger.OutriggerServerImpl;
 
 import java.io.File;
 import java.io.BufferedInputStream;

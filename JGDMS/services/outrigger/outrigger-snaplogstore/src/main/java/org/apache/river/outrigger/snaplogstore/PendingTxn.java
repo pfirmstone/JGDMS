@@ -17,8 +17,8 @@
  */
 package org.apache.river.outrigger.snaplogstore;
 
-import org.apache.river.outrigger.service.Recover;
-import org.apache.river.outrigger.service.StoredObject;
+import org.apache.river.outrigger.Recover;
+import org.apache.river.outrigger.StoredObject;
 
 import java.io.IOException;
 import java.io.Serializable;

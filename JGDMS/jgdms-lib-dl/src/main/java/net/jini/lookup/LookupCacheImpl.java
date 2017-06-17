@@ -190,9 +190,13 @@ final class LookupCacheImpl implements LookupCache {
 
     private ExecutorService eventNotificationExecutor;
 
-    /* RemoteEventListener class that is registered with the proxy to
+    /**
+     * RemoteEventListener class that is registered with the proxy to
      * receive notifications from lookup services when any ServiceItem
      * changes (NOMATCH_MATCH, MATCH_NOMATCH, MATCH_MATCH)
+     * 
+     * TODO: implement RemoteMethodControl to allow the ServiceRegistrar
+     * to place constraints on the LookupListener.
      */
     private final class LookupListener implements RemoteEventListener,
 	    ServerProxyTrust {

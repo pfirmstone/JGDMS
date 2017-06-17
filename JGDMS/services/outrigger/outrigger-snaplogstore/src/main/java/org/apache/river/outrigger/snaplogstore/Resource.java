@@ -18,7 +18,7 @@
 package org.apache.river.outrigger.snaplogstore;
 
 import org.apache.river.outrigger.proxy.StorableResource;
-import org.apache.river.outrigger.service.StoredResource;
+import org.apache.river.outrigger.StoredResource;
 import net.jini.id.Uuid;
 
 import java.io.IOException;

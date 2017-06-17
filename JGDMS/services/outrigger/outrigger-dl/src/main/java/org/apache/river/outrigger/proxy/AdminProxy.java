@@ -32,8 +32,8 @@ import net.jini.id.Uuid;
 import net.jini.space.JavaSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.outrigger.JavaSpaceAdmin;
-import org.apache.river.outrigger.AdminIterator;
+import org.apache.river.admin.JavaSpaceAdmin;
+import org.apache.river.admin.AdminIterator;
 
 /**
  * <code>AdminProxy</code> objects are connected to particular

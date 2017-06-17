@@ -43,6 +43,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.l
     permission java.security.AllPermission "", "";
 };
 
+grant { 
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
 grant {
       permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test

@@ -17,7 +17,7 @@
  */
 package org.apache.river.outrigger.snaplogstore;
 
-import org.apache.river.outrigger.service.OutriggerServerImpl;
+import org.apache.river.outrigger.OutriggerServerImpl;
 
 import java.io.File;
 import java.io.FileDescriptor;

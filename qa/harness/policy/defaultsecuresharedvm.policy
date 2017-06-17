@@ -22,6 +22,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.l
     permission java.security.AllPermission "", "";
 };
 
+grant { 
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
 grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
 {
       permission org.apache.river.phoenix.InstantiatorPermission "*";

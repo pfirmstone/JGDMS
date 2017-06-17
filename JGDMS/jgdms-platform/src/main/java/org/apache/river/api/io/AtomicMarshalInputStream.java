@@ -104,6 +104,8 @@ import org.apache.river.impl.Messages;
  *      <li>{@link net.jini.core.entry.Entry}, stream data will be checked against
  *      each field type.</li>
  * </ul>
+ * 
+ * 
  * <p>
  *      Any of the above classes that have the appropriate {@link DeSerializationPermission},
  *      {@link Serializable} object's that have only primitive serial form, don't

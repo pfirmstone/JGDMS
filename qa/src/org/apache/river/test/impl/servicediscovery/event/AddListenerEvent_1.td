@@ -10,4 +10,4 @@ net.jini.lookup.nSecsServiceDiscovery=10
 # service modes.
 #org.apache.river.qa.harness.runactivation=false
 #net.jini.core.lookup.ServiceRegistrar.type=transient
-#net.jini.core.lookup.ServiceRegistrar.impl=org.apache.river.reggie.service.TransientRegistrarImpl
+#net.jini.core.lookup.ServiceRegistrar.impl=org.apache.river.reggie.TransientRegistrarImpl

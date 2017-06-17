@@ -23,8 +23,8 @@ import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.space.JavaSpace05;
-import org.apache.river.outrigger.AdminIterator;
-import org.apache.river.outrigger.JavaSpaceAdmin;
+import org.apache.river.admin.AdminIterator;
+import org.apache.river.admin.JavaSpaceAdmin;
 
 /**
  * Sub-interface of <code>JavaSpaceAdmin</code> that

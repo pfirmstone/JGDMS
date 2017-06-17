@@ -36,8 +36,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.outrigger.AdminIterator;
-import org.apache.river.outrigger.JavaSpaceAdmin;
+import org.apache.river.admin.AdminIterator;
+import org.apache.river.admin.JavaSpaceAdmin;
 
 /**
  * Constrainable subclass of <code>AdminProxy</code>

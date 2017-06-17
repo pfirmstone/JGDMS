@@ -18,7 +18,7 @@
 package org.apache.river.outrigger.snaplogstore;
 
 import org.apache.river.outrigger.proxy.StorableObject;
-import org.apache.river.outrigger.service.StoredObject;
+import org.apache.river.outrigger.StoredObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

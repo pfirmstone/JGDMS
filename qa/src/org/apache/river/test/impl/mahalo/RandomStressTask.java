@@ -19,7 +19,7 @@ package org.apache.river.test.impl.mahalo;
 import net.jini.core.lease.*;
 import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
-import org.apache.river.mahalo.service.*;
+import org.apache.river.mahalo.*;
 import org.apache.river.mahalo.log.*;
 import org.apache.river.thread.wakeup.*;
 import java.util.*;
