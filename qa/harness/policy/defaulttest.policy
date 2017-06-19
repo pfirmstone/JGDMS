@@ -154,6 +154,18 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.iiop.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jrmp.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.url.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}" {
     permission java.security.AllPermission "", "";
 };

@@ -1,3 +1,4 @@
+testClasspath=${testClasspath}$:${org.apache.river.jsk.home}$/lib$/${jsk.iiop.jar}
 testClass=Export_NullPointerExceptionTest
 testCategories=iiop,iiop_spec
 iiop.util.constructorType=0
