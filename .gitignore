@@ -145,3 +145,5 @@
 /modularize/JGDMS/jgdms-discovery-providers/target/
 /modularize/JGDMS/jgdms-platform/target/
 /modularize/JGDMS/extra/target/
+/qa/jtreg/JTreport/
+/qa/jtreg/JTwork/

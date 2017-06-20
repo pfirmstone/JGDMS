@@ -43,13 +43,13 @@ public class GetGroupsObjects {
 	try {
 	    ActivationSystem sys = ActivationGroup.getSystem();
 	    Method getGroups =
-		sys.getClass().getMethod("getActivationGroups", null);
+		sys.getClass().getMethod("getActivationGroups", (Class<?>[]) null);
 	    Method getObjects =
 		sys.getClass().getMethod("getActivatableObjects",
 					 new Class[]{ActivationGroupID.class});
 	    Map groups = new HashMap();
 	    Map objects = new HashMap();
-	    if (!groups.equals(getGroups.invoke(sys, null))) {
+	    if (!groups.equals(getGroups.invoke(sys, (Object[]) null))) {
 		throw new RuntimeException("groups not empty");
 	    }
 	    for (int i = 0; i < NGROUPS; i++) {
@@ -61,7 +61,7 @@ public class GetGroupsObjects {
 			null, null);
 		ActivationGroupID gid = sys.registerGroup(gdesc);
 		groups.put(gid, gdesc);
-		if (!groups.equals(getGroups.invoke(sys, null))) {
+		if (!groups.equals(getGroups.invoke(sys, (Object[]) null))) {
 		    throw new RuntimeException("groups don't match");
 		}
 		Map objs = new HashMap();
@@ -101,7 +101,7 @@ public class GetGroupsObjects {
 		}
 		sys.unregisterGroup(gid);
 		giter.remove();
-		if (!groups.equals(getGroups.invoke(sys, null))) {
+		if (!groups.equals(getGroups.invoke(sys, (Object[]) null))) {
 		    throw new RuntimeException("groups don't match");
 		}
 		try {

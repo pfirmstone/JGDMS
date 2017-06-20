@@ -201,21 +201,37 @@
         <mkdir dir="${jtreg.dir}/JTlib-tmp" />
         <move todir="${jtreg.dir}/JTlib-tmp">
             <filelist dir="${river.lib.dir}">
-                <file name="jsk-lib.jar"/>
+                <file name="jgdms-collections-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-jeri-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-jrmp-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-platform-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-pref-class-loader-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
+                <file name="classdep-3.0-SNAPSHOT.jar"/>
+                <file name="classserver-3.0-SNAPSHOT.jar"/>
+                <file name="asm-5.0.1.jar"/>
+                <file name="asm-commons-5.0.1.jar"/>
+                <file name="high-scale-lib-1.0.6.jar"/>
+                <file name="jgdms-activation-3.0-SNAPSHOT.jar"/>
+                <file name="checkconfigurationfile-3.0-SNAPSHOT.jar"/>
+                <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
                 <file name="classserver.jar"/>
-                <file name="high-scale-lib.jar"/>
+                <file name="high-scale-lib.jar"/>-->
             </filelist>
         </move>
-        <move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
+        <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
         <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk.home}">
-            <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar${path.separator}${jtlib.tmp}/jsk-lib.jar${path.separator}${jtlib.tmp}/jsk-platform.jar${path.separator}${jtlib.tmp}/jsk-resources.jar${path.separator}${jtlib.tmp}/phoenix-init.jar${path.separator}${jtlib.tmp}/tools.jar${path.separator}${jtlib.tmp}/classserver.jar${path.separator}${jtlib.tmp}/custard-apple-1.0.3.jar${path.separator}${jtlib.tmp}/high-scale-lib.jar"/>
+            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-iiop-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jeri-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-platform-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classdep-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classserver-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/asm-5.0.1.jar${path.separator}${jtlib.tmp}/asm-commons-5.0.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-3.0-SNAPSHOT.jar"/>
             <arg value="-timeout:16"/>
             <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
@@ -248,16 +264,32 @@
         </jtreg>
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jsk-lib.jar"/>
+                <file name="jgdms-collections-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-jeri-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-jrmp-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-platform-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-pref-class-loader-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
+                <file name="classdep-3.0-SNAPSHOT.jar"/>
+                <file name="classserver-3.0-SNAPSHOT.jar"/>
+                <file name="asm-5.0.1.jar"/>
+                <file name="asm-commons-5.0.1.jar"/>
+                <file name="high-scale-lib-1.0.6.jar"/>
+                <file name="jgdms-activation-3.0-SNAPSHOT.jar"/>
+                <file name="checkconfigurationfile-3.0-SNAPSHOT.jar"/>
+                <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
                 <file name="classserver.jar"/>
-                <file name="high-scale-lib.jar"/>
+                <file name="high-scale-lib.jar"/>-->
             </filelist>
         </move>
-        <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
+        <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
         <fail if="jtreg.fail"/>
@@ -267,16 +299,32 @@
     <target name="jtreg-teardown" depends="" description="Move back JARs">
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jsk-lib.jar"/>
+                <file name="jgdms-collections-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-jeri-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-jrmp-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-platform-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-pref-class-loader-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
+                <file name="classdep-3.0-SNAPSHOT.jar"/>
+                <file name="classserver-3.0-SNAPSHOT.jar"/>
+                <file name="asm-5.0.1.jar"/>
+                <file name="asm-commons-5.0.1.jar"/>
+                <file name="high-scale-lib-1.0.6.jar"/>
+                <file name="jgdms-activation-3.0-SNAPSHOT.jar"/>
+                <file name="checkconfigurationfile-3.0-SNAPSHOT.jar"/>
+                <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
                 <file name="classserver.jar"/>
-                <file name="high-scale-lib.jar"/>
+                <file name="high-scale-lib.jar"/>-->
             </filelist>
         </move>
-        <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
+        <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
     </target>
@@ -349,7 +397,7 @@
                         <include name="classserver-3.0-SNAPSHOT.jar"/>
                         <include name="asm-5.0.1.jar"/>
                         <include name="asm-commons-5.0.1.jar"/>
-                        <include name="high-scale-lib.jar"/>
+                        <include name="high-scale-lib-1.0.6.jar"/>
                     </fileset>
                     <fileset dir="${river.lib-dl.dir}">
                         <include name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
