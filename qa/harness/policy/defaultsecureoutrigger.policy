@@ -1,4 +1,4 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -10,7 +10,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger-logstore.j
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}outrigger-snaplogstore.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.snaplogstore.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -18,11 +18,15 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}pro.zip" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.lib.dl.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 

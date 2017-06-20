@@ -6,7 +6,7 @@
 
 /* Grants required for SecurityManager used a startup: */
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
     permission java.security.AllPermission "", "";
     permission java.lang.RuntimePermission "modifyThreadGroup";
     permission java.lang.RuntimePermission "modifyThread";
@@ -16,6 +16,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.SecurityPermission "putProviderProperty.*";
     permission java.net.NetPermission "specifyStreamHandler";
     permission java.lang.RuntimePermission "loadLibrary.net";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.pref.jar}" {
+    permission java.security.AllPermission "", "";
 };
 
 /* end grants required for SecurityManager during startup. */

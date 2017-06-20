@@ -76,7 +76,7 @@ public class GetServiceTypesEmpty extends QATestRegistrar {
                                            TEST_SRVC_CLASSES[7],
                                            TEST_SRVC_CLASSES[8],
                                            TEST_SRVC_CLASSES[9],
-                                          "org.apache.river.reggie.RegistrarProxy"
+                                          "org.apache.river.reggie.proxy.RegistrarProxy"
                                          };
 
     /** Performs actions necessary to prepare for execution of the 

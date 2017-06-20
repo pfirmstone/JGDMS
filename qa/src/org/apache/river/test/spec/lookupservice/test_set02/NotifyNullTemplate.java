@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 import org.apache.river.qa.harness.TestException;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.lookup.SafeServiceRegistrar;
 import java.rmi.RemoteException;
 
 /**
@@ -32,7 +33,7 @@ public class NotifyNullTemplate extends NotifyExceptionTest {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notiFy(null, ServiceRegistrar.TRANSITION_MATCH_MATCH,
+	    ((SafeServiceRegistrar)getProxy()).notiFy(null, ServiceRegistrar.TRANSITION_MATCH_MATCH,
 			      listener, null, Long.MAX_VALUE);
 	    throw new TestException("notify did not throw NullPointerException");
 	} catch (NullPointerException e) {

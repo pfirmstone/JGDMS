@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = FINE
+.level = INFO
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -116,6 +116,9 @@ net.jini.config.level = SEVERE
 
 # For activation
 net.jini.activation.ActivatableInvocationHandler.level = SEVERE
+
+# For phoenix
+org.apache.river.phoenix.level=SEVERE
 
 # For JRMP
 net.jini.jrmp.JrmpExporter.level = SEVERE

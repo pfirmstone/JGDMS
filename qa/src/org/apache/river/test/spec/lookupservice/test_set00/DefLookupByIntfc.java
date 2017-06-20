@@ -31,7 +31,7 @@ import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import java.rmi.RemoteException;
 import java.util.logging.Logger;
-import net.jini.export.ServiceProxyAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 
 /** This class is used to test that every service item registered with
  *  the Lookup service can be successfully looked up using only the 

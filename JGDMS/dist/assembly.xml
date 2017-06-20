@@ -1,0 +1,121 @@
+<!--
+~ Copyright (C) 2014 the original author or authors.
+~
+~ Licensed under the Apache License, Version 2.0 (the "License");
+~ you may not use this file except in compliance with the License.
+~ You may obtain a copy of the License at
+~
+~ http://www.apache.org/licenses/LICENSE-2.0
+~
+~ Unless required by applicable law or agreed to in writing, software
+~ distributed under the License is distributed on an "AS IS" BASIS,
+~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+~ See the License for the specific language governing permissions and
+~ limitations under the License.
+-->
+<assembly>
+    <!-- We dont use the <id> element to avoid the extension to the directory
+         and zip name -->
+    <formats>
+        <format>dir</format>
+        <format>zip</format>
+    </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+    <fileSets>        
+        <fileSet>
+            <directory>${basedir}/..</directory>
+            <includes>
+                <include>LICENSE</include>
+                <include>NOTICE</include>
+            </includes>
+            <outputDirectory>/</outputDirectory>
+        </fileSet>
+    </fileSets>
+
+    <dependencySets>
+        <!-- The lib directory are service implementation jars and their transitive requirements -->
+        <dependencySet>      
+			<useProjectArtifact>false</useProjectArtifact> 
+            <excludes>  
+	            <!-- exclude jline, this is brought in transitively because of groovy -->
+                <!--<exclude>asm:*</exclude>
+                <exclude>asm-commons:*</exclude>
+                <exclude>asm-tree:*</exclude>-->
+                <exclude>backport-util-concurrent:*</exclude>
+                <exclude>jline:*</exclude>              
+                <exclude>groovy:*</exclude> 
+                <exclude>classworlds:*</exclude>
+                <exclude>commons-collections:*</exclude>
+                <exclude>commons-lang:*</exclude>
+                <exclude>commons-cli:*</exclude>
+                <exclude>commons-codec:*</exclude>
+                <exclude>commons-exec:*</exclude>
+                <exclude>commons-httpclient:*</exclude>
+                <exclude>doxia-logging-api:*</exclude>
+                <exclude>doxia-sink-api:*</exclude>
+                <!--<exclude>high-scale-lib:*</exclude>-->
+                <exclude>jackrabbit-jcr-commons:*</exclude>
+                <exclude>jackrabbit-webdav:*</exclude>
+                <exclude>jcl-over-slf4j:*</exclude>
+                <exclude>jsch:*</exclude>
+                <exclude>junit:*</exclude>
+                <exclude>org.codehaus.mojo:*</exclude>
+                <exclude>org.codehaus.plexus:*</exclude>
+                <exclude>org.apache.maven:*</exclude>
+                <exclude>maven-artifact:*</exclude>
+                <exclude>maven-artifact-manager:*</exclude>
+                <exclude>maven-core:*</exclude>
+                <exclude>maven-model:*</exclude>
+                <exclude>maven-error-diagnostics:*</exclude>
+                <exclude>maven-plugin-api:*</exclude>
+                <exclude>maven-plugin-descriptor:*</exclude>
+                <exclude>maven-plugin-parameter-documenter:*</exclude>
+                <exclude>maven-plugin-registry:*</exclude>
+                <exclude>maven-profile:*</exclude>
+                <exclude>maven-project:*</exclude>
+                <exclude>maven-reporting-api:*</exclude>
+                <exclude>maven-repository-metadata:*</exclude>
+                <exclude>maven-settings:*</exclude>
+                <exclude>maven-toolchain:*</exclude>
+                <exclude>nekohtml:*</exclude>
+                <exclude>org.sonatype.plexus:*</exclude>
+                <exclude>org.slf4j:*</exclude>
+                <exclude>org.apache.maven.wagon:*</exclude>
+                <exclude>xercesMinimal:*</exclude>
+                <exclude>velocity:*</exclude>
+                <exclude>au.net.zeus.jgdms:jgdms-lib-dl:jar</exclude>
+                <exclude>au.net.zeus.jgdms.reggie:reggie-dl:jar</exclude>
+                <exclude>au.net.zeus.jgdms.outrigger:outrigger-dl:jar</exclude>
+                <exclude>au.net.zeus.jgdms.mahalo:mahalo-dl:jar</exclude>
+                <exclude>au.net.zeus.jgdms.mercury:mercury-dl:jar</exclude>
+                <exclude>au.net.zeus.jgdms.norm:norm-dl:jar</exclude>	
+                <exclude>au.net.zeus.jgdms.fiddler:fiddler-dl:jar</exclude>
+                <exclude>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</exclude>	
+                <exclude>au.net.zeus.jgdms.group:group-dl:jar</exclude>		
+            </excludes>
+            <outputDirectory>lib</outputDirectory>
+	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
+        </dependencySet>
+
+        <!-- All proxy and dl jars go into the lib-dl directory -->
+        <dependencySet>
+			<useProjectArtifact>false</useProjectArtifact>
+            <useStrictFiltering>true</useStrictFiltering>
+            <includes>
+                <include>au.net.zeus.jgdms:jgdms-lib-dl:jar</include>
+                <include>au.net.zeus.jgdms.reggie:reggie-dl:jar</include>
+                <include>au.net.zeus.jgdms.outrigger:outrigger-dl:jar</include>
+                <include>au.net.zeus.jgdms.mahalo:mahalo-dl:jar</include>
+                <include>au.net.zeus.jgdms.mercury:mercury-dl:jar</include>
+                <include>au.net.zeus.jgdms.norm:norm-dl:jar</include>
+                <include>au.net.zeus.jgdms.fiddler:fiddler-dl:jar</include>
+                <include>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</include>	
+                <include>au.net.zeus.jgdms.group:group-dl:jar</include>							
+            </includes>
+            <outputDirectory>lib-dl</outputDirectory>
+	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
+        </dependencySet>
+
+    </dependencySets>
+
+</assembly>

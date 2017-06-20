@@ -1,3 +1,4 @@
+testClasspath=${testClasspath}$:${org.apache.river.jsk.home}$/lib$/${jsk.jrmp.jar}
 testClass=Export_ExportExceptionTest
 testCategories=jrmp,jrmp_spec
 

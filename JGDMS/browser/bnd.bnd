@@ -1,0 +1,4 @@
+Main-Class: org.apache.river.example.browser.Browser
+-exportcontents: \
+    org.apache.river.example.browser
+-sources: true

@@ -37,6 +37,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.io.MarshalledInstance;
+import net.jini.lookup.SafeServiceRegistrar;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
@@ -156,7 +157,7 @@ public class NotifyOnAttrDel extends QATestRegistrar {
         for (i=0;i<srvcRegs.length;i++) {
             curSrvcID = srvcRegs[i].getServiceID();
 	    EventRegistration er;
-	    er = proxy.notiFy(srvcIDTmpl[i],regTransitions,listener,
+	    er = ((SafeServiceRegistrar)proxy).notiFy(srvcIDTmpl[i],regTransitions,listener,
 			      new AtomicMarshalledInstance(curSrvcID),
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);

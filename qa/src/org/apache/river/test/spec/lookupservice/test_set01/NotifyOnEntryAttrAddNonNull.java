@@ -38,6 +38,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.io.MarshalledInstance;
+import net.jini.lookup.SafeServiceRegistrar;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
@@ -216,7 +217,7 @@ public class NotifyOnEntryAttrAddNonNull extends QATestRegistrar {
                 int n = k%(attrEntries.length);
 	        tmpl[k] = new ServiceTemplate(null,null,tmplAttrs[n]);
 		setStateAttrInfo(k,n,tmplAttrs,state);
-		proxy.notiFy(tmpl[k],transitionMask,listener,
+		((SafeServiceRegistrar)proxy).notiFy(tmpl[k],transitionMask,listener,
 			     new AtomicMarshalledInstance
 				 (new QATestUtils.SrvcAttrTuple
 				     (srvcItems[k].service,

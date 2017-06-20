@@ -18,7 +18,7 @@
 #DSTCROOT =	/home/tjb/lib/jcsi/jcsi_v1.0b1 #replaced with BC_LIB
 #JDK13HOME =	/files/jdk13 #replaced with JAVA_HOME
 
-BC_LIB = ../../../dep-libs/bouncy-castle
+BC_LIB = lib/bouncy-castle
 
 KEYTOOL=${JAVA_HOME}/bin/keytool
 KEYSTORECMD=${KEYTOOL} -storepass keypass -keypass keypass -validity 3650

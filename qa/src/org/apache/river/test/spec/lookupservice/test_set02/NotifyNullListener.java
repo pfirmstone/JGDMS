@@ -24,6 +24,7 @@ import org.apache.river.qa.harness.TestException;
 import org.apache.river.test.spec.lookupservice.QATestRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
+import net.jini.lookup.SafeServiceRegistrar;
 import java.rmi.RemoteException;
 
 /**
@@ -34,7 +35,7 @@ public class NotifyNullListener extends QATestRegistrar {
 
     public void run() throws Exception {
 	try {
-	    getProxy().notiFy(new ServiceTemplate(null, null, null),
+	    ((SafeServiceRegistrar)getProxy()).notiFy(new ServiceTemplate(null, null, null),
 			      ServiceRegistrar.TRANSITION_MATCH_MATCH,
 			      null, null, Long.MAX_VALUE);
 	    throw new TestException("notify did not throw NullPointerException");

@@ -38,6 +38,7 @@
     <property name="lib" value="lib"/>
     <property name="lib-dl" value="lib-dl"/>
     <property name="lib-ext" value="lib-ext"/>
+    <property name="dist" value="JGDMS/dist/target/JGDMS-3.0-SNAPSHOT/"/>
     <property name="doc.spec.api" value="${doc}/specs/api"/>
     <property name="doc.api" value="${doc}/api"/>
     <property name="build" value="build"/>
@@ -99,7 +100,8 @@
     <property name="jskplatform.exclude" value="-out org.apache.river.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip org.apache.river.config.ConfigUtil -skip org.apache.river.config.KeyStores -skip org.apache.river.logging.LogManager"/>
 
     <property name="river.home" location="${root}"/>
-    <property name="river.lib.dir" location="${river.home}/${lib}"/>
+    <property name="river.lib.dir" location="${river.home}/${dist}/${lib}"/>
+    <property name="river.lib-dl.dir" location="${river.home}/${dist}/${lib-dl}"/>
     <property name="river.lib-ext.dir" location="${river.home}/${lib-ext}"/>
     <property name="river.classes.dir" location="${river.home}/${build.classes}"/>
     <property name="river.src.dir" location="${river.home}/${src}"/>
@@ -130,49 +132,50 @@
     <!-- classpath containing River distribution -->
     <!-- TODO: split into multiple paths -->
     <path id="river.jars">
-        <fileset dir="${river.lib.dir}" includes="**/*.jar" excludes="${asm.jars.pattern}" />
+        <fileset dir="${river.lib.dir}" includes="**/*.jar" />
+        <fileset dir="${river.lib-dl.dir}" includes="**/*.jar" />
     </path>
 
     <path id="river.classes">
         <pathelement path="${river.classes.dir}"/>
     </path>
 
-    <fileset id="asm.jars" dir="${root}/dep-libs/asm">
+    <!--<fileset id="asm.jars" dir="${root}/dep-libs/asm">
         <include name="asm-5.0.1.jar" />
         <include name="asm-commons-5.0.1.jar" />
-    </fileset>
+    </fileset>-->
 
     <path id="groovy.jars">
 		<fileset dir="${root}/dep-libs/groovy" includes="**/*.jar" />
     </path>
 	
-	<taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc">
+	<!--<taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc">
 	    <classpath refid="groovy.jars"/>
-	</taskdef>
+	</taskdef>-->
 	
-    <fileset id="velocity.jars" dir="${root}/dep-libs/velocity">
+    <!--<fileset id="velocity.jars" dir="${root}/dep-libs/velocity">
         <include name="velocity-1.7.jar" />
-    </fileset>
+    </fileset>-->
     
-    <fileset id="high-scale-lib.jars" dir="${root}/dep-libs/high-scale-lib">
+    <!--<fileset id="high-scale-lib.jars" dir="${root}/dep-libs/high-scale-lib">
         <include name="high-scale-lib.jar" />
-    </fileset>
+    </fileset>-->
     
-    <fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">
+    <!--<fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">
         <include name="dnsjava-2.1.3.jar" />
-    </fileset>
+    </fileset>-->
     
 
-    <path id="compile.classpath" >
+    <!--<path id="compile.classpath" >
         <fileset refid="asm.jars" />
         <fileset refid="velocity.jars" />
         <fileset refid="high-scale-lib.jars" />
-    </path>
+    </path>-->
 
 
-    <path id="asm.classpath">
+    <!--<path id="asm.classpath">
         <fileset refid="asm.jars" />
-    </path>
+    </path>-->
 
     <path id="classdep.classes.classpath">
         <path refid="river.classes"/>
@@ -180,7 +183,7 @@
     </path>
    
     <path id="classdep.jar.classpath">
-        <pathelement location="${river.lib.dir}/classdep.jar"/>
+        <pathelement location="${river.lib.dir}/classdep-3.0-SNAPSHOT.jar"/>
         <!--<path refid="asm.classpath" />-->
     </path>
 

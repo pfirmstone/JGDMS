@@ -24,7 +24,7 @@ import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
 import org.apache.river.test.share.TxnManagerTest;
-import org.apache.river.thread.WakeupManager;
+import org.apache.river.thread.wakeup.WakeupManager;
 import java.util.Date;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;

@@ -21,7 +21,7 @@ import org.apache.river.qa.harness.Test;
 import java.util.logging.Level;
 
 import org.apache.river.qa.harness.TestException;
-import org.apache.river.start.LifeCycle;
+import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.start.NonActivatableServiceDescriptor;
 import net.jini.config.ConfigurationException;
 import net.jini.security.BasicProxyPreparer;

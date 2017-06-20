@@ -1,0 +1,5 @@
+-exportcontents: \
+    net.jini.url.file,\
+    net.jini.url.httpmd,\
+    net.jini.url.https
+-sources: true

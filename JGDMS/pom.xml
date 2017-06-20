@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>au.net.zeus</groupId>
+  <artifactId>jgdms</artifactId>
+  <version>3.0-SNAPSHOT</version>
+
+  <packaging>pom</packaging>
+
+  <name>JGDMS Project</name>
+
+  <description>JGDMS Project</description>
+
+  <inceptionYear>2016</inceptionYear>
+
+  <url>https://pfirmstone.github.io/JGDMS/</url>
+
+  <licenses>
+    <license>
+      <name>Apache Software License 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <!--<issueManagement>
+    <system>JIRA</system>
+    <url>https://issues.apache.org/jira/browse/RIVER</url>
+  </issueManagement>
+
+  <scm>
+    <connection>scm:http://svn.apache.org/repos/asf/river/jtsk/trunk</connection>
+    <developerConnection>scm:https://svn.apache.org/repos/asf/river/jtsk/trunk</developerConnection>
+    <url>http://svn.apache.org/repos/asf/river/jtsk/trunk</url>
+  </scm>
+
+  <ciManagement>
+    <system>hudson</system>
+    <url>https://builds.apache.org/view/M-R/view/River/</url>
+  </ciManagement>-->
+
+  <reporting>
+    <excludeDefaults>true</excludeDefaults>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-project-info-reports-plugin</artifactId>
+        <version>2.4</version>
+        <inherited>false</inherited>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>modules</report>
+              <report>cim</report>
+              <report>issue-tracking</report>
+              <report>mailing-list</report>
+              <report>license</report>
+              <report>project-team</report>
+              <report>scm</report>
+              <report>index</report>
+              <report>findbugs</report>
+            </reports>
+            <!--<configuration>
+              <aggregate>true</aggregate>
+            </configuration>-->
+          </reportSet>
+        </reportSets>
+      </plugin>
+      <!--<plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <version>2.2</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>2.10.4</version>
+        <inherited>false</inherited>
+        <configuration>
+          <aggregate>true</aggregate>
+          <additionalparam>-Xdoclint:none</additionalparam>
+        </configuration>-->
+        <!--<reportSets>
+          <reportSet>
+            <id>aggregate</id>
+            <configuration>
+              <links>
+                <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
+                <link>https://hudson.apache.org/hudson/view/River/job/River-trunk/javadoc/api/index.html</link>
+              </links>
+              <detectLinks>true</detectLinks>
+              <breakiterator>true</breakiterator>
+              <top></top>
+              <footer></footer>
+              <excludePackageNames></excludePackageNames>
+            </configuration>
+            <reports>
+              <report>aggregate</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+      
+            <plugin>
+                <artifactId>maven-jxr-plugin</artifactId>
+                <inherited>false</inherited>
+                <configuration>
+                    <aggregate>true</aggregate>
+                </configuration>
+            </plugin>
+            -->
+    </plugins>
+  </reporting>
+
+  <!--<mailingLists>
+        <mailingList>
+            <name>JGDMS User List</name>
+            <archive>river-dev@apache.org</archive>
+        </mailingList>
+        <mailingList>
+            <name>JGDMS Developer List</name>
+            <archive>river-dev@apache.org</archive>
+        </mailingList>
+        <mailingList>
+            <name>JGDMS Commits List</name>
+	        <archive>river-commits@apache.org</archive>
+        </mailingList>
+    </mailingLists>-->
+
+  <developers>
+    <developer>
+      <id>peter_firmstone</id>
+      <name>Peter Firmstone</name>
+      <email></email>
+      <roles>
+        <role>Developer</role>
+      </roles>
+      <timezone>+10</timezone>
+    </developer>
+    <!-- FILL IN THE REST OF YOUR DEVELOPERS -->
+  </developers>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>local-snapshots</id>
+      <layout>default</layout>
+      <url>file:\C:\Users\Peter\Documents\repo</url>
+    </snapshotRepository>
+  </distributionManagement>
+
+  <!--
+    <distributionManagement>
+        <repository>
+            <id></id>
+            <name></name>
+            <url>scp://</url>
+        </repository>        
+    </distributionManagement>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id></id>
+            <url></url>
+        </pluginRepository>
+    </pluginRepositories>
+-->
+
+  <repositories>
+    <repository>
+      <id>local-snapshots</id>
+      <url>file:\C:\Users\Peter\Documents\repo</url>
+    </repository>
+    <!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in jgdms-url-integrity -->
+    <!--<repository>
+		    <id>boundary-site</id>
+		    <url>http://maven.boundary.com/artifactory/repo</url>
+        </repository>
+		
+        <repository>
+		    <id>hashnot</id>
+		    <url>http://mvn.hashnot.com/content/groups/public</url>
+        </repository>-->
+  </repositories>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.codehaus.groovy</groupId>
+        <artifactId>groovy-all</artifactId>
+        <version>${groovy.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.groovy.maven</groupId>
+        <artifactId>gmaven-plugin</artifactId>
+        <version>${gma}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>2.3</version>
+          <configuration>
+              <useDefaultManifestFile>true</useDefaultManifestFile>
+          </configuration>
+        </plugin>
+        <plugin>
+            <groupId>org.owasp</groupId>
+            <artifactId>dependency-check-maven</artifactId>
+            <version>1.4.4.1</version>
+            <configuration>
+                <cveValidForHours>12</cveValidForHours>
+                <failBuildOnCVSS>4</failBuildOnCVSS>
+            </configuration>
+        </plugin>
+        <plugin>
+            <groupId>biz.aQute.bnd</groupId>
+            <artifactId>bnd-maven-plugin</artifactId>
+            <version>3.2.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.13</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>2.13</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>2.1.1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.gmaven</groupId>
+          <artifactId>gmaven-plugin</artifactId>
+          <version>${gmaven.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+    <plugins>
+      <plugin>
+        <artifactId>maven-site-plugin</artifactId>
+        <version>3.3</version>
+        <inherited>false</inherited>
+        <configuration>
+          <locales>en</locales>
+          <outputDirectory>${basedir}/docs</outputDirectory>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.3.2</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+          <optimize>true</optimize>
+          <encoding>UTF-8</encoding>
+          <meminitial>128m</meminitial>
+          <maxmem>1024m</maxmem>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>2.5</version>
+      </plugin>
+    </plugins>
+  </build>
+  
+  <properties>
+    <groovy.version>2.2.1</groovy.version>
+    <gmaven.version>1.4</gmaven.version>
+    <gmavenProviderSelection>2.0</gmavenProviderSelection>
+    <junit.version>4.8.2</junit.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
+
+  <modules>
+    <module>jgdms-collections</module>
+    <module>jgdms-pref-class-loader</module>
+    <module>jgdms-activation</module>
+    <module>jgdms-platform</module>
+    <module>jgdms-jeri</module>
+    <module>jgdms-discovery-providers</module>
+    <module>jgdms-url-integrity</module>
+    <module>service-starter</module>
+    <module>jgdms-destroy</module>
+    <module>jgdms-resources</module>
+    <module>jgdms-iiop</module>
+    <module>jgdms-jrmp</module>
+    <module>jgdms-lib</module>
+    <module>jgdms-lib-dl</module>
+    <module>jgdms-ui-factory</module>
+    <module>jini-2.1-compat</module>
+    <module>jsk-platform</module>
+    <module>jsk-lib</module>
+    <module>services/outrigger</module>
+    <module>services/reggie</module>
+    <module>services/mahalo</module>
+    <module>services/mercury</module>
+    <module>services/norm</module>
+    <module>services/group</module>
+    <module>services/fiddler</module>
+    <module>tools</module>
+    <module>phoenix-activation</module>
+    <module>groovy-config</module>
+    <module>dist</module>
+    <module>browser</module>
+    <module>extra</module>
+    <!--CVE-2015-6420 vulnerable <module>velocity-config</module>-->
+  </modules>
+
+</project>

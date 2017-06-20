@@ -21,7 +21,7 @@ import org.apache.river.qa.harness.Test;
 import java.util.logging.Level;
 
 import org.apache.river.qa.harness.TestException;
-import org.apache.river.start.DestroySharedGroup;
+import org.apache.river.start.destroy.DestroySharedGroup;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 

@@ -1,0 +1,366 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html lang="en-US">
+<body text="#000000" bgcolor="#ffffff" link="#9b37cc"
+      vlink="#cc1877" alink="#ffffff">
+
+<title>Notes on Java(TM) RMI Activation and How it is Used in the 
+JGDMS release</title>
+
+<center><h1>Notes on Java(TM) RMI Activation and How it is Used 
+<br>in the JGDMS Release</h1></center>
+ 
+
+All of the contributed River technology-enabled service (<em>River
+service</em>) implementations in the JGDMS release 
+support three modes of operation: transient,
+persistent/non-activatable, and persistent/activatable.  The lifecycle of
+the services in the first two modes is relatively straightforward and is
+similar to the lifecycles of most other network services written in the
+Java(TM) programming language. Running the services in
+persistent/activatable mode is more involved. While there are benefits to
+using activation, the deployment of activatable services is somewhat
+non-intuitive if you do not have previous experience with the Java Remote
+Method Invocation (Java RMI) activation system.  In particular, the
+relationship between the tool used to launch our contributed service
+implementations, the <a
+href=../api/org/apache/river/start/package-summary.html><em>service
+starter</em></a>, and the service launched is a bit different for
+activatable than non-activatable services. This document is intended to
+provide some background on the advantages of using the Java RMI activation
+system and what impact using activation has on the way services
+are started and run.
+<p>
+
+If you are new to the JGDMS release or doing day-to-day development, you
+probably don't need to use the activatable mode of the contributed
+implementations. The non-activatable modes are considerably simpler to deal
+with and understand. The activatable mode may be necessary or helpful in
+certain deployment scenarios or when you need to test in an environment
+similar to what you will deploy into and are using the activatable mode
+in deployment.
+<p>
+
+<H3>Why is Activation Useful?</H3>
+
+Activation provides three features :
+
+<ul>
+<li><em>Persistent References</em> &#151; Persistent references are remote
+references that remain valid after the virtual machine for the Java
+platform (VM) in which the service was originally hosted in has died or
+been terminated.
+
+<li><em>Crash recovery</em> &#151; If an activatable service crashes, the
+activation system will restart it as necessary.
+
+<li><em>Demand driven activation</em> &#151; An activatable service can be
+written in such a way that it only requires a running VM when it is
+servicing a client request. Note that the contributed service
+implementations in the JGDMS release do not exploit this feature of
+activation.
+
+</ul>
+
+The first two features are particularly valuable if the service you are
+deploying needs to be available all the time. If a service is activatable
+and it crashes (because of a program error or because the machine on which
+it is running crashes), activation will automatically restart it in a new
+VM.  In the case of a hardware crash this will take place after the machine
+recovers and the activation daemon is restarted. Because activation
+provides persistent references, any existing references to the service will
+continue to work, even though the service is now hosted by a different VM.
+<p>
+
+<hr>
+<h2>The Java RMI Activation System Daemon</h2>
+
+<em>This is a high-level description of how Java RMI activation works.
+If you want even greater detail, check the links at the end of this
+document.</em>
+<p>
+
+A <em>Java RMI activation system daemon</em> (<em>activation daemon</em>)
+is a process that continually runs on a system to ensure that activatable
+services are available when they are needed. Once an activation daemon is
+running, its remote methods can be invoked to register information on how
+to start activatable services. This registration process returns a remote
+reference to the service, but the service itself is not yet running.  The
+remote reference to the service can be made available for clients to use
+directly, or via a smart proxy. Whether embedded in a proxy or not, the
+reference is generally made available by means of a River lookup service,
+though any mechanism that allows for the transfer of serializable objects
+can also be used.
+<p>
+
+While the service's reference appears to clients to be a normal remote
+reference, it acts a bit differently. This remote reference contains the
+information necessary to contact <em>both</em> the activation daemon on the
+service's host and the service itself. When a client invokes a
+method on this remote reference object, the reference object first tries to
+contact the service directly; if this attempt fails, it contacts the
+activation daemon. If necessary, the activation daemon (re)starts the
+service in a new VM and passes the contact information for the new VM back
+to the remote reference. The remote reference then tries to contact the
+service using this new contact information. If this second attempt fails,
+or if the remote reference cannot contact the activation daemon, then the
+remote reference throws a <code>RemoteException</code>.
+<p>
+
+<h3>Failure Recovery</h3>
+
+If the service's VM crashes, the activation daemon will restart it as
+necessary. The service can be registered with the activation daemon in such
+a way that the activation daemon will automatically restart a crashed
+service even if there are no active clients. This is in fact how all of the
+activatable services register themselves. The other way to
+register with the activation daemon is demand driven &#151; to have it
+(re)start the service only when a client invokes a remote method of the
+service.
+<p>
+
+When a service is registered with the activation daemon, the registration
+is logged to disk. When the activation daemon is restarted after a crash or
+other outage it will read the log and the service will again be
+available. If, at some point, the service decides it should no longer
+exist, it must explicitly unregister with the activation daemon; simply
+calling <code>System.exit</code> will not keep it from being restarted by
+the activation daemon.
+<p>
+
+<h3>Process Architecture</h3>
+
+An activatable service will always be run in a child process of the
+activation daemon. This design allows the activation daemon to determine if
+the service's VM has crashed and to reliably determine when a new VM should
+be created. This has a few implications.
+<p>
+
+<b>VM Independence</b><br>
+
+The service now has an existence that is independent of any particular
+VM. As long as the activation daemon is reachable, the service is reachable
+and exists &#151; even if the service itself is not currently running inside a
+VM. If the activation daemon is not running but its logs are intact,
+restarting the activation daemon will make the service reachable again. In
+a very real sense, the service exists (although it may be inaccessible) as
+long as the activation daemon's logs and the service's logs exist. When you
+kill an activation daemon and delete its logs, you are really destroying
+all the services that have registered with it.
+<p>
+
+The key to this independence is the remote references that activation
+creates for the service. These are persistent references; that is, they
+keep on working after the original VM in which the service was hosted goes
+away. With Java RMI/JRMP (the Java RMI implementation included with the
+Java Development Kit) activation is the only supported way to get
+persistent references.  With Jini extensible method invocation (Jini ERI)
+there are two ways to create persistent references. One way is to use
+activation. The second way is to create references with fixed ports and
+object IDs. The package documentation for each of the 
+contributed service implementations includes example configurations
+demonstrating how this can be done.
+<p>
+
+<b>Multiple Service Dependence</b><br>
+In general, more than one service will be registered with a given
+activation daemon. Thus, while you can destroy a service by killing the
+activation daemon and deleting its logs, you will most likely destroy
+quite a few other services in the process.
+<p>
+
+A better approach is to tell the service that you no longer need it and
+that it should destroy itself. The administration interfaces of all the
+service implementations in the JGDMS release support the <a
+href=../api/org/apache/river/admin/DestroyAdmin.html>
+<code>org.apache.river.admin.DestroyAdmin</code></a> interface. Invoking the <a
+href=../api/org/apache/river/admin/DestroyAdmin.html#destroy><code>destroy</code></a>
+method on the admin of an activatable service will cause the service to be
+unregistered with the activation daemon, the service's logs to be
+destroyed, and all the threads the service has started to be stopped (which
+means if there are no other non-daemon threads, the VM will exit). Invoking
+<code>destroy</code> on only a single service will leave the activation
+daemon, and any other services registered with it, intact and
+available. When the <a
+href=../api/org/apache/river/example/browser/package-summary.html>example
+service browser</a> that ships with the JGDMS release is started with the
+<code>folderView</code> configuration entry set to <code>true</code> (which
+is the default), it can be used to destroy services that implement
+<code>DestroyAdmin</code>.
+<p>
+
+<b>Service Persistence</b><br>
+
+Another implication of using activatable services is that, in the normal
+course of events, you don't need to individually restart the services after
+restarting the activation daemon; <em>the activation daemon will do it for
+you</em>. If the activation daemon's log is still intact, it will
+automatically restart the services as necessary.  Each time you use the
+service starter to start an activatable service, you are not restarting an
+existing service instance, but creating a completely new service instance
+with its own identity and state.
+<p>
+
+For example, if you were to invoke the service starter using "<code>java
+-jar start.jar start-activatable-reggie.config</code>" to start an
+activatable Reggie server, then kill the activation daemon, restart the
+activation daemon, and invoke "<code>java -jar start.jar
+start-activatable-reggie.config</code>" again, you will end up with
+<b>two</b> Reggie services, not one. If you keep on doing this you will end
+up with a very large number of Reggie services, the activation daemon will
+take a long time to restart, and your system will slow to a crawl. Also, if
+you have not given them separate log directories, the Reggie services will
+start interfering with each other. You should only invoke "<code>java -jar
+start.jar start-activatable-reggie.config</code>" more than once if you
+want more than one Reggie running on the machine in question, or if the
+first instance of Reggie has been destroyed (as opposed to having only
+crashed).
+<p>
+
+<b>The VM You Start and the Service VM are Separate</b><br>
+
+When you invoke the service starter to create an activatable service
+instance, a VM is created for the service starter to do its work in;
+generally this is done with a command line of the form <code>java -jar
+start.jar ... </code>. We refer to this VM as the <em>setup VM</em>. The
+service starter makes some remote calls to the activation daemon to
+register the new service. This will cause the activation daemon to spawn a
+new VM for the service to run in. We refer to this VM as the <em>server
+VM</em>. This is very different from what happens when the service starter
+is asked to create a non-activatable (transient or persistent) service, in
+which case there is only one VM.
+<p>
+
+Unless the service starter has been asked to host non-activatable services
+in addition to creating new activatable services, the <em>setup VM will
+exit</em> once it has registered the new activatable service(s) with the
+activation daemon. <em>This is normal</em>. If the setup VM exits cleanly
+(e.g. no exceptions are printed out) the new service has been created and
+(if properly configured) is available for use.
+<p>
+
+Because the server VM is a child of the activation daemon, anything sent to
+the service's <code>System.out</code> or <code>System.err</code> will appear
+not in the setup VM's console session, but in the activation daemon's
+console session.
+<p>
+
+Lastly, because the activation daemon is starting the server VM, you have
+less direct control over how it is started than the setup VM. For example
+if you wanted to have the service run in a VM with the <code>-server</code>
+command line switch set, adding <code>-server</code> to the command line
+used for the setup VM will not help. How the service VM is spawned is
+controlled by the <a
+href=../api/org/apache/river/start/SharedActivationGroupDescriptor.html><code>org.apache.river.start.SharedActivationGroupDescriptor</code></a>
+that was responsible for creating the <em>activation group</em> to which
+that service has been assigned.
+<p>
+
+<b>Service Starter Needs More Information</b><br>
+
+Service starter determines what needs to be done by getting an array of <a
+href=../api/org/apache/river/start/ServiceDescriptor.html><code>org.apache.river.start.ServiceDescriptor</code></a>s
+using the <code>serviceDescriptors</code> configuration entry. Creating a
+single non-activatable service requires only a single instance of <a
+href=../api/org/apache/river/start/NonActivatableServiceDescriptor.html><code>org.apache.river.start.NonActivatableServiceDescriptor</code></a>,
+while creating instances of activatable services is a bit more involved
+and has more options.
+<p>
+
+Each activatable service needs to be assigned to an activation
+group. Activation groups are created by placing instances of
+<code>SharedActivationGroupDescriptor</code> in the
+<code>serviceDescriptors</code> array. As mentioned above, the
+<code>SharedActivationGroupDescriptor</code> will control the details of
+how the server VM is spawned.<p>
+
+Once you have an activation group, one or more activatable services can be
+assigned to it. Activatable services are created by placing instances of <a
+href=../api/org/apache/river/start/SharedActivatableServiceDescriptor.html><code>org.apache.river.start.SharedActivatableServiceDescriptor</code></a>
+in the <code>serviceDescriptors</code> array, one instance per activatable
+service to be created.
+<p>
+
+There is one additional wrinkle to consider. Because of the way
+<code>SharedActivatableServiceDescriptor</code>s are associated with
+activation groups, a group can be created by one service starter
+invocation, and separate service starter invocations can be used to add
+activatable services to that group. For example you could use one service
+starter invocation to create a group and put 30 services in it, or you
+could invoke the service starter to just create a group, and then run the
+service starter again to add one or more services. In either case you could
+come back three weeks later and add more services to an existing group.
+<p>
+
+
+<h2>Further Reading</h2>
+
+The <a href=http://java.sun.com/j2se/1.4/docs/guide/rmi/spec/rmiTOC.html>
+Java RMI Specification</a> includes a <a
+href=http://java.sun.com/j2se/1.4/docs/guide/rmi/spec/rmi-activation.html#1997>chapter</a>
+on activation.
+<p>
+
+<a
+href=http://java.sun.com/j2se/1.4/docs/guide/rmi/activation.html>Tutorials
+on how to write an activatable service</a>.
+<p>
+
+There are two activation daemon implementations available. <code>rmid</code>
+ships with the Java Development Kit:
+<ul> 
+<li><a
+href=http://java.sun.com/j2se/1.4/docs/tooldocs/windows/rmid.html>Documentation
+on using <code>rmid</code> on Microsoft Windows </a>
+<li><a href=http://java.sun.com/j2se/1.4/docs/tooldocs/solaris/rmid.html>Documentation
+on using <code>rmid</code> with the Solaris(TM) Operating System
+and/or Linux</a>
+</ul>
+<p>
+
+The second is <a
+href=../api/org/apache/river/phoenix/package-summary.html>phoenix</a>, which is
+part of the release. Phoenix has better support for Jini ERI, is
+configurable, and supports <code>net.jini.security</code>, making it
+suitable for a much broader range of deployments than <code>rmid</code>.
+<p>
+
+Because activation daemons are capable of spawning arbitrary subprocesses,
+there are some <a href=execpolicy.html>security issues to consider</a>.
+<p>
+
+
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>

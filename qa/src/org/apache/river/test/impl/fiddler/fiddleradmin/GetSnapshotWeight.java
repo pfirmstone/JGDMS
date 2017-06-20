@@ -25,7 +25,7 @@ import org.apache.river.test.share.FiddlerAdminUtil;
 
 import org.apache.river.qa.harness.TestException;
 
-import org.apache.river.fiddler.FiddlerAdmin;
+import org.apache.river.admin.FiddlerAdmin;
 
 import net.jini.discovery.LookupDiscoveryService;
 

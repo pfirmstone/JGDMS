@@ -31,7 +31,11 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar" {
 
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.pref.jar}" {
     permission java.security.AllPermission "", "";
 };
 

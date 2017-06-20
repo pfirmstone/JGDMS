@@ -1,0 +1,7 @@
+-exportcontents: \
+    org.apache.river.activation,\
+    org.apache.river.api.lookup,\
+    org.apache.river.reliableLog,\
+    org.apache.river.start.lifecycle,\
+    org.apache.river.system
+-sources: true

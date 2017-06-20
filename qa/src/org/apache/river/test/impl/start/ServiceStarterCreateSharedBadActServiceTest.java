@@ -50,7 +50,7 @@ import org.apache.river.start.ServiceStarter;
 import org.apache.river.start.SharedActivationGroupDescriptor;
 import org.apache.river.start.SharedActivatableServiceDescriptor;
 import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
-import org.apache.river.start.SharedGroup;
+import org.apache.river.start.group.SharedGroup;
 import net.jini.config.EmptyConfiguration;
 
 public class ServiceStarterCreateSharedBadActServiceTest extends StarterBase implements Test {

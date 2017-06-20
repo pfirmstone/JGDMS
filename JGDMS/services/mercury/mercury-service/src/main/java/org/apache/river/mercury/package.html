@@ -1,0 +1,1491 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides implementations of the 
+{@linkplain  net.jini.event.EventMailbox} service.
+Three implementations are available for use with the 
+{@link org.apache.river.start} package:
+
+<ul>
+<li> <code>org.apache.river.mercury.ActivatableMercuryImpl</code> - an
+     activatable, persistent implementation, suitable for use with
+     {@link org.apache.river.start.SharedActivatableServiceDescriptor}
+<li> <code>org.apache.river.mercury.NonActivatableMercuryImpl</code> - a
+     non-activatable, persistent implementation, suitable for use with
+     {@link org.apache.river.start.NonActivatableServiceDescriptor}
+<li> <code>org.apache.river.mercury.TransientMercuryImpl</code> - a
+     transient implementation, also suitable for use with
+     {@link org.apache.river.start.NonActivatableServiceDescriptor}
+</ul>
+
+<p>
+The JAR file <code>mercury.jar</code>, included in the <code>lib</code>
+subdirectory of the JGDMS release installation,
+contains the classes for the three Mercury service
+implementations. The <code>mercury-dl.jar</code> 
+and <code>jsk-dl.jar</code> files in the <code>lib-dl</code> subdirectory
+contain
+the classes needed in the codebase for its downloaded proxies. None of the
+JAR files include classes from <code>jsk-platform.jar</code>, which are
+included by the service starter's <code>start.jar</code> JAR file, and
+need to be included in the codebase of clients.
+<p>
+
+The object returned by the {@link net.jini.admin.Administrable#getAdmin
+Administrable.getAdmin} method on a Mercury service proxy implements {@link
+net.jini.admin.JoinAdmin} and {@link org.apache.river.admin.DestroyAdmin}. 
+<p>
+
+This document provides the following information about Mercury: 
+<ul>
+<li> <a href="#configuration">Configuring Mercury</a>
+<li> <a href="#access_control">Access Control Permission Targets</a>
+<li> <a href="#logging">Logging</a>
+<li> <a href="#examples">Examples for Running Mercury</a>
+</ul> 
+<p>
+
+<a name="configuration">
+<h2>Configuring Mercury</h2>
+</a>
+
+The Mercury service implementation obtains its configuration by calling
+{@link net.jini.config.ConfigurationProvider#getInstance(String[], ClassLoader)
+ConfigurationProvider.getInstance} with the specified
+<i>configOptions</i> and the class loader for the implementation
+class.
+<p>
+
+The implementation supports the following configuration entries, with
+component <code>org.apache.river.mercury</code>: </p>
+
+  <table summary="Describes the activationIdPreparer configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      activationIdPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>
+        new {@link net.jini.security.BasicProxyPreparer}()
+        </code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The proxy preparer for the service's activation
+      ID. The value should not be <code>null</code>. This entry is
+      obtained at service start and restart. This entry is only used by
+      the activatable implementation. <p>
+
+      Clients call the {@link java.rmi.activation.ActivationID#activate
+      activate} method on instances of {@link
+      java.rmi.activation.ActivationID} when they need to reactivate the
+      service.
+  </table>
+
+  <table summary="Describes the activationSystemPreparer configuration
+         entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      activationSystemPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>
+        new {@link net.jini.security.BasicProxyPreparer}()</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The proxy preparer for the proxy for the
+      activation system. The value should not be <code>null</code>. This
+      entry is obtained at service start and restart. This entry is only
+      used by the activatable implementation. <p>
+
+      The service calls the {@link
+      java.rmi.activation.ActivationSystem#unregisterObject
+      unregisterObject} method on the {@link
+      java.rmi.activation.ActivationSystem} when the service is
+      destroyed.
+  </table>
+
+  <a name="discoveryManager"></a>
+  <table summary="Describes the discoveryManager configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      discoveryManager</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.discovery.DiscoveryManagement}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td>
+<pre>
+new {@link net.jini.discovery.LookupDiscoveryManager}(
+    groups,   // current group set
+    locators, // current locator set
+    null,     // listener
+    this)     // config
+</pre>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> Supplies an object used to discover the lookup
+      services with which this service should register. The value should
+      not be <code>null</code>. The object returned must also implement
+      {@link net.jini.discovery.DiscoveryGroupManagement} and {@link
+      net.jini.discovery.DiscoveryLocatorManagement}, and should be
+      configured initially to discover no groups or specific lookup
+      services. This entry is obtained at service start and restart.
+  </table>
+  
+  <table summary="Describes the initialLookupAttributes configuration
+	 entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      initialLookupAttributes</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.core.entry.Entry}[]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new Entry[0]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> Entries to include in the set of attributes the
+      service supplies when registering with lookup services, in
+      addition to {@link net.jini.lookup.entry.ServiceInfo} and {@link
+      org.apache.river.lookup.entry.BasicServiceType} instances provided by
+      the service. An empty array or <code>null</code> specifies that
+      only the service-provided attributes should be added. The array
+      must not contain <code>null</code> elements. This entry is
+      obtained and used when the service is first started. Following
+      initial startup, the set of attributes is controlled though the
+      service's {@link net.jini.admin.JoinAdmin} administrable
+      interface.
+  </table>
+
+  <table summary="Describes the initialLookupGroups configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      initialLookupGroups</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>String[]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new String[] { "" } /* public group */</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The names of the lookup groups that the service
+      should discover and join. An empty array specifies that no groups
+      should be joined. A <code>null</code> value specifies that all
+      groups should be joined. Otherwise, the value specifies the names
+      of the groups to join. The array must not contain
+      <code>null</code> elements. This entry is obtained and used when
+      the service is first started. Following initial startup, the set
+      of lookup groups is controlled through the service's {@link
+      net.jini.admin.JoinAdmin} administrable interface.
+  </table>
+
+  <table summary="Describes the initialLookupLocators configuration
+	 entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      initialLookupLocators</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.core.discovery.LookupLocator}[]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new LookupLocator[0]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The locations of specific lookup services that
+      the service should discover and join. An empty array or
+      <code>null</code> specifies that no specific lookup services
+      should be joined. The array must not contain <code>null</code>
+      elements. This entry is obtained and used when the service is
+      first started. Following initial startup, the set of specific
+      lookup services is controlled through the service's {@link
+      net.jini.admin.JoinAdmin} administrable interface. <p>
+
+      The <code>LookupLocator</code> instances specified in this entry
+      will not be prepared by the proxy preparer specified in the
+      <code>locatorPreparer</code> entry, and will only be prepared by
+      the preparer in the <code>recoveredLocatorPreparer</code> entry
+      when they are being recovered.
+  </table>
+
+  <table summary="Describes the leasePeriodPolicy configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      leasePeriodPolicy</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link org.apache.river.landlord.LeasePeriodPolicy}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td>
+<pre>
+new {@link org.apache.river.landlord.FixedLeasePeriodPolicy}(
+    3 * 60 * 60 * 1000L,  // max = 3 hours
+    60 * 60 * 1000L)      // default = 1 hour
+</pre>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The policy for calculating lease grants and
+      renewals. The value should not be <code>null</code>. The default
+      grants leases with a maximum duration of 3 hours and a default
+      duration of 1 hour. This entry is obtained at service start and
+      restart.
+  </table>
+  
+  <table summary="Describes the listenerPreparer configuration entry"
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>listenerPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for 
+	     {@link net.jini.core.event.RemoteEventListener}
+	     proxies that have registered with 
+	     this service 
+	     via the {@link 
+	     net.jini.event.MailboxRegistration#enableDelivery enableDelivery}
+	     method. 
+	     This preparer is
+             used to prepare proxies only when they initially
+             join with this service. 
+             The value should not
+             be <code>null</code>. The preparer must return a listener 
+	     which is equal to the original listener as determined by 
+	     {@link java.lang.Object#equals Object.equals}. 
+	     This entry is obtained at service start and restart. <p>
+	     
+             This preparer needs to perform all operations needed to use a
+             newly received listener, 
+	     typically including verifying trust in
+             the participant proxy, granting permissions, and setting
+             constraints. The prepared participant will be retained 
+	     by the service in its persistent store. <p>
+	     
+	     The service (potentially) calls the 
+             {@link net.jini.core.event.RemoteEventListener#notify notify}
+	     method on these proxies.
+   </table>
+   
+  <table summary="Describes the locatorToJoinPreparer configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      locatorToJoinPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>
+        new {@link net.jini.security.BasicProxyPreparer}()
+	</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> Prepares {@link
+      net.jini.core.discovery.LookupLocator} instances 
+      passed to {@link net.jini.admin.JoinAdmin} methods. The value
+      should not be <code>null</code>. When registering with lookup
+      services, this service may call or use the constraints assigned to
+      the {@link net.jini.core.discovery.LookupLocator#getRegistrar
+      getRegistrar} methods of <code>LookupLocator</code> instances
+      returned from this preparer. This entry is obtained at service
+      start and restart. <p>
+
+      This preparer needs to perform all operations needed to use a
+      newly received lookup locator, typically including verifying trust
+      in the lookup locator and setting constraints. The prepared lookup
+      locator will be retained by the service in its persistent
+      store. <p>
+
+      The <code>LookupLocator</code> instances obtained from the
+      <code>initialLookupLocators</code> configuration entry will not be
+      prepared by this preparer.
+  </table>
+  
+
+  <table summary="Describes the loginContext configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      loginContext</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link javax.security.auth.login.LoginContext}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>null</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> If not <code>null</code>, specifies the JAAS
+      login context to use for performing a JAAS login and supplying the
+      {@link javax.security.auth.Subject} to use when running the
+      service. If <code>null</code>, no JAAS login is performed. This
+      entry is obtained at service start and restart.
+  </table>
+
+  <table summary="Describes the logToSnapshotThreshold
+         configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      logToSnapshotThreshold</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>50</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The threshold used to determine whether or not
+      to take a snapshot of the server's state. The value should not be
+      negative. The service will delay making new snapshots until the
+      number of log updates is greater than this value. This entry is
+      obtained at service start and restart. This entry is only used by
+      persistent implementations.
+  </table>
+  
+<a name="maxUnexportDelay"></a>
+<table summary="Describes the maxUnexportDelay configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>maxUnexportDelay</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>long</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>120000</code> (2 minutes)
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+
+      Description: <td> How long to retry &#147nice&#148 unexport attempts before
+      forcing the unexport. Part of destroying a Mercury server includes
+      calling {@link net.jini.export.Exporter#unexport
+      Exporter.unexport(boolean force)} on the <code>Exporter</code> used
+      to export the server (see
+      <a href="#serverExporter"><code>serverExporter</code></a>). The initial
+      <code>unexport</code> call passes <code>false</code> for the value of
+      the <code>force</code> parameter. This is done in order to allow the
+      destroy call to return cleanly to the client. If the initial
+      <code>unexport</code> call fails, Mercury will retry calling
+      <code>unexport(false)</code> for up to <code>maxUnexportDelay</code>
+      milliseconds before giving up and calling
+      <code>unexport(true)</code>.  <code>maxUnexportDelay</code> must be a
+      non-negative long value. If <code>maxUnexportDelay</code> is zero
+      then the very first call to <code>unexport</code> passes
+      <code>true</code> for the value of the <code>force</code> parameter,
+      no nice unexport attempt is made. Obtained at service start and
+      restart. Note, the delay between attempted <code>unexport</code>
+      calls is controlled by the <a
+      href="#unexportRetryDelay"><code>unexportRetryDelay</code></a>
+      configuration entry.
+</table>
+
+<a name="notificationsExecutorService"></a>
+<table summary="Describes the notificationsTaskManager configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>notificationsExecutorService</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new </code>{@link
+      java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+                    10,
+                    10, /* Ignored */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue(), /* Unbounded Queue */
+                    new NamedThreadFactory("EventTypeGenerator", false)
+                )
+      
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+
+      Description: <td> The pool of threads used to make event delivery
+      attempts. 
+      The {@link java.util.concurrent/ExecutorService#shutdown shutdown}
+      method of this object will be called when the service is
+      destroyed. This entry is obtained at service start and restart.
+  </table>
+
+  <table summary="Describes the persistenceDirectory configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      persistenceDirectory</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>String</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <em>Required for persistent implementations: no
+      default</em>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The directory where the service's persistent
+      state is recorded. The value should not be <code>null</code>. This
+      entry is obtained at service start and restart. This entry is
+      required for persistent implementations and is otherwise not used.
+  </table>
+
+  <table summary="Describes the recoveredListenerPreparer configuration entry"
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>recoveredListenerPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for recovered 
+	     {@link net.jini.core.event.RemoteEventListener}
+	     proxies that have been previously registered and prepared
+	     with this service (via the {@link 
+	     net.jini.event.MailboxRegistration#enableDelivery enableDelivery}
+	     method). <P>
+	     This preparer needs to perform only those operations whose results are 
+	     not retained in the participant itself, but need to be performed in 
+	     the environment in which the participant is unmarshalled,
+	     typically just granting permissions. <P>
+	     The service (potentially) calls the 
+             {@link net.jini.core.event.RemoteEventListener#notify notify}
+	     method on these proxies.
+  </table>
+    
+    
+  <table summary="Describes the recoveredLocatorToJoinPreparer 
+         configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      recoveredLocatorToJoinPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>
+        new {@link net.jini.security.BasicProxyPreparer}()
+	</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> Prepares {@link
+      net.jini.core.discovery.LookupLocator} instances for use when they
+      are recovered from persistent storage. The value should not be
+      <code>null</code>. When registering with lookup services, this
+      service may call or use the constraints assigned to the {@link
+      net.jini.core.discovery.LookupLocator#getRegistrar getRegistrar}
+      methods of <code>LookupLocator</code> instances returned from this
+      preparer. This entry is obtained at service start and
+      restart. This entry is only used by persistent
+      implementations. <p>
+
+      This preparer needs to perform only those operations whose results
+      are not retained in the lookup locator itself, but need to be
+      performed in the environment in which the lookup locator is
+      unmarshalled. Typically no operations are needed. <p>
+
+      The <code>LookupLocator</code> instances obtained from the
+      <code>initialLookupLocators</code> configuration entry will not be
+      prepared by this preparer until they are being recovered.
+  </table>
+
+<a name="serverExporter"></a>
+  <table summary="Describes the serverExporter configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      serverExporter</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.export.Exporter}
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td>
+<pre>
+// Activatable implementation
+new {@link net.jini.activation.ActivationExporter}(
+    <i>activationID</i>,
+    new {@link net.jini.jeri.BasicJeriExporter}(
+        {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(0),
+        new {@link net.jini.jeri.BasicILFactory}(), false, true))
+// Non-activatable implementations
+new {@link net.jini.jeri.BasicJeriExporter}(
+    {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(0),
+    new {@link net.jini.jeri.BasicILFactory}(),false, true)
+</pre>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> The object to use for exporting the service. The
+      value should not be <code>null</code>. In the activatable case,
+      the call to <code>getEntry</code> will supply the activation ID in
+      the <code>data</code> argument. This entry is obtained at service
+      start and restart.
+  </table>
+  
+<a name="unexportRetryDelay"></a>
+<table summary="Describes the unexportRetryDelay configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>unexportRetryDelay</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>long</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>1000</code> (1 second)
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+
+      Description: <td> When destroying a Mercury server how long to
+      wait between unexport attempts. <code>unexportRetryDelay</code> must
+      be a positive long value. When destroying itself Mercury will sleep
+      for <code>unexportRetryDelay</code> milliseconds between {@link
+      net.jini.export.Exporter#unexport Exporter.unexport} calls. Obtained
+      at service start and restart. See <a
+      href="#maxUnexportDelay"><code>maxUnexportDelay</code></a> for
+      additional details.
+  </table> <P>
+
+<a name="access_control">
+<h2>Access Control Permission Targets</h2>
+</a>
+
+The following table lists the remote methods on Mercury's proxy objects and
+the associated target names for enforcing access control using {@link
+org.apache.river.mercury.MercuryPermission}: <p>
+
+<table border="1" cellpadding="5"
+       summary="The proxy methods and associated target names for
+       MercuryPermission.">
+
+<tr> <th scope="col"> Proxy Method <th scope="col"> Target Name
+
+<!-- EventMailbox -->
+
+<tr> <td> {@link  net.jini.event.EventMailbox#register 
+                  EventMailbox.register}
+     <td> register
+<tr> <td> {@link  net.jini.event.MailboxRegistration#enableDelivery
+                  MailboxRegistration.enableDelivery}
+     <td> enableDelivery
+<tr> <td> {@link  net.jini.event.MailboxRegistration#disableDelivery 
+                  MailboxRegistration.disableDelivery}
+     <td> disableDelivery
+<tr> <td> {@link  net.jini.core.event.RemoteEventListener#notify 
+                  RemoteEventListener.notify}
+     <td> notify
+
+<!-- Lease and LeaseMap -->
+
+<tr> <td> {@link net.jini.core.lease.Lease#renew Lease.renew}
+     <td> renew
+<tr> <td> {@link net.jini.core.lease.Lease#cancel Lease.cancel}
+     <td> cancel
+<tr> <td> {@link net.jini.core.lease.LeaseMap#renewAll LeaseMap.renewAll}
+     <td> renewAll
+<tr> <td> {@link net.jini.core.lease.LeaseMap#cancelAll LeaseMap.cancelAll}
+     <td> cancelAll
+
+<!-- Administrable -->
+
+<tr> <td> {@link net.jini.admin.Administrable#getAdmin Administrable.getAdmin}
+     <td> getAdmin
+
+<!-- JoinAdmin -->
+
+<tr> <td> {@link net.jini.admin.JoinAdmin#getLookupAttributes
+		 JoinAdmin.getLookupAttributes}
+     <td> getLookupAttributes
+<tr> <td> {@link net.jini.admin.JoinAdmin#addLookupAttributes
+		 JoinAdmin.addLookupAttributes}
+     <td> addLookupAttributes
+<tr> <td> {@link net.jini.admin.JoinAdmin#modifyLookupAttributes
+		 JoinAdmin.modifyLookupAttributes}
+     <td> modifyLookupAttributes
+
+<tr> <td> {@link net.jini.admin.JoinAdmin#getLookupGroups
+		 JoinAdmin.getLookupGroups}
+     <td> getLookupGroups
+<tr> <td> {@link net.jini.admin.JoinAdmin#addLookupGroups
+		 JoinAdmin.addLookupGroups}
+     <td> addLookupGroups
+<tr> <td> {@link net.jini.admin.JoinAdmin#removeLookupGroups
+		 JoinAdmin.removeLookupGroups}
+     <td> removeLookupGroups
+<tr> <td> {@link net.jini.admin.JoinAdmin#setLookupGroups
+		 JoinAdmin.setLookupGroups}
+     <td> setLookupGroups
+
+<tr> <td> {@link net.jini.admin.JoinAdmin#getLookupLocators
+		 JoinAdmin.getLookupLocators}
+     <td> getLookupLocators
+<tr> <td> {@link net.jini.admin.JoinAdmin#addLookupLocators
+		 JoinAdmin.addLookupLocators}
+     <td> addLookupLocators
+<tr> <td> {@link net.jini.admin.JoinAdmin#removeLookupLocators
+		 JoinAdmin.removeLookupLocators}
+     <td> removeLookupLocators
+<tr> <td> {@link net.jini.admin.JoinAdmin#setLookupLocators
+		 JoinAdmin.setLookupLocators}
+     <td> setLookupLocators
+
+<!-- DestroyAdmin -->
+
+<tr> <td> {@link org.apache.river.admin.DestroyAdmin#destroy DestroyAdmin.destroy}
+     <td> destroy
+
+<!-- ProxyTrust -->
+
+<tr> <td> {@link net.jini.security.proxytrust.ProxyTrust#getProxyVerifier
+		 ProxyTrust.getProxyVerifier}
+     <td> getProxyVerifier
+
+<!-- ServiceProxyAccessor -->
+
+<tr> <td> {@link net.jini.export.ServiceProxyAccessor#getServiceProxy
+		 ServiceProxyAccessor.getServiceProxy}
+     <td> getServiceProxy
+
+</table> <p>
+
+<a name="logging">
+<h2>Loggers and Logging Levels</h2>
+</a>
+
+The Mercury service implementation uses separate {@link
+java.util.logging.Logger}s, prefixed by <code>org.apache.river.mercury</code>, 
+for each type of information it logs. The following tables describe the
+type of information logged as well as the levels of information logged.
+<p>
+
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by adminLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.admin</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> 
+  for low level
+  service destruction operation tracing
+
+  </table> <p>
+
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by deliveryLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.delivery</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+  
+  <tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED} <td>
+  for exceptions handled during failed event delivery attempts
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> 
+  for low level
+  event delivery operation tracing
+
+  </table> <p>
+
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by expirationLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.expiration</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> 
+  for low level
+  lease expiration operation tracing
+
+  </table> <p>
+
+ <table border="1" cellpadding="5"
+	 summary="Describes logging performed by initLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.init</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+
+  <tr> <td> {@link java.util.logging.Level#SEVERE SEVERE} <td>
+  for problems that prevent service startup
+
+  <tr> <td> {@link java.util.logging.Level#CONFIG CONFIG} <td> 
+  for configuration access during service initialization
+
+  <tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED} <td>
+  for exceptions handled during service initialization
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> for low level
+  operation tracing during service initialization
+
+  </table> <p>
+
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by leaseLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.lease</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> 
+  for low level
+  leasing operation tracing (creation, renewal, etc.)
+
+  </table> <p>
+
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by operationsLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.operations</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+
+  <tr> <td> {@link java.util.logging.Level#FINER FINER} <td> 
+  for method level
+  tracing during service operation
+
+  </table> <p>
+
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by persistenceLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.persistence</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+  
+  <tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED} <td>
+  for exceptions handled during service persistence attempts
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> 
+  for low level
+  service persistence operation tracing
+
+  </table> <p>
+  
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by receiveLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.receive</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> 
+  for low level
+  event reception tracing
+
+  </table> <p>
+
+  <table border="1" cellpadding="5"
+	 summary="Describes logging performed by recoveryLogger at different
+	 logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.recovery</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+  
+  <tr> <td> {@link org.apache.river.logging.Levels#HANDLED HANDLED} <td>
+  for exceptions handled during service recovery attempts
+
+  <tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> 
+  for low level
+  service recovery operation tracing
+
+  </table> <p>
+
+    <table border="1" cellpadding="5"
+	 summary="Describes logging performed by startupLogger 
+	          at different logging levels">
+
+  <caption halign="center" valign="top"><b><code>
+	   org.apache.river.mercury.startup</code></b></caption>
+
+  <tr> <th scope="col"> Level <th scope="col"> Description
+
+  <tr> <td> {@link java.util.logging.Level#INFO INFO} <td> 
+  for successful
+  service creation message.
+  
+  </table> <p>
+
+See the {@link org.apache.river.logging.LogManager} class for one way to use
+the <code>HANDLED</code> logging level in standard logging configuration
+files. <p>
+
+<a name="examples">
+<h2>Examples for Running Mercury</h2>
+</a>
+
+This section provides examples of running Mercury in various configurations.
+
+<ul>
+<li> <a href="#assumptions">Assumptions for running the examples</a>
+<li> JRMP configurations
+     <ul>
+     <li> <a href="#transient_jrmp">Transient</a>
+     <li> <a href="#persistent_jrmp">Persistent</a>
+     <li> <a href="#activatable_jrmp">Activatable</a>
+     </ul>
+<li> Jini extensible remote invocation (Jini ERI) configurations
+     <ul>
+     <li> <a href="#transient">Transient</a>
+     <li> <a href="#persistent">Persistent</a>
+     <li> <a href="#activatable">Activatable</a>
+     </ul>
+<li> <a href="#stop_activatable">Stopping activatable configurations</a>
+</ul> <p>
+
+<a name="assumptions">
+<h3>Assumptions for Running the Examples</h3>
+</a>
+
+The examples below make the following assumptions: <p>
+
+<ul>
+<li> The Java(TM) 2 Platform, Standard Edition, (J2SE(TM)) has been
+     installed, and its commands are available in the current path
+<li> The JGDMS release has been installed in the
+     <var><b>install_dir</b></var> directory
+<li> The example configuration and policy files described below are
+     available in the <var><b>config_dir</b></var> directory
+<li> The local host name is <var><b>your_host</b></var>
+<li> The local lookup group name is <var><b>your.group</b></var>
+<li> The HTTP server for download JAR files is running on
+     <var><b>your_host</b></var> and is available on port
+     <var><b>http_port</b></var>. This HTTP server is serving files located
+     in the <var><b>install_dir</b></var>/lib-dl directory. You can use the
+     {@link org.apache.river.tool.ClassServer} class for this purpose.
+<li> The examples are being run on UNIX platforms
+<li> The examples are being run on a secure network where access control
+     and authentication are not needed. See the <a
+     href="../../../../../../source/src/org/apache/river/example/hello/index.html">hello example</a> for some 
+     client and service configurations that enforce security.
+<li> For activatable services, an activation system is running on
+     <var><b>your_host</b></var>. You can use the {@link
+     org.apache.river.phoenix} implementation for this purpose.
+</ul> <p>
+
+Throughout the example, items in <var><b>bold</b></var> need to be
+customized for your local environment.
+
+<a name="transient_jrmp">
+<h3>Starting Transient Mercury using JRMP</h3>
+</a>
+
+To run a transient Mercury, which does not store any information
+persistently or use the activation system to restart itself, using JRMP
+for remote communication, run the following command. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=start-transient-jrmp-mercury.sh -->
+java -Djava.security.policy=<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a> \
+     -jar <var><b>install_dir</b></var>/lib/start.jar \
+     <a href="#start_transient_jrmp_config"><var><b>config_dir</b></var>/start-transient-jrmp-mercury.config</a>
+<!-- cut_end -->
+</pre>
+</blockquote> <p>
+
+This configuration uses the following files.
+
+<a name="jsk_all_policy">
+<h4>File <var><b>config_dir</b></var>/jsk-all.policy</h4>
+</a>
+
+Use this security policy file for starting and running all Mercury
+configurations. This file grants all permissions to local code included
+in the <code>lib</code> subdirectory of the JGDMS release installation.<p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/jsk-all.policy -->
+grant codebase "file:<var><b>install_dir</b></var>/lib/*" {
+    permission java.security.AllPermission;
+};
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="start_transient_jrmp_config">
+<h4>File <var><b>config_dir</b></var>/start-transient-jrmp-mercury.config</h4>
+</a>
+
+Use this configuration source file to start transient Mercury using
+JRMP. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/start-transient-jrmp-mercury.config -->
+import org.apache.river.start.NonActivatableServiceDescriptor;
+import org.apache.river.start.ServiceDescriptor;
+
+org.apache.river.start {
+    private static codebase = "http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/mercury-dl.jar"
+       + " http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/jsk-dl.jar";
+    private static policy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static classpath = "<var><b>install_dir</b></var>/lib/mercury.jar";
+    private static config = "<a href="#transient_jrmp_config"><var><b>config_dir</b></var>/transient-jrmp-mercury.config</a>";
+
+    static serviceDescriptors = new ServiceDescriptor[] {
+	new NonActivatableServiceDescriptor(
+	    codebase, policy, classpath,
+	    "org.apache.river.mercury.TransientMercuryImpl",
+	    new String[] { config })
+    };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="transient_jrmp_config">
+<h4>File <var><b>config_dir</b></var>/transient-jrmp-mercury.config</h4>
+</a>
+
+Use this configuration source file to run transient Mercury using JRMP. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/transient-jrmp-mercury.config -->
+import net.jini.jrmp.JrmpExporter;
+
+org.apache.river.mercury {
+    initialLookupGroups = new String[] { "<var><b>your.group</b></var>" };
+    serverExporter = new JrmpExporter();
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="persistent_jrmp">
+<h3>Starting Persistent Mercury using JRMP</h3>
+</a>
+
+To run a persistent Mercury, which stores information persistently but does
+not use the activation system to restart itself, using JRMP for remote
+communication, run the following command. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=start-persistent-jrmp-mercury.sh -->
+java -Djava.security.policy=<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a> \
+     -jar <var><b>install_dir</b></var>/lib/start.jar \
+     <a href="#start_persistent_jrmp_config"><var><b>config_dir</b></var>/start-persistent-jrmp-mercury.config</a>
+<!-- cut_end -->
+</pre>
+</blockquote> <p>
+
+<b>Note:</b> Because JRMP does not provide a convenient way to specify
+the same object ID each time a given object is exported, this
+configuration is only useful for debugging -- an existing service proxy
+cannot be used after the service is restarted. <p>
+
+This configuration uses the following additional files.
+
+<a name="start_persistent_jrmp_config">
+<h4>File <var><b>config_dir</b></var>/start-persistent-jrmp-mercury.config</h4>
+</a>
+
+Use this configuration source file to start persistent Mercury using
+JRMP. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/start-persistent-jrmp-mercury.config -->
+import org.apache.river.start.NonActivatableServiceDescriptor;
+import org.apache.river.start.ServiceDescriptor;
+
+org.apache.river.start {
+    private static codebase = "http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/mercury-dl.jar"
+       + " http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/jsk-dl.jar";
+    private static policy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static classpath = "<var><b>install_dir</b></var>/lib/mercury.jar";
+    private static config = "<a href="#persistent_jrmp_config"><var><b>config_dir</b></var>/persistent-jrmp-mercury.config</a>";
+
+    static serviceDescriptors = new ServiceDescriptor[] {
+	new NonActivatableServiceDescriptor(
+	    codebase, policy, classpath,
+	    "org.apache.river.mercury.NonActivatableMercuryImpl",
+	    new String[] { config })
+    };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="persistent_jrmp_config">
+<h4>File <var><b>config_dir</b></var>/persistent-jrmp-mercury.config</h4>
+</a>
+
+Use this configuration source file to run persistent Mercury using
+JRMP. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/persistent-jrmp-mercury.config -->
+import net.jini.jrmp.JrmpExporter;
+
+org.apache.river.mercury {
+    initialLookupGroups = new String[] { "<var><b>your.group</b></var>" };
+    persistenceDirectory = "<var><b>config_dir</b></var>/mercury.log";
+    serverExporter = new JrmpExporter();
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="activatable_jrmp">
+<h3>Starting Activatable Mercury using JRMP</h3>
+</a>
+
+To run an activatable Mercury, which stores information persistently and
+uses the activation system to restart itself, using JRMP for remote
+communication, run the following command. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=start-activatable-jrmp-mercury.sh -->
+java -Djava.security.policy=<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a> \
+     -jar <var><b>install_dir</b></var>/lib/start.jar \
+     <a href="#start_activatable_jrmp_config"><var><b>config_dir</b></var>/start-activatable-jrmp-mercury.config</a>
+<!-- cut_end -->
+</pre>
+</blockquote> <p>
+
+You should remove the <var><b>config_dir</b></var>/group.log directory
+before running this command. Note that the activation system will
+restart the activatable Mercury service as needed until Mercury is
+shutdown. <p>
+
+Remember to remove the <var><b>config_dir</b></var>/mercury.log directory
+before running this command if you want Mercury to forget registrations and
+settings made in previous invocations. <p>
+
+This configuration uses the following additional files.
+
+<a name="start_activatable_jrmp_config">
+<h4>File <var><b>config_dir</b></var>/start-activatable-jrmp-mercury.config</h4>
+</a>
+
+Use this configuration source file to start activatable Mercury using
+JRMP. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/start-activatable-jrmp-mercury.config -->
+import org.apache.river.start.ServiceDescriptor;
+import org.apache.river.start.SharedActivatableServiceDescriptor;
+import org.apache.river.start.SharedActivationGroupDescriptor;
+
+org.apache.river.start {
+    private static mercuryCodebase = "http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/mercury-dl.jar"
+       + " http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/jsk-dl.jar";
+    private static mercuryPolicy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static mercuryClasspath = "<var><b>install_dir</b></var>/lib/mercury.jar";
+    private static mercuryConfig = "<a href="#activatable_jrmp_config"><var><b>config_dir</b></var>/activatable-jrmp-mercury.config</a>";
+
+    private static groupPolicy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static groupClasspath = "<var><b>install_dir</b></var>/lib/sharedvm.jar";
+    private static groupPersistenceDirectory = "<var><b>config_dir</b></var>/group.log";
+
+    static serviceDescriptors = new ServiceDescriptor[] {
+	new SharedActivationGroupDescriptor(
+	    groupPolicy, groupClasspath, groupPersistenceDirectory,
+	    null /* serverCommand */,
+	    null /* serverOptions */,
+	    null /* serverProperties */),
+	new SharedActivatableServiceDescriptor(
+	    mercuryCodebase, mercuryPolicy, mercuryClasspath,
+	    "org.apache.river.mercury.ActivatableMercuryImpl",
+	    groupPersistenceDirectory,
+	    new String[] { mercuryConfig },
+	    true /* restart */)
+    };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="activatable_jrmp_config">
+<h4>File <var><b>config_dir</b></var>/activatable-jrmp-mercury.config</h4>
+</a>
+
+Use this configuration source file to run activatable Mercury using
+JRMP. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/activatable-jrmp-mercury.config -->
+import java.rmi.activation.ActivationID;
+import net.jini.jrmp.JrmpExporter;
+
+org.apache.river.mercury {
+    initialLookupGroups = new String[] { "<var><b>your.group</b></var>" };
+    persistenceDirectory = "<var><b>config_dir</b></var>/mercury.log";
+    serverExporter = new JrmpExporter((ActivationID) $data, 0);
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="stop_activatable">
+<h3>Stopping Activatable Mercury</h3>
+</a>
+
+To destroy the activation group running an activatable Mercury, under a
+a JRMP or Jini ERI configuration, run the following command. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=stop-activatable-mercury.sh -->
+java -Djava.security.policy=<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a> \
+     -jar <var><b>install_dir</b></var>/lib/destroy.jar \
+     <a href="#stop_activatable_config"><var><b>config_dir</b></var>/stop-activatable-mercury.config</a>
+<!-- cut_end -->
+</pre>
+</blockquote> <p>
+
+Running this command will remove the
+<var><b>config_dir</b></var>/group.log directory. <p>
+
+Note that this command does not actually destroy the service itself, but
+just destroys the activation group the service is running in. You may
+want to first destroy the service using Mercury's administrable interface,
+or to remove the <var><b>config_dir</b></var>/mercury.log directory after
+destroying the activation group. <p>
+
+This command uses the following additional file.
+
+<a name="stop_activatable_config">
+<h4>File <var><b>config_dir</b></var>/stop-activatable-mercury.config</h4>
+</a>
+
+Use this configuration source file to destroy the activation group for
+an activatable Mercury. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/stop-activatable-mercury.config -->
+import org.apache.river.start.ServiceDescriptor;
+import org.apache.river.start.SharedActivatableServiceDescriptor;
+
+org.apache.river.start {
+    private static codebase = "http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/group-dl.jar";
+    private static policy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static classpath = "<var><b>install_dir</b></var>/lib/group.jar";
+    private static persistenceDirectory = "<var><b>config_dir</b></var>/group.log";
+
+    static serviceDestructors = new ServiceDescriptor[] {
+	new SharedActivatableServiceDescriptor(
+	    codebase, policy, classpath,
+	    "org.apache.river.start.group.service.SharedGroupImpl",
+	    persistenceDirectory,
+	    null /* config */,
+	    false /* restart */)
+    };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="transient">
+<h3>Starting Transient Mercury using Jini ERI</h3>
+</a>
+
+To run a transient Mercury, which does not store any information
+persistently or use the activation system to restart itself, using Jini
+ERI for remote communication, run the following command. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=start-transient-mercury.sh -->
+java -Djava.security.policy=<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a> \
+     -jar <var><b>install_dir</b></var>/lib/start.jar \
+     <a href="#start_transient_config"><var><b>config_dir</b></var>/start-transient-mercury.config</a>
+<!-- cut_end -->
+</pre>
+</blockquote> <p>
+
+This configuration uses the following additional files.
+
+<a name="start_transient_config">
+<h4>File <var><b>config_dir</b></var>/start-transient-mercury.config</h4>
+</a>
+
+Use this configuration source file to start transient Mercury using
+Jini ERI. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/start-transient-mercury.config -->
+import org.apache.river.start.NonActivatableServiceDescriptor;
+import org.apache.river.start.ServiceDescriptor;
+
+org.apache.river.start {
+    private static codebase = "http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/mercury-dl.jar"
+       + " http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/jsk-dl.jar";
+    private static policy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static classpath = "<var><b>install_dir</b></var>/lib/mercury.jar";
+    private static config = "<a href="#transient_config"><var><b>config_dir</b></var>/transient-mercury.config</a>";
+
+    static serviceDescriptors = new ServiceDescriptor[] {
+	new NonActivatableServiceDescriptor(
+	    codebase, policy, classpath,
+	    "org.apache.river.mercury.TransientMercuryImpl",
+	    new String[] { config })
+    };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="transient_config">
+<h4>File <var><b>config_dir</b></var>/transient-mercury.config</h4>
+</a>
+
+Use this configuration source file to run transient Mercury using Jini
+ERI. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/transient-mercury.config -->
+org.apache.river.mercury {
+    initialLookupGroups = new String[] { "<var><b>your.group</b></var>" };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="persistent">
+<h3>Starting Persistent Mercury using Jini ERI</h3>
+</a>
+
+To run a persistent Mercury, which stores information persistently but does
+not use the activation system to restart itself, using Jini ERI for
+remote communication, run the following command. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=start-persistent-mercury.sh -->
+java -Djava.security.policy=<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a> \
+     -jar <var><b>install_dir</b></var>/lib/start.jar \
+     <a href="#start_persistent_config"><var><b>config_dir</b></var>/start-persistent-mercury.config</a>
+<!-- cut_end -->
+</pre>
+</blockquote> <p>
+
+This configuration uses the following additional files.
+
+<a name="start_persistent_config">
+<h4>File <var><b>config_dir</b></var>/start-persistent-mercury.config</h4>
+</a>
+
+Use this configuration source file to start persistent Mercury using Jini
+ERI. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/start-persistent-mercury.config -->
+import org.apache.river.start.NonActivatableServiceDescriptor;
+import org.apache.river.start.ServiceDescriptor;
+
+org.apache.river.start {
+    private static codebase = "http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/mercury-dl.jar"
+       + " http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/jsk-dl.jar";
+    private static policy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static classpath = "<var><b>install_dir</b></var>/lib/mercury.jar";
+    private static config = "<a href="#persistent_config"><var><b>config_dir</b></var>/persistent-mercury.config</a>";
+
+    static serviceDescriptors = new ServiceDescriptor[] {
+	new NonActivatableServiceDescriptor(
+	    codebase, policy, classpath,
+	    "org.apache.river.mercury.NonActivatableMercuryImpl",
+	    new String[] { config })
+    };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="persistent_config">
+<h4>File <var><b>config_dir</b></var>/persistent-mercury.config</h4>
+</a>
+
+Use this configuration source file to run persistent Mercury using Jini
+ERI. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/persistent-mercury.config -->
+import net.jini.id.UuidFactory;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+
+org.apache.river.mercury {
+    initialLookupGroups = new String[] { "<var><b>your.group</b></var>" };
+    persistenceDirectory = "<var><b>config_dir</b></var>/mercury.log";
+    serverExporter = new BasicJeriExporter(
+	TcpServerEndpoint.getInstance(<var><b>obj_port</b></var>),
+	new BasicILFactory(),
+	false,
+	true,
+	UuidFactory.create("<var><b>obj_UUID_string</b></var>"));
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+The <var><b>obj_port</b></var> is the fixed TCP port to use for
+listening for requests for this object. The
+<var><b>obj_UUID_string</b></var> is the {@linkplain net.jini.id.Uuid
+universally unique ID} for the exported object. These IDs have the form
+<code>"01234567-89ab-cdef-0123-456789abcdef"</code>. <p>
+
+Remember to remove the <var><b>config_dir</b></var>/mercury.log directory
+before restarting persistent Mercury if you want it to forget registrations
+and settings made in previous invocations.
+
+<a name="activatable">
+<h3>Starting Activatable Mercury using Jini ERI</h3>
+</a>
+
+To run an activatable Mercury, which stores information persistently and
+uses the activation system to restart itself, using Jini ERI for remote
+communication, run the following command. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=start-activatable-mercury.sh -->
+java -Djava.security.policy=<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a> \
+     -jar <var><b>install_dir</b></var>/lib/start.jar \
+     <a href="#start_activatable_config"><var><b>config_dir</b></var>/start-activatable-mercury.config</a>
+<!-- cut_end -->
+</pre>
+</blockquote> <p>
+
+You should remove the <var><b>config_dir</b></var>/group.log directory
+before running this command. Note that the activation system will
+restart the activatable Mercury service as needed until Mercury is
+shutdown. <p>
+
+Remember to remove the <var><b>config_dir</b></var>/mercury.log directory
+before running this command if you want Mercury to forget registrations and
+settings made in previous invocations. <p>
+
+This configuration uses the following additional files.
+
+<a name="start_activatable_config">
+<h4>File <var><b>config_dir</b></var>/start-activatable-mercury.config</h4>
+</a>
+
+Use this configuration source file to start activatable Mercury using Jini
+ERI. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/start-activatable-mercury.config -->
+import org.apache.river.start.ServiceDescriptor;
+import org.apache.river.start.SharedActivatableServiceDescriptor;
+import org.apache.river.start.SharedActivationGroupDescriptor;
+
+org.apache.river.start {
+    private static mercuryCodebase = "http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/mercury-dl.jar"
+       + " http://<var><b>your_host</b></var>:<var><b>http_port</b></var>/jsk-dl.jar";
+    private static mercuryPolicy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static mercuryClasspath = "<var><b>install_dir</b></var>/lib/mercury.jar";
+    private static mercuryConfig = "<a href="#activatable_config"><var><b>config_dir</b></var>/activatable-mercury.config</a>";
+
+    private static groupPolicy = "<a href="#jsk_all_policy"><var><b>config_dir</b></var>/jsk-all.policy</a>";
+    private static groupClasspath = "<var><b>install_dir</b></var>/lib/sharedvm.jar";
+    private static groupPersistenceDirectory = "<var><b>config_dir</b></var>/group.log";
+
+    static serviceDescriptors = new ServiceDescriptor[] {
+	new SharedActivationGroupDescriptor(
+	    groupPolicy, groupClasspath, groupPersistenceDirectory,
+	    null /* serverCommand */,
+	    null /* serverOptions */,
+	    null /* serverProperties */),
+	new SharedActivatableServiceDescriptor(
+	    mercuryCodebase, mercuryPolicy, mercuryClasspath,
+	    "org.apache.river.mercury.ActivatableMercuryImpl",
+	    groupPersistenceDirectory,
+	    new String[] { mercuryConfig },
+	    true /* restart */)
+    };
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+
+<a name="activatable_config">
+<h4>File <var><b>config_dir</b></var>/activatable-mercury.config</h4>
+</a>
+
+Use this configuration source file to run activatable Mercury using Jini
+ERI. <p>
+
+<blockquote>
+<pre>
+<!-- cut_begin=config_dir/activatable-mercury.config -->
+org.apache.river.mercury {
+    initialLookupGroups = new String[] { "<var><b>your.group</b></var>" };
+    persistenceDirectory = "<var><b>config_dir</b></var>/mercury.log";
+}
+<!-- cut_end -->
+</pre>
+</blockquote>
+    
+
+@see net.jini.event.EventMailbox
+
+</body>
+</html>

@@ -23,7 +23,7 @@ import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
 import net.jini.config.ConfigurationException;
 import org.apache.river.start.ServiceStarter;
-import org.apache.river.start.SharedGroup;
+import org.apache.river.start.group.SharedGroup;
 import org.apache.river.qa.harness.OverrideProvider;
 import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QAConfig;

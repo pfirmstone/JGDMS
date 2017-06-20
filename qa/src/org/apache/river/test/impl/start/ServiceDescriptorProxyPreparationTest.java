@@ -52,7 +52,7 @@ import org.apache.river.start.NonActivatableServiceDescriptor;
 //import org.apache.river.start.NonActivatableServiceDescriptor.Created;
 import org.apache.river.start.SharedActivatableServiceDescriptor;
 //import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
-import org.apache.river.start.SharedGroup;
+import org.apache.river.start.group.SharedGroup;
 import net.jini.config.EmptyConfiguration;
 import net.jini.event.EventMailbox;
 import net.jini.security.BasicProxyPreparer;

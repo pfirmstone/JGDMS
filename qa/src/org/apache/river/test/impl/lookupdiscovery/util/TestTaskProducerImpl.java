@@ -19,7 +19,7 @@ package org.apache.river.test.impl.lookupdiscovery.util;
 import org.apache.river.qa.harness.TestException;
 import org.apache.river.test.impl.lookupdiscovery.RestoreContextForTasks;
 import org.apache.river.thread.TaskManager;
-import org.apache.river.thread.WakeupManager;
+import org.apache.river.thread.wakeup.WakeupManager;
 import net.jini.config.Configuration;
 import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryGroupManagement;

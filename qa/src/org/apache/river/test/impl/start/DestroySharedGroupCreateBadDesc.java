@@ -21,10 +21,10 @@ import java.util.logging.Level;
 
 import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QATestEnvironment;
-import org.apache.river.start.DestroySharedGroup;
+import org.apache.river.start.destroy.DestroySharedGroup;
 import org.apache.river.start.ServiceDescriptor;
 import org.apache.river.start.SharedActivatableServiceDescriptor;
-import org.apache.river.start.SharedGroup;
+import org.apache.river.start.group.SharedGroup;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;

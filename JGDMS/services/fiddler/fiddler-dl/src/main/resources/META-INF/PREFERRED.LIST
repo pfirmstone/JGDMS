@@ -1,0 +1,18 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: org/apache/river/fiddler/FiddlerAdmin.class
+Preferred: false
+
+Name: org/apache/river/resource/ServiceConfigurationError.class
+Preferred: false
+
+Name: org/apache/river/start/ServiceProxyAccessor.class
+Preferred: false
+
+Name: org/apache/river/admin/*
+Preferred: false
+
+Name: net/jini/-
+Preferred: false

@@ -1,0 +1,123 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+
+<body text="#000000" bgcolor="#ffffff" link="#9b37cc"
+      vlink="#cc1877" alink="#ffffff">
+<a name="top">
+<title>Release Notes for net.jini.security</title>
+
+<center>
+<h1><code>net.jini.security</code><br>
+JGDMS v3.0.0 Release Notes</h1>
+</center>
+<HR>
+<UL>
+<H3>Description</H3>
+
+<p>The <a href="../api/net/jini/security/package-summary.html">
+<code>net.jini.security</code></a> package and its subpackages provide
+abstractions and facilities for managing security.
+
+<H3>Changes since the v2.2.0 release</H3>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-334'>RIVER-334</a>] -         jre 6 Policy issues
+</li>
+<H3>Changes since the v2.1.1 release</H3>
+
+<dl>
+
+<dt><b>None</b></dt>
+
+</dl>
+
+<H3>Changes since the v2.0.1 release</H3>
+
+<dl>
+
+<dt><b>New proxy preparer</b></dt>
+<dd>
+<p>A new proxy preparer class,
+<a href="../api/net/jini/security/VerifyingProxyPreparer.html">
+<code>VerifyingProxyPreparer</code></a>, has been added. In contrast to
+<a href="../api/net/jini/security/BasicProxyPreparer.html">
+<code>BasicProxyPreparer</code></a>, this new preparer always verifies that
+proxies are trusted, and permits full control over the context elements used
+during trust verification, the class loader used to find trust verifiers,
+and the principals used to scope dynamic permission grants. In particular,
+it can be used to specify a
+<a href="../api/net/jini/security/proxytrust/BasicUntrustedObjectSecurityContext.html">
+<code>BasicUntrustedObjectSecurityContext</code></a> context element for
+controlling the operation of
+<a href="../api/net/jini/security/proxytrust/ProxyTrustVerifier.html">
+<code>ProxyTrustVerifier</code></a> (see below).
+</dd>
+
+<a name="verification">
+<dt><b>Trust verification restriction</b></dt></a>
+<dd>
+<p><a href="../api/net/jini/security/proxytrust/ProxyTrustVerifier.html">
+<code>ProxyTrustVerifier</code></a> has been changed so that, by default,
+when attempting to obtain a bootstrap proxy, operations on untrusted objects
+are performed in a restricted security context that limits the permissions
+of unprivileged code (meaning code that does not use some form of
+<code>doPrivileged</code>) to just the permissions that have been
+granted to all code. In most cases this default will not cause problems,
+but there are cases where it will. In particular, if you are trying to
+verify a proxy that uses activation, and a remote call to activate the
+service is required to obtain the bootstrap proxy, the remote call will
+now fail due to lack of a <code>SocketPermission</code> (unless you have
+granted broad <code>connect</code> <code>SocketPermission</code> to all code,
+which is generally undesirable). To make such a deployment work, you need
+to provide a
+<a href="../api/net/jini/security/proxytrust/BasicUntrustedObjectSecurityContext.html">
+<code>BasicUntrustedObjectSecurityContext</code></a> context element that
+specifies which additional permissions unprivileged code is permitted to
+exercise (provided the code has already been granted those permissions).
+This is aimed in particular at specifying the permissions that local code
+(or already trusted code) is permitted to exercise. For example, you would
+specify <code>SocketPermission</code> to connect to whatever hosts and ports
+can be used for activation. You can use
+<a href="../api/net/jini/security/VerifyingProxyPreparer.html">
+<code>VerifyingProxyPreparer</code></a> (see above) to specify such a
+context element.
+</dd>
+
+</dl>
+
+
+</ul>
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>

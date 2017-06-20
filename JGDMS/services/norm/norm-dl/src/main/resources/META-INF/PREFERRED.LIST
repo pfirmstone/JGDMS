@@ -1,0 +1,27 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: org/apache/river/resource/ServiceConfigurationError.class
+Preferred: false
+
+Name: org/apache/river/start/ServiceProxyAccessor.class
+Preferred: false
+
+Name: org/apache/river/admin/*
+Preferred: false
+
+Name: net/jini/-
+Preferred: false
+
+Name: org/apache/river/landlord/Landlord.class
+Preferred: false
+
+Name: org/apache/river/landlord/LandlordLease.class
+Preferred: false
+
+Name: org/apache/river/landlord/ConstrainableLandlordLease.class
+Preferred: false
+
+Name: org/apache/river/lease/AbstractLease.class
+Preferred: false

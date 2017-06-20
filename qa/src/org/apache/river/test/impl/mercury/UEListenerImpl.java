@@ -17,7 +17,7 @@
  */
 package org.apache.river.test.impl.mercury;
 
-import org.apache.river.start.LifeCycle;
+import org.apache.river.start.lifecycle.LifeCycle;
 
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.UnknownEventException;

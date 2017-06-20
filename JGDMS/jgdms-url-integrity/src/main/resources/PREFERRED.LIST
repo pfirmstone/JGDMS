@@ -1,0 +1,24 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: net/jini/url/httpmd/DelegatingHttpURLConnection.class
+Preferred: true
+
+Name: net/jini/url/httpmd/HttpmdURLConnection.class
+Preferred: true
+
+Name: net/jini/url/httpmd/HttpmdUtil$1.class
+Preferred: true
+
+Name: net/jini/url/httpmd/MdInputStream.class
+Preferred: true
+
+Name: net/jini/-
+Preferred: false
+
+Name: org/apache/river/api/-
+Preferred: false
+
+Name: org/apache/river/discovery/-
+Preferred: false

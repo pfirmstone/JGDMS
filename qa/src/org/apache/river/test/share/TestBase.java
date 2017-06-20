@@ -19,8 +19,8 @@ package org.apache.river.test.share;
 
 
 // java.*
-import org.apache.river.outrigger.AdminIterator;
-import org.apache.river.outrigger.JavaSpaceAdmin;
+import org.apache.river.admin.AdminIterator;
+import org.apache.river.admin.JavaSpaceAdmin;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;

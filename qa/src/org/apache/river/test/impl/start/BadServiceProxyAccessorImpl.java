@@ -18,7 +18,7 @@
 package org.apache.river.test.impl.start;
 
 import org.apache.river.proxy.BasicProxyTrustVerifier;
-import org.apache.river.start.LifeCycle;
+import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
 
 import net.jini.config.Configuration;

@@ -784,10 +784,10 @@ public class QATestUtils {
      *  which may be preferred. This would case an 'equals' comparison to fail.
      *  In addition, a special case involves a check for the reggie proxy class.
      *  Since the proxy used is configuration dependent, if a typeDescriptor
-     *  has the value "org.apache.river.reggie.RegistrarProxy", then equality
+     *  has the value "org.apache.river.reggie.proxy.RegistrarProxy", then equality
      *  will be satisfied if a classType can be found whose getName method
-     *  returns either "org.apache.river.reggie.RegistrarProxy" or
-     *  "org.apache.river.reggie.ConstrainableRegistrarProxy"
+     *  returns either "org.apache.river.reggie.proxy.RegistrarProxy" or
+     *  "org.apache.river.reggie.proxy.ConstrainableRegistrarProxy"
      *
      *  This method is currently employed by the following test classes:
      *
@@ -822,8 +822,8 @@ public class QATestUtils {
 	    }
             return false;
 	}
-	String reggieProxy = "org.apache.river.reggie.RegistrarProxy";
-	String cReggieProxy = "org.apache.river.reggie.ConstrainableRegistrarProxy";
+	String reggieProxy = "org.apache.river.reggie.proxy.RegistrarProxy";
+	String cReggieProxy = "org.apache.river.reggie.proxy.ConstrainableRegistrarProxy";
         iLoop:
             for (int i=0; i<classTypes.length; i++) {
                 for (int j=0;(j<typeDescriptors.length); j++) {

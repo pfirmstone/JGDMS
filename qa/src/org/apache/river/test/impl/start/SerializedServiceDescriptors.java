@@ -19,7 +19,7 @@ package org.apache.river.test.impl.start;
 
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
-import org.apache.river.start.LifeCycle;
+import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.start.NonActivatableServiceDescriptor;
 import org.apache.river.start.ServiceDescriptor;
 import org.apache.river.start.SharedActivatableServiceDescriptor;

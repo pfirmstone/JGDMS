@@ -1,0 +1,341 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+<title>Historical bug fixes</title>
+<body text="#000000" bgcolor="#ffffff" link="#9b37cc"
+      vlink="#cc1877" alink="#ffffff">
+    <a id="top"></a>
+
+<center>
+<h1>Historical bug fixes in Jini 1.1</h1>
+</center>
+<table>
+    
+    <tr>
+        <td>Bug ID</td>
+        <td>Description</td>
+    </tr><tr>
+        <td>4255360</td>
+        <td>OutgoingMulticastAnnouncement infinite loop fixed.  OutgoingMulticastRequest
+        and OutgoingMulticastAnnouncement would allocate memory in an infinite loop
+        if the data to be sent had exactly the maximum size (the code used to say 
+        < maxPacketSize instead of <= maxPacketSize)</td>
+    </tr><tr>
+        <td>4245874</td>
+        <td>Extraneous imports of java.awt.Image removed.  Address and Status had
+        unnecessary imports of java.awt.Image.</td>
+    </tr><tr>
+        <td>4224209</td>
+        <td>LeaseRenewalManager didn't do any renewals when duration was Lease.FOREVER
+        LeaseRenewalManager computed the expiration time as duration + 
+        System.currentTimeMillis() which could overflow if duration was large enough.
+        The resulting negative value prevented renewals from occurring.  The new code
+        sets the expiration time to Lease.FOREVER in this case.</td>
+    </tr><tr>
+        <td>4250151</td>
+        <td>LeaseRenewalManager didn't check for null listener.  When sending
+        a lease expiration notification, LeaseRenewalManager dereferenced the listner without 
+        first checking to see if it was null, and a NullPointerException
+        resulted if it was null.</td>
+    </tr><tr>
+        <td>4262048</td>
+        <td>LeaseRenewalEvent constructor did not set expiration field.  The expiration 
+        field of LeaseRenewalEvent was not properly initialized by the 
+        constructor, so calls to getExpiration() returned an invalid value.</td>
+    </tr><tr>
+        <td></td>
+        <td>LeaseRenewalManager did not take batching into account when calculating renewal times.
+         If you had N leases that could all be batched and had they all approximately the
+        same expiration time, the LeaseRenewalmanager (LRM) calculated that it would
+        take RENEW_RTT time to renew each one, even though when it did
+        actually renew them, it batched them.  As N became large, the leases were renewed more and more
+        prematurely if N was large enough, RENEW_RTT * N exceeded the remaining
+        duration of the lease, and the LRM started continuously renewing the leases
+        in a tight loop.</td>
+    </tr><tr>
+        <td>4193558</td>
+        <td>JoinManager now checks that objects are Serializable.  JoinManager
+        used to take any object, but only Serializable objects would work;
+        others would fail silently.  Now the JoinManager constructor checks
+        that its object argument is in fact Serializable.</td>
+    </tr><tr>
+        <td>4216812</td>
+        <td>JoinManager no longer allows you to join all lookup services by passing
+        null as the group's argument.
+        According to JoinManager's documentation, using null value for groups should
+        be equivalent to using an empty array.  However, JoinManager incorrectly joined
+        all lookup services.  The behaviour has been corrected to match the
+        documentation.</td>
+    </tr><tr>
+        <td>4198664</td>
+        <td>RMSecurityException is no longer caught.  RMSecurityException has been deprecated,
+        so it is now ignored (where previously it was caught).</td>
+    </tr><tr>
+        <td>4197398</td>
+        <td>RegistrarProxy should check that entry classes have no-arg constructors.
+        ClassMapper now checks that entry classes have no-arg constructors, which
+        was a difficult-to-diagnose error otherwise.</td>
+    </tr><tr>
+        <td>4225345</td>
+        <td>CreateLookup should support localization.  CreateLookup's messages
+        have been internationalized by moving them into a resource file
+        (reggie.properties).</td>
+    </tr><tr>
+        <td>4226718</td>
+        <td>NullPointerException in  ClassItemIter.stepClass.  If you called
+        lookup with a template of type EntryB, which has not fields but extends
+        a class EntryA which has some fields, the lookup failed with a 
+        NullPointerException.  The new code uses getDefiningClass to avoid
+        this error.</td>
+    </tr><tr>
+        <td>4233648</td>
+        <td>Throwable is now caught when unmarshalling or calling a listener.
+        Error instances that occurred in user code supplied to Reggie were not
+        properly caught, now they are.</td>
+    </tr><tr>
+        <td>4242282</td>
+        <td>Reggie now calls toStub when service object is Remote.  Reggie used to
+        extract the service type descriptor for a Remote object that was being 
+        registered, when it should have been using the descriptor of the Remote
+        object's stub.</td>
+    </tr><tr>
+        <td>4250196</td>
+        <td>Destroying Reggie could sometimes hang under Solaris HotSpot.
+        The AnnounceThread can sometimes receive an InterruptedIOException while
+        sending a datagram, but the exceptino was treated only as an IOException
+        and discarded.  As a result, the parent DestroyThread never resumed.</td>
+    </tr><tr>
+        <td>4279020 and 4279175</td>
+        <td>Reggie no longer allows primitive types in entries.  ClassMapper and 
+        LookupAttributes used to allow primitive fields in the entry types, 
+        contrary to the Jini Entry Specification.</td>
+    </tr><tr>
+        <td>4193561</td>
+        <td>ClassServer is more clear about paths not found when operating in 
+        verbose mode.  ClassServer, when started with the -verbose flag, would 
+        indicate failed requests as follows:
+        <br>
+        reggie-dl.jar from replica:38146
+        (not found)
+        <br>
+        This format was internally consistent (the first line records the access
+         request, and the second records that it failed), but was very confusing.  
+         The new format makes the meaning of each line more clear:
+         <br>
+         reggie-dl.jar requested from replica:38146
+         reggie-dl.jar not found.
+         <br>
+         ClassServer has been internationalized.<br>
+         The ClassServer now obtinas all of its error messages and verbose
+         messages from a resource bundle 
+         (com.sun.jini.tool.resources.classserver.properties)<br>
+         ClassServer now has a fileDownloaded method.<br>
+         In order to facilitate subclasses of com.sun.jini.tool.ClassServer, a
+         protected method has been added which is called whenever a file is
+         successfully downloaded by a client.<br>
+         ClassServer now writes to System.err.  Error message used to be
+         written to System.out.
+        </td>
+    </tr><tr>
+        <td>4287125</td>
+        <td><p>Norm: Client leases are being renewed after the set they are in should
+                have expired.</p>
+            <p>
+                A given client lease should not be renewed after the set it is in
+                has expired.  An iron-clad guarantee can't be made here because
+                we can't hold onto locks while leases are being renewed.  However,
+                the problem with Norm was worse than could be explained by the
+                short window between committing to renew a client lease and 
+                performing the actual renewal.  The problem arose because
+                there was no check in the renewal threads to make sure that
+                the set the client lease was in still current, and because the 
+                thread that removed sets from the service often runs late.  Such
+                a check is now performed so the window where a client lease renewal
+                can occur, after the lease on the set the client lease is in has 
+                expired, is very small.
+            </p>
+            <p>
+                Comment by P. Firmstone Apr 21st 2016: <br>
+                These issues would not occur with immutable leases and sets,
+                upon renewal a new set with successfully renewed leases
+                would be returned.
+            </p>
+        </td>
+    </tr><tr>
+        <td></td>
+        <td><p>Norm: Race condition in registering expiration warning event handlers</p>
+            <p>The code that generated renewal warning events and expired
+            renewal sets had a race condition with the code that processed
+            registration of expiration warning events.  This race condition
+            could keep Norm from delivery expiration warning events and allow
+            client leases to be renewed long after the renewal set they were
+            in expired.  Thanks to Ken Olwing for finding this bug and helping
+            test the fix.</p>
+            <p>
+                What's important:
+            </p>
+            
+            <ul>
+                <li>The specification for Norm is defined not only by the Jini
+                Lease Renewal Service Specification, but also by the API 
+                documentation (generated by the javadoc tool) for 
+                org.apache.river.norm.NormAdmin and net.jini.admin.Administrable.</li>
+                <li>
+                    If you look at Norm's source code, you will notice a number 
+                    of comments that begin with "$$$".  These generally mark
+                    places in the code where there is potential for improvement.
+                </li>
+            </ul>
+        </td>
+    </tr><tr>
+        <td>4336766</td>
+        <td><p>ExpirationWarningEvent's get generated late</p>
+            <p>
+                There seems to be a particular issue with lease expiration warning
+                events.  Lease expiration warning events are generated at a
+                client-specified minWarning time before the lease on a particular 
+                lease-renewal set is about to expire.  It seems that these 
+                events often are generated later than they should be, probably
+                because of a thread-scheduling issue.  If you register for
+                expiration warning events, you may want to choose a minWarning
+                time a minute or two longer than what you would choose otherwise
+                because of this late notification.
+            </p></td>
+    </tr><tr>
+        <td>4372580</td>
+        <td><p>Mercury doesn't rejoin groups upon restart - fixed.</p>
+            <p>This bug caused Mercury to join the public group upon recovery
+            from crashes and restarts.  Mercury now joins the correct groups
+            upon recovery.</p>
+        </td>
+    </tr><tr>
+        <td>RFE 4329102</td>
+        <td><p>Mercury should use ThrowableConstants utility to categorize exceptions.</p>
+            <p>The org.apache.river.constants.ThrowableConstants class is now
+            used to determine the try strategy for failed event notifications.</p>
+        </td>
+    </tr><tr>
+        <td>4345455</td>
+        <td><p>TxnEntryHandle::replaceWithNormal()/FastList::add() can result in 
+                deadlock cond</p>
+            <p>This bug manifested itself as a deadlock where writes to the 
+                space would block until the current server JVM crashed.
+            This problem would most often occur when a number of threads
+            were writing into the space while others were either locking or
+            unlocking entries under transactions.  Thanks to Michael Whidden
+            for originally reporting this bug and identifying the objects,
+            threads, and locks involved in the deadlock.</p>
+        </td>
+    </tr><tr>
+        <td>4356865</td>
+        <td><p>Outrigger removes TxnEntryHandles too eagerly on transactional take. </p>
+            <p>
+                This bug occurred when one read and then took an entry under the same
+                transaction, and the entry was written under a different 
+                (possibly null) transaction.  The read and take would succeed, 
+                but committing the transaction would fail with a 
+                CannotCommitException.
+            </p></td>
+    </tr><tr>
+        <td>4303007</td>
+        <td><p>read/takeIfExists should ignore any entries locked under its 
+            current transaction.</p>
+            <p>This bug occurred if readIfExists or takeIfExists was called
+            with a non-zero timeout under a transaction and the template
+            matched only entries that were locked (take locked in the case
+            of readIfExists, read or take locked in the case of readIfExists)
+            under that transaction.  In such cases, the query would block until
+            the transaction was resolved instead of returning immediately.  
+            Thanks to Thomas Glotzmann for originally reporting this bug.</p>
+        </td>
+    </tr><tr>
+        <td></td>
+        <td><p>Outrigger does not notify blocking takes when a read-locked 
+                entry becomes available.</p>
+            <p>
+                This bug affected blocking takes that matched entries that
+                were read locked by another transaction.  Threads blocked
+                by a take should be notified when the release of read lock makes
+                new entries eligible for matching.  This manifested itself
+                as blocking takes that took longer than expected to return
+                after transactions associated with read-locked entries
+                were resolved.
+            </p></td>
+    </tr><tr>
+        <td>4320232</td>
+        <td><p>The FastList reaping thread sometimes dies with a 
+            NullPointerException</p>
+            <p>
+                Each Outrigger services has a thread that reaps dead entries 
+                from its internal data structures.  It has been reported that this 
+                thread sometimes dies with a NullPointerException.  The 
+                resulting stack trace looks something like this:
+            </p>
+            <code>java.lang.NullPointerException<br>
+                at com.sun.jini.collection.FastList.reap(FastList.java:384)<br>
+                at com.sun.jini.outrigger.SimpleEntryHolder.reap(SimpleEntryHolder.java:455)<br>
+                at com.sun.jini.outrigger.EntryHolderSet.reap(EntryHolderSet.java:133)<br>
+                at com.sun.jini.outrigger.BasicSpace$2.run(basicSpace.java:1523)<br></code>
+            <p>
+                At this point, expired and removed entries will no longer be
+                reaped and the server will consume increasing amounts of 
+                memory until it crashes.  In the case of FrontEndSpace,
+                killing the JVM in which the server is currently running and
+                letting rmid restart should allow reaping to resume.
+            </p>
+        </td>
+    </tr><tr>
+        <td></td>
+        <td><p>The JavaSpaces Service and Jini Entry Specifications are silent
+            on schema evolution.</p>
+            <p>
+                If you create an Entry implementation class, write an instance
+                of it into a space, and then change the fields of the class 
+                (for example: adding fields, removing fields, changing the 
+                order of fields, changing their type and so on), then the
+                results of writing instances of the new version of the class or
+                performing reads and takes using an instance of the new version of the
+                class are undefined.  The results of such operations on an
+                Outrigger service are also undefined.
+            </p></td>
+    </tr><tr>
+        <td></td>
+        <td></td>
+    </tr><tr>
+        <td></td>
+        <td></td>
+    </tr><tr>
+        <td></td>
+        <td></td>
+    </tr><tr>
+        <td></td>
+        <td></td>
+    </tr><tr>
+        <td></td>
+        <td></td>
+    </tr><tr>
+        <td></td>
+        <td></td>
+    </tr><tr>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+</body>
+</html>    

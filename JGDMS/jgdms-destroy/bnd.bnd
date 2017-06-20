@@ -1,0 +1,3 @@
+-exportcontents: \
+    org.apache.river.start.destroy
+-sources: true

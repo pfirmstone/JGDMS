@@ -1,3 +1,4 @@
+testClasspath=${testClasspath}$:${org.apache.river.jsk.home}$/lib$/${jsk.jrmp.jar}
 testClass=GetPort_BehaviorTest
 testCategories=jrmp,jrmp_spec
 jrmp.util.constructorType=1

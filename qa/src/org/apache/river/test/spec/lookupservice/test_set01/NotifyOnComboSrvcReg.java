@@ -38,6 +38,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.io.MarshalledInstance;
+import net.jini.lookup.SafeServiceRegistrar;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
@@ -248,7 +249,7 @@ public class NotifyOnComboSrvcReg extends QATestRegistrar {
 						 tmplAttrs[j]);
 		sTmpl[i][j] = new ServiceTemplate(null,sClassType,
 						  tmplAttrs[j]);
-		proxy.notiFy(tmpl[i][j],
+		((SafeServiceRegistrar)proxy).notiFy(tmpl[i][j],
 			     transitionMask,
 			     listener,
 			     new AtomicMarshalledInstance

@@ -32,6 +32,7 @@ import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.event.*;
 import net.jini.core.lease.*;
+import net.jini.lookup.SafeServiceRegistrar;
 import java.rmi.RemoteException;
 
 /** This class is used to test that event lease renewal works as expected for
@@ -245,7 +246,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      */
     private void registerAllEvents() throws Exception {
         for(int i=0; i<evntRegs.length; i++) {
-	    evntRegs[i] = proxy.notiFy(srvcIDTmpls[i],
+	    evntRegs[i] = ((SafeServiceRegistrar)proxy).notiFy(srvcIDTmpls[i],
 				       ServiceRegistrar.TRANSITION_NOMATCH_MATCH  |
 				       ServiceRegistrar.TRANSITION_MATCH_NOMATCH |
 				       ServiceRegistrar.TRANSITION_MATCH_MATCH,
