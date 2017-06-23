@@ -54,8 +54,7 @@ public interface Landlord extends org.apache.river.landlord.Landlord {
         public Exception[] denied; 
 
         public RenewResults(long[] granted) {
-            super(granted);
-            this.granted = granted;
+            this(granted, null);
         }
         
         public RenewResults(long[] granted, Exception[] denied) {

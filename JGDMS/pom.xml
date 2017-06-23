@@ -144,11 +144,11 @@
   </developers>
 
   <distributionManagement>
-    <snapshotRepository>
+    <!--<snapshotRepository>
       <id>local-snapshots</id>
       <layout>default</layout>
       <url>file:\C:\Users\Peter\Documents\repo</url>
-    </snapshotRepository>
+    </snapshotRepository>-->
   </distributionManagement>
 
   <!--
@@ -169,10 +169,10 @@
 -->
 
   <repositories>
-    <repository>
+    <!--<repository>
       <id>local-snapshots</id>
       <url>file:\C:\Users\Peter\Documents\repo</url>
-    </repository>
+    </repository>-->
     <!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in jgdms-url-integrity -->
     <!--<repository>
 		    <id>boundary-site</id>
