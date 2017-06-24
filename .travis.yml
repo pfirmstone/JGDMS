@@ -1,4 +1,4 @@
 language: java
 jdk:
   - oraclejdk8
-script: ant test
+script: mvn -f ./JGDMS/pom.xml test
