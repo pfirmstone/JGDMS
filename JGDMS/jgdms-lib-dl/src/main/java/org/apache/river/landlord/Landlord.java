@@ -20,7 +20,6 @@ package org.apache.river.landlord;
 import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.util.Map;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMap;
@@ -117,19 +116,6 @@ public interface Landlord extends Remote {
      * @throws RemoteException if a communications failure occurs
      */
     public java.util.Map cancelAll(Uuid[] cookies) throws RemoteException; 
-//    {
-//	Map<Uuid,UnknownLeaseException> map = null;
-//	for (int i = 0, count = cookies.length; i < count; i++) {
-//	    try {
-//		cancel(cookies[i]);
-//	    } catch (UnknownLeaseException e) {
-//		if (map == null)
-//		    map = new java.util.HashMap<Uuid,UnknownLeaseException>();
-//		map.put(cookies[i], e);
-//	    }
-//	}
-//	return map;
-//    }
 
     /** 
      * Simple class that holds return values of

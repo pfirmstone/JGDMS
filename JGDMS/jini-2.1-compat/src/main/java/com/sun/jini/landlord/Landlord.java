@@ -19,6 +19,8 @@ package com.sun.jini.landlord;
 
 /**
  * Provided for backward compatibility, migrate to new name space.
+ * 
+ * Allows later clients to access earlier service versions.
  */
 @Deprecated
 public interface Landlord extends org.apache.river.landlord.Landlord {
@@ -62,6 +64,17 @@ public interface Landlord extends org.apache.river.landlord.Landlord {
             this.granted = granted;
             this.denied = denied;
         }
+	
+	@Override
+	public long getGranted(int i){
+	    return granted[i];
+	}	
+	
+	@Override
+	public Exception getDenied(int i){
+	    if (denied == null) return null;
+	    return denied[i];
+	}
         
     }
 }

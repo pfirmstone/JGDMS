@@ -21,6 +21,10 @@ package com.sun.jini.admin;
 /**
  * Provided for backward compatibility, migrate to new name space.
  * 
+ * Presently this only provides compatibility for later version clients to 
+ * access the DestroyAdmin proxy on earlier service proxy's.  Currently
+ * JGDMS services don't implement this interface.
+ * 
  */
 @Deprecated
 public interface DestroyAdmin extends org.apache.river.admin.DestroyAdmin {
