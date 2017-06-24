@@ -1,4 +1,22 @@
 # JGDMS - Java/Jini Global Distributed Micro Services.
+## Build instructions
+From command or shell prompt:
+$ mvn -f JGDMS/pom.xml [lifecycle]
+
+Where, for example, lifecycle is one of compile | test | install | deploy etc.
+
+After successfully testing the above, integration and regression tests can be run by:
+
+$ cd qa
+
+$ ant run-all
+
+$ ant jtreg
+
+The regression tests ($ ant run-all) take approximately 24 hours to complete.
+
+The jtreg tests take about half an hour to complete, you'll need to manually install jtreg, refer to http://openjdk.java.net/jtreg/
+
 ## This software is forked from Apache River trunk, it is designed with internet security in mind and provides:
 * ObjectInput and ObjectOutput implementations for hardening deserialization in the presence of untrusted input.
 * TLSv1.2 Encrypted endpoints for RPC communication over untrusted networks, using RSA and Ephemeral Diffie Hellman key exchange and AES with GCM, non-epheremal DH key exchanges are prohibited.
