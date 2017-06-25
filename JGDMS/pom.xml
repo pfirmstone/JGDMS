@@ -151,7 +151,7 @@
     -->
     <site>
       <id>${project.artifactId}-site</id>
-      <url>scm:git:git@github.com:pfirmstone/JGDMS.git</url>
+      <url>scm:git:git@github.com:bhamail/JGDMS.git</url>
     </site>
   </distributionManagement>
 
