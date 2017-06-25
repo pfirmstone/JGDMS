@@ -84,7 +84,7 @@
 <!--
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
-                          <artifactId>jgdms-dl</artifactId>
+                          <artifactId>jgdms-lib-dl</artifactId>
                           <version>${project.version}</version>
                         </additionalDependency>
 -->
