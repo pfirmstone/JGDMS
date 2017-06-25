@@ -252,10 +252,6 @@
         </plugin>
         <!-- reporting plugins : begin -->
         <plugin>
-          <artifactId>maven-site-plugin</artifactId>
-          <version>3.6</version>
-        </plugin>
-        <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>findbugs-maven-plugin</artifactId>
           <version>3.0.4</version>
@@ -273,9 +269,18 @@
           <artifactId>versions-maven-plugin</artifactId>
           <version>2.4</version>
         </plugin>
+        <plugin>
+          <artifactId>maven-site-plugin</artifactId>
+          <version>3.6</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-scm-publish-plugin</artifactId>
+          <version>1.1</version>
+        </plugin>
         <!-- reporting plugins : end -->
       </plugins>
     </pluginManagement>
+
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -293,14 +298,42 @@
         <artifactId>maven-resources-plugin</artifactId>
         <version>2.5</version>
       </plugin>
+
+      <!-- for publishing maven site to gh-pages : begin -->
       <plugin>
-        <!-- for publishing maven site to gh-pages -->
-        <artifactId>maven-scm-publish-plugin</artifactId>
-        <version>1.1</version>
+        <artifactId>maven-site-plugin</artifactId>
         <configuration>
+          <!-- we use maven-scm-publish-plugin to deploy the site to gh-pages branch, so skip maven-site-plugin deploy. -->
+          <skipDeploy>true</skipDeploy>
+        </configuration>
+        <executions>
+          <execution>
+            <!-- ensure 'staging' site tree exists before attempt to deploy site. -->
+            <id>stage-for-scm-publish</id>
+            <phase>post-site</phase>
+            <goals>
+              <goal>stage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-scm-publish-plugin</artifactId>
+        <configuration>
+          <!-- This is important for git, gh-pages. -->
           <scmBranch>gh-pages</scmBranch>
         </configuration>
+        <executions>
+          <execution>
+            <id>scm-publish</id>
+            <phase>site-deploy</phase>
+            <goals>
+              <goal>publish-scm</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
+      <!-- for publishing maven site to gh-pages : end -->
     </plugins>
   </build>
   
