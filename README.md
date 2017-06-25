@@ -1,9 +1,11 @@
 # JGDMS - Java/Jini Global Distributed Micro Services.
 ## Build instructions
 From command or shell prompt:
+
 $ mvn -f JGDMS/pom.xml package
 
 For unit tests:
+
 $mvn -f JGDMS/pom.xml test
 
 After successfully testing the above, integration and regression tests can be run by:
