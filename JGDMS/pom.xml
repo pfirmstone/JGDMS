@@ -149,13 +149,11 @@
       <url>file:\C:\Users\Peter\Documents\repo</url>
     </snapshotRepository>-->
 
-    <!-- @todo checkout maven-scm-publish-plugin for deploy to gh-pages github site:
-    http://maven.apache.org/plugins/maven-scm-publish-plugin/various-tips.html
-    -->
     <site>
       <id>${project.artifactId}-site</id>
       <!-- @todo fix URL to peter's gh repo -->
       <url>scm:git:git@github.com:bhamail/JGDMS.git</url>
+      <!--<url>scm:git:git@github.com:pfirmstone/JGDMS.git</url>-->
     </site>
   </distributionManagement>
 
