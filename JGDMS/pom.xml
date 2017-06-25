@@ -151,6 +151,7 @@
     -->
     <site>
       <id>${project.artifactId}-site</id>
+      <!-- @todo fix URL to peter's gh repo -->
       <url>scm:git:git@github.com:bhamail/JGDMS.git</url>
     </site>
   </distributionManagement>
