@@ -9,7 +9,7 @@ Here is some documentation about how this documentation is written. Feel free to
   1. Markdown - Some of this site is written in the [Markdown format](http://daringfireball.net/projects/markdown/syntax).
    Markdown source files are located in: `src/site/markdown`.
     
-  2. You may also find a `README.md` file at the project root as well.
+  2. You may also find a `README.md` file at the project root.
 
 
 Doc Publishing
