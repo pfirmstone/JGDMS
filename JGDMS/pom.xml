@@ -46,6 +46,9 @@
     <excludeDefaults>true</excludeDefaults>
     <plugins>
       <plugin>
+        <artifactId>maven-surefire-report-plugin</artifactId>
+      </plugin>
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>findbugs-maven-plugin</artifactId>
       </plugin>
@@ -251,6 +254,10 @@
           <version>${gmaven.version}</version>
         </plugin>
         <!-- reporting plugins : begin -->
+        <plugin>
+          <artifactId>maven-surefire-report-plugin</artifactId>
+          <version>2.20</version>
+        </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>findbugs-maven-plugin</artifactId>
