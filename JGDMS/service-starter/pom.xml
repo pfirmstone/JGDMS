@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>service-starter</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: JGDMS Service Starter</name>
     <description>This executable JAR file is the primary entry point for the Service Starter.
         It acts as both the class path for the container virtual machine (VM) for the Java platform

@@ -25,8 +25,7 @@
 
     <groupId>au.net.zeus.jgdms.mercury</groupId>
     <artifactId>mercury-dl</artifactId>
-    <url>http://river.apache.org</url>
-    <name>Module :: Mercury Service Download classes</name> 
+    <name>Module :: Mercury Service Download classes</name>
     <packaging>jar</packaging>
     <dependencies>
         <dependency>

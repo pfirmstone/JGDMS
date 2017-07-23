@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jini-2.1-compat</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: Jini 2.1 compatibility</name>
     <description>Compatibilty classes for the com.sun.jini namespace from Jini 2.1
     </description>

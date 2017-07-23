@@ -26,7 +26,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jgdms-lib-dl</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: JGDMS Service DL Library</name>
 
     <packaging>jar</packaging>

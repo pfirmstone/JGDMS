@@ -26,7 +26,6 @@
 
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>norm</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: Norm</name>
     <packaging>pom</packaging>
 

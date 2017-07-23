@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jgdms-url-integrity</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: JGDMS URL providers and Integrity</name>
     <description>JGDMS URL provider and Integrity verifiers.
     </description>
@@ -67,18 +66,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <inherited>false</inherited>
                 <configuration>
-                    <additionalparam>-Xdoclint:none</additionalparam>
-                    <links>
-                        <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
-                        <link>https://hudson.apache.org/hudson/view/River/job/River-trunk/javadoc/api/index.html</link>
-                    </links>
-                    <detectLinks>true</detectLinks>
-                    <breakiterator>true</breakiterator>
-                    <top><![CDATA[<h2>JGDMS Project ${project.version} API Documentation</h2>]]></top>
-                    <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
-                    <excludePackageNames></excludePackageNames>
 <!--
                     <additionalDependencies>
                         <additionalDependency>
@@ -94,7 +82,6 @@
                     </additionalDependencies>
 -->
                 </configuration>
-                
             </plugin>
         </plugins>
     </reporting>

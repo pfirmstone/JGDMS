@@ -26,7 +26,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jgdms-ui-factory</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: JGDMS Service DL Library UI Factory</name>
 
     <packaging>jar</packaging>

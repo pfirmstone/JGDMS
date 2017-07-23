@@ -28,7 +28,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jgdms-platform</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: JGDMS Jini Platform</name>
     <description>JGDMS Jini Platform, Policy provider, SecurityManager, Constraints and Proxy preparation</description>
    
@@ -84,21 +83,10 @@
         <plugins>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <inherited>false</inherited>
                 <configuration>
                     <!-- @todo Fix javadoc errors, and then restore failOnError to default:true -->
                     <failOnError>false</failOnError>
-                    <links>
-                        <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
-                        <link>https://hudson.apache.org/hudson/view/River/job/River-trunk/javadoc/api/index.html</link>
-                    </links>
-                    <detectLinks>true</detectLinks>
-                    <breakiterator>true</breakiterator>
-                    <top><![CDATA[<h2>JGDMS Project ${project.version} API Documentation</h2>]]></top>
-                    <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
-                    <excludePackageNames></excludePackageNames>
                 </configuration>
-                
             </plugin>
         </plugins>
     </reporting>

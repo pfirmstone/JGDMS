@@ -25,7 +25,6 @@
     </parent>
 	<groupId>au.net.zeus.jgdms</groupId>
     <artifactId>dist</artifactId>
-    <url>http://river.apache.org</url>
     <name>JGDMS Distribution</name>
     <packaging>pom</packaging>
 

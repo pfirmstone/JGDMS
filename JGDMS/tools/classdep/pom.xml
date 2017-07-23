@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>classdep</artifactId>
-    <url>http://jgdms.apache.org</url>
     <name>Tool :: ClassDep</name>
     <description>Tool used to analyze a set of classes and determine on what other classes
       they directly or indirectly depend. Typically this tool is used to

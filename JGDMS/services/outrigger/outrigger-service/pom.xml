@@ -25,8 +25,7 @@
 
     <groupId>au.net.zeus.jgdms.outrigger</groupId>
     <artifactId>outrigger-service</artifactId>
-    <url>http://river.apache.org</url>
-    <name>Module :: Outrigger Service Implementation</name>    
+    <name>Module :: Outrigger Service Implementation</name>
     <packaging>jar</packaging>
     <dependencies>
         <dependency>

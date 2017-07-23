@@ -26,7 +26,6 @@
 
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>outrigger</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: Outrigger</name>
     <packaging>pom</packaging>
 

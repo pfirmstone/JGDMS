@@ -26,7 +26,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>extra</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: JGDMS Extra service utilities</name>
     <description>Apache JGDMS Extra service utilities</description>
     
@@ -59,21 +58,8 @@
     <reporting>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.10.4</version>
-                <inherited>false</inherited>
                 <configuration>
-                    <additionalparam>-Xdoclint:none</additionalparam>
-                    <links>
-                        <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
-                        <link>https://hudson.apache.org/hudson/view/River/job/River-trunk/javadoc/api/index.html</link>
-                    </links>
-                    <detectLinks>true</detectLinks>
-                    <breakiterator>true</breakiterator>
-                    <top><![CDATA[<h2>JGDMS Project ${project.version} API Documentation</h2>]]></top>
-                    <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
-                    <excludePackageNames></excludePackageNames>
                     <!--<additionalDependencies>
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
@@ -87,7 +73,6 @@
                         </additionalDependency>
                     </additionalDependencies>-->
                 </configuration>
-                
             </plugin>
         </plugins>
     </reporting>

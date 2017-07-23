@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>checkconfigurationfile</artifactId>
-    <url>http://river.apache.org</url>
     <name>Tool :: Check ConfigurationFile</name>
     <description>Checks the format of the source for a Jini ConfigurationFile. The source
          is specified with either a file, URL, or standard input, as well as with

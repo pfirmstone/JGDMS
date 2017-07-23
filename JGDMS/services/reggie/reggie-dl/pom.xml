@@ -25,8 +25,7 @@
 
     <groupId>au.net.zeus.jgdms.reggie</groupId>
     <artifactId>reggie-dl</artifactId>
-    <url>http://river.apache.org</url>
-    <name>Module :: Reggie Service Download classes</name> 
+    <name>Module :: Reggie Service Download classes</name>
     <packaging>jar</packaging>
     <dependencies>
         <dependency>

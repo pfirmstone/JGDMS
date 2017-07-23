@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>preferredlistgen</artifactId>
-    <url>http://river.apache.org</url>
     <name>Tool :: Preferred classes list generator</name>
     <description>Tool used to generate the preferred class information for downloadable JAR
         files in the form of a META-INF/PREFERRED.LIST required for use by the {@link

@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>security-policy-debug</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: DebugDyanamicPolicyProvider and SecurityPolicyWriter</name>
     <description>Tool used to determine security policy requirements.
     </description>

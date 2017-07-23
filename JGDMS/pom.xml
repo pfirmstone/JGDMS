@@ -16,7 +16,7 @@
 
   <inceptionYear>2016</inceptionYear>
 
-  <url>https://pfirmstone.github.io/JGDMS/</url>
+  <url>https://${github.repo.basename}.github.io/JGDMS/</url>
 
   <licenses>
     <license>
@@ -68,49 +68,6 @@
           </reportSet>
         </reportSets>
       </plugin>
-      <!--<plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <version>2.2</version>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.10.4</version>
-        <inherited>false</inherited>
-        <configuration>
-          <aggregate>true</aggregate>
-          <additionalparam>-Xdoclint:none</additionalparam>
-        </configuration>-->
-        <!--<reportSets>
-          <reportSet>
-            <id>aggregate</id>
-            <configuration>
-              <links>
-                <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
-                <link>https://hudson.apache.org/hudson/view/River/job/River-trunk/javadoc/api/index.html</link>
-              </links>
-              <detectLinks>true</detectLinks>
-              <breakiterator>true</breakiterator>
-              <top></top>
-              <footer></footer>
-              <excludePackageNames></excludePackageNames>
-            </configuration>
-            <reports>
-              <report>aggregate</report>
-            </reports>
-          </reportSet>
-        </reportSets>
-      </plugin>
-      
-            <plugin>
-                <artifactId>maven-jxr-plugin</artifactId>
-                <inherited>false</inherited>
-                <configuration>
-                    <aggregate>true</aggregate>
-                </configuration>
-            </plugin>
-            -->
     </plugins>
   </reporting>
 
@@ -151,9 +108,7 @@
 
     <site>
       <id>${project.artifactId}-site</id>
-      <!-- @todo fix URL to peter's gh repo -->
-      <url>scm:git:git@github.com:bhamail/JGDMS.git</url>
-      <!--<url>scm:git:git@github.com:pfirmstone/JGDMS.git</url>-->
+      <url>scm:git:git@github.com:${github.repo.basename}/JGDMS.git</url>
     </site>
   </distributionManagement>
 
@@ -282,6 +237,19 @@
           <artifactId>maven-scm-publish-plugin</artifactId>
           <version>1.1</version>
         </plugin>
+        <plugin>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>2.10.4</version>
+          <configuration>
+            <links>
+              <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
+            </links>
+            <detectLinks>true</detectLinks>
+            <breakiterator>true</breakiterator>
+            <top><![CDATA[<h2>JGDMS Project ${project.version} API Documentation</h2>]]></top>
+            <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
+          </configuration>
+        </plugin>
         <!-- reporting plugins : end -->
       </plugins>
     </pluginManagement>
@@ -343,6 +311,9 @@
   </build>
   
   <properties>
+    <!-- @todo change to peter's gh repo name -->
+    <!--<github.repo.basename>pfirmstone</github.repo.basename>-->
+    <github.repo.basename>bhamail</github.repo.basename>
     <groovy.version>2.2.1</groovy.version>
     <gmaven.version>1.4</gmaven.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>

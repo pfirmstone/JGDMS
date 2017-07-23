@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>computehttpmdcodebase</artifactId>
-    <url>http://river.apache.org</url>
     <name>Tool :: Compute httpmd codebase</name>
     <description>Computes the message digests for a codebase with HTTPMD URLs. 
         This utility is run from the main command line.

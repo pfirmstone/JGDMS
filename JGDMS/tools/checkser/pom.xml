@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>checkser</artifactId>
-    <url>http://river.apache.org</url>
     <name>Tool :: Check serialversionUid</name>
     <description>Tool to check for serializable classes that do not have explicit
          serialVersionUID fields.
