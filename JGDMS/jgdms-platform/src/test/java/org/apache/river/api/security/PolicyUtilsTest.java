@@ -24,22 +24,14 @@ package org.apache.river.api.security;
 
 import java.io.File;
 import java.net.URL;
-import java.security.AllPermission;
 import java.security.Permission;
-import java.security.PermissionCollection;
 import java.security.Security;
 import java.security.SecurityPermission;
 import java.security.UnresolvedPermission;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.Properties;
 
 import junit.framework.TestCase;
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 
 
@@ -72,7 +64,10 @@ public class PolicyUtilsTest extends TestCase {
 //        system = null;
 //    }
 
-    /** Tests valid expansion of ${key} entries. */
+    /**
+     * Tests valid expansion of ${key} entries.
+     * @throws Exception if the test fails.
+     */
     public void testExpand() throws Exception {
         String[] input = new String[] { "${key.1}", "abcd${key.1}",
                 "a ${key.1} b ${$key$}${key.2}", "$key.1", "${}" };
@@ -88,7 +83,10 @@ public class PolicyUtilsTest extends TestCase {
         }
     }
 
-    /** Tests ExpansionFailedException for missing keys of ${key} entries. */
+    /**
+     * Tests ExpansionFailedException for missing keys of ${key} entries.
+     * @throws Exception if the test fails.
+     */
     public void testExpandFailed() throws Exception {
         try {
             PolicyUtils.expand("${key.123}", new Properties());
@@ -97,7 +95,10 @@ public class PolicyUtilsTest extends TestCase {
         catch (PolicyUtils.ExpansionFailedException ok) {}
     }
 
-    /** Tests valid URL-specific expansion. */
+    /**
+     * Tests valid URL-specific expansion.
+     * @throws Exception if the test fails.
+     */
     public void testExpandURL() throws Exception {
         String input = "file:/${my.home}" + File.separator + "lib/extensions/";
         Properties props = new Properties();
@@ -107,7 +108,10 @@ public class PolicyUtilsTest extends TestCase {
                 props));
     }
 
-    /** Tests valid expansion of ${{protocol:data}} entries. */
+    /**
+     * Tests valid expansion of ${{protocol:data}} entries.
+     * @throws Exception if the test fails.
+     */
     public void testExpandGeneral() throws Exception {
         String[] input = new String[] { "${{a:b}}", "a ${{self}}${{a: made}}",
                 "${{}}" };
@@ -136,6 +140,7 @@ public class PolicyUtilsTest extends TestCase {
     /** 
      * Tests ExpansionFailedException for undefined protocol 
      * of ${{protocol:data}} entries. 
+     * @throws Exception if the test fails.
      */
     public void testExpandGeneralFailed() throws Exception {
         try {
@@ -176,8 +181,9 @@ public class PolicyUtilsTest extends TestCase {
 
     /**
      * Tests cases of enabled/disabled system URL.
+     * @throws Exception if the test fails.
      */
-    public void testGetPolicyURLs01() throws Throwable {
+    public void testGetPolicyURLs01() throws Exception {
         final String KEY_DYNAMIC = "policy.allowSystemProperty";
         String OLD_DYNAMIC = Security.getProperty(KEY_DYNAMIC);
 
@@ -207,8 +213,11 @@ public class PolicyUtilsTest extends TestCase {
         }
     }
 
-    /** Tests finding algorithm for numbered locations in security properties. */
-    public void testGetPolicyURLs02() throws Throwable {
+    /**
+     * Tests finding algorithm for numbered locations in security properties.
+     * @throws Exception if the test fails.
+     */
+    public void testGetPolicyURLs02() throws Exception {
         final String PREFIX = "testGetPolicyURLs02.";
         String[] OLD = new String[5];
         for (int i = 0; i < OLD.length; i++) {
@@ -249,8 +258,9 @@ public class PolicyUtilsTest extends TestCase {
 
     /**
      * Tests expansion in system and security URLs.
+     * @throws Exception if the test fails.
      */
-    public void testGetPolicyURLs03() throws Throwable {
+    public void testGetPolicyURLs03() throws Exception {
         final String KEY_DYNAMIC = "policy.allowSystemProperty";
         final String OLD_DYNAMIC = Security.getProperty(KEY_DYNAMIC);
         final String KEY_EXP = "policy.expandProperties";
@@ -301,7 +311,7 @@ public class PolicyUtilsTest extends TestCase {
         }
     }
     
-    public void testInstantiatePermission() throws Throwable {
+    public void testInstantiatePermission() throws Exception {
         String name = "abc";
         Permission expected = new SecurityPermission(name);
         //test valid input
