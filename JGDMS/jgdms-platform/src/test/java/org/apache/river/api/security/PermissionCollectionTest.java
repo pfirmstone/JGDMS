@@ -17,17 +17,9 @@
 
 package org.apache.river.api.security;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.net.URL;
 import java.security.PermissionCollection;
 import java.security.SecurityPermission;
-import java.util.StringTokenizer;
-
-import tests.support.Support_Exec;
-import tests.support.Support_GetLocal;
-import tests.support.Support_Resources;
 
 /* Test originated from Apace Harmony.  Need to test signed jar file
  * 
@@ -55,7 +47,7 @@ public class PermissionCollectionTest extends junit.framework.TestCase {
     // * the cause of that NPE has still not been determined. Could it be
     // related to Harmony's current stub implementation of BigInteger ?
     /**
-     * @tests java.security.PermissionCollection#implies(java.security.Permission)
+     * tests java.security.PermissionCollection#implies(java.security.Permission)
      */
 //    public void test_impliesLjava_security_Permission() throws Exception{
 //
@@ -202,9 +194,6 @@ public class PermissionCollectionTest extends junit.framework.TestCase {
 //                permCollect.isReadOnly());
 //    }
 
-    /**
-     * @tests java.security.PermissionCollection#setReadOnly()
-     */
     public void test_setReadOnly() {
         // test java.security.permissionCollection.setReadOnly()
         SecurityPermission permi = new SecurityPermission(
@@ -217,9 +206,6 @@ public class PermissionCollectionTest extends junit.framework.TestCase {
                 permCollect.isReadOnly());
     }
 
-    /**
-     * @tests java.security.PermissionCollection#toString()
-     */
     public void test_toString() {
         // test java.security.permissionCollection.toString()
         SecurityPermission permi = new SecurityPermission(
