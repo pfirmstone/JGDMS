@@ -26,7 +26,6 @@
 
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>fiddler</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: Fiddler the LookupDiscoveryService</name>
     <packaging>pom</packaging>
 

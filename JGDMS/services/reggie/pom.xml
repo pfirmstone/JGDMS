@@ -26,7 +26,6 @@
 
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>reggie</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: Lookup Service</name>
     <packaging>pom</packaging>
 

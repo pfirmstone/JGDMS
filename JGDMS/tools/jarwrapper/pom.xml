@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>jarwrapper</artifactId>
-    <url>http://river.apache.org</url>
     <name>Tool :: Jar wrapper</name>
     <description> A tool for generating "wrapper" JAR files.  A wrapper JAR file contains a
         Class-Path manifest attribute listing a group of JAR files to

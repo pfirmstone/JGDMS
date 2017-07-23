@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>computedigest</artifactId>
-    <url>http://river.apache.org</url>
     <name>Tool :: Compute message digest</name>
     <description>Prints the message digest for the contents of a URL. This utility is run
      from the command line.</description>

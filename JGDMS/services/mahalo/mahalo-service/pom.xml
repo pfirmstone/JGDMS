@@ -25,8 +25,7 @@
 
     <groupId>au.net.zeus.jgdms.mahalo</groupId>
     <artifactId>mahalo-service</artifactId>
-    <url>http://river.apache.org</url>
-    <name>Module :: Mahalo Service Implementation</name>    
+    <name>Module :: Mahalo Service Implementation</name>
     <packaging>jar</packaging>
     <dependencies>
         <dependency>

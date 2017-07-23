@@ -26,7 +26,6 @@
 
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>group</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: Group</name>
     <packaging>pom</packaging>
 

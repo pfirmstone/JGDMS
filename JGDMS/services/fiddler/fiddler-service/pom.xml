@@ -25,8 +25,7 @@
 
     <groupId>au.net.zeus.jgdms.fiddler</groupId>
     <artifactId>fiddler-service</artifactId>
-    <url>http://river.apache.org</url>
-    <name>Module :: Fiddler LookupDiscoveryService Implementation</name>    
+    <name>Module :: Fiddler LookupDiscoveryService Implementation</name>
     <packaging>jar</packaging>
     <dependencies>
         <dependency>

@@ -25,8 +25,7 @@
 
     <groupId>au.net.zeus.jgdms.phoenix-activation</groupId>
     <artifactId>phoenix</artifactId>
-    <url>http://river.apache.org</url>
-    <name>Module :: Phoenix</name>    
+    <name>Module :: Phoenix</name>
 
     <packaging>jar</packaging>
     <dependencies>

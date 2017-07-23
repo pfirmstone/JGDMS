@@ -25,7 +25,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>envcheck</artifactId>
-    <url>http://river.apache.org</url>
     <name>Tool :: Environment Check</name>
     <description>Tool used to perform validity checks on the run-time environment of a client
           or service. The output of this tool is a report; command-line options

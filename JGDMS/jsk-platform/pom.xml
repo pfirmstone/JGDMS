@@ -26,7 +26,6 @@
     </parent>
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jsk-platform</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: JSK Platform</name>
     <description>
         Defines a classpath for non modular implementations to utilise the jini

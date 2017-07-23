@@ -26,7 +26,6 @@
 
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>mercury</artifactId>
-    <url>http://river.apache.org</url>
     <name>Module :: Mercury the Event Mailbox</name>
     <packaging>pom</packaging>
 
