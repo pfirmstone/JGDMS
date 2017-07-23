@@ -19,7 +19,7 @@ package org.apache.river.api.net;
 
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.util.Locale;
+
 import junit.framework.Assert;
 import junit.framework.TestCase;
 
@@ -82,9 +82,6 @@ public class UriTest extends TestCase {
         return uris;
     }
 
-    /**
-     * @tests java.net.Uri#Uri(java.lang.String)
-     */
     public void test_ConstructorLjava_lang_String() throws URISyntaxException {
         // tests for public Uri(String uri) throws URISyntaxException
 
@@ -251,9 +248,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.Uri#Uri(java.lang.String)
-     */
     public void test_Uri_String() {
         try {
             Uri myUri = new Uri(":abc@mymail.com");
@@ -280,10 +274,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.Uri#Uri(java.lang.String, java.lang.String,
-     *        java.lang.String)
-     */
     public void test_ConstructorLjava_lang_StringLjava_lang_StringLjava_lang_String()
             throws URISyntaxException {
         Uri uri = new Uri("mailto", "mduerst@ifi.unizh.ch", null);
@@ -322,11 +312,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#Uri(java.lang.String, java.lang.String,
-     *        java.lang.String, int, java.lang.String, java.lang.String,
-     *        java.lang.String)
-     */
     public void test_ConstructorLjava_lang_StringLjava_lang_StringLjava_lang_StringILjava_lang_StringLjava_lang_StringLjava_lang_String() {
         // check for URISyntaxException for invalid Server Authority
         construct1("http", "user", "host\u00DFname", -1, "/file", "query",
@@ -412,11 +397,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @throws URISyntaxException
-     * @tests java.net.URI#Uri(java.lang.String, java.lang.String,
-     *        java.lang.String, java.lang.String)
-     */
     public void test_ConstructorLjava_lang_StringLjava_lang_StringLjava_lang_StringLjava_lang_String()
             throws URISyntaxException {
         // relative path
@@ -458,11 +438,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @throws URISyntaxException
-     * @tests java.net.URI#Uri(java.lang.String, java.lang.String,
-     *        java.lang.String, java.lang.String, java.lang.String)
-     */
     public void test_ConstructorLjava_lang_StringLjava_lang_StringLjava_lang_StringLjava_lang_StringLjava_lang_String()
             throws URISyntaxException {
         // URISyntaxException on relative path
@@ -505,11 +480,6 @@ public class UriTest extends TestCase {
                 .toASCIIString());
     }
 
-    /**
-     * @throws URISyntaxException
-     * @tests java.net.URI#Uri(java.lang.String, java.lang.String,
-     *        java.lang.String, java.lang.String, java.lang.String)
-     */
     public void test_fiveArgConstructor() throws URISyntaxException {
         // accept [] as part of valid ipv6 host name
         Uri uri = new Uri("ftp", "[0001:1234::0001]", "/dir1/dir2", "query",
@@ -534,9 +504,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#compareTo(java.lang.Object)
-     */
     public void test_compareToLjava_lang_Object() throws Exception {
         // compareTo tests
 
@@ -609,10 +576,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @throws URISyntaxException
-     * @tests java.net.URI#compareTo(java.lang.Object)
-     */
     public void test_compareTo2() throws URISyntaxException {
         Uri uri, uri2;
 
@@ -635,9 +598,6 @@ public class UriTest extends TestCase {
         assertTrue("TestF", uri2.compareTo(uri) < 0);
     }
 
-    /**
-     * @tests java.net.URI#create(java.lang.String)
-     */
     public void test_createLjava_lang_String() {
         try {
             Uri myUri = Uri.create("a scheme://reg/");
@@ -647,9 +607,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#equals(java.lang.Object)
-     */
     public void test_equalsLjava_lang_Object() throws Exception {
         String[][] equalsData = new String[][] {
                 { "", "" }, // null frags
@@ -720,10 +677,6 @@ public class UriTest extends TestCase {
 
     }
 
-    /**
-     * @throws URISyntaxException
-     * @tests java.net.URI#equals(java.lang.Object)
-     */
     public void test_equals2() throws URISyntaxException {
         // test URIs with empty string authority
         Uri uri = new Uri("http:///~/dictionary");
@@ -744,9 +697,6 @@ public class UriTest extends TestCase {
         assertTrue(uri2.equals(uri));
     }
 
-    /**
-     * @tests java.net.URI#getAuthority()
-     */
     public void test_getAuthority() throws Exception {
         Uri[] uris = getUris();
 
@@ -777,9 +727,6 @@ public class UriTest extends TestCase {
                 .getAuthority());
     }
 
-    /**
-     * @tests java.net.URI#getAuthority()
-     */
     public void test_getAuthority2() throws Exception {
         // tests for URIs with empty string authority component
 
@@ -822,9 +769,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getFragment()
-     */
     public void test_getFragment() throws Exception {
         Uri[] uris = getUris();
 
@@ -846,9 +790,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getHost()
-     */
     public void test_getHost() throws Exception {
         Uri[] uris = getUris();
 
@@ -867,9 +808,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getPath()
-     */
     public void test_getPath() throws Exception {
         Uri[] uris = getUris();
 
@@ -892,9 +830,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getPort()
-     */
     public void test_getPort() throws Exception {
         Uri[] uris = getUris();
 
@@ -909,9 +844,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getPort()
-     */
     public void test_getPort2() throws Exception {
         // if port value is negative, the authority should be
         // consider registry based.
@@ -937,9 +869,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getQuery()
-     */
     public void test_getQuery() throws Exception {
         Uri[] uris = getUris();
 
@@ -961,9 +890,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getRawAuthority()
-     */
     public void test_getRawAuthority() throws Exception {
         Uri[] uris = getUris();
 
@@ -990,9 +916,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getRawFragment()
-     */
     public void test_getRawFragment() throws Exception {
         Uri[] uris = getUris();
 
@@ -1016,9 +939,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getRawPath()
-     */
     public void test_getRawPath() throws Exception {
         Uri[] uris = getUris();
 
@@ -1042,9 +962,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getRawQuery()
-     */
     public void test_getRawQuery() throws Exception {
         Uri[] uris = getUris();
 
@@ -1070,9 +987,6 @@ public class UriTest extends TestCase {
 
     }
 
-    /**
-     * @tests java.net.URI#getRawSchemeSpecificPart()
-     */
     public void test_getRawSchemeSpecificPart() throws Exception {
         Uri[] uris = getUris();
 
@@ -1101,9 +1015,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getRawUserInfo()
-     */
     public void test_getRawUserInfo() throws URISyntaxException {
         Uri[] uris = getUris();
 
@@ -1128,9 +1039,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getScheme()
-     */
     public void test_getScheme() throws Exception {
         Uri[] uris = getUris();
 
@@ -1149,9 +1057,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#getSchemeSpecificPart()
-     */
     public void test_getSchemeSpecificPart() throws Exception {
         Uri[] uris = getUris();
 
@@ -1182,9 +1087,6 @@ public class UriTest extends TestCase {
 
     }
 
-    /**
-     * @tests java.net.URI#getUserInfo()
-     */
     public void test_getUserInfo() throws Exception {
         Uri[] uris = getUris();
 
@@ -1210,9 +1112,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#hashCode()
-     */
     public void test_hashCode() throws Exception {
         String[][] hashCodeData = new String[][] {
                 { "", "" }, // null frags
@@ -1280,9 +1179,6 @@ public class UriTest extends TestCase {
 
     }
 
-    /**
-     * @tests java.net.URI#isAbsolute()
-     */
     public void test_isAbsolute() throws URISyntaxException {
         String[] isAbsoluteData = new String[] { "mailto:user@ca.ibm.com",
                 "urn:isbn:123498989h", "news:software.ibm.com",
@@ -1301,9 +1197,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#isOpaque()
-     */
     public void test_isOpaque() throws URISyntaxException {
         String[] isOpaqueData = new String[] { "mailto:user@ca.ibm.com",
                 "urn:isbn:123498989h", "news:software.ibm.com",
@@ -1322,9 +1215,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#normalize()
-     */
     public void test_normalize() throws Exception {
 
         String[] normalizeData = new String[] {
@@ -1383,9 +1273,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#normalize()
-     */
     public void test_normalize2() throws URISyntaxException {
         Uri uri1 = null, uri2 = null;
         uri1 = new Uri("file:/D:/one/two/../../three");
@@ -1399,9 +1286,6 @@ public class UriTest extends TestCase {
                 "/D:/three", uri2.getRawSchemeSpecificPart());
     }
 
-    /**
-     * @tests java.net.URI#normalize()
-     */
     public void test_normalize3() throws URISyntaxException {
         // return same Uri if it has a normalized path already
         Uri uri1 = null, uri2 = null;
@@ -1422,9 +1306,6 @@ public class UriTest extends TestCase {
         assertEquals(expResult, result);
     }
 
-    /**
-     * @tests java.net.URI#parseServerAuthority()
-     */
     public void test_parseServerAuthority() throws URISyntaxException {
         // registry based uris
         Uri[] uris = null;
@@ -1544,9 +1425,6 @@ public class UriTest extends TestCase {
         assertNotNull(Uri.create("file://C:/1.txt").parseServerAuthority());
     }
 
-    /**
-     * @tests java.net.URI#relativize(java.net.URI)
-     */
     public void test_relativizeLjava_net_Uri() throws URISyntaxException {
         // relativization tests
         String[][] relativizeData = new String[][] {
@@ -1630,9 +1508,6 @@ public class UriTest extends TestCase {
         assertNull(relative.getScheme());
     }
 
-    /**
-     * @tests java.net.URI#relativize(java.net.URI)
-     */
     public void test_relativize2() throws URISyntaxException {
         Uri a = new Uri("http://host/dir");
         Uri b = new Uri("http://host/dir/file?query");
@@ -1669,9 +1544,6 @@ public class UriTest extends TestCase {
         assertEquals(result, one.relativize(two));
     }
 
-    /**
-     * @tests java.net.URI#resolve(java.net.URI)
-     */
     public void test_resolve() throws URISyntaxException {
         Uri uri1 = null, uri2 = null;
         uri1 = new Uri("file:/D:/one/two/three");
@@ -1685,9 +1557,6 @@ public class UriTest extends TestCase {
                 "/D:/one/", uri2.getRawSchemeSpecificPart());
     }
 
-    /**
-     * @tests java.net.URI#resolve(java.net.URI)
-     */
     public void test_resolveLjava_net_Uri() {
         // resolution tests
         String[][] resolveData = new String[][] {
@@ -1741,9 +1610,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#toASCIIString()
-     */
     public void test_toASCIIString() throws Exception {
         Uri[] uris = getUris();
 
@@ -1792,9 +1658,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#toString()
-     */
     public void test_toString() throws Exception {
         Uri[] uris = getUris();
 
@@ -1824,9 +1687,6 @@ public class UriTest extends TestCase {
         }
     }
 
-    /**
-     * @tests java.net.URI#toURL()
-     */
     public void test_toURL() throws Exception {
         String absoluteuris[] = new String[] { "mailto:noreply@apache.org",
                 "urn:isbn:123498989h", "news:software.ibm.com",
