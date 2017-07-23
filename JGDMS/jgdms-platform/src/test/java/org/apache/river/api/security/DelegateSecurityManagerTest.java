@@ -54,6 +54,7 @@ public class DelegateSecurityManagerTest {
 
     /**
      * Test of checkPermission method, of class DelegateSecurityManager.
+     * @throws MalformedURLException if the test fails.
      */
     @Test
     public void testCheckPermission() throws MalformedURLException {
