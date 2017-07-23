@@ -23,32 +23,18 @@
 package org.apache.river.api.security;
 
 //import org.apache.river.start.SharedActivationPolicyPermission;
-import java.net.URISyntaxException;
 import java.security.KeyStore;
-import java.util.Properties;
-import java.util.SortedSet;
-import java.io.File;
-import java.io.FileWriter;
-import java.net.URI;
-import java.net.URL;
-import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
-import java.security.SecurityPermission;
 import java.security.UnresolvedPermission;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Properties;
 
 import junit.framework.TestCase;
 import org.apache.river.api.security.DefaultPolicyScanner.GrantEntry;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
-import org.apache.river.api.security.PermissionGrant;
-import org.apache.river.api.security.PermissionGrantBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -212,6 +198,7 @@ public class DefaultPolicyParserTest extends TestCase {
 
     /**
      * Test of resolvePermission method, of class DefaultPolicyParser.
+     * @throws Exception if the test fails.
      */
     @Test
     public void testResolvePermission() throws Exception {
