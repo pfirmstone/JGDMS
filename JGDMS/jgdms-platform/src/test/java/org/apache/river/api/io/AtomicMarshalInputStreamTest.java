@@ -11,9 +11,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.UnmarshalException;
-import static org.junit.Assert.*;
+
 import org.junit.Test;
 import tests.support.Have;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  *
@@ -21,9 +23,6 @@ import tests.support.Have;
  */
 public class AtomicMarshalInputStreamTest {
   
-    /**
-     * Test of available method, of class AtomicMarshalInputStream.
-     */
     @Test
     public void testReadObject() throws Exception {
 	System.out.println("available");

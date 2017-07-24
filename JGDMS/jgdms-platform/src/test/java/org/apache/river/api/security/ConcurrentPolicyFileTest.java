@@ -14,34 +14,30 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
-/**
-* @author Alexey V. Varlamov
-* @version $Revision$
-*/
-
 package org.apache.river.api.security;
 
-import java.net.URI;
-import tests.support.FakePrincipal;
 import java.net.URL;
-import java.security.cert.Certificate;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.SecurityPermission;
+import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Properties;
+
 import junit.framework.TestCase;
 import net.jini.security.policy.PolicyInitializationException;
+import tests.support.FakePrincipal;
 
 
 /**
  * Tests for ConcurrentPolicyFile
- * 
+ *
+ * @author Alexey V. Varlamov
+ * @version $Revision$
  */
 public class ConcurrentPolicyFileTest extends TestCase {
 
@@ -67,7 +63,8 @@ public class ConcurrentPolicyFileTest extends TestCase {
     }
 
     /**
-     * Tests that policy is really resetted on refresh(). 
+     * Tests that policy is really resetted on refresh().
+     * @throws PolicyInitializationException if test fails.
      */
     public void testRefresh() throws PolicyInitializationException {
         Permission sp = new SecurityPermission("sdf");
@@ -95,6 +92,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
 
     /**
      * Tests that refresh() does not fail on failing parser.
+     * @throws PolicyInitializationException if test fails.
      */
     public void testRefresh_Failure() throws PolicyInitializationException {
         CodeSource cs = new CodeSource(null, (Certificate[])null);
@@ -105,7 +103,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
 
     /**
      * Tests proper policy evaluation for CodeSource parameters.
-     * @throws java.lang.Exception 
+     * @throws java.lang.Exception if test fails.
      */
     public void testGetPermissions_CodeSource() throws Exception {
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
@@ -146,7 +144,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
 
     /**
      * Tests proper policy evaluation for ProtectionDomain parameters.
-     * @throws java.lang.Exception 
+     * @throws java.lang.Exception if test fails.
      */
     public void testGetPermissions_ProtectionDomain() throws Exception {
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();

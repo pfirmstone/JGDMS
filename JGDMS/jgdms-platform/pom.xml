@@ -83,10 +83,6 @@
         <plugins>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <configuration>
-                    <!-- @todo Fix javadoc errors, and then restore failOnError to default:true -->
-                    <failOnError>false</failOnError>
-                </configuration>
             </plugin>
         </plugins>
     </reporting>
