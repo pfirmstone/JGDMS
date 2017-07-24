@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8'>
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <meta name="description" content="JGDMS : Java Global Discovered Micro Services - Goals: Dynamically discovered anywhere, secure, flexible and fast.">
+
+  <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+  <title>JGDMS</title>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div id="header_wrap" class="outer">
+  <header class="inner">
+    <a id="forkme_banner" href="https://github.com/pfirmstone/river-internet">View on GitHub</a>
+
+    <h1 id="project_title">JGDMS</h1>
+    <h2 id="project_tagline">JGDMS : Java Global Discovered Micro Services - Goals: Dynamically discovered anywhere, secure, flexible and fast.</h2>
+
+    <section id="downloads">
+      <a class="zip_download_link" href="https://github.com/pfirmstone/river-internet/zipball/master">Download this project as a .zip file</a>
+      <a class="tar_download_link" href="https://github.com/pfirmstone/river-internet/tarball/master">Download this project as a tar.gz file</a>
+    </section>
+  </header>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main_content_wrap" class="outer">
+  <section id="main_content" class="inner">
+    <h3>
+      <a id="welcome-to-JGDMS" class="anchor" href="#welcome-to-JGDMS" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Welcome to JGDMS.</h3>
+    <p>What is JGDMS? </p>
+    <p>Firstly it's a high performance, IPv6 compliant and
+      security focused implementation of Jini, refactored over a number of years to
+      leverage Java concurrency collections and modern Executor frameworks.</p>
+    <p>
+      Secondly, it's a dynamic micro service architecture, that provides the
+      foundations, or glue code, for building enterprise grade systems, built from
+      simple independent dynamically discovered micro service components.</p>
+    <p>
+      Some key components are:</p>
+    <ol>
+      <li>JERI - Jini Extensible Remote Invocation, allows you to export java object's, invoke methods on them, using various secure connection and input validation options.</li>
+      <li><a href="doc/api/net/jini/discovery/LookupDiscovery.html">net.jini.discovery.LookupDiscovery</a> - Allows clients to discover a net.jini.core.lookup.ServiceRegistrar, this is now possible globally using IPv6 multicast.</li>
+      <li><a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html">net.jini.core.lookup.ServiceRegistrar</a> - Allows clients to search for services and for services to be registered and found by clients.</li>
+      <li><a href="doc/api/net/jini/lookup/ServiceDiscoveryManager.html">net.jini.lookup.ServiceDiscoveryManager</a> - Provides search and filtering functions that make life easier for client code.</li>
+      <li><a href="doc/api/net/jini/lookup/JoinManager.html">net.jini.lookup.JoinManager</a> - Provides assistance to services that want to register with a ServiceRegistrar.</li>
+      <li><a href="doc/api/net/jini/config/Configuration.html">net.jini.config.Configuration</a> - net.jini.config.GroovyConfig allows you to configure the above components using Groovy.</li>
+    </ol>
+    <p> There are many other components, including JavaSpaces, another good
+      place to start is with <a href="http://www.rio-project.org/">Rio</a>,
+      which also has excellent documentation on how to structure the
+      dependency relationships between your service components.</p>
+    <h3>
+      <a id="building-JGDMS" class="anchor" href="#building-JGDMS" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Building JGDMS</h3>
+
+    <p><a href="../doc/build.html">Instructions for building JGDMS</a></p>
+
+    <h3>
+      <a id="documentation" class="anchor" href="#documentation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Documentation</h3>
+
+    <p><a href="../doc/index.html">JGDMS Documentation</a></p>
+    <h4>
+      <a id="uniqueFunctionality" class="anchor" href="#unique_functionality" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Functionality unique to JGDMS</h4>
+    <p><a href="https://github.com/pfirmstone/river-internet/wiki">Wiki</a></p>
+
+    <p><a href="doc/api/org/apache/river/api/io/package-summary.html">
+      Serialization with atomic input validation, hardened for reading
+      untrusted stream data</a></p>
+    <h5>
+      <a id="TLS_unicast_discovery" class="anchor" href="#TLS_unicast_discovery" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New TLS Unicast discovery providers</h5>
+    <p>The following TLS Unicast discovery providers will automatically grant
+      <a href="doc/api/org/apache/river/api/io/DeSerializationPermission.html">
+        DeSerializationPermission</a>
+      and <a href="doc/api/net/jini/loader/DownloadPermission.html">
+        DownloadPermission</a> after successful lookup service principal
+      authentication.
+    <p><a href="doc/api/org/apache/river/discovery/ssl/sha224/package-summary.html">Unicast TLS discovery using SHA-224 hash</a><p>
+    <p><a href="doc/api/org/apache/river/discovery/ssl/sha256/package-summary.html">Unicast TLS discovery using SHA-256 hash</a><p>
+    <p><a href="doc/api/org/apache/river/discovery/ssl/sha384/package-summary.html">Unicast TLS discovery using SHA-384 hash</a><p>
+    <p><a href="doc/api/org/apache/river/discovery/ssl/sha512/package-summary.html">Unicast TLS discovery using SHA-512 hash</a><p>
+    <h5>
+      <a id="lookup_service" class="anchor" href="#lookup_service" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>New lookup service method that allows authentication, to occur prior to downloading code</h5>
+    <p>Using Java 8 interface default methods, a new lookup method has been added to
+      <a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html#lookUp-net.jini.core.lookup.ServiceTemplate-int-">ServiceRegistrar</a>, this allows
+      services to be authenticated using a local bootstrap proxy, and to dynamically grant
+      <a href="doc/api/org/apache/river/api/io/DeSerializationPermission.html">
+        DeSerializationPermission</a>
+      and <a href="doc/api/net/jini/loader/DownloadPermission.html">
+        DownloadPermission</a> prior to downloading
+      and de-serializing the service implementation.</p>
+    <h5>
+      <a id="Proxy_advisory_permissions" class="anchor" href="#Proxy_advisory_permissions" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span>
+      </a>Proxy advisory permissions</h5>
+    <p>The first proxy jar file in a list of codebase annotations, may now
+      contain a list of Permission's.  These permissions may be retrieved
+      from the Proxy's ClassLoader,
+      <a href="doc/api/org/apache/river/api/security/AdvisoryDynamicPermissions.html">
+        AdvisoryDynamicPermissions</a></p>
+    <p>River-Internet has been refactored internally and takes advantage of
+      recent Java libraries, note how Jini releases use TaskManager, this
+      has been replaced by Executor, which is much faster. </p>
+    <img src="images/River2.2_Mahalo_RandomStressTest.PNG" class="screen" alt="River 2.2 Mahalo Random Stress test profile">
+    <img src="images/River-internet_mahalo_randomStressTest.PNG" class="screen" alt="River-Internet Mahalo Random Stress test profile">
+    <h5>
+      <a id="system_properties" class="anchor" href="#system_properties" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>System properties</h5>
+
+    <table id="systemProp">
+      <tr>
+        <td>System Property</td>
+        <td>Purpose</td>
+      </tr>
+      <tr>
+        <td>org.apache.river.activation
+          .enableActivateGrant</td>
+        <td>This property is interpreted as a boolean value. If true, this
+          implementation invokes <a href="doc/api/net/jini/security/Security.html#grant-java.lang.Class-java.lang.Class-">Security.grant</a>
+          as defined in the specification.  See <a href="doc/api/net/jini/activation/ActivatableInvocationHandler.html">ActivatableInvocationHandler</a></td>
+      </tr>
+      <tr>
+        <td>net.jini.discovery.IPv6</td>
+        <td>This property is interpreted as a boolean value. If true,
+          <a href="../doc/specs/html/discovery-spec.html#19194">jini-announcement</a> and <a href="../doc/specs/html/discovery-spec.html#40029">jini-request</a> protocols will use IPv6 multicast addresses:
+          <a href="http://www.iana.org/assignments/ipv6-multicast-addresses/ipv6-multicast-addresses.xhtml">IANA IPv6 Multicast Addresses</a></td>
+      </tr>
+      <tr>
+        <td>net.jini.discovery.GLOBAL_ANNOUNCE</td>
+        <td>This property is interpreted as a boolean value. If true,
+          <a href="../doc/specs/html/discovery-spec.html#19194">jini-announcement</a>
+          will join the global multicast address group FF0X::155.
+          If false the
+          jini-announcement protocol will join the site local multicast address group
+          FF05::155.
+          As defined in RFC4291, IPv6 multicast addresses which are only different
+          in scope represent different groups. Clients joining the global group,
+          will not receive site local announcement packets and vice versa.
+        </td>
+      </tr>
+      <tr>
+        <td>net.jini.jeri
+          .ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET</td>
+        <td>This property is interpreted as a boolean value.  If true JERI's
+          <a href="doc/api/net/jini/jeri/BasicInvocationHandler.html">BasicInvocationHandler</a> or
+          <a href="doc/api/net/jini/jeri/BasicInvocationDispatcher.html">BasicInvocationDispatcher</a>  doesn't
+          perform input validation by default, unless the required
+          <a href="doc/api/net/jini/core/constraint/InvocationConstraint.html">
+            InvocationConstraint's</a> contain <a href="doc/api/net/jini/core/constraint/AtomicInputValidation.html#YES">AtomicInputValidation.YES </td>
+      </tr>
+      <tr>
+        <td>org.apache.river.jeri
+          .server.suppressStackTraces</td>
+        <td>If true, removes server-side stack traces before
+          marshalling an exception thrown as a result of a remote call.  The
+          default value is false.</td>
+      </tr>
+      <tr>
+        <td>org.apache.river.jeri
+          .tcp.useNIO</td>
+        <td>whether or not to use NIO-based sockets if possible</td>
+      </tr>
+      <tr>
+        <td>java.rmi.server.useCodebaseOnly</td>
+        <td><a href="http://docs.oracle.com/javase/7/docs/technotes/guides/rmi/enhancements-7.html">
+          Java 7 enhancement</a> It is recommended that default value of true
+          is used.  This has no effect on JERI and applies only to Java RMI.  Java RMI
+          is not secure and should be avoided.</td>
+      </tr>
+      <tr>
+        <td>org.apache.river.reggie
+          .enableImplToStubReplacement</td>
+        <td>This system property is interpreted as a
+          boolean value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang">Boolean.getBoolean</a>).  If true, then JRMP impl-to-stub
+          replacement will be attempted on the service proxy objects contained in
+          <a href="doc/api/net/jini/core/lookup/ServiceItem.html" title="class in net.jini.core.lookup">ServiceItem</a>s passed to the <a href="doc/api/net/jini/core/lookup/ServiceRegistrar.html#register-net.jini.core.lookup.ServiceItem-long-">register</a> method of Reggie's
+          proxy.  By default, this behavior is not enabled--it is provided as a
+          transitional measure for services that depend on JRMP impl-to-stub
+          replacement when registering with Reggie.</td>
+      </tr>
+      <tr>
+        <td>net.jini.core.lookup.ServiceRegistrar
+          .portAbitraryIfInUse</td>
+        <td>This system property is interpreted as a
+          boolean value (see <a href="http://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true#getBoolean-java.lang.String-" title="class or interface in java.lang">Boolean.getBoolean</a>).
+          If true, then Reggie, will use an ephemeral port to listen
+          for unicast discovery requests, if the configured port is already in use.
+          This property is false by default.</td>
+      </tr>
+      <tr>
+        <td>org.apache.river.jeri.kerberos
+          .KerberosEndpoint.maxCacheSize</td>
+        <td>Maximum number of entries allowed in the soft cache of a
+          Kerberos endpoint. The default is 64.</td>
+      </tr>
+      <tr>
+        <td>org.apache.river.jeri.kerberos
+          .KerberosEndpoint.minGssContextLifetime</td>
+        <td>Minimum number of seconds of remaining lifetime a GSSContext
+          of an existing connection has to have before it can
+          be considered as a candidate connection to be chosen for a new
+          request. The default is 30.</td>
+      </tr>
+      <tr>
+        <td>org.apache.river.jeri.kerberos
+          .KerberosEndpoint.maxGssContextRetries</td>
+        <td><a href="http://www.ietf.org/rfc/rfc1510.txt">RFC 1510</a>
+          specifies that if a KDC or server receives two authenticators
+          with the same client and server pair and timestamps of the
+          same microsecond, the second will be considered a replay
+          and will be rejected.  This means if multiple session ticket
+          requests of the same client and server principal pair and
+          microsecond timestamps are received at a KDC, only the first
+          one will succeed, and the rest will be considered replays
+          and will be rejected by the KDC.  For this reason, the Kerberos
+          provider catches the "replay" exception and retries the
+          corresponding GSSContext initialization
+          handshake.  This system property controls the maximum number
+          of retries a KerberosEndpoint will conduct.  The
+          default is 3.</td>
+      </tr>
+      <tr>
+        <td>org.apache.river.jeri.kerberos
+          .KerberosServerEndpoint.maxCacheSize</td>
+        <td>Maximum size of the soft cache, default is 256.</td>
+      </tr><tr>
+      <td>org.apache.river.jeri.connection
+        .mux.client.initialInboundRation</td>
+      <td>initial inbound ration as client, default is 32768</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.connection
+        .mux.server.initialInboundRation</td>
+      <td>initial inbound ration as server, default is 32768</td>
+    </tr><tr>
+      <td>java.rmi.activation.port</td>
+      <td>The activation system port, default 1098, used by ServiceStarter</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.connectionTimeout</td>
+      <td>Time in milliseconds
+        to leave idle client-side connections around before closing them. The default
+        value is 15000 milliseconds (15 seconds).</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.handshakeTimeout</td>
+      <td>Time in milliseconds
+        for client-side connections to wait for the server to acknowledge an opening
+        handshake. The default value is 15000 milliseconds (15 seconds).</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.ssl
+        .maxClientSessionDuration</td>
+      <td>The maximum time a client session should be used before expiring --
+        non-final to facilitate testing.  Use 23.5 hours (in milliseconds) as the default to allow
+        the client to negotiate a new session before the server timeout, which
+        defaults to 24 hours.</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.ssl
+        .maxServerSessionDuration</td>
+      <td>The maximum time a session should be used before expiring -- non-final
+        to facilitate testing.  Use 24 hours (in milliseconds) to allow the client, which uses
+        23.5 hours, to renegotiate a new session before the server timeout.</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.dgc.leaseValue</td>
+      <td>lease duration to request (usually ignored by server),
+        and duration of DGC leases granted by this runtime, default 600000 ( 10 minutes specified in milliseconds).</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.dgc.cleanInterval</td>
+      <td>maximum interval between retries of failed clean calls, default 180000 (3 minutes specified in milliseconds)</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.dgc.minimumDuration</td>
+      <td>minimum lease duration that we bother to honor, default 5000 (5 seconds) </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.dgc.checkInterval</td>
+      <td>period of checking for DGC lease expiration, default 300000 (5 minutes)</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.ssl
+        .trustManagerFactoryAlgorithm</td>
+      <td>The trust manager factory algorithm,
+        <a href="https://docs.oracle.com/javase/8/docs/api/javax/net/ssl/TrustManagerFactory.html#getDefaultAlgorithm--">TrustManagerFactory default algorithm</a></td>
+    </tr><tr>
+      <td>org.apache.river.jeri.ssl.cipherSuites</td>
+      <td>The cipher suites specified by the user, or null if not specified.</td>
+    </tr><tr>
+      <td>org.apache.river.jeri.ssl.sslProtocol</td>
+      <td>The secure socket protocol used with JSSE, default: TLSv1.2 </td>
+    </tr><tr>
+      <td>net.jini.loader.codebaseAnnotation</td>
+      <td>Revert SecureClassLoader's CodeSource cache to use URL.equals(java.lang.Object)
+        and URL.hashCode(), when set to URL.</td>
+    </tr><tr>
+      <td>java.rmi.server.codebase</td>
+      <td>codebase annotation for proxy classes.</td>
+    </tr><tr>
+      <td>net.jini.loader.ClassLoading.provider</td>
+      <td>Default: net.jini.loader.pref.PreferredClassProvider, however this should be set to
+        net.jini.loader.pref.RequireDlPermProvider in order to enforce DownloadPermission.</td>
+    </tr><tr>
+      <td>java.rmi.server.RMIClassLoaderSpi</td>
+      <td>Default: net.jini.loader.pref.PreferredClassProvider, however this should be set to
+        net.jini.loader.pref.RequireDlPermProvider in order to enforce DownloadPermission.</td>
+    </tr><tr>
+      <td>java.security.policy</td>
+      <td>This property should be set to:<br>
+        -Djava.security.policy=net.jini.security.policy.DynamicPolicyProvider</td>
+    </tr>
+      <tr>
+        <td>net.jini.security.policy
+          .DynamicPolicyProvider.basePolicyClass</td>
+        <td>This property is set to "org.apache.river.api.security.ConcurrentPolicyFile" by default.</td>
+      </tr>
+      <tr>
+        <td>net.jini.security.policy
+          .DynamicPolicyProvider.revocation</td>
+        <td>This property is interpreted as a boolean value and is true by default.
+          This allows PermissionGrant's to be used in Dynamic grants, this is required
+          to dynamically grant DownloadPermission and DeSerializationPermission prior to
+          performing a codebase download.  PermissionGrant's can be implemented to expire,
+          or be revoked.</td>
+      </tr>
+      <tr>
+        <td>net.jini.security.policy
+          .PolicyFileProvider.basePolicyClass</td>
+        <td>This property, by default is set to "org.apache.river.api.security.ConcurrentPolicyFile"</td>
+      </tr><tr>
+      <td>org.apache.river.discovery
+        .x500.trustStore</td>
+      <td>The location of the
+        file to load the keystore from can be specified (in order of precedence)
+        by the org.apache.river.discovery.x500.trustStore and
+        javax.net.ssl.trustStore system properties; if no location is specified,
+        then the cacerts file in the lib/security subdirectory of the JDK
+        installation directory is used.  If specified, the location is treated as
+        a URL. If no protocol is specified in the URL or it is an unknown
+        protocol, then, the location is treated as a file name.</td>
+    </tr><tr>
+      <td>javax.net.ssl.trustStore</td>
+      <td>See above.</td>
+    </tr><tr>
+      <td>org.apache.river.discovery
+        .x500.trustStorePassword</td>
+      <td>Depending on which system property is used to specify the keystore
+        location, the org.apache.river.discovery.x500.trustStoreType and
+        org.apache.river.discovery.x500.trustStorePassword or
+        javax.net.ssl.trustStoreType and javax.net.ssl.trustStorePassword system
+        properties can be used to specify the type of the keystore and the
+        password to use when loading it.  If no keystore type is specified, then
+        the type returned by KeyStore.getDefaultType() is used; if no password
+        is specified, then no password is used when loading the keystore.</td>
+    </tr><tr>
+      <td>javax.net.ssl.trustStorePassword</td>
+      <td>See above.</td>
+    </tr><tr>
+      <td>org.apache.river.discovery
+        .x500.trustStoreType</td>
+      <td>See <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyStore">KeyStore Types</a></td>
+    </tr><tr>
+      <td>javax.net.ssl.trustStoreType</td>
+      <td>See above.</td>
+    </tr><tr>
+      <td>org.apache.river.discovery
+        .x500.ldapCertStores</td>
+      <td>In addition to the above, if the org.apache.river.discovery.x500.ldapCertStores system
+        property is set, its value is interpreted as a comma-separated list of
+        "host[:port]" elements which are used to obtain references to LDAP-based
+        CertStore instances.</td>
+    </tr><tr>
+      <td>java.util.logging.config.file</td>
+      <td>The logging configuration file is specified by the
+        java.util.logging.config.file system property (which is
+        sampled at every probe), if defined, otherwise it is the
+        logging.properties file in the lib subdirectory
+        of the directory specified by the java.home system property.
+      </td>
+    </tr><tr>
+      <td>java.util.logging.manager</td>
+      <td>Use <a href="doc/api/org/apache/river/logging/LogManager.html">org.apache.river.logging.LogManager</a> class as the value of the
+        java.util.logging.manager system property to permit specifying
+        the symbolic names for the FAILED and HANDLED
+        logging levels in standard logging configuration files, or to allow changes
+        to the logging configuration file to be noticed.
+      </td>
+    </tr><tr>
+      <td>org.apache.river.logging.interval</td>
+      <td>The org.apache.river.logging.interval logging property (obtained
+        using java.util.logging.LogManager.getProperty)
+        specifies the time interval in milliseconds
+        between probes to see if the logging configuration file has changed;
+        periodic checking only takes place if the value is greater than zero. (If a
+        new logging configuration file is read, this property can be redefined.)
+      </td>
+    </tr><tr>
+      <td>org.apache.river.outrigger
+        .maxServerQueryTimeout</td>
+      <td>Value (as a long) of the
+        org.apache.river.outrigger.maxServerQueryTimeout
+        property in this VM, or a non-positive number if it is not set.
+        Set maxServerQueryTimeout in SpaceProxy2, based on the values
+        of the server's maxServerQueryTimeout and
+        maxServerQueryTimeout system property.
+        If the org.apache.river.outrigger.maxServerQueryTimeout property
+        was set in this VM, override the value set by the server
+        when SpaceProxy2 was created.
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.http
+        .idleConnectionTimeout</td>
+      <td>The number of
+        milliseconds to retain idle client-side HTTP connections before closing
+        them. The default is 15000.
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td>
+    </tr><tr>
+      <td>org.apache.river.jeri.http
+        .idleServerConnectionTimeout</td>
+      <td>The
+        number of milliseconds to retain idle server-side HTTP connections before
+        closing them.  The default is the idle client-side connection timeout (as
+        specified by the org.apache.river.jeri.http.idleConnectionTimeout
+        system property) plus 10000.
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a></td>
+    </tr><tr>
+      <td>org.apache.river.jeri.http
+        .responseAckTimeout</td>
+      <td>The number of
+        milliseconds to wait for acknowledgments from
+        {@link net.jini.io.context.AcknowledgmentSource} instances.  The default is
+        15000.
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.http
+        .disableProxyPersistentConnections</td>
+      <td>If
+        the value is case-insensitive equal to true, client-side
+        connections through the HTTP proxy are not reused across requests;
+        otherwise, persistent connections are maintained and reused if possible.
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.http
+        .pingProxyConnections</td>
+      <td>If
+        the value is case-insensitive equal to true, then if an
+        HTTP proxy is being used, ping the server endpoint to verify whether
+        it is alive and reachable. The ping occurs before the first request
+        and before each subsequent request which follows the expiration of
+        the ping proxy timeout period (below) following the previous ping.
+        When using an HTTP proxy it is often impossible to distinguish
+        between inability to reach the server endpoint (such as because the
+        server process refused a connection by the HTTP proxy) and the lack
+        of response from a delivered request (which might result in an
+        UnmarshalException). The ping increases the likelihood that the
+        inability to reach the server endpoint can be explicitly identified.
+        The default value is false, and no pings are done.
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.http
+        .pingProxyConnectionTimeout</td>
+      <td>The
+        number of milliseconds from the time a server endpoint was last
+        pinged before a ping will precede the next request. The default is
+        Long.MAX_VALUE (essentially meaning, ping only before
+        the first request).
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.https
+        .idleConnectionTimeout</td>
+      <td>The
+        number of milliseconds to retain idle client-side HTTPS connections
+        before closing them. The default is 15000.
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.https
+        .idleServerConnectionTimeout</td>
+      <td>The number of milliseconds to retain idle server-side HTTPS
+        connections before closing them.  The default is the idle
+        client-side connection timeout (as specified by the
+        org.apache.river.jeri.https.idleConnectionTimeout system
+        property) plus 30000.
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.https
+        .responseAckTimeout</td>
+      <td>The
+        number of milliseconds to wait for acknowledgments from {@link
+        net.jini.io.context.AcknowledgmentSource} instances, or to keep
+        track of acknowledgements that have not yet been sent. The default
+        is 15000.
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.https
+        .pingProxyConnections</td>
+      <td>If
+        the value is case-insensitive equal to true, then if an
+        HTTP proxy is being used, ping the server endpoint to verify whether
+        it is alive and reachable. The ping occurs before the first request
+        and before each subsequent request which follows the expiration of
+        the ping proxy timeout period (below) following the previous ping.
+        When using an HTTP proxy it is often impossible to distinguish
+        between inability to reach the server endpoint (such as because the
+        server process refused a connection by the HTTP proxy) and the lack
+        of response from a delivered request (which might result in an
+        UnmarshalException). The ping increases the likelihood that the
+        inability to reach the server endpoint can be explicitly identified.
+        The default value is false, and no pings are done.
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+      </td>
+    </tr><tr>
+      <td>org.apache.river.jeri.https
+        .pingProxyConnectionTimeout</td>
+      <td>The
+        number of milliseconds from the time a server endpoint was last
+        pinged before a ping will precede the next request. The default is
+        Long.MAX_VALUE (essentially meaning, ping only before
+        the first request).
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+      </td>
+    </tr><tr>
+      <td>https.proxyHost</td>
+      <td>The host name for the secure proxy server. The
+        default is to use no proxy server.
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+      </td>
+    </tr><tr>
+      <td>https.proxyPort</td>
+      <td>The port for the secure proxy server. The default
+        is 443.
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+      </td>
+    </tr><tr>
+      <td>http.nonProxyHosts</td>
+      <td>The names of hosts for which direct
+        connections should be made rather than using the proxy server. Each
+        host name may contain '*' wildcard characters in any
+        position to match zero or more of any characters within the
+        name. Multiple host names may be specified by separating the names
+        with '|' characters. The default is for all
+        connections to use the proxy server if one is specified.
+        <a href="doc/api/net/jini/jeri/ssl/package-summary.html">See JERI https endpoints</a>
+        and <a href="doc/api/net/jini/jeri/http/package-summary.html">JERI http endpoints.</a>
+      </td>
+    </tr><tr>
+      <td>http.proxyHost</td>
+      <td>if specified, the value of this property is
+        interpreted as the host name of the HTTP proxy to use.  If
+        http.proxyHost is not specified, then the proxyHost
+        system property is consulted as a fallback; if it is not specified either,
+        then HTTP proxying is disabled (i.e., all HTTP messages are sent directly to
+        the target host of the given HttpEndpoint).
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints.</a>
+      </td>
+    </tr><tr>
+      <td>http.proxyPort</td>
+      <td>if http.proxyHost or
+        proxyHost is set, then the (integer) value of
+        http.proxyPort system property is used as the port number on
+        which to connect to the HTTP proxy; if unspecified, then the
+        proxyPort property is consulted as a fallback.  If neither
+        http.proxyPort nor proxyPort is specified (but
+        http.proxyHost or proxyHost is), then the HTTP
+        proxy port number defaults to 80.
+        <a href="doc/api/net/jini/jeri/http/package-summary.html">See JERI http endpoints.</a>
+      </td>
+    </tr><tr>
+      <td>The values of the system properties above are resampled for each new outbound
+        HTTP message.</td>
+      <td></td>
+    </tr>
+    </table>
+  </section>
+</div>
+
+<!-- FOOTER  -->
+<div id="footer_wrap" class="outer">
+  <footer class="inner">
+    <p class="copyright">JGDMS maintained by <a href="https://github.com/pfirmstone">pfirmstone</a></p>
+    <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+  </footer>
+</div>
+
+
+
+</body>
+</html>
