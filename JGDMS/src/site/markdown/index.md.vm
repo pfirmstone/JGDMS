@@ -1,7 +1,7 @@
 About ${project.name}
 ---------------------
 
-${project.name}
+${project.description}
 
 The prior static site docs can be viewed here: [Static Site](old-static-site/index.html)
 
