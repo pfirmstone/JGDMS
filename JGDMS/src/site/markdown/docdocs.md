@@ -36,5 +36,10 @@ we need to run a number of commands in order to successfully publish the site:
 
      Shorter commands (like `mvn clean site-deploy`) run into a number of problems. If you find
      a shorter incantation that works reliably, please share your findings!
+     
+     NOTE: The first time publishing a large site tree, I saw some errors related to command size limits.
+     The workaround for the first time publishing was to manually push large tree changes to the gh-pages branch. 
+     Thereafter the command size limit issue was avoided because fewer new changes were being published to 
+     gh-pages via the above publish command.
 
 For more details see: [Maven Multi Module Configuration](https://maven.apache.org/plugins/maven-scm-publish-plugin/examples/multi-module-configuration.html)
