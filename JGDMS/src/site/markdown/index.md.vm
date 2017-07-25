@@ -5,4 +5,4 @@ ${project.description}
 
 The prior static site docs can be viewed here: [Static Site](old-static-site/index.html)
 
-[Introduction](doc/index.html) docs are also available.
+[Introduction](old-static-site/doc/index.html) docs are also available.

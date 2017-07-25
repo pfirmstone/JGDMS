@@ -11,7 +11,7 @@
   <body>
     <menu ref="parent" inherit="top"/>
     <menu name="Overview">
-      <item name="Introduction" href="doc/index.html"/>
+      <item name="Introduction" href="old-static-site/doc/index.html"/>
       <item name="Doc docs" href="docdocs.html"/>
     </menu>
     <menu ref="modules" inherit="top"/>
