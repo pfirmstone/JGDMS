@@ -3064,7 +3064,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
      *         bound value may or may not have been changed successfully.
      *
      * @see org.apache.river.fiddler.proxy.FiddlerAdminProxy#setLeaseBound
-     * @see org.apache.river.fiddler.FiddlerAdmin#setLeaseBound
+     * @see org.apache.river.admin.FiddlerAdmin#setLeaseBound
      */
     @Override
     public void setLeaseBound(long newBound)
@@ -3099,7 +3099,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
      *         lookup discovery service.
      *
      * @see org.apache.river.fiddler.proxy.FiddlerAdminProxy#getLeaseBound
-     * @see org.apache.river.fiddler.FiddlerAdmin#getLeaseBound
+     * @see org.apache.river.admin.FiddlerAdmin#getLeaseBound
      */
     public long getLeaseBound() throws NoSuchObjectException, RemoteException {
 	readyState.check();
@@ -3127,7 +3127,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
      *         weight factor may or may not have been changed successfully.
      *
      * @see org.apache.river.fiddler.proxy.FiddlerAdminProxy#setPersistenceSnapshotWeight
-     * @see org.apache.river.fiddler.FiddlerAdmin#setPersistenceSnapshotWeight
+     * @see org.apache.river.admin.FiddlerAdmin#setPersistenceSnapshotWeight
      */
     public void setPersistenceSnapshotWeight(float weight)
                                throws NoSuchObjectException, RemoteException
@@ -3158,7 +3158,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
      *         lookup discovery service.
      *
      * @see org.apache.river.fiddler.proxy.FiddlerAdminProxy#getPersistenceSnapshotWeight
-     * @see org.apache.river.fiddler.FiddlerAdmin#getPersistenceSnapshotWeight
+     * @see org.apache.river.admin.FiddlerAdmin#getPersistenceSnapshotWeight
      */
     public float getPersistenceSnapshotWeight()
                                  throws NoSuchObjectException, RemoteException
@@ -3189,7 +3189,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
      *
      * @see org.apache.river.fiddler.proxy.FiddlerAdminProxy
      *                                       #setPersistenceSnapshotThreshold
-     * @see org.apache.river.fiddler.FiddlerAdmin#setPersistenceSnapshotThreshold
+     * @see org.apache.river.admin.FiddlerAdmin#setPersistenceSnapshotThreshold
      */
     public void setPersistenceSnapshotThreshold(int threshold)
                                  throws NoSuchObjectException, RemoteException
@@ -3220,7 +3220,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
      *
      * @see org.apache.river.fiddler.proxy.FiddlerAdminProxy
      *                                       #getPersistenceSnapshotThreshold
-     * @see org.apache.river.fiddler.FiddlerAdmin#getPersistenceSnapshotThreshold
+     * @see org.apache.river.admin.FiddlerAdmin#getPersistenceSnapshotThreshold
      */
     public int getPersistenceSnapshotThreshold()
                                  throws NoSuchObjectException, RemoteException

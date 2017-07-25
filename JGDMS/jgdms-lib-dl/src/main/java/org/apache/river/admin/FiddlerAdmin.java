@@ -18,13 +18,12 @@
 package org.apache.river.admin;
 
 import net.jini.admin.JoinAdmin;
-import org.apache.river.admin.DestroyAdmin;
 
 import java.rmi.RemoteException;
 
 /**
  * An administrative interface for the Fiddler implementation of the
- * lookup discovery service (see {@linkplain org.apache.river.fiddler Fiddler}).
+ * lookup discovery service.
  * The comments that follow describe Fiddler with respect to the following
  * methods:
  * <ul><li> setLeaseBound

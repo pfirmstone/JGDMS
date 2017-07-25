@@ -147,3 +147,12 @@
 /modularize/JGDMS/extra/target/
 /qa/jtreg/JTreport/
 /qa/jtreg/JTwork/
+/JGDMS/services/outrigger/target/
+/JGDMS/services/reggie/target/
+/JGDMS/services/mahalo/target/
+/JGDMS/services/mercury/target/
+/JGDMS/services/norm/target/
+/JGDMS/services/group/target/
+/JGDMS/services/fiddler/target/
+/JGDMS/tools/target/
+/JGDMS/phoenix-activation/target/
