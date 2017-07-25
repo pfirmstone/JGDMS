@@ -12,7 +12,7 @@
 
   <name>JGDMS Project</name>
 
-  <description>JGDMS Project</description>
+  <description>Infrastructure for providing secured micro services, that are dynamically discoverable and searchable over ipv6 networks.</description>
 
   <inceptionYear>2016</inceptionYear>
 
