@@ -311,9 +311,7 @@
   </build>
   
   <properties>
-    <!-- @todo change to peter's gh repo name -->
-    <!--<github.repo.basename>pfirmstone</github.repo.basename>-->
-    <github.repo.basename>bhamail</github.repo.basename>
+    <github.repo.basename>pfirmstone</github.repo.basename>
     <groovy.version>2.2.1</groovy.version>
     <gmaven.version>1.4</gmaven.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
