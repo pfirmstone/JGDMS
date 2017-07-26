@@ -99,6 +99,13 @@
     <!-- FILL IN THE REST OF YOUR DEVELOPERS -->
   </developers>
 
+  <contributors>
+    <contributor>
+      <name>Dan Rollo</name>
+      <timezone>-4</timezone>
+    </contributor>
+  </contributors>
+
   <distributionManagement>
     <!--<snapshotRepository>
       <id>local-snapshots</id>
