@@ -459,7 +459,11 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		    while(en.hasMoreElements()){
 			perms.add(en.nextElement());
 		    }
-                    classLoaderPerms.putIfAbsent(loader, perms);// doesn't matter if they existed.
+                    Collection<Permission> existed = 
+			    classLoaderPerms.putIfAbsent(loader, perms);
+		    // It doesn't matter if perms existed, but this keeps 
+		    // FindBugs happy.
+		    if (existed != null) perms = existed;
                 }
                 Iterator<Permission> it = perms.iterator();
                 while (it.hasNext()) {

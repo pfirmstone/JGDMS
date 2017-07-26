@@ -334,17 +334,17 @@ public final class KerberosEndpoint
      * request. The default is 30.
      */
     private static final int minGssContextLifetime =
-	((Integer) AccessController.doPrivileged(
-	    new GetIntegerAction(
-		"org.apache.river.jeri.kerberos.KerberosEndpoint." +
-		"minGssContextLifetime", 30))).intValue();
+	(AccessController.doPrivileged(
+		new GetIntegerAction(
+			"org.apache.river.jeri.kerberos.KerberosEndpoint." +
+				"minGssContextLifetime", 30))).intValue();
 
     /** Maximum retries for initial {@link GSSContext} handshake. */
     private static final int maxGssContextRetries =
-	((Integer) AccessController.doPrivileged(
-	    new GetIntegerAction(
-		"org.apache.river.jeri.kerberos.KerberosEndpoint." +
-		"maxGssContextRetries", 3))).intValue();
+	(AccessController.doPrivileged(
+		new GetIntegerAction(
+			"org.apache.river.jeri.kerberos.KerberosEndpoint." +
+				"maxGssContextRetries", 3))).intValue();
 
     /**
      * A cache maintains soft reference to its values. This cache is
@@ -423,7 +423,7 @@ public final class KerberosEndpoint
 	this.serverPort = serverPort;
 	this.serverPrincipal = serverPrincipal;
 	this.csf = csf;
-	logger.log(Level.FINE, "created {0}", this);
+	logger.log(Level.FINE, "created {0}", toString()); //previously allowed "this" to escape during construction.
     }
 
     //-----------------------------------
@@ -673,6 +673,7 @@ public final class KerberosEndpoint
     }
 
     /** Returns a hash code value for this object. */
+    @Override
     public int hashCode() {
 	return getClass().getName().hashCode() ^
 	    serverPrincipal.hashCode() ^ serverHost.hashCode() ^ serverPort ^
@@ -699,11 +700,14 @@ public final class KerberosEndpoint
     }
 
     /** Returns a string representation of this endpoint. */
+    @Override
     public String toString() {
-	return "KerberosEndpoint[serverHost=" + serverHost + 
-	    " serverPort=" + serverPort + 
-	    " serverPrincipal=" + serverPrincipal + 
-	    (csf == null ? "" : "csf = " + csf.toString()) + "]";
+	StringBuilder sb = new StringBuilder();
+	return sb.append("KerberosEndpoint[serverHost=").append(serverHost)
+	    .append(" serverPort=").append(serverPort)
+	    .append(" serverPrincipal=").append(serverPrincipal)
+	    .append((csf == null ? "" : "csf = " + csf.toString())).append("]")
+	    .toString();
     }
 
     //-----------------------------------
@@ -1014,7 +1018,7 @@ public final class KerberosEndpoint
 	    subjectReadOnly = clientSubject.isReadOnly();
 	    subjectClientPrincipals = getClientPrincipals(clientSubject);
 
-	    if (subjectClientPrincipals.size() == 0) {
+	    if (subjectClientPrincipals.isEmpty()) {
 		errorCode = NO_CLIENT_PRINCIPAL;
 		detailedExceptionMsg = "JAAS login has not been done " +
 		    "properly, the subject associated with the current " +
@@ -1056,7 +1060,7 @@ public final class KerberosEndpoint
 		configArr.add(config);
 	    }
 
-	    if (configArr.size() == 0) {
+	    if (configArr.isEmpty()) {
 		errorCode = UNSATISFIABLE_CONSTRAINT_REQUIRED;
 		detailedExceptionMsg = "Constraints unsatisfiable by this " +
 		    "endpoint with the current subject have been required: " +
@@ -1069,7 +1073,7 @@ public final class KerberosEndpoint
 		new Config[configArr.size()]);
 
 	    // reorder configs by the num of preferences a config can satisfy
-	    for (int i = 0; i < configs.length; i++) {
+	    for (int i = 0, l = configs.length; i < l; i++) {
 		for (Iterator iter = constraints.preferences().iterator();
 		     iter.hasNext(); )
 	        {
@@ -1108,23 +1112,24 @@ public final class KerberosEndpoint
 	}
 
 	/** Returns a string representation of this request handle. */
+	@Override
 	public String toString() {
-	    StringBuffer b = new StringBuffer(
+	    StringBuilder b = new StringBuilder(
 		"KerberosEndpoint.RequestHandleImpl[\n");
 	    if (errorCode != NO_ERROR) {
-		b.append("errorCode=" + ERROR_STRINGS[errorCode]);
-		b.append(" errorExceptionMsg=" + detailedExceptionMsg);
+		b.append("errorCode=").append(ERROR_STRINGS[errorCode]);
+		b.append(" errorExceptionMsg=").append(detailedExceptionMsg);
 	    } else {
-		b.append("constraints=" + constraints);
-		b.append("\nprincipalsInSubject=" + subjectClientPrincipals);
+		b.append("constraints=").append(constraints);
+		b.append("\nprincipalsInSubject=").append(subjectClientPrincipals);
 		b.append("\nallowedConfigs=[\n");
 		if (configs.length > 0)
 		    b.append(configs[0]);
 		for (int i = 1; i < configs.length; i++) {
-		    b.append(",\n" + configs[i]);
+		    b.append(",\n").append(configs[i]);
 		}
 		b.append("],");
-		b.append("\nunfulfilledConstraints=" + unfulfilledConstraints);
+		b.append("\nunfulfilledConstraints=").append(unfulfilledConstraints);
 		b.append("\nconnectionAbsoluteTime=");
 		if (connectionAbsoluteTime == Long.MAX_VALUE) {
 		    b.append("NO_LIMIT");
@@ -1198,6 +1203,19 @@ public final class KerberosEndpoint
 				return getTickets();
 			    }
 			});
+	    
+	    GSSCredential[] gssCredentials;
+	    if (tickets.length == 0){
+		gssCredentials = AccessController.doPrivileged(
+		    new PrivilegedAction<GSSCredential[]>(){
+			public GSSCredential[] run() {
+			    return getCredential();
+			}  
+		    }
+		);
+	    } else {
+		gssCredentials = new GSSCredential[0];
+	    }
 
 	    ArrayList configList = new ArrayList(configs.length);
 
@@ -1228,7 +1246,7 @@ public final class KerberosEndpoint
 	    KerberosPrincipal delegNoCp = null;
 
 	    HashMap hasPermMap = new HashMap();
-	    for (int i = 0; i < configs.length; i++) {
+	    for (int i = 0, l = configs.length; i < l; i++) {
 		AuthenticationPermission perm = getAuthenticationPermission(
 		    configs[i].clientPrincipal, configs[i].deleg);
 		Boolean hasPerm = (Boolean) hasPermMap.get(perm);
@@ -1240,7 +1258,7 @@ public final class KerberosEndpoint
 			hasPermMap.put(perm, Boolean.FALSE); // check failed
 			continue;
 		    }
-		} else if (hasPerm == Boolean.FALSE) {
+		} else if (hasPerm.equals(Boolean.FALSE)) {
 		    continue;
 		} // else: permission check has been done and succeeded
 
@@ -1258,34 +1276,56 @@ public final class KerberosEndpoint
 			}
 			if (t.isForwardable())
 			    configList.add(configs[i]);
+		    } else if (findCredential(gssCredentials,
+				    configs[i].clientPrincipal) != null){
+			/* We're not able to tell in a platform independant
+			 * manner, whether the TGT's contained in the credentials allow 
+			 * a connection with the server end, or
+			 * whether the tickets are forwardable.  However
+			 * since TGT's aren't present in the Subject's private
+			 * credentials, while GSSCredentials are, it's likely
+			 * that these GSSCredentials are the result of 
+			 * delegation, rather than a JAAS Login */
+			if (delegYesStepsFromSuccess > 1) {
+			    delegYesStepsFromSuccess = 1; // record the 1st
+			    delegYesCp = configs[i].clientPrincipal;
+			}
+			configList.add(configs[i]);
 		    }
 		} else {
 		    if (delegNoStepsFromSuccess > 1) {
 			delegNoStepsFromSuccess = 1; // record the 1st
 			delegNoCp = configs[i].clientPrincipal;
 		    }
-		    if (findTicket(tickets, configs[i].clientPrincipal) !=
-			null)
+		    if (findTicket(tickets, configs[i].clientPrincipal) != null
+			|| findCredential(gssCredentials, 
+				configs[i].clientPrincipal) != null)
 		    {
 			configList.add(configs[i]);
 		    }
 		}
 	    }
 
-	    if (configList.size() == 0) { // no valid config found
+	    if (configList.isEmpty()) { // no valid config found
+		StringBuilder sb = new StringBuilder();
 		if (delegNoStepsFromSuccess < delegYesStepsFromSuccess) {
 		    switch (delegNoStepsFromSuccess) {
 		    case 1:
 			throw new UnsupportedConstraintException(
-			    "JAAS login has not been done properly, the " +
-			    "subject associated with the current " +
-			    "AccessControlContext does not contain a valid " +
-			    "TGT for " + delegNoCp.getName());
+			    sb.append("JAAS login has not been done properly, the ")
+			    .append("subject associated with the current ")
+			    .append("AccessControlContext does not contain a valid ")
+			    .append("TGT, or GSSCredential for ")
+			    .append(delegNoCp != null ? delegNoCp.getName(): null)
+			    .toString() 
+			);
 		    case 2:
 			throw new SecurityException(
-			    "Caller does not have any of the following " +
-			    "acceptable permissions: " +
-			    hasPermMap.keySet());
+			    sb.append("Caller does not have any of the following ")
+			    .append("acceptable permissions: ")
+			    .append( hasPermMap.keySet())
+			    .toString()
+		        );
 		    default:
 			throw new AssertionError("should not reach here");
 		    }
@@ -1293,17 +1333,23 @@ public final class KerberosEndpoint
 		    switch (delegYesStepsFromSuccess) {
 		    case 1:
 			throw new UnsupportedConstraintException(
-			    "JAAS login has not been done properly, the " +
-			    "subject associated with the current " +
-			    "AccessControlContext contains a valid TGT for " +
-			    delegYesCp.getName() + ", but the TGT is not " +
-			    "forwardable.");
+			    sb.append("JAAS login has not been done properly, the ")
+			    .append("subject associated with the current ")
+			    .append("AccessControlContext contains a valid TGT for ")
+			    .append(delegYesCp != null ? delegYesCp.getName(): null)
+			    .append(", but the TGT is not ")
+			    .append("forwardable.")
+			    .toString()
+			);
 		    case 2:
 			throw new UnsupportedConstraintException(
-			    "JAAS login has not been done properly, the " +
-			    "subject associated with the current " +
-			    "AccessControlContext does not contain a valid " +
-			    "TGT for " + delegYesCp.getName());
+			    sb.append("JAAS login has not been done properly, the ")
+			    .append("subject associated with the current ")
+			    .append("AccessControlContext does not contain a valid ")
+			    .append("TGT for ")
+			    .append(delegYesCp != null ? delegYesCp.getName(): null)
+			    .toString()
+			);
 		    default:
 			throw new AssertionError("should not reach here");
 		    }
@@ -1325,14 +1371,14 @@ public final class KerberosEndpoint
 	 * @param subj the subject whose principals will be extracted
 	 * @return the set of Kerberos principals
 	 */
-	private Set getClientPrincipals(Subject subj) {
+	private Set<KerberosPrincipal> getClientPrincipals(Subject subj) {
 	    Set cpset = subj.getPrincipals();
 	    synchronized (cpset) {
-		HashSet set = new HashSet(cpset.size());
+		Set<KerberosPrincipal> set = new HashSet<KerberosPrincipal>(cpset.size());
 		for (Iterator iter = cpset.iterator(); iter.hasNext();) {
 		    Object p = iter.next();
 		    if (p instanceof KerberosPrincipal)
-			set.add(p);
+			set.add((KerberosPrincipal) p);
 		}
 		return set;
 	    }
@@ -1379,6 +1425,39 @@ public final class KerberosEndpoint
 
 	    return timeLimit;
 	}
+	
+	/**
+	 * 
+	 * @return an array of current GSSCredential
+	 */
+	private GSSCredential[] getCredential(){
+	    Set<GSSCredential> gssCred = 
+		    clientSubject.getPrivateCredentials(GSSCredential.class);
+	    List<GSSCredential> creds = new ArrayList<GSSCredential>(gssCred.size());
+	    for (GSSCredential cred : gssCred){
+		try {
+		    if (cred.getRemainingLifetime() > 0) creds.add(cred);
+		} catch (GSSException ex) {
+		    logger.log(Level.FINE, "Unable to get GSSCredential", ex);
+		}
+	    }
+	    return creds.toArray(new GSSCredential[creds.size()]);
+	}
+	
+	private GSSCredential findCredential(	
+		GSSCredential[] creds, KerberosPrincipal p)
+	{
+	    for (int i = 0, l = creds.length; i < l; i++){
+		try {
+		    KerberosPrincipal principal = 
+			    new KerberosPrincipal(creds[i].getName().toString());
+		    if (p.equals(principal)) return creds[i];
+		} catch (GSSException ex) {
+		    logger.log(Level.FINE, "Unable to create KerberosPrincipal", ex);
+		}
+	    }
+	    return null;
+	}
 
 	/**
 	 * Return all valid Ticket Granting Tickets (TGTs) in the
@@ -1388,24 +1467,20 @@ public final class KerberosEndpoint
 	 * @return an array of valid TGTs
 	 */
 	private KerberosTicket[] getTickets() {
-	    ArrayList tlist = new ArrayList();
-	    Set creds = clientSubject.getPrivateCredentials();
-	    synchronized (creds) {
-		for (Iterator iter = creds.iterator(); iter.hasNext(); ) {
-		    Object cred = iter.next();
-		    if (cred instanceof KerberosTicket) {
-			KerberosTicket ticket = (KerberosTicket) cred;
-			if (ticket.getServer().getName().startsWith(
-			    "krbtgt/") && !ticket.isDestroyed() &&
-			    ticket.isCurrent())
-			{
-			    tlist.add(ticket);
-			}
-		    }
+	    List<KerberosTicket> tlist = new ArrayList();
+	    Set<KerberosTicket> tickets = 
+		    clientSubject.getPrivateCredentials(KerberosTicket.class);
+	    
+	    for (KerberosTicket ticket : tickets) {
+		if (ticket.getServer().getName().startsWith("krbtgt/") 
+			&& !ticket.isDestroyed() 
+			&& ticket.isCurrent())
+		{
+		    tlist.add(ticket);
 		}
 	    }
-	    return (KerberosTicket[]) tlist.toArray(
-                new KerberosTicket[tlist.size()]);
+	    
+	    return tlist.toArray(new KerberosTicket[tlist.size()]);
 	}
 
 	private KerberosTicket findTicket(
@@ -1413,8 +1488,10 @@ public final class KerberosEndpoint
 	{
 	    String crealm = p.getRealm();
 	    String srealm = serverPrincipal.getRealm();
-	    String tgtName = "krbtgt/" + srealm + "@" + crealm;
-	    for (int i = 0; i < tickets.length; i++) {
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("krbtgt/").append(srealm).append("@").append(crealm);
+	    String tgtName =  sb.toString();
+	    for (int i = 0, l = tickets.length; i < l; i++) {
 		if (tickets[i].getClient().equals(p) && 
 		    tickets[i].getServer().getName().equals(tgtName))
 		{
@@ -1477,16 +1554,20 @@ public final class KerberosEndpoint
 		}
 		if (rh.errorCode == UNSUPPORTABLE_CONSTRAINT_REQUIRED)
 		    throw (UnsupportedConstraintException) exceptionCaught;
+		StringBuilder sb = new StringBuilder();
 		UnsupportedConstraintException genericException =
 		    new UnsupportedConstraintException(
-                        "Either there are conflicting or unsatisfiable " +
-			"constraint requirements, " +
-			"or the JAAS login has not been " +
-			"done (Subject.getSubject(AccessController." +
-			"getContext()) returns null), or no appropriate " +
-                        "Kerberos principal and corresponding TGT " +
-			"allowed by the requirements can be found in " +
-			"the current subject. " + rh.constraints);
+                        sb.append("Either there are conflicting or unsatisfiable ") 
+			.append("constraint requirements, ")
+			.append("or the JAAS login has not been ")
+			.append("done (Subject.getSubject(AccessController.")
+			.append("getContext()) returns null), or no appropriate ")
+                        .append("Kerberos principal and corresponding TGT ")
+			.append("allowed by the requirements can be found in ")
+			.append("the current subject. ")
+			.append(rh.constraints)
+			.toString()
+		    );
 		KerberosUtil.secureThrow(exceptionCaught, genericException);
 	    }
 
@@ -1608,8 +1689,7 @@ public final class KerberosEndpoint
 			   System.currentTimeMillis();
 	    if (timeout <= 0) {
 		throw new SocketTimeoutException(
-		    "connection timeout passed before socket." +
-		    "connect is called");
+		    "connection timeout passed before socket.connect is called");
 	    }
 
 	    Socket sock = newSocket();
@@ -1856,11 +1936,8 @@ public final class KerberosEndpoint
 		}
 
 		if (ex instanceof GSSException) {
-		    IOException ioe =
-			new IOException("Failed to establish GSS " +
-					"context for this connection.");
-		    ioe.initCause(ex);
-		    throw ioe;
+		    throw new IOException("Failed to establish GSS " +
+			    "context for this connection.", ex);
 		} else {
 		    throw (IOException) ex;
 		}
@@ -1920,17 +1997,18 @@ public final class KerberosEndpoint
 	}
 
 	/** Returns a string representation of this connection. */
+	@Override
 	public String toString() {
-	    StringBuffer b = 
-		new StringBuffer("KerberosEndpoint.ConnectionImpl");
-	    b.append("[clientPrincipal=" + clientPrincipal);
-	    b.append(" serverPrincipal=" + serverPrincipal);
-	    b.append(" doEncryption=" + doEncryption);
-	    b.append(" doDelegation=" + doDelegation);
-	    b.append(" client=" + sock.getLocalAddress().getHostName());
-	    b.append(":" + sock.getLocalPort());
-	    b.append(" server=" + sock.getInetAddress().getHostName());
-	    b.append(":" + sock.getPort());
+	    StringBuilder b = 
+		new StringBuilder("KerberosEndpoint.ConnectionImpl");
+	    b.append("[clientPrincipal=").append(clientPrincipal);
+	    b.append(" serverPrincipal=").append(serverPrincipal);
+	    b.append(" doEncryption=").append(doEncryption);
+	    b.append(" doDelegation=").append(doDelegation);
+	    b.append(" client=").append(sock.getLocalAddress().getHostName());
+	    b.append(":").append(sock.getLocalPort());
+	    b.append(" server=").append(sock.getInetAddress().getHostName());
+	    b.append(":").append(sock.getPort());
 	    b.append(']');
 	    return b.toString();
 	}
@@ -2051,10 +2129,10 @@ public final class KerberosEndpoint
 		    }
 		    break; // done gssContext establishment
 		} catch (GSSException ge) {
-		    if ((ge.getMessage().indexOf("34") >= 0 ||
+		    if ((ge.getMessage().contains("34") ||
 			 ge.getMajor() == GSSException.DUPLICATE_TOKEN ||
 			 ge.getMinor() == KRB_AP_ERR_REPEAT ||
-			 ge.getMessage().indexOf("Request is a replay") >= 0)
+			 ge.getMessage().contains("Request is a replay"))
 			&& i != 1) // will throw ge if loop has terminated
 		    {
 			/* this could caused by our authenticator
@@ -2100,6 +2178,7 @@ public final class KerberosEndpoint
 	    this.constraints = constraints;
 	}
 
+	@Override
 	public int hashCode() {
             // identityHashCode() should be faster
             return System.identityHashCode(subject) ^
@@ -2107,6 +2186,7 @@ public final class KerberosEndpoint
 	}
 
 	/** Use <code>==</code> to compare content */
+	@Override
 	public boolean equals(Object o) {
 	    if (o == this) {
 		return true;

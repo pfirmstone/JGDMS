@@ -240,10 +240,11 @@ import org.ietf.jgss.GSSName;
  *
  * This implementation uses the standard <a
  * href="http://www.ietf.org/rfc/rfc2853.txt">Java(TM) GSS-API</a>.
- * Additionally, for each inbound connection established, it invokes
- * <code> com.sun.security.jgss.GSSUtil.createSubject </code> to construct a
- * <code>Subject</code> instance, which encapsulates the principal and
- * delegated credential, only supported on Sun JVM's, of the corresponding remote caller.
+ * 
+ * If Kerberos delegation is true, a read only client Subject is created
+ * containing the KerberosPrincipal and the delegated GSSCredential is added
+ * to the Subject's private credentials.
+ * 
  * Otherwise if delegation is not required a read only Subject is created
  * with the client KerberosPrincipal and empty public and privileged credential
  * sets.
@@ -288,7 +289,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
             = new LocalHost(logger, KerberosServerEndpoint.class);
 
     /** The principal used for server authentication */
-    private KerberosPrincipal serverPrincipal;
+    private final KerberosPrincipal serverPrincipal;
 
     /** The host name that clients should use to connect to this server. */
     private String serverHost;
@@ -409,16 +410,20 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 
 	Exception detailedException = null;
+	StringBuilder sb = new StringBuilder();
 	if (usePrincipalInSubject) {
 	    if (serverSubject == null) {
 		detailedException = new UnsupportedConstraintException(
-		    "Forgot JAAS login?  Using default " +
-		    "serverSubject but no subject is associated " +
-		    "with the current access control context.");
+		    sb.append("Forgot JAAS login?  Using default ")
+		    .append("serverSubject but no subject is associated ")
+		    .append("with the current access control context.")
+		    .toString()
+		);
+		sb.delete(0, sb.length());
 	    } else {
 		try {
 		    serverPrincipal = findServerPrincipal(serverSubject);
-		} catch (Exception e) {
+		} catch (UnsupportedConstraintException e) {
 		    detailedException = e;
 		}
 	    }
@@ -431,9 +436,12 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		    serverPrincipal, null, "listen");
 		if (serverSubject == null) {
 		    detailedException = new UnsupportedConstraintException(
-			"Forgot JAAS login?  Using default " +
-			"serverSubject but no subject is associated " +
-			"with the current access control context.");
+			sb.append("Forgot JAAS login?  Using default ")
+			.append("serverSubject but no subject is associated ")
+			.append("with the current access control context.")
+			.toString()
+		    );
+		    sb.delete(0, sb.length());
 		}
 	    } catch (SecurityException e) {
 		serverSubject = null;
@@ -450,13 +458,16 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	    }
 	    KerberosUtil.secureThrow(
 		detailedException, new UnsupportedConstraintException(
-		    "Either the caller has not been granted the right " +
-		    "AuthenticationPermission, or there is no default " +
-		    "server subject (<code>Subject.getSubject(" +
-		    "AccessController.getContext())</code> returns " +
-		    "<code>null</code>), or no appropriate Kerberos " +
-		    "principal and its corresponding key can be found in " +
-		    "the current subject."));
+		    sb.append("Either the caller has not been granted the right ")
+		    .append("AuthenticationPermission, or there is no default ")
+		    .append("server subject (<code>Subject.getSubject(")
+		    .append("AccessController.getContext())</code> returns ")
+		    .append("<code>null</code>), or no appropriate Kerberos ")
+		    .append("principal and its corresponding key can be found in ")
+		    .append("the current subject.")
+		    .toString()
+		)
+	    );
 	}
 
 	// have succeeded principal, subject, and auth permission checks
@@ -474,7 +485,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	this.ssf = ssf;
 	softCache = new KerberosUtil.SoftCache(maxCacheSize);
 	listenEndpoint = new ListenEndpointImpl();
-	logger.log(Level.FINE, "created {0}", this);
+	logger.log(Level.FINE, "created {0}", toString());
     }
 
     //-----------------------------------
@@ -820,14 +831,11 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	InvocationConstraints unfulfilledConstraints;
 	try {
 	    // check for unsupportable constraints
-	    for (Iterator iter = constraints.requirements().iterator();
-		 iter.hasNext(); )
-	    {
-		InvocationConstraint c = (InvocationConstraint)iter.next();
+	    for (InvocationConstraint c : constraints.requirements()) {
 		if (!KerberosUtil.isSupportableConstraint(c)) {
 		    throw new UnsupportedConstraintException(
-			"A constraint unsupportable by this endpoint " +
-			"has been required: " + c);
+			    "A constraint unsupportable by this endpoint " +
+				    "has been required: " + c);
 		}
 	    }
 
@@ -855,7 +863,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		}
 	    }
 
-	    if (cpCandidates.size() == 0) {
+	    if (cpCandidates.isEmpty()) {
 		/* no client principal constraints is required, anyone
 		   will pass */
 		cpCandidates.add(new KerberosPrincipal("anyone"));
@@ -868,11 +876,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	  outer:
 	    while (citer.hasNext()) {
 		Config config = citer.next();
-		for (Iterator iter = constraints.requirements().iterator();
-		     iter.hasNext(); )
-		{
-		    InvocationConstraint c =
-			(InvocationConstraint) iter.next();
+		for (InvocationConstraint c : constraints.requirements()) {
 		    if (!KerberosUtil.isSatisfiable(config, c))
 			continue outer;
 		}
@@ -919,10 +923,13 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 	
 	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE, "checkConstraints() has determined " +
-		       "that this endpoint can support the given " +
-		       "constraints:\n{0}.\nWhile assistances are needed " +
-		       "from upper layers to satisfy constraints:\n{1}",
+	    StringBuilder sb = new StringBuilder();
+	    logger.log(Level.FINE, 
+		    sb.append("checkConstraints() has determined ")
+		      .append("that this endpoint can support the given ")
+		      .append("constraints:\n{0}.\nWhile assistances are needed ")
+		      .append("from upper layers to satisfy constraints:\n{1}")
+		      .toString(),
 		       new Object[] {constraints, unfulfilledConstraints});
 	}
 
@@ -1123,6 +1130,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
     }
 
     /** Returns a hash code value for this object. */
+    @Override
     public int hashCode() {
 	return getClass().getName().hashCode() ^
 	    System.identityHashCode(serverSubject) ^
@@ -1141,6 +1149,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
      * and have server socket factories that are either both
      * <code>null</code>, or have the same actual class and are equal.
      */
+    @Override
     public boolean equals(Object obj) {
 	if (obj == this) {
 	    return true;
@@ -1157,12 +1166,17 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
     }
 
     /** Returns a string representation of this object. */
+    @Override
     public String toString() {
-	return "KerberosServerEndpoint[serverPrincipal=" + serverPrincipal +
-            " serverHost= " + serverHost +
-	    " serverPort= " + port +
-	    (ssf == null ? "" : " ssf = " + ssf.toString()) +
-	    (csf == null ? "" : " csf = " + csf.toString()) + "]";
+	StringBuilder sb = new StringBuilder();
+	sb.append("KerberosServerEndpoint[serverPrincipal=")
+	  .append(serverPrincipal)
+          .append(" serverHost= ").append(serverHost)
+	  .append(" serverPort= ").append(port);
+	if (ssf != null) sb.append(" ssf = ").append(ssf);
+	if (csf != null) sb.append(" csf = ").append(csf);
+	sb.append("]");
+	return sb.toString();
     }
 
     //-----------------------------------
@@ -1202,15 +1216,16 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 
 	// note that exceptions throw here are logged in the constructor
+	StringBuilder sb = new StringBuilder();
 	if (hasAuthPerm) {
 	    throw new UnsupportedConstraintException(
-		"Cannot find any Kerberos key in the serverSubject " +
-		"corresponding to one of its principals.");
+		sb.append("Cannot find any Kerberos key in the serverSubject ")
+		.append("corresponding to one of its principals.").toString());
 	} else {
 	    throw new SecurityException(
-		"Caller does not have AuthenticationPermission " +
-		"to access Kerberos keys of any principal in " +
-		"the serverSubject.");
+		sb.append("Caller does not have AuthenticationPermission ")
+		.append("to access Kerberos keys of any principal in ")
+		.append("the serverSubject.").toString());
 	}
     }
 
@@ -1319,18 +1334,25 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		if (serverSubject != null &&
 		    !serverSubject.getPrincipals().contains(serverPrincipal))
 		{
+		    StringBuilder sb = new StringBuilder();
 		    throw new UnsupportedConstraintException(
-			"Failed to find serverPrincipal " + serverPrincipal + 
-			"in serverSubject's principal set, cannot listen.");
+			sb.append("Failed to find serverPrincipal ")
+			.append(serverPrincipal)
+			.append("in serverSubject's principal set, cannot listen.")
+			.toString()
+		    );
 		}
 
 		// getKey checks AuthenticationPermission "listen"
 		serverKey = getKey(serverSubject, serverPrincipal);
 
 		if (serverKey == null) {
+		    StringBuilder sb = new StringBuilder();
 		    throw new UnsupportedConstraintException(
-			"No valid Kerberos key in the server subject for " + 
-			serverPrincipal + ", cannot listen.");
+			sb.append("No valid Kerberos key in the server subject for ")
+			.append(serverPrincipal).append(", cannot listen.")
+			.toString()
+		    );
 		}
 
 		synchronized (classLock) {
@@ -1402,6 +1424,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 
 	/** Returns a hash code value for this object. */
+	@Override
 	public int hashCode() {
 	    int hash = getClass().getName().hashCode() ^
 		System.identityHashCode(serverSubject) ^ 
@@ -1421,6 +1444,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	 * without having the same server host or client socket
 	 * factory.
 	 */
+	@Override
 	public boolean equals(Object obj) {
 	    if (obj == this) {
 		return true;
@@ -1436,12 +1460,16 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 
 	/** Returns a string representation of this object. */
+	@Override
 	public String toString() {
-	    return "KerberosServerEndpoint.ListenEndpointImpl" +
-		"[serverPrincipal=" + serverPrincipal +
-		" serverPort = " + port +
-		(ssf == null ? "" : " ssf = " + ssf.toString()) +
-		(csf == null ? "" : " csf = " + csf.toString()) + "]";
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("KerberosServerEndpoint.ListenEndpointImpl")
+	      .append("[serverPrincipal=").append(serverPrincipal)
+	      .append(" serverPort = ").append(port);
+	    if (ssf != null) sb.append(" ssf = ").append(ssf);
+	    if (csf != null) sb.append(" csf = ").append(csf);
+	    sb.append("]");
+	    return sb.toString();
 	}
 
 	private KerberosServerEndpoint getServerEndpoint() {
@@ -1479,7 +1507,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	private final SecurityContext securityContext;
 
 	/** The Kerberos key used for server authentication */
-	private KerberosKey serverKey; // cached for the calling listen
+	private final KerberosKey serverKey; // cached for the calling listen
 	
 	/** The credential this server uses to authenticate itself */
 	final GSSCredential serverCred; // cached for establishContext in conn
@@ -1634,12 +1662,16 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 
 	/** Returns a string representation of this listen handle. */
+	@Override
 	public String toString() {
-	    return "KerberosServerEndpoint.ListenHandleImpl" +
-		"[serverPrincipal=" + serverPrincipal +
-		" portListening = " + serverSocket.getLocalPort() +
-		(ssf == null ? "" : " ssf = " + ssf.toString()) +
-		(csf == null ? "" : " csf = " + csf.toString()) + "]";
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("KerberosServerEndpoint.ListenHandleImpl")
+	      .append("[serverPrincipal=").append(serverPrincipal)
+	      .append(" portListening = ").append(serverSocket.getLocalPort());
+	    if (ssf != null) sb.append(" ssf = ").append(ssf);
+	    if (csf != null) sb.append(" csf = ").append(csf);
+	    sb.append("]");
+	    return sb.toString();
 	}
 
 	/**
@@ -1665,7 +1697,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	    if (serverKey.isDestroyed())
 		return false;
 	    // caller is responsible for checking AuthenticationPermission
-	    return ((Boolean) AccessController.doPrivileged(
+	    return ((Boolean)AccessController.doPrivileged(
 		new PrivilegedAction() {
 			public Object run() {
 			    Set creds = serverSubject.getPrivateCredentials();
@@ -1801,11 +1833,14 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	    }
 	}
 
+	@Override
 	public String toString() {
-	    return "KerberosServerEndpoint.ConnectionHandler" +
-		"[serverPrincipal=" + serverPrincipal +
-		" localPort=" + connection.sock.getLocalPort() +
-		" remotePort=" + connection.sock.getPort() + "]";
+	    StringBuilder sb = new StringBuilder();
+	    return sb.append("KerberosServerEndpoint.ConnectionHandler")
+		  .append("[serverPrincipal=").append(serverPrincipal)
+		  .append(" localPort=").append(connection.sock.getLocalPort())
+		  .append(" remotePort=").append(connection.sock.getPort())
+		  .append("]").toString();
 	}
     }
 
@@ -1816,8 +1851,8 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	private final ListenHandleImpl listenHandle; // used in close()
 	private GSSCredential clientCred;
 	private Subject clientSubject;
-	private InputStream istream;     // input/output streams exported to
-	private OutputStream ostream;    // upper layers
+	private final InputStream istream;     // input/output streams exported to
+	private final OutputStream ostream;    // upper layers
 	private InboundRequestHandleImpl handleWithEncryption;
 	private InboundRequestHandleImpl handleWithoutEncryption;
 	private final Object lock = new Object();
@@ -1853,8 +1888,8 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		}
 	    }
 
-	    istream = new KerberosUtil.ConnectionInputStream(this);
-	    ostream = new KerberosUtil.ConnectionOutputStream(this);
+	    istream = new KerberosUtil.ConnectionInputStream(this); // This isn't published
+	    ostream = new KerberosUtil.ConnectionOutputStream(this); // This isn't published
 	}
 
 	// Javadoc is inherited from the ServerConnection interface
@@ -1886,11 +1921,9 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 			}
 		    } catch (GSSException e) {
 			close();
-			SecurityException se = new SecurityException(
-			    "Failed to getRemainingLifetime from the " +
-			    "delegated client credential.");
-			se.initCause(e);
-			throw se;
+			throw new SecurityException(
+				"Failed to getRemainingLifetime from the " +
+				"delegated client credential.", e);
 		    }
 		}
 
@@ -2021,6 +2054,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 
 	// Javadoc is inherited from the ServerConnection interface
+	@Override
 	public void close() {
 	    synchronized (lock) {
 		if (closed)
@@ -2032,6 +2066,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	}
 
 	/** Returns a string representation of this object. */
+	@Override
 	public String toString() {
 	    StringBuilder b = new StringBuilder(
 		"KerberosServerEndpoint.ServerConnectionImpl[");
@@ -2052,7 +2087,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	    /* gssContext is defined in parent class for receiving
 	    incoming requests from the client */
 	    gssContext = gssManager.createContext(listenHandle.serverCred);
-	    byte[] token = null;
+	    byte[] token;
 	    while (!gssContext.isEstablished()) {
 		token = new byte[dis.readInt()];
 		dis.readFully(token);
@@ -2084,41 +2119,25 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	    doDelegation = gssContext.getCredDelegState();
 	    GSSName clientName = gssContext.getSrcName();
 	    clientPrincipal = new KerberosPrincipal(clientName.toString());
-	    if (doDelegation){//Only supported on Sun JVM's
+	    Set<Principal> pals = new HashSet<Principal>();
+	    pals.add(clientPrincipal);
+	    Set pvtCred;
+	    if (doDelegation){
+		/*
+		It is not possible to add KerberosTicket's and KerberosKey's
+		contained within the GSSCredential in a platform independant 
+		manner, as would occur during a JAAS Login.
+		By adding GSSCredential to the Subject's private credentials
+		they can be found and utilised by GSSManager.
+		*/
 		clientCred = gssContext.getDelegCred();
-		try {
-		    Class gssUtilClass = 
-			    Class.forName("com.sun.security.jgss.GSSUtil");
-		    Class [] parameterTypes = 
-			    new Class [] {GSSName.class, GSSCredential.class};
-		    Method createSubjectMethod = 
-			    gssUtilClass.getMethod("createSubject", parameterTypes);
-		    Object [] args = new Object []{clientName, clientCred};
-		    clientSubject = (Subject) createSubjectMethod.invoke(null, args);
-		    clientSubject.setReadOnly();
-		} catch (ClassNotFoundException ex) {
-		    throw new IOException("Unable to create client Subject", ex);
-		} catch (NoSuchMethodException ex) {
-		    throw new IOException("Unable to create client Subject", ex);
-		} catch (SecurityException ex) {
-		    throw new IOException("Unable to create client Subject", ex);
-		} catch (IllegalAccessException ex) {
-		    throw new IOException("Unable to create client Subject", ex);
-		} catch (IllegalArgumentException ex) {
-		    throw new IOException("Unable to create client Subject", ex);
-		} catch (InvocationTargetException ex) {
-		    throw new IOException("Unable to create client Subject", ex);
-		}
+		pvtCred = new HashSet();
+		pvtCred.add(clientCred);
 	    } else {
-		Set<Principal> prin = new HashSet<Principal>();
-		prin.add(clientPrincipal);
-		clientSubject = new Subject(
-			true,
-			prin,
-			Collections.emptySet(),
-			Collections.emptySet()
-		);
+		pvtCred = Collections.emptySet();
 	    }
+	    clientSubject = 
+			new Subject(true, pals, Collections.emptySet(), pvtCred);
 	    /* these handles need to be initialized after context
 	    establishment, which sets client principal and deleg */
 	    handleWithEncryption = new InboundRequestHandleImpl(true);
@@ -2165,6 +2184,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		this.constraints = constraints;
 	    }
 
+	    @Override
 	    public int hashCode() {
 		// identityHashCode() should be faster
 		return handle.hashCode() ^
@@ -2172,6 +2192,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 	    }
 	    
 	    /** Use <code>==</code> to compare content */
+	    @Override
 	    public boolean equals(Object o) {
 		if (o == this) {
 		    return true;

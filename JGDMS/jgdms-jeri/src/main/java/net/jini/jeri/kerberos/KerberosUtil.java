@@ -274,13 +274,14 @@ class KerberosUtil {
 	} else if (c instanceof ServerAuthentication) {
 	    return c == ServerAuthentication.YES;
 	} else if (c instanceof Delegation) {
-	    if ( config.deleg == (c == Delegation.YES)){
-		try {
-		    Class.forName("com.sun.security.jgss.GSSUtil");
-		    return true;
-		} catch (ClassNotFoundException ex){} // Ignore
-	    }
-	    return false;
+	    return config.deleg == (c == Delegation.YES);
+//	    if ( config.deleg == (c == Delegation.YES)){
+//		try {
+//		    Class.forName("com.sun.security.jgss.GSSUtil");
+//		    return true;
+//		} catch (ClassNotFoundException ex){} // Ignore
+//	    }
+//	    return false;
 	} else if (c instanceof ClientMinPrincipal) {
 	    Set elems = ((ClientMinPrincipal) c).elements();
 	    if (elems.size() > 1) {
@@ -854,6 +855,7 @@ class KerberosUtil {
 	}
 
 	// This method's javadoc is inherited from InputStream
+	@Override
 	public synchronized int read(byte b[], int off, int len)
 	    throws IOException
 	{
@@ -877,11 +879,13 @@ class KerberosUtil {
 	}
 
 	// This method's javadoc is inherited from InputStream
+	@Override
 	public synchronized int available() throws IOException {
 	    return buf.length - offset;
 	}
 
 	/** Close the DataInputStream of the enclosed connection */
+	@Override
 	public void close() throws IOException {
 	    connection.dis.close();
 	}
@@ -915,6 +919,7 @@ class KerberosUtil {
 	}
 
 	// This method's javadoc is inherited from OutStream
+	@Override
 	public synchronized void write(byte[] b, int off, int len)
 	    throws IOException
 	{
@@ -944,6 +949,7 @@ class KerberosUtil {
 	}
 
 	// This method's javadoc is inherited from OutStream
+	@Override
 	public synchronized void flush() throws IOException {
 	    if (curLen > 0) {
 		connection.write(buf, 0, curLen);
@@ -956,6 +962,7 @@ class KerberosUtil {
 	 * Flush this stream, then close the DataOutputStream of the
 	 * enclosed connection.
 	 */
+	@Override
 	public void close() throws IOException {
 	    try {
 		flush();
