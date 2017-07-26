@@ -224,10 +224,6 @@
           <version>3.0.4</version>
         </plugin>
         <plugin>
-          <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.4</version>
-        </plugin>
-        <plugin>
           <artifactId>maven-project-info-reports-plugin</artifactId>
           <version>2.4</version>
         </plugin>
