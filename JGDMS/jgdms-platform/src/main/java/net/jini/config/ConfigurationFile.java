@@ -1830,7 +1830,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 		} catch (MalformedURLException e) {
 		    in = new FileInputStream(location);
 		}
-		new Parser(new InputStreamReader(in), options);
+		new Parser(new InputStreamReader(in, "utf-8"), options);
 	    } catch (FileNotFoundException e) {
                 ErrorDescriptor ed = new ErrorDescriptor(0, 0,
                     "configuration file not found", location, e);
