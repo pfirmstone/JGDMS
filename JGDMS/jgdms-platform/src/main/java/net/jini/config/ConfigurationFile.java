@@ -54,8 +54,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import net.jini.export.Exporter;
-import net.jini.loader.ClassLoading;
 import net.jini.loader.LoadClass;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
@@ -448,23 +448,26 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    }
 	    in = cl.getResourceAsStream(moreProhibitedMethods);
 	    if (in != null) {
-		BufferedReader reader =
-		    new BufferedReader(new InputStreamReader(in, "utf-8"));
-		while (true) {
-		    String line = reader.readLine();
-		    if (line == null) {
-			break;
-		    }
-		    logger.log(Level.FINER, "Adding prohibited method: {0}",
-			       line);
-                    if (validQualifiedIdentifier(line)) {
-                        prohibitedMethods.add(line);
-                    } else {
-                        logger.log(Level.SEVERE, 
+                final BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(in, "utf-8"));
+                try {
+                    while (true) {
+                        String line = reader.readLine();
+                        if (line == null) {
+                            break;
+                        }
+                        logger.log(Level.FINER, "Adding prohibited method: {0}", line);
+                        if (validQualifiedIdentifier(line)) {
+                            prohibitedMethods.add(line);
+                        } else {
+                            logger.log(Level.SEVERE,
                                 "Problem adding prohibited method: {0}", line);
-                        throw new ExceptionInInitializerError(
+                            throw new ExceptionInInitializerError(
                                 "Problem adding prohibited method: " + line);
+                        }
                     }
+                } finally {
+                    reader.close();
 		}
 	    }
 	} catch (IOException e) {
