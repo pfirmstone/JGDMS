@@ -1,0 +1,11 @@
+net.jini.jeri
+net.jini.jeri.connection
+net.jini.jeri.http
+net.jini.jeri.kerberos
+net.jini.jeri.ssl
+net.jini.jeri.tcp
+org.apache.river.jeri.internal
+org.apache.river.jeri.internal.connection
+org.apache.river.jeri.internal.http
+org.apache.river.jeri.internal.mux
+org.apache.river.jeri.internal.runtime

@@ -1,0 +1,14 @@
+org.apache.river.discovery.https
+org.apache.river.discovery.internal
+org.apache.river.discovery.kerberos
+org.apache.river.discovery.plaintext
+org.apache.river.discovery.ssl
+org.apache.river.discovery.ssl.sha224
+org.apache.river.discovery.ssl.sha256
+org.apache.river.discovery.ssl.sha384
+org.apache.river.discovery.ssl.sha512
+org.apache.river.discovery.x500.sha1withdsa
+org.apache.river.discovery.x500.sha1withrsa
+org.apache.river.discovery.x500.sha256withdsa
+org.apache.river.discovery.x500.sha512withecdsa
+org.apache.river.discovery.x500.sha512withrsa

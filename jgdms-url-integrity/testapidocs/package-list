@@ -1,0 +1,3 @@
+net.jini.core.discovery
+net.jini.core.event
+org.apache.river.discovery

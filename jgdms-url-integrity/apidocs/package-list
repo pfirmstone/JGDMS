@@ -1,0 +1,3 @@
+net.jini.url.file
+net.jini.url.httpmd
+net.jini.url.https

@@ -1,0 +1,6 @@
+net.jini.id
+net.jini.security
+org.apache.river.api.io
+org.apache.river.api.net
+org.apache.river.api.security
+tests.support
