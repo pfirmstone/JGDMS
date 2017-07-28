@@ -14,25 +14,26 @@
 ~ See the License for the specific language governing permissions and
 ~ limitations under the License.
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"     
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
-        <artifactId>jgdms</artifactId>
         <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
         <version>3.0-SNAPSHOT</version>
-		<relativePath>../pom.xml</relativePath>
+        <relativePath>../pom.xml</relativePath>
     </parent>
+
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jsk-platform</artifactId>
+    <packaging>jar</packaging>
+
     <name>Module :: JSK Platform</name>
     <description>
         Defines a classpath for non modular implementations to utilise the jini
         platform, similar to that found in jsk-platform.jar
     </description>
-    <packaging>jar</packaging>
-    
+
     <build>
         <plugins>
             <plugin>
@@ -50,5 +51,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

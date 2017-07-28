@@ -14,22 +14,23 @@
 ~ See the License for the specific language governing permissions and
 ~ limitations under the License.
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"     
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
-        <artifactId>tools</artifactId>
         <groupId>au.net.zeus.jgdms</groupId>
+        <artifactId>tools</artifactId>
         <version>3.0-SNAPSHOT</version>
     </parent>
+
     <groupId>au.net.zeus.jgdms.tools</groupId>
     <artifactId>computedigest</artifactId>
+
     <name>Tool :: Compute message digest</name>
     <description>Prints the message digest for the contents of a URL. This utility is run
      from the command line.</description>
 
-    <dependencies>       
+    <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-url-integrity</artifactId>
@@ -43,14 +44,14 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
-                    <archive>                
+                    <archive>
                         <manifestEntries>
                             <Main-Class>org.apache.river.tool.ComputeDigest</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
                         </manifestEntries>
                     </archive>
                 </configuration>
-            </plugin>  
+            </plugin>
 
              <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -66,9 +67,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-	    </plugins>
+        </plugins>
     </build>
-
-    
 </project>

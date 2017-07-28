@@ -1,23 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" 
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <groupId>au.net.zeus</groupId>
   <artifactId>jgdms</artifactId>
   <version>3.0-SNAPSHOT</version>
-
   <packaging>pom</packaging>
 
   <name>JGDMS Project</name>
-
   <description>Infrastructure for providing secured micro services, that are dynamically discoverable and searchable over ipv6 networks.</description>
-
-  <inceptionYear>2016</inceptionYear>
-
   <url>https://${github.repo.basename}.github.io/JGDMS/</url>
-
+  <inceptionYear>2016</inceptionYear>
   <licenses>
     <license>
       <name>Apache Software License 2.0</name>
@@ -25,51 +18,6 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
-
-  <!--<issueManagement>
-    <system>JIRA</system>
-    <url>https://issues.apache.org/jira/browse/RIVER</url>
-  </issueManagement>
-
-  <scm>
-    <connection>scm:http://svn.apache.org/repos/asf/river/jtsk/trunk</connection>
-    <developerConnection>scm:https://svn.apache.org/repos/asf/river/jtsk/trunk</developerConnection>
-    <url>http://svn.apache.org/repos/asf/river/jtsk/trunk</url>
-  </scm>
-
-  <ciManagement>
-    <system>hudson</system>
-    <url>https://builds.apache.org/view/M-R/view/River/</url>
-  </ciManagement>-->
-
-  <reporting>
-    <excludeDefaults>true</excludeDefaults>
-    <plugins>
-      <plugin>
-        <artifactId>maven-surefire-report-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>findbugs-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <artifactId>maven-project-info-reports-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>versions-maven-plugin</artifactId>
-        <reportSets>
-          <reportSet>
-            <reports>
-              <report>dependency-updates-report</report>
-              <report>plugin-updates-report</report>
-              <report>property-updates-report</report>
-            </reports>
-          </reportSet>
-        </reportSets>
-      </plugin>
-    </plugins>
-  </reporting>
 
   <!--<mailingLists>
         <mailingList>
@@ -85,7 +33,6 @@
 	        <archive>river-commits@apache.org</archive>
         </mailingList>
     </mailingLists>-->
-
   <developers>
     <developer>
       <id>peter_firmstone</id>
@@ -98,13 +45,47 @@
     </developer>
     <!-- FILL IN THE REST OF YOUR DEVELOPERS -->
   </developers>
-
   <contributors>
     <contributor>
       <name>Dan Rollo</name>
       <timezone>-4</timezone>
     </contributor>
   </contributors>
+
+  <modules>
+    <module>jgdms-collections</module>
+    <module>jgdms-pref-class-loader</module>
+    <module>jgdms-activation</module>
+    <module>jgdms-platform</module>
+    <module>jgdms-jeri</module>
+    <module>jgdms-discovery-providers</module>
+    <module>jgdms-url-integrity</module>
+    <module>service-starter</module>
+    <module>jgdms-destroy</module>
+    <module>jgdms-resources</module>
+    <module>jgdms-iiop</module>
+    <module>jgdms-jrmp</module>
+    <module>jgdms-lib</module>
+    <module>jgdms-lib-dl</module>
+    <module>jgdms-ui-factory</module>
+    <module>jini-2.1-compat</module>
+    <module>jsk-platform</module>
+    <module>jsk-lib</module>
+    <module>services/outrigger</module>
+    <module>services/reggie</module>
+    <module>services/mahalo</module>
+    <module>services/mercury</module>
+    <module>services/norm</module>
+    <module>services/group</module>
+    <module>services/fiddler</module>
+    <module>tools</module>
+    <module>phoenix-activation</module>
+    <module>groovy-config</module>
+    <module>dist</module>
+    <module>browser</module>
+    <module>extra</module>
+    <!--CVE-2015-6420 vulnerable <module>velocity-config</module>-->
+  </modules>
 
   <distributionManagement>
     <!--<snapshotRepository>
@@ -118,6 +99,16 @@
       <url>scm:git:git@github.com:${github.repo.basename}/JGDMS.git</url>
     </site>
   </distributionManagement>
+
+  <properties>
+    <github.repo.basename>pfirmstone</github.repo.basename>
+    <groovy.version>2.2.1</groovy.version>
+    <gmaven.version>1.4</gmaven.version>
+    <gmavenProviderSelection>2.0</gmavenProviderSelection>
+    <junit.version>4.8.2</junit.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
 
   <!--
     <distributionManagement>
@@ -135,7 +126,6 @@
         </pluginRepository>
     </pluginRepositories>
 -->
-
   <repositories>
     <!--<repository>
       <id>local-snapshots</id>
@@ -213,6 +203,11 @@
           <artifactId>gmaven-plugin</artifactId>
           <version>${gmaven.version}</version>
         </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>tidy-maven-plugin</artifactId>
+          <version>1.0.0</version>
+        </plugin>
         <!-- reporting plugins : begin -->
         <plugin>
           <artifactId>maven-surefire-report-plugin</artifactId>
@@ -274,6 +269,19 @@
         <artifactId>maven-resources-plugin</artifactId>
         <version>2.5</version>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>tidy-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>validate</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
 
       <!-- for publishing maven site to gh-pages : begin -->
       <plugin>
@@ -312,50 +320,48 @@
       <!-- for publishing maven site to gh-pages : end -->
     </plugins>
   </build>
-  
-  <properties>
-    <github.repo.basename>pfirmstone</github.repo.basename>
-    <groovy.version>2.2.1</groovy.version>
-    <gmaven.version>1.4</gmaven.version>
-    <gmavenProviderSelection>2.0</gmavenProviderSelection>
-    <junit.version>4.8.2</junit.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-  </properties>
 
-  <modules>
-    <module>jgdms-collections</module>
-    <module>jgdms-pref-class-loader</module>
-    <module>jgdms-activation</module>
-    <module>jgdms-platform</module>
-    <module>jgdms-jeri</module>
-    <module>jgdms-discovery-providers</module>
-    <module>jgdms-url-integrity</module>
-    <module>service-starter</module>
-    <module>jgdms-destroy</module>
-    <module>jgdms-resources</module>
-    <module>jgdms-iiop</module>
-    <module>jgdms-jrmp</module>
-    <module>jgdms-lib</module>
-    <module>jgdms-lib-dl</module>
-    <module>jgdms-ui-factory</module>
-    <module>jini-2.1-compat</module>
-    <module>jsk-platform</module>
-    <module>jsk-lib</module>
-    <module>services/outrigger</module>
-    <module>services/reggie</module>
-    <module>services/mahalo</module>
-    <module>services/mercury</module>
-    <module>services/norm</module>
-    <module>services/group</module>
-    <module>services/fiddler</module>
-    <module>tools</module>
-    <module>phoenix-activation</module>
-    <module>groovy-config</module>
-    <module>dist</module>
-    <module>browser</module>
-    <module>extra</module>
-    <!--CVE-2015-6420 vulnerable <module>velocity-config</module>-->
-  </modules>
+  <!--<issueManagement>
+    <system>JIRA</system>
+    <url>https://issues.apache.org/jira/browse/RIVER</url>
+  </issueManagement>
 
+  <scm>
+    <connection>scm:http://svn.apache.org/repos/asf/river/jtsk/trunk</connection>
+    <developerConnection>scm:https://svn.apache.org/repos/asf/river/jtsk/trunk</developerConnection>
+    <url>http://svn.apache.org/repos/asf/river/jtsk/trunk</url>
+  </scm>
+
+  <ciManagement>
+    <system>hudson</system>
+    <url>https://builds.apache.org/view/M-R/view/River/</url>
+  </ciManagement>-->
+  <reporting>
+    <excludeDefaults>true</excludeDefaults>
+    <plugins>
+      <plugin>
+        <artifactId>maven-surefire-report-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <artifactId>maven-project-info-reports-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>versions-maven-plugin</artifactId>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>dependency-updates-report</report>
+              <report>plugin-updates-report</report>
+              <report>property-updates-report</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+    </plugins>
+  </reporting>
 </project>
