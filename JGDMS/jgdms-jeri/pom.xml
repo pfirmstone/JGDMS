@@ -14,23 +14,28 @@
 ~ See the License for the specific language governing permissions and
 ~ limitations under the License.
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"     
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
-        <artifactId>jgdms</artifactId>
         <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
         <version>3.0-SNAPSHOT</version>
     </parent>
+
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jgdms-jeri</artifactId>
+    <packaging>jar</packaging>
+
     <name>Module :: JGDMS Jini Extensible Remote Invocation</name>
     <description>Apache JGDMS Remote Micro Services Platform
     </description>
-    
-    <packaging>jar</packaging>
-     <dependencies>  
+
+    <properties>
+        <high.scale.lib.version>1.0.6</high.scale.lib.version>
+    </properties>
+
+    <dependencies>  
          <dependency>
             <groupId>biz.aQute.bnd</groupId>
             <artifactId>biz.aQute.bnd.annotation</artifactId>
@@ -55,29 +60,6 @@
         </dependency>
     </dependencies>
 
-    <reporting>
-        <plugins>
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <configuration>
-                  <!--
-                    <additionalDependencies>
-                        <additionalDependency>
-                          <groupId>au.net.zeus.jgdms</groupId>
-                          <artifactId>jgdms-lib</artifactId>
-                          <version>${project.version}</version>
-                        </additionalDependency>
-                        <additionalDependency>
-                          <groupId>au.net.zeus.jgdms</groupId>
-                          <artifactId>jgdms-lib-dl</artifactId>
-                          <version>${project.version}</version>
-                        </additionalDependency>
-                    </additionalDependencies>
--->
-                </configuration>
-            </plugin>
-        </plugins>
-    </reporting>
     <build>
         <plugins>  
             <plugin>
@@ -166,9 +148,9 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-	            <version>2.3.2</version>
-	            <configuration>
-	                <source>1.5</source>
+                <version>2.3.2</version>
+                <configuration>
+                      <source>1.5</source>
                         <profile>compact1</profile>
                         <target>1.5</target>
                         <debug>true</debug>
@@ -197,8 +179,27 @@
         </plugins>
     </build>
 
-    <properties>
-        <high.scale.lib.version>1.0.6</high.scale.lib.version>
-    </properties>
-    
+    <reporting>
+        <plugins>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                  <!--
+                    <additionalDependencies>
+                        <additionalDependency>
+                          <groupId>au.net.zeus.jgdms</groupId>
+                          <artifactId>jgdms-lib</artifactId>
+                          <version>${project.version}</version>
+                        </additionalDependency>
+                        <additionalDependency>
+                          <groupId>au.net.zeus.jgdms</groupId>
+                          <artifactId>jgdms-lib-dl</artifactId>
+                          <version>${project.version}</version>
+                        </additionalDependency>
+                    </additionalDependencies>
+-->
+                </configuration>
+            </plugin>
+        </plugins>
+    </reporting>
 </project>

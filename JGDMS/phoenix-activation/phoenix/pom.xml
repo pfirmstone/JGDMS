@@ -14,9 +14,9 @@
 ~ See the License for the specific language governing permissions and
 ~ limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>au.net.zeus.jgdms</groupId>
         <artifactId>phoenix-activation</artifactId>
@@ -25,9 +25,10 @@
 
     <groupId>au.net.zeus.jgdms.phoenix-activation</groupId>
     <artifactId>phoenix</artifactId>
+    <packaging>jar</packaging>
+
     <name>Module :: Phoenix</name>
 
-    <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
@@ -56,14 +57,14 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    
+
     <build>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-	            <version>2.3.2</version>
-	            <configuration>
-	                <source>1.5</source>
+                <version>2.3.2</version>
+                <configuration>
+                        <source>1.5</source>
                         <target>1.5</target>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>
@@ -72,8 +73,8 @@
                     </configuration>
             </plugin>
             <plugin>
-                <artifactId>exec-maven-plugin</artifactId>
                 <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
                 <version>1.5.0</version>
                 <executions>
                     <execution>

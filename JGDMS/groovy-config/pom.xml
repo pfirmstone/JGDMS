@@ -14,24 +14,28 @@
 ~ See the License for the specific language governing permissions and
 ~ limitations under the License.
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"     
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
-        <artifactId>jgdms</artifactId>
         <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
         <version>3.0-SNAPSHOT</version>
     </parent>
+
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>groovy-config</artifactId>
+    <packaging>jar</packaging>
+
     <name>Module :: Groovy Configuration</name>
     <description>Configure JGDMS with Groovy.
     </description>
-    
-    <packaging>jar</packaging>
 
-     <dependencies>  
+    <properties>
+        <high.scale.lib.version>1.0.3</high.scale.lib.version>
+    </properties>
+
+    <dependencies>  
 	
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
@@ -113,9 +117,9 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-	            <version>2.3.2</version>
-	            <configuration>
-	                <source>1.5</source>
+                <version>2.3.2</version>
+                <configuration>
+                        <source>1.5</source>
                         <target>1.5</target>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>
@@ -141,9 +145,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <properties>
-        <high.scale.lib.version>1.0.3</high.scale.lib.version>
-    </properties>
-    
 </project>
