@@ -18,7 +18,6 @@
 
 package net.jini.config;
 
-import org.apache.river.logging.Levels;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,11 +29,11 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Enumeration;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-import net.jini.loader.ClassLoading;
+
 import net.jini.loader.LoadClass;
 import net.jini.security.Security;
+import org.apache.river.logging.Levels;
 
 /**
  * Provides a standard means for obtaining {@link Configuration} instances,
@@ -293,33 +292,37 @@ public class ConfigurationProvider {
 	InputStream in = null;
 	try {
 	    in = url.openStream();
-	    BufferedReader reader =
+	    final BufferedReader reader =
 		new BufferedReader(new InputStreamReader(in, "utf-8"));
-	    String result = null;
-	    while (true) {
-		String line = reader.readLine();
-		if (line == null) {
-		    break;
-		}
-		int commentPos = line.indexOf('#');
-		if (commentPos >= 0) {
-		    line = line.substring(0, commentPos);
-		}
-		line = line.trim();
-		int len = line.length();
-		if (len != 0) {
-		    if (result != null) {
-			throw new ConfigurationException(
-			    "resource specifies multiple providers");
+	    try {
+		    String result = null;
+		    while (true) {
+			    String line = reader.readLine();
+			    if (line == null) {
+				    break;
+			    }
+			    int commentPos = line.indexOf('#');
+			    if (commentPos >= 0) {
+				    line = line.substring(0, commentPos);
+			    }
+			    line = line.trim();
+			    int len = line.length();
+			    if (len != 0) {
+				    if (result != null) {
+					    throw new ConfigurationException(
+							    "resource specifies multiple providers");
+				    }
+				    result = line;
+			    }
 		    }
-		    result = line;
-		}
+		    if (result == null) {
+			    throw new ConfigurationException(
+					    "resource specifies no providers");
+		    }
+		    return result;
+	    } finally {
+		    reader.close();
 	    }
-	    if (result == null) {
-		throw new ConfigurationException(
-		    "resource specifies no providers");
-	    }
-	    return result;
 	} finally {
 	    if (in != null) {
 		try {
