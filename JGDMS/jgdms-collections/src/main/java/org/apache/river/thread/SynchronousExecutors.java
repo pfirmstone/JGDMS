@@ -263,15 +263,17 @@ public class SynchronousExecutors implements Startable {
                         tasks.clear();
                         if (nullCount >= size ) {
                             // Time for a nap.
+			    boolean elapsed = true;
                             lock.lock();
                             try {
                                 waiting.set(true);
-                                workToDo.await(2, TimeUnit.SECONDS);
+                                elapsed = !workToDo.await(2, TimeUnit.SECONDS);
                             } catch (InterruptedException ex) {
                                 Thread.currentThread().interrupt(); // restore
                             } finally {
                                 waiting.set(false);
                                 lock.unlock();
+				if (!elapsed) logger.log(Level.FINEST, "Spurious wakeup occurred");
                             }
                         }
                     } catch (Exception e){
