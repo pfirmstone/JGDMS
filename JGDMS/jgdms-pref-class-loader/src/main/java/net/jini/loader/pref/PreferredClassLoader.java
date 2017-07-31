@@ -1416,16 +1416,20 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 		    in = getPreferredInputStream(urls[i], resource, jarHandler);
 		    if (in != null) {
 			BufferedReader reader = new BufferedReader(
-				new InputStreamReader(in, "UTF-8"));
-			for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-			    String trim = line.trim();
-			    if (trim.startsWith("#") || trim.startsWith("//")
-				    || (trim.length() == 0)) {
-				continue;
+				    new InputStreamReader(in, "UTF-8"));
+			try { 
+			    for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+				String trim = line.trim();
+				if (trim.startsWith("#") || trim.startsWith("//")
+					|| (trim.length() == 0)) {
+				    continue;
+				}
+				perms.add(AdvisoryPermissionParser.parse(line, loader));
 			    }
-			    perms.add(AdvisoryPermissionParser.parse(line, loader));
+			    permissions = perms.toArray(new Permission[perms.size()]);
+			} finally {
+			    reader.close();
 			}
-			permissions = perms.toArray(new Permission[perms.size()]);
 		    }
 		} catch (Exception ex) {
 		    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.CONFIG, "No advisory permissions: " + urls[i].toString(), ex);
