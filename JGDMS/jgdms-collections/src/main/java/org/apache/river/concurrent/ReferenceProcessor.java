@@ -15,7 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
@@ -104,12 +103,22 @@ class ReferenceProcessor<T> implements ReferenceQueuingFactory<T, Referrer<T>> {
        // this way in case we want to combine time and soft or weak reference
        // behaviour in some way.
        ScheduledFuture task;
-       task = ( queue != null && (gcThreads || type.equals(Ref.TIME)))
-                ? garbageCleaner.scheduleAtFixedRate(new CleanerTask(col, queue), GcInterval, GcInterval, TimeUnit.MILLISECONDS) 
-                : null;
+       task =  gcThreads || type.equals(Ref.TIME)? 
+	       garbageCleaner.scheduleAtFixedRate(
+		       new CleanerTask(col, queue),
+		       GcInterval,
+		       GcInterval,
+		       TimeUnit.MILLISECONDS
+	       ) 
+	       : null;
        scheduleFinaliserTask(task);
-       task = (type.equals(Ref.TIME))
-               ? garbageCleaner.scheduleAtFixedRate(new EnqueGarbageTask(col, colLock), enqDelay, GcInterval, TimeUnit.MILLISECONDS)
+       task = type.equals(Ref.TIME)? 
+	       garbageCleaner.scheduleAtFixedRate(
+		       new EnqueGarbageTask(col, colLock),
+		       enqDelay,
+		       GcInterval,
+		       TimeUnit.MILLISECONDS
+	       )
                : null;
        scheduleFinaliserTask(task);
     }

@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
-import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -55,12 +54,10 @@ public class SynchronousExecutors implements Startable {
     private final List<Queue<Callable>> queues ;
     private final Distributor distributor;
     private final Thread distributorThread;
-    private final ScheduledExecutorService pool;
     private final AtomicBoolean distributorWaiting;
     
     public SynchronousExecutors(ScheduledExecutorService pool){
         queues = new ArrayList<Queue<Callable>>(24);
-        this.pool = pool;
         distributorLock = new ReentrantLock();
         workToDo = distributorLock.newCondition();
         distributorWaiting = new AtomicBoolean(false);
@@ -221,7 +218,6 @@ public class SynchronousExecutors implements Startable {
     
     private static class Distributor implements Runnable {
         
-//        private final Random selector = new Random();
         private final List<Queue<Callable>> queues;
         private final ScheduledExecutorService executor;
         private final Lock lock;
@@ -239,18 +235,14 @@ public class SynchronousExecutors implements Startable {
         @Override
         public void run() {
             int nullCount = 0; // sequence of null tasks
-            int size = 0;
+            int size;
             List<Callable> tasks = new ArrayList<Callable>(64);
             try {
                 while (!Thread.currentThread().isInterrupted()){
                     try {
-                        Queue<Callable> queue = null;
+                        Queue<Callable> queue;
                         synchronized (queues){
                             size = queues.size();
-//                                if (size > 0){
-//                                    int index = selector.nextInt(size);
-//                                    queue = queues.get(index);
-//                                }
                             for (int i = 0; i < size; i++){
                                 queue = queues.get(i);
                                 Callable task = queue != null ? queue.peek() : null;
@@ -373,7 +365,6 @@ public class SynchronousExecutors implements Startable {
         volatile boolean cancelled = false;
         volatile T result = null;
         volatile Exception exception = null;
-        volatile Thread executorThread;
         private final Callable<T> task;
         private final QueueWrapper queue;
         private final Lock executorLock;
@@ -381,7 +372,6 @@ public class SynchronousExecutors implements Startable {
         private final Condition resultAwait;
         private final boolean comparable;
         private int attempt;
-        private volatile long retryTime;
         
         Task(Callable<T> c, QueueWrapper wrapper, Lock executorLock, Condition distributorWaiting){
             task = c;
@@ -502,7 +492,13 @@ public class SynchronousExecutors implements Startable {
                             throw new TimeoutException(
                                     "Timed out while waiting for result");
                         }
-                        resultAwait.await(remain, TimeUnit.MILLISECONDS);
+                        boolean elapsed = !resultAwait.await(remain, TimeUnit.MILLISECONDS);
+			if (elapsed) {
+			    if (!complete) throw new TimeoutException(
+				    "Timed out while waiting for result");
+			} else if (Thread.currentThread().isInterrupted()) {
+			   
+			}
                     }
                     return result;
                 } finally {
@@ -525,7 +521,19 @@ public class SynchronousExecutors implements Startable {
             return 0;
         }
 
-        
+	@Override
+        public boolean equals(Object o){
+	    if (!(o instanceof Task)) return false;
+	    Task other = (Task) o;
+	    return task.equals(other.task);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 3;
+	    hash = 41 * hash + (this.task != null ? this.task.hashCode() : 0);
+	    return hash;
+	}
     
     }
     

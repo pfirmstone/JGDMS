@@ -170,20 +170,14 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
             try {
                 thread.setName(NewThreadAction.NAME_PREFIX + name);
                 runnable.run();
-            } catch (Exception t) { // Don't catch Error
+            } catch (RuntimeException t) { // Don't catch Error
                 logger.log(Level.WARNING, "uncaught exception", t);
-                if (t instanceof RuntimeException){
                     if (t instanceof SecurityException){
                         // ignore it will be logged.
                     } else {
                         // Ignorance of RuntimeException is generally bad, bail out.
                         throw (RuntimeException) t;
                     }
-                } else if (t instanceof InterruptedException) {
-                    // If we've caught an interrupt, we need to make sure it's
-                    // set so the while loop stops.
-                    Thread.currentThread().interrupt();
-                }
             } finally {
                 thread.setName(NewThreadAction.NAME_PREFIX + "idle");
             }
