@@ -49,7 +49,8 @@ import java.io.ObjectInputStream;
  */
 public class UnusableEntryException extends Exception {
     static final long serialVersionUID = -2199083666668626172L;
-
+    //NOTE: Cannot implement @AtomicSerial until fields are private and final
+    // and all invariants can be enforced.
     /**
      * The partial entry.  Fields that could not be deserialized
      * will be <code>null</code>.
@@ -63,6 +64,7 @@ public class UnusableEntryException extends Exception {
       * unusable, <code>unusableFields</code> will be <code>null</code>.
       *
       * @serial
+      * @deprecated this field will be made private, use {@link #getUnusableFields() }
       */
     public String[] unusableFields;
 
@@ -73,6 +75,7 @@ public class UnusableEntryException extends Exception {
      * the one exception that prevented its use.
      *
      * @serial
+     * @deprecated this field will be made private, use {@link #getNestedExceptions() }
      */
     public Throwable[] nestedExceptions;
 
@@ -102,7 +105,8 @@ public class UnusableEntryException extends Exception {
 	Throwable[] exceptions)
     {
 	super();
-
+	//TODO, once fields are private check invariants prior to calling
+	// super() using static method.
 	if (partial == null) {
 	    if (exceptions.length != 1) {
 		throw new IllegalArgumentException("If partial is null " +
@@ -152,7 +156,32 @@ public class UnusableEntryException extends Exception {
 	unusableFields = null;
 	nestedExceptions = new Throwable[] { e };
     }
-
+    
+    /**
+     *	The names of the unusable fields.  
+     * 
+     * @return The names of the unusable fields or null if the entry was
+     * entirely unusable.
+     * @since 3.1.0
+     */
+    public String [] getUnusableFields(){
+	return unusableFields;
+    }
+   
+    /**
+     * The exception that caused the failure for the corresponding
+     * field named in unusableFields.  If the entry was entirely
+     * unusable, <code>nestedExceptions</code> will be an array with
+     * the one exception that prevented its use.
+     *
+     * @return The exception that caused the failure for the corresponding
+     * field named in getUnusableFields.
+     * @since 3.1.0
+     */ 
+    public Throwable [] getNestedExceptions(){
+	return nestedExceptions;
+    }
+ 
     /**
      * @throws InvalidObjectException if:
      * <ul>
