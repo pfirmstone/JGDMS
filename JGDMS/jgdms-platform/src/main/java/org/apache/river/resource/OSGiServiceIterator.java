@@ -19,6 +19,7 @@ package org.apache.river.resource;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.osgi.util.tracker.ServiceTracker;
@@ -71,6 +72,7 @@ public class OSGiServiceIterator implements BundleActivator {
 	}
 
 	public S next() {
+	    if (!hasNext()) throw new NoSuchElementException("End reached");
 	    return instances[index++];
 	}
 	
