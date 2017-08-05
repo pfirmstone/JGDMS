@@ -458,8 +458,8 @@ import org.apache.river.api.net.Uri;
     {
 
         // let's guess the best order for trying constructors
-        Class[][] argTypes = null;
-        Object[][] args = null;
+        Class[][] argTypes;
+        Object[][] args;
         if (targetActions != null) {
             argTypes = new Class[][] { TWO_ARGS, ONE_ARGS, NO_ARGS };
             args = new Object[][] { { targetName, targetActions },
@@ -467,11 +467,11 @@ import org.apache.river.api.net.Uri;
         } else if (targetName != null) {
             argTypes = new Class[][] { ONE_ARGS, TWO_ARGS, NO_ARGS };
             args = new Object[][] { { targetName },
-                    { targetName, targetActions }, {} };
+                    { targetName, /*targetActions*/ null }, {} };
         } else {
             argTypes = new Class[][] { NO_ARGS, ONE_ARGS, TWO_ARGS };
-            args = new Object[][] { {}, { targetName },
-                    { targetName, targetActions } };
+            args = new Object[][] { {}, { /*targetName*/ null },
+                    { /*targetName*/ null, /*targetActions*/ null } };
         }
 
         // finally try to instantiate actual permission
