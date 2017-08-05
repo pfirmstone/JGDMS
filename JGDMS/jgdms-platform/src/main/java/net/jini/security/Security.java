@@ -1359,9 +1359,14 @@ public final class Security {
          * reference and safe construction of this object. 
          */
         private SubjectProtectionDomain(Subject subject){
-            super(nullCS, new Permissions(), null, (Principal[]) subject.getPrincipals().toArray());
+            super(nullCS, new Permissions(), null, toArray(subject.getPrincipals()));
             this.subject = subject;
         }
+	
+	private static Principal [] toArray(Set<Principal> pals){
+	    if (pals == null) return null;
+	    return pals.toArray(new Principal[pals.size()]);
+	}
 
         public int hashCode() {
             int hash = 5;
