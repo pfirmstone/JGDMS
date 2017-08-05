@@ -20,7 +20,6 @@ package org.apache.river.logging;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -29,7 +28,6 @@ import java.io.ObjectStreamException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -130,6 +128,7 @@ public class Levels {
             this.to = ObjectStreamClass.lookup(to);
         }
 
+	@Override
         protected void writeClassDescriptor(ObjectStreamClass desc) throws IOException {
             if (from.equals(desc)) {
                 desc = to;
@@ -171,7 +170,7 @@ public class Levels {
             // Ignore :)
         } finally {
             if (result == null){
-                final Level withoutName = Level.parse(Integer.valueOf(value).toString());
+                final Level withoutName = Level.parse(Integer.toString(value));
                 result =  new Level(name, value, resourceBundleName) {
                     Object writeReplace() throws ObjectStreamException {
                         return withoutName;
