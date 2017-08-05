@@ -128,8 +128,10 @@ class PriviAction<T> implements PrivilegedAction<T> {
 		return (T) Policy.getPolicy();
 	    case SET_ACCESSIBLE:
 		((AccessibleObject) arg1).setAccessible(true);
+		return null;
+	    default:
+		return null;
 	}
-	return null;
     }
 
 }
