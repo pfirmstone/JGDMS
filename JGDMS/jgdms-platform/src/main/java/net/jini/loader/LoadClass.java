@@ -93,7 +93,7 @@ public class LoadClass {
     public static Class forName(String name, boolean initialize, ClassLoader loader) 
             throws ClassNotFoundException 
     {
-        if (loader == null) return Class.forName(name, initialize, loader);
+        if (loader == null) return Class.forName(name, initialize, null);
         if (loader.toString().startsWith(
                 "javax.management.remote.rmi.RMIConnectionImpl")) 
         {
