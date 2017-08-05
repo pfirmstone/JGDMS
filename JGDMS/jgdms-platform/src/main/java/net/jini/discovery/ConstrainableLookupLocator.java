@@ -148,8 +148,8 @@ public final class ConstrainableLookupLocator
     }
 
     private static GetArg check(GetArg arg) throws IOException{
-	// Checks type invariant, REMIND: Can HotSpot optimise out the cast?
-	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	// Checks type invariant.
+	arg.get("constraints", null, MethodConstraints.class);
 	return arg;
     }
     
