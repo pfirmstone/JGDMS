@@ -712,11 +712,16 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
 
             File file = new File(filename);
             if (file.exists()) {
+		InputStream is = null;
                 try {
-                    InputStream is = new FileInputStream(file);
+                    is = new FileInputStream(file);
                     return createClass(is, packageName, origName);
                 } catch (FileNotFoundException e) {
-                }
+                } finally {
+		    try {
+			if (is != null) is.close();
+		    } catch (IOException ex){}//Ignore
+		}
             }
             return null;
         }
