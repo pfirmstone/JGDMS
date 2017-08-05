@@ -159,8 +159,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
 //                }
             }  
         }
-        if (matches == pals.size()) return true;
-        return false;
+        return matches == pals.size();
     }
       
     /* Dynamic grant's and file policy grant's have different semantics,
