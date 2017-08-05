@@ -23,7 +23,6 @@ import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSource;
-import java.security.Guard;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Policy;
@@ -40,8 +39,6 @@ import java.util.List;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.common.Beta;
 
@@ -54,7 +51,6 @@ import org.apache.river.api.common.Beta;
 public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy,
         ScalableNestedPolicy{
     
-    private static final Logger logger = Logger.getLogger("net.jini.security.policy");
     private static final ProtectionDomain policyDomain = 
             AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>(){
             
@@ -77,12 +73,10 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
     /* This lock protects write updating of remotePolicyGrants reference */
     private final Object grantLock;
     private final Permission remotePolicyPermission;
-    private final Guard protectionDomainPermission;
     private final Policy basePolicy; // refresh protected by transactionWriteLock
     private final boolean basePolicyIsRemote;
     private final boolean basePolicyIsConcurrent;
     private final PermissionCollection policyPermissions;
-    private final boolean loggable;
     
     /**
      * Creates a new <code>RemotePolicyProvider</code> instance that wraps
@@ -94,15 +88,22 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
      * 		<code>null</code>
      */
     public RemotePolicyProvider(Policy basePolicy){
-        this.basePolicy = basePolicy;
+        this(basePolicy, getPermissions(basePolicy));
+    }
+    
+    private static PermissionCollection getPermissions(Policy basePolicy){
+	new RuntimePermission("getProtectionDomain").checkGuard(null);
+	return basePolicy.getPermissions(policyDomain);
+    }
+    
+    private RemotePolicyProvider(Policy basePolicy, PermissionCollection col ){
+	this.basePolicy = basePolicy;
 	remotePolicyGrants = new PermissionGrant[0];
-        loggable = logger.isLoggable(Level.FINEST);
 	grantLock = new Object();
         remotePolicyPermission = new PolicyPermission("Remote");
-        protectionDomainPermission = new RuntimePermission("getProtectionDomain");
-        basePolicyIsRemote = basePolicy instanceof RemotePolicy ?true: false;
+        basePolicyIsRemote = basePolicy instanceof RemotePolicy;
         basePolicyIsConcurrent = basePolicy instanceof ScalableNestedPolicy ;
-        policyPermissions = basePolicy.getPermissions(policyDomain);
+        policyPermissions = col;
         policyPermissions.setReadOnly();
     }
     
@@ -174,28 +175,15 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
 		    = new HashSet<PermissionGrant>(grants.length);
 	    holder.addAll(Arrays.asList(grants));
             checkCallerHasGrants(holder);
-        PermissionGrant[] old = null;
 	synchronized (grantLock) {
-            old = remotePolicyGrants;
 	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
 	    remotePolicyGrants = holder.toArray(updated);
 	}
-        Collection<PermissionGrant> oldGrants = new HashSet<PermissionGrant>(old.length);
-        oldGrants.addAll(Arrays.asList(old));
-        oldGrants.removeAll(holder);
-        // Collect removed Permission's to notify CachingSecurityManager.
-        Set<Permission> removed = new HashSet<Permission>(120);
-        Iterator<PermissionGrant> rgi = oldGrants.iterator();
-        while (rgi.hasNext()){
-            PermissionGrant g = rgi.next();
-                    removed.addAll(g.getPermissions());
-        }
         
         SecurityManager sm = System.getSecurityManager();
         if (sm instanceof CachingSecurityManager) {
             ((CachingSecurityManager) sm).clearCache();
         }
-        // oldGrants now only has the grants which have been removed.
     }
     
     @Override
@@ -203,6 +191,7 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
         return basePolicy.getPermissions(codesource);
     }
     
+    @Override
     public PermissionCollection getPermissions(ProtectionDomain domain){
         Collection<PermissionGrant> grants = getPermissionGrants(domain);
         NavigableSet<Permission> perms = new TreeSet<Permission>(comparator);
@@ -286,7 +275,7 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
 	}
 //        if (thread.isInterrupted()) return false;
         
-        PermissionCollection pc = null;
+        PermissionCollection pc;
         if (permClass != null){
             pc =convert(permissions, 1, 0.75F, 1, 16);
         } else {
@@ -299,7 +288,7 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
 
     @Override
     public List<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
-        List<PermissionGrant> grants = null;
+        List<PermissionGrant> grants;
         if (basePolicy instanceof ScalableNestedPolicy){
             grants = ((ScalableNestedPolicy) basePolicy).getPermissionGrants(domain);
         } else {
@@ -311,20 +300,4 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
         return grants;
     }
 
-//    @Override
-//    public Collection<PermissionGrant> getPermissionGrants(boolean recursive) throws UnsupportedOperationException {
-//        Collection<PermissionGrant> grants = null;
-//        if ( recursive ){ 
-//            if (!(basePolicy instanceof ScalableNestedPolicy)){
-//                throw new UnsupportedOperationException
-//                        ("base policy doesn't implement ScalableNestedPolicy");
-//            }
-//            grants = ((ScalableNestedPolicy)basePolicy).getPermissionGrants(recursive);
-//        } else {
-//            grants = new LinkedList<PermissionGrant>();
-//        }
-//        PermissionGrant[] rpg = remotePolicyGrants; // Copy volatile reference.
-//        grants.addAll(Arrays.asList(rpg));
-//        return grants;
-//    }
 }
