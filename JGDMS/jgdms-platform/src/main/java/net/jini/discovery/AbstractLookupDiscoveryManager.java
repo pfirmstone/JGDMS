@@ -1272,6 +1272,8 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
             case CHANGED:
                 ((DiscoveryChangeListener)l).changed(evt);
                 break;
+	    default:
+		throw new IllegalArgumentException("illegal event type");
         }//end switch
     }//end notifyListener
 
