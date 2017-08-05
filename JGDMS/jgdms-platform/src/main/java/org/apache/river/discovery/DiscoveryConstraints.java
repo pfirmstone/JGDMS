@@ -196,7 +196,7 @@ public class DiscoveryConstraints {
 		= new ConnectionAbsoluteTimeReducer().reduce(absConstraints);
 	connectionAbsoluteTime = cat.isEmpty() ? null : getElement(cat);
 	int hash = 7;
-	hash = 41 * hash + (this.unfulfilled != null ? this.unfulfilled.hashCode() : 0);
+	hash = 41 * hash + this.unfulfilled.hashCode();
 	hash = 41 * hash + this.protocolVersions.hashCode();
 	hash = 41 * hash + this.preferredProtocolVersion;
 	hash = 41 * hash + (this.connectionAbsoluteTime != null ? this.connectionAbsoluteTime.hashCode() : 0);
