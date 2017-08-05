@@ -118,7 +118,7 @@ class DefaultPolicyParser implements PolicyParser {
         boolean resolve = PolicyUtils.canExpandProperties();
         Reader r = new BufferedReader(new InputStreamReader(
                 AccessController
-                        .doPrivileged(new PolicyUtils.URLLoader(location))));
+                        .doPrivileged(new PolicyUtils.URLLoader(location)), "UTF-8"));
 
         Collection<GrantEntry> grantEntries = new HashSet<GrantEntry>();
         List<KeystoreEntry> keystores = new ArrayList<KeystoreEntry>();
