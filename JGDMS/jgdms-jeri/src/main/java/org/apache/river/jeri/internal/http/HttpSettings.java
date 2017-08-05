@@ -184,7 +184,7 @@ public class HttpSettings {
 	                : "org.apache.river.jeri.http.pingProxyConnectionTimeout";
 	String prop = props.getProperty(key);
 	try {
-	    long timeout = Long.valueOf(prop).longValue();
+	    long timeout = Long.parseLong(prop);
 	    return timeout;
 	} catch (Exception ex) {}
 	return Long.MAX_VALUE;

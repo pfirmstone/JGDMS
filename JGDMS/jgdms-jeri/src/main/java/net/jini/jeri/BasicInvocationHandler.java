@@ -720,9 +720,7 @@ public class BasicInvocationHandler
 	 * failure.
 	 */
 	if (logger.isLoggable(Levels.FAILED)) {
-	    if (failure != null) {
 		logThrow(Levels.FAILED, method, failure.exception, false);
-	    }
 	}
 	throw failure.exception;
     }
@@ -840,16 +838,17 @@ public class BasicInvocationHandler
 
 	    out.close();
 	    ok = true;
-	} catch (Exception e) {
-	    if (e instanceof IOException) {
-		if (wroteMethod && request.getDeliveryStatus()) {
-		    e = new MarshalException("error marshalling arguments", e);
-		} else {
-		    e = wrapSafeIOException((IOException) e, oe);
-		}
+	} catch (IOException e){
+	    if (wroteMethod && request.getDeliveryStatus()) {
+		e = new MarshalException("error marshalling arguments", e);
+	    } else {
+		e = wrapSafeIOException((IOException) e, oe);
 	    }
-	    return new Failure(e,
-			       !wroteMethod || !request.getDeliveryStatus());
+	    return new Failure(e, !wroteMethod || !request.getDeliveryStatus());
+	} catch (RuntimeException e){
+	    throw e;
+	} catch (Exception e) {
+	    return new Failure(e, !wroteMethod || !request.getDeliveryStatus());
 	} finally {
 	    if (!ok) {
 		request.abort();

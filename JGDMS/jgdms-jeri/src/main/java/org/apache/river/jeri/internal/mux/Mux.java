@@ -104,7 +104,7 @@ abstract class Mux {
 	}
 
 	public void run() {
-	    for (int i = 0; i < sessions.length; i++) {
+	    for (int i = 0, l = sessions.length; i < l; i++) {
 		if (sessions[i] != null)
 		sessions[i].setDown(message, cause);
 	    }
@@ -296,7 +296,7 @@ abstract class Mux {
      * occurs during start up.
      */
     final void setDown(final String message, final Throwable cause) {
-	SessionShutdownTask sst = null;
+	SessionShutdownTask sst;
         if (muxDown) return;
 	synchronized (muxLock) {
 	    muxDown = true;
@@ -306,52 +306,44 @@ abstract class Mux {
 	    muxLock.notifyAll();
 	}
 
-            /*
-             * The following should be safe because we just left the
-             * synchonized block, and after setting the muxDown latch
-             * therein, no other thread should ever touch the "sessions"
-             * data structure.
-             *
-             * Sessions are shut down asynchronously in a separate thread
-             * to avoid deadlock, in case our caller holds muxLock,
-             * because individual session locks must never be acquired
-             * while holding muxLock.
-             */
-	boolean needWorker = false;
-            synchronized (sessionShutdownQueue) {
-                if (sst != null) {
-                    sessionShutdownQueue.add(sst);
-                    needWorker = true;
-                } else {
-                    needWorker = !sessionShutdownQueue.isEmpty();
-                }
-            }
-	if (needWorker) {
-	    try {
-		systemThreadPool.execute(new Runnable() {
-		    public void run() {
-			while (true) {
-			    Runnable task;
-			    synchronized (sessionShutdownQueue) {
-				if (sessionShutdownQueue.isEmpty()) break;
-				task = sessionShutdownQueue.removeFirst();
-			    }
-			    task.run();
-			}
-		    }
-		}, "mux session shutdown");
-	    } catch (OutOfMemoryError e) {	// assume out of threads
-		try {
-		    logger.log(Level.WARNING,
-			"could not create thread for session shutdown", e);
-		} catch (Throwable t) {
-		}
-		// absorb exception to proceed with connection shutdown;
-		// session shutdown task will remain on queue for later
-	    }
+	/*
+	 * The following should be safe because we just left the
+	 * synchonized block, and after setting the muxDown latch
+	 * therein, no other thread should ever touch the "sessions"
+	 * data structure.
+	 *
+	 * Sessions are shut down asynchronously in a separate thread
+	 * to avoid deadlock, in case our caller holds muxLock,
+	 * because individual session locks must never be acquired
+	 * while holding muxLock.
+	 */
+	synchronized (sessionShutdownQueue) {
+	    sessionShutdownQueue.add(sst);
 	}
-
-	handleDown();
+	try {
+	    systemThreadPool.execute(new Runnable() {
+		public void run() {
+		    while (true) {
+			Runnable task;
+			synchronized (sessionShutdownQueue) {
+			    if (sessionShutdownQueue.isEmpty()) break;
+			    task = sessionShutdownQueue.removeFirst();
+			}
+			task.run();
+		    }
+		}
+	    }, "mux session shutdown");
+	} catch (OutOfMemoryError e) {	// assume out of threads
+	    try {
+		logger.log(Level.WARNING,
+		    "could not create thread for session shutdown", e);
+	    } catch (Throwable t) {
+	    }
+	    // absorb exception to proceed with connection shutdown;
+	    // session shutdown task will remain on queue for later
+	} finally {
+	    handleDown();
+	}
     }
 
     /**
@@ -1247,12 +1239,12 @@ abstract class Mux {
 	}
     }
 
-    private static String toHexString(byte x) {
-	char[] buf = new char[2];
-	buf[0] = toHexChar((x >> 4) & 0xF);
-	buf[1] = toHexChar(x & 0xF);
-	return new String(buf);
-    }
+//    private static String toHexString(byte x) {
+//	char[] buf = new char[2];
+//	buf[0] = toHexChar((x >> 4) & 0xF);
+//	buf[1] = toHexChar(x & 0xF);
+//	return new String(buf);
+//    }
 
     private static String toHexString(int x) {
 	char[] buf = new char[8];

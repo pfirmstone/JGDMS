@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 
 /**
  * This class defines the encoding half of character encoders.
@@ -77,7 +78,7 @@ public abstract class CharacterEncoder {
      * opens the PrintStream for use by the other functions.
      */
     protected void encodeBufferPrefix(OutputStream aStream) throws IOException {
-	pStream = new PrintStream(aStream);
+	pStream = new PrintStream(aStream, false, "UTF-8");
     }
 
     /**
@@ -235,7 +236,7 @@ public abstract class CharacterEncoder {
      * A 'streamless' version of encode that simply takes a buffer of
      * bytes and returns a string containing the encoded buffer.
      */
-    public String encodeBuffer(byte aBuffer[]) {
+    public String encodeBuffer(byte aBuffer[]) throws UnsupportedEncodingException {
 	ByteArrayOutputStream	outStream = new ByteArrayOutputStream();
 	ByteArrayInputStream	inStream = new ByteArrayInputStream(aBuffer);
 	try {
@@ -244,7 +245,9 @@ public abstract class CharacterEncoder {
 	    // This should never happen.
 	    throw new Error("CharacterEncoder::encodeBuffer internal error");
 	}
-	return (outStream.toString());
+	return (outStream.toString("UTF-8"));
+	
+	
     }
 
 }

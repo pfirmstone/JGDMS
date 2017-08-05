@@ -18,6 +18,7 @@
 
 package org.apache.river.jeri.internal.http;
 
+import java.io.UnsupportedEncodingException;
 import org.apache.river.jeri.internal.runtime.BASE64Encoder;
 import java.net.Authenticator;
 import java.net.InetAddress;
@@ -184,13 +185,19 @@ class ServerInfo implements Cloneable {
 	
 	if (authScheme.equals("Basic")) {
 	    BASE64Encoder enc = new BASE64Encoder();
-	    return "Basic " + 
-		enc.encode((authUser + ":" + authPassword).getBytes());
+	    try {
+		return "Basic " +
+			enc.encode((authUser + ":" + authPassword).getBytes("UTF-8"));
+	    } catch (UnsupportedEncodingException ex) {
+		return null;
+	    }
 	} else if (authScheme.equals("Digest")) {
 	    String digest;
 	    try {
 		digest = computeDigest(method, uri);
 	    } catch (NoSuchAlgorithmException ex) {
+		return null;
+	    } catch (UnsupportedEncodingException ex) {
 		return null;
 	    }
 
@@ -218,7 +225,7 @@ class ServerInfo implements Cloneable {
      * digest algorithm not supported.
      */
     private String computeDigest(String method, String uri) 
-	throws NoSuchAlgorithmException
+	throws NoSuchAlgorithmException, UnsupportedEncodingException
     {
 	// REMIND: cache MessageDigest?
 	MessageDigest md = MessageDigest.getInstance(
@@ -233,9 +240,9 @@ class ServerInfo implements Cloneable {
      * Returns digest of the given string, represented as string of hexadecimal
      * digits.
      */
-    private String encode(MessageDigest md, String str) {
+    private String encode(MessageDigest md, String str) throws UnsupportedEncodingException {
 	md.reset();
-	byte[] digest = md.digest(str.getBytes());
+	byte[] digest = md.digest(str.getBytes("UTF-8"));
 	StringBuffer sbuf = new StringBuffer(digest.length * 2);
 	for (int i = 0; i < digest.length; i++) {
 	    sbuf.append(hexChars[(digest[i] >>> 4) & 0xF]);

@@ -681,16 +681,17 @@ class SslServerEndpointImpl extends Utilities {
 	    Set principals = serverSubject.getPrincipals();
 	    /* Keep track of progress; remove entry when check is done */
             boolean nullServerPrincipals = serverPrincipals == null;
-	    Map progress = new HashMap(nullServerPrincipals ? 0 : serverPrincipals.size());
+	    Map<X500Principal,Object> progress 
+		    = new HashMap<X500Principal,Object>(
+			    nullServerPrincipals ? 0 : serverPrincipals.size());
             if (!nullServerPrincipals){
-                for (Iterator i = serverPrincipals.iterator(); i.hasNext(); ) {
-                    X500Principal p = (X500Principal) i.next();
-                    if (!principals.contains(p)) {
-                        throw new UnsupportedConstraintException(
-                            "Missing principal: " + p);
-                    }
-                    progress.put(p, X500Principal.class);
-                }
+		for (X500Principal p : serverPrincipals) {
+		    if (!principals.contains(p)) {
+			throw new UnsupportedConstraintException(
+				"Missing principal: " + p);
+		    }
+		    progress.put(p, X500Principal.class);
+		}
             }
 	    X500PrivateCredential[] privateCredentials =
 		(X500PrivateCredential[]) AccessController.doPrivileged(
@@ -723,9 +724,10 @@ class SslServerEndpointImpl extends Utilities {
 		}
 	    }
 	    if (!progress.isEmpty()) {
-		X500Principal p =
-		    (X500Principal) progress.keySet().iterator().next();
-		Object result = progress.get(p);
+		Map.Entry<X500Principal,Object> entry 
+			= progress.entrySet().iterator().next();
+		X500Principal p = entry.getKey();
+		Object result = entry.getValue();
 		if (result == X500Principal.class) {
 		    throw new UnsupportedConstraintException(
 			"Missing public credentials: " + p);

@@ -392,6 +392,7 @@ abstract class Request {
 		    switch (inState) {
 			case EOF:
 			    inState = CLOSED;
+			    return;
 			case CLOSED:
 			    return;
 			case INVALID:

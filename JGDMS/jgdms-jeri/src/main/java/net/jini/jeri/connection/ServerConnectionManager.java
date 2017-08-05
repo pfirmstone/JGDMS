@@ -275,6 +275,7 @@ public final class ServerConnectionManager {
 	/**
 	 * Close the connection, so that the provider is notified.
 	 */
+	@Override
 	protected void handleDown() {
 	    try {
 		c.close();

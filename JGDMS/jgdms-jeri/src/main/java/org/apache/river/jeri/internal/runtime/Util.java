@@ -571,9 +571,9 @@ public class Util {
 	    URL url = (URL) resources.nextElement();
 	    try {
 		InputStream in = url.openStream();
+		BufferedReader r = null;
 		try {
-		    BufferedReader r =
-			new BufferedReader(new InputStreamReader(in, "utf-8"));
+		    r = new BufferedReader(new InputStreamReader(in, "utf-8"));
 		    while (true) {
 			String s = r.readLine();
 			if (s == null) {
@@ -606,7 +606,11 @@ public class Util {
 		    }
 		} finally {
 		    try {
-			in.close();
+			if (r != null){
+			    r.close();
+			} else {
+			    in.close();
+			}
 		    } catch (IOException e) {
 		    }
 		}

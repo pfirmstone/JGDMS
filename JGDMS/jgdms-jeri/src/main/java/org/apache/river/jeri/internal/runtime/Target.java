@@ -387,7 +387,7 @@ final class Target {
     }
     
     private void interrupted(Thread currentThread) throws InterruptedException {
-        if (currentThread.interrupted()) { // clears the interrupt status.
+        if (currentThread.isInterrupted()) { // doesn't clear the interrupt status.
             throw new InterruptedException("Target interrupted during dispatch, unexported: " + unexported);
         }
     }
@@ -495,8 +495,11 @@ final class Target {
         }, Collections.unmodifiableCollection(context));
     }
 
+    @Override
     public String toString() {
         // for logging
-        return "Target@" + Integer.toHexString(hashCode()) + "[" + id + "]";
+	StringBuilder sb = new StringBuilder();
+	return sb.append("Target@").append(Integer.toHexString(hashCode()))
+		.append("[").append(id).append("]").toString();
     }
 }

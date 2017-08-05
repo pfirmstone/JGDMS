@@ -18,6 +18,7 @@
 
 package org.apache.river.jeri.internal.http;
 
+import java.security.SecureRandom;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
 import java.util.Iterator;
@@ -37,10 +38,12 @@ public class HttpServerManager {
     private static final Executor userThreadPool = (Executor)
 	java.security.AccessController.doPrivileged(
 	    new GetThreadPoolAction(true));
+    
+    private static final Random randomNumber = new Random();
 
     private final AckListenerMap ackListeners;
     private final Object cookieLock = new Object();
-    private long nextCookie = new Random().nextLong();
+    private long nextCookie = randomNumber.nextLong();
 
     /**
      * Creates new HttpServerManager which invalidates transport
