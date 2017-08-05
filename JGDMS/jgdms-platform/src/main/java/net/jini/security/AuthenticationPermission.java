@@ -366,7 +366,7 @@ public final class AuthenticationPermission extends Permission {
 		    String onm = (String) vals.get(--i);
 		    String ocls = (String) vals.get(--i);
 		    if (cls.equals(ocls)) {
-			if (onm == null || (onm != null && onm.equals(nm))) {
+			if (onm == null || onm.equals(nm)) {
 			    continue outer;
 			} else if (nm == null) {
 			    vals.remove(i);
