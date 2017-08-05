@@ -506,7 +506,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
 
         private Class<?> createClass(JarEntry entry, Manifest manifest, String packageName, String origName) {
             InputStream is = null;
-            byte[] clBuf = null;
+            byte[] clBuf;
             try {
                 is = jf.getInputStream(entry);
                 clBuf = getBytes(is);
@@ -552,7 +552,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     origName,
                     clBuf,
                     0,
-                    clBuf != null ? clBuf.length: 0,
+		    clBuf.length,
                     codeS
             );
         }
