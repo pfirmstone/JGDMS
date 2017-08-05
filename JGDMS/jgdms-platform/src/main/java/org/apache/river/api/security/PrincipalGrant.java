@@ -184,7 +184,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
             final Set<Principal> principals = ((SubjectDomain) pd).getSubject().getPrincipals();
             // principals is a synchronized Set, always up to date.
             // Contention should be minimal even if Subject run on many threads.
-            return (Principal[]) principals.toArray();
+            return principals.toArray(new Principal[principals.size()]);
         }
         return pd.getPrincipals();
     }
