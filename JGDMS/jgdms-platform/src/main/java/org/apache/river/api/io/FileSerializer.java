@@ -33,6 +33,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 @Serializer(replaceObType = File.class)
 @AtomicSerial
 class FileSerializer implements Serializable{
+    private static final long serialVersionUID = 1L;
     
     URI path;
     transient File file;
