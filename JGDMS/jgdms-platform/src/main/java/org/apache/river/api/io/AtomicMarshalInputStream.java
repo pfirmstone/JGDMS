@@ -958,7 +958,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                         throw new InvalidObjectException(Messages.getString("luni.BE")); //$NON-NLS-1$
                     }
                     result = readCyclicReference();
-		    if (type != null && type.isInstance(result));
+		    if (type != null && !type.isInstance(result)) throw new InvalidObjectException("Was expecting " + type + " but got: "+  result );
 		    return result;
                 case TC_NULL:
 //		    System.out.println("TC_NULL");
