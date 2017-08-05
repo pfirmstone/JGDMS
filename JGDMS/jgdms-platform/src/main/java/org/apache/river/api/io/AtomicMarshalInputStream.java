@@ -2280,9 +2280,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 
         // Note that these values come from the Stream, and in fact it could be
         // that the classes have been changed so that the info below now
-        // conflicts with the newer class
+        // conflicts with the newer class, or that an attacker has crafted the stream.
 	boolean wasExternalizable = classDesc.wasExternalizable();
-	boolean wasSerializable = classDesc.wasSerializable();
+//	boolean wasSerializable = classDesc.wasSerializable();
 	boolean atomicOrDiscard = true;
 	
         // Maybe we should cache the values above in classDesc ? It may be the
