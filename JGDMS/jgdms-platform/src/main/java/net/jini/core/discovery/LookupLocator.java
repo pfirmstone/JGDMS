@@ -55,7 +55,7 @@ import org.apache.river.api.net.Uri;
  * <code>"jini"</code> Unicast Discovery may be performed using any Discovery 
  * V1 or V2 provider and depending on routing and firewall rules,
  * may be used to contact a {@link ServiceRegistrar}.  
- * The <code>"https"</code> Unicast Discovery provider is neither
+ * The <code>"https"</code> scheme based Unicast Discovery is neither
  * Discovery V1 or V2 compliant, as firewall rules and proxy servers 
  * that allow https communications are likely to prevent the handshake 
  * required to select a <code>"jini"</code> Discovery provider.
