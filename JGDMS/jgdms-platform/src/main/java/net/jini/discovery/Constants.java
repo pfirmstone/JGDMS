@@ -44,7 +44,7 @@ public class Constants {
      * If true IPv6 has been enabled.
      */
     public static final Boolean IPv6 = AccessController.doPrivileged(
-	    new GetBooleanAction("net.jini.discovery.IPv6"));
+	    new GetBooleanAction("java.net.preferIPv6Addresses"));
     
     /**
      * If true and IPv6 is also true, the announcement protocol will 
