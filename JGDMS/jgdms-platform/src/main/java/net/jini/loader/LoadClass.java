@@ -86,7 +86,7 @@ public class LoadClass {
      * @exception ExceptionInInitializerError if the initialization provoked
      *            by this method fails
      * @exception ClassNotFoundException if the class cannot be located by
-     *            the specified class loader
+     *            the specified class loader, within three minutes.
      * @see Class
      * @since 3.0
      */
@@ -111,11 +111,11 @@ public class LoadClass {
                 new FutureTask(new GetClassTask(name, initialize, loader));
         exec.submit(future);
         try {
-            return future.get();
+            return future.get(3L, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
-            e.fillInStackTrace();
+	    Throwable fillInStackTrace = e.fillInStackTrace();
             throw new ClassNotFoundException(
-                    "Interrupted, Unable to find Class: " + name, e);
+                    "Interrupted, Unable to find Class: " + name, fillInStackTrace);
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof LinkageError) {
@@ -135,7 +135,12 @@ public class LoadClass {
             }
             throw new ClassNotFoundException(
                     "Unable to find Class:" + name, t);
-        }
+        } catch (TimeoutException ex) {
+	    throw new ClassNotFoundException(
+		"Timeout after waiting three minutes to load class: " + name,
+		ex
+	    );
+	}
     }
 
     private static class GetClassTask implements Callable<Class> {
