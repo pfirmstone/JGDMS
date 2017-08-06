@@ -201,7 +201,7 @@ class ObjectStreamClassContainer {
 	    if (classname.startsWith("java.util.Collections")) {
 		isCollections = true;
 	    }
-	    System.out.println("Finding constructor for class " + resolvedClass);
+//	    System.out.println("Finding constructor for class " + resolvedClass);
 	    Constructor[] ctors = getConstructors(resolvedClass);
 	    for (int i = 0, l = ctors.length; i < l; i++) {
 		int count;

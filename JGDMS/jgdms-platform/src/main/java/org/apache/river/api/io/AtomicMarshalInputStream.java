@@ -979,7 +979,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                     pushbackTC(tc);
                     throw new StreamCorruptedException("unexpected end of block data");
                 default:
-		    System.out.println("default");
+//		    System.out.println("default");
                     throw new StreamCorruptedException(Messages.getString(
                             "luni.BC", Integer.toHexString(tc & 0xff))); //$NON-NLS-1$
             }
