@@ -32,6 +32,7 @@ import net.jini.core.lookup.ServiceID;
  *
  * @see OutgoingMulticastAnnouncement
  */
+@Deprecated
 public class IncomingMulticastAnnouncement {
     /**
      * The ServiceID that has been announced.

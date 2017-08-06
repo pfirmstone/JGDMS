@@ -31,6 +31,7 @@ import java.io.IOException;
  *
  * @see OutgoingUnicastRequest
  */
+@Deprecated
 public class IncomingUnicastRequest {
     /**
      * The current version of the unicast discovery protocol.

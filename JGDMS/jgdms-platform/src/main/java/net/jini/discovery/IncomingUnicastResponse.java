@@ -32,6 +32,7 @@ import net.jini.io.MarshalledInstance;
  *
  * @see IncomingUnicastRequest
  */
+@Deprecated
 public class IncomingUnicastResponse {
     /**
      * The registrar we have discovered.

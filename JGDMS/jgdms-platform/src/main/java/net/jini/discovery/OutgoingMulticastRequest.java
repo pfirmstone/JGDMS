@@ -37,6 +37,7 @@ import net.jini.core.lookup.ServiceID;
  *
  * @see IncomingMulticastRequest
  */
+@Deprecated
 public class OutgoingMulticastRequest {
     /**
      * The minimum size we allow for an outgoing packet.

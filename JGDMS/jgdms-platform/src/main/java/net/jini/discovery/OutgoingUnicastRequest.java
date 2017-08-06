@@ -28,6 +28,7 @@ import java.io.OutputStream;
  *
  * @see IncomingUnicastRequest
  */
+@Deprecated
 public class OutgoingUnicastRequest {
     /**
      * The current version of the unicast discovery protocol.

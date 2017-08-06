@@ -32,6 +32,7 @@ import net.jini.core.lookup.ServiceID;
  *
  * @see OutgoingMulticastRequest
  */
+@Deprecated
 public class IncomingMulticastRequest {
     /**
      * The address to which any responses should go.

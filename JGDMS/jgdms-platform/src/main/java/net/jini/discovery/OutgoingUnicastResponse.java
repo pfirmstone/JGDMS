@@ -31,6 +31,7 @@ import net.jini.io.MarshalledInstance;
  *
  * @see IncomingUnicastResponse
  */
+@Deprecated
 public class OutgoingUnicastResponse {
     /**
      * The current version of the unicast discovery protocol.

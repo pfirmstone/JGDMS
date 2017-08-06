@@ -38,6 +38,7 @@ import net.jini.core.lookup.ServiceID;
  *
  * @see IncomingMulticastAnnouncement
  */
+@Deprecated
 public class OutgoingMulticastAnnouncement {
     /**
      * The minimum size we allow for an outgoing packet.
