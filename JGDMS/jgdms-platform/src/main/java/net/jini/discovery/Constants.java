@@ -28,7 +28,7 @@ import org.apache.river.action.GetBooleanAction;
  * <p>
  * The following properties if set, provide support for IPv6:
  * <ul>
- * <li>net.jini.discovery.IPv6=TRUE
+ * <li>java.net.preferIPv6Addresses=TRUE
  * <li>net.jini.discovery.GLOBAL_ANNOUNCE=TRUE
  * </ul>
  * <p>
