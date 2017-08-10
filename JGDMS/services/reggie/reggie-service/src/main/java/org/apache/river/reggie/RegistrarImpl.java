@@ -3019,7 +3019,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		if (Constants.GLOBAL_ANNOUNCE){
 		    socket.setTimeToLive(
 			reggie.multicastAnnouncementConstraints.getMulticastTimeToLive(
-			    255));
+			    DEFAULT_MULTICAST_TTL));
 		} else {
 		    socket.setTimeToLive(
 			reggie.multicastAnnouncementConstraints.getMulticastTimeToLive(
