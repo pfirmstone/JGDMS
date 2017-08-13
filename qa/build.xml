@@ -191,7 +191,7 @@
 
     <target name="jtreg" depends="" description="Run jtreg tests">
         <taskdef name="jtreg" classname="com.sun.javatest.regtest.Main$$Ant"
-                classpath="${jtreg.home}/lib/jtreg.jar" />
+                classpath="${jtreg.home}/jtreg.jar" />
         <echo file="${jtreg.dir}/test.props" message="jsk.home=${river.home}"/>
         <!--<echo file="${jtreg.dir}/test.props" message="sun.security.krb5.debug=true" append="true-->
         <!--Change the httpd port number here-->
@@ -206,7 +206,6 @@
                 <file name="jgdms-jeri-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-jrmp-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-lib-3.0-SNAPSHOT.jar"/>
-                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-platform-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-pref-class-loader-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
@@ -225,6 +224,9 @@
                 <file name="classserver.jar"/>
                 <file name="high-scale-lib.jar"/>-->
             </filelist>
+            <filelist dir="${river.lib-dl.dir}">
+                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+            </filelist>
         </move>
         <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
         <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
@@ -237,6 +239,7 @@
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>
             <arg value="-ignore:quiet"/>
+            <arg value="-xml:verify"/>
             <!-- This argument only runs the tests that failed on the last test run -->
             <!--<arg value="-status:fail"/>-->
             <!--<arg value="-Djava.security.debug=access,failure"/>-->
@@ -259,8 +262,8 @@
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
             <!--<arg value="net/jini/url/httpmd/TestEqual.java"/>-->
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
-            <!--2 test failures in: 
-            <arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
+            <!--2 test failures in:--> 
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
         </jtreg>
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
@@ -269,7 +272,6 @@
                 <file name="jgdms-jeri-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-jrmp-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-lib-3.0-SNAPSHOT.jar"/>
-                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-platform-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-pref-class-loader-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
@@ -289,6 +291,11 @@
                 <file name="high-scale-lib.jar"/>-->
             </filelist>
         </move>
+        <move todir="${river.lib-dl.dir}">
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+            </filelist>
+        </move>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
@@ -304,7 +311,6 @@
                 <file name="jgdms-jeri-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-jrmp-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-lib-3.0-SNAPSHOT.jar"/>
-                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-platform-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-pref-class-loader-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
@@ -322,6 +328,11 @@
                 <file name="tools.jar"/>
                 <file name="classserver.jar"/>
                 <file name="high-scale-lib.jar"/>-->
+            </filelist>
+        </move>
+        <move todir="${river.lib-dl.dir}">
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
         </move>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->

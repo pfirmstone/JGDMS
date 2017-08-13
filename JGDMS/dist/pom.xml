@@ -170,7 +170,7 @@
                         <descriptor>assembly.xml</descriptor>
                     </descriptors>
                     <finalName>JGDMS-${project.version}</finalName>
-                    <appendAssemblyId>true</appendAssemblyId>
+                    <appendAssemblyId>false</appendAssemblyId>
                     <ignoreDirFormatExtensions>true</ignoreDirFormatExtensions>
                 </configuration>
                 <executions>

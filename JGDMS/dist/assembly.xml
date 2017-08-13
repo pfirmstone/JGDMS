@@ -16,6 +16,7 @@
 <assembly>
     <!-- We dont use the <id> element to avoid the extension to the directory
          and zip name -->
+    <id>1</id>
     <formats>
         <format>dir</format>
         <format>zip</format>
