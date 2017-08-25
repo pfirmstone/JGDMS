@@ -17,9 +17,10 @@
  */
 package net.jini.core.lookup;
 
-import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+
+import java.io.IOException;
 
 /**
  * An instance of this class is used for the return value when looking up
@@ -73,7 +74,12 @@ public class ServiceMatches implements java.io.Serializable {
      * @param totalMatches total number of matching items
      */
     public ServiceMatches(ServiceItem[] items, int totalMatches) {
-	this.items = items;
+	if (items != null) {
+            this.items = new ServiceItem[items.length];
+            System.arraycopy(items, 0, this.items, 0, items.length);
+        } else {
+	    this.items = null;
+        }
 	this.totalMatches = totalMatches;
     }
     

@@ -133,8 +133,14 @@ public class UnusableEntryException extends Exception {
 	}
 
 	partialEntry = partial;
-	unusableFields = badFields;
-	nestedExceptions = exceptions;
+	if (badFields != null) {
+		unusableFields = new String[badFields.length];
+		System.arraycopy(badFields, 0, unusableFields, 0, badFields.length);
+	}
+	if (exceptions != null) {
+	    nestedExceptions = new Throwable[exceptions.length];
+	    System.arraycopy(exceptions, 0, nestedExceptions, 0, exceptions.length);
+    	}
     }
 
     /**
