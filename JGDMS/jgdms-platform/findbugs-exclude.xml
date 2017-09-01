@@ -1,0 +1,19 @@
+<FindBugsFilter>
+    <Match>
+        <Class name="net.jini.config.ConfigurationFile" />
+        <!-- prior oops() checks for null and would have thrown exception. -->
+        <Method name="findField" params="java.lang.String,int,int"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH" />
+    </Match>
+    <Match>
+        <Class name="net.jini.config.ConfigurationFile" />
+        <!-- prior oops() checks for null and would have thrown exception. -->
+        <Method name="findMethod"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH" />
+    </Match>
+    <Match>
+        <!-- javadoc for method states NPE will be thrown if parameter is null. -->
+        <Class name="net.jini.core.entry.UnusableEntryException" />
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE" />
+    </Match>
+</FindBugsFilter>
