@@ -17,13 +17,12 @@
  */
 package net.jini.core.lookup;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 
 /**
  * Items in the lookup service are matched using instance of this class.
@@ -102,14 +101,8 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
 			   Entry[] attrSetTemplates) 
     {
 	this.serviceID = serviceID;
-	if (serviceTypes != null) {
-            this.serviceTypes = new Class[serviceTypes.length];
-            System.arraycopy(serviceTypes, 0, this.serviceTypes, 0, serviceTypes.length);
-        }
-        if (attrSetTemplates != null) {
-            this.attributeSetTemplates = new Entry[attrSetTemplates.length];
-            System.arraycopy(attrSetTemplates, 0, this.attributeSetTemplates, 0, attrSetTemplates.length);
-        }
+	this.serviceTypes = serviceTypes;
+	this.attributeSetTemplates = attrSetTemplates;
     }
     
     /**

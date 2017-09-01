@@ -17,15 +17,14 @@
  */
 package net.jini.core.lookup;
 
-import net.jini.core.entry.CloneableEntry;
-import net.jini.core.entry.Entry;
-import org.apache.river.api.io.AtomicSerial;
-import org.apache.river.api.io.AtomicSerial.GetArg;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
+import net.jini.core.entry.CloneableEntry;
+import net.jini.core.entry.Entry;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Items are stored in and retrieved from the lookup service using
@@ -79,10 +78,7 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
     {
 	this.serviceID = serviceID;
 	this.service = service;
-	if (attrSets != null) {
-	    this.attributeSets = new Entry[attrSets.length];
-	    System.arraycopy(attrSets, 0, this.attributeSets, 0, attrSets.length);
-        }
+	this.attributeSets = attrSets;
     }
     
     /**
