@@ -1,0 +1,14 @@
+// FilePermission "<<ALL FILES>> not working for CorrectInterpretation on MS Windows 7, JDK 
+// 
+// javatestOS=Windows 7 6.1 (x86)
+// javatestVersion=4.4
+// jtregVersion=jtreg 4.1 fcs b05
+
+// JDK under test: (C:\\Program Files\\Java\\jdk1.8.0)
+// java version "1.8.0"
+// Java(TM) SE Runtime Environment (build 1.8.0-b132)
+// Java HotSpot(TM) Client VM (build 25.0-b70, mixed mode)
+
+grant {
+  permission java.security.AllPermission;
+};

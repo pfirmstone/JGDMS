@@ -28,6 +28,7 @@ grant {
   permission java.io.FilePermission "${test.src}${/}-", "read";
   permission java.io.FilePermission "${test.src}${/}", "read";
   permission java.io.FilePermission "<<ALL_FILES>>", "read";
+  //permission java.security.AllPermission;
 
   // need to get a class loader to load test resources
   permission java.lang.RuntimePermission "getClassLoader";

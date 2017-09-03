@@ -51,4 +51,7 @@ grant {
 
     // for NonBlockingHashMap
     permission java.lang.RuntimePermission "accessDeclaredMembers";
+
+    permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary", "read";
+    permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary${/}-", "read";
 };

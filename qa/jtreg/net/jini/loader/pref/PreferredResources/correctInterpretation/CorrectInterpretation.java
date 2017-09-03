@@ -24,7 +24,7 @@
  * @build TestLibrary
  * @build CorrectInterpretation NonpreferredInterface
  * @build One Two Three Four HasInner Test
- * @run main/othervm/policy=security.policy CorrectInterpretation
+ * @run main/othervm/policy=permissive.policy CorrectInterpretation
  */
 
 /*
@@ -559,3 +559,271 @@ public class CorrectInterpretation {
 	}
     }
 }
+
+/*
+Test failure occurs on Windows with failed FilePermission <<ALL FILES>> read
+
+This failure goes away when FilePermission <<All Files>> read is replaced by
+AllPermission.
+
+The test failure is not relevant to this test.
+
+permissive.policy used instead.
+
+#Test Results (version 2)
+#Wed Aug 23 21:03:30 EST 2017
+#checksum:36577278de86755a
+#-----testdescription-----
+$file=C\:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\CorrectInterpretation.java
+$root=C\:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg
+author=Laird Dornin
+keywords=othervm
+library=../../../../../../testlibrary
+run=USER_SPECIFIED build TestLibrary\r\nUSER_SPECIFIED build CorrectInterpretation NonpreferredInterface\r\nUSER_SPECIFIED build One Two Three Four HasInner Test\r\nUSER_SPECIFIED main/othervm/policy\=security.policy CorrectInterpretation\r\n
+source=CorrectInterpretation.java
+title=functional test to verify that preferred resource provider correctly implements preferred classes and resource functionality
+
+#-----environment-----
+
+#-----testresult-----
+description=file\:/C\:/Users/peter/Documents/NetBeansProjects/river-internet/qa/jtreg/net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java
+elapsed=4566 0\:00\:04.566
+end=Wed Aug 23 21\:03\:30 EST 2017
+environment=regtest
+execStatus=Failed. Execution failed\: `main' threw exception\: java.security.AccessControlException\: access denied ("java.io.FilePermission" "C\:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Three.class" "read")
+hostname=medusa.lan
+javatestOS=Windows 7 6.1 (x86)
+javatestVersion=4.4
+jtregVersion=jtreg 4.1 fcs b05
+script=com.sun.javatest.regtest.RegressionScript 
+sections=script_messages build build compile build compile build main
+start=Wed Aug 23 21\:03\:26 EST 2017
+test=net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java
+user.name=peter
+work=C\:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation
+
+#section:script_messages
+----------messages:(5/192)*----------
+JDK under test: (C:\\Program Files\\Java\\jdk1.8.0)
+java version "1.8.0"
+Java(TM) SE Runtime Environment (build 1.8.0-b132)
+Java HotSpot(TM) Client VM (build 25.0-b70, mixed mode, sharing)
+
+
+#section:build
+----------messages:(3/114)----------
+command: build TestLibrary
+reason: User specified action: run build TestLibrary 
+elapsed time (seconds): 0.001
+result: Passed. All files up to date
+
+#section:build
+----------messages:(3/178)----------
+command: build CorrectInterpretation NonpreferredInterface
+reason: User specified action: run build CorrectInterpretation NonpreferredInterface 
+elapsed time (seconds): 2.263
+result: Passed. Build successful
+
+#section:compile
+----------messages:(3/438)*----------
+command: compile C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\CorrectInterpretation.java C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\NonpreferredInterface.java
+reason: .class file out of date or does not exist
+elapsed time (seconds): 2.251
+----------System.out:(0/0)----------
+----------System.err:(2/265)*----------
+Note: C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\CorrectInterpretation.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+result: Passed. Compilation successful
+
+#section:build
+----------messages:(3/155)----------
+command: build One Two Three Four HasInner Test
+reason: User specified action: run build One Two Three Four HasInner Test 
+elapsed time (seconds): 1.49
+result: Passed. Build successful
+
+#section:compile
+----------messages:(3/405)*----------
+command: compile C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Three.java C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Four.java
+reason: .class file out of date or does not exist
+elapsed time (seconds): 1.488
+----------System.out:(0/0)----------
+----------System.err:(0/0)----------
+result: Passed. Compilation successful
+
+#section:build
+----------messages:(3/107)----------
+command: build CorrectInterpretation
+reason: Named class compiled on demand
+elapsed time (seconds): 0.0
+result: Passed. All files up to date
+
+#section:main
+----------messages:(3/163)----------
+command: main CorrectInterpretation
+reason: User specified action: run main/othervm/policy=security.policy CorrectInterpretation 
+elapsed time (seconds): 0.354
+----------System.out:(0/0)----------
+----------System.err:(157/18016)*----------
+access: access allowed ("java.io.FilePermission" "C:\\Program Files\\jtreg-4.1-bin-b05_29_nov_2012\\jtreg\\lib\\jtreg.jar" "read")
+access: access allowed ("java.lang.RuntimePermission" "accessDeclaredMembers")
+access: access allowed ("java.lang.RuntimePermission" "accessDeclaredMembers")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\TestParams.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\testlibrary\\TestParams.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\testlibrary\\TestParams.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\TestLibrary.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\TestFailedException.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\TestLibrary$1.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\testlibrary" "read")
+access: access allowed ("java.util.PropertyPermission" "test.src" "read")
+access: access allowed ("java.util.PropertyPermission" "test.classes" "read")
+access: access allowed ("java.util.PropertyPermission" "java.security.policy" "read")
+access: access allowed ("java.util.PropertyPermission" "java.security.manager" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation" "read")
+access: access allowed ("java.util.PropertyPermission" "java.util.logging.config.file" "write")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\net\\jini\\loader\\pref\\PreferredResources.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\net\\jini\\loader\\pref\\PreferredResources.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\testlibrary\\net\\jini\\loader\\pref\\PreferredResources.class" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Program Files\\Java\\jdk1.8.0\\lib\\tools.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Program Files\\Java\\jdk1.8.0\\lib\\tools.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Program Files\\Java\\jdk1.8.0\\lib\\tools.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-collections-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-collections-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-collections-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-collections-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-collections-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-iiop-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-iiop-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-iiop-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-jeri-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-jeri-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-jeri-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-jrmp-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-jrmp-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-jrmp-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-lib-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-lib-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-lib-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-lib-dl-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-lib-dl-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-lib-dl-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-platform-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-platform-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-platform-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.net.NetPermission" "specifyStreamHandler")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-pref-class-loader-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-pref-class-loader-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTlib-tmp\\jgdms-pref-class-loader-3.0-SNAPSHOT.jar" "read")
+access: access allowed ("java.lang.reflect.ReflectPermission" "suppressAccessChecks")
+access: access allowed ("java.lang.reflect.ReflectPermission" "suppressAccessChecks")
+access: access allowed ("java.lang.reflect.ReflectPermission" "suppressAccessChecks")
+access: access allowed ("java.lang.reflect.ReflectPermission" "suppressAccessChecks")
+access: access allowed ("java.lang.reflect.ReflectPermission" "suppressAccessChecks")
+
+Regression test to check that preferred classes implementation has correct behavior
+
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\child.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\child.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\child.jar" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\child.jar" "read")
+access: access allowed ("java.util.PropertyPermission" "user.dir" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p" "write")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p\\p2" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p\\p2" "write")
+access: access allowed ("java.util.PropertyPermission" "user.dir" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p\\p2" "read")
+access: access allowed ("java.util.PropertyPermission" "test.classes" "read")
+TEST_LIBRARY: C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Three.class
+TEST_LIBRARY: C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p\\p2\\Three.class
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p\\p2\\Three.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p\\p2\\Three.class" "read")
+access: access denied ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Three.class" "read")
+java.lang.Exception: Stack trace
+	at java.lang.Thread.dumpStack(Thread.java:1328)
+	at java.security.AccessControlContext.checkPermission(AccessControlContext.java:447)
+	at java.security.AccessController.checkPermission(AccessController.java:884)
+	at java.lang.SecurityManager.checkPermission(SecurityManager.java:549)
+	at java.lang.SecurityManager.checkRead(SecurityManager.java:888)
+	at java.io.File.exists(File.java:814)
+	at TestLibrary.installClassInCodebase(TestLibrary.java:246)
+	at TestLibrary.installClassInCodebase(TestLibrary.java:194)
+	at CorrectInterpretation.installClasses(CorrectInterpretation.java:509)
+	at CorrectInterpretation.main(CorrectInterpretation.java:525)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:483)
+	at com.sun.javatest.regtest.MainWrapper$MainThread.run(MainWrapper.java:94)
+	at java.lang.Thread.run(Thread.java:744)
+access: access allowed ("java.security.SecurityPermission" "getPolicy")
+access: access allowed ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\testlibrary" "read")
+access: domain that failed ProtectionDomain  (file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/qa/jtreg/JTwork/classes/testlibrary/ <no signer certificates>)
+ sun.misc.Launcher$AppClassLoader@a298b7
+ <no principals>
+ java.security.Permissions@923de7 (
+ ("java.lang.RuntimePermission" "getProtectionDomain")
+ ("java.lang.RuntimePermission" "createClassLoader")
+ ("java.lang.RuntimePermission" "getClassLoader")
+ ("java.lang.RuntimePermission" "exitVM")
+ ("java.lang.RuntimePermission" "setContextClassLoader")
+ ("java.io.FilePermission" "<<ALL_FILES>>" "read")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\" "read")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\-" "read")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p1\\-" "read,write,delete")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p1" "read,write,delete")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p\\-" "read,write,delete")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\p" "read,write,delete")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\non-class-resources\\-" "read,write,delete")
+ ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\scratch\\non-class-resources" "read,write,delete")
+ ("java.io.FilePermission" "C:\\Program Files\\Java\\jdk1.8.0\\jre\\lib\\ext\\-" "read")
+ ("java.io.FilePermission" "C:UserspeterDocumentsNetBeansProjects
+iver-internetqajtregJTworkclasses\\-" "read")
+ ("java.io.FilePermission" "\\C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\testlibrary\\-" "read")
+ ("java.util.PropertyPermission" "java.util.logging.config.file" "write")
+ ("java.util.PropertyPermission" "user.dir" "read")
+ ("java.util.PropertyPermission" "java.security.manager" "read")
+ ("java.util.PropertyPermission" "java.home" "read")
+ ("java.util.PropertyPermission" "java.rmi.server.codebase" "write")
+ ("java.util.PropertyPermission" "java.security.policy" "read")
+ ("java.util.PropertyPermission" "test.classes" "read")
+ ("java.util.PropertyPermission" "test.src" "read")
+ ("java.lang.reflect.ReflectPermission" "suppressAccessChecks")
+)
+
+
+java.security.AccessControlException: access denied ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Three.class" "read")
+	at java.security.AccessControlContext.checkPermission(AccessControlContext.java:457)
+	at java.security.AccessController.checkPermission(AccessController.java:884)
+	at java.lang.SecurityManager.checkPermission(SecurityManager.java:549)
+	at java.lang.SecurityManager.checkRead(SecurityManager.java:888)
+	at java.io.File.exists(File.java:814)
+	at TestLibrary.installClassInCodebase(TestLibrary.java:246)
+	at TestLibrary.installClassInCodebase(TestLibrary.java:194)
+	at CorrectInterpretation.installClasses(CorrectInterpretation.java:509)
+	at CorrectInterpretation.main(CorrectInterpretation.java:525)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:483)
+	at com.sun.javatest.regtest.MainWrapper$MainThread.run(MainWrapper.java:94)
+	at java.lang.Thread.run(Thread.java:744)
+
+JavaTest Message: Test threw exception: java.security.AccessControlException: access denied ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Three.class" "read")
+JavaTest Message: shutting down test
+
+STATUS:Failed.`main' threw exception: java.security.AccessControlException: access denied ("java.io.FilePermission" "C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet\\qa\\jtreg\\JTwork\\classes\\net\\jini\\loader\\pref\\PreferredResources\\correctInterpretation\\Three.class" "read")
+access: access allowed ("java.io.FilePermission" "C:\\Program Files\\jtreg-4.1-bin-b05_29_nov_2012\\jtreg\\lib\\javatest.jar" "read")
+access: access allowed ("java.lang.RuntimePermission" "exitVM.97")
+result: Failed. Execution failed: `main' threw exception: java.security.AccessControlException: access denied ("java.io.FilePermission" "C:\Users\peter\Documents\NetBeansProjects\river-internet\qa\jtreg\JTwork\classes\net\jini\loader\pref\PreferredResources\correctInterpretation\Three.class" "read")
+
+
+test result: Failed. Execution failed: `main' threw exception: java.security.AccessControlException: access denied ("java.io.FilePermission" "C:\Users\peter\Documents\NetBeansProjects\river-internet\qa\jtreg\JTwork\classes\net\jini\loader\pref\PreferredResources\correctInterpretation\Three.class" "read") 
+ */

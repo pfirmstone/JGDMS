@@ -28,7 +28,7 @@
  * @build CheckDefinite
  * @build TestLibrary TestParams HTTPD
  *
- * @run main/othervm/policy=security.policy/timeout=100 -DtrustProxy=true CheckDefinite
+ * @run main/othervm/policy=security.policy/timeout=100/secure=org.apache.river.api.security.CombinerSecurityManager -DtrustProxy=true CheckDefinite
  */
 
 import java.net.URL;
@@ -41,6 +41,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.net.Uri;
 
 /**
  * Ensure that exceptions thrown when searching for a preferred list
@@ -62,7 +63,7 @@ public class CheckDefinite {
     static {
 	try {
 	    if (!TestParams.testSrc.startsWith(".")) {
-		SRC_URL = (new URI("file://" +
+		SRC_URL = (new Uri("file:" +
 		    (TestParams.testSrc + File.separator).
 		    replace(File.separatorChar, '/')).toString());
 

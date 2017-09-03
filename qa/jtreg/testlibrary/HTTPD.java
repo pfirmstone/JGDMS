@@ -34,6 +34,7 @@ import java.security.CodeSource;
 import java.security.PermissionCollection;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import org.apache.river.api.net.Uri;
 
 /**
  * Somewhat sneaky code to start a ClassServer as a daemon thread,
@@ -78,10 +79,10 @@ public class HTTPD {
     public HTTPD(int port, String dir) throws IOException {
 	this.port = port;
 	String libDir =
-	    TestLibrary.getExtraProperty("jsk.home", TestLibrary.jskHome) +
-	    File.separator + "lib";
-	String toolsJar = libDir + File.separator + "tools.jar";
-	String jsklibJar = libDir + File.separator + "jsk-lib.jar";
+	    TestLibrary.getExtraProperty("jsk.home", TestLibrary.jskHome) ;
+//		+ File.separator + "lib";
+	String toolsJar = libDir + "/JGDMS/tools/classserver/target/classserver-3.0-SNAPSHOT.jar";
+	String jsklibJar = libDir + File.separator + "jgdms-lib-dl-3.0-SNAPSHOT.jar";
 	System.err.println("HTTPD: using " + toolsJar +
 			   " on port " + port + " serving " + dir);
         
@@ -175,7 +176,7 @@ public class HTTPD {
 		    new PrivilegedExceptionAction() {
 		    public Object run() throws Exception {
 			ClassLoader ld = new Loader(
-			    new URL[]{new File(toolsJar).toURI().toURL()},
+			    new URL[]{new Uri(new File(toolsJar).toURI().toString()).toURL()},
 			    port, dir);
 			Class cl =
 			    Class.forName("org.apache.river.tool.ClassServer",
@@ -256,7 +257,13 @@ public class HTTPD {
             int len = cp.length;
             URL[] path = new URL[len];
             for (int i = 0; i < len; i++){
-                path[i] = new File(cp[i]).toURI().toURL();
+		try {
+		    path[i] = new Uri(new File(cp[i]).toURI().toString()).toURL();
+		} catch (URISyntaxException ex){
+		    MalformedURLException e = new MalformedURLException("unable to parse test.class.path");
+		    e.initCause(e);
+		    throw e;
+		}
             }
             return path;
         }

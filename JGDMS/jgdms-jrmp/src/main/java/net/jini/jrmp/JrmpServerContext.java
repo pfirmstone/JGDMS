@@ -18,6 +18,8 @@
 
 package net.jini.jrmp;
 
+import aQute.bnd.annotation.headers.ProvideCapability;
+import aQute.bnd.annotation.headers.RequireCapability;
 import java.net.InetAddress;
 import java.rmi.server.RemoteServer;
 import java.rmi.server.ServerNotActiveException;
@@ -36,6 +38,12 @@ import net.jini.io.context.ClientHost;
  * 
  * @since 2.0
  */
+@RequireCapability(
+	ns="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@ProvideCapability(
+	ns="osgi.serviceloader",
+	name="net.jini.export.ServerContext$Spi")
 public class JrmpServerContext implements ServerContext.Spi {
     
     /**

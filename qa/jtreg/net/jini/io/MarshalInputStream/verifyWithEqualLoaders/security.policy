@@ -34,4 +34,8 @@ grant {
   permission java.net.SocketPermission "*:1024-", "connect";
 
   permission java.lang.reflect.ReflectPermission "newProxyInPackage.java.util.zip";
+
+  // MS Windows Platform
+  permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary", "read";
+  permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary${/}-", "read";
 };

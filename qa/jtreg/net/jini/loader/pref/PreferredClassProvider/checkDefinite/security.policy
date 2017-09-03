@@ -44,6 +44,7 @@ grant {
   permission java.util.PropertyPermission "java.security.manager", "read";
   permission java.util.PropertyPermission "java.home", "read";
   permission java.util.PropertyPermission "java.util.logging.config.file", "write";
+  permission java.util.PropertyPermission "user.dir", "read";
 
   permission java.io.FilePermission "<<ALL FILES>>", "execute";
 
@@ -52,5 +53,7 @@ grant {
   permission java.io.FilePermission "${test.src}${/}..${/}-", "read";
 
   permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+  permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}-", "read";
+  permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary${/}-", "read";
 };
 

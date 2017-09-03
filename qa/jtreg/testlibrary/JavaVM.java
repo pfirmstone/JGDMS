@@ -128,20 +128,22 @@ public class JavaVM {
 	
 	addOptions(new String[] { getCodeCoverageOptions() });
 
-	String javaCommand = JavaVM.javaProgram + 
-	    " " + options + " " + classname + " " + args;
+	String javaCommandArgs = options + " " + classname + " " + args;
 
-	mesg("command = " + javaCommand);
+	mesg("command = " + JavaVM.javaProgram + " " + javaCommandArgs);
 	System.err.println("");
 
 	/* REMIND: this is a temporary workaround so that multi-component
 	 * codebases get parsed correctly
 	 */
 
-	java.util.StringTokenizer tokens = 
-	    new java.util.StringTokenizer(javaCommand);
-	java.util.ArrayList parsedCommand = 
-	    new java.util.ArrayList();
+	java.util.ArrayList parsedCommand = new java.util.ArrayList();
+	java.util.StringTokenizer tokens = // No spaces baby.
+		new java.util.StringTokenizer(JavaVM.javaProgram, "\t\n\r\f"); 
+	while (tokens.hasMoreTokens()) {
+	    parsedCommand.add(tokens.nextToken());
+	}
+	tokens = new java.util.StringTokenizer(javaCommandArgs);
 	while (tokens.hasMoreTokens()) {
 	    String nextToken = tokens.nextToken();
 	    if (nextToken.startsWith("-Djava.rmi.server.codebase=\"")) {

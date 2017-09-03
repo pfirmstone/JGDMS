@@ -38,5 +38,5 @@ JTREG_DIR=${RIVER_HOME}/qa/jtreg
 #     -Djcsi.ca.conf=$1 CA
 
 # Changed, so the first argument is the option to pass the CA, the second is the configuration file.
-$JAVA_HOME/bin/java -cp .:${BC_LIB}/bcprov-jdk15on-154.jar:${BC_LIB}/bcpkix-jdk15on-154.jar:${BC_LIB}/bcmail-jdk15on-154.jar:${JTREG_DIR}/certs \
+"$JAVA_HOME/bin/java" -cp .:${BC_LIB}/bcprov-jdk15on-154.jar:${BC_LIB}/bcpkix-jdk15on-154.jar:${BC_LIB}/bcmail-jdk15on-154.jar:${JTREG_DIR}/certs \
       -Djtreg.dir=${JTREG_DIR} -Djcsi.ca.conf=$2 CA $1

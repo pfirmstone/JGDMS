@@ -52,7 +52,7 @@
     <!-- jtreg environment setup -->
     <property environment="env"/>
     <!-- location of the River jtreg tests -->
-    <property name="jtreg.dir" location="jtreg" />
+    <property name="jtreg.dir" location="${river.home}/qa/jtreg" />
     <!-- location of the jtreg distribution, override in <river root>/build.properties -->
     <!-- or override in <river root>/qa/build.properties -->
     <property name="jtreg.home" location="${env.JT_HOME}" />
@@ -192,7 +192,11 @@
     <target name="jtreg" depends="" description="Run jtreg tests">
         <taskdef name="jtreg" classname="com.sun.javatest.regtest.Main$$Ant"
                 classpath="${jtreg.home}/jtreg.jar" />
+        <!--test.props, please note: file paths cannot contain backslashes in 
+            test properties file.-->
         <echo file="${jtreg.dir}/test.props" message="jsk.home=${river.home}"/>
+        <echo message="MS Windows platforms require river.home to be defined in 
+            your build.properties file, otherwise test failures will occur"/>
         <!--<echo file="${jtreg.dir}/test.props" message="sun.security.krb5.debug=true" append="true-->
         <!--Change the httpd port number here-->
         <!--<echo file="${jtreg.dir}/test.props" message="jsk.port=8081" append="true"/>-->
@@ -226,6 +230,7 @@
             </filelist>
             <filelist dir="${river.lib-dl.dir}">
                 <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+                <file name="phoenix-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
         </move>
         <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
@@ -233,13 +238,15 @@
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk.home}">
-            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-iiop-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jeri-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-platform-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classdep-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classserver-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/asm-5.0.1.jar${path.separator}${jtlib.tmp}/asm-commons-5.0.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-3.0-SNAPSHOT.jar"/>
+            <!--<arg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
+            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-iiop-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jeri-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-platform-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classdep-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classserver-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/asm-5.0.1.jar${path.separator}${jtlib.tmp}/asm-commons-5.0.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-3.0-SNAPSHOT.jar${path.separator}${jtlib.tmp}/phoenix-dl-3.0-SNAPSHOT.jar"/>
             <arg value="-timeout:16"/>
-            <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
+            <arg value="-Djtreg.dir=${jtreg.dir}"/>
+            <arg value="-Dtest.src=${jtreg.dir}"/>
             <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>
             <arg value="-ignore:quiet"/>
-            <arg value="-xml:verify"/>
+            <arg value="-xml:verify"/>           
             <!-- This argument only runs the tests that failed on the last test run -->
             <!--<arg value="-status:fail"/>-->
             <!--<arg value="-Djava.security.debug=access,failure"/>-->
@@ -253,10 +260,12 @@
              * 30 - Include additional test debugging output, including time. -->
             <arg value="-DtestLevel=5"/>
             <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
+            <!--<arg value="-Djavax.net.debug=ssl"/>-->
             <!-- For an unknown reason the following property is ignored -->
             <arg value="-Djavatest.maxOutputSize=300000"/>
             <!--<arg value="net/jini/jeri/kerberos/UnitTests/runTestPerformance.sh" />-->
             <!--<arg value="-Bug:6307813"/>-->
+            <!--<arg value="-Bug:4408449"/>-->
             <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
             <!--<arg value="net/jini/security/Security/implicitGrants/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
@@ -264,6 +273,7 @@
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
             <!--2 test failures in:--> 
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
+            <!--<arg value="net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java"/>-->
         </jtreg>
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
@@ -293,7 +303,8 @@
         </move>
         <move todir="${river.lib-dl.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>        
+                <file name="phoenix-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
         </move>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
@@ -333,6 +344,7 @@
         <move todir="${river.lib-dl.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
                 <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
+                <file name="phoenix-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
         </move>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->

@@ -27,6 +27,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.rmi.server.RMIClassLoader;
 import java.security.Permission;
+import org.apache.river.api.net.Uri;
 
 public class Operations {
 
@@ -109,8 +110,8 @@ public class Operations {
 	    System.setSecurityManager(new SecurityManager());
 	}
 	cons = RMIClassLoader.loadClass(
-		    new File(RMID.getDefaultLocation()).toURL(),
-		    "org.apache.river.phoenix.ExecOptionPermission").
+		    new Uri( new File(RMID.getDefaultLocation()).toURI().toString()).toURL(),
+		    "org.apache.river.phoenix.dl.ExecOptionPermission").
 	    getConstructor(new Class[]{String.class});
 	equals("foo", "foo");
 	equals("foo", "\"foo\"");
