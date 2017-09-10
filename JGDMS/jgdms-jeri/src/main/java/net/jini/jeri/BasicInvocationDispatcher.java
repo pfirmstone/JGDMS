@@ -473,7 +473,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * from the request input stream of the inbound request. If any
      * exception is thrown when reading this byte, the inbound request is
      * aborted and this method returns. If the byte is not
-     * <code>0x00</code>, two byte values of <code>0x00</code> (indicating
+     * <code>0x00</code>, or <code>0x01</code>, two byte values of <code>0x00</code> (indicating
      * a marshal stream protocol version mismatch) are written to the
      * response output stream of the inbound request, the output stream is
      * closed, and this method returns.
@@ -487,6 +487,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * net.jini.io.context.IntegrityEnforcement} element is then added to
      * the server context, reflecting whether or not object integrity is
      * being enforced.
+     * 
+     * <li>If the version byte is <code>0x01</code>, a second byte
+     * specifying object integrity and a third byte
+     * specifying input validation are read from the same stream.  If any
+     * exception is thrown when reading these bytes, the inbound request is
+     * aborted and this method returns.  Object integrity will be enforced
+     * if the second value read is not <code>0x00</code>, but will not be enforced
+     * if the second value is <code>0x00</code>. An {@link
+     * net.jini.io.context.IntegrityEnforcement} element is then added to
+     * the server context, reflecting whether or not object integrity is
+     * being enforced.  Input validation will be enforced if the third value
+     * read is not <code>0x00</code>, but will not be enforced if the second
+     * value is <code>0x00</code>.  An {@link AtomicInputValidation} element is
+     * then added to the server context, reflecting whether or not input validation
+     * is being enforced.
      *
      * <li>The {@link #createMarshalInputStream createMarshalInputStream}
      * method of this invocation dispatcher is called, passing the remote
@@ -585,8 +600,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	/*
 	 * Read (and check) version number and integrity flag.
 	 */
-	//TODO: create new protocol version that handles atomic validation
-	// then handle both versions.
 	InputStream rin;
 	boolean integrity;
 	boolean supportsAtomicValidation;
@@ -606,7 +619,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    rin.close();
 		    OutputStream ros = request.getResponseOutputStream();
 		    ros.write(MISMATCH);
-		    ros.write(VERSION);
+		    /* TODO: Confirm if version was to be written in spec, or just 0x00 
+		     * Currently test just checks for 0x00  */		    
+		    ros.write(PREVIOUS_VERSION); 
 		    ros.close();
 		    return;
 	    }

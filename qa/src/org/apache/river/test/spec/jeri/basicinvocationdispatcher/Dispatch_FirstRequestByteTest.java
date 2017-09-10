@@ -75,7 +75,7 @@ import java.util.logging.Level;
 public class Dispatch_FirstRequestByteTest extends AbstractDispatcherTest {
 
     // test cases
-    byte[] cases = {Byte.MIN_VALUE, -3, -2, -1, 1, 2, 3, Byte.MAX_VALUE};
+    byte[] cases = {Byte.MIN_VALUE, -3, -2, -1, /* Now a legal version: 1,*/ 2, 3, Byte.MAX_VALUE};
 
     // inherit javadoc
     public void run() throws Exception {

@@ -19,13 +19,17 @@ package org.apache.river.test.spec.jeri.basicinvocationdispatcher;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.rmi.ServerError;
 import java.rmi.ServerException;
 import java.rmi.UnmarshalException;
+import java.security.AccessController;
 import java.util.ArrayList;
+import java.util.Collection;
+import net.jini.io.MarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
@@ -36,6 +40,7 @@ import org.apache.river.test.spec.jeri.util.FakeInboundRequest;
 import org.apache.river.test.spec.jeri.util.FakeRemoteImpl;
 import org.apache.river.test.spec.jeri.util.FakeServerCapabilities;
 import org.apache.river.test.spec.jeri.util.Util;
+import org.apache.river.action.GetBooleanAction;
 
 public abstract class AbstractDispatcherTest extends QATestEnvironment implements Test {
 
@@ -48,12 +53,14 @@ public abstract class AbstractDispatcherTest extends QATestEnvironment implement
     protected volatile Method fakeMethod;
     protected volatile FakeBasicInvocationDispatcher dispatcher;
     protected volatile Object[] nullArgs;
+    private boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET;
 
     public Test construct(QAConfig sysConfig) throws Exception {
         // construct infrastructure needed by test
         counter = 1;
         context = new ArrayList();
-
+	ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET = AccessController.doPrivileged(
+		new GetBooleanAction("net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
         nullArgs = new Object[] {null};
 
         impl = new FakeRemoteImpl();
@@ -93,7 +100,7 @@ public abstract class AbstractDispatcherTest extends QATestEnvironment implement
     {
         Throwable caught = null;
         try {
-            ObjectInputStream marshalledResponse = new AtomicMarshalInputStream(
+            ObjectInputStream marshalledResponse = getObjectInputStream(
                 response, null, false, null, new ArrayList());
             caught = (Throwable) marshalledResponse.readObject();
             assertion(marshalledResponse.read() == -1);
@@ -137,7 +144,7 @@ public abstract class AbstractDispatcherTest extends QATestEnvironment implement
     {
         Throwable caught = null;
         try {
-            ObjectInputStream marshalledResponse = new AtomicMarshalInputStream(
+            ObjectInputStream marshalledResponse = getObjectInputStream(
                 response, null, false, null, new ArrayList());
             caught = (Throwable) marshalledResponse.readObject();
             assertion(marshalledResponse.read() == -1);
@@ -156,6 +163,18 @@ public abstract class AbstractDispatcherTest extends QATestEnvironment implement
         } else {
             assertion(thrown.getClass() == caught.getClass(),caught.toString());
         }
+    }
+    
+    ObjectInputStream getObjectInputStream(InputStream input,
+			      ClassLoader defaultLoader,
+			      boolean verifyCodebaseIntegrity,
+			      ClassLoader verifierLoader,
+			      Collection context) throws IOException {
+	if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) return 
+		new MarshalInputStream(input, defaultLoader,
+			verifyCodebaseIntegrity, verifierLoader, context);
+	return new AtomicMarshalInputStream(input, defaultLoader,
+		verifyCodebaseIntegrity, verifierLoader, context);
     }
 
 }

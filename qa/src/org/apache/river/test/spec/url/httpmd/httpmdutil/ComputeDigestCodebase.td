@@ -1,5 +1,8 @@
 testClass=ComputeDigestCodebase
 testCategories=url_spec,url
+# This test is unable to be run on windows because the command argument is
+# too long.  The test needs to be changed to load these properties from
+# a properties file after the test jvm starts.
 
 # Number of ComputeDigestCodebase Test Cases
 ComputeDigestCodebase.testCases.1=42

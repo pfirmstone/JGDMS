@@ -49,6 +49,7 @@ import java.rmi.server.ExportException;
 //java.security
 import java.security.AccessController;
 import java.security.AccessControlContext;
+import java.security.AccessControlException;
 
 //java.util
 import java.util.Hashtable;
@@ -135,8 +136,16 @@ public class ExportTest_CustomParams extends BJEAbstractTest{
                                     + " equal to the classloader in effect"
                                     + " when the object was exported");
                             }
-                        } else {
+                    } else {
                             log.finer(acc1 + "!=" + acc2);
+			    try { // This ensure ACC debug information is printed out
+				// when -Djava.security.debug=access:domain
+				RuntimePermission p = new RuntimePermission("getClassLoader");
+				acc1.checkPermission(p);
+				acc2.checkPermission(p);
+			    } catch (AccessControlException e){
+				throw new TestException("unexpected exception", e);
+			    }
                             throw new TestException(
                                 "The AccessControl context in effect when"
                                 + " the dispatch method was called is not"
