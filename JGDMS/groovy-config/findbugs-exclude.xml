@@ -1,0 +1,7 @@
+<FindBugsFilter>
+    <Match>
+        <!-- Dynamically generated class -->
+        <Class name="net.jini.config.groovy.GroovyConfig$_checkInputs_closure1" />
+        <Bug pattern="SE_NO_SERIALVERSIONID" />
+    </Match>
+</FindBugsFilter>
