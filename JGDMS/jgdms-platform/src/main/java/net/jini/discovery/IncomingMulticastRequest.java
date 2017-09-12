@@ -55,7 +55,7 @@ public class IncomingMulticastRequest {
     /**
      * The current version of the multicast request protocol.
      */
-    protected final int protoVersion = 1;
+    protected static final int protoVersion = 1;
 
     /**
      * Construct a new object, initialized from the contents of the
@@ -128,7 +128,7 @@ public class IncomingMulticastRequest {
      * @return the set of groups in which the requestor is interested.
      */
     public String[] getGroups() {
-	return groups;
+	return groups.clone();
     }
 
     /**
@@ -139,7 +139,7 @@ public class IncomingMulticastRequest {
      *         heard
      */
     public ServiceID[] getServiceIDs() {
-	return serviceIDs;
+	return serviceIDs.clone();
     }
 
     public int hashCode() {

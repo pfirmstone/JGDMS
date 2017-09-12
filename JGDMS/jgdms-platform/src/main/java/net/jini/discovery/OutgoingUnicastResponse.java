@@ -36,7 +36,7 @@ public class OutgoingUnicastResponse {
     /**
      * The current version of the unicast discovery protocol.
      */
-    protected int protoVersion = 1;
+    protected static final int protoVersion = 1;
 
     /**
      * Marshal a unicast response to the given output stream.  The

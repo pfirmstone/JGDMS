@@ -88,7 +88,7 @@ public class IncomingUnicastResponse {
      * @see net.jini.core.lookup.ServiceRegistrar#getGroups
      */
     public String[] getGroups() {
-	return groups;
+	return groups.clone();
     }
 
     public int hashCode() {

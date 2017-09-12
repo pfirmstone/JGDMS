@@ -16,4 +16,105 @@
         <Class name="net.jini.core.entry.UnusableEntryException" />
         <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE" />
     </Match>
+    <Match>
+        <!-- IOException is ignored on stream close -->
+        <Class name="net.jini.io.MarshalledInstance"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <!--/* This is a workaround for Thread.interrupt not working on
+	 * ServerSocket.accept on all platforms.  ServerSocket.close
+	 * can't be used as a workaround, because it also doesn't work
+	 * on all platforms.
+	 */-->
+         <Class name="net.jini.discovery.AbstractLookupDiscovery$ResponseListener"/>
+         <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <!-- // Ignore the 2 first lines (index version) -->
+        <Class name="org.apache.river.api.net.RFC3986URLClassLoader$IndexFile"/>
+        <Bug pattern="RV_DONT_JUST_NULL_CHECK_READLINE"/>
+    </Match>
+    <Match>
+        <!-- Field is never serialized -->
+        <Class name="org.apache.river.api.net.RFC3986URLClassLoader$UriCodeSource"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- Perofrmance optimisation, Boolean reference comparisons are 
+             safe in this case, as only Boolean.FALSE and Boolean.TRUE are
+             used. -->
+        <Class name="org.apache.river.api.security.CombinerSecurityManager"/>
+        <Bug pattern="RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN"/>
+    </Match>
+    <Match>
+        <!-- // putIfAbsent: It doesn't matter if it already existed,
+                // the context we have is valid to perform a permissionCheck.-->
+        <Class name="org.apache.river.api.security.CombinerSecurityManager"/>
+        <Bug pattern="RV_RETURN_VALUE_OF_PUTIFABSENT_IGNORED"/>
+    </Match>
+    <Match>
+        <!--Lease is an interface, it may be Remote or Serializable, this
+            bug ignores the possiblity that it's actually Remote and not
+            Serializable        -->
+        <Class name="net.jini.core.transaction.NestableTransaction$Created"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!--Lease is an interface, it may be Remote or Serializable, this
+            bug ignores the possiblity that it's actually Remote and not
+            Serializable        -->
+        <Class name="net.jini.core.transaction.Transaction$Created"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- TransactionManager is Remote, not Serializable -->
+        <Class name="net.jini.core.transaction.server.ServerTransaction"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- Lease is an interface, it may be Remote -->
+        <Class name="net.jini.core.transaction.server.TransactionManager$Created"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- ServiceRegistrar[] regs is an array of Remote lookup services.
+            Also for Map groups,
+            we don't want to be constrained to a particular Map implementation,
+            this would occur if we picked a Serializable instance of Map
+        -->
+        <Class name="net.jini.discovery.DiscoveryEvent"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- ALL_GROUPS is a final null constant. -->
+        <Class name="net.jini.discovery.DiscoveryGroupManagement"/>
+        <Bug pattern="MS_OOI_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <!-- ProxyTrust is Remote  -->
+        <Class name="net.jini.security.proxytrust.ProxyTrustInvocationHandler"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- ActivationSystem is Remote -->
+        <Class name="org.apache.river.api.io.ActivationGroupIDSerializer"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- PermissionGrant's use the serialization proxy pattern -->
+        <Class name="org.apache.river.api.security.ProtectionDomainGrant"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- PermissionGrant's use the serialization proxy pattern -->
+        <Class name="org.apache.river.api.security.URIGrant"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- Levels.toString() is called to ensure Levels class has been loaded. -->
+        <Class name="org.apache.river.logging.LogManager"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    
 </FindBugsFilter>

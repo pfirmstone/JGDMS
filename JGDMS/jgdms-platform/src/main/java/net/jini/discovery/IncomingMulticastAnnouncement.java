@@ -49,7 +49,7 @@ public class IncomingMulticastAnnouncement {
     /**
      * Current version of the multicast announcement protocol.
      */
-    protected final int protoVersion = 1;
+    protected static final int protoVersion = 1;
 
     /**
      * Construct a new object, initialized by unmarshaling the
@@ -109,7 +109,7 @@ public class IncomingMulticastAnnouncement {
      *         member. 
      */
     public String[] getGroups() {
-	return groups;
+	return groups.clone();
     }
 
     public int hashCode() {
