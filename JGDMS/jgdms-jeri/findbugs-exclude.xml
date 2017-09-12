@@ -1,0 +1,72 @@
+<FindBugsFilter>
+    <Match>
+        <!-- BasicJeriExporter, when exporting an impl, passes an impl container
+     * to the package-private BasicObjectEndpoint constructor so that the
+     * BasicObjectEndpoint can reference the impl strongly (through the
+     * container) while the object is exported.  The BasicJeriExporter
+     * instance holds onto the impl container weakly so it won't prevent
+     * the impl from being garbage collected; only the local stub that
+     * references the BasicObjectEndpoint will prevent the impl from being
+     * garbage collected. -->
+        <Class name="net.jini.jeri.BasicJeriExporter$ImplContainer" />
+        <Bug pattern="URF_UNREAD_FIELD" />
+    </Match>
+    <Match>
+        <!-- Holds a strong reference to a BasicObjectEndpoint until an
+     * acknowledgment has been received. -->
+        <Class name="net.jini.jeri.BasicObjectEndpoint$AckListener"/>
+        <Bug pattern="URF_UNREAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- Method is documented to throw NPE, superclass method performs
+            null check        -->
+        <Class name="net.jini.jeri.ProxyTrustILFactory"/>
+        <Bug pattern="NP_NULL_PARAM_DEREF"/>
+    </Match>
+    <Match>
+        <!-- SocketFactory is intended to be Serializable.        -->
+        <Class names="net.jini.jeri.http.HttpEndpoint"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- IOException ignored on socket close -->
+        <Class name="net.jini.jeri.http.HttpEndpoint$SocketFactoryAdapter"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <!-- SocketFactory is intended to be Serializable. -->
+        <Class name="net.jini.jeri.kerberos.KerberosEndpoint"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <!-- IOException ignored on socket close        -->
+        <Class name="net.jini.jeri.kerberos.KerberosEndpoint$ConnectionEndpointImpl"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <!-- IOException ignored on socket close -->
+        <Class name="net.jini.jeri.kerberos.KerberosUtil$Connection"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <!-- IOException ignored on socket close -->
+        <Class name="net.jini.jeri.ssl.SslConnection"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <!-- Only Boolean.TRUE, Boolean.FALSE and null are used, no danger
+             of incorrect reference comparison -->
+        <Class name="net.jini.jeri.ssl.SslEndpointImpl"/>
+        <Bug pattern="RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN"/>
+    </Match>
+    <Match>
+        <!-- IOException ignored on socket close -->
+        <Class name="net.jini.jeri.tcp.TcpEndpoint$ConnectionEndpointImpl"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <!-- IOException ignored on socket close -->
+        <Class name="org.apache.river.jeri.internal.http.HttpClientConnection"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+</FindBugsFilter>

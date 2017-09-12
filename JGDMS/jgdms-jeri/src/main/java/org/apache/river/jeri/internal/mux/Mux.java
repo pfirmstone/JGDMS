@@ -797,7 +797,7 @@ abstract class Mux {
 	buffer.position(headerPosition + 4);	// skip header already checked
 	int version = (buffer.get() & 0xFF);
 	int ration = (buffer.getShort() & 0xFFFF) << 8;
-	int flags = (buffer.get() & 0xFF);
+	int flags = (buffer.get() & 0xFF);  //TODO: Determine flags intended use.
 
 	synchronized (muxLock) {
 	    initialOutboundRation = ration;
