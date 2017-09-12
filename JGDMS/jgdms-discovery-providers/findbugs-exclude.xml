@@ -1,0 +1,8 @@
+<FindBugsFilter>
+    <Match>
+        <!-- The underlying stream is closed in a finally block -->
+        <Class name="org.apache.river.discovery.internal.EndpointBasedServer" />
+        <Bug pattern="OS_OPEN_STREAM" />
+    </Match>
+    
+</FindBugsFilter>
