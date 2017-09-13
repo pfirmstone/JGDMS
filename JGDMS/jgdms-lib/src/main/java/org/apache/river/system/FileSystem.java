@@ -70,7 +70,7 @@ public class FileSystem {
 	}
 
 	String[] names = dir.list();
-	for (int i = 0; i < names.length; i++) {
+	for (int i = 0, l = names != null ? names.length : 0 ; i < l; i++) {
 	    File file = new File(dir, names[i]);
 	    if (!file.delete())		// assume it's a dir
 		destroyDir(file, errors);

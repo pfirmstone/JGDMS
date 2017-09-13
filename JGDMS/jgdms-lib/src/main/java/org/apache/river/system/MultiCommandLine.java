@@ -78,9 +78,6 @@ public class MultiCommandLine extends CommandLine {
     /** Have all the options been consumed? */
     private boolean allUsed;
 
-    /** Has the whole command line been eaten (via <code>getOperands</code>)? */
-    private boolean usedUp;
-
     /** The list of known options for the usage message. */
     private ArrayList options;
 
@@ -110,8 +107,8 @@ public class MultiCommandLine extends CommandLine {
      */
     public MultiCommandLine(String prog, String[] args) {
 	this.prog = prog;
-	this.args = args;
-	used = new BitSet(args.length);
+	this.args = args != null ? args.clone() : new String[0];
+	used = new BitSet(this.args.length);
 	options = new ArrayList();
     }
 
@@ -461,7 +458,6 @@ public class MultiCommandLine extends CommandLine {
 
 	String[] remains = new String[args.length - a];
 	System.arraycopy(args, a, remains, 0, remains.length);
-	usedUp = true;
 	return remains;
     }
 

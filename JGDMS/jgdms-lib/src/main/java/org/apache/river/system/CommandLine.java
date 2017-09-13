@@ -118,7 +118,7 @@ public abstract class CommandLine {
     {
 	if (str == null)
 	    return defaultValue;
-	return new Double(str).doubleValue();
+	return Double.parseDouble(str);
     }
 
     /**
@@ -135,8 +135,8 @@ public abstract class CommandLine {
 	if (path == null)
 	    return defaultValue;
 	if (path.equals("-"))
-	    return new OutputStreamWriter(System.out);
-	return new FileWriter(path);
+	    return new OutputStreamWriter(System.out, "UTF-8");
+	return new OutputStreamWriter(new FileOutputStream(path), "UTF-8");
     }
 
     /**
@@ -153,8 +153,8 @@ public abstract class CommandLine {
 	if (path == null)
 	    path = defaultPath;
 	if (path.equals("-"))
-	    return new OutputStreamWriter(System.out);
-	return new FileWriter(path);
+	    return new OutputStreamWriter(System.out, "UTF-8");
+	return new OutputStreamWriter(new FileOutputStream(path), "UTF-8");
     }
 
     /**
@@ -171,8 +171,8 @@ public abstract class CommandLine {
 	if (path == null)
 	    return defaultValue;
 	if (path.equals("-"))
-	    return new InputStreamReader(System.in);
-	return new FileReader(path);
+	    return new InputStreamReader(System.in, "UTF-8");
+	return new InputStreamReader(new FileInputStream(path), "UTF-8");
     }
 
     /**
@@ -189,8 +189,8 @@ public abstract class CommandLine {
 	if (path == null)
 	    path = defaultPath;
 	if (path.equals("-"))
-	    return new InputStreamReader(System.in);
-	return new FileReader(path);
+	    return new InputStreamReader(System.in, "UTF-8");
+	return new InputStreamReader(new FileInputStream(path), "UTF-8");
     }
 
     /**

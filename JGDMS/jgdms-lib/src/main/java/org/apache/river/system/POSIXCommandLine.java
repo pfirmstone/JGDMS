@@ -144,11 +144,11 @@ public class POSIXCommandLine extends CommandLine {
      * parameter is the program name.
      */
     public POSIXCommandLine(String prog, String[] args) {
-	orig = args;
-	this.args = new char[args.length][];
+	orig = args != null ? args.clone() : new String [0];
+	this.args = new char[orig.length][];
 	this.prog = prog;
-	for (int i = 0; i < args.length; i++)
-	    this.args[i] = args[i].toCharArray();
+	for (int i = 0; i < orig.length; i++)
+	    this.args[i] = orig[i].toCharArray();
 	options = new ArrayList();
     }
 
