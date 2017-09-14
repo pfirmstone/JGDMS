@@ -17,12 +17,15 @@
  */
 package net.jini.core.transaction.server;
 
-import java.io.IOException;
-import java.rmi.RemoteException;
 import net.jini.core.lease.LeaseDeniedException;
-import net.jini.core.transaction.*;
+import net.jini.core.transaction.CannotJoinException;
+import net.jini.core.transaction.NestableTransaction;
+import net.jini.core.transaction.UnknownTransactionException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+
+import java.io.IOException;
+import java.rmi.RemoteException;
 
 /**
  * Class implementing the <code>NestableTransaction</code> interface, for use
@@ -171,5 +174,23 @@ public class NestableServerTransaction extends ServerTransaction
 	    ", id=" + id +
             ", parent=" + parent +
 	    "]";
-    }    
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is two transactions are still equal if they have the same transaction manager
+     * and the same transaction id, regardless of whether one is or is not nested.
+     */
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is two transactions are still equal if they have the same transaction manager
+     * and the same transaction id, regardless of whether one is or is not nested.
+     */
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
 }
