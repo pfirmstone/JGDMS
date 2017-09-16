@@ -1,0 +1,52 @@
+<FindBugsFilter>
+    <Match>
+        <!-- Volatile fields only mutated when synchronized on 
+             proxyReg.taskList. -->
+        <Class name="net.jini.lookup.JoinManager$ProxyRegTask" />
+        <Field name="nRetries"/>
+        <Bug pattern="VO_VOLATILE_INCREMENT" />
+    </Match>
+    <Match>
+        <!-- Volatile fields only mutated when synchronized on 
+             proxyReg.taskList. -->
+        <Class name="net.jini.lookup.JoinManager$ProxyRegTask" />
+        <Field name="tryIndx"/>
+        <Bug pattern="VO_VOLATILE_INCREMENT" />
+    </Match>
+    <Match>
+        <!-- Static analysis thinks ClassCastException is caught when cast to
+             ServiceProxyAccessor fails, but it is guaranteed not to cause a
+             ClassCastException.  The ClassCastException is actually thrown
+             by the filter, so this is ok.        -->
+        <Class name="net.jini.lookup.ServiceDiscoveryManager"/>
+        <Method name="check"/>
+        <Bug pattern="NP_GUARANTEED_DEREF_ON_EXCEPTION_PATH"/>
+    </Match>
+    <Match>
+        <!-- Documentation states: "if the specified object's class is
+             Locales" -->
+        <Class name="net.jini.lookup.ui.attribute.Locales"/>
+        <Method name="equals"/>
+        <Bug pattern="EQ_GETCLASS_AND_CLASS_CONSTANT"/>
+    </Match>
+    <Match>
+        <!-- Documentation states: "if the specified object's class is RequiredPackages" -->
+        <Class name="net.jini.lookup.ui.attribute.RequiredPackages"/>
+        <Method name="equals"/>
+        <Bug pattern="EQ_GETCLASS_AND_CLASS_CONSTANT"/>
+    </Match>
+    <Match>
+        <!-- Documentation states: "if the specified object's class is
+             UIFactoryTypes" -->
+        <Class name="net.jini.lookup.ui.attribute.UIFactoryTypes"/>
+        <Method name="equals"/>
+        <Bug pattern="EQ_GETCLASS_AND_CLASS_CONSTANT"/>
+    </Match>
+    <Match>
+        <!-- Landlord is Remote -->
+        <Class name="org.apache.river.landlord.LandlordLease"/>
+        <Field name="landlord"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    
+</FindBugsFilter>

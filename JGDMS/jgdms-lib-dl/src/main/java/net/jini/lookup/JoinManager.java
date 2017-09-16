@@ -643,8 +643,9 @@ public class JoinManager {
          */
         @Override
         public long retryTime() {
-	    long nextTryTime = System.currentTimeMillis() + sleepTime[tryIndx];
+	    long nextTryTime = System.currentTimeMillis();
             synchronized (proxyReg.taskList){
+		nextTryTime += sleepTime[tryIndx];
                 if(tryIndx < sleepTime.length-1)  tryIndx++;//don't go past end
                     nRetries++;
             }

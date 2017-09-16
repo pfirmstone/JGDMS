@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -128,6 +129,7 @@ public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
 
             @Override
             public T next() {
+		if (!hasNext()) throw new NoSuchElementException();
                 T next = elements[nextPos];
                 ++nextPos;
                 return next;

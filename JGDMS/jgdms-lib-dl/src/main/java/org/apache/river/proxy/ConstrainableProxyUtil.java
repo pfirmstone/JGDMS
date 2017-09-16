@@ -126,7 +126,6 @@ public class ConstrainableProxyUtil {
 	}
 
 	// Both non-null need to run though map check
-	final int count = mappings.length / 2;
 	for (int i = 0; i < mappings.length; i+=2) {	    
 	    final InvocationConstraints c1 = 
 		methodConstraints1.getConstraints(mappings[i]);

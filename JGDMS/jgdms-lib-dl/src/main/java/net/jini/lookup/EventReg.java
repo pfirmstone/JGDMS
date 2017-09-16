@@ -67,10 +67,9 @@ final class EventReg {
     
     boolean nonContiguousEvent(long seqNo){
         assert Thread.holdsLock(this);
-        long difference = seqNo = this.seqNo;
+        long difference = seqNo - this.seqNo;
         this.notifyAll();
-        if (difference > 1) return true;
-        return false;
+        return difference != 1;
     }
     
     void suspendEvents() {

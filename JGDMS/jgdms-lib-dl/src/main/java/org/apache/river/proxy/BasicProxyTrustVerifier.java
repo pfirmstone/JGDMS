@@ -101,7 +101,7 @@ public final class BasicProxyTrustVerifier
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
-	if (!(proxy instanceof RemoteMethodControl)) {
+	if (proxy == null) {
 	    throw new InvalidObjectException(
 		"proxy not a RemoteMethodControl instance");
 	} else if  (!(proxy instanceof TrustEquivalence)) {
