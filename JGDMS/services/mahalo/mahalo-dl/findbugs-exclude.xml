@@ -1,0 +1,14 @@
+<FindBugsFilter>
+    <Match>
+        <!-- Remote -->
+        <Class name="org.apache.river.mahalo.proxy.TxnMgrAdminProxy" />
+        <Field name="server" />
+        <Bug pattern="SE_BAD_FIELD" />
+    </Match>
+    <Match>
+        <!-- Remote -->
+        <Class name="org.apache.river.mahalo.proxy.TxnMgrProxy" />
+        <Field name="backend" />
+        <Bug pattern="SE_BAD_FIELD" />
+    </Match>
+</FindBugsFilter>
