@@ -1014,7 +1014,8 @@ class TxnManagerImpl /*extends RemoteServer*/
 //TODO - if post-ACTIVE, do anything?	
 	    if (!ensureCurrent(txntr))
 		throw new UnknownLeaseException("Lease already expired");
-	    long oldExpiration = txntr.getExpiration();
+//	    long oldExpiration = 
+	    txntr.getExpiration(); // Remove dead store but leave call in place -> logging.
             r = txnLeasePeriodPolicy.renew(txntr, extension);
 	    txntr.setExpiration(r.expiration);
 	    expMgr.renewed(txntr);
@@ -1354,7 +1355,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 		        "Attempting forced unexport.");
                 }
 		/* Attempt to forcefully export the service */
-                unexported = exporter.unexport(true);
+                exporter.unexport(true);
             }
 
             if(destroyLogger.isLoggable(Level.FINEST)) {

@@ -472,9 +472,14 @@ class TxnManagerTransaction
 	    ParticipantHandle ph = 
 	        new ParticipantHandle(preparedPart, crashCount);
 	    ParticipantHandle phtmp = null;
+	    // FindBugs noticed that phtmp was null, and null check on known null
+	    // referenc original programmer had assigned it to ph instaed of phtmp.
+	    // This might have resulted in ParticipantHandles being 
+	    // added to parts more than once, and CrashCountException to have never been
+	    // thrown.
 	    synchronized (parts){
 		int index = parts.indexOf(ph);
-		if (index > -1) ph = parts.get(index);
+		if (index > -1) phtmp = parts.get(index);
 	    }
 
             if (transactionsLogger.isLoggable(Level.FINEST)) {
@@ -1206,7 +1211,7 @@ private List<ParticipantHandle> parthandles() {
 	List<ParticipantHandle> result;
 	
 	synchronized (parts){
-	    if ( (parts == null ) || ( parts.isEmpty() ) ) return null;
+	    if (parts.isEmpty()) return null;
 	    result = new ArrayList<ParticipantHandle>(parts);
 	}
  
@@ -1233,7 +1238,7 @@ private List<ParticipantHandle> parthandles() {
 	int size;
 	synchronized (parts){
 	    size = parts.size();
-	    if ( (parts == null ) || ( size == 0 ) ) return "No participants";
+	    if ( size == 0 ) return "No participants";
 	    sb = new StringBuilder(size * 40);
 	    ParticipantHandle ph;
 	    sb.append(size).append(" Participants: ");
@@ -1271,7 +1276,7 @@ private List<ParticipantHandle> parthandles() {
 	int size;
 	synchronized(parts){
 	    size = parts.size();
-	    if ( (parts == null ) || ( size == 0 ) ) return;
+	    if ( size == 0 ) return;
 	    handles = parts.toArray(new ParticipantHandle[size]);
 	}
         for (int i=0; i < size; i++) {

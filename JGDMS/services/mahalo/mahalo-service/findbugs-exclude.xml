@@ -1,0 +1,21 @@
+<FindBugsFilter>
+    <Match>
+        <!-- Access is synchronized, atomic decrement mutable state -->
+        <Class name="org.apache.river.mahalo.Job" />
+        <Method name="decrementPending" />
+        <Bug pattern="NN_NAKED_NOTIFY" />
+    </Match>
+    <Match>
+        <!-- while loop condition -->
+        <Class name="org.apache.river.mahalo.Job" />
+        <Method name="awaitPending" />
+        <Bug pattern="UW_UNCOND_WAIT" />
+    </Match>
+    <Match>
+        <!-- State change occurs to concurrent linked queue, prior to notifying -->
+        <Class name="org.apache.river.mahalo.TxnManagerImpl" />
+        <Method name="noteUnsettledTxn" />
+        <Bug pattern="NN_NAKED_NOTIFY" />
+    </Match>
+
+</FindBugsFilter>

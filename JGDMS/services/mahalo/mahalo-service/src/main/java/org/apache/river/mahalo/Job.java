@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.logging.Level;
@@ -163,12 +164,20 @@ abstract class Job {
                     //the partial results
                     tasks.put(tmp[i],Integer.valueOf(i));
                     attempts.set(i,0);
-                    pool.submit(tmp[i], (Object) null);
-                    if (logger.isLoggable(Level.FINEST)) {
-                        logger.log(Level.FINEST,
-                            "Job:scheduleTasks added {0} to thread pool",
-                            tmp[i]);
-                    }
+		    try {
+			pool.submit(tmp[i], (Object) null);
+			if (logger.isLoggable(Level.FINEST)) {
+			    logger.log(Level.FINEST,
+				"Job:scheduleTasks added {0} to thread pool",
+				tmp[i]);
+			}
+		    } catch (RejectedExecutionException e){
+			if (logger.isLoggable(Level.FINEST)){
+			    logger.log(Level.FINEST,
+				"Job:scheduleTasks unable to add {0} to thread pool {1}",
+				new Object []{tmp[i], e.getMessage()});
+			}
+		    }
                 }
             }
         }
