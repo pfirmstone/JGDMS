@@ -15,26 +15,20 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import org.junit.*;
+
+import java.io.*;
 import java.util.ArrayList;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.Executor;
-import java.lang.ref.Reference;
+import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.Collection;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  *
@@ -183,5 +177,13 @@ public class ReferenceBlockingQueueTest {
         }
         assertTrue(result instanceof BlockingQueue);
         assertTrue(instance.containsAll((BlockingQueue<String>)result));
+    }
+
+    @Test
+    public void testEqualsNotOverridden() {
+        final BlockingQueue<Referrer<String>> queue = new ArrayBlockingQueue<Referrer<String>>(1);
+        final ReferenceBlockingQueue<String> item1 = new ReferenceBlockingQueue<String>(queue, Ref.STRONG, false, 0);
+        final ReferenceBlockingQueue<String> item2 = new ReferenceBlockingQueue<String>(queue, Ref.STRONG, false, 0);
+        assertThat(item1, not(equalTo(item2)));
     }
 }

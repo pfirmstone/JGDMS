@@ -20,7 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
-import java.lang.ref.Reference;
 import java.util.TreeSet;
 import java.util.Iterator;
 import java.util.NavigableSet;
@@ -29,6 +28,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.*;
 
 /**
@@ -231,5 +232,13 @@ public class ReferenceNavigableSetTest {
             ex.printStackTrace(System.out);
         }
         assertEquals(instance, result);
+    }
+
+    @Test
+    public void testEqualsIsImplemented() {
+        final NavigableSet<Referrer<String>> set = new TreeSet<Referrer<String>>();
+        final ReferenceNavigableSet<String> item1 = new ReferenceNavigableSet<String>(set, Ref.STRONG, false, 0);
+        final ReferenceNavigableSet<String> item2 = new ReferenceNavigableSet<String>(set, Ref.STRONG, false, 0);
+        assertThat(item1, equalTo(item2));
     }
 }

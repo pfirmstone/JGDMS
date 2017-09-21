@@ -128,5 +128,22 @@ class ReferenceNavigableSet<T>
                     getRef()
                 );
     }
-    
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is navigable sets do implement the equals method, and hence the parent hashCode is used.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is navigable sets do implement the equals method, and we use the parent implementation here.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
 }

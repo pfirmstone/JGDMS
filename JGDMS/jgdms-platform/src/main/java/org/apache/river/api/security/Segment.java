@@ -18,9 +18,10 @@
 
 package org.apache.river.api.security;
 
-import org.apache.river.impl.Messages;
-import java.util.Properties;
 import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
+import org.apache.river.impl.Messages;
+
+import java.util.Properties;
 
 /**
  * Segments form a chain of String parts which represent a framework for
@@ -43,7 +44,7 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * @author Peter Firmstone.
  * @since 3.0.0
  */
-class Segment implements Comparable {
+class Segment {
     private Segment previous;
     private Segment [] divisions;
     private String original;
@@ -126,16 +127,6 @@ class Segment implements Comparable {
         return sequence;
     }
 
-    public int compareTo(Object o) {
-        if ( !(o instanceof Segment)) 
-            throw new ClassCastException(o.toString() 
-                    + " not an instance of Segment");
-        Segment that = (Segment) o;
-        if (this.sequenceNumber() == that.sequenceNumber()) return 0;
-        if (this.sequenceNumber() < that.sequenceNumber()) return -1;
-        return 1; // It must be greater than that.
-    }
-    
     /**
      * Segments the current String by find Properties between the START_MARK and
      * END_MARK and replacing them with their values, splitting them into separate

@@ -15,18 +15,15 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import org.junit.*;
+
+import java.io.*;
 import java.util.LinkedList;
 import java.util.Queue;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.*;
 
 /**
@@ -141,5 +138,12 @@ public class ReferencedQueueTest {
         assertTrue(result instanceof Queue);
         assertTrue(instance.containsAll((Queue<String>)result));
     }
-    
+
+    @Test
+    public void testEqualsNotOverridden() {
+        final Queue<Referrer<String>> queue = new ConcurrentLinkedQueue<Referrer<String>>();
+        final ReferencedQueue<String> item1 = new ReferencedQueue<String>(queue, Ref.STRONG, false, 0);
+        final ReferencedQueue<String> item2 = new ReferencedQueue<String>(queue, Ref.STRONG, false, 0);
+        assertThat(item1, not(equalTo(item2)));
+    }
 }

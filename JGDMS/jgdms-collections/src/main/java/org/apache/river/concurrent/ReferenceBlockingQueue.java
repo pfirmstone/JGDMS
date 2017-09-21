@@ -88,5 +88,20 @@ class ReferenceBlockingQueue<T> extends ReferencedQueue<T> implements BlockingQu
         Collection<Referrer<T>> drain = new CollectionDecorator<T>( (Collection<T>) c, getRQF(), false, true);
         return queue.drainTo(drain, maxElements);
         }
-    
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is blocking queues do not implement the equals method, and hence do not implemenent hashCode.
+     */
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is blocking queues do not implement the equals method.
+     */
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
 }

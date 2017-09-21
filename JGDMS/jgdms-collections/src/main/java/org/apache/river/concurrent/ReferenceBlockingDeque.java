@@ -153,4 +153,22 @@ class ReferenceBlockingDeque<T> extends ReferenceDeque<T> implements BlockingDeq
         Collection<Referrer<T>> drain = new CollectionDecorator<T>( (Collection<T>) c, getRQF(), false, true);
         return deque.drainTo(drain, maxElements);
         }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is blocking deques do not implement the equals method, and hence do not implemenent hashCode.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public int hashCode() {
+        return super.hashCode();
     }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is blocking deques do not implement the equals method.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
+}

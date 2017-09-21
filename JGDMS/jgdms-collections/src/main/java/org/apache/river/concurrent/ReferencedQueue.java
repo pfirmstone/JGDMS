@@ -78,5 +78,22 @@ class ReferencedQueue<T> extends ReferenceCollection<T> implements Queue<T> {
         if ( t != null ) return t.get();
         return null;
     }
-    
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is queues do not implement the equals method, and hence do not implemenent hashCode.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is queues do not implement the equals method.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
 }

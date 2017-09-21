@@ -91,5 +91,22 @@ class ReferenceSortedSet<T> extends ReferenceSet<T> implements SortedSet<T> {
         if ( t != null ) return t.get();
         return null;
     }
-    
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is sorted sets do implement the equals method, and hence the parent hashCode is used.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is sorted sets do implement the equals method, and we use the parent implementation here.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
 }
