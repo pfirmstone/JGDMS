@@ -147,4 +147,20 @@ class ReferenceDeque<T> extends ReferencedQueue<T> implements Deque<T>{
     public Iterator<T> descendingIterator() {
         return new ReferenceIterator<T>(deque.descendingIterator());
     }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is deques do not implement the equals method, and hence do not implemenent hashCode.
+     */
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is deques do not implement the equals method.
+     */
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
 }

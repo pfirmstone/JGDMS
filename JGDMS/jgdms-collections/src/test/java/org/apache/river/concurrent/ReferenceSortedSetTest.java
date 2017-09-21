@@ -15,20 +15,17 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.TreeSet;
+import org.junit.*;
+
+import java.io.*;
 import java.util.Comparator;
 import java.util.SortedSet;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentSkipListSet;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  *
@@ -165,5 +162,13 @@ public class ReferenceSortedSetTest {
             ex.printStackTrace(System.out);
         }
         assertEquals(instance, result);
+    }
+
+    @Test
+    public void testEqualsIsImplemented() {
+        final SortedSet<Referrer<String>> set = new ConcurrentSkipListSet<Referrer<String>>();
+        final ReferenceSortedSet<String> item1 = new ReferenceSortedSet<String>(set, Ref.STRONG, false, 0);
+        final ReferenceSortedSet<String> item2 = new ReferenceSortedSet<String>(set, Ref.STRONG, false, 0);
+        assertThat(item1, equalTo(item2));
     }
 }

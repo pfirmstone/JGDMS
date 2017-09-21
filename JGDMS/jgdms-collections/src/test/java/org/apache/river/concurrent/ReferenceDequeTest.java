@@ -20,8 +20,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.LinkedList;
-import java.lang.ref.Reference;
 import java.util.Deque;
 import java.util.Iterator;
 import org.junit.After;
@@ -29,6 +29,9 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.*;
 
 /**
@@ -306,5 +309,13 @@ public class ReferenceDequeTest {
         }
         assertTrue(result instanceof Deque);
         assertTrue(instance.containsAll((Deque<String>)result));
+    }
+
+    @Test
+    public void testEqualsNotOverridden() {
+        final Deque<Referrer<String>> deque = new ArrayDeque<Referrer<String>>();
+        final ReferenceDeque<String> item1 = new ReferenceDeque<String>(deque, Ref.STRONG, false, 0);
+        final ReferenceDeque<String> item2 = new ReferenceDeque<String>(deque, Ref.STRONG, false, 0);
+        assertThat(item1, not(equalTo(item2)));
     }
 }
