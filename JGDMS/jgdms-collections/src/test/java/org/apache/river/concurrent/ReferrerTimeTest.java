@@ -146,7 +146,7 @@ public class ReferrerTimeTest {
                 Ref.TIME, 20L);
         Future f = new F();
         que.offer(f);
-        Thread.sleep(80L);
+        Thread.sleep(100L);
         assertTrue(f.isCancelled());
     }
     
