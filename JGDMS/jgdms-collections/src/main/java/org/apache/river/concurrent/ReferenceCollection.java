@@ -52,7 +52,7 @@ class ReferenceCollection<T> extends AbstractCollection<T>
                                 implements Collection<T>, Serializable {
     private static final long serialVersionUID = 1L;
     private final Collection<Referrer<T>> col;
-    private final ReferenceQueuingFactory<T, Referrer<T>> rqf;
+    private final transient ReferenceQueuingFactory<T, Referrer<T>> rqf;
     private final Ref type;
     
     @SuppressWarnings("unchecked")
