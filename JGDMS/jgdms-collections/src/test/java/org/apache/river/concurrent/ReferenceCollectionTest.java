@@ -15,15 +15,11 @@
 
 package org.apache.river.concurrent;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
+
+import java.io.*;
+import java.util.*;
+
 import static org.junit.Assert.*;
 
 /**
@@ -243,5 +239,32 @@ public class ReferenceCollectionTest {
         System.out.println("clear");
         instance.clear();
         assertTrue( instance.isEmpty() );
+    }
+
+    /**
+     * Test of serializing instance of ReferenceCollection.
+     */
+    @Test
+    public void testSerialize() throws IOException, ClassNotFoundException {
+        System.out.println("Serialize");
+        final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        new ObjectOutputStream(byteArrayOutputStream).writeObject(instance);
+        final ReferenceCollection<String> serialInstance = (ReferenceCollection<String>) new ObjectInputStream(
+                new ByteArrayInputStream(byteArrayOutputStream.toByteArray())).readObject();
+        // @todo There appears to be a problem with org.apache.river.concurrent.ReferenceCollection.equals(), because
+        // col.equals(o) returns false due to o not being an instance of List
+        //assertTrue(instance.equals(serialInstance));
+
+        // temporary workaround is to compare contents of lists
+        // but I must misunderstand how instance.containsAll(serialInstance) is intended to work, as this too fails.
+        //assertTrue(instance.containsAll(serialInstance));
+
+        // plain old iterator appears to work
+        final Iterator<String> origIter = instance.iterator();
+        final Iterator<String> serialIter = serialInstance.iterator();
+        while (origIter.hasNext() && serialIter.hasNext()) {
+            assertTrue(origIter.next().equals(serialIter.next()));
+        }
+        assertTrue(!origIter.hasNext() && !serialIter.hasNext());
     }
 }
