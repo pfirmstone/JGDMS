@@ -15,10 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.WriteAbortedException;
 import java.util.*;
 
 /**
@@ -175,21 +171,4 @@ class ReferenceCollection<T> extends AbstractCollection<T>
         }
         return false;
     }
-    
-    final Object writeReplace() throws ObjectStreamException {
-        try {
-            // returns a Builder instead of this class.
-            return SerializationOfReferenceCollection.create(getClass(), col, type );
-        } catch (InstantiationException ex) {
-            throw new WriteAbortedException("Unable to create serialization proxy", ex);
-        } catch (IllegalAccessException ex) {
-            throw new WriteAbortedException("Unable to create serialization proxy", ex);
-        }
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
 }

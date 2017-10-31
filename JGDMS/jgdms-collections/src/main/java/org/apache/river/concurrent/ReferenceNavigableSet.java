@@ -39,11 +39,6 @@ class ReferenceNavigableSet<T>
         this.set = set;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     public T lower(T e) {
         processQueue();
         Referrer<T> t = set.lower(wrapObj(e, false, true));

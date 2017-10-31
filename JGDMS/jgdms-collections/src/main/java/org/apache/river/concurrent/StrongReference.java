@@ -89,15 +89,6 @@ class StrongReference<T> implements Referrer<T>{
 	this.referent = null;
     }
     
-    final Object writeReplace() throws ObjectStreamException {
-        return ReferenceSerializationFactory.create(get());
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     @Override
     public T get() {
         return referent;

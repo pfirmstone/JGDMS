@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -35,11 +33,6 @@ class ReferenceSet<T> extends ReferenceCollection<T> implements Set<T>{
     
     ReferenceSet(Set<Referrer<T>> col, ReferenceQueuingFactory<T, Referrer<T>> rqf, Ref type){
         super(col, rqf, type);
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
     }
     
     public boolean equals(Object o) {

@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
@@ -31,11 +29,6 @@ class ReferencedQueue<T> extends ReferenceCollection<T> implements Queue<T> {
     public ReferencedQueue( Queue<Referrer<T>> queue, Ref type, boolean gcThreads, long gcCycle){
         super(queue, type, gcThreads, gcCycle);
         this.queue = queue;
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
     }
     
     public boolean offer(T e) {

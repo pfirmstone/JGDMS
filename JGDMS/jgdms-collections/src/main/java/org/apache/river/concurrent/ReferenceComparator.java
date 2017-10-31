@@ -15,10 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Comparator;
 
 /**
@@ -36,15 +32,4 @@ class ReferenceComparator<T> extends AbstractReferenceComparator<T> {
     Comparator<? super T> get(){
         return comparator;
     }
-    
-    private void readObject(ObjectInputStream in)
-        throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        if ( get() == null ) throw new InvalidObjectException("Null value prohibited");
-    }
-    
-    private void writeObject(ObjectOutputStream out) throws IOException {
-        out.defaultWriteObject();
-    }
-
 }

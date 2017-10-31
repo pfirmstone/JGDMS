@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 
@@ -58,15 +56,4 @@ class SoftIdentityReference<T> extends SoftReference<T> implements Referrer<T>{
         if (s != null) return s.toString();
         return super.toString();
     }
-    
-    private Object writeReplace() {
-        // returns a Builder instead of this class.
-        return ReferenceSerializationFactory.create(get());
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Factory required");
-    }
-
 }

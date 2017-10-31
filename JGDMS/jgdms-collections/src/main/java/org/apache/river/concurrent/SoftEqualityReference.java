@@ -15,9 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 
@@ -66,14 +63,5 @@ class SoftEqualityReference<T> extends SoftReference<T> implements Referrer<T>{
         Object s = get();
         if (s != null) return s.toString();
         return super.toString();
-    }
-    
-    final Object writeReplace() throws ObjectStreamException {
-        return ReferenceSerializationFactory.create(get());
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
     }
 }

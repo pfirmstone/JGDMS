@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.util.Comparator;
 import java.util.SortedSet;
 
@@ -43,11 +41,6 @@ class ReferenceSortedSet<T> extends ReferenceSet<T> implements SortedSet<T> {
         this.set = set;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     @SuppressWarnings("unchecked")
     public Comparator<? super T> comparator() {
         processQueue();

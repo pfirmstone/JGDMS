@@ -34,11 +34,6 @@ class ReferenceBlockingDeque<T> extends ReferenceDeque<T> implements BlockingDeq
         this.deque = deque;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     public void putFirst(T e) throws InterruptedException {
         processQueue();
         Referrer<T> r = wrapObj(e, true, false);

@@ -31,11 +31,6 @@ class ReferenceDeque<T> extends ReferencedQueue<T> implements Deque<T>{
         this.deque = deque;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-    
     public void addFirst(T e) {
         processQueue();
         Referrer<T> r = wrapObj(e, true, false);
