@@ -42,7 +42,7 @@ import java.util.*;
 class ReferenceCollection<T> extends AbstractCollection<T> 
                                 implements Collection<T> {
     private final Collection<Referrer<T>> col;
-    private final transient ReferenceQueuingFactory<T, Referrer<T>> rqf;
+    private final ReferenceQueuingFactory<T, Referrer<T>> rqf;
     private final Ref type;
     
     @SuppressWarnings("unchecked")
