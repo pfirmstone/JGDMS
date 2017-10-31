@@ -43,7 +43,6 @@ import java.util.ListIterator;
  * @author Peter Firmstone.
  */
 class ReferenceList<T> extends ReferenceCollection<T> implements List<T> {
-    private static final long serialVersionUID = 1L;
     private final List<Referrer<T>> list;
     ReferenceList(List<Referrer<T>> list, Ref type, boolean gcThreads, long gcCycle){
         super(list, type, gcThreads, gcCycle);

@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.Collection;
 
 /**
@@ -34,9 +33,8 @@ import java.util.Collection;
  * @author peter
  */
  class ReferenceCollectionSerialData<T> 
-    extends ReferenceCollectionRefreshAfterSerialization<T> implements Serializable {
-    private static final long serialVersionUID = 1L;
-    
+    extends ReferenceCollectionRefreshAfterSerialization<T> {
+
     /** @serialField  */
     private Ref type;
     /** @serialField */

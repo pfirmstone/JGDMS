@@ -25,7 +25,6 @@ import java.util.Iterator;
  * @author Peter Firmstone
  */
 class ReferenceDeque<T> extends ReferencedQueue<T> implements Deque<T>{
-    private static final long serialVersionUID = 1L;
     private final Deque<Referrer<T>> deque;
     ReferenceDeque(Deque<Referrer<T>> deque, Ref type, boolean gcThreads, long gcCycle){
         super(deque, type, gcThreads, gcCycle);

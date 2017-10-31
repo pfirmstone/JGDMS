@@ -28,8 +28,7 @@ import java.util.Set;
  * @author Peter Firmstone.
  */
 class ReferenceSet<T> extends ReferenceCollection<T> implements Set<T>{
-    private static final long serialVersionUID = 1L;
-    
+
     ReferenceSet(Set<Referrer<T>> col, Ref type, boolean gcThreads, long gcCycle){
         super(col, type, gcThreads, gcCycle);
     }

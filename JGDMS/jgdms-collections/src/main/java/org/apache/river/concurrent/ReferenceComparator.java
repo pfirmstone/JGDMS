@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.Comparator;
 
 /**
@@ -27,8 +26,7 @@ import java.util.Comparator;
  * @param <T> 
  * @author Peter Firmstone.
  */
-class ReferenceComparator<T> extends AbstractReferenceComparator<T> implements  Serializable{
-    private static final long serialVersionUID = 1L;
+class ReferenceComparator<T> extends AbstractReferenceComparator<T> {
     private Comparator<? super T> comparator;
     ReferenceComparator(Comparator<? super T> comparator){
         if ( comparator == null ) throw new IllegalArgumentException("Null value prohibited");

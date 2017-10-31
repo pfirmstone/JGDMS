@@ -26,8 +26,7 @@ import java.util.concurrent.TimeUnit;
  * @author Peter Firmstone.
  */
 class ReferenceBlockingDeque<T> extends ReferenceDeque<T> implements BlockingDeque<T>{
-    private static final long serialVersionUID = 1L;
-    
+
     private final BlockingDeque<Referrer<T>> deque;
     
     ReferenceBlockingDeque(BlockingDeque<Referrer<T>> deque, Ref type, boolean gcThreads, long gcCycle){

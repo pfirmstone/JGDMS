@@ -138,32 +138,7 @@ public class ReferenceSortedSetTest {
         Object result = instance.last();
         assertEquals(expResult, result);
     }
-    
       
-    /**
-     * Test serialization
-     */
-    @Test
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertEquals(instance, result);
-    }
-
     @Test
     public void testEqualsIsImplemented() {
         final SortedSet<Referrer<String>> set = new ConcurrentSkipListSet<Referrer<String>>();

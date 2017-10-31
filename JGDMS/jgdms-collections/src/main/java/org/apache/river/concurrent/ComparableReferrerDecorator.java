@@ -20,7 +20,6 @@ package org.apache.river.concurrent;
  * @author peter
  */
 class ComparableReferrerDecorator<T> extends ReferrerDecorator<T> implements Comparable<Referrer<T>>  {
-    private static final long serialVersionUID = 1L;
 
     ComparableReferrerDecorator(Referrer<T> ref){
         super(ref);

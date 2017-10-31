@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.Serializable;
-
 /**
  * This class exists purely for allowing a client with their own Collection
  * implementation or Collection wrapper to perform custom serialisation of the 

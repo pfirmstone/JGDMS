@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
  * @author Peter Firmstone.
  */
 class ReferenceBlockingQueue<T> extends ReferencedQueue<T> implements BlockingQueue<T> {
-    private static final long serialVersionUID = 1L;
     private final BlockingQueue<Referrer<T>> queue;
     
     ReferenceBlockingQueue(BlockingQueue<Referrer<T>> queue, Ref type, boolean gcThreads, long gcCycle){

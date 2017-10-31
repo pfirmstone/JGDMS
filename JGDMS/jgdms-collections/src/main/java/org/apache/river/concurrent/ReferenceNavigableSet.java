@@ -27,7 +27,6 @@ import java.util.NavigableSet;
  */
 class ReferenceNavigableSet<T> 
     extends ReferenceSortedSet<T> implements NavigableSet<T> {
-    private static final long serialVersionUID = 1L;
     private final NavigableSet<Referrer<T>> set;
     
     public ReferenceNavigableSet(NavigableSet<Referrer<T>> set, Ref type, boolean gcThreads, long gcCycle){

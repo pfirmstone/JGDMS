@@ -26,7 +26,6 @@ import java.util.Queue;
  * @author Peter Firmstone.
  */
 class ReferencedQueue<T> extends ReferenceCollection<T> implements Queue<T> {
-    private static final long serialVersionUID = 1L;
     private final Queue<Referrer<T>> queue;
     
     public ReferencedQueue( Queue<Referrer<T>> queue, Ref type, boolean gcThreads, long gcCycle){

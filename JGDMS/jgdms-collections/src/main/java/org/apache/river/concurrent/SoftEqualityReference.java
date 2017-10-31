@@ -18,7 +18,6 @@ package org.apache.river.concurrent;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 
@@ -28,8 +27,7 @@ import java.lang.ref.SoftReference;
  * @see Ref#SOFT
  * @author Peter Firmstone.
  */
-class SoftEqualityReference<T> extends SoftReference<T> implements Referrer<T>, Serializable{
-    private static final long serialVersionUID = 1L;
+class SoftEqualityReference<T> extends SoftReference<T> implements Referrer<T>{
     private final int hash; // Once the object is garbage collected, hash is the only identifier.
 
     SoftEqualityReference(T k, ReferenceQueue<? super T> q) {

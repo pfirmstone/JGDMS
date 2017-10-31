@@ -18,7 +18,6 @@ package org.apache.river.concurrent;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Serializable;
 
 /**
  * A temporary but functional replacement for ReferenceKey's.  No attempt is
@@ -27,9 +26,8 @@ import java.io.Serializable;
  * 
  * @author peter
  */
-class ReferenceSerializedForm<T> implements Referrer<T>, Serializable{
-    private static final long serialVersionUID = 1L;
-    
+class ReferenceSerializedForm<T> implements Referrer<T>{
+
     private T obj;
     private transient int hash;
     

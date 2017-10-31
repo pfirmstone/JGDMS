@@ -31,7 +31,6 @@ import java.util.SortedSet;
  * @author Peter Firmstone.
  */
 class ReferenceSortedSet<T> extends ReferenceSet<T> implements SortedSet<T> {
-    private static final long serialVersionUID = 1L;
     private final SortedSet<Referrer<T>> set;
 
     ReferenceSortedSet( SortedSet<Referrer<T>> set, Ref type, boolean gcThreads, long gcCycle){

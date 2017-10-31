@@ -18,13 +18,8 @@ package org.apache.river.concurrent;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.io.WriteAbortedException;
-import java.util.AbstractCollection;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * A Collection of Reference Objects, the developer may chose any Collection
@@ -49,8 +44,7 @@ import java.util.Set;
  * @author Peter Firmstone.
  */
 class ReferenceCollection<T> extends AbstractCollection<T> 
-                                implements Collection<T>, Serializable {
-    private static final long serialVersionUID = 1L;
+                                implements Collection<T> {
     private final Collection<Referrer<T>> col;
     private final transient ReferenceQueuingFactory<T, Referrer<T>> rqf;
     private final Ref type;

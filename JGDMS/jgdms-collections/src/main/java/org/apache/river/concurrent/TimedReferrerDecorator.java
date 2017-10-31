@@ -21,7 +21,6 @@ package org.apache.river.concurrent;
  * @author peter
  */
 class TimedReferrerDecorator<T> extends ReferrerDecorator<T> implements TimeBomb {
-    private static final long serialVersionUID = 1L;
 
     TimedReferrerDecorator(Referrer<T> r){
         super(r);

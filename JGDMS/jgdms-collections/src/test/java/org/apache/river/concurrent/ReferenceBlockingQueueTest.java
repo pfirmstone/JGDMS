@@ -17,7 +17,6 @@ package org.apache.river.concurrent;
 
 import org.junit.*;
 
-import java.io.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -26,9 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  *
@@ -150,33 +147,6 @@ public class ReferenceBlockingQueueTest {
         int expResult = 1;
         int result = instance.drainTo(c, maxElements);
         assertEquals(expResult, result);
-    }
-    
-      
-    /**
-     * Test serialization
-     */
-    @Test
-    @SuppressWarnings("unchecked")
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertTrue(result instanceof BlockingQueue);
-        assertTrue(instance.containsAll((BlockingQueue<String>)result));
     }
 
     @Test

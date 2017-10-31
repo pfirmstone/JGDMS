@@ -18,7 +18,6 @@ package org.apache.river.concurrent;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Serializable;
 
 /**
  * I've thought about refactoring so the equals and comparator behaviour is
@@ -32,9 +31,8 @@ import java.io.Serializable;
  * 
  * @author peter
  */
-class ReferrerDecorator<T> extends AbstractReferrerDecorator<T> implements  Serializable{
-    private static final long serialVersionUID = 1L;
-    
+class ReferrerDecorator<T> extends AbstractReferrerDecorator<T> {
+
     /**
      * @serialField 
      */
