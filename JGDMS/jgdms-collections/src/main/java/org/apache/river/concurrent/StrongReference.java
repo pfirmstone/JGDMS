@@ -18,7 +18,6 @@ package org.apache.river.concurrent;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.lang.ref.ReferenceQueue;
 
 /**
@@ -27,8 +26,7 @@ import java.lang.ref.ReferenceQueue;
  * @see Ref#STRONG
  * @author Peter Firmstone
  */
-class StrongReference<T> implements Referrer<T>, Serializable{
-    private static final long serialVersionUID = 1L;
+class StrongReference<T> implements Referrer<T>{
     private T referent;
     private final int hash;
     
@@ -91,15 +89,6 @@ class StrongReference<T> implements Referrer<T>, Serializable{
 	this.referent = null;
     }
     
-    final Object writeReplace() throws ObjectStreamException {
-        return ReferenceSerializationFactory.create(get());
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     @Override
     public T get() {
         return referent;

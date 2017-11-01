@@ -15,11 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-
 /**
  * I've thought about refactoring so the equals and comparator behaviour is
  * implemented by the wrapper classes and only accepting References in
@@ -32,9 +27,8 @@ import java.io.Serializable;
  * 
  * @author peter
  */
-class ReferrerDecorator<T> extends AbstractReferrerDecorator<T> implements  Serializable{
-    private static final long serialVersionUID = 1L;
-    
+class ReferrerDecorator<T> extends AbstractReferrerDecorator<T> {
+
     /**
      * @serialField 
      */
@@ -43,21 +37,6 @@ class ReferrerDecorator<T> extends AbstractReferrerDecorator<T> implements  Seri
     ReferrerDecorator(Referrer<T> ref){
         if (ref == null) throw new NullPointerException("Referrer cannot be null");
         reference = ref;
-    }
-    
-    private void readObject(ObjectInputStream in)
-                                    throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        if (getReference() == null) throw new IOException("Attempt to write null Referrer");
-    }
-    
-    private void writeObject(ObjectOutputStream out) throws IOException {
-        out.defaultWriteObject();
-    }
-
-    @Override
-    public void refresh(Referrer<T> r) {
-            reference = r;
     }
 
     /**

@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -43,7 +41,6 @@ import java.util.ListIterator;
  * @author Peter Firmstone.
  */
 class ReferenceList<T> extends ReferenceCollection<T> implements List<T> {
-    private static final long serialVersionUID = 1L;
     private final List<Referrer<T>> list;
     ReferenceList(List<Referrer<T>> list, Ref type, boolean gcThreads, long gcCycle){
         super(list, type, gcThreads, gcCycle);
@@ -55,11 +52,6 @@ class ReferenceList<T> extends ReferenceCollection<T> implements List<T> {
         this.list = list;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     /**
      * Implemented as per the List interface definition of equals.
      * @see List#equals(java.lang.Object) 

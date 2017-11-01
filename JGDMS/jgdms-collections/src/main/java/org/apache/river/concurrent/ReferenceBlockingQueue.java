@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +25,6 @@ import java.util.concurrent.TimeUnit;
  * @author Peter Firmstone.
  */
 class ReferenceBlockingQueue<T> extends ReferencedQueue<T> implements BlockingQueue<T> {
-    private static final long serialVersionUID = 1L;
     private final BlockingQueue<Referrer<T>> queue;
     
     ReferenceBlockingQueue(BlockingQueue<Referrer<T>> queue, Ref type, boolean gcThreads, long gcCycle){
@@ -35,11 +32,6 @@ class ReferenceBlockingQueue<T> extends ReferencedQueue<T> implements BlockingQu
         this.queue = queue;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     public void put(T e) throws InterruptedException {
         processQueue();
         Referrer<T> r = wrapObj(e, true, false);

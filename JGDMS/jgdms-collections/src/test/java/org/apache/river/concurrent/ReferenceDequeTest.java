@@ -283,34 +283,7 @@ public class ReferenceDequeTest {
             i--;
         }
     }
-    
       
-    /**
-     * Test serialization
-     */
-    @Test
-    @SuppressWarnings("unchecked")
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertTrue(result instanceof Deque);
-        assertTrue(instance.containsAll((Deque<String>)result));
-    }
-
     @Test
     public void testEqualsNotOverridden() {
         final Deque<Referrer<String>> deque = new ArrayDeque<Referrer<String>>();

@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.Serializable;
-
 /**
  * This class exists purely for allowing a client with their own Collection
  * implementation or Collection wrapper to perform custom serialisation of the 
@@ -36,25 +34,6 @@ abstract class AbstractReferrerDecorator<T> implements UntouchableReferrer<T> {
 
      AbstractReferrerDecorator() {
     }
-
-    final void refresh(ReferenceQueuingFactory<T, Referrer<T>> rqf){
-        T object = get();
-        if (object != null){
-            refresh(rqf.referenced(object, true, false));
-        }
-    }
-    
-    /**
-     * This method is called after de-serialisation, to update the Referrer,
-     * the Ref type will be governed by the ReferenceCollection, the queue will 
-     * have also been defined.  
-     * 
-     * The object will be retrieved and encapsulated in the Referrer
-     * using the get() method.
-     * 
-     * @param r 
-     */
-    abstract void refresh(Referrer<T> r);
 
     public String toString() {
         return get().toString();

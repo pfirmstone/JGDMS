@@ -17,14 +17,14 @@ package org.apache.river.concurrent;
 
 import org.junit.*;
 
-import java.io.*;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  *
@@ -111,34 +111,7 @@ public class ReferencedQueueTest {
         Object result = instance.peek();
         assertEquals(expResult, result);
     }
-    
       
-       /**
-     * Test serialization
-     */
-    @Test
-    @SuppressWarnings("unchecked")
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertTrue(result instanceof Queue);
-        assertTrue(instance.containsAll((Queue<String>)result));
-    }
-
     @Test
     public void testEqualsNotOverridden() {
         final Queue<Referrer<String>> queue = new ConcurrentLinkedQueue<Referrer<String>>();

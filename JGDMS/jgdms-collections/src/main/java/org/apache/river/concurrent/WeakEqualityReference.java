@@ -15,10 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 
@@ -28,8 +24,7 @@ import java.lang.ref.WeakReference;
  * @see Ref#WEAK
  * @author Peter Firmstone
  */
-class WeakEqualityReference<T> extends WeakReference<T> implements Referrer<T>, Serializable {
-    private static final long serialVersionUID = 1L;
+class WeakEqualityReference<T> extends WeakReference<T> implements Referrer<T> {
     private final int hash; // Only used after referent has been garbage collected.
 
     WeakEqualityReference(T k, ReferenceQueue<? super T> q) {
@@ -73,14 +68,5 @@ class WeakEqualityReference<T> extends WeakReference<T> implements Referrer<T>, 
         Object s = get();
         if (s != null) return s.toString();
         return super.toString();
-    }
-    
-    final Object writeReplace() throws ObjectStreamException {
-        return ReferenceSerializationFactory.create(get());
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
     }
 }
