@@ -825,10 +825,11 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                                     // regenerate an EventLogIterator for this Reg
                                     // Note that event state is maintained separately
                                     // through the event loG mechanism.
-                                    eli = persistent?
-                                        eventLogFactory.iterator(uuid, 
-                                            getEventLogPath(persistenceDirectory, uuid)):
-                                        eventLogFactory.iterator(uuid); 
+                                    eli = 
+                                        eventLogFactory.iterator(
+					    uuid, 
+                                            getEventLogPath(persistenceDirectory, uuid)
+					); 
                                     reg.setIterator(eli);
                                     if (RECOVERY_LOGGER.isLoggable(Level.FINEST)) {
                                         RECOVERY_LOGGER.log(Level.FINEST, 
@@ -1859,6 +1860,17 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	regByID.put(reg.getCookie(), reg);
 	regByExpiration.put(reg, reg);
     }
+    
+    private ServiceRegistration renewRegistration(ServiceRegistration reg, 
+						  long newExpiry) 
+	    
+    {
+	ServiceRegistration replacement = (ServiceRegistration) reg.renew(newExpiry);
+	regByID.replace(replacement.getCookie(), reg, replacement);
+	regByExpiration.remove(reg);
+	regByExpiration.put(replacement, replacement);
+	return replacement;
+    }
 
     /** Performs the actual registration renewal logic */
     private long renewDo(Uuid cookie, long extension)
@@ -1873,7 +1885,6 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        "Duration must be a positive value");
     
         ServiceRegistration reg = null;
-	long expiration = 0;
         
 	if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
             LEASE_LOGGER.log(Level.FINEST, 
@@ -1889,14 +1900,10 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    reg = getServiceRegistration(cookie);
 	    // delegate renewal to policy object
 	    r = leasePolicy.renew(reg, extension);
-	    reg.setExpiration(r.expiration);
+	    reg = renewRegistration(reg, r.expiration);
 	    // Log this event
 	    addLogRecord(new RegistrationRenewedLogObj(cookie, 
 	                                               reg.getExpiration()));
-
-	    // remove then add to cause a resort to occur
-	    regByExpiration.remove(reg);
-	    regByExpiration.put(reg, reg);
 	} catch (ThrowThis tt) {
 	    // Registration doesn't exist or has expired
 	    if(LEASE_LOGGER.isLoggable(Level.FINEST)) {
@@ -2247,7 +2254,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
         // Note: the following method will throw a ThrowThis exception
         // if the registration is invalid (i.e. expired or non-existent)
-        ServiceRegistration reg = getServiceRegistration(uuid); 
+        getServiceRegistration(uuid); 
 
 //TODO - validate entries (i.e. non-null)
 	Iterator iter = unknownEvents.iterator();
@@ -2989,8 +2996,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                                 DELIVERY_LOGGER.log(Level.FINEST,
 		                    "Cancelling delivery because of null event");
 			    }
-			} else if (ev != null &&
-			           reg.getUnknownEvents().containsKey(
+			} else if (reg.getUnknownEvents().containsKey(
 			               new EventID(ev))) {
 			    // If this event type caused an 
 			    // UnknownEventException in the past, then
@@ -3288,8 +3294,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
                 if (!unexported) {
                     /* Attempt to forcefully export the service */
-                    unexported =
-                        exporter.unexport(true);
+		    exporter.unexport(true);
                     if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                         ADMIN_LOGGER.log(Level.FINEST, 
                             "Forced unexport completed");
@@ -4098,7 +4103,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
             ServiceRegistration reg = 
                 (ServiceRegistration)mb.regByID.get(regID);
             if (reg != null) { 
-                reg.setExpiration(expirationTime);
+		mb.renewRegistration(reg, expirationTime);
 	    } else {
 	        if (RECOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
                     RECOVERY_LOGGER.log(Levels.HANDLED, 

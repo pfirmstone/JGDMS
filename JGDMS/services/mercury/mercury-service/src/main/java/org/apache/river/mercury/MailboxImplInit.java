@@ -22,12 +22,7 @@ import org.apache.river.config.Config;
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.landlord.FixedLeasePeriodPolicy;
 import org.apache.river.landlord.LeasePeriodPolicy;
-import org.apache.river.logging.Levels;
 import org.apache.river.mercury.proxy.MailboxBackEnd;
-import org.apache.river.reliableLog.LogHandler;
-import org.apache.river.reliableLog.ReliableLog;
-import org.apache.river.thread.InterruptedStatusThread;
-import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroup;
@@ -36,9 +31,7 @@ import java.rmi.activation.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -52,7 +45,6 @@ import net.jini.core.entry.Entry;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
-import net.jini.id.UuidFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -91,7 +83,6 @@ class MailboxImplInit {
     Configuration config;
     AccessControlContext context;
     LoginContext loginContext;
-    boolean persistent;
 
     MailboxImplInit(Configuration config, 
                     boolean persistent, 
@@ -99,7 +90,6 @@ class MailboxImplInit {
                     Entry[] baseLookupAttrs 
                     ) throws ConfigurationException, RemoteException, ActivationException
     {
-        this.persistent = persistent;
         this.config = config;
         context = AccessController.getContext();
         // Get activation specific configuration items, if activated

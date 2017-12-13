@@ -218,6 +218,7 @@ class PersistentEventLog implements EventLog {
     }
 
     // Inherit documentation from supertype
+    @Override
     public void init() throws IOException {
 
         if (initialized)
@@ -226,8 +227,13 @@ class PersistentEventLog implements EventLog {
                 + "for: " + uuid);
 
         try {
-            if (!logDir.exists()) // Create log directory if it doesn't exist
-                logDir.mkdirs();
+            if (!logDir.exists()){ // Create log directory if it doesn't exist
+                boolean success = logDir.mkdirs();
+		if (!success){
+		    throw new FileNotFoundException(logDir.toString()
+			    + " unable to create directory");
+		}
+	    }
 
             if (!logDir.isDirectory()) // Verify that logDir is a directory
                 throw new FileNotFoundException(logDir.toString()

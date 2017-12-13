@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import java.util.Date;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Condition;
 import java.util.logging.Level;
@@ -34,7 +35,7 @@ import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
-import org.apache.river.landlord.LeasedResource;
+import org.apache.river.landlord.AbstractLeasedResource;
 
 /**
  * The <tt>ServiceRegistration</tt> class serves as the server-side abstraction
@@ -48,7 +49,8 @@ import org.apache.river.landlord.LeasedResource;
  * @since 1.1
  */
 @AtomicSerial
-class ServiceRegistration implements LeasedResource, Comparable, Serializable {
+class ServiceRegistration extends AbstractLeasedResource 
+			    implements Comparable, Serializable {
 
     private static final long serialVersionUID = 2L;
 
@@ -112,15 +114,6 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      */
     private Uuid remoteEventIteratorID;
     
-    /**
-     * Lock object used to coordinate event delivery via the iterator.
-     * Has to be a serializable object versus just a plain Object.
-     * 
-     * WTF?  Never use a String lock!!!
-     * @serialField 
-     */
-    private final Object iteratorNotifier;
-    
     private transient volatile Condition iteratorCondition;
 
     public ServiceRegistration(GetArg arg) throws IOException{
@@ -153,20 +146,22 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
         this.cookie = cookie;
         this.eventIterator = eventIterator;
         this.iteratorCondition = iteratorCondition;
-        this.iteratorNotifier = null;
     }
 
     // inherit javadoc from parent
+    @Override
     public void setExpiration(long newExpiration) {
 	 expiration = newExpiration;
     }
 
     // inherit javadoc from parent
+    @Override
     public long getExpiration() { 
 	return expiration;
     }
 
     // inherit javadoc from parent
+    @Override
     public Uuid getCookie() {
 	return cookie;
     }
@@ -302,7 +297,27 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
         return 1;
     }
 
+    @Override
+    public int hashCode() {
+	int hash = 7;
+	hash = 97 * hash + Objects.hashCode(this.cookie);
+	synchronized (this) {
+	    hash = 97 * hash + (int) (this.expiration ^ (this.expiration >>> 32));
+	}
+	return hash;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (this == o) return true;
+	if (!(o instanceof ServiceRegistration)) return false;
+	ServiceRegistration that = (ServiceRegistration) o;
+	if (!cookie.equals(that.cookie)) return false;
+	return (expiration == that.expiration);
+    }
+
     // inherit documentation from supertype
+    @Override
     public String toString () {
         return getClass().getName() + ":" + cookie.toString();
     }
