@@ -15,25 +15,16 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import org.junit.*;
+
 import java.util.ArrayList;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.Executor;
-import java.lang.ref.Reference;
+import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.Collection;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.*;
 
 /**
@@ -157,31 +148,12 @@ public class ReferenceBlockingQueueTest {
         int result = instance.drainTo(c, maxElements);
         assertEquals(expResult, result);
     }
-    
-      
-    /**
-     * Test serialization
-     */
+
     @Test
-    @SuppressWarnings("unchecked")
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertTrue(result instanceof BlockingQueue);
-        assertTrue(instance.containsAll((BlockingQueue<String>)result));
+    public void testEqualsNotOverridden() {
+        final BlockingQueue<Referrer<String>> queue = new ArrayBlockingQueue<Referrer<String>>(1);
+        final ReferenceBlockingQueue<String> item1 = new ReferenceBlockingQueue<String>(queue, Ref.STRONG, false, 0);
+        final ReferenceBlockingQueue<String> item2 = new ReferenceBlockingQueue<String>(queue, Ref.STRONG, false, 0);
+        assertThat(item1, not(equalTo(item2)));
     }
 }

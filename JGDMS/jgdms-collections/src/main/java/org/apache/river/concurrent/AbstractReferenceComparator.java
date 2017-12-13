@@ -19,8 +19,7 @@ import java.util.Comparator;
 
 /**
  * Implements equals and hashCode, subclass ReferenceComparator implements 
- * Serializable and contains serial data.
- * 
+ *
  * @author Peter Firmstone.
  */
 abstract class AbstractReferenceComparator<T> implements Comparator<Referrer<T>> {

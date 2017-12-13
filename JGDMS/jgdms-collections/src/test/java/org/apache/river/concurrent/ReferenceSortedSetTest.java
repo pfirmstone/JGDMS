@@ -15,20 +15,17 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.TreeSet;
+import org.junit.*;
+
+import java.io.*;
 import java.util.Comparator;
 import java.util.SortedSet;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentSkipListSet;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  *
@@ -141,29 +138,12 @@ public class ReferenceSortedSetTest {
         Object result = instance.last();
         assertEquals(expResult, result);
     }
-    
       
-    /**
-     * Test serialization
-     */
     @Test
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertEquals(instance, result);
+    public void testEqualsIsImplemented() {
+        final SortedSet<Referrer<String>> set = new ConcurrentSkipListSet<Referrer<String>>();
+        final ReferenceSortedSet<String> item1 = new ReferenceSortedSet<String>(set, Ref.STRONG, false, 0);
+        final ReferenceSortedSet<String> item2 = new ReferenceSortedSet<String>(set, Ref.STRONG, false, 0);
+        assertThat(item1, equalTo(item2));
     }
 }

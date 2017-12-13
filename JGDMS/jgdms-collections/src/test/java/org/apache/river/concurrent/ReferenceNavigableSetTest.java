@@ -20,7 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
-import java.lang.ref.Reference;
 import java.util.TreeSet;
 import java.util.Iterator;
 import java.util.NavigableSet;
@@ -29,6 +28,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.*;
 
 /**
@@ -209,27 +210,11 @@ public class ReferenceNavigableSetTest {
         assertEquals(expResult, result);
     }
     
-       /**
-     * Test serialization
-     */
     @Test
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertEquals(instance, result);
+    public void testEqualsIsImplemented() {
+        final NavigableSet<Referrer<String>> set = new TreeSet<Referrer<String>>();
+        final ReferenceNavigableSet<String> item1 = new ReferenceNavigableSet<String>(set, Ref.STRONG, false, 0);
+        final ReferenceNavigableSet<String> item2 = new ReferenceNavigableSet<String>(set, Ref.STRONG, false, 0);
+        assertThat(item1, equalTo(item2));
     }
 }

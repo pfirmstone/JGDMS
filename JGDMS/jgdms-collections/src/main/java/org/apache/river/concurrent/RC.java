@@ -134,17 +134,6 @@ import java.util.Iterator;
  * {@link Iterator} and {@link ListIterator} views preserve reference behaviour, all methods
  * are fully implemented and supported.
  * </p><p>
- * Serialisation is supported, provided it is also supported by underlying
- * collections.  Collections are not defensively copied during de-serialisation,
- * due in part to an inability of determining whether a Comparator is
- * used and in part, that if it is, it prevents Class.newInstance() construction.
- * </p><p>
- * Note that when a collection is first de-serialised, it's contents are
- * strongly referenced, then changed to the correct reference type.  This
- * will still occur, even if the Collection is immutable.
- * </p><p>
- * Map's don't currently support Serialization.
- * </p><p>
  * RC stands for Referrer Collection and is abbreviated due to the length of
  * generic parameter arguments typically required.
  * </p>

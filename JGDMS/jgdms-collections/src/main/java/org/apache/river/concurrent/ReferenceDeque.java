@@ -25,16 +25,10 @@ import java.util.Iterator;
  * @author Peter Firmstone
  */
 class ReferenceDeque<T> extends ReferencedQueue<T> implements Deque<T>{
-    private static final long serialVersionUID = 1L;
     private final Deque<Referrer<T>> deque;
     ReferenceDeque(Deque<Referrer<T>> deque, Ref type, boolean gcThreads, long gcCycle){
         super(deque, type, gcThreads, gcCycle);
         this.deque = deque;
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
     }
     
     public void addFirst(T e) {
@@ -146,5 +140,23 @@ class ReferenceDeque<T> extends ReferencedQueue<T> implements Deque<T>{
 
     public Iterator<T> descendingIterator() {
         return new ReferenceIterator<T>(deque.descendingIterator());
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is deques do not implement the equals method, and hence do not implemenent hashCode.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is deques do not implement the equals method.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public boolean equals(final Object other) {
+        return super.equals(other);
     }
 }

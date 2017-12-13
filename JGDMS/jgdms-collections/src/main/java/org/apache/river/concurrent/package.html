@@ -57,25 +57,6 @@
             be used in Queue's as a throttling mechanism, similar to a
             network dropping packets.  Referent Future tasks will be cancelled by the
             cleaning thread when enqueued.</p>
-            <p>Serialization support for Map's will be implemented in a future
-            release.  Serialization of other collection types is supported,
-            provided the underlying collection also supports Serialization.</p>
-            <p>Serialized form has been implemented as a separate concern
-                using the 
-                <link><i><a href="http://wiki.apache.org/river/Serialization">
-                            Serialization Builder Pattern</a></i>
-            with the readResolve() workaround.
-            </p>
-            <p>Package private implementation classes are not tied to
-            serial form.  These classes are not published by implementing
-            Serializable. Future versions of this library, may 
-            utilise a completely different class or classes upon deserialisation.
-            The serial form may also change between releases in ways that would
-            normally break compatibility, multiple serial forms may exist for
-            one class in multiple versions of it, without ever breaking
-            compatibility.  Currently all classes that implement Collection
-            share an identical serial form.</p>
-            <p>Serialization compatibility is guaranteed between different releases.</p>
         </div>
     </body>
 </html>

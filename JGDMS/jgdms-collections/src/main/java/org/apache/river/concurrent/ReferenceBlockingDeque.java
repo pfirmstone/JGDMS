@@ -26,8 +26,7 @@ import java.util.concurrent.TimeUnit;
  * @author Peter Firmstone.
  */
 class ReferenceBlockingDeque<T> extends ReferenceDeque<T> implements BlockingDeque<T>{
-    private static final long serialVersionUID = 1L;
-    
+
     private final BlockingDeque<Referrer<T>> deque;
     
     ReferenceBlockingDeque(BlockingDeque<Referrer<T>> deque, Ref type, boolean gcThreads, long gcCycle){
@@ -35,11 +34,6 @@ class ReferenceBlockingDeque<T> extends ReferenceDeque<T> implements BlockingDeq
         this.deque = deque;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     public void putFirst(T e) throws InterruptedException {
         processQueue();
         Referrer<T> r = wrapObj(e, true, false);
@@ -153,4 +147,22 @@ class ReferenceBlockingDeque<T> extends ReferenceDeque<T> implements BlockingDeq
         Collection<Referrer<T>> drain = new CollectionDecorator<T>( (Collection<T>) c, getRQF(), false, true);
         return deque.drainTo(drain, maxElements);
         }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is blocking deques do not implement the equals method, and hence do not implemenent hashCode.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public int hashCode() {
+        return super.hashCode();
     }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is blocking deques do not implement the equals method.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
+}

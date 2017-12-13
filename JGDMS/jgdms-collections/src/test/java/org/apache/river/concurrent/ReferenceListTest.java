@@ -15,24 +15,12 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.LinkedList;
-import java.lang.ref.Reference;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.ListIterator;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.*;
+
+import java.util.*;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  *
@@ -238,29 +226,5 @@ public class ReferenceListTest {
         expResult.add(truck);
         List<String> result = instance.subList(fromIndex, toIndex);
         assertTrue(result.containsAll(expResult));
-    }
-    
-     /**
-     * Test serialization
-     */
-    @Test
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertEquals(instance, result);
     }
 }

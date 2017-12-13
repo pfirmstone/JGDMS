@@ -15,19 +15,16 @@
 
 package org.apache.river.concurrent;
 
-import java.io.IOException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import org.junit.*;
+
 import java.util.LinkedList;
 import java.util.Queue;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  *
@@ -114,32 +111,12 @@ public class ReferencedQueueTest {
         Object result = instance.peek();
         assertEquals(expResult, result);
     }
-    
       
-       /**
-     * Test serialization
-     */
     @Test
-    @SuppressWarnings("unchecked")
-    public void serialization() {
-        System.out.println("Serialization Test");
-        Object result = null;
-        ObjectOutputStream out = null;
-        ObjectInputStream in = null;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try {
-            out = new ObjectOutputStream(baos);
-            out.writeObject(instance);
-            // Unmarshall it
-            in = new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray()));
-            result = in.readObject();
-        } catch (IOException ex) {
-            ex.printStackTrace(System.out);
-        } catch (ClassNotFoundException ex){
-            ex.printStackTrace(System.out);
-        }
-        assertTrue(result instanceof Queue);
-        assertTrue(instance.containsAll((Queue<String>)result));
+    public void testEqualsNotOverridden() {
+        final Queue<Referrer<String>> queue = new ConcurrentLinkedQueue<Referrer<String>>();
+        final ReferencedQueue<String> item1 = new ReferencedQueue<String>(queue, Ref.STRONG, false, 0);
+        final ReferencedQueue<String> item2 = new ReferencedQueue<String>(queue, Ref.STRONG, false, 0);
+        assertThat(item1, not(equalTo(item2)));
     }
-    
 }

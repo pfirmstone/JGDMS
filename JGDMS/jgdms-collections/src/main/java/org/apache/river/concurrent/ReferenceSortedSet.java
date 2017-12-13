@@ -15,8 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
 import java.util.Comparator;
 import java.util.SortedSet;
 
@@ -31,7 +29,6 @@ import java.util.SortedSet;
  * @author Peter Firmstone.
  */
 class ReferenceSortedSet<T> extends ReferenceSet<T> implements SortedSet<T> {
-    private static final long serialVersionUID = 1L;
     private final SortedSet<Referrer<T>> set;
 
     ReferenceSortedSet( SortedSet<Referrer<T>> set, Ref type, boolean gcThreads, long gcCycle){
@@ -44,11 +41,6 @@ class ReferenceSortedSet<T> extends ReferenceSet<T> implements SortedSet<T> {
         this.set = set;
     }
     
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Builder required");
-    }
-
     @SuppressWarnings("unchecked")
     public Comparator<? super T> comparator() {
         processQueue();
@@ -91,5 +83,22 @@ class ReferenceSortedSet<T> extends ReferenceSet<T> implements SortedSet<T> {
         if ( t != null ) return t.get();
         return null;
     }
-    
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is sorted sets do implement the equals method, and hence the parent hashCode is used.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     * The assumption here is sorted sets do implement the equals method, and we use the parent implementation here.
+     */
+    @SuppressWarnings("EmptyMethod")
+    public boolean equals(final Object other) {
+        return super.equals(other);
+    }
 }

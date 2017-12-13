@@ -15,9 +15,6 @@
 
 package org.apache.river.concurrent;
 
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.io.Serializable;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 
@@ -27,8 +24,7 @@ import java.lang.ref.SoftReference;
  * @see Ref#SOFT_IDENTITY
  * @author Peter Firmstone.
  */
-class SoftIdentityReference<T> extends SoftReference<T> implements Referrer<T>, Serializable{
-    private static final long serialVersionUID = 1L;
+class SoftIdentityReference<T> extends SoftReference<T> implements Referrer<T>{
     private final int hash;
 
     SoftIdentityReference(T k, ReferenceQueue<? super T> q) {
@@ -60,15 +56,4 @@ class SoftIdentityReference<T> extends SoftReference<T> implements Referrer<T>, 
         if (s != null) return s.toString();
         return super.toString();
     }
-    
-    private Object writeReplace() {
-        // returns a Builder instead of this class.
-        return ReferenceSerializationFactory.create(get());
-    }
-    
-    private void readObject(ObjectInputStream stream) 
-            throws InvalidObjectException{
-        throw new InvalidObjectException("Factory required");
-    }
-
 }
