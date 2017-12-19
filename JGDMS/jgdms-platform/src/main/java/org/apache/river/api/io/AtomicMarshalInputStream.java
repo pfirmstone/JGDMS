@@ -375,7 +375,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    defaultLoader,
 	    verifyCodebaseIntegrity,
 	    verifierLoader,
-	    context, false);
+	    context,
+	    objectInputStreamCompatible);
     }
     
     private AtomicMarshalInputStream(
