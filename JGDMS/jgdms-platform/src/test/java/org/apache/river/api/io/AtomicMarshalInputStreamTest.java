@@ -6,16 +6,24 @@
 
 package org.apache.river.api.io;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectInputValidation;
 import java.io.ObjectOutputStream;
 import java.rmi.UnmarshalException;
+import java.util.Collection;
+import net.jini.io.MarshalInputStream;
+import net.jini.io.MarshalledInstance;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 import tests.support.Have;
 
-import static org.junit.Assert.assertEquals;
 
 /**
  *
@@ -52,6 +60,78 @@ public class AtomicMarshalInputStreamTest {
 	UnmarshalException ue2 = (UnmarshalException) in.readObject();
 	assertEquals(ue.getMessage(), ue2.getMessage());
     }
-    
 
+    /**
+     * Test of createObjectInputStream method, of class AtomicMarshalInputStream.
+     */
+    @Test
+    public void testObjectOutputStreamCompatibility() throws Exception {
+	System.out.println("test ObjectOutputStream compatibility");
+	MarshalledInstance mi = new MarshalledInstance("Test object");
+	ByteArrayOutputStream baos = null;
+	byte[] data;
+	ObjectOutputStream oos = null;
+	ByteArrayInputStream bais = null;
+	ObjectInputStream ois = null;
+	try {
+	    baos = new ByteArrayOutputStream();
+	    oos = new ObjectOutputStream(new BufferedOutputStream(baos));
+	    oos.writeObject(mi);
+	    oos.flush();
+	    data = baos.toByteArray();
+	    bais = new ByteArrayInputStream(data);
+	    ois = AtomicMarshalInputStream.createObjectInputStream(new BufferedInputStream(bais),
+		    null,
+		    false,
+		    null,
+		    null
+	    );
+	    MarshalledInstance result = (MarshalledInstance) ois.readObject();
+	    assertEquals(mi, result);
+	} finally {
+	    try {
+		if (oos != null) oos.close();
+		else if (baos != null) baos.close();
+		if (ois != null) ois.close();
+		else if (bais != null) bais.close();
+	    } catch (IOException e){}
+	}
+    }
+
+    /**
+     * Test of createObjectInputStream method, of class AtomicMarshalInputStream.
+     */
+    @Test
+    public void testCreateObjectInputStream() throws Exception {
+	System.out.println("createObjectInputStream");
+	MarshalledInstance mi = new MarshalledInstance("Test object");
+	ByteArrayOutputStream baos = null;
+	byte[] data;
+	ObjectOutputStream oos = null;
+	ByteArrayInputStream bais = null;
+	ObjectInputStream ois = null;
+	try {
+	    baos = new ByteArrayOutputStream();
+	    oos = new AtomicMarshalOutputStream(new BufferedOutputStream(baos), null, true);
+	    oos.writeObject(mi);
+	    oos.flush();
+	    data = baos.toByteArray();
+	    bais = new ByteArrayInputStream(data);
+	    ois = AtomicMarshalInputStream.createObjectInputStream(new BufferedInputStream(bais),
+		    null,
+		    false,
+		    null,
+		    null
+	    );
+	    MarshalledInstance result = (MarshalledInstance) ois.readObject();
+	    assertEquals(mi, result);
+	} finally {
+	    try {
+		if (oos != null) oos.close();
+		else if (baos != null) baos.close();
+		if (ois != null) ois.close();
+		else if (bais != null) bais.close();
+	    } catch (IOException e){}
+	}	
+    } 
 }
