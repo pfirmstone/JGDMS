@@ -1,0 +1,7 @@
+<FindBugsFilter>
+    <Match>
+        <!-- Proxy object identity is that of the remote service -->
+        <Class name="org.apache.river.norm.proxy.SetProxy$ConstrainableSetProxy" />
+        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS" />
+    </Match>
+</FindBugsFilter>
