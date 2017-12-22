@@ -1,0 +1,36 @@
+<FindBugsFilter>
+    <Match>
+        <!-- Remote -->
+        <Class name="org.apache.river.mercury.proxy.ListenerProxy" />
+        <Field name="server"/>
+        <Bug pattern="SE_BAD_FIELD" />
+    </Match>
+    <Match>
+        <!-- Remote -->
+        <Class name="org.apache.river.mercury.proxy.MailboxAdminProxy" />
+        <Field name="server"/>
+        <Bug pattern="SE_BAD_FIELD" />
+    </Match>
+    <Match>
+        <!-- Remote -->
+        <Class name="org.apache.river.mercury.proxy.MailboxProxy" />
+        <Field name="mailbox"/>
+        <Bug pattern="SE_BAD_FIELD" />
+    </Match>
+    <Match>
+        <!-- Remote -->
+        <Class name="org.apache.river.mercury.proxy.Registration" />
+        <Field name="mailbox"/>
+        <Bug pattern="SE_BAD_FIELD" />
+    </Match>
+    <Match>
+        <!-- Proxy object identity is that of it's remote service -->
+        <Class name="org.apache.river.mercury.proxy.ListenerProxy$ConstrainableListenerProxy" />
+        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS" />
+    </Match>
+    <Match>
+        <!-- Proxy object identity is that of it's remote service -->
+        <Class name="org.apache.river.mercury.proxy.Registration$ConstrainableRegistration" />
+        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS" />
+    </Match>
+</FindBugsFilter>
