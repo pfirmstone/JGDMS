@@ -1114,7 +1114,6 @@ abstract class NormServerBaseImpl
 		// No one can expire the lease, so it is safe to update.
 		// $$$ Might be better to make an extra call to currentTime
 		// and calculate the new duration just be for returning
-		long oldExpiration = set.getExpiration();
 		LeasePeriodPolicy.Result leasePeriod =
 		    setLeasePolicy.renew(set, extension);
 
@@ -1297,7 +1296,6 @@ abstract class NormServerBaseImpl
 	//     The number of LeaseSet objects in the setTable
 	//     All of the LeaseSet objects
 	public void snapshot(OutputStream out) throws Exception {
-	    final long now = System.currentTimeMillis();
 	    final ObjectOutputStream oostream = new ObjectOutputStream(out);
 
 	    oostream.writeInt(CURRENT_LOG_VERSION);

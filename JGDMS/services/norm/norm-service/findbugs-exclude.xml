@@ -1,0 +1,51 @@
+<FindBugsFilter>
+    <Match>
+        <!-- field restored by recoverTransient method after deserialization -->
+        <Class name="org.apache.river.norm.ClientLeaseWrapper" />
+        <Field name="clientLease" />
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED" />
+    </Match>
+    <Match>
+        <!-- field restored by recoverTransient method after deserialization -->
+        <Class name="org.apache.river.norm.ClientLeaseWrapper" />
+        <Field name="renewedList" />
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED" />
+    </Match>
+    <Match>
+        <!-- field restored by recoverTransient method after deserialization -->
+        <Class name="org.apache.river.norm.ClientLeaseWrapper" />
+        <Field name="set" />
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED" />
+    </Match>
+    <Match>
+        <!-- takeSnapshot method is synchronized, so notifyAll is not naked -->
+        <Class name="org.apache.river.norm.NormServerBaseImpl$SnapshotThread" />
+        <Method name="takeSnapshot" />
+        <Bug pattern="NN_NAKED_NOTIFY" />
+    </Match>
+    <Match>
+        <!-- wait is conditional on interruption -->
+        <Class name="org.apache.river.norm.NormServerBaseImpl$SnapshotThread" />
+        <Method name="run" />
+        <Bug pattern="UW_UNCOND_WAIT" />
+    </Match>
+    <Match>
+        <!-- getListener Method is externally synchronized -->
+        <Class name="org.apache.river.norm.event.EventType"/>
+        <Field name="marshalledListener"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC" />
+    </Match>
+    <Match>
+        <!-- getListener Method is externally synchronized -->
+        <Class name="org.apache.river.norm.event.EventType"/>
+        <Field name="recoveredListenerPreparer"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC" />
+    </Match>
+    <Match>
+        <!-- Note restoreTransientState method can be called after deserialization
+            to restore transient fields. -->
+        <Class name="org.apache.river.norm.event.EventType"/>
+        <Field name="generator" />
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    </Match>
+</FindBugsFilter>

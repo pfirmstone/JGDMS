@@ -372,8 +372,7 @@ class ClientLeaseMapWrapper extends AbstractMap implements LeaseMap {
 	    final Object eValue = e.getValue();
 
 	    if (!(e.getKey() instanceof ClientLeaseWrapper) ||
-		!(eValue instanceof Long) ||
-		(eValue == null))
+		!(eValue instanceof Long))
 	    {
 		return null;
 	    }

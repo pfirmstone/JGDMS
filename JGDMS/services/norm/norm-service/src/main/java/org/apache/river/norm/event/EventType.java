@@ -378,7 +378,6 @@ public class EventType implements Serializable {
      * from a serialization stream.  None of the arguments can be
      * <code>null</code>.
      * <p>
-     * Note: this method is not synchronized.  
      * @param generator the <code>EventTypeGenerator</code> that was used
      *        to create this EventType object originally
      * @param monitor the object that monitors the progress of events
@@ -426,7 +425,7 @@ public class EventType implements Serializable {
 	final private long seqNum;
 
 	/** Cached event */
-	private RemoteEvent event;
+	volatile private RemoteEvent cachedEvent;
 	
 	/** 
 	 * Registration sequence number of the listener/handback pair
@@ -464,7 +463,8 @@ public class EventType implements Serializable {
 	    RemoteEventListener listener;
 	    MarshalledObject handback;
 	    long registrationNumber;
-	    
+	    boolean createEvent;
+	    RemoteEvent event;
 	    synchronized (EventType.this) {
 		if (!EventType.this.haveListener())
 		    return true; // No currently registered listener, stop here
@@ -476,18 +476,24 @@ public class EventType implements Serializable {
 		}
 		handback = EventType.this.handback;
 		registrationNumber = EventType.this.registrationNumber;
+		event = cachedEvent;
+		createEvent = (event == null || 
+			    eventForRegistrationNumber != registrationNumber);
+		if (createEvent) eventForRegistrationNumber = registrationNumber;
 	    }
 
 	    // If the handback has changed we need to create a new
 	    // event object (we approximate this test by checking the
 	    // registrationNumber
-
-	    if (event == null || 
-		eventForRegistrationNumber != registrationNumber) 
+	    
+	    if (createEvent) 
 	    {
 		event = eventFactory.createEvent(EventType.this.evID, seqNum,
 						 handback);
-		eventForRegistrationNumber = registrationNumber;
+		synchronized (EventType.this){
+		    cachedEvent = event;
+		}
+		    
 	    }
 
 	    // Try sending 
