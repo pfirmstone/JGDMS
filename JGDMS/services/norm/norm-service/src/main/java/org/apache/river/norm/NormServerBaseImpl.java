@@ -90,10 +90,12 @@ import org.apache.river.thread.InterruptedStatusThread;
 import org.apache.river.norm.proxy.*;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import net.jini.export.CodebaseAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.loader.ClassLoading;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * Base class for implementations of NormServer.  Provides a complete
@@ -104,7 +106,7 @@ import net.jini.loader.ClassLoading;
 abstract class NormServerBaseImpl
     implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor,
 	Startable, ServiceProxyAccessor, ServiceAttributesAccessor,
-	ServiceIDAccessor
+	ServiceIDAccessor, CodebaseAccessor
 {
     /** Current version of log format */
     private static final int CURRENT_LOG_VERSION = 2;
@@ -241,6 +243,10 @@ abstract class NormServerBaseImpl
     private Configuration config;
     
     private boolean started;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
+    private String codebase;
 
     ////////////////////////////////
     // Methods defined in NormServer
@@ -318,6 +324,29 @@ abstract class NormServerBaseImpl
     public Entry[] getServiceAttributes() throws IOException {
 	return getLookupAttributes();
     }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(NormServer.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
+    }
+
 
     /**
      * Prevents access to the service before it is ready or after it starts to
@@ -491,6 +520,10 @@ abstract class NormServerBaseImpl
 		try {
 		    lrm.remove(clw);
 		} catch (UnknownLeaseException e) {
+		    logger.log(Level.FINE,
+			"Exception thrown {0} while trying to remove lease {1}",
+			new Object[]{e, leaseToRemove}
+		    );
 		    // This can happen if there was some problem
 		    // renewing the lease or its LRM expiration just
 		    // ran out. Since we are removing the lease anyway
@@ -2006,5 +2039,9 @@ abstract class NormServerBaseImpl
         renewLogger = init.renewLogger;
         context = init.context;
         config = init.config;
+	this.codebase = init.codebase;
+	this.certFactoryType = init.certFactoryType;
+	this.certPathEncoding = init.certPathEncoding;
+	this.encodedCerts = init.encodedCerts.clone();
     }
 }

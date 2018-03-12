@@ -103,6 +103,7 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.export.CodebaseAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -120,6 +121,7 @@ import org.apache.river.outrigger.proxy.StorableResource;
 import org.apache.river.outrigger.proxy.OutriggerQueryCookie;
 import org.apache.river.outrigger.proxy.ProxyVerifier;
 import org.apache.river.admin.JavaSpaceAdmin;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * A basic implementation of a JavaSpaces<sup>TM</sup> 
@@ -169,7 +171,7 @@ import org.apache.river.admin.JavaSpaceAdmin;
 public class OutriggerServerImpl 
     implements OutriggerServer, TimeConstants, LocalLandlord, Recover,
 	       ServerProxyTrust, Startable, ServiceProxyAccessor,
-	       ServiceAttributesAccessor, ServiceIDAccessor
+	       ServiceAttributesAccessor, ServiceIDAccessor, CodebaseAccessor
 {	
     /**
      * Component name we use to find items in the configuration and loggers.
@@ -514,8 +516,12 @@ public class OutriggerServerImpl
     private Throwable thrown;
     private Exception except;
     private boolean persistent;
-    private long maxServerQueryTimeout;
+    private final long maxServerQueryTimeout;
     private AccessControlContext context;
+    private String codebase;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
 
     /**
      * Create a new <code>OutriggerServerImpl</code> server (possibly a
@@ -604,6 +610,10 @@ public class OutriggerServerImpl
             activationSystem = h.activationSystem;
             transactionManagerPreparer = h.transactionManagerPreparer;
             listenerPreparer = h.listenerPreparer;
+	    this.codebase = h.codebase;
+	    this.certFactoryType = h.certFactoryType;
+	    this.certPathEncoding = h.certPathEncoding;
+	    this.encodedCerts = h.encodedCerts.clone();
             exporter = h.exporter;
             contents = h.contents;
             templates = h.templates;
@@ -832,6 +842,28 @@ public class OutriggerServerImpl
 			    topUuid.getLeastSignificantBits());
     }
 
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(OutriggerServer.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
+    }
+
     private static class InitHolder {
         ActivationID activationID;
         TxnMonitor txnMonitor;
@@ -859,6 +891,10 @@ public class OutriggerServerImpl
         Thread starter;
         long maxServerQueryTimeout;
         AccessControlContext context;
+	private String codebase;
+	private String certFactoryType;
+	private String certPathEncoding;
+	private byte[] encodedCerts;
     }
 
     /**
@@ -925,6 +961,17 @@ public class OutriggerServerImpl
                 (ProxyPreparer)Config.getNonNullEntry(config, 
                     COMPONENT_NAME, "listenerPreparer",
                     ProxyPreparer.class, defaultPreparer);
+	    
+	    /* CodebaseAccessor configuration */
+	    
+	    h.codebase = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_Annotation", String.class, "");
+	    h.certFactoryType = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_CertFactoryType", String.class, "X.509");
+	    h.certPathEncoding = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+	    h.encodedCerts = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_Certs", byte[].class, new byte[0]);
 
             /* Export the server. */
 

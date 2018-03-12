@@ -204,8 +204,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     // Handle for the current class descriptor
     private int descriptorHandle;
     
-    // Compatible with ObjectInputStream - no annotations.
-    private final boolean objectInputStreamCompat;
+    // Compatible with ObjectInputStream - no annotations, but with loader
+    // semantics of MarshalInputStream
+    private final boolean noAnnotations;
 
     private static final HashMap<String, Class<?>> PRIMITIVE_CLASSES =
         new HashMap<String, Class<?>>();
@@ -361,6 +362,38 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	this(input, defaultLoader, verifyCodebaseIntegrity, verifierLoader, context, true, false);
     }
     
+    /**
+     * Constructs a new ObjectInputStream that reads from the InputStream
+     * {@code input}.
+     * 
+     * @param input
+     *            the non-null source InputStream to filter reads on.
+     * @param defaultLoader
+     * @param verifyCodebaseIntegrity
+     * @param verifierLoader
+     * @param context
+     * @param objectInputStreamCompatible if true is compatible with ObjectInputStream
+     * otherwise, if false is compatible with MarshalInputStream
+     * @throws IOException
+     *             if an error occurs while reading the stream header.
+     * @throws StreamCorruptedException
+     *             if the source stream does not contain serialized objects that
+     *             can be read.
+     * @throws SecurityException
+     *             if a security manager is installed and it denies subclassing
+     *             this class.
+     */
+    public AtomicMarshalInputStream(InputStream input,
+			      ClassLoader defaultLoader,
+			      boolean verifyCodebaseIntegrity,
+			      ClassLoader verifierLoader,
+			      Collection context,
+			      boolean objectInputStreamCompatible )
+	throws IOException
+    {
+	this(input, defaultLoader, verifyCodebaseIntegrity, verifierLoader, context, true, objectInputStreamCompatible);
+    }
+    
     private AtomicMarshalInputStream(InputStream input,
 	    ClassLoader defaultLoader,
 	    boolean verifyCodebaseIntegrity,
@@ -402,7 +435,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         // Stream header has to be read in here according to the specification
 	readStreamHeader();
         primitiveData = emptyStream;
-	this.objectInputStreamCompat = objectInputStreamCompat;
+	this.noAnnotations = objectInputStreamCompat;
     }
     
    
@@ -728,6 +761,12 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         return result;
     }
 
+    @Override
+    protected String readAnnotation() throws IOException, ClassNotFoundException {
+	if (noAnnotations) return null;
+	return super.readAnnotation();
+    }
+    
     /**
      * Reads a boolean from the source stream.
      * 
@@ -1054,7 +1093,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         // WARNING - the grammar says it is a Throwable, but the
         // WriteAbortedException constructor takes an Exception. So, we read an
         // Exception from the stream
-        Exception exc = (Exception) readObject(false, Exception.class);
+        Exception exc = (Exception) readObject(false, Throwable.class);
 
         // We reset the receiver's state (the grammar has "reset" in normal
         // font)
@@ -1928,7 +1967,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	registerObjectRead(classDescContainer, descriptorHandle, false); // re read in case overridden.
         descriptorHandle = oldHandle;
         primitiveData = emptyStream;
-	Class<?> c = objectInputStreamCompat ? superResolveClass(classDesc) : resolveClass(classDesc);
+	Class<?> c = resolveClass(classDesc);
 	c = replaceClass(c);
 	ObjectStreamClass localClass = ObjectStreamClass.lookup(c);
 	classDescContainer.setClass(c);
@@ -2022,9 +2061,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         // We need to map classDesc to class.
         try {
 //            newClassDesc.setClass(resolveClass(newClassDesc));
-	    Class<?> c = objectInputStreamCompat ? 
-			    superResolveClass(newClassDesc.getDeserializedClass()) 
-			    :resolveClass(newClassDesc.getDeserializedClass());
+	    Class<?> c = resolveClass(newClassDesc.getDeserializedClass());
 	    c = replaceClass(c);
             // Check SUIDs & base name of the class
             verifyAndInit(newClassDesc,c);
@@ -2072,9 +2109,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
             interfaceNames[i] = input.readUTF();
         }
         
-	Class<?> proxyClass = objectInputStreamCompat ? 
-		superResolveProxyClass(interfaceNames) 
-		: resolveProxyClass(interfaceNames);
+	Class<?> proxyClass = resolveProxyClass(interfaceNames);
         ObjectStreamClass streamClass = ObjectStreamClass.lookup(proxyClass);
 	streamClassContainer.setLocalClassDescriptor(streamClass);
         // Consume unread class annotation data and TC_ENDBLOCKDATA

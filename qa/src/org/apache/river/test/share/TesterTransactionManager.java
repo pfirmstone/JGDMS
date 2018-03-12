@@ -17,6 +17,7 @@
  */
 package org.apache.river.test.share;
 
+import java.io.IOException;
 import org.apache.river.qa.harness.QAConfig;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
@@ -34,10 +35,12 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
+import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrust;
 import org.apache.river.api.util.Startable;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * This class provides a simple transaction manager that tests can use
@@ -49,7 +52,8 @@ import org.apache.river.api.util.Startable;
  * by the test.
  */
 public class TesterTransactionManager
-        implements TransactionManager, TransactionConstants, Serializable, ProxyTrust, Startable {
+        implements TransactionManager, TransactionConstants, Serializable,
+	ProxyTrust, Startable, CodebaseAccessor {
 
     private static Logger logger = 
 	Logger.getLogger("org.apache.river.qa.harness");
@@ -236,5 +240,25 @@ public class TesterTransactionManager
 	} else {
 	    doExport(c);
 }
+    }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return CodebaseProvider.getClassAnnotation(TesterTransactionManagerProxy.class); 
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return null;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return null;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return null;
     }
 }

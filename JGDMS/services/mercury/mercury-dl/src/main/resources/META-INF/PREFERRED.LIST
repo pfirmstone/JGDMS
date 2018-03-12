@@ -16,3 +16,9 @@ Preferred: false
 
 Name: net/jini/-
 Preferred: false
+
+Name: org/apache/river/landlord/-
+Preferred: false
+
+Name: org/apache/river/lease/-
+Preferred: false

@@ -83,6 +83,10 @@ class MailboxImplInit {
     Configuration config;
     AccessControlContext context;
     LoginContext loginContext;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
 
     MailboxImplInit(Configuration config, 
                     boolean persistent, 
@@ -145,6 +149,17 @@ class MailboxImplInit {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Non-activatable service exporter is: {0}", exporter);
             }
         }
+	
+	codebase = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_Annotation", String.class, "");
+	certFactoryType = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_CertFactoryType", String.class, "X.509");
+	certPathEncoding = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_CertPathEncoding", String.class, "PkiPath");
+	encodedCerts = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_Certs", byte[].class, new byte[0]);
+	
+	
         listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "listenerPreparer", ProxyPreparer.class, new BasicProxyPreparer());
         if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
             MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Listener preparer is: {0}", listenerPreparer);

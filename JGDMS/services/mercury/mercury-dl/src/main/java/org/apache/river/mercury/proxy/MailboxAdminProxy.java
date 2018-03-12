@@ -27,6 +27,7 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -45,7 +46,8 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @since 1.1
  */
 @AtomicSerial
-public class MailboxAdminProxy implements MailboxAdmin, Serializable, ReferentUuid {
+public class MailboxAdminProxy implements MailboxAdmin, Serializable, 
+	ReferentUuid, ProxyAccessor {
 
     private static final long serialVersionUID = 2L;
 
@@ -237,6 +239,11 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable, ReferentUu
         throw new InvalidObjectException("no data found when attempting to "
                                          +"deserialize MailboxProxy instance");
     }//end readObjectNoData
+
+    public Object getProxy() {
+	return server;
+    }
+    
     @AtomicSerial
     static final class ConstrainableMailboxAdminProxy extends MailboxAdminProxy
                                                implements RemoteMethodControl

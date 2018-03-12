@@ -38,16 +38,16 @@ import net.jini.io.ObjectStreamContext;
  * @author peter
  */
 class GetArgImpl extends AtomicSerial.GetArg {
-    private static final ClassContextAccess context 
-	    = AccessController.doPrivileged(
-    new PrivilegedAction<ClassContextAccess>(){
+    private static final ClassContextAccess CONTEXT 
+	= AccessController.doPrivileged(
+	    new PrivilegedAction<ClassContextAccess>(){
 
-	@Override
-	public ClassContextAccess run() {
-	    return new ClassContextAccess();
-	}
-	
-    });
+		@Override
+		public ClassContextAccess run() {
+		    return new ClassContextAccess();
+		}
+
+	    });
     
     final Map<Class, ObjectInputStream.GetField> classFields;
     final Map<Class, AtomicSerial.ReadObject> readers;
@@ -62,63 +62,73 @@ class GetArgImpl extends AtomicSerial.GetArg {
 
     @Override
     public ObjectStreamClass getObjectStreamClass() {
-	return classFields.get(context.caller()).getObjectStreamClass();
+	return classFields.get(CONTEXT.caller()).getObjectStreamClass();
     }
 
     @Override
     public boolean defaulted(String name) throws IOException {
-	return classFields.get(context.caller()).defaulted(name);
+	return classFields.get(CONTEXT.caller()).defaulted(name);
     }
 
     @Override
     public boolean get(String name, boolean val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public byte get(String name, byte val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public char get(String name, char val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public short get(String name, short val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public int get(String name, int val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public long get(String name, long val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public float get(String name, float val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public double get(String name, double val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public Object get(String name, Object val) throws IOException {
-	return classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	return fields != null ? fields.get(name, val) : val;
     }
 
     @Override
     public <T> T get(String name, T val, Class<T> type) throws IOException {
 	// T will be replaced by Object by the compilers erasure.
-	T result = (T) classFields.get(context.caller()).get(name, val);
+	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
+	T result = fields != null? (T) fields.get(name, val): val;
 	if (type.isInstance(result)) {
 	    return result;
 	}
@@ -151,10 +161,10 @@ class GetArgImpl extends AtomicSerial.GetArg {
     @Override
     public AtomicSerial.ReadObject getReader() {
 	//TODO capture any Exceptions and rethrow here.
-	//	    Class c = context.caller();
+	//	    Class c = CONTEXT.caller();
 	//	    System.out.println("CALLER: " + c);
 	//	    System.out.println(readers);
-	return readers.get(context.caller());
+	return readers.get(CONTEXT.caller());
     }
 
     /**
@@ -173,7 +183,7 @@ class GetArgImpl extends AtomicSerial.GetArg {
      */
     @Override
     public AtomicSerial.GetArg validateInvariants(String[] fields, Class[] types, boolean[] nonNull) throws IOException {
-	Class caller = context.caller();
+	Class caller = CONTEXT.caller();
 	if (fields == null || types == null || nonNull == null) 
 	    throw new NullPointerException("null arguments not allowed");
 	if (fields.length != types.length || fields.length != nonNull.length) 
@@ -209,7 +219,8 @@ class GetArgImpl extends AtomicSerial.GetArg {
 	 * Returns caller's caller class.
 	 */
 	Class caller() {
-	    return getClassContext()[2];
+	    Class caller = getClassContext()[2];
+	    return caller;
 	}
     }
     

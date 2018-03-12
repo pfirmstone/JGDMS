@@ -41,7 +41,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 public class NormProxy extends AbstractProxy
-    implements LeaseRenewalService, Administrable, ProxyAccessor
+    implements LeaseRenewalService, Administrable
 {
     private static final long serialVersionUID = 1;
 
@@ -89,11 +89,6 @@ public class NormProxy extends AbstractProxy
     /** inherit javadoc */
     public Object getAdmin() throws RemoteException {
 	return server.getAdmin();
-    }
-
-    @Override
-    public Object getProxy() {
-	return server;
     }
 
     /** Defines a subclass of NormProxy that implements RemoteMethodControl. */

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package net.jini.lookup;
+package net.jini.export;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -46,7 +46,7 @@ import org.apache.river.api.security.RevocablePolicy;
  * @see RevocablePolicy
  * @see PermissionGrant
  */
-public interface ServiceCodebaseAccessor extends Remote {
+public interface CodebaseAccessor extends Remote {
     
     /**
      * Obtains the service class annotation as defined in

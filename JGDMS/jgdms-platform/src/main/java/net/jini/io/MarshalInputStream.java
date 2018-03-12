@@ -24,6 +24,7 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
 import java.rmi.server.RMIClassLoaderSpi;
+import java.security.Guard;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,6 +84,8 @@ import net.jini.loader.ClassLoading;
 public class MarshalInputStream
     extends ObjectInputStream implements ObjectStreamContext
 {
+    
+    private static final Guard clCheck = new RuntimePermission("getClassLoader");
     /**
      * maps keywords for primitive types and void to corresponding
      * Class objects
@@ -341,12 +344,6 @@ public class MarshalInputStream
 	}
     }
 
-    protected Class superResolveClass(ObjectStreamClass classDesc) 
-	 throws IOException, ClassNotFoundException
-    {
-	return super.resolveClass(classDesc);
-    }
-
     /**
      * Resolves the appropriate {@link Class} object for the proxy
      * class described by the interface names
@@ -416,12 +413,6 @@ public class MarshalInputStream
 					   verifierLoader);
     }
 
-    protected Class superResolveProxyClass(String[] interfaceNames) 
-	    throws IOException, ClassNotFoundException
-    {
-	return super.resolveProxyClass(interfaceNames);
-    }
-
     /**
      * Reads and returns a class annotation string value (possibly
      * <code>null</code>) that was written by a corresponding
@@ -458,5 +449,27 @@ public class MarshalInputStream
 	    ioe.initCause(e);
 	    throw ioe;
 	}
+    }
+    
+    /**
+     * The default class loader passed in during construction.
+     * @return the default ClassLoader, or null.
+     * @throws SecurityException if the caller doesn't have 
+     * {@link java.lang.RuntimePermission} "getClassLoader"
+     */
+    public ClassLoader getDefaultClassLoader(){
+	clCheck.checkGuard(null);
+	return defaultLoader;
+    }
+    
+    /**
+     * The verifier class loader passed in during construction.
+     * @return the verifier ClassLoader, or null.
+     * @throws SecurityException if the caller doesn't have 
+     * {@link java.lang.RuntimePermission} "getClassLoader"
+     */
+    public ClassLoader getVerifierClassLoader(){
+	clCheck.checkGuard(null);
+	return verifierLoader;
     }
 }

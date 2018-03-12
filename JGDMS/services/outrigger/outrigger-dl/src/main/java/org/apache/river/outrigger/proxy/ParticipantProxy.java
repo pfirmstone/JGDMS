@@ -26,6 +26,7 @@ import java.rmi.RemoteException;
 import net.jini.core.transaction.UnknownTransactionException;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -42,7 +43,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 public class ParticipantProxy implements TransactionParticipant, ReferentUuid,
-				  Serializable
+				  Serializable, ProxyAccessor
 {
     static final long serialVersionUID = 1L;
 
@@ -176,5 +177,9 @@ public class ParticipantProxy implements TransactionParticipant, ReferentUuid,
 	throws UnknownTransactionException, RemoteException
     {
 	return space.prepareAndCommit(mgr, id);
+    }
+
+    public Object getProxy() {
+	return space;
     }
 }

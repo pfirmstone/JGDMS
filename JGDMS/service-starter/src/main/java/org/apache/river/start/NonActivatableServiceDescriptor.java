@@ -325,7 +325,7 @@ public class NonActivatableServiceDescriptor
         ProxyPreparer preparer)
     {
 	this.descCreatedLock = new Lock();
-        if (exportCodebase == null || policy == null ||
+        if (policy == null ||
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(
 		"export codebase, policy, import codebase, and"
@@ -342,7 +342,7 @@ public class NonActivatableServiceDescriptor
     }
     
     public NonActivatableServiceDescriptor(GetArg arg) throws IOException{
-	this(Valid.notNull(arg.get("codebase", null, String.class), "export codebase cannot be null"),
+	this(arg.get("codebase", null, String.class),
 	    Valid.notNull(arg.get("policy", null, String.class), "policy cannot be null"),
 	    Valid.notNull(arg.get("classpath", null, String.class), "import codebase cannot be null"),
 	    Valid.notNull(arg.get("implClassName", null, String.class), "implementation cannot be null"),
@@ -363,7 +363,7 @@ public class NonActivatableServiceDescriptor
         ProxyPreparer preparer)
     {
 	this.descCreatedLock = new Lock();
-        if (exportCodebase == null || policy == null ||
+        if (policy == null ||
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(
 		"export codebase, policy, import codebase, and"
@@ -764,9 +764,9 @@ public class NonActivatableServiceDescriptor
     {
         in.defaultReadObject();
 	// Verify that serialized fields aren't null
-	if (codebase == null) {
-	    throw new InvalidObjectException("null export codebase");
-	}
+//	if (codebase == null) {
+//	    throw new InvalidObjectException("null export codebase");
+//	}
 	if (policy == null) {
 	    throw new InvalidObjectException("null policy");
 	}

@@ -79,6 +79,8 @@ import net.jini.config.ConfigurationNotFoundException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.export.CodebaseAccessor;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalInputStream;
@@ -96,6 +98,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.CombinerSecurityManager;
+import org.apache.river.config.Config;
 import org.apache.river.phoenix.common.AccessILFactory;
 import org.apache.river.phoenix.common.ActivationGroupData;
 import org.apache.river.phoenix.dl.AID;
@@ -103,6 +106,7 @@ import org.apache.river.phoenix.dl.Activator;
 import org.apache.river.phoenix.dl.ConstrainableAID;
 import org.apache.river.phoenix.dl.InactiveGroupException;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
+import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.proxy.MarshalledWrapper;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
@@ -201,6 +205,12 @@ class Activation implements Serializable {
     private transient Thread shutdownHook;
     /** Non-null if phoenix was started by the service starter */
     private transient PhoenixStarter starter;
+    private transient String codebase;
+    private transient String certFactoryType;
+    private transient String certPathEncoding;
+    private transient byte[] encodedCerts;
+    
+    
 
     /**
      * Create an uninitialized instance of Activation that can be
@@ -272,6 +282,17 @@ class Activation implements Serializable {
             groupTimeout = getInt(config, "groupTimeout", 60000);
             unexportTimeout = getInt(config, "unexportTimeout", 60000);
             unexportWait = getInt(config, "unexportWait", 10);
+	    	    /* CodebaseAccessor configuration */
+	    
+	    codebase = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_Annotation", String.class, "");
+	    certFactoryType = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_CertFactoryType", String.class, "X.509");
+	    certPathEncoding = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+	    encodedCerts = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_Certs", byte[].class, new byte[0]);
+
             String[] opts = (String[]) config.getEntry(
                     PHOENIX, "groupOptions", String[].class, new String[0]);
             command = new String[opts.length + 2];
@@ -322,20 +343,44 @@ class Activation implements Serializable {
             activator = new ActivatorImpl();
             ServerEndpoint se = TcpServerEndpoint.getInstance(PHOENIX_PORT);
             activatorExporter =
-                getExporter(config, "activatorExporter",
-		    new BasicJeriExporter(se, new BasicILFactory(),
-					  false, true,
-					 (Uuid) PhoenixConstants.ACTIVATOR_UUID));
+                getExporter(
+		    config,
+		    "activatorExporter",
+		    new BasicJeriExporter(
+			se, 
+			new BasicILFactory(
+				null,
+				null,
+				activator.getClass().getClassLoader()
+			),
+			false,
+			true,
+			(Uuid) PhoenixConstants.ACTIVATOR_UUID
+		    )
+		);
             system = new SystemImpl();
             systemExporter =
-                getExporter(config, "systemExporter",
-		    new BasicJeriExporter(se, new SystemAccessILFactory(),
-					  false, true,
-					 (Uuid) PhoenixConstants.ACTIVATION_SYSTEM_UUID));
+                getExporter(
+		    config,
+		    "systemExporter",
+		    new BasicJeriExporter(
+			se, 
+			new SystemAccessILFactory(
+			    new DefaultGroupPolicy(),
+				system.getClass().getClassLoader()
+			),
+		        false,
+			true,
+			(Uuid) PhoenixConstants.ACTIVATION_SYSTEM_UUID)
+		);
             monitor = new MonitorImpl();
             monitorExporter =
-                getExporter(config, "monitorExporter",
-                            new BasicJeriExporter(se, new AccessILFactory()));
+                getExporter(
+			config,
+			"monitorExporter",
+			new BasicJeriExporter(
+				se, 
+				new AccessILFactory(monitor.getClass().getClassLoader())));
             registry = new RegistryImpl();
             registryExporter =
                 getExporter(config, "registryExporter", new RegistrySunExporter());
@@ -437,7 +482,8 @@ class Activation implements Serializable {
 					       new BasicProxyPreparer());
     }
 
-    class ActivatorImpl extends AbstractActivator implements ServerProxyTrust {
+    class ActivatorImpl extends AbstractActivator implements ServerProxyTrust,
+	    CodebaseAccessor {
 	ActivatorImpl() {
 	}
     
@@ -462,6 +508,48 @@ class Activation implements Serializable {
             try {
                 return new ConstrainableAID.Verifier(activatorStub);
             } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public String getClassAnnotation() throws IOException {
+	    readLock.lock();
+            try {
+		return "".equals(codebase) ? 
+			CodebaseProvider.getClassAnnotation(Activator.class) 
+			: codebase;
+	    } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public String getCertFactoryType() throws IOException {
+	    readLock.lock();
+            try {
+		return certFactoryType;
+	    } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public String getCertPathEncoding() throws IOException {
+	    readLock.lock();
+            try {
+		return certPathEncoding;
+	    } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public byte[] getEncodedCerts() throws IOException {
+	    readLock.lock();
+            try {
+		return encodedCerts.clone();
+	    } finally {
                 readLock.unlock();
             }
 	}

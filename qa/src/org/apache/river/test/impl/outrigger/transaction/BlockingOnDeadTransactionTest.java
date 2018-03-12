@@ -52,7 +52,7 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
      * Var to detect that BlockAndTake failed.
      * Has been added during porting.
      */
-    private Exception failException = null;
+    private volatile Exception failException = null;
 
     /**
      * Sets up the testing environment.
@@ -158,6 +158,7 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
         private Entry takeResult;       // the return from the take
 
         BlockAndTake(Entry tmpl) throws TestException {
+	    super("BlockAndTake");
             this.tmpl = tmpl;
             txn = createTransaction();
         }
@@ -193,13 +194,17 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
                     }
                 }
                 timeLog("BlockAndTake: take returned");
-                synchronized (this) {
-                    takeReturned = true;
-                    notifyAll();
-                }
             } catch (Exception e) {
-                failException = e;
-            }
+		failException = e;
+            } finally {
+		synchronized (this){
+		    // Ensures that other threads aren't left waiting
+		    // in exceptional circumstances, clearly this is the
+		    // first time this test ever failed. P.F - 6th Feb 2018.
+		    takeReturned = true;
+		    notifyAll();
+		}
+	    }
         }
 
         synchronized void waitUntilTaking() throws Exception {

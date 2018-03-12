@@ -89,6 +89,7 @@ import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
@@ -101,6 +102,7 @@ import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
+import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.thread.ExtensibleExecutorService;
 import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
 
@@ -114,7 +116,8 @@ class TxnManagerImpl /*extends RemoteServer*/
     implements TxnManager, LeaseExpirationMgr.Expirer,
 	    LogRecovery, TxnSettler, org.apache.river.constants.TimeConstants,
 	    LocalLandlord, ServerProxyTrust, ProxyAccessor, Startable,
-	    ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
+	    ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor,
+	    CodebaseAccessor
 {
     /** Logger for (successful) service startup message */
     static final Logger startupLogger = 
@@ -214,6 +217,10 @@ class TxnManagerImpl /*extends RemoteServer*/
     private Throwable thrown;
     // sync on this.
     private boolean started = false;
+    private String codebase;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
 
     /**
      * Constructs a non-activatable transaction manager.
@@ -353,6 +360,10 @@ class TxnManagerImpl /*extends RemoteServer*/
                 activationID = activID;
                 activationPrepared = init.activationPrepared;
                 exporter = init.exporter;
+		this.codebase = init.codebase;
+		this.certFactoryType = init.certFactoryType;
+		this.certPathEncoding = init.certPathEncoding;
+		this.encodedCerts = init.encodedCerts.clone();
                 participantPreparer = init.participantPreparer;
                 txnLeasePeriodPolicy = init.txnLeasePeriodPolicy;
                 persistenceDirectory = init.persistenceDirectory;
@@ -1253,7 +1264,29 @@ class TxnManagerImpl /*extends RemoteServer*/
 	return new ServiceID(topUuid.getMostSignificantBits(), 
 		topUuid.getLeastSignificantBits());
     }
-  
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(TxnManager.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
+    }
+
     /**
      * Termination thread code.  We do this in a separate thread to
      * avoid deadlock, because Activatable.inactive will block until

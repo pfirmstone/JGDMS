@@ -83,6 +83,10 @@ class FiddlerInit {
     Configuration config;
     AccessControlContext context;
     LoginContext loginContext;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
     
     FiddlerInit(Configuration config,
                 boolean persistent, 
@@ -285,6 +289,16 @@ class FiddlerInit {
                                           +"retrieving service's exporter",
                                           e);
             }
+	    
+	    codebase = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_Annotation", String.class, "");
+	    certFactoryType = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_CertFactoryType", String.class, "X.509");
+	    certPathEncoding = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+	    encodedCerts = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_Certs", byte[].class, new byte[0]);
+	
         } catch(Throwable e) {
             cleanupInitFailure();
             handleActivatableInitThrowable(e);

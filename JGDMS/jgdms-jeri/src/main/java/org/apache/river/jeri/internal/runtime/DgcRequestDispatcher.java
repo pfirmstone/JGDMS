@@ -123,7 +123,7 @@ public class DgcRequestDispatcher implements RequestDispatcher {
 				loader, integrity, loader,
 				Collections.unmodifiableCollection(context));
 			} else {
-			    return AtomicMarshalInputStream.create(
+			    return AtomicMarshalInputStream.createObjectInputStream(
 				request.getRequestInputStream(),
 				loader, integrity, loader,
 				Collections.unmodifiableCollection(context));

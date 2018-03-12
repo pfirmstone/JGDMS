@@ -114,7 +114,7 @@ import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
-import net.jini.lookup.ServiceCodebaseAccessor;
+import net.jini.export.CodebaseAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
@@ -177,7 +177,7 @@ import org.apache.river.reggie.proxy.*;
  */
 class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Startable,
 	ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor,
-	ServiceCodebaseAccessor
+	CodebaseAccessor
 {
 
     /** Maximum minMax lease duration for both services and events */
@@ -423,6 +423,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private final String certFactoryType;
     private final String certPathEncoding;
     private final byte[] encodedCerts;
+    private final String codebase;
     
 
     /**
@@ -511,6 +512,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         this.snapshotNotifier = concurrentObj.newCondition();
         this.eventNotifier = concurrentObj.newCondition();
         this.serviceNotifier = concurrentObj.newCondition();
+	this.codebase = init.codebase;
 	this.certFactoryType = init.certFactoryType;
 	this.certPathEncoding = init.certPathEncoding;
 	this.encodedCerts = init.encodedCerts.clone();
@@ -644,7 +646,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     @Override
     public String getClassAnnotation() throws IOException {
-	return CodebaseProvider.getClassAnnotation(RegistrarProxy.class);
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(RegistrarProxy.class) 
+		: codebase;
     }
 
     @Override
@@ -5004,6 +5008,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 private int httpsUnicastPort;
 	 boolean enableHttpsUnicast;
 	 Discovery httpsDiscovery;
+	 String codebase;
         
         
         
@@ -5223,6 +5228,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     new NamedThreadFactory("Reggie_Discovery_Response", false)
                 ) 
             );
+	    this.codebase = Config.getNonNullEntry(config, COMPONENT,
+		    "Codebase_Annotation", String.class, "");
 	    this.certFactoryType = Config.getNonNullEntry(config, COMPONENT,
 		    "Codebase_CertFactoryType", String.class, "X.509");
 	    this.certPathEncoding = Config.getNonNullEntry(config, COMPONENT,

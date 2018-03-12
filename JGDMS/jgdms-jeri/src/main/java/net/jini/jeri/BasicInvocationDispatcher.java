@@ -51,6 +51,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -658,6 +659,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	Throwable t = null;
 	boolean fromImpl = false;
 	Util.populateContext(context, integrity, atomicValidation);
+	context = new ArrayList(context);
+	context.add(serverConstraints);
 	ObjectInputStream in = null;
 	
 	try {
@@ -698,7 +701,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	    
 	    checkAccess(impl, method, sc, context);
-
+	    
 	    /*
 	     * Unmarshal arguments.
 	     */
@@ -838,16 +841,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 				 Collection context)
 	throws IOException
     {
-	final ClassLoader streamLoader;
-	if (loader != null) {
-	    streamLoader = getClassLoader();
-	} else {
-	    SecurityManager security = System.getSecurityManager();
-	    if (security != null) {
-		security.checkPermission(getClassLoaderPermission);
-	    }
-	    streamLoader = impl.getClass().getClassLoader();
-	}
+	final ClassLoader streamLoader = getStreamLoader(impl);
 	
 	final Collection unmodContext = Collections.unmodifiableCollection(context);
 	try {
@@ -855,15 +849,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		
 		@Override
 		public ObjectInputStream run() throws Exception {
-		    MarshalInputStream in;
+		    ObjectInputStream in;
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
 				((AtomicValidationEnforcement) o).enforced()){
-			    in = (MarshalInputStream) AtomicMarshalInputStream.create(
+			    in =  AtomicMarshalInputStream.createObjectInputStream(
 				    request.getRequestInputStream(),
 				   streamLoader, integrity,
 				   streamLoader, unmodContext);
-			    in.useCodebaseAnnotations();
+//			    in.useCodebaseAnnotations();
 			    return in;
 
 			}
@@ -872,13 +866,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    	in = new MarshalInputStream(request.getRequestInputStream(),
 		    				   streamLoader, integrity,
 		    				   streamLoader, unmodContext);
+			((MarshalInputStream)in).useCodebaseAnnotations();
 		    } else {
-			in = AtomicMarshalInputStream.create(
+			in = AtomicMarshalInputStream.createObjectInputStream(
 			    request.getRequestInputStream(),
 			    streamLoader, integrity,
 			    streamLoader, unmodContext);
 		    }
-		    in.useCodebaseAnnotations();
+//		    in.useCodebaseAnnotations();
 		    return in;
 		}
     
@@ -889,6 +884,20 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    if (cause instanceof RuntimeException) throw (RuntimeException) cause;
 	    throw new IOException ("Unable to create ObjectOutputStream ",ex);
 	}
+    }
+	
+    private ClassLoader getStreamLoader(Object impl){
+	final ClassLoader streamLoader;
+	if (loader != null) {
+	    streamLoader = getClassLoader();
+	} else {
+	    SecurityManager security = System.getSecurityManager();
+	    if (security != null) {
+		security.checkPermission(getClassLoaderPermission);
+	    }
+	    streamLoader = impl.getClass().getClassLoader();
+	}
+	return streamLoader;
     }
     
     /**
@@ -923,7 +932,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *		<code>null</code>
      **/
     protected ObjectOutputStream
-        createMarshalOutputStream(Object impl,
+        createMarshalOutputStream(final Object impl,
 				  Method method,
 				  final InboundRequest request,
 				  final Collection context)
@@ -942,11 +951,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
 				((AtomicValidationEnforcement) o).enforced()){
-			    return new AtomicMarshalOutputStream(out, unmodContext);
+			    return new AtomicMarshalOutputStream(out, getStreamLoader(impl), unmodContext, true);
 			}
 		    }
 		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) return new MarshalOutputStream(out, unmodContext);
-		    return new AtomicMarshalOutputStream(out, unmodContext);
+		    return new AtomicMarshalOutputStream(out, getStreamLoader(impl), unmodContext, true);
 		}
 							  
 	    });

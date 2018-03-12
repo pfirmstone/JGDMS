@@ -274,6 +274,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     private final int nicsToUse;
     
     private final Exception thrown;
+    private final MethodConstraints methodConstraints;
 
     /** Data structure containing task data processed by the Notifier Thread */
     private static class NotifyTask {
@@ -1385,6 +1386,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         WakeupManager discoveryWakeupMgr;
         boolean isDefaultWakeupMgr;
         long initialMulticastRequestDelayRange;
+	private MethodConstraints methodConstraints;
         
         private Initializer(Configuration config) throws ConfigurationException,
                 UnsupportedConstraintException, UnknownHostException, SocketException
@@ -1417,6 +1419,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
             rawUnicastDiscoveryConstraints = 
                 constraints.getConstraints(
                     DiscoveryConstraints.unicastDiscoveryMethod);
+	    methodConstraints = constraints;
 
             /* ExecutorService */
             ExecutorService executorServ;
@@ -1573,6 +1576,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         multicastRequestConstraints = init.multicastRequestConstraints;
         multicastAnnouncementConstraints = init.multicastAnnouncementConstraints;
         rawUnicastDiscoveryConstraints = init.rawUnicastDiscoveryConstraints;
+	methodConstraints = init.methodConstraints;
         executor = init.executor;
         multicastRequestMax = init.multicastRequestMax;
         multicastRequestInterval = init.multicastRequestInterval;
@@ -2860,6 +2864,8 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	    final Discovery disco)
 	throws IOException, ClassNotFoundException
     {
+	final Collection context = new ArrayList(1);
+	context.add(methodConstraints);
 	try {
 	    return AccessController.doPrivileged(
 		securityContext.wrap(new PrivilegedExceptionAction<UnicastResponse>() {
@@ -2869,7 +2875,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 			    unicastDiscoveryConstraints.getUnfulfilledConstraints(),
 			    null,
 			    null,
-			    null);
+			    context);
 		    }
 		}), securityContext.getAccessControlContext());
 	} catch (PrivilegedActionException e) {

@@ -68,6 +68,7 @@
     <module>jgdms-lib</module>
     <module>jgdms-lib-dl</module>
     <module>jgdms-ui-factory</module>
+    <module>jgdms-osgi-services</module>
     <module>jini-2.1-compat</module>
     <module>jsk-platform</module>
     <module>jsk-lib</module>

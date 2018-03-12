@@ -112,7 +112,7 @@ public class AtomicMarshalInputStreamTest {
 	ObjectInputStream ois = null;
 	try {
 	    baos = new ByteArrayOutputStream();
-	    oos = new AtomicMarshalOutputStream(new BufferedOutputStream(baos), null, true);
+	    oos = new AtomicMarshalOutputStream(new BufferedOutputStream(baos), null, null, true);
 	    oos.writeObject(mi);
 	    oos.flush();
 	    data = baos.toByteArray();
@@ -132,6 +132,6 @@ public class AtomicMarshalInputStreamTest {
 		if (ois != null) ois.close();
 		else if (bais != null) bais.close();
 	    } catch (IOException e){}
-	}	
+	}
     } 
 }

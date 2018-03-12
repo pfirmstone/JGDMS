@@ -45,6 +45,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.l
 
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
 grant {

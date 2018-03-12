@@ -55,6 +55,7 @@ import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
@@ -657,7 +658,7 @@ public class BasicInvocationHandler
 	    throw new AssertionError(method);
 	}
     }
-
+    
     /**
      * Holds information about the communication failure of a remote
      * call attempt.
@@ -822,8 +823,10 @@ public class BasicInvocationHandler
 	    ros.write(0x00);			// marshalling protocol version
 	    ros.write(integrity ? 0x01 : 0x00);	// integrity
 	    }
-
-	    context = new ArrayList(2);
+	    
+	    context = new ArrayList(3);
+	    if (clientConstraints != null) context.add(clientConstraints);
+	    
 	    Util.populateContext(context, integrity, atomicValidation);
 
 
@@ -1059,7 +1062,7 @@ public class BasicInvocationHandler
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
     protected ObjectOutputStream
-        createMarshalOutputStream(Object proxy,
+        createMarshalOutputStream(final Object proxy,
 				  Method method,
 				  OutboundRequest request,
 				  Collection context)
@@ -1079,11 +1082,11 @@ public class BasicInvocationHandler
 			if (o instanceof AtomicValidationEnforcement &&
 			    ((AtomicValidationEnforcement) o).enforced())
 			{
-			    return new AtomicMarshalOutputStream(out, unmodContext);
+			    return new AtomicMarshalOutputStream(out, getProxyLoader(proxy.getClass()), unmodContext, true);
 			}
 		    }
 		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) return new MarshalOutputStream(out, unmodContext);
-		    return new AtomicMarshalOutputStream(out, unmodContext);
+		    return new AtomicMarshalOutputStream(out, getProxyLoader(proxy.getClass()), unmodContext, true);
 		}
 		
 	    });
@@ -1149,32 +1152,35 @@ public class BasicInvocationHandler
 	final ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
 	final Collection unmodContext = Collections.unmodifiableCollection(context);
 	
-	MarshalInputStream in;
+	ObjectInputStream in;
 	try {
-	    in = AccessController.doPrivileged(new PrivilegedExceptionAction<MarshalInputStream>(){
+	    in = AccessController.doPrivileged(new PrivilegedExceptionAction<ObjectInputStream>(){
 		
 		@Override
-		public MarshalInputStream run() throws Exception {
+		public ObjectInputStream run() throws Exception {
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
 				((AtomicValidationEnforcement) o).enforced()){
 				    return (MarshalInputStream) 
-					AtomicMarshalInputStream.create(
+					AtomicMarshalInputStream.createObjectInputStream(
 					    request.getResponseInputStream(),
 				   proxyLoader, integrity, proxyLoader,
 				   unmodContext);
 			}
 		    }
-		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) 
-			return new MarshalInputStream(
+		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) {
+			MarshalInputStream min = new MarshalInputStream(
 					request.getResponseInputStream(),
 					proxyLoader, integrity, proxyLoader,
 					unmodContext);
-		    else return AtomicMarshalInputStream.create(
+			min.useCodebaseAnnotations();	
+			return min;
+		    } else {
+			return AtomicMarshalInputStream.createObjectInputStream(
 					request.getResponseInputStream(),
 					proxyLoader, integrity, proxyLoader,
 					unmodContext);
-		    
+		    }
 		}
 		
 	    });
@@ -1183,9 +1189,7 @@ public class BasicInvocationHandler
 	    if (e instanceof IOException) throw (IOException) e;
 	    if (e instanceof RuntimeException) throw (RuntimeException)e;
 	    throw new IOException(ex);
-	}
-	    
-	in.useCodebaseAnnotations();
+	}	
 	return in;
     }
 

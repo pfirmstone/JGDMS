@@ -15,22 +15,33 @@
   ~ limitations under the License.
   -->
 
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"     
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
-        <artifactId>jgdms</artifactId>
         <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
         <version>3.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
     <groupId>au.net.zeus.jgdms</groupId>
     <artifactId>jgdms-osgi-services</artifactId>
+    <packaging>jar</packaging>
+
     <name>Module :: OSGi JINI service bridge</name>
     <description>JGDMS OSGi JINI Service bridge</description>
-    <packaging>jar</packaging>
+    <organization>
+        <name>The Apache Software Foundation</name>
+        <url>http://www.apache.org/</url>
+    </organization>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
@@ -54,25 +65,20 @@
             <version>3.3.0</version>
             <scope>compile</scope>
         </dependency>
+        <!--<dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>osgi.core</artifactId>
+            <version>6.0.0</version>
+            <type>jar</type>
+        </dependency>-->
+        <dependency>
+            <groupId>org.apache.cxf</groupId>
+            <artifactId>cxf-bundle-minimal</artifactId>
+            <version>2.4.10.jbossorg-1-SNAPSHOT</version>
+            <type>jar</type>
+        </dependency>
     </dependencies>
-    <licenses>
-        <license>
-            <name>The Apache Software License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        </license>
-    </licenses>
 
-    <organization>
-        <name>The Apache Software Foundation</name>
-        <url>http://www.apache.org/</url>
-    </organization>
-    <reporting>
-        <plugins>
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </reporting>
     <build>
         <plugins>
             <plugin>
@@ -113,8 +119,8 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-	            <version>2.3.2</version>
-	            <configuration>
+                <version>2.3.2</version>
+                <configuration>
 	                <source>1.5</source>
                         <target>1.5</target>
                         <optimize>true</optimize>
@@ -145,5 +151,12 @@
             </plugin>
         </plugins>
     </build>
-    
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </reporting>
 </project>

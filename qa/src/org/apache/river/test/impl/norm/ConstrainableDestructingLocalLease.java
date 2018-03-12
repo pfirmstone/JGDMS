@@ -17,41 +17,29 @@
  */
 package org.apache.river.test.impl.norm;
 
-import java.util.logging.Level;
 
 import java.io.Serializable;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.ObjectInputStream;
+import java.io.InvalidObjectException;
 
 import java.rmi.RemoteException;
 
-import java.util.Map;
-import java.util.Set;
-import java.util.Iterator;
-
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
-import net.jini.core.lease.LeaseException;
-import net.jini.core.lease.LeaseDeniedException;
-import net.jini.core.lease.UnknownLeaseException;
-
-import net.jini.config.Configuration;
-import net.jini.export.Exporter;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.TrustVerifier;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.MethodConstraints;
+import org.apache.river.api.io.AtomicSerial;
 
 /**
  * A lease implementation that is completely local for use in some of the 
  * QA test for the LeaseRenewalService
  */
+@AtomicSerial
 class ConstrainableDestructingLocalLease extends DestructingLocalLease 
                                          implements RemoteMethodControl 
 {
-     ProxyTrustImpl pt;
+     ProxyTrust pt;
 
     /**
      * Create a local lease with the specified initial expiration time 
@@ -66,10 +54,22 @@ class ConstrainableDestructingLocalLease extends DestructingLocalLease
 			    long bundle, 
 			    long id, 
 			    long count,
-			    ProxyTrustImpl pt) 
+			    ProxyTrust pt) 
     {
 	super(initExp, renewLimit, bundle, id, count);
 	this.pt = pt;
+    }
+    
+    ConstrainableDestructingLocalLease(AtomicSerial.GetArg arg) throws IOException{
+	super(check(arg));
+	pt = arg.get("pt", null, ProxyTrust.class);
+    }
+    
+    private static AtomicSerial.GetArg check(AtomicSerial.GetArg arg) throws IOException{
+	ProxyTrust pt = arg.get("pt", null, ProxyTrust.class);
+	if (!(pt instanceof RemoteMethodControl)) 
+	    throw new InvalidObjectException("pt must be instance of RemoteMethodControl");
+	return arg;
     }
 
     protected class IteratorImpl implements ProxyTrustIterator {
@@ -94,16 +94,16 @@ class ConstrainableDestructingLocalLease extends DestructingLocalLease
     }
 
     protected ProxyTrustIterator getProxyTrustIterator() {
-	return new IteratorImpl(pt.getProxy());
+	return new IteratorImpl(pt);
     }
 
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-	((RemoteMethodControl) pt.getProxy()).setConstraints(constraints);
+	((RemoteMethodControl) pt).setConstraints(constraints);
 	return this;
     }
 
     public MethodConstraints getConstraints() {
-	return ((RemoteMethodControl) pt.getProxy()).getConstraints();
+	return ((RemoteMethodControl) pt).getConstraints();
     }
 
     private static class VerifierImpl implements TrustVerifier, Serializable {

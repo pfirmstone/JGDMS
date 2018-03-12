@@ -25,8 +25,6 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.BufferOverflowException;
@@ -36,6 +34,8 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CoderResult;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -305,7 +305,7 @@ public class Plaintext {
 	    throw new DiscoveryProtocolException(null, e);
 	}
     }
-
+    
     /**
      * Encodes multicast announcement according to the
      * net.jini.discovery.plaintext format.
@@ -361,7 +361,7 @@ public class Plaintext {
 	    throw new DiscoveryProtocolException(null, e);
 	}
     }
-
+    
     /**
      * Decodes multicast announcement according to the
      * net.jini.discovery.plaintext format.
@@ -389,7 +389,7 @@ public class Plaintext {
 	    // read LUS service ID
 	    long idhi = buf.getLong();
 	    long idlo = buf.getLong();
-
+	    
 	    return new MulticastAnnouncement(
 		seq, host, port, groups, new ServiceID(idhi, idlo));
 
@@ -397,7 +397,7 @@ public class Plaintext {
 	    throw new DiscoveryProtocolException(null, e);
 	}
     }
-
+    
     /**
      * Writes unicast response according to the net.jini.discovery.plaintext
      * format.
@@ -440,10 +440,62 @@ public class Plaintext {
 		}
 	    }
 	    if (mi == null) mi = new MarshalledInstance(registrar, context);
-	    new AtomicMarshalOutputStream(out, context, true).writeObject(mi);
+	    new AtomicMarshalOutputStream(out, null, context, true).writeObject(mi);
 	} catch (RuntimeException e) {
 	    throw new DiscoveryProtocolException(null, e);
 	}
+    }
+    
+     /**
+     * Writes unicast response according to the net.jini.discovery.plaintext
+     * format, with the exception that the registrar proxy is written using
+     * AtomicMarshalOutputStream, compatible with MarshalOutputStream
+     * format (codebase annotations are written to the stream).
+     * 
+     * This implementation doesn't transmit a MarshalledInstance, instead
+     * it serializes the proxy directly.
+     */
+    public static void writeV2UnicastResponse(OutputStream out,
+					    UnicastResponse response,
+					    Collection context)
+	throws IOException
+    {
+	try {
+	    DataOutput dout = new DataOutputStream(out);
+
+	    // write LUS host
+	    dout.writeUTF(response.getHost());
+
+	    // write LUS port
+	    dout.writeShort(intToUshort(response.getPort()));
+
+	    // write LUS member groups
+	    String[] groups = response.getGroups();
+	    dout.writeInt(groups.length);
+	    for (int i = 0; i < groups.length; i++) {
+		dout.writeUTF(groups[i]);
+	    }
+
+	    // write LUS proxy
+	    // Note this instance is compatible with MarshalOutputStream,
+	    // it writes codebase annotations, it isn't compatible with
+	    // ObjectOutputStream
+	    Object registrar = response.getRegistrar();
+	    new AtomicMarshalOutputStream(out, getLoader(registrar), context, true).writeObject(registrar);
+	} catch (RuntimeException e) {
+	    throw new DiscoveryProtocolException(null, e);
+	}
+    }
+    
+    static ClassLoader getLoader(final Object o){
+	if (o == null) return null;
+	return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>(){
+
+	    public ClassLoader run() {
+		return o.getClass().getClassLoader();
+	    }
+	    
+	});
     }
 
     /**
@@ -500,6 +552,51 @@ public class Plaintext {
 		verifierLoader,
 		context);
 
+	    return new UnicastResponse(host, port, groups, reg);
+
+	} catch (RuntimeException e) {
+	    throw new DiscoveryProtocolException(null, e);
+	}
+    }
+    
+    /**
+     * Reads unicast response similar to the net.jini.discovery.plaintext
+     * format, but with the exception of not using a MarshalledInstance of
+     * the Proxy, but an AtomicMarshalInputStream to directly receive it instead.
+     */
+    public static UnicastResponse readV2UnicastResponse(
+					    InputStream in,
+					    ClassLoader defaultLoader,
+					    boolean verifyCodebaseIntegrity,
+					    ClassLoader verifierLoader,
+					    Collection context)
+	throws IOException, ClassNotFoundException
+    {
+	try {
+	    DataInput din = new DataInputStream(in);
+
+	    // read LUS host
+	    String host = din.readUTF();
+
+	    // read LUS port
+	    int port = din.readUnsignedShort();
+
+	    // read LUS member groups
+	    String[] groups = new String[din.readInt()];
+	    for (int i = 0; i < groups.length; i++) {
+		groups[i] = din.readUTF();
+	    }
+
+	    // read LUS proxy, defensively checking type.
+	    ServiceRegistrar reg = ((AtomicMarshalInputStream)
+		    AtomicMarshalInputStream.createObjectInputStream(
+			    in,
+			    defaultLoader,
+			    verifyCodebaseIntegrity,
+			    verifierLoader,
+			    context
+		    )).readObject(ServiceRegistrar.class);
+	    
 	    return new UnicastResponse(host, port, groups, reg);
 
 	} catch (RuntimeException e) {

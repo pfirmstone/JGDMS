@@ -32,6 +32,7 @@ import net.jini.core.transaction.UnknownTransactionException;
 import net.jini.core.transaction.server.CrashCountException;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -41,7 +42,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 public class TesterTransactionManagerProxy implements TransactionManager, 
-						      Serializable 
+						      Serializable, ProxyAccessor 
 {
     private static final long serialVersionUID = 7327572992370001498L;
     
@@ -113,6 +114,11 @@ public class TesterTransactionManagerProxy implements TransactionManager,
 
     public int hashCode() {
 	return sid;
+    }
+
+    @Override
+    public Object getProxy() {
+	return server;
     }
 
 }//end class LookupSimulatorProxy

@@ -323,7 +323,8 @@ public abstract class AbstractServiceAdmin implements Admin {
      *         converting the URL
      */
     protected synchronized final String getServiceCodebase() throws TestException {
-	codebase = getMandatoryParameter("codebase");
+	codebase = getParameter("codebase");
+	if (codebase == null) return null;
 	String cb = fixCodebase(codebase);
         try {
             codebase = uriToCodebaseString(pathToURIs(cb));
@@ -857,6 +858,14 @@ public abstract class AbstractServiceAdmin implements Admin {
 				    + " for " + serviceName);
 	}
 	return val;
+    }
+    
+    protected String getParameter(String property) 
+	throws TestException 
+    {
+        return config.getServiceStringProperty(serviceName, 
+						     property, 
+						     index);
     }
 
     /**

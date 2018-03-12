@@ -50,7 +50,7 @@ handlers = java.util.logging.ConsoleHandler
 # to the given level and above.
 
 java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter
-java.util.logging.ConsoleHandler.level = FINEST
+java.util.logging.ConsoleHandler.level = INFO
 
 # For messages printed to a file, do the following:
 # - use either a standard or XML formatter
@@ -181,7 +181,7 @@ org.apache.river.discovery.level = INFO
 #org.apache.river.discovery.x500.level = INFO
 
 # For the Helper Utilities
-net.jini.discovery.LookupDiscovery.level = FINE
+net.jini.discovery.LookupDiscovery.level = INFO
 net.jini.discovery.LookupLocatorDiscovery.level = INFO
 net.jini.lookup.JoinManager.level = INFO
 net.jini.lookup.ServiceDiscoveryManager.level = INFO
@@ -198,7 +198,7 @@ org.apache.river.start.level = INFO
 #org.apache.river.start.proxy.level = INFO
 #org.apache.river.start.resources.service.level = INFO
 #org.apache.river.start.service.starter.level = INFO
-#org.apache.river.start.sharedGroup.level = INFO
+#org.apache.river.start.group.SharedGroup.level = INFO
 #org.apache.river.start.wrapper.level = INFO
 
 # For Reggie

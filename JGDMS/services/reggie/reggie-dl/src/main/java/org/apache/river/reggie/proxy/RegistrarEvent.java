@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
+import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
@@ -44,7 +45,7 @@ import org.apache.river.api.io.AtomicSerial.ReadObject;
  *
  */
 @AtomicSerial
-public class RegistrarEvent extends ServiceEvent {
+public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
 
     private static final long serialVersionUID = 2L;
 
@@ -190,6 +191,12 @@ public class RegistrarEvent extends ServiceEvent {
     {
 	in.defaultReadObject();
 	servID = new ServiceID(in);
+    }
+
+    public Object getProxy() {
+	Object source = getSource();
+	if (source instanceof ProxyAccessor) return ((ProxyAccessor)source).getProxy();
+	throw new IllegalStateException("source wasn't a service registrar proxy");
     }
     
     private static class RO implements ReadObject {

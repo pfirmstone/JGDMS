@@ -28,6 +28,7 @@ import java.rmi.activation.ActivationID;
 import java.rmi.server.UID;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.proxy.MarshalledWrapper;
@@ -37,7 +38,6 @@ import org.apache.river.proxy.MarshalledWrapper;
  * 
  * @since 2.0
  */
-@AtomicSerial //To prevent replacement by serializer in stream, constructor not implemented.
 public class AID extends ActivationID {
     private static final long serialVersionUID = 681896091039721074L;
 
@@ -45,7 +45,7 @@ public class AID extends ActivationID {
     protected final UID uid;
 
     @AtomicSerial
-    static final class State implements Serializable {
+    static final class State implements Serializable, ProxyAccessor {
 	private static final long serialVersionUID = 4479839553358267720L;
 
 	private final Activator activator;
@@ -63,6 +63,10 @@ public class AID extends ActivationID {
 
 	private Object readResolve() {
 	    return new AID(activator, uid);
+	}
+
+	public Object getProxy() {
+	    return activator;
 	}
     }
 

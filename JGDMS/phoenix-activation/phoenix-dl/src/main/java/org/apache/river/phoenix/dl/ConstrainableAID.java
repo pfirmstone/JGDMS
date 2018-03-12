@@ -27,6 +27,7 @@ import java.rmi.activation.ActivationID;
 import java.rmi.server.UID;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.export.ProxyAccessor;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
@@ -48,7 +49,6 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  * 
  * @since 2.0
  **/
-@AtomicSerial //To prevent replacement by serializer in stream, constructor not implemented.
 public final class ConstrainableAID extends AID
 	implements RemoteMethodControl, TrustEquivalence
 {
@@ -73,7 +73,7 @@ public final class ConstrainableAID extends AID
     private final MethodConstraints constraints;
 
     @AtomicSerial
-    static final class State implements Serializable {
+    static final class State implements Serializable, ProxyAccessor {
 	private static final long serialVersionUID = 1673734348880788487L;
 	private final Activator activator;
 	private final UID uid;
@@ -102,6 +102,10 @@ public final class ConstrainableAID extends AID
 
 	private Object readResolve() throws InvalidObjectException {
 	    return new ConstrainableAID(activator, uid, constraints);
+	}
+
+	public Object getProxy() {
+	    return activator;
 	}
     }
 

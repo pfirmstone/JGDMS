@@ -203,7 +203,7 @@
         <!--Code Coverage Options-->
         <!--<echo file="${jtreg.dir}/test.props" message="jcov.options=" append="true"/>-->
         <mkdir dir="${jtreg.dir}/JTlib-tmp" />
-        <move todir="${jtreg.dir}/JTlib-tmp">
+        <copy todir="${jtreg.dir}/JTlib-tmp">
             <filelist dir="${river.lib.dir}">
                 <file name="jgdms-collections-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
@@ -232,7 +232,7 @@
                 <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
                 <file name="phoenix-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
-        </move>
+        </copy>
         <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
         <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
@@ -258,7 +258,7 @@
              * 20 - Print full test entry and pass/fail for every test.
              * 25 - Include passing results.
              * 30 - Include additional test debugging output, including time. -->
-            <arg value="-DtestLevel=5"/>
+            <arg value="-DtestLevel=30"/>
             <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
             <!--<arg value="-Djavax.net.debug=ssl"/>-->
             <!-- For an unknown reason the following property is ignored -->
@@ -266,6 +266,7 @@
             <!--<arg value="net/jini/jeri/kerberos/UnitTests/runTestPerformance.sh" />-->
             <!--<arg value="-Bug:6307813"/>-->
             <!--<arg value="-Bug:4408449"/>-->
+            <!--<arg value="-Bug:6313626"/>-->
             <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
             <!--<arg value="net/jini/security/Security/implicitGrants/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
@@ -275,7 +276,7 @@
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
             <!--<arg value="net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java"/>-->
         </jtreg>
-        <move todir="${river.lib.dir}">
+        <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
                 <file name="jgdms-collections-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
@@ -300,13 +301,13 @@
                 <file name="classserver.jar"/>
                 <file name="high-scale-lib.jar"/>-->
             </filelist>
-        </move>
-        <move todir="${river.lib-dl.dir}">
+        </delete>
+        <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
                 <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>        
                 <file name="phoenix-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
-        </move>
+        </delete>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>

@@ -78,6 +78,7 @@ import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.RemoteDiscoveryEvent;
+import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
@@ -116,6 +117,7 @@ import org.apache.river.thread.ReadersWriter;
 import org.apache.river.thread.ReadersWriter.ConcurrentLockException;
 import org.apache.river.thread.ReadyState;
 import org.apache.river.fiddler.proxy.*;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * This class is the server side of an implementation of the lookup
@@ -150,7 +152,8 @@ import org.apache.river.fiddler.proxy.*;
  *
  * @author Sun Microsystems, Inc.
  */
-public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable,
+public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
+	Startable, CodebaseAccessor,
 	ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor {
 
     /* Name of this component; used in config entry retrieval and the logger.*/
@@ -198,7 +201,29 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
             concurrentObj.readUnlock();
         }
     }
-    
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(Fiddler.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
+    }
+
     /** Data structure - associated with a <code>ServiceRegistrar</code> -
      *  containing the <code>LookupLocator</code> and the member groups of
      *  the registrar
@@ -395,6 +420,11 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
     private AccessControlContext context;
     
     private boolean started;
+    
+    private String codebase;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
 
     /* ************************* BEGIN Constructors ************************ */
     /**
@@ -491,6 +521,10 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, St
         this.snapshotThreadSyncObj = concurrentObj.newCondition();
         this.leaseExpireThreadSyncObj = concurrentObj.newCondition();
         this.lifeCycle = lifeCycle;
+	this.codebase = i.codebase;
+	this.certFactoryType = i.certFactoryType;
+	this.certPathEncoding = i.certPathEncoding;
+	this.encodedCerts = i.encodedCerts.clone();
         discoveryMgr = i.discoveryMgr;
         listenerPreparer = i.listenerPreparer;
         locatorToJoinPreparer = i.locatorToJoinPreparer;

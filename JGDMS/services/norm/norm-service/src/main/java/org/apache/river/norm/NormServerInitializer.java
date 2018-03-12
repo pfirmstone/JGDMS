@@ -70,6 +70,10 @@ class NormServerInitializer {
     NormServerBaseImpl.RenewLogThread renewLogger;
     AccessControlContext context;
     Configuration config;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
 
     /**
      * Initializer object for NormServer implementations.  Can be overridden by
@@ -111,6 +115,15 @@ class NormServerInitializer {
             lrm = new LeaseRenewalManager(config);
         }
         exporter = getExporter(config);
+	codebase = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_Annotation", String.class, "");
+	certFactoryType = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_CertFactoryType", String.class, "X.509");
+	certPathEncoding = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_CertPathEncoding", String.class, "PkiPath");
+	encodedCerts = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_Certs", byte[].class, new byte[0]);
+	
         // We use some of these during the recovery process
         expMgr = new LeaseExpirationMgr();
         generator = new EventTypeGenerator();

@@ -35,6 +35,7 @@ import net.jini.core.lease.Lease;
 import net.jini.event.MailboxPullRegistration;
 import net.jini.event.MailboxRegistration;
 import net.jini.event.RemoteEventIterator;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -56,7 +57,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */ 
 @AtomicSerial
 public class Registration implements MailboxPullRegistration, 
-    Serializable, ReferentUuid 
+    Serializable, ReferentUuid, ProxyAccessor 
 {
 
     private static final long serialVersionUID = 2L;
@@ -281,6 +282,10 @@ public class Registration implements MailboxPullRegistration,
                                          +"deserialize Registration instance");
     }//end readObjectNoData
 
+    public Object getProxy() {
+	return mailbox;
+    }
+
     /** A subclass of Registration that implements RemoteMethodControl. */
     @AtomicSerial
     final static class ConstrainableRegistration extends Registration 
@@ -361,8 +366,8 @@ public class Registration implements MailboxPullRegistration,
             }//endif
 
             /* Verify listener's ID */
-            if(r.registrationID !=
-	       ((ListenerProxy.ConstrainableListenerProxy)r.listener).registrationID) 
+            if(!r.registrationID.equals(
+	       ((ListenerProxy.ConstrainableListenerProxy)r.listener).registrationID)) 
             {
                 throw new InvalidObjectException
                                         ("Registration.readObject "
@@ -458,8 +463,8 @@ public class Registration implements MailboxPullRegistration,
             }//endif
 
             /* Verify listener's ID */
-            if(registrationID !=
-	       ((ListenerProxy.ConstrainableListenerProxy)listener).registrationID) 
+            if(!registrationID.equals(
+	       ((ListenerProxy.ConstrainableListenerProxy)listener).registrationID)) 
             {
                 throw new InvalidObjectException
                                         ("Registration.readObject "

@@ -118,12 +118,14 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.JoinManager;
 import net.jini.discovery.LookupDiscovery;
+import net.jini.export.CodebaseAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.thread.NamedThreadFactory;
 import org.apache.river.mercury.proxy.*;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * <tt>MailboxImpl</tt> implements the server side of the event 
@@ -159,7 +161,7 @@ See recoverSnapshot() for exact details of what gets retrieved.
 */
 
 public class MailboxImpl implements MailboxBackEnd, TimeConstants, 
-    ServerProxyTrust, ProxyAccessor, Startable,
+    ServerProxyTrust, ProxyAccessor, Startable, CodebaseAccessor,
     ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
  
 {
@@ -430,6 +432,10 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private Throwable thrown;
     private boolean started = false;
     private AccessControlContext context;
+    private String codebase;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
     
     ///////////////////////
     // Activation Methods
@@ -634,7 +640,10 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
         this.config = init.config;
         this.loginContext = init.loginContext;
         context = init.context;
-
+	this.codebase = init.codebase;
+	this.certFactoryType = init.certFactoryType;
+	this.certPathEncoding = init.certPathEncoding;
+	this.encodedCerts = init.encodedCerts.clone();
         // Assign fields
         
         Thread snapShotter = null;
@@ -2585,6 +2594,28 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
     public ServiceID serviceID() throws IOException {
 	return new ServiceID(serviceID.getMostSignificantBits(),
 		serviceID.getLeastSignificantBits());
+    }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(MailboxBackEnd.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
     }
 
     /**

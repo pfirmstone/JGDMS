@@ -36,6 +36,7 @@ import org.apache.river.jeri.internal.HttpsEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastServer;
 import aQute.bnd.annotation.headers.RequireCapability;
 import aQute.bnd.annotation.headers.ProvideCapability;
+import org.apache.river.discovery.Plaintext;
 
 /**
  * Implements the server side of the <code>net.jini.discovery.https</code>
@@ -89,7 +90,8 @@ class Server extends UnicastServer {
 	throws IOException
 	{
 	    super.writeClassAnnotationCerts(out, response);
-	    super.writeUnicastResponse(out, response, context);
+	    Plaintext.writeV2UnicastResponse(out, response, context);
+	    out.flush();
 	}
         
         

@@ -82,6 +82,10 @@ class TxnManagerImplInitializer {
     Uuid topUuid = null;
     AccessControlContext context = null;
     InterruptedStatusThread settleThread =null;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
 
     TxnManagerImplInitializer(Configuration config, boolean persistent, ActivationID activationID, InterruptedStatusThread settleThread) throws ConfigurationException, RemoteException, ActivationException, IOException {
         this.settleThread = settleThread;
@@ -162,6 +166,16 @@ class TxnManagerImplInitializer {
         if (TxnManagerImpl.initLogger.isLoggable(Level.CONFIG)) {
             TxnManagerImpl.initLogger.log(Level.CONFIG, "leasePeriodPolicy is: {0}", txnLeasePeriodPolicy);
         }
+	
+	codebase = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_Annotation", String.class, "");
+	certFactoryType = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_CertFactoryType", String.class, "X.509");
+	certPathEncoding = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_CertPathEncoding", String.class, "PkiPath");
+	encodedCerts = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_Certs", byte[].class, new byte[0]);
+	
         if (persistent) {
             persistenceDirectory = (String) Config.getNonNullEntry(config, TxnManager.MAHALO, "persistenceDirectory", String.class);
             if (TxnManagerImpl.initLogger.isLoggable(Level.CONFIG)) {

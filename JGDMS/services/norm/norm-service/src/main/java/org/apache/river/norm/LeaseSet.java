@@ -38,6 +38,7 @@ import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.Lease;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.ExpirationWarningEvent;
@@ -85,13 +86,13 @@ class LeaseSet implements Serializable, LeasedResource {
     /**
      * A table that maps client leases to client lease wrappers.
      */
-    private transient LeaseTable leaseTable;
+    private volatile transient LeaseTable leaseTable;
 
     /**
      * Time before <code>expiration</code> to send expiration warning events
      * @serial
      */
-    private long minWarning = NormServer.NO_LISTENER;
+    private volatile long minWarning = NormServer.NO_LISTENER;
 
     /**
      * The event type for expiration warning events
@@ -103,7 +104,7 @@ class LeaseSet implements Serializable, LeasedResource {
      * The current sequence number for expiration warning events
      * @serial
      */
-    private long warningSeqNum;
+    private volatile long warningSeqNum;
 
     /**
      * The event type for failure events
@@ -219,13 +220,14 @@ class LeaseSet implements Serializable, LeasedResource {
 	throws IOException, ClassNotFoundException 
     {
 	in.defaultReadObject();
-	
-	// Restore the 2nd copy
-	expiration2 = new ExpirationTime(expiration);
+	synchronized (this){
+	    // Restore the 2nd copy
+	    expiration2 = new ExpirationTime(expiration);
 
-	// Create lease table, but only populate after restoring lease wrapper
-	// transient state
-	leaseTable = new LeaseTable();
+	    // Create lease table, but only populate after restoring lease wrapper
+	    // transient state
+	    leaseTable = new LeaseTable();
+	}
     }
 
     /** 
@@ -410,7 +412,9 @@ class LeaseSet implements Serializable, LeasedResource {
 	MarshalledObject    handback)
         throws IOException     					       
     {
-	this.minWarning = minWarning;
+	synchronized (this){
+	    this.minWarning = minWarning;
+	}
 	warningEventType.setListener(listener, handback);
 
 	final Object u = new WarningEventRegistration(this);
@@ -571,14 +575,14 @@ class LeaseSet implements Serializable, LeasedResource {
 
     // Methods need to meet contract of LeasedResource	
     // Inherit java doc from super type
-    public void setExpiration(long newExpiration) {
+    public synchronized void setExpiration(long newExpiration) {
 	expiration = newExpiration;
 	// Update the 2nd copy
 	expiration2.set(expiration);
     }
 
     // Inherit java doc from super type
-    public long getExpiration() {
+    public synchronized long getExpiration() {
 	return expiration;
     }
 
@@ -820,15 +824,19 @@ class LeaseSet implements Serializable, LeasedResource {
 	 */
 	private WarningEventRegistration(LeaseSet set) {
 	    super(set.getUuid());
-	    warningTime = set.minWarning;
-	    registration = set.warningEventType;
+	    synchronized (set){
+		warningTime = set.minWarning;
+		registration = set.warningEventType;
+	    }
 	}
 
 	
 	// Inherit java doc from super type
 	void apply(LeaseSet set) throws StoreException {
-	    set.minWarning = warningTime;
-	    set.warningEventType = registration;
+	    synchronized (set){
+		set.minWarning = warningTime;
+		set.warningEventType = registration;
+	    }
 	}
     }
 

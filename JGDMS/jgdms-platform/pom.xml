@@ -47,11 +47,11 @@
     </properties>
 
     <dependencies>
-        <dependency>
+        <!--<dependency>
           <groupId>com.boundary</groupId>
           <artifactId>high-scale-lib</artifactId>
           <version>${high.scale.lib.version}</version>
-        </dependency>
+        </dependency>-->
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-collections</artifactId>

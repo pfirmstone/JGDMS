@@ -166,9 +166,9 @@ public final class Security {
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
      */
-    private static final Map<ClassLoader,SoftReference<IntegrityVerifier[]>> integrityMap 
-	    = new WeakHashMap<ClassLoader,SoftReference<IntegrityVerifier[]>>();
-
+//    private static final Map<ClassLoader,SoftReference<IntegrityVerifier[]>> integrityMap 
+//	    = new WeakHashMap<ClassLoader,SoftReference<IntegrityVerifier[]>>();
+//   Not suitable for OSGi environment.
     /**
      * SecurityManager instance used to obtain caller's Class.
      */
@@ -339,10 +339,16 @@ public final class Security {
      * integrity verifier instance. An implementation of this method is
      * permitted to cache the verifier instances associated with a
      * class loader, rather than recreating them on every call.
+     * <p>
+     * Caching of verifier instances is currently not performed as it would
+     * not be compatible with an OSGi environment.  In an OSGi environment
+     * the OSGi service registry is used to lookup IntegrityVerifiers instead
+     * of the service loader.
      *
      * @param codebase space-separated list of URLs, or <code>null</code>
      * @param loader the class loader for finding integrity verifiers, or
-     * <code>null</code> to use the context class loader
+     * <code>null</code> to use the context class loader.  This argument is
+     * ignored in an OSGi environment.
      * @throws MalformedURLException if the specified codebase contains
      * an invalid URL
      * @throws SecurityException if any URL in the specified codebase
@@ -435,38 +441,38 @@ public final class Security {
     private static IntegrityVerifier[] getIntegrityVerifiers(
 							final ClassLoader cl)
     {
-	SoftReference<IntegrityVerifier[]> ref;
-	synchronized (integrityMap) {
-	    ref = integrityMap.get(cl);
-	}
-	IntegrityVerifier[] verifiers = null;
-	if (ref != null) {
-	    verifiers = ref.get();
-	}
-	if (verifiers == null) {
-	    final List<IntegrityVerifier> list = new LinkedList<IntegrityVerifier>();
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
-		    for (Iterator<IntegrityVerifier> iter =
-			     Service.providers(IntegrityVerifier.class, cl);
-			 iter.hasNext(); )
-		    {
-			list.add(iter.next());
-		    }
-		    return null;
+//	SoftReference<IntegrityVerifier[]> ref;
+//	synchronized (integrityMap) {
+//	    ref = integrityMap.get(cl);
+//	}
+	IntegrityVerifier[] verifiers;// = null;
+//	if (ref != null) {
+//	    verifiers = ref.get();
+//	}
+//	if (verifiers == null) {
+	final List<IntegrityVerifier> list = new LinkedList<IntegrityVerifier>();
+	AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		for (Iterator<IntegrityVerifier> iter =
+			 Service.providers(IntegrityVerifier.class, cl);
+		     iter.hasNext(); )
+		{
+		    list.add(iter.next());
 		}
-	    });
-	    if (getIntegrityLogger().isLoggable(Level.FINE)) {
-		getIntegrityLogger().logp(Level.FINE, Security.class.getName(),
-				     "verifyCodebaseIntegrity",
-				     "integrity verifiers {0}",
-				     new Object[]{list});
+		return null;
 	    }
-	    verifiers = list.toArray( new IntegrityVerifier[list.size()]);
-	    synchronized (integrityMap) {
-		integrityMap.put(cl, new SoftReference<IntegrityVerifier[]>(verifiers));
-	    }
+	});
+	if (getIntegrityLogger().isLoggable(Level.FINE)) {
+	    getIntegrityLogger().logp(Level.FINE, Security.class.getName(),
+				 "verifyCodebaseIntegrity",
+				 "integrity verifiers {0}",
+				 new Object[]{list});
 	}
+	verifiers = list.toArray( new IntegrityVerifier[list.size()]);
+//	    synchronized (integrityMap) {
+//		integrityMap.put(cl, new SoftReference<IntegrityVerifier[]>(verifiers));
+//	    }
+//	}
 	return verifiers;
     }
 

@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CountDownLatch;
@@ -51,7 +52,6 @@ import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
 import org.apache.river.thread.NamedThreadFactory;
-import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
  * CombinerSecurityManager, is intended to be a highly scalable
@@ -145,11 +145,11 @@ extends SecurityManager implements CachingSecurityManager {
         dc = new DelegateDomainCombiner();
         ConcurrentMap<Referrer<AccessControlContext>, 
                 Referrer<AccessControlContext>> internal = 
-                new NonBlockingHashMap<Referrer<AccessControlContext>, 
+                new ConcurrentHashMap<Referrer<AccessControlContext>, 
                 Referrer<AccessControlContext>>();
         contextCache = RC.concurrentMap(internal, Ref.TIME, Ref.STRONG, 60000L, 60000L);
         ConcurrentMap<Referrer<Object>, Referrer<NavigableSet<Permission>>> refmap 
-                = new NonBlockingHashMap<Referrer<Object>, 
+                = new ConcurrentHashMap<Referrer<Object>, 
                 Referrer<NavigableSet<Permission>>>();
         checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 20000L);
         g = new SecurityPermission("getPolicy");

@@ -34,6 +34,7 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.UnknownEventException;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -55,7 +56,8 @@ import org.apache.river.api.io.Valid;
  * @since 1.1
  */
 @AtomicSerial
-public class ListenerProxy implements RemoteEventListener, Serializable, ReferentUuid {
+public class ListenerProxy implements RemoteEventListener, Serializable,
+	ReferentUuid, ProxyAccessor {
 
     private static final long serialVersionUID = 2L;
 
@@ -190,7 +192,9 @@ public class ListenerProxy implements RemoteEventListener, Serializable, Referen
                                          +"deserialize ListenerProxy instance");
     }//end readObjectNoData
 
-
+    public Object getProxy() {
+	return server;
+    }
 
     /** A subclass of ListenerProxy that implements RemoteMethodControl. */
     @AtomicSerial

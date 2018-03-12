@@ -158,6 +158,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.s
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.start.group.dl.jar}" {

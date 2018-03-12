@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 package org.apache.river.test.impl.mercury;
+import java.io.IOException;
 import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.constants.TimeConstants;
 import org.apache.river.landlord.Landlord;
@@ -62,9 +63,12 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.export.ProxyAccessor;
+import net.jini.export.DynamicProxyCodebaseAccessor;
+import org.apache.river.proxy.CodebaseProvider;
 
 public class TestGeneratorImpl 
-    implements TestGenerator, Landlord, TimeConstants, ProxyAccessor, Startable
+    implements TestGenerator, Landlord, TimeConstants, ProxyAccessor, Startable,
+	DynamicProxyCodebaseAccessor
 {
 
     private static Logger logger = Logger.getLogger("org.apache.river.qa.harness");
@@ -137,7 +141,7 @@ public class TestGeneratorImpl
         exporter = (Exporter) getNonNullEntry(
             config, "exporter", Exporter.class,
             new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-				  new BasicILFactory(), 
+				  new BasicILFactory(null, null, TestGenerator.class.getClassLoader()), 
 				  false, 
 				  true));
 	generatorUuid = UuidFactory.generate();
@@ -363,5 +367,27 @@ public class TestGeneratorImpl
     }
 
 
+    @Override
+    public String getClassAnnotation() throws IOException {
+	String result = CodebaseProvider.getClassAnnotation(serverStub == null ? 
+		TestGenerator.class : serverStub.getClass());
+	logger.log(Level.FINE, "Annotation: " + result);
+	return result;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return null;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return null;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return null;
+    }
 }
 

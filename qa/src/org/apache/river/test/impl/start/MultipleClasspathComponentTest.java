@@ -19,10 +19,7 @@ package org.apache.river.test.impl.start;
 
 import java.util.logging.Level;
 
-import org.apache.river.qa.harness.TestException;
 import org.apache.river.start.group.SharedGroup;
-import java.io.*;
-import java.rmi.*;
 
 
 /**

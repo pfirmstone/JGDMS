@@ -288,9 +288,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     /** download from codebases with no dl perm allowed? */
     private final boolean requireDlPerm;
 
-    /** true if constructor has completed successfully */
-    private final boolean initialized;
-
     /** provider logger */
     private static final Logger logger =
 	Logger.getLogger("net.jini.loader.pref.PreferredClassProvider");
@@ -337,7 +334,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * all PreferredClassProvider instances can share the same cache, all
      * ClassLoaders are unique in the jvm, this prevents accidental duplication.
      */
-    private final static ConcurrentMap<LoaderKey,ClassLoader> loaderTable;
+    final static ConcurrentMap<LoaderKey,ClassLoader> loaderTable;
     
     /**
      * URL cache is time based, we need this to be as fast as possible,
@@ -403,21 +400,34 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * method fails
      **/
     protected PreferredClassProvider(boolean requireDlPerm) {
+	this(
+	    check(requireDlPerm),
+	    RC.concurrentMap(
+		 new ConcurrentHashMap<Referrer<ClassLoader>,
+			 Referrer<Collection<Permission>>>(),
+		Ref.WEAK_IDENTITY,
+		Ref.STRONG,
+		5000L,
+		5000L)
+	);
+    }
+    
+    private PreferredClassProvider(boolean requireDlPerm, ConcurrentMap<ClassLoader,Collection<Permission>> classLoaderPerms){
+	this.requireDlPerm = requireDlPerm;
+	this.classLoaderPerms = classLoaderPerms;
+    }
+    
+    /**
+     * Prevents finalizer attack.
+     * @param requireDlPerm
+     * @return 
+     */
+    private static boolean check(boolean requireDlPerm){
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {
 	    sm.checkCreateClassLoader();
 	}
-	this.requireDlPerm = requireDlPerm;
-        ConcurrentMap<Referrer<ClassLoader>,Referrer<Collection<Permission>>> inter =
-                new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Collection<Permission>>>();
-        classLoaderPerms = RC.concurrentMap(inter, Ref.WEAK_IDENTITY, Ref.STRONG, 5000L, 5000L);
-	initialized = true;
-    }
-
-    private void checkInitialized() {
-	if (!initialized) {
-	    throw new SecurityException("uninitialized instance");
-	}
+	return requireDlPerm;
     }
 
     /**
@@ -558,7 +568,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 			   ClassLoader defaultLoader)
 	throws MalformedURLException, ClassNotFoundException
     {
-	checkInitialized();
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE, //logging here can cause deadlock
 		       "name=\"{0}\", codebase={1}, defaultLoader={2}",
@@ -806,7 +815,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      **/
     @Override
     public String getClassAnnotation(Class cl) {
-	checkInitialized();
 	String name = cl.getName();
 
 	/*
@@ -828,7 +836,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    }
 	}
 
-	return getLoaderAnnotation(getClassLoader(cl), true);
+	return getLoaderAnnotation(getClassLoader(cl), true, this);
     }
 
     /**
@@ -857,7 +865,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * <code>null</code>
      **/
     protected String getClassAnnotation(ClassLoader loader) {
-	checkInitialized();
 	return codebaseProperty;
     }
 
@@ -868,10 +875,11 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * the loader, only return the true annotation if the current
      * security context has permission to connect to all of the URLs.
      **/
-    private String getLoaderAnnotation(ClassLoader loader, boolean check) {
+    static String getLoaderAnnotation(ClassLoader loader, boolean check,
+	    PreferredClassProvider provider) {
 	
 	if (isLocalLoader(loader)) {
-	    return getClassAnnotation(loader);
+	    return provider != null ? provider.getClassAnnotation(loader) : null;
 	}
 
         /*
@@ -937,7 +945,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	if (annotation != null) {
 	    return annotation;
 	} else {
-	    return getClassAnnotation(loader);
+	    return provider != null ? provider.getClassAnnotation(loader) : null;
 	}
     }
 
@@ -946,7 +954,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * its parent (i.e. the loader for installed extensions) or the null
      * class loader
      */
-    private static boolean isLocalLoader(ClassLoader loader) {
+    static boolean isLocalLoader(ClassLoader loader) {
 	return (loader == null || localLoaders.contains(loader));
     }
     
@@ -988,7 +996,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     public ClassLoader getClassLoader(String codebase)
 	throws MalformedURLException
     {
-	checkInitialized();
         // throws MalformedURLException
     	Uri[] codebaseURIs = pathToURIs(codebase);	// may be null
         URL[] codebaseURLs = asURL(codebaseURIs); // throws MalformedURLException
@@ -1154,7 +1161,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 				ClassLoader defaultLoader)
 	throws MalformedURLException, ClassNotFoundException
     {
-	checkInitialized();
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE,
 		"interfaces={0}, codebase={1}, defaultLoader={2}",
@@ -1425,7 +1431,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     private Uri[] getLoaderAnnotationURIs(ClassLoader loader)
 	throws MalformedURLException
     {
-	return pathToURIs(getLoaderAnnotation(loader, false));
+	return pathToURIs(getLoaderAnnotation(loader, false, this));
     }
 
     /**
@@ -1501,7 +1507,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * @throws MalformedURLException if the string path of urls contains a
      *         mal-formed url which can not be converted into a url object.
      */
-    private static Uri[] pathToURIs(String path) throws MalformedURLException {
+    static Uri[] pathToURIs(String path) throws MalformedURLException {
 	if (path == null) {
 	    return null;
 	}
@@ -1526,7 +1532,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     
     /** Converts Uri[] to URL[].
      */
-    private URL[] asURL(Uri[] uris) throws MalformedURLException{
+    static URL[] asURL(Uri[] uris) throws MalformedURLException{
         if (uris == null) return null;
         List<Uri> uriList = Arrays.asList(uris);
         URL [] result = urlCache.get(uriList);
@@ -1824,7 +1830,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 					    final ClassLoader parent,
 					    final boolean requireDlPerm)
     {
-	checkInitialized();
 	return
 	    AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
 		@Override

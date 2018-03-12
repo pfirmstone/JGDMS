@@ -999,7 +999,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      */
     private static boolean isDirectory(URL url) {
         String file = url.getFile();
-        return (file.length() > 0 && file.charAt(file.length() - 1) == '/');
+        return (file.length() > 0 && file.charAt(file.length() - 1) == File.separatorChar);
     }
 
     /**

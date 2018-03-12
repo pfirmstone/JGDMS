@@ -14,5 +14,8 @@ Preferred: false
 Name: org/apache/river/start/*
 Preferred: false
 
+Name: org/apache/river/start/group/*
+Preferred: false
+
 Name: net/jini/-
 Preferred: false

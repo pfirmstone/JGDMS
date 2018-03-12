@@ -133,10 +133,12 @@ public abstract class EndpointBasedClient
 		if (context == null || context.isEmpty()){
 		    context = new ArrayList();
 		    context.add(enforceAtomic);
+		    context.add(constraints); //Add constraints to also be applied to nested endpoints
 		    context = Collections.unmodifiableCollection(context);
 		} else {
 		    context = new ArrayList(context);
 		    context.add(enforceAtomic);
+		    context.add(constraints); //Add constraints to also be applied to nested endpoints.
 		    context = Collections.unmodifiableCollection(context);
 		}
 	    }

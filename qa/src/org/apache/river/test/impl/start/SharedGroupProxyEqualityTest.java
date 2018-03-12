@@ -51,7 +51,7 @@ public class SharedGroupProxyEqualityTest extends QATestEnvironment implements T
         SharedGroup group_proxy = null;
         SharedGroup group_proxy_dup = null;
         SharedGroup bogus_group_proxy = null;
-	final String serviceName = "org.apache.river.start.SharedGroup";
+	final String serviceName = "org.apache.river.start.group.SharedGroup";
 	MarshalledInstance marshObj01 = 
 		new MarshalledInstance(getManager().startService(serviceName));
         MarshalledInstance marshObj02 = 

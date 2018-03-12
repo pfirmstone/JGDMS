@@ -33,7 +33,6 @@ import java.security.PrivilegedAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.lookup.ServiceAttributesAccessor;
-import net.jini.lookup.ServiceCodebaseAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.export.ProxyAccessor;
@@ -52,21 +51,6 @@ public final class Bootstrap {
      */
     private static final Class[] bootStrapProxyInterfaces = 
 	{
-	    ServiceProxyAccessor.class, 
-	    ServiceAttributesAccessor.class,
-	    ServiceIDAccessor.class,
-	    RemoteMethodControl.class,
-	    TrustEquivalence.class
-	};
-    
-    /**
-     * The bootstrap proxy for smart proxy's must be limited to the following
-     * interfaces, in case additional interfaces implemented by the proxy
-     * aren't available remotely.
-     */
-    private static final Class[] bootStrapSmartProxyInterfaces = 
-	{
-	    ServiceCodebaseAccessor.class,
 	    ServiceProxyAccessor.class, 
 	    ServiceAttributesAccessor.class,
 	    ServiceIDAccessor.class,
@@ -120,13 +104,12 @@ public final class Bootstrap {
 	    // REMIND: InvocationHandler must be available locally, for now
 	    // it must be an instance of BasicInvocationHandler.
 	    InvocationHandler h = Proxy.getInvocationHandler(proxy);
-	    if (proxy instanceof ServiceCodebaseAccessor){
-		return (Proxy) 
-		    Proxy.newProxyInstance(getProxyLoader(proxyClass), bootStrapSmartProxyInterfaces, h);
-	    } else {
-		return (Proxy) 
-		    Proxy.newProxyInstance(getProxyLoader(proxyClass), bootStrapProxyInterfaces, h);		    
-	    }
+	    return (Proxy) 
+		Proxy.newProxyInstance(
+			getProxyLoader(proxyClass),
+			bootStrapProxyInterfaces, 
+			h
+		);
 	}
 	return null;
     }

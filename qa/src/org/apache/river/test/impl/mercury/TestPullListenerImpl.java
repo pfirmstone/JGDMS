@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 package org.apache.river.test.impl.mercury;
+import java.io.IOException;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
@@ -32,19 +33,13 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import net.jini.core.event.RemoteEvent;
-import net.jini.core.event.UnknownEventException;
-import net.jini.core.event.RemoteEventListener;
-
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -54,9 +49,12 @@ import javax.security.auth.login.LoginException;
 
 import net.jini.event.MailboxPullRegistration;
 import net.jini.event.InvalidIteratorException;
+import net.jini.export.DynamicProxyCodebaseAccessor;
+import org.apache.river.proxy.CodebaseProvider;
 
 public class TestPullListenerImpl 
-    implements TestPullListener, ProxyAccessor, ServerProxyTrust, Startable
+    implements TestPullListener, ProxyAccessor, ServerProxyTrust, Startable,
+	DynamicProxyCodebaseAccessor
 {
     private final Map events = new HashMap();
 
@@ -218,6 +216,27 @@ public class TestPullListenerImpl
         }, context);
     }
 
+    @Override
+    public String getClassAnnotation() throws IOException {
+	String result = CodebaseProvider.getClassAnnotation(serverStub == null ? 
+		TestPullListener.class : serverStub.getClass());
+	return result;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return null;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return null;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return null;
+    }
 }
 
 
