@@ -35,8 +35,8 @@ import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.AdvisoryDynamicPermissions;
 
 /**
- * A <code>ProxyPreparer</code> for verifying that proxies are trusted,
- * granting them dynamic permissions, and setting their constraints, as well as
+ * A <code>ProxyPreparer</code> for granting dynamic permissions and
+ * setting proxy constraints, as well as
  * for creating other proxy preparer subclasses that include those
  * operations. <p>
  *
@@ -44,8 +44,8 @@ import org.apache.river.api.security.AdvisoryDynamicPermissions;
  * for several common cases. Some examples include creating proxy preparers
  * that: <ul>
  *
- * <li> Verify trust, grant permissions, and set new constraints, to prepare a
- * proxy received from an untrusted source.
+ * <li> Grant permissions, and set new constraints, to prepare a
+ * proxy before invoking calls on it's methods.
  *
  * <li> Use the proxy's existing constraints when verifying trust in the proxy,
  * to prepare a trusted proxy received with integrity protection from a trusted
@@ -54,10 +54,11 @@ import org.apache.river.api.security.AdvisoryDynamicPermissions;
  * third party.
  *
  * <li> Set new constraints, to prepare a trusted proxy received with integrity
- * protection from a trusted source that is not known to supply the appropriate
- * constraints.
+ * and atomic input validation protection from a trusted source that is
+ * not known to supply the appropriate constraints.
  *
  * <li> Grant permissions, to prepare a trusted proxy received with integrity
+ * and atomic input validation
  * protection from a trusted source that supplies appropriate constraints, if
  * the proxy needs permission grants.  Permissions may be 
  * either passed explicitly via a constructor or if null may be advised by the
@@ -129,10 +130,20 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * them permissions, or set their constraints.
      */
     public BasicProxyPreparer() {
-	verify = false;
-	methodConstraintsSpecified = false;
-	methodConstraints = null;
-	permissions = new Permission[0];
+	this(false, false, null, new Permission[0], false);
+    }
+    
+    /**
+     * Creates a proxy preparer that specifies what permissions to grant to proxies.
+     *
+     * @param permissions permissions to grant, or <code>null</code> if no
+     *	      permissions should be granted
+     * @throws NullPointerException if <code>permissions</code> is not
+     *	       <code>null</code> and any of its elements are <code>null</code>
+     * @since 3.1
+     */
+    public BasicProxyPreparer(Permission[] permissions) {
+	this(false, false, null, checkPermissions(permissions), false);
     }
 
     /**
@@ -145,7 +156,9 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      *	      permissions should be granted
      * @throws NullPointerException if <code>permissions</code> is not
      *	       <code>null</code> and any of its elements are <code>null</code>
+     * @deprecated
      */
+    @Deprecated
     public BasicProxyPreparer(boolean verify, Permission[] permissions) {
 	this(verify, false, null, checkPermissions(permissions), false);
     }
@@ -176,19 +189,39 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      *	      permissions should be granted
      * @throws NullPointerException if <code>permissions</code> is not
      *	       <code>null</code> and any of its elements are <code>null</code>
+     * @deprecated
      */
+    @Deprecated
     public BasicProxyPreparer(boolean verify,
 			      MethodConstraints methodConstraints,
 			      Permission[] permissions)
     {
-	this(verify, true, methodConstraints, checkPermissions(permissions), false);
+	this(verify, methodConstraints != null, methodConstraints, checkPermissions(permissions), false);
+    }
+    
+    /**
+     * Creates a proxy preparer that specifies what method constraints to use
+     * when verifying and setting constraints and permissions to grant to proxy.
+     *
+     * @param methodConstraints method constraints to use when verifying 
+     *	      and setting constraints
+     * @param permissions permissions to grant, or <code>null</code> if no
+     *	      permissions should be granted
+     * @throws NullPointerException if <code>permissions</code> is not
+     *	       <code>null</code> and any of its elements are <code>null</code>
+     * @since 3.1
+     */
+    public BasicProxyPreparer(MethodConstraints methodConstraints,
+				Permission[] permissions)
+    {
+	this(false, methodConstraints != null, methodConstraints, checkPermissions(permissions), false);
     }
     
     private BasicProxyPreparer( boolean verify,
 				boolean methodConstraintsSpecified,
 				MethodConstraints methodConstraints,
 				Permission[] permissions,
-				boolean atomicSerialcheck)
+				boolean deserializationInputValidated)
     {
 	super();
 	this.verify = verify;
@@ -308,7 +341,9 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * @see #prepareProxy prepareProxy
      * @see #getMethodConstraints getMethodConstraints
      * @see Security#verifyObjectTrust Security.verifyObjectTrust
+     * @deprecated
      */
+    @Deprecated
     protected void verify(Object proxy) throws RemoteException {
 	if (proxy == null) {
 	    throw new NullPointerException("Proxy cannot be null");
@@ -548,7 +583,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * @param arg
      * @throws IOException 
      */
-    public BasicProxyPreparer(GetArg arg) throws IOException
+    protected BasicProxyPreparer(GetArg arg) throws IOException
     {
 	this(arg.get("verify", true),
 	     arg.get("methodConstraintsSpecified", true),

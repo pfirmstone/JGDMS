@@ -26,15 +26,12 @@ import java.net.URISyntaxException;
 import java.security.cert.Certificate;
 import java.security.Permission;
 import java.security.Principal;
-import java.net.URI;
 import junit.framework.Assert;
-import org.apache.river.api.net.Uri;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
@@ -59,7 +56,7 @@ public class URIGrantTest {
         String [] u = new String[2];
         u[0] = "file:/foo/*";
         u[1] = "file:/C:/FOO/*";
-        instance = new URIGrant(u, new Certificate[0], new Principal[0], new Permission[0]);
+        instance = new URIGrant(u, new Certificate[0], new String[0], new Principal[0], new Permission[0]);
         pd = new ProtectionDomain( new CodeSource(new URL("file:/foo/bar"), (Certificate []) null), null);
     }
     

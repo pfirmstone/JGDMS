@@ -62,11 +62,12 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     private int context;
     /*@serial */
     private boolean hasDomain;
-    
+    /*@serial */
+    private String[] aliases;
     // Transient Fields
     private transient Collection<String> uris;
     private transient WeakReference<ProtectionDomain> domain;
-    
+   
     PermissionGrantBuilderImp() {
         super();
         reset();
@@ -80,6 +81,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         uri = null;
         if (uris != null) uris.clear();
         certs = null;
+	aliases = null;
         domain = null;
         hasDomain = false;
         principals = null;
@@ -125,7 +127,14 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
 
     public PermissionGrantBuilder certificates(Certificate[] certs) {
-        this.certs = certs;
+        return certificates(certs, new String[0]);
+    }
+    
+    
+    @Override
+    public PermissionGrantBuilder certificates(Certificate[] certs, String[] aliases) {
+	this.certs = certs;
+	this.aliases = aliases;
         return this;
     }
 
@@ -149,9 +158,9 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
             case URI:
                 if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new String[uris.size()]);
                 if (uri == null ) uri = new String[0];
-                return new URIGrant(uri, certs, principals, permissions);              
+                return new URIGrant(uri, certs, aliases, principals, permissions);              
             case CODESOURCE_CERTS:
-                return new CertificateGrant(certs, principals, permissions);
+                return new CertificateGrant(certs, aliases, principals, permissions);
             case PROTECTIONDOMAIN: //Dynamic grant
                 return new ProtectionDomainGrant(domain, principals, permissions );
             case PRINCIPAL:
@@ -190,6 +199,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
 
 
+
     // This is a singleton so we don't need to implement equals or hashCode.
     static class NullPermissionGrant extends PermissionGrant implements Serializable {
         private static final long serialVersionUID = 1L;
@@ -221,6 +231,16 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         private Object readResolve(){
             return nullGrant;
         }
+
+	@Override
+	public boolean impliesEquivalent(PermissionGrant grant) {
+	    return false;
+	}
+
+	@Override
+	public boolean isDyanamic() {
+	    return true;
+	}
         
     }
 }

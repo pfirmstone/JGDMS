@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -765,6 +766,104 @@ public final class Security {
         return AccessController.doPrivileged(act, combine(acc, subject));
     }
     
+    public static Runnable withContext(Runnable runnable,
+				       AccessControlContext context)
+    {
+	if (runnable instanceof Comparable) 
+	    return new ComparableRunnableImpl(runnable, context);
+	return new RunnableImpl(runnable, context);
+    }
+    
+    private static class RunnableImpl implements Runnable {
+	protected final Runnable runnable;
+	protected final AccessControlContext context;
+	
+	RunnableImpl(Runnable runnable, AccessControlContext context){
+	    this.runnable = runnable;
+	    this.context = context;
+	}
+
+	public void run() {
+	    AccessController.doPrivileged(new PrivilegedAction(){
+
+		public Object run() {
+		    runnable.run();
+		    return null;
+		}
+		
+	    }, context);
+	}
+    }
+    
+    private static class ComparableRunnableImpl extends RunnableImpl 
+				implements Comparable<ComparableRunnableImpl> {
+
+	public ComparableRunnableImpl(Runnable runnable, AccessControlContext context) {
+	    super(runnable, context);
+	}
+
+	public int compareTo(ComparableRunnableImpl o) {
+	    return ((Comparable) runnable).compareTo(o.runnable);
+	}
+	
+    }
+    
+    /**
+     * Decorates a callable with the given context, and allows it to be
+     * executed within that context.
+     * 
+     * @param <V> The type of the object returned from Callable.call().
+     * @param callable The callable to execute with the given context.
+     * @param context The context in which the callable is to execute. 
+     * @return The callable to be submitted to an ExecutorService.
+     */
+    public static <V> Callable<V> withContext(Callable<V> callable,
+					      AccessControlContext context)
+    {
+	if (callable instanceof Comparable) 
+	    return new ComparableCallableImpl<V>(callable, context);
+	return new CallableImpl<V>(callable, context);
+    }
+    
+    private static class CallableImpl<V> implements Callable<V> {
+	protected final AccessControlContext context;
+	protected final Callable<V> c;
+	
+	CallableImpl(Callable<V> c, AccessControlContext context){
+	    this.c = c;
+	    this.context = context;
+	}
+
+	public V call() throws Exception {
+	    try {
+	    return AccessController.doPrivileged( 
+		new PrivilegedExceptionAction<V>(){
+
+		    public V run() throws Exception {
+			return c.call();
+		    }
+    
+		}, context);
+	    } catch (PrivilegedActionException e){
+		throw e.getException();
+	    }
+	}
+	
+    }
+    
+    private static class ComparableCallableImpl<V> 
+			    extends CallableImpl<V> implements Comparable<ComparableCallableImpl> {
+
+	ComparableCallableImpl( Callable<V> c, AccessControlContext context){
+	    super(c, context);
+	}
+
+	public int compareTo(ComparableCallableImpl o) {
+	    return ((Comparable)c).compareTo(o.c);
+	}
+	
+    }
+    
     
     private static AccessControlContext combine(final AccessControlContext acc, final Subject subject){
         return AccessController.doPrivileged(new PrivilegedAction<AccessControlContext>(){
@@ -960,7 +1059,7 @@ public final class Security {
     {
 	Policy policy = getPolicy();
 	if (!(policy instanceof DynamicPolicy)) {
-	    throw new UnsupportedOperationException("grants not supported");
+	    throw new UnsupportedOperationException("grants not supported by policy: " + policy);
 	}
 	((DynamicPolicy) policy).grant(cl, principals, permissions);
 	if (getPolicyLogger().isLoggable(Level.FINER)) {

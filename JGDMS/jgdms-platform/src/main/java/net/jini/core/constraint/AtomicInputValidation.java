@@ -43,5 +43,10 @@ package net.jini.core.constraint;
  */
 public enum AtomicInputValidation implements InvocationConstraint {
     YES, 
-    NO
+    NO;
+    
+    @Override
+    public String toString(){
+	return "AtomicInputValidation." + super.toString();
+    }
 }

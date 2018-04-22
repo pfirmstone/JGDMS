@@ -31,39 +31,34 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Represents a constraint on the server, such that if the server
- * authenticates itself, then it must authenticate itself as at least all of
- * the specified principals. The mechanisms and credentials used to
+ * authenticates itself, then it may only authenticate itself as one or more
+ * of the specified principals. The mechanisms and credentials used to
  * authenticate the server as those principals are not specified by this
- * constraint.
+ * constraint. A server can use this constraint to limit how much of its
+ * identity is exposed in remote calls. For example, if the server's subject
+ * contains sufficient information to authenticate as two distinct
+ * principals, the server might wish to limit authentication to just one of
+ * the two, if the server believes the other is unnecessary for authorization
+ * at the server and wants to avoid revealing that part of its identity to
+ * the server.
  * <p>
- * The use of an instance of this class does not imply directly a
+ * The use of an instance of this class does not directly imply a
  * {@link ServerAuthentication#YES} constraint; that must be specified
  * separately to ensure that the server actually authenticates itself.
  * Because this constraint is conditional on server authentication, it does
  * not conflict with {@link ServerAuthentication#NO}.
- * <p>
- * It is important to understand that specifying
- * <code>ServerAuthentication.YES</code> as a requirement <i>does not</i>
- * ensure that a server is to be trusted; it <i>does</i> ensure that the
- * server authenticates itself as someone, but it does not ensure that the
- * server authenticates itself as anyone in particular. Without knowing who
- * the server authenticated itself as, there is no basis for actually
- * trusting the server. The client generally needs to specify a
- * <code>ServerMinPrincipal</code> requirement in addition, or else verify
- * that the server has specified a satisfactory
- * <code>ServerMinPrincipal</code> requirement for each of the methods that
- * the client cares about.
  *
  * @author Sun Microsystems, Inc.
  * @see ServerAuthentication
+ * @see ServerMinPrincipal
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0
  */
 @AtomicSerial
-public final class ServerMinPrincipal
+public final class ServerMaxPrincipal
 				implements InvocationConstraint, Serializable
 {
-    private static final long serialVersionUID = 6082629466615675811L;
+    private static final long serialVersionUID = 1L;
 
     /**
      * @serialField principals Principal[] The principals.
@@ -77,18 +72,17 @@ public final class ServerMinPrincipal
      */
     private final Principal[] principals;
     
-    public ServerMinPrincipal(GetArg arg) throws IOException{
-	this(validate(arg.get("principals", null, Principal[].class)), true);
+    /**
+     * AtomicSerial constructor.
+     * @param arg
+     * @throws IOException 
+     */
+    public ServerMaxPrincipal(GetArg arg) throws IOException {
+	this(check(arg.get("principals", null, Principal[].class)), true);
     }
     
-    private static Principal[] validate(Principal[] p) throws InvalidObjectException{
-	p = p.clone();
-	Constraint.verify(p);
-	return p;
-    }
-    
-    private ServerMinPrincipal(Principal[] p, boolean serial){
-	principals = p;
+    private ServerMaxPrincipal(Principal[] principals, boolean check){
+	this.principals = principals;
     }
 
     /**
@@ -99,11 +93,21 @@ public final class ServerMinPrincipal
      * @param p the principal
      * @throws NullPointerException if the argument is <code>null</code>
      */
-    public ServerMinPrincipal(Principal p) {
+    public ServerMaxPrincipal(Principal p) {
+	this(check(p), true);
+    }
+    
+    private static Principal[] check(Principal p){
 	if (p == null) {
 	    throw new NullPointerException("principal cannot be null");
 	}
-	principals = new Principal[]{p};
+	return new Principal[]{p};
+    }
+    
+    private static Principal [] check(Principal[] p) throws InvalidObjectException{
+	p = p.clone();
+	Constraint.verify(p);
+	return p;
     }
 
     /**
@@ -113,12 +117,12 @@ public final class ServerMinPrincipal
      * effect on the instance created.
      *
      * @param principals the principals
+     * @throws IllegalArgumentException if the argument is empty
      * @throws NullPointerException if the argument is <code>null</code> or
      * any element is <code>null</code>
-     * @throws IllegalArgumentException if the argument is empty
      */
-    public ServerMinPrincipal(Principal[] principals) {
-	this.principals = Constraint.reduce(principals);
+    public ServerMaxPrincipal(Principal[] principals) {
+	this(Constraint.reduce(principals), true);
     }
 
     /**
@@ -128,19 +132,19 @@ public final class ServerMinPrincipal
      * effect on the instance created.
      *
      * @param c the principals
-     * @throws NullPointerException if the argument is <code>null</code> or
-     * any element is <code>null</code>
      * @throws IllegalArgumentException if the argument is empty or the
      * elements do not all implement the <code>Principal</code> interface
+     * @throws NullPointerException if the argument is <code>null</code> or
+     * any element is <code>null</code>
      */
-    public ServerMinPrincipal(Collection c) {
-	principals = Constraint.reduce(c);
+    public ServerMaxPrincipal(Collection c) {
+	this(Constraint.reduce(c), true);
     }
 
     /**
-     * Returns an immutable set of all of the principals. Any attempt to modify
-     * the set results in an {@link UnsupportedOperationException} being
-     * thrown.
+     * Returns an immutable set of all of the principals. Any attempt to
+     * modify the set results in an {@link UnsupportedOperationException}
+     * being thrown.
      *
      * @return an immutable set of all of the principals
      */
@@ -159,7 +163,7 @@ public final class ServerMinPrincipal
      * Returns a hash code value for this object.
      */
     public int hashCode() {
-	return (ServerMinPrincipal.class.hashCode() +
+	return (ServerMaxPrincipal.class.hashCode() +
 		Constraint.hash(principals));
     }
 
@@ -168,16 +172,16 @@ public final class ServerMinPrincipal
      * (ignoring order).
      */
     public boolean equals(Object obj) {
-	return (obj instanceof ServerMinPrincipal &&
+	return (obj instanceof ServerMaxPrincipal &&
 		Constraint.equal(principals,
-				 ((ServerMinPrincipal) obj).principals));
+				 ((ServerMaxPrincipal) obj).principals));
     }
 
     /**
      * Returns a string representation of this object.
      */
     public String toString() {
-	return "ServerMinPrincipal" + Constraint.toString(principals);
+	return "ClientMaxPrincipal" + Constraint.toString(principals);
     }
 
     /**
@@ -189,7 +193,7 @@ public final class ServerMinPrincipal
      * principals
      * @param s ObjectInputStream
      * @throws ClassNotFoundException if class not found.
-     * @throws IOException if a problem occurs during de-serialization.
+     * @throws IOException if de-serialization problem occurs.
      */
     private void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException

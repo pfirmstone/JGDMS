@@ -20,7 +20,6 @@ package org.apache.river.api.security;
 
 import java.lang.ref.WeakReference;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.CodeSource;
@@ -231,6 +230,15 @@ public abstract class PermissionGrantBuilder {
      * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder certificates(Certificate[] certs);
+    
+    /**
+     * Sets the Certificate[] a CodeSource must have to receive the PermissionGrant.
+     * 
+     * @param certs Certificates
+     * @param aliases of certificates.
+     * @return a PermissionGrantBuilder
+     */
+    public abstract PermissionGrantBuilder certificates(Certificate[] certs, String[] aliases);
     /**
      * Sets the Principal[] that a Subject must have to be entitled to receive
      * the PermissionGrant.

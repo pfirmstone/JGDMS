@@ -25,11 +25,10 @@ import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -40,16 +39,22 @@ import java.util.List;
 class CertificateGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
     private final Collection<Certificate> certs;
+    private final List<String> alias;
     private final int hashCode;
     @SuppressWarnings("unchecked")
-    CertificateGrant(Certificate[] codeSourceCerts, Principal[] pals, 
-                                    Permission[] perms){
+    CertificateGrant(Certificate[] codeSourceCerts, String[] aliases, Principal[] pals, Permission[] perms){
         super(pals, perms);
-         if (codeSourceCerts == null || codeSourceCerts.length == 0) {
-            certs = Collections.EMPTY_SET;
+        if (codeSourceCerts == null || codeSourceCerts.length == 0) {
+            certs = Collections.EMPTY_LIST;
         }else{
-            certs = new HashSet<Certificate>(codeSourceCerts.length);
+            certs = new ArrayList<Certificate>(codeSourceCerts.length);
             certs.addAll(Arrays.asList(codeSourceCerts));
+        }
+	if (aliases == null || aliases.length == 0) {
+            alias = Collections.EMPTY_LIST;
+        }else{
+            alias = new ArrayList<String>(aliases.length);
+            alias.addAll(Arrays.asList(aliases));
         }
         int hash = 3;
         hash = 83 * hash + (this.certs != null ? this.certs.hashCode() : 0);
@@ -77,15 +82,18 @@ class CertificateGrant extends PrincipalGrant {
     
     @Override
     public String toString(){
-        StringBuilder sb = new StringBuilder(400);
-        sb.append("\nCertificate's: \n");
-        Iterator<Certificate> it = certs.iterator();
-        while (it.hasNext()){
-            sb.append(it.next().toString())
-              .append("\n");
-        }
-        sb.append(super.toString());
-        return sb.toString();
+	if (!alias.isEmpty()){
+	    StringBuilder sb = new StringBuilder(400);
+	    sb.append("signedBy \"");
+	    for (int i=0, l=alias.size(); i<l; i++){
+	       if (i != 0) sb.append(",");
+	       sb.append(alias.get(i));
+	    }
+	    sb.append("\",\n");
+	    sb.append(super.toString());
+	    return sb.toString();
+	}
+        return super.toString();
     }
     
     @Override
@@ -108,6 +116,7 @@ class CertificateGrant extends PrincipalGrant {
 	return false;  //Indeterminate.
     }
     
+    @Override
     public boolean implies(CodeSource codeSource, Principal[] p) {
         if ( !implies(p)) return false;
         if ( codeSource == null ) return false;
@@ -118,9 +127,17 @@ class CertificateGrant extends PrincipalGrant {
     }
     
     @Override
+    public boolean impliesEquivalent(PermissionGrant grant) {
+	if (!(grant instanceof CertificateGrant)) return false;
+	if (!super.impliesEquivalent(grant)) return false;
+	return certs.equals(((CertificateGrant)grant).certs);
+    }
+    
+    @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
-        return pgb.certificates(certs.toArray(new Certificate[certs.size()]))
+        return pgb.certificates(certs.toArray(new Certificate[certs.size()]),
+				alias.toArray(new String[alias.size()]))
                 //.exclude(exclusion)
                 .context(PermissionGrantBuilder.CODESOURCE_CERTS);
     }

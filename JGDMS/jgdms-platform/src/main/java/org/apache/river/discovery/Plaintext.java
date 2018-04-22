@@ -61,6 +61,8 @@ import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
+import net.jini.io.MarshalInputStream;
+import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import org.apache.river.api.io.AtomicMarshalInputStream;
@@ -434,13 +436,15 @@ public class Plaintext {
 		    if (o instanceof AtomicValidationEnforcement &&
 			    ((AtomicValidationEnforcement)o).enforced())
 		    {
-			mi = new AtomicMarshalledInstance(registrar, context);
-			break;
+			throw new UnsupportedConstraintException(
+				"Constraint not supported: "
+				+ AtomicInputValidation.YES
+			);
 		    }
 		}
 	    }
-	    if (mi == null) mi = new MarshalledInstance(registrar, context);
-	    new AtomicMarshalOutputStream(out, null, context, true).writeObject(mi);
+	    mi = new MarshalledInstance(registrar, context);
+	    new MarshalOutputStream(out, context).writeObject(mi);
 	} catch (RuntimeException e) {
 	    throw new DiscoveryProtocolException(null, e);
 	}
@@ -511,6 +515,20 @@ public class Plaintext {
 	throws IOException, ClassNotFoundException
     {
 	try {
+	    
+	    if (context != null){
+		for (Object o : context){
+		    if (o instanceof AtomicValidationEnforcement &&
+			    ((AtomicValidationEnforcement)o).enforced())
+		    {
+			throw new UnsupportedConstraintException(
+				"Unsupported constraint: " 
+				+ AtomicInputValidation.YES
+			);
+		    }
+		}
+	    }
+	    
 	    DataInput din = new DataInputStream(in);
 
 	    // read LUS host
@@ -527,25 +545,14 @@ public class Plaintext {
 
 	    // read LUS proxy
 	    MarshalledInstance mi = (MarshalledInstance) 
-		AtomicMarshalInputStream.createObjectInputStream(
+		new MarshalInputStream(
 			in,
 			defaultLoader,
 			verifyCodebaseIntegrity,
 			verifierLoader,
 			context
 		).readObject();
-	    if (context != null){
-		for (Object o : context){
-		    if (o instanceof AtomicValidationEnforcement &&
-			    ((AtomicValidationEnforcement)o).enforced())
-		    {
-			if (!(mi instanceof AtomicMarshalledInstance))
-			    throw new IOException(
-			"Unable to deserialize ServiceRegistrar proxy, atomic input validation not supported");
-			break;
-		    }
-		}
-	    }
+	    
 	    ServiceRegistrar reg = (ServiceRegistrar) mi.get(
 		defaultLoader,
 		verifyCodebaseIntegrity,

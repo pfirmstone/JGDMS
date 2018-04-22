@@ -54,7 +54,10 @@ import java.util.List;
 import java.util.NavigableSet;
 import java.util.Properties;
 import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.security.policy.PolicyInitializationException;
+import org.apache.river.impl.Messages;
 
 
 /**
@@ -196,6 +199,9 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     // A specific parser for a particular policy file format.
     private final PolicyParser parser;
     
+    // If created with defined policy.
+    private final URL[] policies;
+    
     private static final Guard guard = new SecurityPermission("createPolicy.JiniPolicy");
     
     private static final ProtectionDomain myDomain = 
@@ -220,6 +226,15 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
         this(new DefaultPolicyParser(), new PermissionComparator());
     }
     
+    /**
+     * 
+     * @param policies
+     * @throws PolicyInitializationException 
+     */
+    public ConcurrentPolicyFile(URL[] policies) throws PolicyInitializationException{
+	this(new DefaultPolicyParser(), new PermissionComparator(), policies);
+    }
+    
     /** All exceptions are thrown by this method during construction,
      * to avoid a finalizer attack from an overriding class attempting
      * to avoid the construction guard, catching the exception then calling
@@ -228,13 +243,13 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
      * This method is called during construction prior to the implicit
      * super() call to Object and prior to any final fields being assigned.
      */
-    private static PermissionGrant [] readPolicyPermissionGrants(PolicyParser parser) throws PolicyInitializationException{
+    private static PermissionGrant [] readPolicyPermissionGrants(PolicyParser parser, URL[] policies) throws PolicyInitializationException{
         guard.checkGuard(null);
         try {
             // Bug 4911907, do we need to do anything more?
             // The permissions for this domain must be retrieved before
             // construction is complete and this policy takes over.
-            return readPoliciesNoCheckGuard(parser); // Instantiates myPermissions.
+            return readPoliciesNoCheckGuard(parser, policies); // Instantiates myPermissions.
         } catch (SecurityException e){
             throw e;
         } catch (Exception e){
@@ -242,9 +257,27 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
         }
     }
     
+    /**
+     * 
+     * @param dpr
+     * @param comp
+     * @throws PolicyInitializationException 
+     */
     protected ConcurrentPolicyFile(PolicyParser dpr, Comparator<Permission> comp) 
             throws PolicyInitializationException {
-        this (dpr, comp, readPolicyPermissionGrants(dpr));
+        this (dpr, null, comp, readPolicyPermissionGrants(dpr, null));
+    }
+    
+    /**
+     * 
+     * @param dpr
+     * @param comp
+     * @param policyLocations
+     * @throws PolicyInitializationException 
+     */
+    protected ConcurrentPolicyFile(PolicyParser dpr, Comparator<Permission> comp, URL[] policyLocations) 
+            throws PolicyInitializationException {
+        this (dpr, policyLocations, comp, readPolicyPermissionGrants(dpr, policyLocations));
     }
 
     /**
@@ -255,9 +288,10 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
      * @param dpr
      * @param comp Comparator to compare permissions. 
      */
-    private ConcurrentPolicyFile(   PolicyParser dpr, 
-                                    Comparator<Permission> comp, 
-                                    PermissionGrant [] grants) 
+    private ConcurrentPolicyFile(PolicyParser dpr,
+				URL[] policies, 
+				Comparator<Permission> comp,
+				PermissionGrant[] grants) 
             throws PolicyInitializationException {
         /*
          * The bootstrap policy makes implies decisions until this constructor
@@ -267,6 +301,7 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
         comparator = comp;
         grantArray = grants;
         myPermissions = getP(myDomain);
+	this.policies = policies == null ? null : policies.clone();
     }
     
     private PermissionCollection convert(NavigableSet<Permission> permissions){
@@ -451,21 +486,21 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     @Override
     public void refresh() {
         try {
-            grantArray = readPoliciesNoCheckGuard(parser);
+            grantArray = readPoliciesNoCheckGuard(parser, policies == null ? null : policies.clone());
         } catch (Exception ex) {
             System.err.println(ex);
         }
     }
     
-    private static PermissionGrant [] readPoliciesNoCheckGuard(final PolicyParser parser) throws Exception{
+    private static PermissionGrant [] readPoliciesNoCheckGuard(final PolicyParser parser, final URL[] policies) throws Exception{
         try {
-            Collection<PermissionGrant> fresh = AccessController.doPrivileged( 
-                new PrivilegedExceptionAction<Collection<PermissionGrant>>(){
+            Collection<PermissionGrant> fresh = AccessController.doPrivileged(new PrivilegedExceptionAction<Collection<PermissionGrant>>(){
                     public Collection<PermissionGrant> run() throws SecurityException {
                         Collection<PermissionGrant> fresh = new ArrayList<PermissionGrant>(120);
                         Properties system = System.getProperties();
                         system.setProperty("/", File.separator); //$NON-NLS-1$
-                        URL[] policyLocations = PolicyUtils.getPolicyURLs(system,
+                        URL[] policyLocations = policies != null ? 
+				policies : PolicyUtils.getPolicyURLs(system,
                                                           JAVA_SECURITY_POLICY,
                                                           POLICY_URL_PREFIX);
                         int l = policyLocations.length;
@@ -476,15 +511,24 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
                                 Collection<PermissionGrant> pc = null;
                                 pc = parser.parse(policyLocations[i], system);
                                 fresh.addAll(pc);
-                            } catch (Exception e){
+                            } catch (Exception ex){
+				if (ex instanceof PrivilegedActionException) 
+				    ex =
+					((PrivilegedActionException)ex).getException();
                                 // It's best to let a SecurityException bubble up
                                 // in case there is a problem with our policy configuration
                                 // or implementation.
-                                if ( e instanceof SecurityException ) {
-                                    e.printStackTrace(System.out);
-                                    throw (SecurityException) e;
+                                if ( ex instanceof SecurityException ) {
+//                                    e.printStackTrace(System.out);
+                                    throw (SecurityException) ex;
                                 }
-                                // ignore.
+				if (parser instanceof DefaultPolicyParser){
+				    ((DefaultPolicyParser) parser).log(
+					Level.CONFIG, 
+						"security.1A8",
+						new Object[]{policyLocations[i], ex.getMessage()}
+				    );
+				}
                             }
                         }
                         return fresh;

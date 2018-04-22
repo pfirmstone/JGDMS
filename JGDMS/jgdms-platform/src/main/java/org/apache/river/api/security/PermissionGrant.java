@@ -200,6 +200,7 @@ public abstract class PermissionGrant {
         return hash;
     }
     
+    @Override
     public boolean equals(Object o){
         if ( !( o instanceof PermissionGrant)) return false;
         PermissionGrant that = (PermissionGrant) o;
@@ -259,6 +260,26 @@ public abstract class PermissionGrant {
      * @return true if implies.
      */
     public abstract boolean implies(CodeSource codeSource, Principal[] pal);
+    
+    /**
+     * Checks whether grant logic is identical for the passed in PermissionGrant.
+     * 
+     * The permissions granted are not considered, only the imply logic.
+     * 
+     * The main purpose of this method is to allow external consolidation of
+     * permissions from a number of grants into one equivalent PermissionGrant.
+     * 
+     * @param grant
+     * @return true if the grant implies logic is identical to this grant.
+     */
+    public abstract boolean impliesEquivalent(PermissionGrant grant);
+    
+    /**
+     * Returns true if the grant can only be dynamically granted at runtime. 
+     * That is, it isn't possible to specify in a policy file grant.
+     * @return 
+     */
+    public abstract boolean isDyanamic();
 
     /**
      * Returns an unmodifiable Collection of permissions defined by this

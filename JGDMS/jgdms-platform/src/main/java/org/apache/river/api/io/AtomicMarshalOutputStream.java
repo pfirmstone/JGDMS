@@ -320,20 +320,19 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	     */
 	    logger.log(Level.FINEST, "Object in stream instance of: {0}", obj.getClass());
 	    try {
-		
-		if (obj instanceof ProxyAccessor ) {
-		    logger.log(Level.FINEST, "Object in stream instance of ProxyAccessor");
-		    obj = 
-		    ProxySerializer.create(
-			    (ProxyAccessor) obj,
-			    aout.defaultLoader,
-			    aout.getObjectStreamContext()
-		    );
-		} else if (obj instanceof DynamicProxyCodebaseAccessor ){
+		if (obj instanceof DynamicProxyCodebaseAccessor ){
 		    logger.log(Level.FINEST, "Object in stream instance of DynamicProxyCodebaseAccessor");
 		    obj = 
 		    ProxySerializer.create(
 			    (DynamicProxyCodebaseAccessor) obj,
+			    aout.defaultLoader,
+			    aout.getObjectStreamContext()
+		    );
+		} else if (obj instanceof ProxyAccessor ) {
+		    logger.log(Level.FINEST, "Object in stream instance of ProxyAccessor");
+		    obj = 
+		    ProxySerializer.create(
+			    (ProxyAccessor) obj,
 			    aout.defaultLoader,
 			    aout.getObjectStreamContext()
 		    );

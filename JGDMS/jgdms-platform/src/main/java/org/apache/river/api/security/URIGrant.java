@@ -27,10 +27,11 @@ import java.security.Permission;
 import java.security.Principal;
 import java.security.PrivilegedExceptionAction;
 import java.security.cert.Certificate;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.api.net.Uri;
@@ -46,10 +47,15 @@ class URIGrant extends CertificateGrant {
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
-    URIGrant(String[] uri, Certificate[] certs, Principal[] pals, Permission[] perm){
-        super( certs, pals, perm);
+    URIGrant(String[] uri,
+	    Certificate[] certs,
+	    String[] aliases,
+	    Principal[] pals,
+	    Permission[] perm)
+    {
+        super(certs, aliases, pals, perm);
         int l = uri.length;
-        Collection<Uri> uris = new ArrayList<Uri>(l);
+        Set<Uri> uris = new HashSet<Uri>(l);
         for ( int i = 0; i < l ; i++ ){
             try {
                 // Do we need to move all normalisation into the URIGrant and
@@ -61,7 +67,7 @@ class URIGrant extends CertificateGrant {
                 ex.printStackTrace(System.err);
             }
         }
-        location = Collections.unmodifiableCollection(uris);
+        location = Collections.unmodifiableSet(uris);
         int hash = 3;
         hash = 67 * hash + location.hashCode();
         hash = 67 * hash + (super.hashCode());
@@ -89,13 +95,19 @@ class URIGrant extends CertificateGrant {
     
     @Override
     public String toString(){
-        StringBuilder sb = new StringBuilder(500);
-        return sb.append("\n")
-                 .append("URI: ")
-                 .append(location.toString())
-                 .append(super.toString())
-                 .append("\n")
-                 .toString();
+	if (location != null){
+	    StringBuilder sb = new StringBuilder(500);
+	    Iterator<Uri> it = location.iterator();
+	    while (it.hasNext()){
+		sb.append("codebase \"");
+		sb.append(it.next());
+		sb.append("\"");
+		sb.append(",\n");
+	    }
+	    sb.append(super.toString());
+	    return sb.toString();
+	}
+	return super.toString();
     }
     
     @Override
@@ -140,6 +152,13 @@ class URIGrant extends CertificateGrant {
             if (uris[i].implies(implied)) return true;
         }
         return false;
+    }
+    
+    @Override
+    public boolean impliesEquivalent(PermissionGrant grant) {
+	if (!(grant instanceof URIGrant)) return false;
+	if (!super.impliesEquivalent(grant)) return false;
+	return location.equals(((URIGrant)grant).location);
     }
     
     @Override

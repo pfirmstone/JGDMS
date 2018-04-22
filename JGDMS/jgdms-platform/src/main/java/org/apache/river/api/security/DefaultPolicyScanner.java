@@ -26,14 +26,11 @@ import org.apache.river.impl.Messages;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StreamTokenizer;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
 
 
@@ -90,6 +87,10 @@ class DefaultPolicyScanner {
         public InvalidFormatException(String arg0) {
             super(arg0);
         }
+	
+	public InvalidFormatException(String message, Exception cause){
+	    super(message, cause);
+	}
     }
 
     /**

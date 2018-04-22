@@ -278,7 +278,16 @@ public class MarshalInputStream
      * invoked on this stream, then the codebase value chosen is the
      * value that was returned by <code>readAnnotation</code>;
      * otherwise, the codebase value chosen is <code>null</code>.
-     *
+     * 
+     * <p>
+     * If the name of the class
+     * described by <code>classDesc</code> equals the Java
+     * programming language keyword for a primitive type or
+     * <code>void</code>, then this method returns the
+     * <code>Class</code> corresponding to that primitive type or
+     * <code>void</code> ({@link Integer#TYPE} for <code>int</code>,
+     * {@link Void#TYPE} for <code>void</code>, and so forth).
+     * 
      * <p>This method then invokes {@link ClassLoading#loadClass
      * ClassLoading.loadClass} with the chosen codebase value as the
      * first argument, the name of the class described by
@@ -287,15 +296,8 @@ public class MarshalInputStream
      * <code>verifyCodebaseIntegrity</code>, and
      * <code>verifierLoader</code> values that were passed to this
      * stream's constructor as the third, fourth, and fifth arguments.
-     * If <code>ClassLoading.loadClass</code> throws a
-     * <code>ClassNotFoundException</code> and the name of the class
-     * described by <code>classDesc</code> equals the Java
-     * programming language keyword for a primitive type or
-     * <code>void</code>, then this method returns the
-     * <code>Class</code> corresponding to that primitive type or
-     * <code>void</code> ({@link Integer#TYPE} for <code>int</code>,
-     * {@link Void#TYPE} for <code>void</code>, and so forth).
-     * Otherwise, if <code>ClassLoading.loadClass</code> throws an
+     * 
+     * If <code>ClassLoading.loadClass</code> throws an
      * exception, this method throws that exception, and if it returns
      * normally, this method returns the <code>Class</code> returned
      * by <code>ClassLoading.loadClass</code>.
@@ -328,20 +330,17 @@ public class MarshalInputStream
 	String codebase = usingCodebaseAnnotations ? annotation : null;
 
 	String name = classDesc.getName();
-	try {
-	    return ClassLoading.loadClass(codebase,
-					  name,
-					  defaultLoader,
-					  verifyCodebaseIntegrity,
-					  verifierLoader);
-	} catch (ClassNotFoundException e) {
-	    Class c = (Class) specialClasses.get(name);
-	    if (c != null) {
-		return c;
-	    } else {
-		throw e;
-	    }
-	}
+	// Previously special classes were only sent after catching an
+	// exception, this caused some confusing messages in logging, in
+	// addition, exceptional conditions should not be used for the
+	// normal path of code execution.
+	Class c = (Class) specialClasses.get(name);
+	if (c != null) return c;
+	return ClassLoading.loadClass(codebase,
+				      name,
+				      defaultLoader,
+				      verifyCodebaseIntegrity,
+				      verifierLoader);
     }
 
     /**

@@ -78,7 +78,7 @@ class ObjectStreamClassContainer {
         SecurityManager sm = System.getSecurityManager();
         if (sm == null) return;
 	if (context != null && perm != null) {
-	    context.checkPermission(perm);
+	    sm.checkPermission(perm, context);
 	}
 	if (!hasReadObjectNoData() && !hasReadObject()) {
 	    //Ok if there's no data.

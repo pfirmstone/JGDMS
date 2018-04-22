@@ -30,8 +30,6 @@ import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * ProtectionDomainGrant's become void if serialized, since ProtectionDomain's
@@ -42,7 +40,7 @@ import java.util.logging.Logger;
  */
 class ProtectionDomainGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
-    private final WeakReference<ProtectionDomain> domain;
+    protected final WeakReference<ProtectionDomain> domain;
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
@@ -174,6 +172,21 @@ class ProtectionDomainGrant extends PrincipalGrant {
         }
         return false;
     }
+    
+    @Override
+    public boolean impliesEquivalent(PermissionGrant grant) {
+	if (!(grant instanceof ProtectionDomainGrant)) return false;
+	if (!super.impliesEquivalent(grant)) return false;
+	ProtectionDomain dom = domain.get();
+	return dom == null ? false 
+		: dom.equals(((ProtectionDomainGrant)grant).domain.get());
+    }
+    
+    @Override
+    public boolean isDyanamic() {
+	return true;
+    }
+
 
     @Override
     public boolean isVoid() {        

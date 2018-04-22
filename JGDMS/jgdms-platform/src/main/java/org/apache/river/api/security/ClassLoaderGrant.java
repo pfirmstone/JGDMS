@@ -75,6 +75,22 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
         }
         return implies(cl, pals);
     }
+    
+    @Override
+    public boolean impliesEquivalent(PermissionGrant grant) {
+	if (!(grant instanceof ClassLoaderGrant)) return false;
+	ProtectionDomain myPd = domain.get();
+	ProtectionDomain yourPd = ((ClassLoaderGrant)grant).domain.get();
+	if (myPd != null && yourPd != null){
+	    ClassLoader myCL = myPd.getClassLoader();
+	    ClassLoader yourCL = yourPd.getClassLoader();
+	    if (myCL != null && yourCL != null){
+		return myCL.equals(yourCL);
+	    }
+	}
+	return false;
+	// The superclass has a narrower scope than ClassLoaderGrant.
+    }
 
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {

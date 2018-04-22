@@ -1163,7 +1163,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      * @see #readObject()
      */
     private void readFieldValues(EmulatedFieldsForLoading emulatedFields)
-            throws OptionalDataException, InvalidClassException, IOException {
+            throws OptionalDataException, InvalidClassException, IOException, ClassNotFoundException {
         ObjectSlot[] slots = emulatedFields.emulatedFields()
                 .slots();
         for (ObjectSlot element : slots) {
@@ -1190,17 +1190,23 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                 try {
                     element.setFieldValue(readObject(false, null));
                 } catch (ClassNotFoundException cnf) {
-                    // WARNING- Not sure this is the right thing to do. Write
-                    // test case.
-                    throw new InvalidClassException(cnf.toString());
+		    StringBuilder b = new StringBuilder(200);
+		    b.append("Unable to read field: ");
+		    b.append(element.getField().getName());
+		    b.append(", ");
+		    b.append(type);
+		    b.append("\n");
+		    b.append("while deserializing an object instance of: ");
+		    b.append(emulatedFields.getObjectStreamClass().getName());
+		    throw new IOException(b.toString(), cnf);
                 } catch (StreamCorruptedException e){
 		    StringBuilder b = new StringBuilder(200);
 		    b.append("Unable to read field: ");
 		    b.append(element.getField().getName());
-		    b.append(" of type: ");
+		    b.append(", ");
 		    b.append(type);
 		    b.append("\n");
-		    b.append("while deserializing class: ");
+		    b.append("while deserializing an object instance of: ");
 		    b.append(emulatedFields.getObjectStreamClass().getName());
 		    StreamCorruptedException ex = new StreamCorruptedException(b.toString());
 		    ex.initCause(e);
@@ -1209,10 +1215,10 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		    StringBuilder b = new StringBuilder(200);
 		    b.append("Unable to read field: ");
 		    b.append(element.getField().getName());
-		    b.append(" of type: ");
+		    b.append(", ");
 		    b.append(type);
 		    b.append("\n");
-		    b.append("while deserializing class: ");
+		    b.append("while deserializing an object instance of: ");
 		    b.append(emulatedFields.getObjectStreamClass().getName());
 		    EOFException ex = new EOFException(b.toString());
 		    ex.initCause(e);
@@ -1280,7 +1286,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		    } catch (NoSuchFieldException ex) {
 			return null;
 		    } catch (SecurityException ex) {
-			Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
+			Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 			return null;
 		    }
 		}
@@ -1370,7 +1376,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 				    });
 				}
 			    } catch (PrivilegedActionException ex) {
-				Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
+				Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 			    }
                         }
                     }
@@ -1436,11 +1442,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                                     "luni.BF", typeCode)); //$NON-NLS-1$
                     }
                 } catch (NoSuchFieldError err) {
-		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, err);
+		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, err);
                 } catch (IllegalArgumentException ex) {
-		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 		} catch (IllegalAccessException ex) {
-		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 		} catch (IOException ex) {
 		    return ex;
 	    }
@@ -2353,9 +2359,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		    registerObjectRead(null, newHandle, unshared);
 		    registeredResult = result;
 		} catch (InstantiationException ex) {
-		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 		} catch (IllegalAccessException ex) {
-		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 		}
 	    } else if (discard){
 		registerObjectRead(Reference.DISCARDED, newHandle, unshared);
@@ -2380,7 +2386,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 //			((Throwable) result).setStackTrace(new StackTraceElement[0]);
 		    atomicOrDiscard = false;
 		} catch (Exception ex){
-		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 		    registerObjectRead(Reference.DISCARDED, newHandle, unshared);
 		    instantiateAtomicSerialOrDiscard(classDesc, true);
 		    return null;

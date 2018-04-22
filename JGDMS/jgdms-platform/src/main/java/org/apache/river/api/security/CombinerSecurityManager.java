@@ -48,6 +48,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import net.jini.security.policy.PolicyInitializationException;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
@@ -59,9 +60,6 @@ import org.apache.river.thread.NamedThreadFactory;
  * for each context, which may be an instance of SecurityContext or
  * AccessControlContext.  Stale records are pruned from the cache.
  * 
- * The cache utilises Cliff Click's NonBlockingHashMap and Doug Lee's 
- * ConcurrentSkipListSet.
- * 
  * This SecurityManager should be tuned for garbage collection for a large
  * young generation heap, since many young objects are created and discarded.
  * 
@@ -71,6 +69,9 @@ import org.apache.river.thread.NamedThreadFactory;
  * Apart from Permission objects and java.security.Policy.getPolicy() class
  * lock (Bug ID: 7093090 fixed in jdk8(b15), this SecurityManager is non
  * blocking, including the cache it keeps to prevent repeat security checks.
+ * 
+ * Note: this security manager is not compatible with the jvm option
+ * -Djava.security.manager=
  * 
  * @see Security
  * @see SecurityContext
@@ -112,7 +113,7 @@ extends SecurityManager implements CachingSecurityManager {
     private final Comparator<Referrer<Permission>> permCompare;
     private final AccessControlContext SMConstructorContext;
     private final AccessControlContext SMPrivilegedContext;
-    private final SecurityContext SMSecurityContext;
+//    private final SecurityContext SMSecurityContext;
     private final ProtectionDomain privilegedDomain;
     private final ThreadLocal<SecurityContext> threadContext;
     private final ThreadLocal<Boolean> inTrustedCodeRecursiveCall;
@@ -133,11 +134,31 @@ extends SecurityManager implements CachingSecurityManager {
     }
     
     private CombinerSecurityManager(boolean check){
-        super();
-        // Get context before this becomes a SecurityManager.
-        // super() checked the permission to create a SecurityManager.
+        super(); //checked the permission to create a SecurityManager.
+	/* Get the policy & refresh, in case it hasn't been initialized. 
+         * While there is no SecurityManager,
+         * no policy checks are performed, however the policy must be in a
+         * constructed working state, before the SecurityManager is set,
+         * otherwise the Policy, if it's a non jvm policy, won't have permission
+         * to read the properties and files it needs in order to be constructed.
+	 * 
+	 * Note: we don't want the sun policy provider by default because it
+	 *	 cannot parse httpmd policy grants that don't have a message
+	 *	 digest, only use it if specifically requested.
+         */
+	String policy_provider = System.getProperty("policy.provider");
+	if (policy_provider == null || "sun.security.provider.PolicyFile".equals(policy_provider) )
+	{
+	    try {
+		Policy.setPolicy(new ConcurrentPolicyFile());
+	    } catch (PolicyInitializationException ex) {
+		throw new ExceptionInInitializerError(ex);
+	    }
+	}
+//        Policy policy = java.security.Policy.getPolicy(); 
+	// Get context before this becomes a SecurityManager.
         SMConstructorContext = AccessController.getContext();
-        SMSecurityContext = Security.getContext(); // Force class loading of Security.
+//        SMSecurityContext = Security.getContext(); // Force class loading of Security.
         ProtectionDomain [] context = new ProtectionDomain[1];
         privilegedDomain = this.getClass().getProtectionDomain();
         context[0] = privilegedDomain;
@@ -153,7 +174,6 @@ extends SecurityManager implements CachingSecurityManager {
                 Referrer<NavigableSet<Permission>>>();
         checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 20000L);
         g = new SecurityPermission("getPolicy");
-        Permission createAccPerm = new SecurityPermission("createAccessControlContext");
         action = new Action();
         // Make this a tunable property.
         double blocking_coefficient = 0.6; // 0 CPU intensive to 0.9 IO intensive
@@ -174,16 +194,9 @@ extends SecurityManager implements CachingSecurityManager {
         permCompare = RC.comparator(new PermissionComparator());
         threadContext = new ThreadLocal<SecurityContext>();
         inTrustedCodeRecursiveCall = new ThreadLocal<Boolean>();
-        /* Get the policy & refresh, in case it hasn't been initialized. 
-         * While there is no SecurityManager,
-         * no policy checks are performed, however the policy must be in a
-         * constructed working state, before the SecurityManager is set,
-         * otherwise the Policy, if it's a non jvm policy, won't have permission
-         * to read the properties and files it needs in order to be constructed.
-         */
-        Policy policy = java.security.Policy.getPolicy(); 
         // This is to avoid unnecessarily refreshing the policy.
-        if (!policy.implies(context[0], createAccPerm)) policy.refresh();
+//        Permission createAccPerm = new SecurityPermission("createAccessControlContext");
+//	if (!policy.implies(context[0], createAccPerm)) policy.refresh();
         /* Bug ID: 7093090 Reduce synchronization in java.security.Policy.getPolicyNoCheck
          * This bug may cause contention between ProtectionDomain implies
          * calls, also it could be a point of attack for Denial of service,
@@ -191,9 +204,16 @@ extends SecurityManager implements CachingSecurityManager {
          * in jdk8(b15).
          */
 	/* The following ensures the classes we need are loaded early to avoid
-	 * class loading deadlock */
-	checkPermission(new RuntimePermission("setIO"), SMPrivilegedContext);
-	constructed = true;
+	 * class loading deadlock during permission checks */
+	try {
+	    checkPermission(new RuntimePermission("setIO"), SMPrivilegedContext);
+	} catch (ExceptionInInitializerError er){
+	    Error e = new ExceptionInInitializerError(
+		"All domains on stack when starting a security manager must have AllPermission");
+	    e.initCause(er);
+	    throw e;
+	}
+	constructed = Security.class != null;
     }
     
     @Override
@@ -257,9 +277,11 @@ extends SecurityManager implements CachingSecurityManager {
         }
         threadContext.set(securityContext); // may be null.
         /* The next line speeds up permission checks related to this SecurityManager. */
-        if ( constructed && (SMPrivilegedContext.equals(executionContext) || 
-                SMConstructorContext.equals(executionContext) ||
-                SMSecurityContext.equals(securityContext) )
+        if ( constructed
+		&& (SMPrivilegedContext.equals(executionContext)
+		|| SMConstructorContext.equals(executionContext) 
+//		|| SMSecurityContext.equals(securityContext) 
+		)
             ) return; // prevents endless loop in debug.
         // Checks if Permission has already been checked for this context.
         NavigableSet<Permission> checkedPerms = checked.get(context);
