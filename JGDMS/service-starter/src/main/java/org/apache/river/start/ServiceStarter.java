@@ -29,6 +29,8 @@ import net.jini.security.ProxyPreparer;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
@@ -42,6 +44,12 @@ import javax.security.auth.Subject;
 
 import org.apache.river.action.GetIntegerAction;
 import org.apache.river.api.security.CombinerSecurityManager;
+//import org.apache.river.tool.SecurityPolicyWriter;
+
+import au.net.zeus.rmi.tls.TlsRMIClientSocketFactory;
+import java.io.IOException;
+import java.security.AccessController;
+import org.apache.river.action.GetBooleanAction;
 
 /** 
  * This class provides the main routine for starting shared groups,
@@ -303,6 +311,7 @@ public class ServiceStarter {
      */
     public synchronized static void ensureSecurityManager() {
         if (System.getSecurityManager() == null) {
+//	    System.setSecurityManager(new SecurityPolicyWriter());
             System.setSecurityManager(new CombinerSecurityManager());
         }
     }
@@ -334,9 +343,17 @@ public class ServiceStarter {
 	final String h = (host == null) ? "" : host;
 	final int p = (port <= 0) ? getActivationSystemPort() : port;
 	try {
-	    sys = (ActivationSystem)
-		Naming.lookup("//" + h + ":" + p +
-			      "/java.rmi.activation.ActivationSystem");
+	    try{
+		Registry registry = LocateRegistry.getRegistry(h, p, new TlsRMIClientSocketFactory());
+		sys = (ActivationSystem) registry.lookup("java.rmi.activation.ActivationSystem");
+	    } catch (IOException e){
+		if (AccessController.doPrivileged(new GetBooleanAction("net.jini.security.allowInsecureConnections"))){
+		    sys = (ActivationSystem) Naming.lookup("//" + h + ":" + p +
+				  "/java.rmi.activation.ActivationSystem");
+		} else {
+		    throw e;
+		}
+	    }
             ProxyPreparer activationSystemPreparer =
 		(ProxyPreparer) Config.getNonNullEntry(config,
 		    START_PACKAGE, "activationSystemPreparer", 
