@@ -18,7 +18,6 @@
 package org.apache.river.outrigger;
 
 import java.io.IOException;
-import java.rmi.Remote;
 import java.rmi.MarshalledObject;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationException;
@@ -57,7 +56,7 @@ class PersistentOutriggerImpl extends OutriggerServerWrapper {
      * @throws ClassNotFoundException if the classes of the objects
      *         encapsulated inside <code>data</code> can not be found.
      */
-    PersistentOutriggerImpl(ActivationID activationID, 
+    protected PersistentOutriggerImpl(ActivationID activationID, 
 			    MarshalledObject data) 
 	throws IOException, ConfigurationException, LoginException,
 	       ActivationException, ClassNotFoundException

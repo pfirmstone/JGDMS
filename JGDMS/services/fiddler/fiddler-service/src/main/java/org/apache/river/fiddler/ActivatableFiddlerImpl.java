@@ -25,6 +25,7 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationID;
 import java.rmi.MarshalledObject;
 import java.io.IOException;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
  * Convenience class intended for use with the 
@@ -35,7 +36,7 @@ import java.io.IOException;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-public class ActivatableFiddlerImpl extends FiddlerImpl {
+public class ActivatableFiddlerImpl extends FiddlerImpl implements DynamicProxyCodebaseAccessor {
 
     /**
      * Constructs a new instance of <code>FiddlerImpl</code> that is 

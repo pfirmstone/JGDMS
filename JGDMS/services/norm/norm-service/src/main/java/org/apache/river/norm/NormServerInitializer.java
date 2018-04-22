@@ -33,6 +33,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.NoSuchEntryException;
 import net.jini.export.Exporter;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -145,7 +146,7 @@ class NormServerInitializer {
 		"serverExporter", Exporter.class,
 		new BasicJeriExporter(
 			TcpServerEndpoint.getInstance(0),
-			new BasicILFactory(null, null, NormServer.class.getClassLoader())
+			new AtomicILFactory(null, null, NormServer.class.getClassLoader())
 		)
 	);
     }

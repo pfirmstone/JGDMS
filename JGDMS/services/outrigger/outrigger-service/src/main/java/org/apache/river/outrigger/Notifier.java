@@ -19,6 +19,10 @@ package org.apache.river.outrigger;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.event.UnknownEventException;
@@ -129,8 +133,8 @@ class Notifier implements org.apache.river.constants.TimeConstants {
      * @throws NullPointerException if <code>sender</code> is
      * <code>null</code>
      */
-    void enqueueDelivery(EventSender sender) {
-	pending.execute(new NotifyTask(sender));
+    void enqueueDelivery(EventSender sender, AccessControlContext context) {
+	pending.execute(new NotifyTask(sender, context));
     }
 
     /*
@@ -160,6 +164,7 @@ class Notifier implements org.apache.river.constants.TimeConstants {
     private class NotifyTask extends RetryTask {
 	/** Who and what to send a event to. */
 	private final EventSender sender;	
+	private final AccessControlContext context;
 
 	/**
 	 * Create an object to represent this list of chits needing
@@ -170,11 +175,12 @@ class Notifier implements org.apache.river.constants.TimeConstants {
 	 * @throws NullPointerException if <code>sender</code> is
 	 * <code>null</code>
 	 */
-	NotifyTask(EventSender sender) {
+	NotifyTask(EventSender sender, AccessControlContext context) {
 	    super(Notifier.this.pending, Notifier.this.wakeupMgr);
 	    if (sender == null)
 		throw new NullPointerException("sender must be non-null");
 	    this.sender = sender;
+	    this.context = context;
 	}
 
 	/**
@@ -184,6 +190,7 @@ class Notifier implements org.apache.river.constants.TimeConstants {
 	 * We know that we are the only one dealing with the given chit
 	 * because <code>runAfter</code> makes sure of it.
 	 */
+	@Override
 	public boolean tryOnce() {
 	    long curTime = System.currentTimeMillis();
 	    if (curTime - startTime() > MAX_TIME) {
@@ -197,7 +204,26 @@ class Notifier implements org.apache.river.constants.TimeConstants {
 
 	    boolean successful = true;	// notification successful?
 	    try {
-		sender.sendEvent(source, curTime, recoveredListenerPreparer);
+		try {
+		    AccessController.doPrivileged(
+			    new PrivilegedExceptionAction(){
+				
+				@Override
+				public Object run() throws Exception {
+				    sender.sendEvent(source, curTime, recoveredListenerPreparer);
+				    return null;
+				}
+			    }, context
+		    );
+		} catch (PrivilegedActionException ex) {
+		    Exception e = ex.getException();
+		    if (e instanceof IOException) throw (IOException) e;
+		    if (e instanceof UnknownEventException) throw (UnknownEventException)e;
+		    if (e instanceof ClassNotFoundException) throw (ClassNotFoundException)e;
+		    if (e instanceof RuntimeException) throw (RuntimeException)e;
+		    throw new IOException("Unexpected Exception", ex);
+		}
+		
 	    } catch (UnknownEventException e) {
 		// they didn't want to know about this, so stop them getting
 		// future notifications, too.

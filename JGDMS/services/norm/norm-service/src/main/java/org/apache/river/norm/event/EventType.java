@@ -22,6 +22,10 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -116,6 +120,8 @@ public class EventType implements Serializable {
      * <code>null</code> monitor will be also.
      */
     private transient EventTypeGenerator generator;
+    
+    private transient AccessControlContext context;
 
     /**
      * Simple constructor.  Initially the last sequence number is set to 0.
@@ -128,9 +134,12 @@ public class EventType implements Serializable {
      *        as part of the event
      * @throws IOException if the listener cannot be serialized 
      */
-    EventType(EventTypeGenerator generator, SendMonitor monitor, long evID,
-	      RemoteEventListener listener, MarshalledObject handback)
-        throws IOException
+    EventType(EventTypeGenerator generator,
+	      SendMonitor monitor,
+	      long evID,
+	      RemoteEventListener listener,
+	      MarshalledObject handback,
+	      AccessControlContext context) throws IOException
     {
 	if (generator == null) {
 	    throw new NullPointerException("EventType(): Must create event " +
@@ -145,6 +154,7 @@ public class EventType implements Serializable {
 	this.generator = generator;
 	this.monitor = monitor;
 	this.evID = evID;
+	this.context = context;
 	setLastSequenceNumber(0);
 	setListener(listener, handback);
     } 
@@ -384,10 +394,12 @@ public class EventType implements Serializable {
      *        set by this object
      * @param recoveredListenerPreparer the proxy preparer to use to prepare
      *	      listeners recovered from persistent storage
+     * @param context Context used to send events.
      */
-    public void restoreTransientState(EventTypeGenerator generator,  
-                                      SendMonitor monitor,
-				      ProxyPreparer recoveredListenerPreparer)
+    public void restoreTransientState(EventTypeGenerator generator,
+				      SendMonitor monitor, 
+				      ProxyPreparer recoveredListenerPreparer,
+				      AccessControlContext context)
     {
 	if (generator == null) {
 	    throw new NullPointerException("EventType.restoreTransientState:" +
@@ -405,6 +417,7 @@ public class EventType implements Serializable {
             this.generator = generator;
             this.monitor = monitor;
             this.recoveredListenerPreparer = recoveredListenerPreparer;
+	    this.context = context;
         }
             generator.recoverEventID(evID);
         
@@ -498,7 +511,22 @@ public class EventType implements Serializable {
 
 	    // Try sending 
 	    try {
-		listener.notify(event);
+		try {
+		    final RemoteEvent ev = event;
+		    AccessController.doPrivileged(
+			new PrivilegedExceptionAction(){
+
+			    @Override
+			    public Object run() throws Exception {
+				listener.notify(ev);
+				return null;
+			    }
+			}, context
+		    );
+		} catch (PrivilegedActionException e){
+		    throw e.getException();
+		}
+		
 		return true;
 	    } catch (Throwable t) {
 		// Classify the exception using ThrowableConstants, if

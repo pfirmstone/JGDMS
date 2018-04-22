@@ -47,7 +47,7 @@ class PersistentRegistrarImpl extends RegistrarImpl {
      * the given activation ID, based on a configuration obtained using
      * the provided marshalled string array.
      */
-    PersistentRegistrarImpl(ActivationID activationID, MarshalledObject data)
+    protected PersistentRegistrarImpl(ActivationID activationID, MarshalledObject data)
 	throws Exception
     {
 	super((String[]) new MarshalledInstance(data).get(false), activationID, true, null);

@@ -239,7 +239,7 @@ abstract class NormServerBaseImpl
     
     /** Fields access only by thread that called constructor, then called start()
      *  set to null at completion of start() */
-    private AccessControlContext context;
+    private final AccessControlContext context;
     private Configuration config;
     
     private boolean started;
@@ -948,7 +948,7 @@ abstract class NormServerBaseImpl
     public LeaseRenewalSet createLeaseRenewalSet(long leaseDuration) {
 	ready.check();
 	final Uuid newID      = UuidFactory.generate();
-	final LeaseSet newSet = new LeaseSet(newID, generator, store, this);
+	final LeaseSet newSet = new LeaseSet(newID, generator, store, this, context);
 	
 	LeasePeriodPolicy.Result leasePeriod;
 	try {
@@ -1262,8 +1262,7 @@ abstract class NormServerBaseImpl
 		continue;
 	    }
 
-	    final Iterator leases = set.restoreTransientState(
-		generator, store, this, recoveredListenerPreparer);
+	    final Iterator leases = set.restoreTransientState(generator, store, this, recoveredListenerPreparer, context);
 	
 	    // Go through all the leases in the set and add them to 
 	    // the right tables.
@@ -2002,7 +2001,6 @@ abstract class NormServerBaseImpl
         } catch (Throwable e) {
 	    initFailed(e);
 	} finally {
-            context = null;
             config = null;
         }
     }

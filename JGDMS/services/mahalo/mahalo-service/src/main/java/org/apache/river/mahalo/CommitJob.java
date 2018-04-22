@@ -28,6 +28,7 @@ import java.rmi.UnknownHostException;
 import java.rmi.ConnectIOException;
 import java.rmi.AccessException;
 import java.rmi.ConnectException;
+import java.security.AccessControlContext;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 
@@ -78,10 +79,14 @@ class CommitJob extends Job implements TransactionConstants {
      * @see org.apache.river.mahalo.log.ClientLog
      * @see net.jini.core.transaction.server.TransactionParticipant
      */
-    public CommitJob(Transaction tr, ExecutorService pool,
-		      WakeupManager wm, ClientLog log,
-		      ParticipantHandle[] handles) {
-	super(pool, wm);
+    public CommitJob(Transaction tr, 
+		    ExecutorService pool,
+		    WakeupManager wm,
+		    ClientLog log,
+		    ParticipantHandle[] handles,
+		    AccessControlContext context) 
+    {
+	super(pool, wm, context);
 
 	if (log == null)
 	    throw new IllegalArgumentException("CommitJob: CommitJob: " +

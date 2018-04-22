@@ -42,6 +42,7 @@ import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
@@ -245,7 +246,7 @@ class FiddlerInit {
             /* Handle items and duties related to exporting this service. */
             ServerEndpoint endpoint = TcpServerEndpoint.getInstance(0);
             InvocationLayerFactory ilFactory = 
-		    new BasicILFactory(
+		    new AtomicILFactory(
 			null,
 			null,
 			Fiddler.class.getClassLoader()
@@ -271,7 +272,7 @@ class FiddlerInit {
                 activationID = (ActivationID)aidPreparer.prepareProxy
                                                                    (activID);
                 activationSystem = (ActivationSystem)aSysPreparer.prepareProxy
-                                                                (ActivationGroup.getSystem());
+			    (net.jini.activation.ActivationGroup.getSystem());
                 defaultExporter = new ActivationExporter(activationID,
                                                          defaultExporter);
             }//endif(activationID != null)

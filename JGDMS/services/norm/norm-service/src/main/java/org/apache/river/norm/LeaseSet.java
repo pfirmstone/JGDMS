@@ -28,6 +28,7 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
+import java.security.AccessControlContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -133,8 +134,11 @@ class LeaseSet implements Serializable, LeasedResource {
      * @param normServerBaseImpl the <code>NormServerBaseImpl</code> that 
      *              created this set
      */
-    LeaseSet(Uuid ID, EventTypeGenerator generator, PersistentStore store,
-	     NormServerBaseImpl normServerBaseImpl)
+    LeaseSet(Uuid ID,
+	    EventTypeGenerator generator,
+	    PersistentStore store,
+	    NormServerBaseImpl normServerBaseImpl,
+	    AccessControlContext context)
     {
 	this.leases = new HashSet<ClientLeaseWrapper>();
 	this.store = store;
@@ -151,11 +155,11 @@ class LeaseSet implements Serializable, LeasedResource {
 
 	try {
 	    warningEventType = 
-		generator.newEventType(
-		    sendMonitor, LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID);
+		generator.newEventType(sendMonitor, 
+			LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID, context);
 	    failureEventType =
-		generator.newEventType(
-		    sendMonitor, LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID);
+		generator.newEventType(sendMonitor, 
+			LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID, context);
 	} catch (IOException e) {
 	    // Because we are passing null for the listener we will
 	    // never get an exception
@@ -243,9 +247,10 @@ class LeaseSet implements Serializable, LeasedResource {
      * @return an iterator over the set of client leases
      */
     Iterator restoreTransientState(EventTypeGenerator generator, 
-				   PersistentStore store,
-				   NormServerBaseImpl normServerBaseImpl,
-				   ProxyPreparer recoveredListenerPreparer)
+				    PersistentStore store,
+				    NormServerBaseImpl normServerBaseImpl,
+				    ProxyPreparer recoveredListenerPreparer,
+				    AccessControlContext context)
     {
 	this.normServerBaseImpl = normServerBaseImpl;
 	this.store = store;
@@ -253,9 +258,9 @@ class LeaseSet implements Serializable, LeasedResource {
 	final SendMonitor sendMonitor = 
 	    normServerBaseImpl.newSendMonitor(this);	
 	warningEventType.restoreTransientState(
-	    generator, sendMonitor, recoveredListenerPreparer);
+		generator, sendMonitor, recoveredListenerPreparer, context);
 	failureEventType.restoreTransientState(
-	    generator, sendMonitor, recoveredListenerPreparer);
+		generator, sendMonitor, recoveredListenerPreparer, context);
 
 	// Instead of logging the sequence number each time we send
 	// a warning event (like we do for renewal failures), we just

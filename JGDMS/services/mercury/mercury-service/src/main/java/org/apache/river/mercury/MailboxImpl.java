@@ -431,7 +431,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private Configuration config;
     private Throwable thrown;
     private boolean started = false;
-    private AccessControlContext context;
+    private final AccessControlContext context;
     private String codebase;
     private String certFactoryType;
     private String certPathEncoding;
@@ -1008,7 +1008,6 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
         } finally {
             config = null;
             thrown = null;
-            context = null;
             concurrentObj.writeUnlock();
         }
     }
@@ -3064,7 +3063,14 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        }
 		try {
 		    // Notify target listener and note a successful delivery
-		    listener.notify(ev);
+		    try {
+			AccessController.doPrivileged(
+			    new NotifyListener(listener, ev), 
+			    context
+			);
+		    } catch (PrivilegedActionException e){
+			throw e.getException();
+		    }
 		    succeeded = true;
     		    deleteEvent = true;
     	            if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
@@ -3212,8 +3218,25 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     	    return succeeded;
     	}
+
+	
     }
 
+    private static class NotifyListener implements PrivilegedExceptionAction {
+
+	private final RemoteEventListener listener;
+	private final RemoteEvent event;
+
+	public NotifyListener(RemoteEventListener listener, RemoteEvent event) {
+	    this.listener = listener;
+	    this.event = event;
+	}
+
+	public Object run() throws Exception {
+	    listener.notify(event);
+	    return null;
+	}
+    }
 
     /**
      * Termination thread code.  We do this in a separate thread to

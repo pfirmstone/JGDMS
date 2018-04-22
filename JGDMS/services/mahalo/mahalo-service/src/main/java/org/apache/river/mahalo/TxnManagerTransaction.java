@@ -19,6 +19,7 @@
 package org.apache.river.mahalo;
 
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -254,6 +255,7 @@ class TxnManagerTransaction
     /** Logger for transaction related messages */
     private static final Logger transactionsLogger = 
         TxnManagerImpl.transactionsLogger;
+    private final AccessControlContext context;
 
     /**
      * Constructs a <code>TxnManagerTransaction</code>
@@ -273,9 +275,14 @@ class TxnManagerTransaction
      * @param settler	TxnSettler responsible for this transaction if
      *			unsettled.
      */
-    TxnManagerTransaction(TransactionManager mgr, LogManager logmgr, long id,
-        ExecutorService threadpool, WakeupManager wm, TxnSettler settler,
-	Uuid uuid) 
+    TxnManagerTransaction(TransactionManager mgr,
+			  LogManager logmgr,
+			  long id,
+			  ExecutorService threadpool,
+			  WakeupManager wm,
+			  TxnSettler settler,
+			  Uuid uuid,
+			  AccessControlContext context) 
     {
 	if (logmgr == null)
 	    throw new IllegalArgumentException("TxnManagerTransaction: " +
@@ -299,7 +306,7 @@ class TxnManagerTransaction
 	if (uuid == null)
 	    throw new IllegalArgumentException("TxnManagerTransaction: " +
 			    "uuid must be non-null");
-
+	this.context = context;
 	this.threadpool = threadpool;
 	this.wm = wm;
 	this.logmgr = logmgr ;
@@ -697,9 +704,9 @@ class TxnManagerTransaction
 	                if (phs.length == 1)
 		            job = new
 			      PrepareAndCommitJob(
-				  str, threadpool, wm, log, phs[0]);
+				  str, threadpool, wm, log, phs[0], context);
 	                else
-	                    job = new PrepareJob(str, threadpool, wm, log, phs);
+	                    job = new PrepareJob(str, threadpool, wm, log, phs, context);
 
 	                job.scheduleTasks();
 		    }
@@ -803,7 +810,7 @@ class TxnManagerTransaction
 		if(modifyTxnState(COMMITTED)) {
 //TODO - log committed state record?		
                     synchronized (jobLock) {
-                        job = new CommitJob(str, threadpool, wm, log, phs);
+                        job = new CommitJob(str, threadpool, wm, log, phs, context);
                         job.scheduleTasks();
                     }
 		} else {
@@ -1019,7 +1026,7 @@ class TxnManagerTransaction
 	            if (!(job instanceof AbortJob)) {
 		        if (job != null)
 		            job.stop();
-	                job = new AbortJob(str, threadpool, wm, log, phs);
+	                job = new AbortJob(str, threadpool, wm, log, phs, context);
 	                job.scheduleTasks();
 	            }
 	        }

@@ -100,6 +100,7 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.Security;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 import org.apache.river.proxy.CodebaseProvider;
@@ -213,7 +214,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     // The following three fields are only required by start, called by the
     // constructor thread and set to null after starting.
     private Configuration config;
-    private AccessControlContext context;
+    private final AccessControlContext context;
     private Throwable thrown;
     // sync on this.
     private boolean started = false;
@@ -514,7 +515,6 @@ class TxnManagerImpl /*extends RemoteServer*/
         } finally {
             // Clear references.
             config = null;
-            context = null;
             thrown = null;
         }
         
@@ -548,7 +548,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
             txntr = new TxnManagerTransaction(
                 txnMgrProxy, logmgr, tid, taskpool, 
-                taskWakeupMgr, this, uuid);
+                taskWakeupMgr, this, uuid, context);
             try {
                 Result r = txnLeasePeriodPolicy.grant(txntr, lease);
                 txntr.setExpiration(r.expiration);
@@ -925,7 +925,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	    SettlerTask task = 
 	        new SettlerTask(settlerpool, settlerWakeupMgr, this, tid);
-	    settlerpool.execute(task);
+	    settlerpool.execute(Security.withContext(task, context));
 
             if (settleThread.hasBeenInterrupted()) 
 	        throw new InterruptedException("settleTxns interrupted");
@@ -1211,7 +1211,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             Uuid uuid = createLeaseUuid(cookie);
 	    tmt = new TxnManagerTransaction(
 	        txnMgrProxy, logmgr, cookie, taskpool, 
-		taskWakeupMgr, this, uuid);
+		taskWakeupMgr, this, uuid, context);
 	    noteUnsettledTxn(cookie);
 	    /* Since only aborted or committed txns are persisted,
 	     * their expirations are irrelevant. Therefore, any recovered
