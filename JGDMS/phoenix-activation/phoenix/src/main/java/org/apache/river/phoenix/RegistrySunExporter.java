@@ -33,7 +33,9 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
+ * @deprecated only works on Sun JVM
  */
+@Deprecated
 public class RegistrySunExporter extends SunJrmpExporter {
     
     static {

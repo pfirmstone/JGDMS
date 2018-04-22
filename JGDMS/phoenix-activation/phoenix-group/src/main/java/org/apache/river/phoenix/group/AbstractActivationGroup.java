@@ -60,6 +60,7 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalledInstance;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.loader.ClassLoading;
@@ -70,6 +71,7 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.phoenix.common.AccessAtomicILFactory;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
@@ -344,7 +346,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
 			TcpServerEndpoint se =
 			    TcpServerEndpoint.getInstance(0);
 			Exporter defaultExporter =
-			    new BasicJeriExporter(se, new AccessILFactory());
+			    new BasicJeriExporter(se, new AtomicILFactory(null, null, this.getClass().getClassLoader()));
 			exporter = (Exporter) config.getEntry(
 				PHOENIX, "instantiatorExporter",
 				Exporter.class, defaultExporter);

@@ -23,9 +23,10 @@ import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.util.Collections;
-import net.jini.io.MarshalInputStream;
 import net.jini.loader.ClassLoading;
+import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.security.CombinerSecurityManager;
+//import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
  * This is the bootstrap code to start a virtual machine (VM) executing an
@@ -61,15 +62,16 @@ public class ActivationGroupInit {
 	try {
 	    if (System.getSecurityManager() == null) {
 		System.setSecurityManager(new CombinerSecurityManager());
+//		System.setSecurityManager(new SecurityPolicyWriter());
 	    }
-	    MarshalInputStream in =
-		new MarshalInputStream(
+	    AtomicMarshalInputStream in =
+		new AtomicMarshalInputStream(
 				   System.in,
 				   ActivationGroupInit.class.getClassLoader(),
 				   false, null, Collections.EMPTY_LIST);
-	    in.useCodebaseAnnotations();
-	    ActivationGroupID id  = (ActivationGroupID)in.readObject();
-	    ActivationGroupDesc desc = (ActivationGroupDesc)in.readObject();
+//	    in.useCodebaseAnnotations();
+	    ActivationGroupID id  = in.readObject(ActivationGroupID.class);
+	    ActivationGroupDesc desc = in.readObject(ActivationGroupDesc.class);
 	    long incarnation = in.readLong();
 	    Class cl = ClassLoading.loadClass(desc.getLocation(),
 						desc.getClassName(), null, false, null);
