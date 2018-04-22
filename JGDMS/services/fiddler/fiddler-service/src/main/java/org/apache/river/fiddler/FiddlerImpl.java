@@ -93,6 +93,7 @@ import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.entry.Status;
 import net.jini.lookup.entry.StatusType;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
@@ -417,7 +418,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
     
     private boolean persistent;
     private LocalLogHandler logHandler;
-    private AccessControlContext context;
+    private final AccessControlContext context;
     
     private boolean started;
     
@@ -2372,7 +2373,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 
         public void run() {
             try {
-                fiddler.concurrentObj.readLock();
+                fiddler.concurrentObj.writeLock();
             } catch (ConcurrentLockException e) {
                 return;
             }
@@ -2411,7 +2412,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                     }
                 }//end while           
             } finally {
-                fiddler.concurrentObj.readUnlock();
+                fiddler.concurrentObj.writeUnlock();
             }
         }//end run
     }//end class SnapshotThread
@@ -5301,7 +5302,6 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
             handleActivatableInitThrowable(t);
         } finally {
             logHandler = null;
-            context = null;
             concurrentObj.writeUnlock();
         }
     } 
@@ -6759,7 +6759,9 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
     private void queueEvent(RegistrationInfo regInfo,
                            RemoteDiscoveryEvent event)
     {
-        executorService.execute(new SendEventTask(regInfo,event));
+        executorService.execute(
+		Security.withContext(new SendEventTask(regInfo,event), context)
+	);
     }//end queueEvent
     /* END Private Event-Related Methods ----------------------------------- */
 
