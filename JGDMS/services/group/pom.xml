@@ -31,7 +31,6 @@
     <name>Module :: Group</name>
 
     <modules>
-        <module>group-dl</module>
         <module>group-service</module>
     </modules>
 </project>
