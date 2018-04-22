@@ -33,7 +33,7 @@ public class MultipleClasspathComponentTest extends AbstractStartBaseTest {
 	logger.log(Level.INFO, "run()");
 
         SharedGroup group_proxy = (SharedGroup)getManager().startService(
-		"org.apache.river.start.SharedGroup");
+		"org.apache.river.start.group.SharedGroup");
     }
 }
 	

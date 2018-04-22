@@ -28,9 +28,15 @@ import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.action.GetPropertyAction;
+import au.net.zeus.rmi.tls.TlsRMIClientSocketFactory;
 
 /**
  * A implementation of <code>Admin</code> which manages
@@ -206,6 +212,10 @@ public class ActivationSystemAdmin
             } else {
                 l.add(System.getProperty("java.home") + File.separator + "bin"+ File.separator+ "java");
             }
+//	    l.add("-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter"); 
+//	    l.add("-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider");
+//	    l.add("-Dpolicy.provider=org.apache.river.tool.DebugDynamicPolicyProvider"); 
+//	    l.add("-Dorg.apache.river.tool.DebugDynamicPolicyProvider.grantAll=true");
             l.add("-Djava.security.policy=" + getServicePolicyFile());
             String[] opts = getServiceOptions();
             if (opts != null) {
@@ -273,7 +283,7 @@ public class ActivationSystemAdmin
                                         + "did not start");
             }
             try {
-                actSystem = ActivationGroup.getSystem();
+                actSystem = net.jini.activation.ActivationGroup.getSystem();
             } catch (ActivationException e) {
                 try {
                     int exitStatus = actProcess.exitValue();
@@ -430,14 +440,25 @@ public class ActivationSystemAdmin
      * fail (in this VM).
      */
     private void cleanupRunningActivationSystem() {
+	String host;
 	int port;
 	ActivationSystem currSystem = null;
 	String actURL = null;
 	try {
 	    port = Integer.getInteger("java.rmi.activation.port",
 				      ActivationSystem.SYSTEM_PORT).intValue();
-	    actURL = "//:" + port + "/java.rmi.activation.ActivationSystem";
-	    currSystem = (ActivationSystem) Naming.lookup(actURL);
+	    
+	    try{
+		Registry registry = LocateRegistry.getRegistry("", port, new TlsRMIClientSocketFactory());
+		currSystem = (ActivationSystem) registry.lookup("java.rmi.activation.ActivationSystem");
+	    } catch (IOException e){
+		if (AccessController.doPrivileged(new GetBooleanAction("net.jini.security.allowInsecureConnections"))){
+		    actURL = "//:" + port + "/java.rmi.activation.ActivationSystem";
+		    currSystem = (ActivationSystem) Naming.lookup(actURL);
+		} else {
+		    throw e;
+		}
+	    }
 	    currSystem.shutdown();
 	} catch (SecurityException e) {
 	    throw e; // configuration problem

@@ -625,7 +625,7 @@ public final class QAConfig implements Serializable {
 	    try {
 		val = Integer.parseInt(strVal);
 	    } catch (NumberFormatException ignore) { }
-	}
+	    }
         return val;
     }
 
@@ -1606,7 +1606,7 @@ public final class QAConfig implements Serializable {
         /* First attempt */
 	Exception lastException = null;
         try {
-            ActivationGroup.getSystem();
+            net.jini.activation.ActivationGroup.getSystem();
             return true;
         } catch (ActivationException e) { 
 	    lastException = e;
@@ -1614,7 +1614,7 @@ public final class QAConfig implements Serializable {
         /* Make a new attempt every second for n seconds */
         for(int i=0; i<n; i++) {
             try {
-                ActivationGroup.getSystem();
+                net.jini.activation.ActivationGroup.getSystem();
                 return true;
             } catch (ActivationException e) { 	  
 		lastException = e;

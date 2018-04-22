@@ -123,12 +123,17 @@ org.apache.river.phoenix.level=SEVERE
 # For JRMP
 net.jini.jrmp.JrmpExporter.level = SEVERE
 
+# For RMI TLS
+au.net.zeus.rmi.tls.client.level = SEVERE
+au.net.zeus.rmi.tls.server.level = SEVERE
+au.net.zeus.rmi.tls.init.level = SEVERE
+
 # For Jini ERI
 net.jini.jeri.level = SEVERE
-net.jini.jeri.BasicInvocationDispatcher.level = SEVERE
+net.jini.jeri.BasicInvocationDispatcher.level = INFO
 net.jini.jeri.BasicInvocationHandler.level = SEVERE
 #net.jini.jeri.BasicJeriExporter.level = SEVERE
-#net.jini.jeri.BasicObjectEndpoint.level = SEVERE
+net.jini.jeri.BasicObjectEndpoint.level = SEVERE
 
 org.apache.river.api.io.level=SEVERE
 
@@ -149,7 +154,7 @@ org.apache.river.api.io.level=SEVERE
 #net.jini.jeri.tcp.server.level = SEVERE
 
 # For SSL 
-#net.jini.jeri.ssl.level = SEVERE
+net.jini.jeri.ssl.level = SEVERE
 #net.jini.jeri.ssl.client.level = SEVERE
 #net.jini.jeri.ssl.server.level = SEVERE
 #net.jini.jeri.ssl.init.level = SEVERE
@@ -174,7 +179,8 @@ net.jini.loader.pref.PreferredClassProvider.level = SEVERE
 net.jini.security.level = SEVERE
 #net.jini.security.trust.level = SEVERE
 #net.jini.security.integrity.level = SEVERE
-net.jini.security.policy.level = SEVERE
+net.jini.security.policy.level = CONFIG
+org.apache.river.api.security.CombinerSecurityManager.level = SEVERE
 
 # For HTTPMD
 net.jini.url.httpmd.level = SEVERE
@@ -188,7 +194,7 @@ org.apache.river.discovery.level = SEVERE
 # For the Helper Utilities
 net.jini.discovery.LookupDiscovery.level = SEVERE
 net.jini.discovery.LookupLocatorDiscovery.level = SEVERE
-net.jini.lookup.JoinManager.level = SEVERE
+net.jini.lookup.JoinManager.level = FINE
 net.jini.lookup.ServiceDiscoveryManager.level = SEVERE
 net.jini.lease.LeaseRenewalManager.level = SEVERE
 
@@ -209,6 +215,10 @@ org.apache.river.start.level = SEVERE
 # For Reggie
 # Don't set to HANDLED causes stream corruption in tests invalid stream header: bad
 org.apache.river.reggie.level = SEVERE
+org.apache.river.reggie.service.level = SEVERE
+org.apache.river.reggie.discovery.level = SEVERE
+org.apache.river.reggie.event.level = FINE
+org.apache.river.reggie.snapshot.level = SEVERE
 
 # For Mahalo
 org.apache.river.mahalo.destroy.level = SEVERE
@@ -250,7 +260,7 @@ org.apache.river.norm.level = FINEST
 org.apache.river.outrigger.entryMatching.level = SEVERE
 org.apache.river.outrigger.event.level = SEVERE
 org.apache.river.outrigger.iterator.level = SEVERE
-org.apache.river.outrigger.join.level = SEVERE
+org.apache.river.outrigger.join.level = FINE
 org.apache.river.outrigger.leases.level = SEVERE
 org.apache.river.outrigger.lifecycle.level = SEVERE
 org.apache.river.outrigger.operations.level = SEVERE
@@ -262,7 +272,7 @@ org.apache.river.example.browser.level = SEVERE
 
 # For the test harness, tests, and infrastructure.
 org.apache.river.qa.harness.level = CONFIG
-org.apache.river.qa.harness.test.level = FINE
-org.apache.river.qa.harness.service.level = FINE
-org.apache.river.qa.harness.config.level = FINE
+org.apache.river.qa.harness.test.level = SEVERE
+org.apache.river.qa.harness.service.level = SEVERE
+org.apache.river.qa.harness.config.level = SEVERE
 org.apache.river.test.spec.jeri.mux.level = SEVERE

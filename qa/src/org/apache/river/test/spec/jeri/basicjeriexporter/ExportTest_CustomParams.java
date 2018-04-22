@@ -88,7 +88,7 @@ import java.util.Iterator;
  */
 public class ExportTest_CustomParams extends BJEAbstractTest{
 
-    private static Hashtable methods = new Hashtable();
+    private static final Hashtable methods = new Hashtable();
     private static AccessControlContext acc1, acc2;
     private static ClassLoader cl1, cl2;
     private static Object ir;
@@ -179,14 +179,16 @@ public class ExportTest_CustomParams extends BJEAbstractTest{
     }
 
     private boolean methodCalled(String methodName) {
-        Iterator it = methods.keySet().iterator();
-        while (it.hasNext()) {
-            Method m = (Method) it.next();
-            if (m.getName().compareTo(methodName)==0){
-                return true;
-            }
-        }
-        return false;
+	synchronized (methods){
+	    Iterator it = methods.keySet().iterator();
+	    while (it.hasNext()) {
+		Method m = (Method) it.next();
+		if (m.getName().compareTo(methodName)==0){
+		    return true;
+		}
+	    }
+	    return false;
+	}
     }
 
     /**

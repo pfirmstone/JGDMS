@@ -29,11 +29,23 @@ import net.jini.export.Exporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 
 /**
  * The implementation of NonActivatableGroup.
  */
 class GroupImpl implements NonActivatableGroup {
+    
+    /**
+     * Note the selection of cipher suite provider must be determined at the
+     * server end, so the client can use a compatible provider.
+     */
+   static {
+//	java.security.Security.addProvider(new BouncyCastleProvider());
+//	java.security.Security.addProvider(new BouncyCastleJsseProvider());
+//	java.security.Security.setProperty("ssl.KeyManagerFactory.algorithm", "PKIX");
+   }
     /** the proxy resulting from exporting the group */
     private Object proxy;
     /** the groups exporter */

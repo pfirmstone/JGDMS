@@ -85,7 +85,7 @@
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
     <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
         default: none -->
-    <property name="harness.configs" value="none"/>
+    <property name="harness.configs" value="jsse"/>
     <!-- possible values: activatable,transient,persistent
         default: transient -->
     <property name="harness.servicemode" value="transient"/>
@@ -261,8 +261,7 @@
             <arg value="-DtestLevel=30"/>
             <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
             <!--<arg value="-Djavax.net.debug=ssl"/>-->
-            <!-- For an unknown reason the following property is ignored -->
-            <arg value="-Djavatest.maxOutputSize=300000"/>
+            <arg value="-J-Djavatest.maxOutputSize=300000"/>
             <!--<arg value="net/jini/jeri/kerberos/UnitTests/runTestPerformance.sh" />-->
             <!--<arg value="-Bug:6307813"/>-->
             <!--<arg value="-Bug:4408449"/>-->
@@ -419,9 +418,14 @@
                         <include name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
                         <include name="classdep-3.0-SNAPSHOT.jar"/>
                         <include name="classserver-3.0-SNAPSHOT.jar"/>
+                        <include name="service-starter-3.0-SNAPSHOT.jar"/>
                         <include name="asm-5.0.1.jar"/>
                         <include name="asm-commons-5.0.1.jar"/>
                         <include name="high-scale-lib-1.0.6.jar"/>
+                        <include name="bcprov-jdk15on-1.59.jar"/>
+                        <include name="bctls-jdk15on-1.59.jar"/>
+                        <!-- The next must be manually copied -->
+                        <include name="security-policy-debug-3.0-SNAPSHOT.jar"/>
                     </fileset>
                     <fileset dir="${river.lib-dl.dir}">
                         <include name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>

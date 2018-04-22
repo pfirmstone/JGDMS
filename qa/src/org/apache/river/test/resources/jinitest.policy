@@ -7,6 +7,17 @@ grant codebase "file:${org.apache.river.test.home}${/}lib${/}fullloggingfilter.j
 	permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:c:\\-";
 };
 
+grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
+{
+    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9082/qa1-start-testservice1-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9082/qa1-start-testservice2-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9082/qa1-start-testservice-common-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9080/reggie-dl-3.0-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9080/jgdms-lib-dl-3.0-SNAPSHOT.jar", "GET:";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+};
+
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.tool.classserver.jar}" {
     permission java.security.AllPermission "", "";
 };

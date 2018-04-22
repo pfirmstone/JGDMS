@@ -139,7 +139,7 @@ public class NestedActivate
 			ActivationGroupDesc groupDesc =
 			    new ActivationGroupDesc(p, null);
 			ActivationGroupID groupID =
-			    ActivationGroup.getSystem().
+			    net.jini.activation.ActivationGroup.getSystem().
 			    registerGroup(groupDesc);
 			
 			System.err.println("Creating descriptor: object 1");

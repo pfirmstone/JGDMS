@@ -3,6 +3,8 @@
 
 org.apache.river.Reggie {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="reggie"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/reggie.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/reggie.password";
@@ -10,6 +12,8 @@ org.apache.river.Reggie {
 
 org.apache.river.Mahalo {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="mahalo"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/mahalo.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/mahalo.password";
@@ -17,6 +21,8 @@ org.apache.river.Mahalo {
 
 org.apache.river.Outrigger {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="outrigger"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/outrigger.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/outrigger.password";
@@ -24,6 +30,8 @@ org.apache.river.Outrigger {
 
 org.apache.river.Mercury {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="mercury"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/mercury.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/mercury.password";
@@ -31,6 +39,8 @@ org.apache.river.Mercury {
 
 org.apache.river.Norm {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="norm"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/norm.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/norm.password";
@@ -38,6 +48,8 @@ org.apache.river.Norm {
 
 org.apache.river.Phoenix {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="phoenix"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/phoenix.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/phoenix.password";
@@ -45,6 +57,8 @@ org.apache.river.Phoenix {
 
 org.apache.river.Test {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="tester"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/tester.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/tester.password";
@@ -52,6 +66,8 @@ org.apache.river.Test {
 
 org.apache.river.Fiddler {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="fiddler"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/fiddler.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/fiddler.password";
@@ -59,6 +75,8 @@ org.apache.river.Fiddler {
 
 org.apache.river.Group {
     com.sun.security.auth.module.KeyStoreLoginModule required
+        keyStoreType = "PKCS12"
+        //keyStoreProvider = "BC"
 	keyStoreAlias="group"
 	keyStoreURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/group.keystore"
 	keyStorePasswordURL="jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/trust/group.password";

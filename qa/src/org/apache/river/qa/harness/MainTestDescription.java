@@ -242,7 +242,11 @@ public class MainTestDescription extends TestDescription {
 	l.add("-Dtest.src=" + testSourceDir.getAbsolutePath());
 	l.add("-Dtest.classes=" + testClassDir.getAbsolutePath());
 	if (getPolicyFile() != null) {
-	    l.add("-Djava.security.manager=default");
+//	    l.add("-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter"); // Seems to be ok here for jsse
+//	    l.add("-Djava.security.manager=default");
+//	    l.add("-Dpolicy.provider=org.apache.river.tool.DebugDynamicPolicyProvider");
+//	    l.add("-Dorg.apache.river.tool.DebugDynamicPolicyProvider.grantAll=true");
+//	    l.add("-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider");
 	}
 	l.add("-Dorg.apache.river.qa.home=" + config.getKitHomeDir());
 	return (String[]) l.toArray(new String[l.size()]);

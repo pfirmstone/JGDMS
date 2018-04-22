@@ -1169,7 +1169,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         RemoteTestServiceImpl(ActivationID activationID,
                               MarshalledObject data) throws Exception
         {// All exceptions are thrown prior to this Object being created.
-            this(init((String[])data.get(), activationID, ActivationGroup.getSystem()));
+            this(init((String[])data.get(), activationID, net.jini.activation.ActivationGroup.getSystem()));
         }//end constructor
         
         private RemoteTestServiceImpl(Init init){

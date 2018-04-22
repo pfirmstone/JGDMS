@@ -105,6 +105,10 @@
     <property name="river.lib-ext.dir" location="${river.home}/${lib-ext}"/>
     <property name="river.classes.dir" location="${river.home}/${build.classes}"/>
     <property name="river.src.dir" location="${river.home}/${src}"/>
+    <!--
+    <property name="keytool.providerpath" location="${river.lib.dir}/bcprov-jdk15on-1.59.jar"/>
+    <property name="keytool.provider" value="org.bouncycastle.jce.provider.BouncyCastleProvider"/>
+    -->
 
     <property name="debug" value="true"/>
     <property name="verbose" value="false"/>
@@ -309,6 +313,12 @@
         <attribute name="dir" default="trust" />
         <sequential>
             <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
                 <arg value="-import"/>
                 <arg value="-alias" />
                 <arg value="@{target}" />
@@ -331,9 +341,16 @@
         <attribute name="dir" default="trust" />
         <sequential>
             <genkey keypass="@{target}pw" keystore="@{dir}/@{target}.keystore"
-                validity="1800" alias="@{target}" storepass="@{target}pw"
-                dname="CN=@{dname}" />
+                    storetype="PKCS12" 
+                    validity="1800" alias="@{target}" storepass="@{target}pw"
+                    dname="CN=@{dname}" />
             <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
                 <arg value="-export"/>
                 <arg value="-alias" />
                 <arg value="@{target}" />

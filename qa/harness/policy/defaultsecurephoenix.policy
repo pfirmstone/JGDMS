@@ -1,22 +1,25 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.dl.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
-    permission java.security.AllPermission "", "";
+grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.0-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.0-SNAPSHOT.jar", "GET:";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.lib.dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
 
 grant codebase "file:${org.apache.river.qa.harness.harnessJar}
 {
@@ -106,9 +109,9 @@ grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
                  "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
       permission org.apache.river.phoenix.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
-     permission org.apache.river.phoenix.MonitorPermission
+     permission org.apache.river.phoenix.dl.MonitorPermission
                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
-     permission org.apache.river.phoenix.MonitorPermission
+     permission org.apache.river.phoenix.dl.MonitorPermission
                 "java.rmi.activation.ActivationMonitor.*";
 
 
@@ -182,11 +185,9 @@ grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
                  "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
       permission org.apache.river.phoenix.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";
-     permission org.apache.river.phoenix.MonitorPermission
+     permission org.apache.river.phoenix.dl.MonitorPermission
                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
-     permission org.apache.river.phoenix.MonitorPermission
+     permission org.apache.river.phoenix.dl.MonitorPermission
                 "java.rmi.activation.ActivationMonitor.*";
 
 };
-
-

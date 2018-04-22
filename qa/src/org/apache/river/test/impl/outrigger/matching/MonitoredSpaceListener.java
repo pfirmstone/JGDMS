@@ -137,13 +137,15 @@ public class MonitoredSpaceListener
             throws IllegalAccessException, IOException 
     {
 	try {
-	    Exporter exporter = QAConfig.getDefaultExporter();
+	    Exporter exporter;
 	    if (c instanceof org.apache.river.qa.harness.QAConfiguration) {
 		exporter =
 		(Exporter) c.getEntry("test", "outriggerListenerExporter", Exporter.class);
 	        context = (LoginContext) c.getEntry("test", 
 	    					    "spaceLoginContext",
 	    					    LoginContext.class);
+	    } else {
+		exporter = QAConfig.getDefaultExporter();
 	    }
             acContext = AccessController.getContext();
             this.exporter = exporter;

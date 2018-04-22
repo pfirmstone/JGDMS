@@ -1,15 +1,11 @@
 /* @summary Verify basic functionality of AggregatPolicyProvider.getContext()
  */
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.lib.dl.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*" {
     permission java.security.AllPermission "", "";
 };
 
@@ -18,10 +14,6 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
 };
 
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
     permission java.security.AllPermission "", "";
 };
 

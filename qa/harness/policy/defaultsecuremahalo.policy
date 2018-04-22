@@ -1,22 +1,28 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.lib.dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
 
-grant { 
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+      permission net.jini.security.AccessPermission "*";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.0-SNAPSHOT.jar", "read";
+      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
+      permission java.net.SocketPermission "${HOST}", "resolve";
+};
+
+
+grant codebase "httpmd://${HOST}/*" {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
 grant {

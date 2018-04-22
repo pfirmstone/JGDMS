@@ -187,3 +187,16 @@
 /JGDMS/phoenix-activation/phoenix-init/target/
 /JGDMS/dist/target/
 /JGDMS/services/target/
+/qa/result/
+/qa/bouncyResult1.txt
+/qa/bouncyResult2.txt
+/qa/result.txt
+/qa/result2.txt
+/qa/result3.txt
+/qa/result4.txt
+/qa/result5.txt
+/qa/result6.txt
+/qa/result7.txt
+/qa/sunResult1.txt
+/JGDMS/jgdms-rmi-tls/target/
+/qa/harness/policy/defaultphoenix.policy.new

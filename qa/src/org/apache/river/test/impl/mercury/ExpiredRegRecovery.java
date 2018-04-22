@@ -160,7 +160,7 @@ public class ExpiredRegRecovery extends MailboxTestBase
     public static void resetMailboxToOnDemandActivation(ActivationID aid) 
 	throws ActivationException, RemoteException
     {
-	ActivationSystem sys = ActivationGroup.getSystem();
+	ActivationSystem sys = net.jini.activation.ActivationGroup.getSystem();
 	ActivationDesc adesc = sys.getActivationDesc(aid);
 	boolean restart = false;
 	ActivationDesc newDesc = 

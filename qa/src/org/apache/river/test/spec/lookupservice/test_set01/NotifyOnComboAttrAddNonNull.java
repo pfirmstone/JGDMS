@@ -59,7 +59,7 @@ import org.apache.river.test.spec.lookupservice.RemoteEventComparator;
  */
 public class NotifyOnComboAttrAddNonNull extends QATestRegistrar {
 
-   private static boolean SHOW_TIMINGS = false;
+   private static boolean SHOW_TIMINGS = true;
 
     /** Class which handles all events sent by the lookup service */
     private class Listener extends BasicListener 

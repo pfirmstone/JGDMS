@@ -1,0 +1,34 @@
+grant codebase "file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/qa/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.someprotocol";
+    permission java.io.FilePermission "someprotocol:*\\somefile", "read";
+    permission java.net.URLPermission "http://localhost:8082/valid.prop", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/valid.prop", "GET:";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT/lib/jgdms-url-integrity-3.0-SNAPSHOT.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:8082/valid.prop", "GET:";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/qa/lib/jiniharness.jar"
+{
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+};
+
+grant codebase "file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/qa/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.someprotocol";
+    permission java.io.FilePermission "someprotocol:*\\somefile", "read";
+    permission java.net.URLPermission "http://localhost:8082/valid.prop", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/valid.prop", "GET:";
+};
+
