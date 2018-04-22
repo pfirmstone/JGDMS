@@ -206,8 +206,9 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	    }
 	}
 	Object sp = smartProxy.get(loader, true, verifier, context);
-	if (sp instanceof RemoteMethodControl && mc != null)
-	    sp = ((RemoteMethodControl)sp).setConstraints(mc);
+	// Don't set constraints on smart proxy.
+//	if (sp instanceof RemoteMethodControl && mc != null)
+//	    sp = ((RemoteMethodControl)sp).setConstraints(mc);
 	return sp;
     }
     
