@@ -225,8 +225,8 @@ public class ProxyBundleProvider implements ProxyCodebaseSpi, BundleActivator {
 	    }
 	}
 	Object sp = smartProxy.get(loader, true, null, context);
-	if (sp instanceof RemoteMethodControl)
-	    sp = ((RemoteMethodControl)sp).setConstraints(mc);
+//	if (sp instanceof RemoteMethodControl)
+//	    sp = ((RemoteMethodControl)sp).setConstraints(mc);
 	return sp;
     }
 
