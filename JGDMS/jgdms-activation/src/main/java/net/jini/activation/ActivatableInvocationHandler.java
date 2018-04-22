@@ -231,8 +231,14 @@ public final class ActivatableInvocationHandler
 	    throws InvalidObjectException 
     {
 	if (!hasConsistentConstraints(uproxy, clientConstraints)) {
-		throw new InvalidObjectException(
-		    "inconsistent constraints between underlying proxy and invocation handler");
+		StringBuilder sb = new StringBuilder(128);
+		sb.append("inconsistent constraints between underlying proxy and invocation handler\n")
+		  .append("Proxy:\n");
+		if (uproxy instanceof RemoteMethodControl)
+		  sb.append(((RemoteMethodControl)uproxy).getConstraints());
+		sb.append("InvocationHandler:\n");
+		sb.append(clientConstraints);
+		throw new InvalidObjectException(sb.toString());
 	    }
 	return clientConstraints;
     }

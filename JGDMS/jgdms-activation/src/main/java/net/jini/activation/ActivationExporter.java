@@ -37,6 +37,10 @@ import net.jini.security.proxytrust.ProxyTrust;
  * the <code>export</code> method activates the remote object on
  * demand.  Each instance of <code>ActivationExporter</code> can export only
  * a single remote object.
+ * 
+ * Note when using AtomicILFactory and other Atomic Invocation Layer Factories
+ * with ActivationExporter, the service must implement DynamicProxyCodebaseAccessor
+ * to allow the exported proxy to be serialized.
  *
  * @author	Sun Microsystems, Inc.
  * @since 2.0
@@ -69,7 +73,7 @@ public final class ActivationExporter implements Exporter
     public ActivationExporter(ActivationID id,
 			      Exporter underlyingExporter)
     {
-	this(id, underlyingExporter, null);
+	this(id, underlyingExporter, (ClassLoader) null);
     }
 
     /**
@@ -94,6 +98,13 @@ public final class ActivationExporter implements Exporter
 	this.id = id;
 	this.underlyingExporter = underlyingExporter;
 	this.loader = loader;
+    }
+    
+    public ActivationExporter(ActivationID id,
+			      Exporter underlyingExporter,
+			      Class proxyOrServiceImplClass)
+    {
+	this(id, underlyingExporter, proxyOrServiceImplClass.getClassLoader());
     }
     
     /**
