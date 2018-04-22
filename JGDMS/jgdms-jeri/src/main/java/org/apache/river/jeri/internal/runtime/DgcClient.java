@@ -30,6 +30,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.jeri.AtomicInvocationHandler;
 import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.BasicObjectEndpoint;
 import net.jini.jeri.Endpoint;
@@ -74,7 +75,7 @@ public final class DgcClient extends AbstractDgcClient {
     protected DgcProxy getDgcProxy(Object endpoint) {
 	Endpoint e = (Endpoint) endpoint;
 	ObjectEndpoint oe = new BasicObjectEndpoint(e, Jeri.DGC_ID, false);
-	InvocationHandler ih = new BasicInvocationHandler(oe, null);
+	InvocationHandler ih = new AtomicInvocationHandler(oe, null);
 	DgcServer proxy =
 	    (DgcServer) Proxy.newProxyInstance(getClass().getClassLoader(),
 					       proxyInterfaces, ih);

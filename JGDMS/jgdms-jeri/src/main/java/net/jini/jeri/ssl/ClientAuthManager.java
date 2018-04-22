@@ -22,6 +22,7 @@ import java.net.Socket;
 import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.ssl.SSLEngine;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
@@ -103,7 +105,7 @@ class ClientAuthManager extends AuthManager {
     ClientAuthManager(Subject subject,
 		      Set permittedLocalPrincipals,
 		      Set permittedRemotePrincipals)
-	throws NoSuchAlgorithmException
+	throws NoSuchAlgorithmException, NoSuchProviderException
     {
 	super(subject, permittedLocalPrincipals, permittedRemotePrincipals);
     }
@@ -256,6 +258,7 @@ class ClientAuthManager extends AuthManager {
      * Override this X509TrustManager method in order to cache the server
      * principal and to continue to choose the same one.
      */
+    @Override
     public synchronized void checkServerTrusted(X509Certificate[] chain,
 						String authType)
 	throws CertificateException
@@ -369,4 +372,11 @@ class ClientAuthManager extends AuthManager {
     {
 	return null;
     }
+    
+    /* -- Implement X509ExtendedKeyManager -- */
+    
+//    @Override
+//    public String chooseEngineClientAlias(String[] keyTypes, Principal[] issuers, SSLEngine engine) {
+//	return chooseClientAlias(keyTypes, issuers, null);
+//    }
 }

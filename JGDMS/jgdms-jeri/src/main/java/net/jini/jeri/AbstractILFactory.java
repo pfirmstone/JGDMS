@@ -463,7 +463,7 @@ public abstract class AbstractILFactory implements InvocationLayerFactory {
 	}
 
 	for (int i = 0; i < interfaces.length; i++) {
-	    Util.checkPackageAccess(interfaces[i].getClass());
+	    Util.checkPackageAccess(interfaces[i]);
 	}
 	
 	Remote proxy;

@@ -113,6 +113,7 @@ import org.apache.river.logging.Levels;
  * <li> {@link ServerAuthentication}
  * <li> {@link ServerMinPrincipal}, when it contains a single
  *	<code>X500Principal</code> only
+ * <li> {@link ServerMaxPrincipal}, when it contains an {@link X500Principal}
  * </ul> <p>
  *
  * Note that {@link ConnectionRelativeTime} and {@link DelegationRelativeTime}

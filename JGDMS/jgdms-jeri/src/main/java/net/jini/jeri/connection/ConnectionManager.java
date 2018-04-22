@@ -216,8 +216,10 @@ public final class ConnectionManager {
                         muxes.remove(i);
                     }
                 }
-                c = ep.connect(handle, active, idle);
-                if (c != null) {
+	    }
+	    c = ep.connect(handle, active, idle);	    
+	    if (c != null) {
+		synchronized (this) {
                     for (int i = muxes.size(); --i >= 0;) {
                         OutboundMux mux = (OutboundMux) muxes.get(i);
                         if (c == mux.getConnection()) {
@@ -228,14 +230,18 @@ public final class ConnectionManager {
                             return mux;
                         }
                     }
-                    OutboundMux mux = newOutboundMux(c);
-                    mux.newRequestPending();
+		}
+		OutboundMux mux = newOutboundMux(c);
+		synchronized (this) {
+		    mux.newRequestPending();
                     muxes.add(mux);
                     return mux;
                 }
-                c = ep.connect(handle);
-                OutboundMux mux = newOutboundMux(c);
-                mux.newRequestPending();
+	    }
+	    c = ep.connect(handle);
+	    OutboundMux mux = newOutboundMux(c);
+	    synchronized (this) {
+		mux.newRequestPending();
                 muxes.add(mux);
                 return mux;
             }

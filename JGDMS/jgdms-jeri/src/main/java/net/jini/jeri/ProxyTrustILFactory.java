@@ -37,7 +37,9 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  * @see net.jini.security.proxytrust.ProxyTrustExporter
+ * @deprecated use {@link AtomicILFactory} 
  */
+@Deprecated
 public class ProxyTrustILFactory extends BasicILFactory {
 
     /**

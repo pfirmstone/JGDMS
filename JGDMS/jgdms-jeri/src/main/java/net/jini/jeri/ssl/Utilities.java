@@ -23,7 +23,9 @@ import org.apache.river.collection.WeakSoftTable;
 import java.lang.ref.ReferenceQueue;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Principal;
+import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -51,6 +53,7 @@ import net.jini.core.constraint.ConstraintAlternatives;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
@@ -61,13 +64,23 @@ import net.jini.security.Security;
  *
  * 
  */
-abstract class Utilities {
-
+abstract class Utilities 
+//    extends X509ExtendedKeyManager // Do we want or need to support?
+{
+    
     /* -- Fields -- */
 
     /**
      * The names of JSSE key exchange algorithms used for anonymous
      * communication.
+     * 
+     * Since anonymous clients risk MITM attacks, we need to look at
+     * supporting Secure Remote Passwords, when it isn't practical to use
+     * client certificates.  Also devices used for IOT, that are provided
+     * with a key by the manufacture, mays need pre shared key support.
+     * 
+     * It is not known at this stage whether this functionality will be
+     * provided in a separate Endpoint implementation.
      */
     private static final String[] ANONYMOUS_KEY_EXCHANGE_ALGORITHMS = {
         //These are not safe from mitm attack, but are here for constraint 
@@ -81,7 +94,9 @@ abstract class Utilities {
         "ECDHE_RSA", //Only ephemeral DH safe from mitm attack.
 	"DHE_RSA", //Only ephemeral DH safe from mitm attack.
         "DHE_DSS", //Only ephemeral DH safe from mitm attack.
-        "ECDHE_ECDSA" //Only ephemeral DH safe from mitm attack.
+        "ECDHE_ECDSA", //Only ephemeral DH safe from mitm attack.
+//	"ECDHE_PSK", // Pre Shared Key
+//	"DHE_PSK" // Pre Shared Key
     };
 
     /** The names of JSSE key exchange algorithms that use RSA keys. */
@@ -89,11 +104,13 @@ abstract class Utilities {
 	"ECDHE_RSA", //Only ephemeral DH safe from mitm attack.
 	"DHE_RSA", //Only ephemeral DH safe from mitm attack.
 	"RSA",
+//	"SRP_SHA_RSA" //RFC 5054 Secure Remote Password
     };
 
     /** The names of JSSE key exchange algorithms that use DSA keys. */
     private static final String[] DSA_KEY_EXCHANGE_ALGORITHMS = {
-	"DHE_DSS" //Only ephemeral DH safe from mitm attack.
+	"DHE_DSS", //Only ephemeral DH safe from mitm attack.
+//	"SRP_SHA_DSS" //RFC 5054 Secure Remote Password
     };
 
     /** The names of JSSE key exchange algorithms that use DSA keys. */
@@ -112,7 +129,11 @@ abstract class Utilities {
 	"DHE_RSA",
 	"RSA",
 	"ECDH_anon",
-	"DH_anon"
+	"DH_anon",
+//	"ECDHE_PSK", // Pre Shared Key
+//	"DHE_PSK", // Pre Shared Key
+//	"SRP_SHA_RSA", //RFC 5054 Secure Remote Password
+//	"SRP_SHA_DSS" //RFC 5054 Secure Remote Password
     };	
 
     /**
@@ -230,6 +251,19 @@ abstract class Utilities {
     /** The secure socket protocol used with JSSE. */
     private static final String SSL_PROTOCOL = (String) Security.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.2"));
+    
+    /** The providers and algorithms to use */
+    private static final String JCE_PROVIDER = (String) Security.doPrivileged(
+	new GetPropertyAction("org.apache.river.jeri.ssl.jceProvider", null));
+    
+    protected static final String JSSE_PROVIDER = (String) Security.doPrivileged(
+	new GetPropertyAction("org.apache.river.jeri.ssl.jsseProvider", null));
+    
+    protected static final String CERT_TYPE = (String) Security.doPrivileged(
+	new GetPropertyAction("org.apache.river.jeri.ssl.certificateType", "X.509"));
+    
+    private static final String RAN_ALG = (String) Security.doPrivileged(
+	new GetPropertyAction("org.apache.river.jeri.ssl.secureRandomAlgorithm", null));
 
     /** Permission needed to access the current subject. */
     static final AuthPermission GET_SUBJECT_PERMISSION =
@@ -240,7 +274,7 @@ abstract class Utilities {
     /* -- getSupportedCipherSuites -- */
 
     /**
-     * Returns all the cipher suites supported by the JSSE implementation and
+     * Returns all the cipher suites supported by
      * this provider.
      */
     static String[] getSupportedCipherSuites() {
@@ -380,7 +414,7 @@ abstract class Utilities {
 
     /**
      * Returns the principals specified by a ClientMinPrincipal,
-     * ClientMaxPrincipal, or ServerMinPrincipal constraint, or an alternatives
+     * ClientMaxPrincipal, ServerMinPrincipal or ServerMaxPrincipal constraint, or an alternatives
      * of one of those types.
      */
     private static Set getPrincipals(InvocationConstraint constraint,
@@ -395,7 +429,12 @@ abstract class Utilities {
 		return null;
 	    }
 	    principals = ((ServerMinPrincipal) constraint).elements();
-	} else if (!client) {
+	} else if (constraint instanceof ServerMaxPrincipal) {
+	    if (client) {
+		return null;
+	    }
+	    principals = ((ServerMaxPrincipal) constraint).elements();
+	}else if (!client) {
 	    return null;
 	} else if (constraint instanceof ClientMinPrincipal) {
 	    principals = ((ClientMinPrincipal) constraint).elements();
@@ -607,8 +646,14 @@ abstract class Utilities {
 	/* Create a new SSL context */
 	SSLContext sslContext;
 	try {
-	    sslContext = SSLContext.getInstance(SSL_PROTOCOL);
+	    if (JSSE_PROVIDER != null){
+		sslContext = SSLContext.getInstance(SSL_PROTOCOL,JSSE_PROVIDER);
+	    } else {
+		sslContext = SSLContext.getInstance(SSL_PROTOCOL);
+	    }
 	} catch (NoSuchAlgorithmException e) {
+	    throw initializationError(e, "finding SSL context");
+	} catch (NoSuchProviderException e) {
 	    throw initializationError(e, "finding SSL context");
 	}
 
@@ -617,17 +662,39 @@ abstract class Utilities {
 	    authManager = new ClientAuthManager(
 		callContext.clientSubject,
 		callContext.clientPrincipals,
-		callContext.serverPrincipals);
-	} catch (NoSuchAlgorithmException e) {
+		callContext.serverPrincipals
+	    );
+	} 
+	catch (NoSuchAlgorithmException e) {
 	    throw initializationError(e, "creating key or trust manager");
-	}
-
+	} 
+	catch (NoSuchProviderException e) {
+	    throw initializationError(e, "creating key manager");
+	} 
+	
 	/* Initialize SSL context */
 	try {
-	    sslContext.init(new KeyManager[] { authManager },
-			    new TrustManager[] { authManager },
-			    null);
-	} catch (KeyManagementException e) {
+	    SecureRandom random = null;
+	    if (RAN_ALG != null){
+		if ( JCE_PROVIDER != null){
+		    random = SecureRandom.getInstance(RAN_ALG, JCE_PROVIDER);
+		} else {
+		    random = SecureRandom.getInstance(RAN_ALG);
+		}
+	    }
+	    sslContext.init(
+		    new KeyManager[]  { authManager },
+		    new TrustManager[] { authManager },
+		    random
+	    );
+	} 
+	catch (KeyManagementException e) {
+	    throw initializationError(e, "initializing SSL context");
+	} 
+	catch (NoSuchAlgorithmException e) {
+	    throw initializationError(e, "initializing SSL context");
+	} 
+	catch (NoSuchProviderException e) {
 	    throw initializationError(e, "initializing SSL context");
 	}
 
@@ -674,8 +741,16 @@ abstract class Utilities {
 
 	    SSLContext sslContext;
 	    try {
-		sslContext = SSLContext.getInstance(SSL_PROTOCOL);
-	    } catch (NoSuchAlgorithmException e) {
+		if (JSSE_PROVIDER != null){
+		    sslContext = SSLContext.getInstance(SSL_PROTOCOL,JSSE_PROVIDER);
+		} else {
+		    sslContext = SSLContext.getInstance(SSL_PROTOCOL);
+		}
+	    } 
+	    catch (NoSuchAlgorithmException e) {
+		throw initializationError(e, "finding SSL context");
+	    } 
+	    catch (NoSuchProviderException e) {
 		throw initializationError(e, "finding SSL context");
 	    }
 
@@ -684,16 +759,37 @@ abstract class Utilities {
 		authManager = new ServerAuthManager(
 		    serverSubject, serverPrincipals,
 		    sslContext.getServerSessionContext());
-	    } catch (NoSuchAlgorithmException e) {
+	    } 
+	    catch (NoSuchAlgorithmException e) {
 		throw initializationError(e, "creating key or trust manager");
-	    }
-
+	    } 
+	    catch (NoSuchProviderException e) {
+		throw initializationError(e, "creating key manager");
+	    } 
+	    
 	    /* Initialize SSL context */
 	    try {
-		sslContext.init(new KeyManager[] { authManager },
-				new TrustManager[] { authManager },
-				null);
-	    } catch (KeyManagementException e) {
+		SecureRandom random = null;
+		if (RAN_ALG != null){
+		    if ( JCE_PROVIDER != null){
+			random = SecureRandom.getInstance(RAN_ALG, JCE_PROVIDER);
+		    } else {
+			random = SecureRandom.getInstance(RAN_ALG);
+		    }
+		}
+		sslContext.init(
+			new KeyManager[]  { authManager },
+			new TrustManager[] { authManager },
+			random
+		);
+	    } 
+	    catch (KeyManagementException e) {
+		throw initializationError(e, "initializing SSL context");
+	    } 
+	    catch (NoSuchAlgorithmException e) {
+		throw initializationError(e, "initializing SSL context");
+	    } 
+	    catch (NoSuchProviderException e) {
 		throw initializationError(e, "initializing SSL context");
 	    }
 
@@ -751,9 +847,15 @@ abstract class Utilities {
 	synchronized (SSL_CONTEXT_MAP) {
 	    if (certFactory == null) {
 		try {
-		    certFactory = CertificateFactory.getInstance("X.509");
+		    certFactory = JCE_PROVIDER != null?
+				  CertificateFactory.getInstance(CERT_TYPE, JCE_PROVIDER)
+			    : CertificateFactory.getInstance("X.509");
 		} catch (CertificateException e) {
 		    throw initializationError(
+			e, "getting certificate factory");
+		}
+		catch (NoSuchProviderException e) {
+		     throw initializationError(
 			e, "getting certificate factory");
 		}
 	    }
@@ -1075,7 +1177,7 @@ abstract class Utilities {
      */
     static int position(String string, String[] list) {
 	for (int i = list.length; --i >= 0; ) {
-	    if (string.equals(list[i])) {
+	    if (string != null && string.equals(list[i])) {
 		return i;
 	    }
 	}

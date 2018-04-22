@@ -41,6 +41,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.jeri.AtomicInvocationDispatcher;
 import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.jeri.InboundRequest;
 import net.jini.jeri.InvocationDispatcher;
@@ -59,9 +60,9 @@ public class DgcRequestDispatcher implements RequestDispatcher {
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicJeriExporter");
     
-    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
-	= AccessController.doPrivileged(new GetBooleanAction(
-		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
+//    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
+//	= AccessController.doPrivileged(new GetBooleanAction(
+//		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
 
 
     private static final Collection<Method> dgcDispatcherMethods =
@@ -105,7 +106,7 @@ public class DgcRequestDispatcher implements RequestDispatcher {
         this.table = table;
         try {
             dgcDispatcher =
-                new BasicInvocationDispatcher(
+                new AtomicInvocationDispatcher(
                     dgcDispatcherMethods, dgcServerCapabilities,
                     null, null, this.getClass().getClassLoader())
                 {
@@ -117,18 +118,10 @@ public class DgcRequestDispatcher implements RequestDispatcher {
                         throws IOException
                     {
                         ClassLoader loader = getClassLoader();
-			if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET){
-			    return new MarshalInputStream(
-				request.getRequestInputStream(),
-				loader, integrity, loader,
-				Collections.unmodifiableCollection(context));
-			} else {
-			    return AtomicMarshalInputStream.createObjectInputStream(
-				request.getRequestInputStream(),
-				loader, integrity, loader,
-				Collections.unmodifiableCollection(context));
-			}
-                        // useStreamCodebases() not invoked
+			return AtomicMarshalInputStream.createObjectInputStream(
+			    request.getRequestInputStream(),
+			    loader, integrity, loader,
+			    Collections.unmodifiableCollection(context));
                     }
                 };
         } catch (ExportException e) {

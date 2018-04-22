@@ -32,7 +32,12 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.SocketFactory;
@@ -247,6 +252,9 @@ class SslConnection extends Utilities implements Connection {
      * @throws IOException if an I/O failure occurs
      */
     final void establishSuites() throws IOException {
+//	String [] supportedCiphers = sslSocket.getSupportedCipherSuites();
+//	String [] ciphers = removeUnsupportedCiphers(supportedCiphers, callContext.cipherSuites);
+//	sslSocket.setEnabledCipherSuites(ciphers);
 	sslSocket.setEnabledCipherSuites(callContext.cipherSuites);
 	sslSocket.startHandshake();
 	session = sslSocket.getSession();
@@ -254,6 +262,16 @@ class SslConnection extends Utilities implements Connection {
 	sslSocket.setEnableSessionCreation(false);
 	releaseClientSSLContextInfo(callContext, sslContext, authManager);
     }
+    
+//    private String[] removeUnsupportedCiphers(String[] supported, String[] requested){
+//	Set<String> supportedCiphers = new HashSet<String>(Arrays.asList(supported));
+//	int length = requested.length;
+//	List<String> result = new ArrayList(length);
+//	for (int i=0; i<length; i++){
+//	    if (supportedCiphers.contains(requested[i])) result.add(requested[i]);
+//	}
+//	return result.toArray(new String[result.size()]);
+//    }
 
     /**
      * Creates a plain socket to use for communication with the specified host
@@ -579,7 +597,11 @@ class SslConnection extends Utilities implements Connection {
 	String[] requestedSuites = otherCallContext.cipherSuites;
 	int requestedPos = position(activeCipherSuite, requestedSuites);
 	if (requestedPos < 0) {
-	    logger.log(Level.FINEST, "connection has wrong suite");
+	    if (closed) {
+		logger.log(Level.FINEST, "connection is closed");
+	    } else {
+		logger.log(Level.FINEST, "connection has wrong suite");
+	    }
 	    return false;
 	}
 
@@ -595,8 +617,12 @@ class SslConnection extends Utilities implements Connection {
 	    String suite = requestedSuites[i];
 	    int p = position(suite, connectionSuites);
 	    if (p < 0 || p >= connectionPos) {
-		logger.log(Level.FINEST,
+		if (closed) {
+		    logger.log(Level.FINEST, "connection is closed");
+		} else {
+		    logger.log(Level.FINEST,
 			   "connection did not try all better suites");
+		}
 		return false;
 	    }
 	}

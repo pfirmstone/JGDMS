@@ -40,7 +40,7 @@ import java.rmi.ServerException;
 import java.rmi.UnmarshalException;
 import java.rmi.server.ExportException;
 import java.rmi.server.ServerNotActiveException;
-import java.security.AccessControlException;
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -51,7 +51,6 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -80,8 +79,6 @@ import net.jini.security.AccessPermission;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-import org.apache.river.api.io.AtomicMarshalInputStream;
-import org.apache.river.api.io.AtomicMarshalOutputStream;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -159,10 +156,6 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
  * </table>
  **/
 public class BasicInvocationDispatcher implements InvocationDispatcher {
-    
-    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
-	= AccessController.doPrivileged(new GetBooleanAction(
-		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
 
     /** Marshal stream protocol version. */
     static final byte VERSION = 0x01;
@@ -362,26 +355,29 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	permissions = (permConstructor == null ?
 		       null :
 		       new IdentityHashMap(methods.size() + 2));
-	try {
-	    if (serverConstraints == null) {
-		checkConstraints(serverCapabilities,
-				 InvocationConstraints.EMPTY);
-	    } else {
-		Iterator iter = serverConstraints.possibleConstraints();
-		while (iter.hasNext()) {
-		    checkConstraints(serverCapabilities,
-				     (InvocationConstraints) iter.next());
-		}
-	    }
-	} catch (UnsupportedConstraintException e) {
-	    throw new ExportException(
-		"server does not support some constraints", e);
-	}
+	// We can't authenticate the client, and it's not safe for
+	// anon clients in TLS endpoints, hence the next block of code
+	// has been disabled.
+//	try {
+//	    if (serverConstraints == null) {
+//		checkConstraints(serverCapabilities,
+//				 InvocationConstraints.EMPTY);
+//	    } else {
+//		Iterator iter = serverConstraints.possibleConstraints();
+//		while (iter.hasNext()) {
+//		    checkConstraints(serverCapabilities,
+//				     (InvocationConstraints) iter.next());
+//		}
+//	    }
+//	} catch (UnsupportedConstraintException e) {
+//	    throw new ExportException(
+//		"server does not support some constraints", e);
+//	}
     }
     }
 
     /**
-     * Check that the only unfulfilled requirement is Integrity.
+     * Check that the only unfulfilled requirements are Integrity and atomicity.
      */
     private static void checkConstraints(ServerCapabilities serverCapabilities,
 					 InvocationConstraints constraints)
@@ -389,12 +385,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     {
 	InvocationConstraints unfulfilled =
 	    serverCapabilities.checkConstraints(constraints);
-	for (Iterator i = unfulfilled.requirements().iterator(); i.hasNext();)
-	{
-	    InvocationConstraint c = (InvocationConstraint) i.next();
-	    if (!(c instanceof Integrity)) {
+	for (InvocationConstraint c : unfulfilled.requirements()) {
+	    if (!(c instanceof Integrity) && !(c instanceof AtomicInputValidation)) {
 		throw new UnsupportedConstraintException(
-		    "cannot satisfy unfulfilled constraint: " + c);
+			"cannot satisfy unfulfilled constraint: " + c);
 	    }
 	    // REMIND: support ConstraintAlternatives containing Integrity?
 	}
@@ -659,7 +653,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	Throwable t = null;
 	boolean fromImpl = false;
 	Util.populateContext(context, integrity, atomicValidation);
-	context = new ArrayList(context);
 	context.add(serverConstraints);
 	ObjectInputStream in = null;
 	
@@ -852,28 +845,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    ObjectInputStream in;
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
-				((AtomicValidationEnforcement) o).enforced()){
-			    in =  AtomicMarshalInputStream.createObjectInputStream(
-				    request.getRequestInputStream(),
-				   streamLoader, integrity,
-				   streamLoader, unmodContext);
-//			    in.useCodebaseAnnotations();
-			    return in;
-
+				((AtomicValidationEnforcement) o).enforced())
+			{
+			    unsupportedConstraint(AtomicInputValidation.YES);
 			}
 		    }
-		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) {
-		    	in = new MarshalInputStream(request.getRequestInputStream(),
-		    				   streamLoader, integrity,
-		    				   streamLoader, unmodContext);
-			((MarshalInputStream)in).useCodebaseAnnotations();
-		    } else {
-			in = AtomicMarshalInputStream.createObjectInputStream(
-			    request.getRequestInputStream(),
-			    streamLoader, integrity,
-			    streamLoader, unmodContext);
-		    }
-//		    in.useCodebaseAnnotations();
+		    in = new MarshalInputStream(request.getRequestInputStream(),
+					       streamLoader, integrity,
+					       streamLoader, unmodContext);
+		    ((MarshalInputStream)in).useCodebaseAnnotations();
 		    return in;
 		}
     
@@ -886,7 +866,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	}
     }
 	
-    private ClassLoader getStreamLoader(Object impl){
+    ClassLoader getStreamLoader(Object impl){
 	final ClassLoader streamLoader;
 	if (loader != null) {
 	    streamLoader = getClassLoader();
@@ -950,12 +930,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    Collection unmodContext = Collections.unmodifiableCollection(context);
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
-				((AtomicValidationEnforcement) o).enforced()){
-			    return new AtomicMarshalOutputStream(out, getStreamLoader(impl), unmodContext, true);
+				((AtomicValidationEnforcement) o).enforced())
+			{
+			    unsupportedConstraint(AtomicInputValidation.YES);
 			}
 		    }
-		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) return new MarshalOutputStream(out, unmodContext);
-		    return new AtomicMarshalOutputStream(out, getStreamLoader(impl), unmodContext, true);
+		    return new MarshalOutputStream(out, unmodContext);
 		}
 							  
 	    });
@@ -1111,16 +1091,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		}
 	    }
 	}
-	boolean ok = pd.implies(permission);
 	// XXX what about logging
-        if (logger.isLoggable(Level.FINE)){
+	if (logger.isLoggable(Level.FINEST)){
             Policy p = Policy.getPolicy();
-            logger.log(Level.FINE, "SecurityManager: " + sm + "\nPolicy: " + p +
+            logger.log(Level.FINEST, "SecurityManager: " + sm + "\nPolicy: " + p +
                     "\nProtectionDomain: " + pd);
         }
-	if (!ok) {
-	    throw new AccessControlException("access denied " + permission + " domain that failed: " + pd);
-	}
+	AccessControlContext acc = new AccessControlContext(new ProtectionDomain []{pd});
+	sm.checkPermission(permission, acc);
     }
 
     /**
