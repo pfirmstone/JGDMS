@@ -104,6 +104,7 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.export.CodebaseAccessor;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -517,7 +518,7 @@ public class OutriggerServerImpl
     private Exception except;
     private boolean persistent;
     private final long maxServerQueryTimeout;
-    private AccessControlContext context;
+    private final AccessControlContext context;
     private String codebase;
     private String certFactoryType;
     private String certPathEncoding;
@@ -526,7 +527,6 @@ public class OutriggerServerImpl
     /**
      * Create a new <code>OutriggerServerImpl</code> server (possibly a
      * new incarnation of an activatable one).
-     * Exports the server as well.
      *
      * @param activationID of the server, may be null.
      * @param lifeCycle the object to notify when this
@@ -827,7 +827,6 @@ public class OutriggerServerImpl
             starter = null;
             except = null;
             thrown = null;
-            context = null;
         }
     }
 
@@ -944,10 +943,10 @@ public class OutriggerServerImpl
                          ProxyPreparer.class, defaultPreparer);
 
                 h.activationID = 
-                    (ActivationID)aidPreparer.prepareProxy(h.activationID);
+                    (ActivationID)aidPreparer.prepareProxy(activationID);
                 h.activationSystem =
                     (ActivationSystem)aSysPreparer.prepareProxy(
-                        ActivationGroup.getSystem());
+                        net.jini.activation.ActivationGroup.getSystem());
             }
 
 
@@ -984,7 +983,7 @@ public class OutriggerServerImpl
              */
             final Exporter basicExporter = 
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                                      new BasicILFactory(null, null, OutriggerServer.class.getClassLoader()), false, true);
+                                      new AtomicILFactory(null, null, OutriggerServer.class.getClassLoader()), false, true);
             if (activationID == null) {
                 h.exporter = (Exporter)Config.getNonNullEntry(config,
                     COMPONENT_NAME,	"serverExporter", Exporter.class,
@@ -1503,7 +1502,7 @@ public class OutriggerServerImpl
      * <code>null</code>
      */
     void enqueueDelivery(EventSender sender) {
-	notifier.enqueueDelivery(sender);
+	notifier.enqueueDelivery(sender, context);
     }
 
     /**
