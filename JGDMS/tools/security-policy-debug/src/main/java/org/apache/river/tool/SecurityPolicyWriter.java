@@ -21,18 +21,23 @@ package org.apache.river.tool;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilePermission;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.Permission;
 import java.security.Permissions;
+import java.security.Policy;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
@@ -44,14 +49,12 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.PrivateCredentialPermission;
-import net.jini.id.Uuid;
-import net.jini.id.UuidFactory;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.CombinerSecurityManager;
 import org.apache.river.api.security.PermissionComparator;
 
@@ -118,50 +121,75 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         }
     }
     // Use concurrent collections to avoid deadlock from recursive calls.
-    private final ConcurrentMap<ProtectionDomain, Collection<Permission>> policy;
-    private final File policyFile;
-    private final KeyStore keyStore;
-    private final ExecutorService exec;
+    private final ConcurrentMap<ProtectionDomain, Collection<Permission>> domainPermissions;
+    private static KeyStore keyStore = null;
+    private static final Object keyStoreLock = new Object();
     private final ConcurrentMap<Certificate,String> aliases;
     private final Cert certFunc;
+//    private final Map properties;
     
-    private SecurityPolicyWriter(ConcurrentMap<ProtectionDomain,Collection<Permission>> map, File policyFile, KeyStore keyStore){
+    private SecurityPolicyWriter(
+	    ConcurrentMap<ProtectionDomain,Collection<Permission>> map) 
+    {
         super();
-        policy = map;
-        this.policyFile = policyFile;
-        this.keyStore = keyStore;
-        exec = Executors.newSingleThreadExecutor();
+        domainPermissions = map;
         aliases = new ConcurrentHashMap<Certificate,String>();
         certFunc = new Cert();
+//	Properties properties = System.getProperties();
+//	Map<String,String> props = new HashMap<String,String>();
+//	synchronized (properties){
+//	    Iterator<Entry<Object,Object>> it = properties.entrySet().iterator();
+//	    StringBuilder jini = new StringBuilder("net.jini");
+//	    StringBuilder river = new StringBuilder("org.apache.river");
+//	    while (it.hasNext()){
+//		Entry<Object,Object> ent = it.next();
+//		Object k = ent.getKey();
+//		Object v = ent.getValue();
+//		if (k instanceof String && v instanceof String 
+//			&& (((String)k).contains(jini) || ((String)k).contains(river)))
+//		{
+//		    props.put((String) k, (String) v);
+//		}
+//	    }
+//	}
+//	this.properties = props;
     } 
     
-    public SecurityPolicyWriter(){
-        this(new ConcurrentHashMap<ProtectionDomain,Collection<Permission>>(), policyFile(), keyStore());
+    public SecurityPolicyWriter() {
+        this(new ConcurrentHashMap<ProtectionDomain,Collection<Permission>>());
         Runtime.getRuntime().addShutdownHook(shutdownHook());
     }
     
-    private static File policyFile(){
-        String policyDirectory = System.getProperty("org.apache.river.tool.SecurityPolicyWriter.Directory");
-        Uuid timestamp = UuidFactory.generate();
-        File policyFile = new File(policyDirectory + File.separator + timestamp + ".policy");
-        try {
-            policyFile.createNewFile();
-        } catch (IOException ex) {
-            throw new RuntimeException("Unable to create a policy file, in policy directory: "+ policyDirectory, ex);
-        }
+    private static File policyFile() throws URISyntaxException{
+        String policy = System.getProperty("java.security.policy");
+//        Uuid timestamp = UuidFactory.generate();
+//        File policyFile = new File(policyDirectory + File.separator + timestamp + ".policy");
+	Uri polLocation = new Uri(policy +".new");
+	URI poliLoc = Uri.uriToURI(polLocation);
+	File policyFile = new File(poliLoc);
+	if (!policyFile.exists()){
+	    try {
+		policyFile.createNewFile();
+	    } catch (IOException ex) {
+		throw new RuntimeException("Unable to create a policy file: "+ policy +".new", ex);
+	    }
+	}
         return policyFile;
     }
     
     private static KeyStore keyStore(){
-        KeyStore keyStore = null;
-        try {
-            keyStore = initStore();
-        } catch (IOException ex) {
-            getLogger().log(Level.FINE, "Unable to create KeyStore instance", ex);
-        } catch (GeneralSecurityException ex) {
-            getLogger().log(Level.FINE, "Unable to create KeyStore instance", ex);
-        }
-        return keyStore;
+	synchronized (keyStoreLock){
+	    if (keyStore == null){
+		try {
+		    keyStore = initStore();
+		} catch (IOException ex) {
+		    getLogger().log(Level.FINE, "Unable to create KeyStore instance", ex);
+		} catch (GeneralSecurityException ex) {
+		    getLogger().log(Level.FINE, "Unable to create KeyStore instance", ex);
+		}
+	    }
+	    return keyStore;
+	}
     }
     
     /**
@@ -182,8 +210,11 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 	InputStream in;
 	URL url = null;
 	try {
-	    url = new URL(path);
+	    url = new Uri(path).toURL();
 	} catch (MalformedURLException e) {
+	    getLogger().log(Level.SEVERE, null, e);
+	} catch (URISyntaxException ex) {
+	    getLogger().log(Level.SEVERE, null, ex);
 	}
 	if (url != null) {
 	    in = url.openStream();
@@ -202,32 +233,15 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         return kstore;
     }
     
+    @Override
     protected boolean checkPermission(ProtectionDomain pd, Permission p){
-        Collection<Permission> perms = policy.get(pd);
-        if (perms == null) {
-            perms = new ConcurrentSkipListSet<Permission>(new PermissionComparator());
-            Collection<Permission> existed = policy.putIfAbsent(pd, perms);
-            if (existed != null) perms = existed;
-        }
-	CodeSource cs = null;
-	try {
-	    cs = pd.getCodeSource();
-	    pd.getPrincipals();
-	} catch (NullPointerException e){
-	    // On some occassions ProtectionDomain hasn't been
-	    // safely published.
-	    System.err.println(
-		"ProtectionDomain wasn't safely published." 
-	    );
-	    e.printStackTrace(System.err);
-	}
-        if (cs != null){
-            Certificate [] signers = cs.getCertificates();
-            if (signers != null && signers.length > 0){
-                exec.submit(new Certs(signers));
-            }
-        }
-        perms.add(p);
+	Collection<Permission> perms = domainPermissions.get(pd);
+	    if (perms == null) {
+		perms = new ConcurrentSkipListSet<Permission>(new PermissionComparator());
+		Collection<Permission> existed = domainPermissions.putIfAbsent(pd, perms);
+		if (existed != null) perms = existed;
+	    }
+	perms.add(p);
         return true;
     }
     
@@ -236,12 +250,23 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
             @Override
             public void run (){
                 PrintWriter pw = null;
+		boolean onlyAdditional = AccessController.doPrivileged(new GetBooleanAction("org.apache.river.tool.addPerms"));
+		Policy policy = Policy.getPolicy();
                 try {
-                    pw = new PrintWriter(new BufferedWriter(new FileWriter(policyFile)));
+		    File policyFile = policyFile();
+//		    policy = new ConcurrentPolicyFile(new URL[]{policyFile.toURI().toURL()});
+		    pw = new PrintWriter(new BufferedWriter(new FileWriter(policyFile, true)));
                 } catch (IOException ex) {
                     getLogger().log(Level.SEVERE, "unable to write to policy file ", ex);
                     return;
-                }
+                } catch (URISyntaxException ex) {
+		    getLogger().log(Level.SEVERE, "unable to write to policy file ", ex);
+		    return;
+		} 
+//		catch (PolicyInitializationException ex) {
+//		    getLogger().log(Level.SEVERE, "unable to parse to policy file ", ex);
+//		    return;
+//		}
                 //REMIND: keystore "some_keystore_url", "keystore_type", "keystore_provider";
                 //        keystorePasswordURL "some_password_url";
                 
@@ -259,10 +284,19 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 
                 
                 Iterator<Entry<ProtectionDomain,Collection<Permission>>> it 
-                        = policy.entrySet().iterator();
+                        = domainPermissions.entrySet().iterator();
                 while (it.hasNext()){
                     Entry<ProtectionDomain,Collection<Permission>> entry = it.next();
                     ProtectionDomain pd = entry.getKey();
+		    Collection<Permission> perms = entry.getValue();
+		    if (onlyAdditional){
+			Iterator<Permission> pIt = perms.iterator();
+			while (pIt.hasNext()){
+			    Permission p = pIt.next();
+			    if (policy.implies(pd, p)) pIt.remove();
+			}
+		    }
+		    if (perms.isEmpty()) continue;
                     CodeSource cs = null; 
                     Principal [] principals = null;
 		    try {
@@ -275,6 +309,17 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 			    "ProtectionDomain wasn't safely published: " 
 			    + pd.toString()
 			);
+		    }
+		    // Delegate tasks to an executor so we don't cause recursive calls / stack overflow.		    
+		    if (cs != null){
+			Certificate [] signers = cs.getCertificates();
+			if (signers != null && signers.length > 0){
+			     if (keyStore() != null){
+				for (int i=0, l=signers.length; i<l; i++){
+				    aliases.computeIfAbsent(signers[i], certFunc);
+				}
+			    }
+			}
 		    }
                     if (cs != null || (principals != null && principals.length > 0)){
                         URL codebase = cs.getLocation();
@@ -296,12 +341,14 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
                                 }
                             }
                         }
-                        pw.print("codebase \"");
-                        pw.print(codebase);
-                        pw.print("\"");
-                    
+			if (codebase != null){
+			    pw.print("codebase \"");
+			    String codebaseStr = replaceValuesWithProperties(codebase.toString());
+			    pw.print(codebaseStr);
+			    pw.print("\"");
+			    if (principals != null && principals.length >0) pw.print(",\n");
+			}
                         if (principals != null && principals.length > 0){
-                            pw.print(",\n");
                             for (int i=0, l=principals.length; i<l; i++){
                                 pw.print("    principal ");
                                 pw.print(principals[i].getClass().getCanonicalName());
@@ -344,10 +391,12 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 			    } else {
 				/* Some complex permissions have quoted strings embedded or
 				literal carriage returns that must be escaped.  */
-				String name = p.getName().replace("\"","\\\"").replace("\r","\\\r");
-    //                            if (p instanceof FilePermission){
-    //                                    name = name.replace(File.separator, "${/}");
-    //                            }
+				String name = p.getName();
+				if (p instanceof FilePermission && File.separatorChar == '\\'){
+				    name = name.replace("\\", "\\\\");
+				} else {
+				    name = name.replace("\\\"", "\\\\\"").replace("\"","\\\"").replace("\r","\\\r");
+				}
 				pw.print(name);
 			    }
                             String actions = p.getActions();
@@ -379,23 +428,8 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         return t;
     }
     
-    private class Certs implements Runnable {
-        
-        private final Certificate [] signers;
-        
-        Certs(Certificate [] signers){
-            this.signers = signers;
-        }
-
-        @Override
-        public void run() {
-            if (keyStore != null){
-                for (int i=0, l=signers.length; i<l; i++){
-                    aliases.computeIfAbsent(signers[i], certFunc);
-                }
-            }
-        }
-        
+    private String replaceValuesWithProperties(String s){
+	return System.getProperty(s,s);
     }
     
     private class Cert implements Function<Certificate,String> {
@@ -403,7 +437,7 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         @Override
         public String apply(Certificate t) {
             try {
-                return keyStore.getCertificateAlias(t);
+                return keyStore().getCertificateAlias(t);
             } catch (KeyStoreException ex) {
                 getLogger().log(Level.WARNING, "Alias not found in keystore", ex);
             }
