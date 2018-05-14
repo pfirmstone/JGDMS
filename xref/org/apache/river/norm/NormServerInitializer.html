@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head><meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title>NormServerInitializer xref</title>
+<link type="text/css" rel="stylesheet" href="../../../../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../../../apidocs/org/apache/river/norm/NormServerInitializer.html">View Javadoc</a></div><pre>
+<a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Licensed to the Apache Software Foundation (ASF) under one</em>
+<a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> * or more contributor license agreements.  See the NOTICE file</em>
+<a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * distributed with this work for additional information</em>
+<a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * regarding copyright ownership. The ASF licenses this file</em>
+<a class="jxr_linenumber" name="L6" href="#L6">6</a>   <em class="jxr_comment"> * to you under the Apache License, Version 2.0 (the</em>
+<a class="jxr_linenumber" name="L7" href="#L7">7</a>   <em class="jxr_comment"> * "License"); you may not use this file except in compliance</em>
+<a class="jxr_linenumber" name="L8" href="#L8">8</a>   <em class="jxr_comment"> * with the License. You may obtain a copy of the License at</em>
+<a class="jxr_linenumber" name="L9" href="#L9">9</a>   <em class="jxr_comment"> * </em>
+<a class="jxr_linenumber" name="L10" href="#L10">10</a>  <em class="jxr_comment"> *      <a href="http://www.apache.org/licenses/LICENSE-2." target="alexandria_uri">http://www.apache.org/licenses/LICENSE-2.</a>0</em>
+<a class="jxr_linenumber" name="L11" href="#L11">11</a>  <em class="jxr_comment"> * </em>
+<a class="jxr_linenumber" name="L12" href="#L12">12</a>  <em class="jxr_comment"> * Unless required by applicable law or agreed to in writing, software</em>
+<a class="jxr_linenumber" name="L13" href="#L13">13</a>  <em class="jxr_comment"> * distributed under the License is distributed on an "AS IS" BASIS,</em>
+<a class="jxr_linenumber" name="L14" href="#L14">14</a>  <em class="jxr_comment"> * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</em>
+<a class="jxr_linenumber" name="L15" href="#L15">15</a>  <em class="jxr_comment"> * See the License for the specific language governing permissions and</em>
+<a class="jxr_linenumber" name="L16" href="#L16">16</a>  <em class="jxr_comment"> * limitations under the License.</em>
+<a class="jxr_linenumber" name="L17" href="#L17">17</a>  <em class="jxr_comment"> */</em>
+<a class="jxr_linenumber" name="L18" href="#L18">18</a>  
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">package</strong> org.apache.river.norm;
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>  
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.apache.river.config.Config;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.apache.river.landlord.FixedLeasePeriodPolicy;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.apache.river.landlord.LeasePeriodPolicy;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.apache.river.norm.event.EventTypeGenerator;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.apache.river.norm.proxy.NormServer;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> org.apache.river.start.lifecycle.LifeCycle;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> java.security.AccessControlContext;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> java.security.AccessController;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.LinkedList;
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.List;
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> javax.security.auth.login.LoginContext;
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> net.jini.config.Configuration;
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> net.jini.config.ConfigurationException;
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> net.jini.config.NoSuchEntryException;
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> net.jini.export.Exporter;
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> net.jini.jeri.AtomicILFactory;
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> net.jini.jeri.BasicILFactory;
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> net.jini.jeri.BasicJeriExporter;
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> net.jini.jeri.tcp.TcpServerEndpoint;
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> net.jini.lease.LeaseRenewalManager;
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> net.jini.security.BasicProxyPreparer;
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>  <strong class="jxr_keyword">import</strong> net.jini.security.ProxyPreparer;
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>  
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>  <em class="jxr_javadoccomment"> * NormServerInitializer creates the internal state of NormServerBaseImpl allowing</em>
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <em class="jxr_javadoccomment"> * many fields to be final after construction.  This simplifies auditing of</em>
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <em class="jxr_javadoccomment"> * synchronization by reducing scope to mutable fields and references </em>
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <em class="jxr_javadoccomment"> * to mutable objects.</em>
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">class</strong> <a href="../../../../org/apache/river/norm/NormServerInitializer.html">NormServerInitializer</a> {
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>      <strong class="jxr_keyword">boolean</strong> persistent;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>      <a href="../../../../org/apache/river/start/lifecycle/LifeCycle.html">LifeCycle</a> lifeCycle;
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>      LoginContext loginContext;
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>      String persistenceDirectory;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>      List renewedList = <strong class="jxr_keyword">new</strong> LinkedList();
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>      <strong class="jxr_keyword">float</strong> snapshotWt;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>      <strong class="jxr_keyword">int</strong> logToSnapshotThresh;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>      <a href="../../../../net/jini/security/ProxyPreparer.html">ProxyPreparer</a> leasePreparer;
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>      <a href="../../../../net/jini/security/ProxyPreparer.html">ProxyPreparer</a> listenerPreparer;
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>      <a href="../../../../net/jini/security/ProxyPreparer.html">ProxyPreparer</a> locatorPreparer;
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>      <a href="../../../../net/jini/security/ProxyPreparer.html">ProxyPreparer</a> recoveredLeasePreparer;
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>      <a href="../../../../net/jini/security/ProxyPreparer.html">ProxyPreparer</a> recoveredListenerPreparer;
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>      <a href="../../../../net/jini/security/ProxyPreparer.html">ProxyPreparer</a> recoveredLocatorPreparer;
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>      <a href="../../../../org/apache/river/landlord/LeasePeriodPolicy.html">LeasePeriodPolicy</a> setLeasePolicy;
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>      <strong class="jxr_keyword">boolean</strong> isolateSets;
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>      <a href="../../../../net/jini/lease/LeaseRenewalManager.html">LeaseRenewalManager</a> lrm;
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>      <a href="../../../../net/jini/export/Exporter.html">Exporter</a> exporter;
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>      <a href="../../../../org/apache/river/norm/LeaseExpirationMgr.html">LeaseExpirationMgr</a> expMgr;
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>      <a href="../../../../org/apache/river/norm/event/EventTypeGenerator.html">EventTypeGenerator</a> generator;
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>      <a href="../../../../org/apache/river/norm/LRMEventListener.html">LRMEventListener</a> lrmEventListener;
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>      NormServerBaseImpl.RenewLogThread renewLogger;
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>      AccessControlContext context;
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>      <a href="../../../../net/jini/config/Configuration.html">Configuration</a> config;
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>      String codebase;
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>      String certFactoryType;
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>      String certPathEncoding;
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>      byte[] encodedCerts;
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>  
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>  <em class="jxr_javadoccomment">     * Initializer object for NormServer implementations.  Can be overridden by</em>
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>  <em class="jxr_javadoccomment">     * subclasses of NormServerBaseImpl</em>
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>  <em class="jxr_javadoccomment">     * </em>
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>  <em class="jxr_javadoccomment">     * @param persistent true if implementation is persistent</em>
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>  <em class="jxr_javadoccomment">     * @param lifeCycle object to notify when NormServer is destroyed.</em>
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>      <a href="../../../../org/apache/river/norm/NormServerInitializer.html">NormServerInitializer</a>(<strong class="jxr_keyword">boolean</strong> persistent, <a href="../../../../org/apache/river/start/lifecycle/LifeCycle.html">LifeCycle</a> lifeCycle) {
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>          <strong class="jxr_keyword">this</strong>.persistent = persistent;
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">this</strong>.lifeCycle = lifeCycle;
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>      }
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>  
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>  <em class="jxr_javadoccomment">     * Common construction for activatable and non-activatable cases, run</em>
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>  <em class="jxr_javadoccomment">     * under the proper Subject.</em>
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>      <strong class="jxr_keyword">void</strong> initAsSubject(<a href="../../../../net/jini/config/Configuration.html">Configuration</a> config) <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>          <strong class="jxr_keyword">this</strong>.config = config;
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <em class="jxr_comment">/* Get configuration entries first */</em>
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>          <strong class="jxr_keyword">if</strong> (persistent) {
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>              persistenceDirectory = (String) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"persistenceDirectory"</span>, String.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>             snapshotWt = Config.getFloatEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"persistenceSnapshotWeight"</span>, 10, 0, Float.MAX_VALUE);
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>             logToSnapshotThresh = Config.getIntEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"persistenceSnapshotThreshold"</span>, 200, 0, Integer.MAX_VALUE);
+<a class="jxr_linenumber" name="L102" href="#L102">102</a>         }
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>         leasePreparer = (ProxyPreparer) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"leasePreparer"</span>, ProxyPreparer.<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/security/BasicProxyPreparer.html">BasicProxyPreparer</a>());
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>         listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"listenerPreparer"</span>, ProxyPreparer.<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/security/BasicProxyPreparer.html">BasicProxyPreparer</a>());
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>         locatorPreparer = (ProxyPreparer) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"locatorPreparer"</span>, ProxyPreparer.<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/security/BasicProxyPreparer.html">BasicProxyPreparer</a>());
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>         <strong class="jxr_keyword">if</strong> (persistent) {
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>             recoveredLeasePreparer = (ProxyPreparer) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"recoveredLeasePreparer"</span>, ProxyPreparer.<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/security/BasicProxyPreparer.html">BasicProxyPreparer</a>());
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>             recoveredListenerPreparer = (ProxyPreparer) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"recoveredListenerPreparer"</span>, ProxyPreparer.<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/security/BasicProxyPreparer.html">BasicProxyPreparer</a>());
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>             recoveredLocatorPreparer = (ProxyPreparer) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"recoveredLocatorPreparer"</span>, ProxyPreparer.<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/security/BasicProxyPreparer.html">BasicProxyPreparer</a>());
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         }
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>         setLeasePolicy = (LeasePeriodPolicy) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"leasePolicy"</span>, LeasePeriodPolicy.<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> <a href="../../../../org/apache/river/landlord/FixedLeasePeriodPolicy.html">FixedLeasePeriodPolicy</a>(2 * 60 * 60 * 1000, 60 * 60 * 1000));
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>         isolateSets = ((Boolean) config.getEntry(NormServerBaseImpl.NORM, <span class="jxr_string">"isolateSets"</span>, <strong class="jxr_keyword">boolean</strong>.<strong class="jxr_keyword">class</strong>, Boolean.FALSE)).booleanValue();
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>             lrm = (LeaseRenewalManager) Config.getNonNullEntry(config, NormServerBaseImpl.NORM, <span class="jxr_string">"leaseManager"</span>, LeaseRenewalManager.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L115" href="#L115">115</a>         } <strong class="jxr_keyword">catch</strong> (NoSuchEntryException e) {
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>             lrm = <strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/lease/LeaseRenewalManager.html">LeaseRenewalManager</a>(config);
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>         }
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>         exporter = getExporter(config);
+<a class="jxr_linenumber" name="L119" href="#L119">119</a> 	codebase = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+<a class="jxr_linenumber" name="L120" href="#L120">120</a> 		<span class="jxr_string">"Codebase_Annotation"</span>, String.<strong class="jxr_keyword">class</strong>, <span class="jxr_string">""</span>);
+<a class="jxr_linenumber" name="L121" href="#L121">121</a> 	certFactoryType = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+<a class="jxr_linenumber" name="L122" href="#L122">122</a> 		<span class="jxr_string">"Codebase_CertFactoryType"</span>, String.<strong class="jxr_keyword">class</strong>, <span class="jxr_string">"X.509"</span>);
+<a class="jxr_linenumber" name="L123" href="#L123">123</a> 	certPathEncoding = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+<a class="jxr_linenumber" name="L124" href="#L124">124</a> 		<span class="jxr_string">"Codebase_CertPathEncoding"</span>, String.<strong class="jxr_keyword">class</strong>, <span class="jxr_string">"PkiPath"</span>);
+<a class="jxr_linenumber" name="L125" href="#L125">125</a> 	encodedCerts = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+<a class="jxr_linenumber" name="L126" href="#L126">126</a> 		<span class="jxr_string">"Codebase_Certs"</span>, byte[].<strong class="jxr_keyword">class</strong>, <strong class="jxr_keyword">new</strong> byte[0]);
+<a class="jxr_linenumber" name="L127" href="#L127">127</a> 	
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>         <em class="jxr_comment">// We use some of these during the recovery process</em>
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>         expMgr = <strong class="jxr_keyword">new</strong> <a href="../../../../org/apache/river/norm/LeaseExpirationMgr.html">LeaseExpirationMgr</a>();
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>         generator = <strong class="jxr_keyword">new</strong> <a href="../../../../org/apache/river/norm/event/EventTypeGenerator.html">EventTypeGenerator</a>();
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>         lrmEventListener = <strong class="jxr_keyword">new</strong> <a href="../../../../org/apache/river/norm/LRMEventListener.html">LRMEventListener</a>();
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>         renewLogger = <strong class="jxr_keyword">new</strong> NormServerBaseImpl.RenewLogThread(renewedList);
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>         context = AccessController.getContext();
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>     }
+<a class="jxr_linenumber" name="L135" href="#L135">135</a> 
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L137" href="#L137">137</a> <em class="jxr_javadoccomment">     * Returns the exporter to use to export this server.</em>
+<a class="jxr_linenumber" name="L138" href="#L138">138</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L139" href="#L139">139</a> <em class="jxr_javadoccomment">     * @param config the configuration to use for supplying the exporter</em>
+<a class="jxr_linenumber" name="L140" href="#L140">140</a> <em class="jxr_javadoccomment">     * @return the exporter to use to export this server</em>
+<a class="jxr_linenumber" name="L141" href="#L141">141</a> <em class="jxr_javadoccomment">     * @throws ConfigurationException if a problem occurs retrieving entries</em>
+<a class="jxr_linenumber" name="L142" href="#L142">142</a> <em class="jxr_javadoccomment">     *	       from the configuration</em>
+<a class="jxr_linenumber" name="L143" href="#L143">143</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L144" href="#L144">144</a>     <a href="../../../../net/jini/export/Exporter.html">Exporter</a> getExporter(<a href="../../../../net/jini/config/Configuration.html">Configuration</a> config) <strong class="jxr_keyword">throws</strong> ConfigurationException {
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>         <strong class="jxr_keyword">return</strong> (Exporter) Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+<a class="jxr_linenumber" name="L146" href="#L146">146</a> 		<span class="jxr_string">"serverExporter"</span>, Exporter.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="L147" href="#L147">147</a> 		<strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/jeri/BasicJeriExporter.html">BasicJeriExporter</a>(
+<a class="jxr_linenumber" name="L148" href="#L148">148</a> 			TcpServerEndpoint.getInstance(0),
+<a class="jxr_linenumber" name="L149" href="#L149">149</a> 			<strong class="jxr_keyword">new</strong> <a href="../../../../net/jini/jeri/AtomicILFactory.html">AtomicILFactory</a>(<strong class="jxr_keyword">null</strong>, <strong class="jxr_keyword">null</strong>, NormServer.<strong class="jxr_keyword">class</strong>.getClassLoader())
+<a class="jxr_linenumber" name="L150" href="#L150">150</a> 		)
+<a class="jxr_linenumber" name="L151" href="#L151">151</a> 	);
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>     }
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>     
+<a class="jxr_linenumber" name="L154" href="#L154">154</a> }
+</pre>
+<hr/>
+<div id="footer">Copyright &#169; 2016&#x2013;2018. All rights reserved.</div>
+</body>
+</html>

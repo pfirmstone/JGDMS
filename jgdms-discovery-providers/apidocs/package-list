@@ -10,5 +10,6 @@ org.apache.river.discovery.ssl.sha512
 org.apache.river.discovery.x500.sha1withdsa
 org.apache.river.discovery.x500.sha1withrsa
 org.apache.river.discovery.x500.sha256withdsa
+org.apache.river.discovery.x500.sha256withrsa
 org.apache.river.discovery.x500.sha512withecdsa
 org.apache.river.discovery.x500.sha512withrsa
