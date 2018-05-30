@@ -535,17 +535,15 @@ class DiscoveryV2 extends Discovery {
 	Map<Long,DiscoveryFormatProvider> udsMap = formatIdMaps[UNICAST_DISCOVERY_SERVER];
 	while (inBuf.hasRemaining()) { // Fully reads buffer
 	    fid = inBuf.getLong();
-	    if (uds == null){ // Selects first UnicastDiscoveryServer that satisfies constraints.
-		UnicastDiscoveryServer s = 
-		    (UnicastDiscoveryServer) udsMap.get(Long.valueOf(fid));
-		if (s != null) {
-		    try {
-			s.checkUnicastDiscoveryConstraints(constraints);
-			uds = s;
-		    } catch (Exception e) {
-			logger.log(Levels.HANDLED,
-				   "constraint check failed for " + uds, e);
-		    }
+	    UnicastDiscoveryServer s = 
+		(UnicastDiscoveryServer) udsMap.get(Long.valueOf(fid));
+	    if (s != null) {
+		try {
+		    s.checkUnicastDiscoveryConstraints(constraints);
+		    uds = s;
+		} catch (Exception e) {
+		    logger.log(Levels.HANDLED,
+			       "constraint check failed for " + uds, e);
 		}
 	    }
 	}
