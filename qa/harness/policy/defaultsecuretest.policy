@@ -8,6 +8,12 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
     permission java.security.AllPermission "", "";
 };
 
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+};
+
 grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.lang.RuntimePermission "modifyThread";
     permission net.jini.security.GrantPermission
@@ -46,6 +52,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.lang.RuntimePermission "modifyThreadGroup";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.0-SNAPSHOT.jar", "GET:";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.test.services.lookupsimulator";
     permission net.jini.security.GrantPermission 
         "java.util.PropertyPermission \"org.apache.river.outrigger.maxServerQueryTimeout\", \"read\";\
          java.lang.reflect.ReflectPermission \"newProxyInPackage.org.apache.river.outrigger\", \"\";\
@@ -259,13 +266,11 @@ grant principal javax.security.auth.x500.X500Principal "CN=mercury" {
 grant principal javax.security.auth.x500.X500Principal "CN=Outrigger" {
     permission net.jini.security.AccessPermission "notify";
     permission net.jini.security.AccessPermission "unicastDiscovery";
-
+    permission net.jini.security.AccessPermission "multicastRequest";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
     // for TesterTransactionManager's verifier
     permission net.jini.security.AccessPermission "getProxyVerifier";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=outrigger" {
-    permission net.jini.security.AccessPermission "multicastRequest";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Mahalo" {
@@ -275,10 +280,8 @@ grant principal javax.security.auth.x500.X500Principal "CN=Mahalo" {
     permission net.jini.security.AccessPermission "prepareAndCommit";
     permission net.jini.security.AccessPermission "abort";
     permission net.jini.security.AccessPermission "unicastDiscovery";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=mahalo" {
     permission net.jini.security.AccessPermission "multicastRequest";
+    permission javax.security.auth.AuthPermission "getSubject";
 };
 
 // needed by TesterTransactionManager
@@ -914,6 +917,13 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
 {
     permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "modifyThreadGroup";
+};
+
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+    permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
 };
 
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jiniharness.jar",

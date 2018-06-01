@@ -10,6 +10,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
     permission java.security.AllPermission "", "";
 };
 
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+};
 
 grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
 {

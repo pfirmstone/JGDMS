@@ -15,6 +15,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
       permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.0-SNAPSHOT.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.net.SocketPermission "${HOST}", "resolve";
+      permission javax.security.auth.AuthPermission "getSubject";
 };
 
 
