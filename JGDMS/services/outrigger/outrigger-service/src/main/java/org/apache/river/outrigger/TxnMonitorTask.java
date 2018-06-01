@@ -27,6 +27,10 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
 import java.rmi.NoSuchObjectException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.Iterator;
@@ -161,12 +165,14 @@ class TxnMonitorTask extends RetryTask
     /** Logger for logging transaction related information */
     private static final Logger logger = 
 	Logger.getLogger(OutriggerServerImpl.txnLoggerName);
+    
+    private final AccessControlContext context;
 
     /**
      * Create a new TxnMonitorTask.
      */
-    TxnMonitorTask(Txn txn, TxnMonitor monitor,
-		   ExecutorService manager, WakeupManager wakeupMgr) {
+    TxnMonitorTask(Txn txn, TxnMonitor monitor, ExecutorService manager,
+	    WakeupManager wakeupMgr, AccessControlContext context) {
 	super(manager, wakeupMgr);
 	this.txn = txn;
 	this.monitor = monitor;
@@ -174,6 +180,7 @@ class TxnMonitorTask extends RetryTask
 	deltaT = INITIAL_GRACE;
 	mustQuery = true;
         failCnt = new AtomicInteger();
+	this.context = context;
     }
 
     /**
@@ -397,7 +404,24 @@ class TxnMonitorTask extends RetryTask
 
 	int trState;
 	try {
-	    trState = tr.getState();
+	    try {
+		trState = AccessController.doPrivileged(new PrivilegedExceptionAction<Integer>(){
+		    
+		    @Override
+		    public Integer run() throws Exception {
+			return tr.getState();
+		    }
+		    
+		}, context);
+	    } catch (PrivilegedActionException ex) {
+		Exception e = ex.getException();
+		if (e instanceof TransactionException) throw (TransactionException) e;
+		if (e instanceof NoSuchObjectException) throw (NoSuchObjectException) e;
+		if (e instanceof RemoteException) throw (RemoteException) e;
+		if (e instanceof SecurityException) throw (SecurityException) e;
+		if (e instanceof RuntimeException) throw (RuntimeException) e;
+		throw new RemoteException("Unknown Exception thrown while attempting to get transaction state.", e);
+	    }
 	} catch (TransactionException e) {
 	    if (logger.isLoggable(Level.INFO))
 		logger.log(Level.INFO, "Got TransactionException when " +

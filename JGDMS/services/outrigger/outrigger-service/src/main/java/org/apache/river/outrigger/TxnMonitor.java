@@ -17,6 +17,7 @@
  */
 package org.apache.river.outrigger;
 
+import java.security.AccessControlContext;
 import org.apache.river.config.Config;
 import org.apache.river.thread.wakeup.WakeupManager;
 
@@ -48,6 +49,9 @@ import org.apache.river.thread.NamedThreadFactory;
  * @see OutriggerServerImpl#monitor
  */
 class TxnMonitor implements Runnable {
+    
+    private final AccessControlContext context;
+    
     /**
      * Each <code>ToMonitor</code> object represents a need to monitor
      * the given transactions, possibly under a lease.
@@ -105,7 +109,9 @@ class TxnMonitor implements Runnable {
     /**
      * Create a new TxnMonitor.
      */
-    TxnMonitor(OutriggerServerImpl space, Configuration config)
+    TxnMonitor(OutriggerServerImpl space,
+	       Configuration config,
+	       AccessControlContext context)
 	throws ConfigurationException 
     {
 	if (space == null)
@@ -127,6 +133,7 @@ class TxnMonitor implements Runnable {
 
         ourThread = new Thread(this, "TxnMonitor");
 	ourThread.setDaemon(false);
+	this.context = context;
     }
     
     public void start(){
@@ -232,7 +239,7 @@ class TxnMonitor implements Runnable {
 	    logger.log(Level.FINER, "creating TxnMonitorTask for {0}", 
 			   txn);
 
-	    task = new TxnMonitorTask(txn, this, taskManager, wakeupMgr);
+	    task = new TxnMonitorTask(txn, this, taskManager, wakeupMgr, context);
 	    txn.monitorTask(task);
 	    taskManager.execute(task);  // add it after we've set it in the txn
 	}

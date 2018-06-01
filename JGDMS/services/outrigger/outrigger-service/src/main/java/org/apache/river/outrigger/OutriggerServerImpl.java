@@ -570,7 +570,7 @@ public class OutriggerServerImpl
 	    loginContext = (LoginContext) config.getEntry(
 		COMPONENT_NAME, "loginContext", LoginContext.class, null);
 	    if (loginContext == null) {
-		h = init(config, persistent, activationID, wrapper);
+		h = init(config, persistent, activationID);
 	    } else {
 		loginContext.login();
 		try {
@@ -578,7 +578,7 @@ public class OutriggerServerImpl
 			loginContext.getSubject(),
 			new PrivilegedExceptionAction<InitHolder>() {
 			    public InitHolder run() throws Exception {
-				return init(config, persistent, activationID, wrapper);
+				return init(config, persistent, activationID);
 			    }
 			},
 			null);
@@ -916,15 +916,14 @@ public class OutriggerServerImpl
      * @throws ConfigurationException if the <code>Configuration</code> is 
      * malformed.  */
     private InitHolder init(Configuration config, 
-                        boolean persistent, 
-                        ActivationID activationID,
-                        OutriggerServerWrapper serverGate) 
+			    boolean persistent,
+			    ActivationID activationID) 
     	throws IOException, ConfigurationException, ActivationException
     {
         InitHolder h = new InitHolder();
         h.context = AccessController.getContext();
         
-            h.txnMonitor = new TxnMonitor(this, config);
+            h.txnMonitor = new TxnMonitor(this, config, h.context);
             /* Get the activation related preparers we need */
 
             // Default do nothing preparer
@@ -4179,7 +4178,7 @@ public class OutriggerServerImpl
 	throw cje;
     } 
 
-    /** Log and throw new NoSuchObjectException */
+    /** Log and throw new NonExistantObjectException */
     private NoSuchObjectException throwNewNoSuchObjectException(
 	    String msg, Logger logger)
 	throws NoSuchObjectException
@@ -4187,12 +4186,12 @@ public class OutriggerServerImpl
 	throw throwNewNoSuchObjectException(msg, null, logger);
     }
 
-    /** Log and throw new NoSuchObjectException with a nested exception */
+    /** Log and throw new NonExistantObjectException with a nested exception */
     private NoSuchObjectException throwNewNoSuchObjectException(
 	    String msg, Throwable t, Logger logger)
 	throws NoSuchObjectException
     {
-	final NoSuchObjectException nsoe = new net.jini.export.NoSuchObjectException(msg, t);
+	final NoSuchObjectException nsoe = new net.jini.export.NonExistantObjectException(msg, t);
 	logger.log(Levels.FAILED, msg, nsoe);
 	throw nsoe;
     }
