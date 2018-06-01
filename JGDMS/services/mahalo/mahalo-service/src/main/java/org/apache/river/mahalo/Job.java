@@ -18,6 +18,9 @@
 package org.apache.river.mahalo;
 
 import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import org.apache.river.thread.wakeup.WakeupManager;
 import java.util.Iterator;
 import java.util.Set;
@@ -85,7 +88,22 @@ abstract class Job {
 	int rank = tmp.intValue();
         attempts.incrementAndGet(rank);
 
-	Object r = doWork(Security.withContext(who, context), param);
+	Object r;
+	try {
+	    r = AccessController.doPrivileged(new PrivilegedExceptionAction(){
+
+		@Override
+		public Object run() throws Exception {
+		    return doWork(who, param);
+		}
+		
+	    }, context);
+	} catch (PrivilegedActionException ex) {
+	    Exception e = ex.getException();
+	    if (e instanceof JobException) throw (JobException) e;
+	    throw new RuntimeException(e);
+	}
+		
         
 	if (r == null) return false;
 

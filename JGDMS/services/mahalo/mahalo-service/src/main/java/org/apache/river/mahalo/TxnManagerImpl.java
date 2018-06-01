@@ -924,8 +924,8 @@ class TxnManagerImpl /*extends RemoteServer*/
 	    tid = first.longValue();
 
 	    SettlerTask task = 
-	        new SettlerTask(settlerpool, settlerWakeupMgr, this, tid);
-	    settlerpool.execute(Security.withContext(task, context));
+	        new SettlerTask(settlerpool, settlerWakeupMgr, this, tid, context);
+	    settlerpool.execute(task);
 
             if (settleThread.hasBeenInterrupted()) 
 	        throw new InterruptedException("settleTxns interrupted");
