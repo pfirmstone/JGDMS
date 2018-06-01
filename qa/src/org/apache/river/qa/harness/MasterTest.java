@@ -40,9 +40,9 @@ import net.jini.config.ConfigurationException;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.security.CombinerSecurityManager;
-import org.apache.river.tool.SecurityPolicyWriter;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
+//import org.apache.river.tool.SecurityPolicyWriter;
+//import org.bouncycastle.jce.provider.BouncyCastleProvider;
+//import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 
 /**
  * A wrapper which drives the execution of a test on the master host.

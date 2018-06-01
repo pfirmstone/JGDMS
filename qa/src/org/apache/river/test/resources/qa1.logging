@@ -130,7 +130,7 @@ au.net.zeus.rmi.tls.init.level = SEVERE
 
 # For Jini ERI
 net.jini.jeri.level = SEVERE
-net.jini.jeri.BasicInvocationDispatcher.level = INFO
+net.jini.jeri.BasicInvocationDispatcher.level = SEVERE
 net.jini.jeri.BasicInvocationHandler.level = SEVERE
 #net.jini.jeri.BasicJeriExporter.level = SEVERE
 net.jini.jeri.BasicObjectEndpoint.level = SEVERE
@@ -155,8 +155,8 @@ org.apache.river.api.io.level=SEVERE
 
 # For SSL 
 net.jini.jeri.ssl.level = SEVERE
-#net.jini.jeri.ssl.client.level = SEVERE
-#net.jini.jeri.ssl.server.level = SEVERE
+net.jini.jeri.ssl.client.level = SEVERE
+net.jini.jeri.ssl.server.level = SEVERE
 #net.jini.jeri.ssl.init.level = SEVERE
 
 # For Kerberos 
@@ -179,7 +179,7 @@ net.jini.loader.pref.PreferredClassProvider.level = SEVERE
 net.jini.security.level = SEVERE
 #net.jini.security.trust.level = SEVERE
 #net.jini.security.integrity.level = SEVERE
-net.jini.security.policy.level = CONFIG
+net.jini.security.policy.level = SEVERE
 org.apache.river.api.security.CombinerSecurityManager.level = SEVERE
 
 # For HTTPMD
@@ -188,13 +188,13 @@ net.jini.url.httpmd.level = SEVERE
 # For Discovery
 org.apache.river.discovery.level = SEVERE
 #org.apache.river.discovery.DiscoveryV1.level = SEVERE
-#org.apache.river.discovery.DiscoveryV2.level = SEVERE
-#org.apache.river.discovery.x500.level = SEVERE
+org.apache.river.discovery.DiscoveryV2.level = SEVERE
+org.apache.river.discovery.x500.level = SEVERE
 
 # For the Helper Utilities
 net.jini.discovery.LookupDiscovery.level = SEVERE
 net.jini.discovery.LookupLocatorDiscovery.level = SEVERE
-net.jini.lookup.JoinManager.level = FINE
+net.jini.lookup.JoinManager.level = SEVERE
 net.jini.lookup.ServiceDiscoveryManager.level = SEVERE
 net.jini.lease.LeaseRenewalManager.level = SEVERE
 
@@ -217,7 +217,7 @@ org.apache.river.start.level = SEVERE
 org.apache.river.reggie.level = SEVERE
 org.apache.river.reggie.service.level = SEVERE
 org.apache.river.reggie.discovery.level = SEVERE
-org.apache.river.reggie.event.level = FINE
+org.apache.river.reggie.event.level = SEVERE
 org.apache.river.reggie.snapshot.level = SEVERE
 
 # For Mahalo
@@ -254,13 +254,13 @@ org.apache.river.mercury.recovery.level = SEVERE
 org.apache.river.mercury.startup.level = SEVERE
 
 # For Norm
-org.apache.river.norm.level = FINEST
+org.apache.river.norm.level = SEVERE
 
 # For Outrigger
 org.apache.river.outrigger.entryMatching.level = SEVERE
 org.apache.river.outrigger.event.level = SEVERE
 org.apache.river.outrigger.iterator.level = SEVERE
-org.apache.river.outrigger.join.level = FINE
+org.apache.river.outrigger.join.level = SEVERE
 org.apache.river.outrigger.leases.level = SEVERE
 org.apache.river.outrigger.lifecycle.level = SEVERE
 org.apache.river.outrigger.operations.level = SEVERE

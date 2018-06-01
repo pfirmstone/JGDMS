@@ -33,6 +33,7 @@ import net.jini.activation.ActivationExporter;
 import net.jini.admin.Administrable;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -85,7 +86,7 @@ class KillerImpl
 	    new ActivationExporter(
 		   activationID, 
 		   new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-					 new BasicILFactory()));
+					 new AtomicILFactory(null, null, KillerImpl.class)));
     }
     
     private synchronized void export() throws ExportException{

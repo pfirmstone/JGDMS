@@ -35,7 +35,7 @@ import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import org.apache.river.admin.DestroyAdmin;
@@ -95,7 +95,8 @@ public class BootStrapService implements ServiceIDAccessor, ServiceProxyAccessor
     {
 	synchronized (this) {
 	    if (proxy == null){
-		exporter = new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory(), true, true);
+		exporter = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+			new AtomicILFactory(null, BootStrapService.class), true, true);
 		try {
 		    proxy = exporter.export(this);
 		} catch (ExportException ex) {

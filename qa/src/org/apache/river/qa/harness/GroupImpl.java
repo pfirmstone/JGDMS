@@ -26,11 +26,12 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
+//import org.bouncycastle.jce.provider.BouncyCastleProvider;
+//import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 
 /**
  * The implementation of NonActivatableGroup.
@@ -58,7 +59,7 @@ class GroupImpl implements NonActivatableGroup {
      * at construction time using a <code>BasicJeriExporter</code>.
      */
     public GroupImpl() {
-        this(new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory()));
+        this(new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new AtomicILFactory(null, null, GroupImpl.class)));
     }
 
     private GroupImpl(Exporter exporter) {

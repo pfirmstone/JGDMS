@@ -17,8 +17,10 @@
  */
 package org.apache.river.qa.harness;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Field;
 import java.rmi.RemoteException;
@@ -168,7 +170,12 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
                                    null, //filter
                                    new NonActGrpAnnotator("NonActGrp-out: "));
                 outPipe.start();
-                proxyStream = new ObjectInputStream(process.getErrorStream());
+		DataInputStream es = new DataInputStream(process.getErrorStream());
+		short token = Short.MAX_VALUE - 5;
+		// Some debugging and logging output occurs during jvm loading, 
+		// so we need to read past that to our proxy.
+		while (es.readShort() != token){} // Read in token at least once.
+		proxyStream = new ObjectInputStream(es);
                 proxy = (NonActivatableGroup)
                         ((MarshalledInstance) proxyStream.readObject()).get(false);
             } catch (IOException e) {

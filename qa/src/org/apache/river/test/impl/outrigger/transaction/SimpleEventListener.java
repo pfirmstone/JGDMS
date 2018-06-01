@@ -33,8 +33,10 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 
-import org.apache.river.qa.harness.QAConfig;
 import java.rmi.server.ExportException;
+import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
 
 /**
  * Simple event listener class.
@@ -61,7 +63,8 @@ public class SimpleEventListener
     
     private static Exporter getExporter(Configuration c) throws RemoteException {
         try {
-	    Exporter exporter = QAConfig.getDefaultExporter();
+	    Exporter exporter = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+				     new AtomicILFactory(null, null, SimpleEventListener.class ));
 	    if (c instanceof org.apache.river.qa.harness.QAConfiguration) {
 		exporter =
 		(Exporter) c.getEntry("test", "outriggerListenerExporter", Exporter.class);

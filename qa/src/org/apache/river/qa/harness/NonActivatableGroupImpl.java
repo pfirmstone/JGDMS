@@ -18,10 +18,13 @@
 package org.apache.river.qa.harness;
 
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.rmi.MarshalledObject;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
 
@@ -64,7 +67,9 @@ class NonActivatableGroupImpl {
 	group.export();
         nonActGroup = group;
 	try {
-	    ObjectOutputStream os = new ObjectOutputStream(origErr);
+	    DataOutputStream ds = new DataOutputStream(origErr);
+	    ds.writeShort(Short.MAX_VALUE - 5); // write token
+	    ObjectOutputStream os = new ObjectOutputStream(ds);
 	    os.writeObject(new MarshalledInstance(group.getProxy()));
 	    os.flush();
 	} catch (IOException e) {

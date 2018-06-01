@@ -17,10 +17,6 @@
  */
 package org.apache.river.test.impl.outrigger.leasing;
 
-import java.util.logging.Level;
-
-// java classes
-import java.rmi.*;
 
 // jini classes
 import net.jini.space.JavaSpace;
@@ -35,7 +31,6 @@ import net.jini.core.transaction.server.TransactionManager;
 import org.apache.river.qa.harness.TestException;
 
 // Shared classes
-import org.apache.river.test.share.TestBase;
 import org.apache.river.test.share.UninterestingEntry;
 
 
