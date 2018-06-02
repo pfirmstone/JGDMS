@@ -23,7 +23,7 @@ import net.jini.core.constraint.MethodConstraints;
 
 /**
  * An atomic serialization implementation of an {@link InvocationLayerFactory}.  
- * This factory is used to create a {@link Proxy} instance with a {@link
+ * This factory is used to create a {@link java.lang.reflect.Proxy} instance with a {@link
  * AtomicInvocationHandler} and to create a {@link
  * AtomicInvocationDispatcher} for a remote object being exported.  This
  * factory is used in conjunction with the {@link BasicJeriExporter} class.
@@ -52,9 +52,9 @@ public class AtomicILFactory extends BasicILFactory {
      * @param	permissionClass the permission class, or <code>null</code>
      * @param	loader the class loader, or <code>null</code>
      * @throws	IllegalArgumentException if the permission class is
-     *		abstract, is not a subclass of {@link Permission}, or does
+     *		abstract, is not a subclass of {@link java.security.Permission}, or does
      *		not have a public constructor that has either one
-     *		<code>String</code> parameter or one {@link Method}
+     *		<code>String</code> parameter or one {@link java.lang.reflect.Method}
      *		parameter and has no declared exceptions
      **/
     public AtomicILFactory(MethodConstraints serverConstraints,
@@ -78,9 +78,9 @@ public class AtomicILFactory extends BasicILFactory {
      *		implementation or the class of the service implementation 
      *		for dynamic proxy's.
      * @throws	IllegalArgumentException if the permission class is
-     *		abstract, is not a subclass of {@link Permission}, or does
+     *		abstract, is not a subclass of {@link java.security.Permission}, or does
      *		not have a public constructor that has either one
-     *		<code>String</code> parameter or one {@link Method}
+     *		<code>String</code> parameter or one {@link java.lang.reflect.Method}
      *		parameter and has no declared exceptions
      * @throws SecurityException if caller doesn't have {@link RuntimePermission} 
      *		"getClassLoader".
@@ -109,9 +109,9 @@ public class AtomicILFactory extends BasicILFactory {
      *		implementation or the class of the service implementation 
      *		for dynamic proxy's.
      * @throws	IllegalArgumentException if the permission class is
-     *		abstract, is not a subclass of {@link Permission}, or does
+     *		abstract, is not a subclass of {@link java.security.Permission}, or does
      *		not have a public constructor that has either one
-     *		<code>String</code> parameter or one {@link Method}
+     *		<code>String</code> parameter or one {@link java.lang.reflect.Method}
      *		parameter and has no declared exceptions
      * @throws SecurityException if caller doesn't have {@link RuntimePermission} 
      *		"getClassLoader".
@@ -125,7 +125,7 @@ public class AtomicILFactory extends BasicILFactory {
     }
     
     /**
-     * Returns an invocation handler to use with a {@link Proxy} instance
+     * Returns an invocation handler to use with a {@link java.lang.reflect.Proxy} instance
      * implementing the specified interfaces, communicating with the
      * specified remote object using the specified object endpoint.
      *
@@ -133,8 +133,9 @@ public class AtomicILFactory extends BasicILFactory {
      * return a {@link BasicInvocationHandler} constructed with the
      * specified object endpoint and this factory's server constraints.
      *
-     * @return 
-     * @throws java.rmi.server.ExportException 
+     * @return a new InvocationHandler instance.
+     * @throws java.rmi.server.ExportException if there is a problem creating the
+     * 		invocation handler
      * @throws	NullPointerException {@inheritDoc}
      **/
     @Override
@@ -165,8 +166,9 @@ public class AtomicILFactory extends BasicILFactory {
      * server constraints, permission class, and class loader specified
      * at construction.
      * 
-     * @return 
-     * @throws java.rmi.server.ExportException 
+     * @return a new InvocationDispatcher instance.
+     * @throws java.rmi.server.ExportException if there is a problem creating the
+     * 		invocation dispatcher.
      * @throws 	NullPointerException {@inheritDoc}
      * @throws	IllegalArgumentException {@inheritDoc}
      **/
