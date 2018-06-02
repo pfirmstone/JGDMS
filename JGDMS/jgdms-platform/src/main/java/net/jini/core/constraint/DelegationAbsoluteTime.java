@@ -199,8 +199,10 @@ public final class DelegationAbsoluteTime
     
     /**
      * AtomicSerial public constructor.
-     * @param arg
-     * @throws IOException 
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
      */
     public DelegationAbsoluteTime(GetArg arg) throws IOException{
 	this(true, 

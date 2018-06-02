@@ -21,8 +21,6 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.Collection;
@@ -96,8 +94,10 @@ public final class InvocationConstraints implements Serializable {
     
     /**
      * AtomicSerial constructor.
-     * @param arg
-     * @throws IOException 
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code> 
      */
     public InvocationConstraints(GetArg arg) throws IOException{
 	this(arg.get("reqs", null, InvocationConstraint[].class),

@@ -76,8 +76,11 @@ public final class ClientMinPrincipal
     
     /**
      * AtomicSerial constructor.
-     * @param arg
-     * @throws IOException
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
+     * @throws InvalidObjectException if object invariants aren't satisfied.
      */
     public ClientMinPrincipal(GetArg arg) throws IOException{
 	this(verify(arg.get("principals", null, Principal[].class)));

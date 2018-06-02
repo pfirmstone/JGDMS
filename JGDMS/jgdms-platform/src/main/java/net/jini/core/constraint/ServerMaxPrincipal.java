@@ -74,8 +74,11 @@ public final class ServerMaxPrincipal
     
     /**
      * AtomicSerial constructor.
-     * @param arg
-     * @throws IOException 
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
+     * @throws InvalidObjectException if object invariants aren't satisfied.
      */
     public ServerMaxPrincipal(GetArg arg) throws IOException {
 	this(check(arg.get("principals", null, Principal[].class)), true);
