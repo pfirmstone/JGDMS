@@ -71,12 +71,35 @@
             <version>6.0.0</version>
             <type>jar</type>
         </dependency>-->
-        <dependency>
+        <!--One or more dependencies were identified with known vulnerabilities in Module :: OSGi JINI service bridge:
+
+cxf-bundle-minimal-2.4.10.jbossorg-1-SNAPSHOT.jar (cpe:/a:apache:cxf:2.4.10) : CVE-2017-5656, CVE-2017-5653, CVE-2017-3156, CVE-2016-8739, CVE-2016-6812, CVE-20
+15-5253, CVE-2014-3584, CVE-2014-0110, CVE-2014-0109, CVE-2014-0035, CVE-2014-0034, CVE-2013-0239, CVE-2012-5786, CVE-2012-5633, CVE-2012-3451
+xmlsec-1.5.2.jar (cpe:/a:apache:xml_security_for_java:1.5.2, org.apache.santuario:xmlsec:1.5.2) : CVE-2013-4517, CVE-2013-2172
+wss4j-1.6.7.jar (cpe:/a:apache:wss4j:1.6.7, org.apache.ws.security:wss4j:1.6.7) : CVE-2015-0227, CVE-2015-0226
+jetty-continuation-7.4.5.v20110725.jar (cpe:/a:eclipse:jetty:7.4.5.v20110725, cpe:/a:jetty:jetty:7.4.5.v20110725, org.eclipse.jetty:jetty-continuation:7.4.5.v20
+110725) : CVE-2017-9735
+jetty-http-7.4.5.v20110725.jar (cpe:/a:eclipse:jetty:7.4.5.v20110725, cpe:/a:jetty:jetty:7.4.5.v20110725, org.eclipse.jetty:jetty-http:7.4.5.v20110725) : CVE-20
+17-9735
+jetty-io-7.4.5.v20110725.jar (cpe:/a:eclipse:jetty:7.4.5.v20110725, org.eclipse.jetty:jetty-io:7.4.5.v20110725) : CVE-2017-9735
+jetty-security-7.4.5.v20110725.jar (cpe:/a:eclipse:jetty:7.4.5.v20110725, cpe:/a:jetty:jetty:7.4.5.v20110725, org.eclipse.jetty:jetty-security:7.4.5.v20110725)
+: CVE-2017-9735
+jetty-server-7.4.5.v20110725.jar (cpe:/a:eclipse:jetty:7.4.5.v20110725, cpe:/a:jetty:jetty:7.4.5.v20110725, org.eclipse.jetty:jetty-server:7.4.5.v20110725) : CV
+E-2017-9735
+jetty-util-7.4.5.v20110725.jar (cpe:/a:eclipse:jetty:7.4.5.v20110725, cpe:/a:jetty:jetty:7.4.5.v20110725, org.eclipse.jetty:jetty-util:7.4.5.v20110725) : CVE-20
+17-9735
+spring-core-3.0.6.RELEASE.jar (cpe:/a:pivotal:spring_framework:3.0.6, cpe:/a:pivotal_software:spring_framework:3.0.6, cpe:/a:springsource:spring_framework:3.0.6
+, cpe:/a:vmware:springsource_spring_framework:3.0.6, org.springframework:spring-core:3.0.6.RELEASE) : CVE-2016-9878, CVE-2014-3625, CVE-2014-3578, CVE-2014-1904
+, CVE-2014-0225, CVE-2014-0054, CVE-2013-7315, CVE-2013-6429, CVE-2013-4152
+serializer-2.7.1.jar (cpe:/a:apache:xalan-java:2.7.1, xalan:serializer:2.7.1) : CVE-2014-0107
+xalan-2.7.1.jar (cpe:/a:apache:xalan-java:2.7.1, xalan:xalan:2.7.1) : CVE-2014-0107
+-->
+        <!--<dependency>
             <groupId>org.apache.cxf</groupId>
             <artifactId>cxf-bundle-minimal</artifactId>
             <version>2.4.10.jbossorg-1-SNAPSHOT</version>
             <type>jar</type>
-        </dependency>
+        </dependency>-->
     </dependencies>
 
     <build>
