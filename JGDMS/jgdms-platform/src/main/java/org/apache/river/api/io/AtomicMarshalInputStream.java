@@ -2295,16 +2295,24 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         if (classDesc == null) {
             throw new InvalidClassException(Messages.getString("luni.C1")); //$NON-NLS-1$
         }
+	boolean checkProxySerializerResolveType = false;
 	if (type != null){
 	    Class c = classDesc.forClass();
 	    if (!type.isAssignableFrom(c)){
-		if (classDesc.hasMethodReadResolve() && 
-		    c.isAnnotationPresent(Serializer.class)) 
-		{ 
-		    if(!type.isAssignableFrom(
-			    ((Serializer)c.getAnnotation(
-				    Serializer.class)).replaceObType()))
-		    {
+		if (classDesc.hasMethodReadResolve()) { 
+		    if (c.isAnnotationPresent(Serializer.class)) { 
+			if(!type.isAssignableFrom(
+				((Serializer)c.getAnnotation(
+					Serializer.class)).replaceObType()))
+			{
+			    throw new InvalidObjectException(
+				"expecting " + type + " in stream, but got " 
+					    + classDesc.forClass()
+			    );
+			}
+		    } else if (ProxySerializer.class.equals(c)){
+			checkProxySerializerResolveType = true;
+		    } else {
 			throw new InvalidObjectException(
 			    "expecting " + type + " in stream, but got " 
 					+ classDesc.forClass()
@@ -2446,6 +2454,15 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 
         if (objectClass != null && !(result instanceof Reference) && classDesc.hasMethodReadResolve()) {
 	    result = classDesc.invokeReadResolve(result);
+	    if (checkProxySerializerResolveType 
+		    && result != null 
+		    && !type.isAssignableFrom(result.getClass())) // type is never null.
+	    {
+		throw new InvalidObjectException(
+		    "expecting " + type + " in stream, but got " 
+				+ classDesc.forClass()
+		);
+	    }
         }
         // We get here either if class-based replacement was not needed or if it
         // was needed but produced the same object or if it could not be
