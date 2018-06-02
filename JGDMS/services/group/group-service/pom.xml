@@ -31,11 +31,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>au.net.zeus.jgdms.group</groupId>
-            <artifactId>group-dl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-activation</artifactId>
             <version>${project.version}</version>
