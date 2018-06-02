@@ -53,7 +53,7 @@ public interface CodebaseAccessor extends Remote {
      * <code> ClassLoading.getClassAnnotation(Class)</code>.
      * 
      * @return the codebase annotation.
-     * @throws IOException 
+     * @throws IOException if a connection problem occurs.
      */
     public String getClassAnnotation() throws IOException;
     
@@ -61,7 +61,7 @@ public interface CodebaseAccessor extends Remote {
      * Get the CertificateFactory type.
      * 
      * @return CertificateFactory type or null.
-     * @throws IOException 
+     * @throws IOException if a connection problem occurs.
      * @see CertificateFactory#getInstance(java.lang.String) 
      */
     public String getCertFactoryType() throws IOException;
@@ -69,7 +69,7 @@ public interface CodebaseAccessor extends Remote {
     /**
      * Get the CertPath encoding;
      * @return CertPath encoding or null.
-     * @throws IOException 
+     * @throws IOException if a connection problem occurs.
      * @see CertPath#CertPath(java.lang.String) 
      */
     public String getCertPathEncoding() throws IOException;
@@ -80,7 +80,7 @@ public interface CodebaseAccessor extends Remote {
      * or CertPath.
      * 
      * @return a byte array containing certificates or null.
-     * @throws IOException 
+     * @throws IOException if a connection problem occurs.
      * @see ByteArrayInputStream
      * @see CertificateFactory#generateCertPath(java.io.InputStream) 
      * @see CertificateFactory#generateCertificates(java.io.InputStream) 
