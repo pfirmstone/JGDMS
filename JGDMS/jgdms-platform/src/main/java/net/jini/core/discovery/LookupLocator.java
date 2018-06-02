@@ -402,13 +402,14 @@ public class LookupLocator implements Serializable {
      * <code>LookupLocator</code> implements this method to use the values
      * of the <code>host</code> and <code>port</code> field in determining
      * the host and port to connect to.
-     * @param constraints
+     * @param constraints discovery constraints
      * @return lookup service proxy
-     * @throws IOException
+     * @throws IOException an error occurred during discovery
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
-     * @throws ClassNotFoundException
+     * @throws ClassNotFoundException if a class required to unmarshal the
+     * <code>ServiceRegistrar</code> proxy cannot be found
      */
     protected final ServiceRegistrar getRegistrar(InvocationConstraints constraints)
             throws IOException, ClassNotFoundException {
@@ -420,21 +421,22 @@ public class LookupLocator implements Serializable {
      * object for the given lookup service, with the given constraints
      * and context.
      * 
-     * Note the context may include {@link MethodConstraints} for 
-     * {@link SmartProxyClassLoadingSpi}.
+     * Note the context may include {@link net.jini.core.constraint.MethodConstraints}
+     * for {@link net.jini.loader.ProxyCodebaseSpi}.
      * 
      * Unicast discovery is performed anew each time this method is called.
      * <code>LookupLocator</code> implements this method to use the values
      * of the <code>host</code> and <code>port</code> field in determining
      * the host and port to connect to.
-     * @param constraints
-     * @param context
+     * @param constraints discovery constraints
+     * @param context the stream context {@link net.jini.io.ObjectStreamContext#getObjectStreamContext() }
      * @return lookup service proxy
-     * @throws IOException
+     * @throws IOException an error occurred during discovery
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
-     * @throws ClassNotFoundException
+     * @throws ClassNotFoundException if a class required to unmarshal the
+     * <code>ServiceRegistrar</code> proxy cannot be found
      */
     protected final ServiceRegistrar getRegistrar(
 					    InvocationConstraints constraints,
