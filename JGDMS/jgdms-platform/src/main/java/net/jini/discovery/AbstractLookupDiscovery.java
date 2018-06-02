@@ -2873,8 +2873,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 			return disco.doUnicastDiscovery(
 			    socket, 
 			    unicastDiscoveryConstraints.getUnfulfilledConstraints(),
-			    null,
-			    null,
+			    // ClassLoader necessary for Service loader to find class of net.jini.loader.pref.PreferredProxyCodebaseProvider
+			    AbstractLookupDiscovery.class.getClassLoader(),
+			    AbstractLookupDiscovery.class.getClassLoader(),
 			    context);
 		    }
 		}), securityContext.getAccessControlContext());
