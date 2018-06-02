@@ -32,14 +32,25 @@ public interface MarshalFactory {
     
     /**
      * 
-     * @param objIn InputStream to write serialized objects to.
-     * @param locIn InputStream to write codebase annotations to, optional.
-     * @param defaultLoader
-     * @param verifyCodebaseIntegrity
-     * @param verifierLoader
-     * @param context
-     * @return 
-     * @throws java.io.IOException 
+     * @param objIn InputStream to read serialized objects from.
+     * @param locIn InputStream to read codebase annotations from, optional.
+     *@param defaultLoader the class loader value (possibly
+     *	      <code>null</code>) to pass as the <code>defaultLoader</code>
+     *        argument to <code>RMIClassLoader</code> methods
+     * @param verifyCodebaseIntegrity if <code>true</code> then
+     *        codebase integrity is verified, otherwise code base
+     *        integrity is not verified
+     * @param verifierLoader the class loader value (possibly
+     *        <code>null</code>) to pass to {@link
+     *        net.jini.security.Security#verifyCodebaseIntegrity
+     *        Security.verifyCodebaseIntegrity}, if
+     *        <code>verifyCodebaseIntegrity</code> is <code>true</code>
+     * @param context the collection of context information objects or
+     *        <code>null</code>
+     * @return a new MarshalInstanceInput instance.
+     * @throws IOException if an 
+     *         <code>IOException</code> occurs while creating the
+     *         MarshalInstanceInput.
      */
     MarshalInstanceInput createMarshalInput(InputStream objIn, 
 	    InputStream locIn,
@@ -50,11 +61,14 @@ public interface MarshalFactory {
     
     /**
      * 
-     * @param objOut
-     * @param locOut
-     * @param context
-     * @return 
-     * @throws java.io.IOException 
+     * @param objOut the output stream to write objects to.
+     * @param locOut the output stream to write annotations to.
+     * @param context the collection of context information objects or
+     *        <code>null</code>
+     * @return an instance of MarshalInstanceOutput
+     * @throws java.io.IOException if an 
+     *         <code>IOException</code> occurs while creating the
+     *         MarshalInstanceOutput.
      */
     MarshalInstanceOutput createMarshalOutput(OutputStream objOut, OutputStream locOut, Collection context) throws IOException;
     
