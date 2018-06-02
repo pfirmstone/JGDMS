@@ -104,7 +104,8 @@ public class ProxyTrustILFactory extends BasicILFactory {
      * {@link ServerProxyTrust} or implements any illegal remote interfaces
      **/
     protected Class[] getRemoteInterfaces(Remote impl) throws ExportException {
-	if (impl != null && !(impl instanceof ServerProxyTrust)) {
+	if (impl == null) throw new NullPointerException("impl is null");
+	if (!(impl instanceof ServerProxyTrust)) {
 	    throw new ExportException("impl must implement ServerProxyTrust");
 	}
 	Class[] ifs = super.getRemoteInterfaces(impl);
