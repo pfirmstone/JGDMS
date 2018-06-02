@@ -803,7 +803,25 @@ public final class Security {
 	}
 
 	public int compareTo(ComparableRunnableImpl o) {
-	    return ((Comparable) runnable).compareTo(o.runnable);
+	    int result = ((Comparable) runnable).compareTo(o.runnable);
+	    if (result != 0) return result;
+	    int myHash = context.hashCode();
+	    int otherHash = o.context.hashCode();
+	    return myHash == otherHash ? 0 : (myHash < otherHash ? -1 : 0);
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableRunnableImpl)) return false;
+	    if  (!runnable.equals(((ComparableRunnableImpl) o).runnable)) return false;
+	    return context.equals(((ComparableRunnableImpl) o).context);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 5;
+	    hash = hash << runnable.hashCode() - hash;
+	    return hash << context.hashCode() - hash;
 	}
 	
     }
@@ -860,6 +878,20 @@ public final class Security {
 
 	public int compareTo(ComparableCallableImpl o) {
 	    return ((Comparable)c).compareTo(o.c);
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableCallableImpl)) return false;
+	    if  (!c.equals(((ComparableCallableImpl) o).c)) return false;
+	    return context.equals(((ComparableCallableImpl) o).context);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 5;
+	    hash = hash << c.hashCode() - hash;
+	    return hash << context.hashCode() - hash;
 	}
 	
     }
