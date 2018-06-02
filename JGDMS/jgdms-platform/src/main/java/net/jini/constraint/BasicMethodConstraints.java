@@ -439,7 +439,9 @@ public final class BasicMethodConstraints
      * 
      * @see AtomicSerial
      * @param arg GetArg serial fields
-     * @throws IOException 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
+     * @throws InvalidObjectException if object invariants aren't satisfied.
      */
     public BasicMethodConstraints(GetArg arg) throws IOException{
 	this(checkSerial(arg.get("descs", null, MethodDesc[].class)),
