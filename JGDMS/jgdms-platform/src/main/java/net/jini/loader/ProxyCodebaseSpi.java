@@ -28,7 +28,7 @@ import net.jini.io.context.IntegrityEnforcement;
  * {@link net.jini.core.constraint.MethodConstraints} applied by the client
  * to {@link CodebaseAccessor} methods and allow the client to obtain
  * current information about the code base
- * required by the smart proxy {@link MarshalledInstance) and 
+ * required by the smart proxy {@link MarshalledInstance} and 
  * provide it with a ClassLoader, unique
  * to it's {@link java.lang.reflect.InvocationHandler} instance.
  * 
@@ -48,34 +48,47 @@ public interface ProxyCodebaseSpi {
      * 
      * @param bootstrapProxy an instance of {@link net.jini.core.constraint.RemoteMethodControl} and
      * {@link net.jini.security.proxytrust.TrustEquivalence}
-     * @param smartProxy
+     * @param proxy marshalled proxy to be deserialized.
      * @param parentLoader default loader of the current stream.
      * @param verifierLoader verifier loader of the current stream.
      * @param context the {@link net.jini.io.ObjectStreamContext} may contain
      * client {@link net.jini.core.constraint.MethodConstraints} to apply to
      * {@link CodebaseAccessor} methods.  The context should also be passed
      * to the {@link MarshalledInstance} get method.
-     * @return
-     * @throws IOException 
-     * @throws java.lang.ClassNotFoundException 
+     * @return unmarshalled proxy instance.
+     * @throws IOException if an 
+     *         <code>IOException</code> occurs while deserializing the
+     *         object from its internal representation
+     * @throws ClassNotFoundException if any classes necessary
+     *         for reconstructing the contained object can not
+     *         be found or if context contains integrity constraints
+     *		and the integrity of the contained object's codebase
+     *		cannot be confirmed.
      */
     public Object resolve(
 	    CodebaseAccessor bootstrapProxy,
-	    MarshalledInstance smartProxy,
+	    MarshalledInstance proxy,
 	    ClassLoader parentLoader,
 	    ClassLoader verifierLoader,
 	    Collection context) throws IOException, ClassNotFoundException;
     
     /**
-     *
-     * @param serviceClass
-     * @param streamLoader
-     * @return
+     * Used in modular environments when class visibility is expected to
+     * be identical at the local and remote endpoints.
+     * @param serviceClass the class to check for visibility.
+     * @param streamLoader ClassLoader to check class visibility from.
+     * @return true if the class should be substituted, false if not.
      */
     public boolean substitute(Class serviceClass, ClassLoader streamLoader);
     
     public static class Util {
 	
+	/**
+	 * Utility method that tests whether to check for Integrity.
+	 * 
+	 * @param context the object stream context.
+	 * @return true if codebase integrity should be verified.
+	 */
 	public static boolean verifyCodebaseIntegrity(Collection context) {
 	    if (context != null){
 		Iterator it = context.iterator();
