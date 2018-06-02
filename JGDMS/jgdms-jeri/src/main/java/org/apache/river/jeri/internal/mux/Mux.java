@@ -276,14 +276,9 @@ abstract class Mux {
 	assert Thread.holdsLock(muxLock);
 	assert !muxDown;
 	assert !busySessions.get(sessionID);
-//	assert sessions.get(Byte.valueOf(sessionID)) == null;
 	assert sessions[sessionID] == null;
 
 	busySessions.set(sessionID);
-//	Throwable t = new Throwable();
-//	System.out.println("Setting sessionID: "+ sessionID);
-//	t.printStackTrace(System.out);
-//	sessions.put(Byte.valueOf(sessionID), session);
 	sessions[sessionID] = session;
     }
 
