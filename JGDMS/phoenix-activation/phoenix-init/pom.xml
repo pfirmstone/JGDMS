@@ -35,6 +35,11 @@
             <artifactId>jgdms-url-integrity</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms.tools</groupId>
+            <artifactId>security-policy-debug</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

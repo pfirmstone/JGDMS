@@ -21,6 +21,7 @@ package org.apache.river.mahalo;
 import org.apache.river.mahalo.log.ClientLog;
 import org.apache.river.thread.wakeup.WakeupManager;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
@@ -77,10 +78,8 @@ class PrepareJob extends Job implements TransactionConstants {
      * @see org.apache.river.mahalo.log.ClientLog
      * @see net.jini.core.transaction.server.TransactionParticipant
      */
-    public PrepareJob(Transaction tr, ExecutorService pool,
-		      WakeupManager wm, ClientLog log,
-		      ParticipantHandle[] handles) {
-	super(pool, wm);
+    public PrepareJob(Transaction tr, ExecutorService pool, WakeupManager wm, ClientLog log, ParticipantHandle[] handles, AccessControlContext context) {
+	super(pool, wm, context);
 
 	if (log == null)
 	    throw new IllegalArgumentException("PrepareJob: PrepareJob: " +

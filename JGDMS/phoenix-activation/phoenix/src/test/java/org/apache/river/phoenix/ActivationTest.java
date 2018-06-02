@@ -28,11 +28,11 @@ import org.junit.Test;
  */
 public class ActivationTest {
     
-    @Test
-    public void testGetDefaultGroupLocation() throws Exception {
-	CodeSource cs = new CodeSource(new URL("file:///C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet/modularize/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT\\lib\\phoenix-3.0-SNAPSHOT.jar"), (Certificate [])null);
-	String result = Activation.getDefaultGroupLocation(cs);
-	System.out.println(cs);
-	System.out.println(result);
-    }
+//    @Test
+//    public void testGetDefaultGroupLocation() throws Exception {
+//	CodeSource cs = new CodeSource(new URL("file:///C:\\Users\\peter\\Documents\\NetBeansProjects\\river-internet/modularize/JGDMS/dist/target/JGDMS-3.0-SNAPSHOT\\lib\\phoenix-3.0-SNAPSHOT.jar"), (Certificate [])null);
+//	String result = Activation.getDefaultGroupLocation(cs);
+//	System.out.println(cs);
+//	System.out.println(result);
+//    }
 }

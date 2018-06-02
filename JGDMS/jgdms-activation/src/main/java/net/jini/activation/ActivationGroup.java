@@ -18,16 +18,25 @@
 
 package net.jini.activation;
 
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
+import java.rmi.activation.ActivationSystem;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
+import au.net.zeus.rmi.tls.TlsRMIClientSocketFactory;
 import net.jini.export.Exporter;
 import net.jini.loader.ClassLoading;
 import net.jini.security.Security;
+import org.apache.river.action.GetBooleanAction;
+import org.apache.river.action.GetIntegerAction;
+import org.apache.river.action.GetPropertyAction;
 
 /**
  * Subclass of {@link java.rmi.activation.ActivationGroup
@@ -179,6 +188,75 @@ public abstract class ActivationGroup
 	    throw new ActivationException("group is not active");
 	}
 	return group.inactiveObject(id, exporter);
+    }
+    
+    /**
+     * Returns the activation system for the VM. 
+     * 
+     * The <code>getSystem</code> method attempts to
+     * obtain a reference to the <code>ActivationSystem</code> by using
+     * an {@link au.net.zeus.rmi.tls.TlsRMIClientSocketFactory} to contact the
+     * {@link java.rmi.registry.Registry} using {@link java.rmi.registry.LocateRegistry}
+     * looking up the name "java.rmi.activation.ActivationSystem" in
+     * the Activator's registry. By default, the port number used to
+     * look up the activation system is defined by
+     * <code>ActivationSystem.SYSTEM_PORT</code>. This port can be
+     * overridden by setting the property
+     * <code>java.rmi.activation.port</code>.  The default host name used to
+     * lookup the Activator's registry is "localhost" and can be overridden
+     * by setting the property <code>java.rmi.server.hostname</code>.
+     * 
+     * If a Registry is not located, the result of
+     * {@link java.rmi.activation.ActivationGroup#getSystem() }
+     * is returned.
+     * 
+     * This method has been provided to support the use of Secure Sockets
+     * for the Registry.  Clients should call this from their logged in context.
+     * 
+     * @return the activation system for the VM/group
+     * @exception ActivationException if activation system cannot be
+     *  obtained or is not bound
+     * (means that it is not running)
+     * @exception UnsupportedOperationException if and only if activation is
+     * not supported by the jvm and java.rmi.activation.ActivationGroup.getSystem()
+     * is called.
+     * @since 3.1
+     */
+    public static ActivationSystem getSystem() throws ActivationException
+    {
+	int port = AccessController.doPrivileged(
+	    new GetIntegerAction(
+		    "java.rmi.activation.port",
+		    ActivationSystem.SYSTEM_PORT
+	    )
+	);
+	String host = AccessController.doPrivileged(
+	    new GetPropertyAction(
+		    "java.rmi.server.hostname",
+		    "" //localhost
+	    )
+	);
+	Registry registry;
+	try {
+	    registry = LocateRegistry.getRegistry(
+		    host, port, new TlsRMIClientSocketFactory()
+	    );
+	} catch (RemoteException ex) {
+	    if (AccessController.doPrivileged(new GetBooleanAction("net.jini.security.allowInsecureConnections"))){
+		return java.rmi.activation.ActivationGroup.getSystem();
+	    } else {
+		throw new ActivationException("Unable to establish connection with secure Registry", ex);
+	    }
+	}
+	if (registry == null) throw new ActivationException("Registry not runing");
+	try {
+	    return (ActivationSystem) 
+		    registry.lookup("java.rmi.activation.ActivationSystem");
+	} catch (RemoteException ex) {
+	    throw new ActivationException("Unable to contact registry",ex);
+	} catch (NotBoundException ex) {
+	    throw new ActivationException("ActivationSystem not bound",ex);
+	}
     }
 
     /**

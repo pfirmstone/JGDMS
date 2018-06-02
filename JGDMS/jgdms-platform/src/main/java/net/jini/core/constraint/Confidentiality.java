@@ -72,8 +72,10 @@ public final class Confidentiality
     
     /**
      * AtomicSerial constructor.
-     * @param arg
-     * @throws IOException
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
      */
     public Confidentiality(GetArg arg) throws IOException{
 	this(arg.get("val", true));

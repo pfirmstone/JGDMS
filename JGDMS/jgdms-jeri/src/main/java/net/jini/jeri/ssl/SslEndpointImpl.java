@@ -282,7 +282,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	Set clientPrincipals = getClientPrincipals(constraints.requirements());
 	boolean requiredClient = clientPrincipals != null;
 	boolean constrainedServer = getServerPrincipals(constraints) != null;
-	Boolean getSubject = null;
+	Boolean subjectPrivilege = null;
 	if (!requiredClient) {
 	    /* Try using principals from Subject instead */
 	    if (clientSubject == null) {
@@ -302,8 +302,8 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		}
 	    }
 	    if (clientPrincipals.isEmpty()) {
-		getSubject = getSubjectPermitted();
-		if (getSubject == Boolean.FALSE) {
+		subjectPrivilege = getSubjectPermitted();
+		if (subjectPrivilege.equals(Boolean.FALSE)) {
 		    /* Don't reveal that the client Subject has no principals.
 		     * Provide a dummy Principal (no credentials) which cannot
 		     * be authenticated in order to follow the same code path
@@ -349,10 +349,10 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		 * caller could determine Subject principals for itself, then
 		 * pass on the SecurityException.
 		 */
-		if (!requiredClient && getSubject == null) {
-		    getSubject = getSubjectPermitted();
+		if (!requiredClient && subjectPrivilege == null) {
+		    subjectPrivilege = getSubjectPermitted();
 		}
-		if (requiredClient || getSubject == Boolean.TRUE) {
+		if (requiredClient || subjectPrivilege) {
 		    if (logger.isLoggable(Levels.FAILED)) {
 			logThrow(
 			    logger, Levels.FAILED,
@@ -401,10 +401,10 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    if (constrainedServer) {
 		checkSubject = true;
 	    } else {
-		if (getSubject == null) {
-		    getSubject = getSubjectPermitted();
+		if (subjectPrivilege == null) {
+		    subjectPrivilege = getSubjectPermitted();
 		}
-		checkSubject = (getSubject == Boolean.TRUE);
+		checkSubject = (subjectPrivilege == Boolean.TRUE);
 	    }
 	    if (checkSubject) {
 		/* Check subject if caller has any access */
@@ -452,6 +452,8 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	List suites = new ArrayList();
 	boolean integrityRequired = false;
 	boolean integrityPreferred = false;
+	boolean atomicityRequired = false;
+	boolean atomicityPreferred = false;
 	long connectionTimeout = -1;
 	int max = contexts.size();
 	for (int i = 0; i < max; i++) {
@@ -488,6 +490,11 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    } else if (context.getIntegrityPreferred()) {
 		integrityPreferred = true;
 	    }
+	    if (context.getAtomicityRequired()) {
+		atomicityRequired = true;
+	    } else if (context.getAtomicityPreferred()) {
+		atomicityPreferred = true;
+	    }
 	    if (context.getConnectionTime() != -1 &&
 		(connectionTimeout == -1 ||
 		 connectionTimeout > context.getConnectionTime()))
@@ -499,7 +506,8 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    endpoint, this,
 	    clientAuthPermitted ? clientSubject : null,
 	    clientAuthRequired, clientPrincipals, serverPrincipals, suites,
-	    integrityRequired, integrityPreferred, connectionTimeout);
+	    integrityRequired, integrityPreferred, atomicityRequired, 
+		atomicityPreferred, connectionTimeout);
     }
 
     /**
@@ -779,6 +787,22 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    }
 	    return result;
 	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableConnectionContext)) return false;
+	    ComparableConnectionContext that = (ComparableConnectionContext) o;
+	    if (this.suiteIndex != that.suiteIndex) return false;
+	    return this.context.equals(that.context);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 3;
+	    hash = 97 * hash + (this.context != null ? this.context.hashCode() : 0);
+	    hash = 97 * hash + this.suiteIndex;
+	    return hash;
+	}
 
 	public String toString() {
 	    StringBuffer sb = new StringBuffer("ComparableConnectionContext[");
@@ -822,11 +846,12 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		    } else {
 			server = null;
 		    }
-		    for (int i = 2; --i >= 0; ) {
-			boolean integrity = i == 0;
+		    for (int i = 2; --i >= 0;) {
+			// First loop checks lower level constraints only
+			// Second loop checks upper layer constraints as well.
+			boolean upperLayerConstraints = i == 0;
 			ConnectionContext context =
-			    ConnectionContext.getInstance(
-				suite, client, server, integrity,
+			    ConnectionContext.getInstance(suite, client, server, upperLayerConstraints,
 				true /* clientSide */, constraints);
 			if (context != null) {
 			    result.add(

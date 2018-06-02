@@ -34,6 +34,9 @@ server side of the discovery format for those protocols.  Both classes are
 intended to be specified in a resource to configure the operation of the {@link
 org.apache.river.discovery.Discovery} class, as described in the documentation for
 {@link org.apache.river.discovery.Discovery#getProtocol2(ClassLoader)}.
+<p>
+Note that Java's built in java.security.Signature providers don't support
+SHA256withDSA, but there are providers that do.
 
 <h2>Supported Constraints</h2>
 

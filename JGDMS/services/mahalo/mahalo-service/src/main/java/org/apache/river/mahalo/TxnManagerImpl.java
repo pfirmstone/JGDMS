@@ -89,6 +89,7 @@ import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
@@ -99,8 +100,10 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.Security;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
+import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.thread.ExtensibleExecutorService;
 import org.apache.river.thread.ExtensibleExecutorService.RunnableFutureFactory;
 
@@ -114,7 +117,8 @@ class TxnManagerImpl /*extends RemoteServer*/
     implements TxnManager, LeaseExpirationMgr.Expirer,
 	    LogRecovery, TxnSettler, org.apache.river.constants.TimeConstants,
 	    LocalLandlord, ServerProxyTrust, ProxyAccessor, Startable,
-	    ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
+	    ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor,
+	    CodebaseAccessor
 {
     /** Logger for (successful) service startup message */
     static final Logger startupLogger = 
@@ -210,10 +214,14 @@ class TxnManagerImpl /*extends RemoteServer*/
     // The following three fields are only required by start, called by the
     // constructor thread and set to null after starting.
     private Configuration config;
-    private AccessControlContext context;
+    private final AccessControlContext context;
     private Throwable thrown;
     // sync on this.
     private boolean started = false;
+    private String codebase;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
 
     /**
      * Constructs a non-activatable transaction manager.
@@ -353,6 +361,10 @@ class TxnManagerImpl /*extends RemoteServer*/
                 activationID = activID;
                 activationPrepared = init.activationPrepared;
                 exporter = init.exporter;
+		this.codebase = init.codebase;
+		this.certFactoryType = init.certFactoryType;
+		this.certPathEncoding = init.certPathEncoding;
+		this.encodedCerts = init.encodedCerts.clone();
                 participantPreparer = init.participantPreparer;
                 txnLeasePeriodPolicy = init.txnLeasePeriodPolicy;
                 persistenceDirectory = init.persistenceDirectory;
@@ -503,7 +515,6 @@ class TxnManagerImpl /*extends RemoteServer*/
         } finally {
             // Clear references.
             config = null;
-            context = null;
             thrown = null;
         }
         
@@ -537,7 +548,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
             txntr = new TxnManagerTransaction(
                 txnMgrProxy, logmgr, tid, taskpool, 
-                taskWakeupMgr, this, uuid);
+                taskWakeupMgr, this, uuid, context);
             try {
                 Result r = txnLeasePeriodPolicy.grant(txntr, lease);
                 txntr.setExpiration(r.expiration);
@@ -913,7 +924,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	    tid = first.longValue();
 
 	    SettlerTask task = 
-	        new SettlerTask(settlerpool, settlerWakeupMgr, this, tid);
+	        new SettlerTask(settlerpool, settlerWakeupMgr, this, tid, context);
 	    settlerpool.execute(task);
 
             if (settleThread.hasBeenInterrupted()) 
@@ -1200,7 +1211,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             Uuid uuid = createLeaseUuid(cookie);
 	    tmt = new TxnManagerTransaction(
 	        txnMgrProxy, logmgr, cookie, taskpool, 
-		taskWakeupMgr, this, uuid);
+		taskWakeupMgr, this, uuid, context);
 	    noteUnsettledTxn(cookie);
 	    /* Since only aborted or committed txns are persisted,
 	     * their expirations are irrelevant. Therefore, any recovered
@@ -1253,7 +1264,29 @@ class TxnManagerImpl /*extends RemoteServer*/
 	return new ServiceID(topUuid.getMostSignificantBits(), 
 		topUuid.getLeastSignificantBits());
     }
-  
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(TxnManager.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
+    }
+
     /**
      * Termination thread code.  We do this in a separate thread to
      * avoid deadlock, because Activatable.inactive will block until

@@ -9,6 +9,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.rive
 
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {

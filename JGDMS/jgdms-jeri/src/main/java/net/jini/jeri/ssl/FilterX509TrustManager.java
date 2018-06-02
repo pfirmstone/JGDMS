@@ -22,6 +22,7 @@ import org.apache.river.action.GetPropertyAction;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivilegedAction;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -43,20 +44,21 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
     /* -- Fields -- */
 
     /** The trust manager to delegate to. */
-    private static X509TrustManager trustManager;
+    private final X509TrustManager trustManager;
 
-    /** Use for synchronizing initialization of the trustManager field. */
-    private static final Object lock = new Object();
+    
 
     /** The trust manager factory algorithm. */
     private static final String trustManagerFactoryAlgorithm =
-	(String) Security.doPrivileged(
+	Security.doPrivileged(
 	    new GetPropertyAction(
 		"org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm",
-		TrustManagerFactory.getDefaultAlgorithm()));
-
-    /** The set of permitted remote principals, or null if no restriction. */
-    private Set principals;
+		TrustManagerFactory.getDefaultAlgorithm()
+	    )
+	);
+    
+    /** The set of permitted remote principals, or empty if no restriction. */
+    private final Set principals;
 
     /* -- Constructors -- */
 
@@ -69,13 +71,14 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
      * @throws NoSuchAlgorithmException if the trust manager factory algorithm
      *	       is not found
      */
-    FilterX509TrustManager(Set principals) throws NoSuchAlgorithmException {
-	synchronized (lock) {
-	    if (trustManager == null) {
-		trustManager = getTrustManager();
-	    }
-	}
-	setPermittedRemotePrincipals(principals);
+    FilterX509TrustManager(Set principals) throws NoSuchAlgorithmException, NoSuchProviderException {
+	this(principals, trustManager());
+    }
+    
+    private FilterX509TrustManager(Set principals, X509TrustManager trustManager){
+	this.principals = new HashSet();
+	if (principals != null) this.principals.addAll(principals);
+	this.trustManager = trustManager;
     }
 
     /* -- Implement X509TrustManager -- */
@@ -118,8 +121,11 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
      * @param principals the set of permitted remote principals, or null if no
      *	      restriction
      */
-    void setPermittedRemotePrincipals(Set principals) {
-	this.principals = (principals == null) ? null : new HashSet(principals);
+    final void setPermittedRemotePrincipals(Set principals) {
+	synchronized(this.principals){
+	    this.principals.clear();
+	    this.principals.addAll(principals);
+	}
     }	
 
     /**
@@ -127,47 +133,58 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
      * principals.
      */
     private void check(X509Certificate[] chain) throws CertificateException {
-	if (principals != null &&
-	    !principals.contains(chain[0].getSubjectX500Principal()))
-	{
-	    throw new CertificateException("Remote principal is not trusted");
+	Object principal = chain[0].getSubjectX500Principal();
+	synchronized(principals){
+	    if (!principals.isEmpty() && !principals.contains(principal))
+	    {
+		throw new CertificateException("Remote principal is not trusted");
+	    }
 	}
     }
 
+    /** Use for synchronizing initialization of the static trustManager field. */
+    private static final Object lock = new Object();
+    
+    private static X509TrustManager tm;
     /** Returns the X509TrustManager to delegate to. */
-    private static X509TrustManager getTrustManager()
-	throws NoSuchAlgorithmException
+    private static X509TrustManager trustManager()
+	throws NoSuchAlgorithmException, NoSuchProviderException
     {
-	final TrustManagerFactory factory =
-	    TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm);
-	Security.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
-		    /*
-		     * Initialize the trust managers for the trust manager
-		     * factory.  Call in a doPrivileged because access to the
-		     * CA certificates file should be allowed to all programs
-		     * that use this provider.
-		     */
-		    try {
+	synchronized (lock){
+	    if (tm != null) return tm;
+	    final TrustManagerFactory factory = JSSE_PROVIDER != null ?
+		    TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm, JSSE_PROVIDER)
+		    : TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm);
+	    Security.doPrivileged(
+		new PrivilegedAction() {
+		    public Object run() {
 			/*
-			 * Calling init with null reads the default truststore
+			 * Initialize the trust managers for the trust manager
+			 * factory.  Call in a doPrivileged because access to the
+			 * CA certificates file should be allowed to all programs
+			 * that use this provider.
 			 */
-			factory.init((KeyStore) null);
-		    } catch (KeyStoreException e) {
-			INIT_LOGGER.log(
-			    Level.WARNING,
-			    "Problem initializing JSSE trust manager keystore",
-			    e);
+			try {
+			    /*
+			     * Calling init with null reads the default truststore
+			     */
+			    factory.init((KeyStore) null);
+			} catch (KeyStoreException e) {
+			    INIT_LOGGER.log(
+				Level.WARNING,
+				"Problem initializing JSSE trust manager keystore",
+				e);
+			}
+			return null;
 		    }
-		    return null;
-		}
-	    });
+		});
 
-	/*
-	 * Although JSSE doesn't document this, there should be only one X.509
-	 * trust manager for X.509 certificates read from KeyStores.
-	 */
-	return (X509TrustManager) factory.getTrustManagers()[0];
+	    /*
+	     * Although JSSE doesn't document this, there should be only one X.509
+	     * trust manager for X.509 certificates read from KeyStores.
+	     */
+	    tm = (X509TrustManager) factory.getTrustManagers()[0];
+	    return tm;
+	}
     }
 }

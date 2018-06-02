@@ -120,6 +120,8 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
             return -1;
         } else if (o1 instanceof PrivateCredentialPermission && 
 		o2 instanceof PrivateCredentialPermission){
+	    // Ensure there are no duplicates
+	    if(o1.equals(o2)) return 0;
 	    // PrivateCredentialPermission.getName() may only include the credential
 	    // while the action always equals read.
 	    PrivateCredentialPermission p1 = (PrivateCredentialPermission) o1;
@@ -143,6 +145,8 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
 	    // and principal names, for more accurate equals, however the only
 	    // consequence of not doing so, is that equivalent permissions
 	    // may be contained, in the same collection.
+	    // To avoid that scenario, we check equals first.
+	    // TODO: Review and revise
 	    for (int i=0; i<len1; i++){
 		String [] pr1 = prin1[i];
 		String [] pr2 = prin2[i];

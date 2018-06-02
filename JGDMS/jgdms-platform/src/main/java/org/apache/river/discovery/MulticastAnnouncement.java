@@ -57,13 +57,22 @@ public class MulticastAnnouncement {
      * contains <code>null</code>
      * @throws IllegalArgumentException if <code>port</code> is out of range
      */
-    public MulticastAnnouncement(long sequenceNumber,
-				 String host,
+    public MulticastAnnouncement(   long sequenceNumber,
+				    String host,
+				    int port,
+				    String[] groups,
+				    ServiceID serviceID)
+    {
+	this(sequenceNumber, host, port, groups, serviceID,
+		check(host, port, groups, serviceID));
+    }
+    
+    private static boolean check(String host,
 				 int port,
 				 String[] groups,
 				 ServiceID serviceID)
     {
-	groups = (groups != null) ? groups.clone() : new String[0];
+	groups = (groups != null) ? groups : new String[0];
 	if (host == null || 
 	    serviceID == null ||
 	    Arrays.asList(groups).contains(null))
@@ -73,10 +82,20 @@ public class MulticastAnnouncement {
 	if (port < 0 || port > 0xFFFF) {
 	    throw new IllegalArgumentException("port out of range: " + port);
 	}
+	return true;
+    }
+    
+    private MulticastAnnouncement(  long sequenceNumber,
+				    String host,
+				    int port,
+				    String[] groups,
+				    ServiceID serviceID,
+				    boolean check)
+    {
 	this.sequenceNumber = sequenceNumber;
 	this.host = host;
 	this.port = port;
-	this.groups = groups;
+	this.groups = groups.clone();
 	this.serviceID = serviceID;
     }
 
@@ -124,7 +143,7 @@ public class MulticastAnnouncement {
     public ServiceID getServiceID() {
 	return serviceID;
     }
-
+    
     /**
      * Checks if the constraints whose checking was delayed when this instance
      * was decoded, if any, are satisfied. If the instance was not decoded,
@@ -144,8 +163,13 @@ public class MulticastAnnouncement {
      *
      * @return a string representation of this announcement
      */
+    @Override
     public String toString() {
-	return "MulticastAnnouncement[" + sequenceNumber + ", " + host + ":" +
-	       port + ", " + Arrays.asList(groups) + ", " + serviceID + "]";
+	StringBuilder sb = new StringBuilder(120);
+	sb.append("MulticastAnnouncement[").append(sequenceNumber).append(",")
+	    .append(host).append(":").append(port).append(",")
+	    .append(Arrays.asList(groups)).append(",")
+	    .append(serviceID).append("]");
+	return sb.toString();
     }
 }

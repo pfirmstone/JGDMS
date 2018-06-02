@@ -18,9 +18,13 @@
 
 package net.jini.jeri.ssl;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import javax.security.auth.Subject;
+import net.jini.core.constraint.AtomicInputValidation;
+import net.jini.core.constraint.Integrity;
+import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.connection.OutboundRequestHandle;
@@ -68,6 +72,12 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 
     /** Whether codebase integrity is preferred. */
     final boolean integrityPreferred;
+    
+    /** Whether deserialization atomic input validation is required. */
+    final boolean atomicityRequired;
+
+    /** Whether deserialization atomic input validation is preferred. */
+    final boolean atomicityPreferred;
 
     /**
      * The absolute time by which a new connection must be completed, or
@@ -107,6 +117,8 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 		List cipherSuites,
 		boolean integrityRequired,
 		boolean integrityPreferred,
+		boolean atomicityRequired,
+		boolean atomicityPreferred,
 		long connectionTime)
     {
 	this.endpoint = endpoint;
@@ -119,6 +131,8 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 	    (String[]) cipherSuites.toArray(new String[cipherSuites.size()]);
 	this.integrityRequired = integrityRequired;
 	this.integrityPreferred = integrityPreferred;
+	this.atomicityRequired = atomicityRequired;
+	this.atomicityPreferred = atomicityPreferred;
 	this.connectionTime = connectionTime;
     }
 
@@ -143,6 +157,11 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 	} else if (integrityPreferred) {
 	    buff.append("\n  integrity=preferred");
 	}
+	if (atomicityRequired) {
+	    buff.append("\n  deserialization input validation failure atomicity=required");
+	} else if (atomicityPreferred) {
+	    buff.append("\n  deserialization input validation failure atomicity=preferred");
+	}
 	if (connectionTime != Long.MAX_VALUE) {
 	    buff.append("\n  connectionTime=").append(connectionTime);
 	}
@@ -155,12 +174,21 @@ class CallContext extends Utilities implements OutboundRequestHandle {
      * higher layers for this outbound request.
      */
     InvocationConstraints getUnfulfilledConstraints() {
+	List<InvocationConstraint> required = new ArrayList<InvocationConstraint>(2);
+	List<InvocationConstraint> preferred = new ArrayList<InvocationConstraint>(2);
 	if (integrityRequired) {
-	    return INTEGRITY_REQUIRED;
+	    required.add(Integrity.YES);
 	} else if (integrityPreferred) {
-	    return INTEGRITY_PREFERRED;
-	} else {
-	    return InvocationConstraints.EMPTY;
+	    preferred.add(Integrity.YES);
 	}
+	if (atomicityRequired){
+	    required.add(AtomicInputValidation.YES);
+	} else if (atomicityPreferred){
+	    preferred.add(AtomicInputValidation.YES);   
+	}
+	if (!required.isEmpty() || !preferred.isEmpty()){
+	    return new InvocationConstraints(required, preferred);
+	}
+	return InvocationConstraints.EMPTY;
     }
 }

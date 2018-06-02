@@ -35,6 +35,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicSerial;
@@ -401,24 +402,55 @@ public class LookupLocator implements Serializable {
      * <code>LookupLocator</code> implements this method to use the values
      * of the <code>host</code> and <code>port</code> field in determining
      * the host and port to connect to.
-     * @param constraints
+     * @param constraints discovery constraints
      * @return lookup service proxy
-     * @throws IOException
+     * @throws IOException an error occurred during discovery
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
-     * @throws ClassNotFoundException
+     * @throws ClassNotFoundException if a class required to unmarshal the
+     * <code>ServiceRegistrar</code> proxy cannot be found
      */
     protected final ServiceRegistrar getRegistrar(InvocationConstraints constraints)
             throws IOException, ClassNotFoundException {
-        UnicastResponse resp = new MultiIPDiscovery() {
+        return getRegistrar(constraints, null);
+    }
+    
+    /**
+     * Perform unicast discovery and return the ServiceRegistrar
+     * object for the given lookup service, with the given constraints
+     * and context.
+     * 
+     * Note the context may include {@link net.jini.core.constraint.MethodConstraints}
+     * for {@link net.jini.loader.ProxyCodebaseSpi}.
+     * 
+     * Unicast discovery is performed anew each time this method is called.
+     * <code>LookupLocator</code> implements this method to use the values
+     * of the <code>host</code> and <code>port</code> field in determining
+     * the host and port to connect to.
+     * @param constraints discovery constraints
+     * @param context the stream context {@link net.jini.io.ObjectStreamContext#getObjectStreamContext() }
+     * @return lookup service proxy
+     * @throws IOException an error occurred during discovery
+     * @throws net.jini.io.UnsupportedConstraintException if the
+     * discovery-related constraints contain conflicts, or otherwise cannot be
+     * processed
+     * @throws ClassNotFoundException if a class required to unmarshal the
+     * <code>ServiceRegistrar</code> proxy cannot be found
+     */
+    protected final ServiceRegistrar getRegistrar(
+					    InvocationConstraints constraints,
+					    final Collection context)
+	throws IOException, ClassNotFoundException 
+    {
+	UnicastResponse resp = new MultiIPDiscovery() {
             @Override
             protected UnicastResponse performDiscovery(Discovery disco,
                     DiscoveryConstraints dc,
                     Socket s)
                     throws IOException, ClassNotFoundException {
                 return disco.doUnicastDiscovery(
-                        s, dc.getUnfulfilledConstraints(), null, null, null);
+                        s, dc.getUnfulfilledConstraints(), null, null, context);
             }
         }.getResponse(scheme(), host, port, constraints);
         return resp.getRegistrar();

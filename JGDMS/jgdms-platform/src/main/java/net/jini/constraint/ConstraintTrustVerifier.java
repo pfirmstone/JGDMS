@@ -121,7 +121,9 @@ public class ConstraintTrustVerifier implements TrustVerifier {
 		return true;
 	    } else if (c == ServerMinPrincipal.class) {
 		return trusted(((ServerMinPrincipal) obj).elements(), ctx);
-	    } else if (c == ClientMinPrincipal.class) {
+	    } else if (c == ServerMaxPrincipal.class) {
+		return trusted(((ServerMaxPrincipal) obj).elements(), ctx);
+	    }else if (c == ClientMinPrincipal.class) {
 		return trusted(((ClientMinPrincipal) obj).elements(), ctx);
 	    } else if (c == ClientMaxPrincipal.class) {
 		return trusted(((ClientMaxPrincipal) obj).elements(), ctx);

@@ -63,9 +63,13 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
+import net.jini.core.constraint.AtomicInputValidation;
+import net.jini.core.constraint.Integrity;
+import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
+import net.jini.jeri.InboundRequest;
 import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerEndpoint.ListenContext;
 import net.jini.jeri.ServerEndpoint.ListenCookie;
@@ -314,7 +318,7 @@ class SslServerEndpointImpl extends Utilities {
 			client = null;
 		    }
 		    InvocationConstraints unfulfilledConstraints =
-			getUnfulfilledConstraints(
+			getUnfulfilledIntegrityOrAtomicityConstraints(
 			    suite, client, server, constraints);
 		    if (unfulfilledConstraints != null) {
 			if (logger.isLoggable(Level.FINE)) {
@@ -358,8 +362,7 @@ class SslServerEndpointImpl extends Utilities {
 	boolean supported = false;
 	for (int i = 2; --i >= 0; ) {
 	    boolean integrity = i == 0;
-	    ConnectionContext context = ConnectionContext.getInstance(
-		cipherSuite, client, server, integrity,
+	    ConnectionContext context = ConnectionContext.getInstance(cipherSuite, client, server, integrity,
 		false /* clientSide */, constraints);
 	    if (context != null) {
 		if (context.getIntegrityRequired()) {
@@ -370,6 +373,51 @@ class SslServerEndpointImpl extends Utilities {
 		    supported = true;
 		}
 	    }
+	}
+	return supported ? InvocationConstraints.EMPTY : null;
+    }
+    
+    /**
+     * Returns null if the constraints are not supported, else any integrity
+     * constraints required or preferred by the arguments.
+     */
+    static InvocationConstraints getUnfulfilledIntegrityOrAtomicityConstraints(
+	String cipherSuite,
+	Principal client,
+	Principal server,
+	InvocationConstraints constraints)
+    {
+	List<InvocationConstraint> requiredConstraints = new ArrayList<InvocationConstraint>(2);
+	List<InvocationConstraint> preferredConstraints = new ArrayList<InvocationConstraint>(2);
+	boolean supported = false;
+	for (int i = 2; --i >= 0; ) {
+	    boolean upperLayerConstraints = i == 1;
+	    ConnectionContext context = 
+		    ConnectionContext.getInstance(cipherSuite,
+			    client,
+			    server,
+			    upperLayerConstraints,
+			    false /* clientSide */,
+			    constraints);
+	    if (context != null) {
+		if (context.getIntegrityRequired()) {
+		    requiredConstraints.add(Integrity.YES);
+		} else if (context.getIntegrityPreferred()) {
+		    preferredConstraints.add(Integrity.YES);
+		} else if (context.getAtomicityRequired()){
+		    requiredConstraints.add(AtomicInputValidation.YES);
+		} else if (context.getAtomicityPreferred()){
+		    preferredConstraints.add(AtomicInputValidation.YES);
+		} else {
+		    supported = true;
+		}
+	    }
+	}
+	if (!requiredConstraints.isEmpty() || !preferredConstraints.isEmpty()){
+	    return new InvocationConstraints(
+		    requiredConstraints,
+		    preferredConstraints
+	    );
 	}
 	return supported ? InvocationConstraints.EMPTY : null;
     }
@@ -1137,7 +1185,8 @@ class SslServerEndpointImpl extends Utilities {
 
 	    /* Need to put in server mode before requesting client auth. */
 	    sslSocket.setUseClientMode(false);
-	    sslSocket.setWantClientAuth(true);
+	    sslSocket.setNeedClientAuth(true);
+//	    sslSocket.setWantClientAuth(true);
             try {
                 session = sslSocket.getSession();
                 sslSocket.setEnableSessionCreation(false);
@@ -1353,7 +1402,7 @@ class SslServerEndpointImpl extends Utilities {
 	    if (constraints == null) {
 		throw new NullPointerException("Constraints cannot be null");
 	    }
-	    InvocationConstraints result = getUnfulfilledConstraints(
+	    InvocationConstraints result = getUnfulfilledIntegrityOrAtomicityConstraints(
 		cipherSuite, clientPrincipal, serverPrincipal, constraints);
 	    if (result == null) {
 		UnsupportedConstraintException uce = 

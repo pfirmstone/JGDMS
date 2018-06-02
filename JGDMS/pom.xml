@@ -65,9 +65,11 @@
     <module>jgdms-resources</module>
     <module>jgdms-iiop</module>
     <module>jgdms-jrmp</module>
+    <module>jgdms-rmi-tls</module>
     <module>jgdms-lib</module>
     <module>jgdms-lib-dl</module>
     <module>jgdms-ui-factory</module>
+    <module>jgdms-osgi-services</module>
     <module>jini-2.1-compat</module>
     <module>jsk-platform</module>
     <module>jsk-lib</module>
@@ -104,6 +106,7 @@
     <github.repo.basename>pfirmstone</github.repo.basename>
     <groovy.version>2.2.1</groovy.version>
     <gmaven.version>1.4</gmaven.version>
+    <bouncy.version>1.59</bouncy.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
     <junit.version>4.8.2</junit.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -126,7 +129,7 @@
         </pluginRepository>
     </pluginRepositories>
 -->
-  <repositories>
+  <!--<repositories>-->
     <!--<repository>
       <id>local-snapshots</id>
       <url>file:\C:\Users\Peter\Documents\repo</url>
@@ -141,8 +144,7 @@
 		    <id>hashnot</id>
 		    <url>http://mvn.hashnot.com/content/groups/public</url>
         </repository>-->
-  </repositories>
-
+  <!--</repositories>-->
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -155,6 +157,16 @@
         <artifactId>gmaven-plugin</artifactId>
         <version>${gma}</version>
       </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+            <version>${bouncy.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bctls-jdk15on</artifactId>
+            <version>${bouncy.version}</version>
+        </dependency>
     </dependencies>
   </dependencyManagement>
 

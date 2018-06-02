@@ -25,6 +25,7 @@ import java.net.Socket;
 import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
@@ -35,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.security.auth.Subject;
@@ -90,7 +92,7 @@ class ServerAuthManager extends AuthManager {
     ServerAuthManager(Subject subject,
 		      Set permittedPrincipals,
 		      SSLSessionContext sslSessionContext)
-	throws NoSuchAlgorithmException
+	throws NoSuchAlgorithmException, NoSuchProviderException
     {
 	super(subject, permittedPrincipals, null);
 	this.sslSessionContext = sslSessionContext;
@@ -409,4 +411,11 @@ class ServerAuthManager extends AuthManager {
 	}
 	return result;
     }
+    
+    /* -- Implement X509ExtendedKeyManager -- */
+    
+//    @Override
+//    public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
+//	return chooseServerAlias(keyType, issuers, null);
+//    }
 }

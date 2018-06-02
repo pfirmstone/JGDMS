@@ -28,6 +28,7 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
+import java.security.AccessControlContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -38,6 +39,7 @@ import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.Lease;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.ExpirationWarningEvent;
@@ -85,13 +87,13 @@ class LeaseSet implements Serializable, LeasedResource {
     /**
      * A table that maps client leases to client lease wrappers.
      */
-    private transient LeaseTable leaseTable;
+    private volatile transient LeaseTable leaseTable;
 
     /**
      * Time before <code>expiration</code> to send expiration warning events
      * @serial
      */
-    private long minWarning = NormServer.NO_LISTENER;
+    private volatile long minWarning = NormServer.NO_LISTENER;
 
     /**
      * The event type for expiration warning events
@@ -103,7 +105,7 @@ class LeaseSet implements Serializable, LeasedResource {
      * The current sequence number for expiration warning events
      * @serial
      */
-    private long warningSeqNum;
+    private volatile long warningSeqNum;
 
     /**
      * The event type for failure events
@@ -132,8 +134,11 @@ class LeaseSet implements Serializable, LeasedResource {
      * @param normServerBaseImpl the <code>NormServerBaseImpl</code> that 
      *              created this set
      */
-    LeaseSet(Uuid ID, EventTypeGenerator generator, PersistentStore store,
-	     NormServerBaseImpl normServerBaseImpl)
+    LeaseSet(Uuid ID,
+	    EventTypeGenerator generator,
+	    PersistentStore store,
+	    NormServerBaseImpl normServerBaseImpl,
+	    AccessControlContext context)
     {
 	this.leases = new HashSet<ClientLeaseWrapper>();
 	this.store = store;
@@ -150,11 +155,11 @@ class LeaseSet implements Serializable, LeasedResource {
 
 	try {
 	    warningEventType = 
-		generator.newEventType(
-		    sendMonitor, LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID);
+		generator.newEventType(sendMonitor, 
+			LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID, context);
 	    failureEventType =
-		generator.newEventType(
-		    sendMonitor, LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID);
+		generator.newEventType(sendMonitor, 
+			LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID, context);
 	} catch (IOException e) {
 	    // Because we are passing null for the listener we will
 	    // never get an exception
@@ -219,13 +224,14 @@ class LeaseSet implements Serializable, LeasedResource {
 	throws IOException, ClassNotFoundException 
     {
 	in.defaultReadObject();
-	
-	// Restore the 2nd copy
-	expiration2 = new ExpirationTime(expiration);
+	synchronized (this){
+	    // Restore the 2nd copy
+	    expiration2 = new ExpirationTime(expiration);
 
-	// Create lease table, but only populate after restoring lease wrapper
-	// transient state
-	leaseTable = new LeaseTable();
+	    // Create lease table, but only populate after restoring lease wrapper
+	    // transient state
+	    leaseTable = new LeaseTable();
+	}
     }
 
     /** 
@@ -241,9 +247,10 @@ class LeaseSet implements Serializable, LeasedResource {
      * @return an iterator over the set of client leases
      */
     Iterator restoreTransientState(EventTypeGenerator generator, 
-				   PersistentStore store,
-				   NormServerBaseImpl normServerBaseImpl,
-				   ProxyPreparer recoveredListenerPreparer)
+				    PersistentStore store,
+				    NormServerBaseImpl normServerBaseImpl,
+				    ProxyPreparer recoveredListenerPreparer,
+				    AccessControlContext context)
     {
 	this.normServerBaseImpl = normServerBaseImpl;
 	this.store = store;
@@ -251,9 +258,9 @@ class LeaseSet implements Serializable, LeasedResource {
 	final SendMonitor sendMonitor = 
 	    normServerBaseImpl.newSendMonitor(this);	
 	warningEventType.restoreTransientState(
-	    generator, sendMonitor, recoveredListenerPreparer);
+		generator, sendMonitor, recoveredListenerPreparer, context);
 	failureEventType.restoreTransientState(
-	    generator, sendMonitor, recoveredListenerPreparer);
+		generator, sendMonitor, recoveredListenerPreparer, context);
 
 	// Instead of logging the sequence number each time we send
 	// a warning event (like we do for renewal failures), we just
@@ -410,7 +417,9 @@ class LeaseSet implements Serializable, LeasedResource {
 	MarshalledObject    handback)
         throws IOException     					       
     {
-	this.minWarning = minWarning;
+	synchronized (this){
+	    this.minWarning = minWarning;
+	}
 	warningEventType.setListener(listener, handback);
 
 	final Object u = new WarningEventRegistration(this);
@@ -571,14 +580,14 @@ class LeaseSet implements Serializable, LeasedResource {
 
     // Methods need to meet contract of LeasedResource	
     // Inherit java doc from super type
-    public void setExpiration(long newExpiration) {
+    public synchronized void setExpiration(long newExpiration) {
 	expiration = newExpiration;
 	// Update the 2nd copy
 	expiration2.set(expiration);
     }
 
     // Inherit java doc from super type
-    public long getExpiration() {
+    public synchronized long getExpiration() {
 	return expiration;
     }
 
@@ -820,15 +829,19 @@ class LeaseSet implements Serializable, LeasedResource {
 	 */
 	private WarningEventRegistration(LeaseSet set) {
 	    super(set.getUuid());
-	    warningTime = set.minWarning;
-	    registration = set.warningEventType;
+	    synchronized (set){
+		warningTime = set.minWarning;
+		registration = set.warningEventType;
+	    }
 	}
 
 	
 	// Inherit java doc from super type
 	void apply(LeaseSet set) throws StoreException {
-	    set.minWarning = warningTime;
-	    set.warningEventType = registration;
+	    synchronized (set){
+		set.minWarning = warningTime;
+		set.warningEventType = registration;
+	    }
 	}
     }
 

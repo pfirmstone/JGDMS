@@ -39,6 +39,7 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.io.MarshalledInstance;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -171,7 +172,7 @@ class ClientLeaseWrapper implements Lease, Serializable {
 
 	clientLeaseExpiration = clientLease.getExpiration();
 	clientLease.setSerialFormat(Lease.ABSOLUTE);
-	marshalledClientLease = new MarshalledInstance(clientLease);
+	marshalledClientLease = new AtomicMarshalledInstance(clientLease);
 
 	this.renewDuration = renewDuration;
 	membershipExpiration = calcMembershipExpiration(membershipDuration, now);

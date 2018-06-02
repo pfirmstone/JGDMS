@@ -1,0 +1,75 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+    
+    <a name="subject_authentication"><h2>Subject Authentication</h2></a>
+
+The {@link TlsRMIClientSocketFactory} and {@link TlsRMIServerSocketFactory} 
+socket creation methods authenticate as a single {@link java.security.Principal} 
+if the following items are present in the {@link javax.security.auth.Subject} 
+at the time of socket creation for the establishment of secure connections and
+control access to the {@link java.rmi.registry.Registry} to secure Phoenix
+Activation when: <p>
+
+<ul>
+<li> One or more principals of type <code>X500Principal</code>
+<li> For each principal, one or more certificate chains, stored as
+     public credentials, and represented by instances of {@link
+     java.security.cert.CertPath}, whose <code>getType</code> method
+     returns "X.509", and for which calling <code>getSubjectDN</code> on
+     the certificate chain's first element returns that principal's name
+<li> For each certificate chain, an instance of {@link
+     javax.security.auth.x500.X500PrivateCredential}, stored as a
+     private credential, whose <code>getCertificate</code> method
+     returns a value equal to the first element of the certificate
+     chain, and whose <code>getPrivateKey</code> method returns the
+     associated private key
+</ul> <p>
+    
+These RMISocketFactory's are not for use as standard JRMP Endpoint's,
+they are final and not Serializable.
+
+These have been designed to secure the {@link java.rmi.registry.Registry}, for
+Phoenix's configuration options and parameters to {@link java.rmi.registry.LocateRegistry} 
+methods.
+
+These secure sockets require client authentication, anonymous client authentication
+is vulnerable to deserialization gadget attacks.
+
+Invocations by the client on the server endpoint will not be populated the 
+server's thread with the client's subject.  
+
+The <a
+href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/JSSERefGuide.html#Customization"
+target="_top">JSSE documentation</a> also describes the system
+properties for configuring the location, type, and password of the
+truststore that the SocketFactory's use, through JSSE, to make decisions about
+what certificate chains should be trusted. <p>
+
+@since 3.1
+@version 3.1
+
+</body>
+</html>

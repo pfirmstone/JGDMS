@@ -19,6 +19,7 @@ package org.apache.river.mahalo;
 
 import java.rmi.activation.ActivationID;
 import java.rmi.MarshalledObject;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
  * Convenience class intended for use with the 
@@ -29,7 +30,8 @@ import java.rmi.MarshalledObject;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-class ActivatableMahaloImpl extends TxnManagerImpl {
+class ActivatableMahaloImpl extends TxnManagerImpl 
+			    implements DynamicProxyCodebaseAccessor {
 
     /**
      * Constructs a new instance of <code>TxnManagerImpl</code> that is 

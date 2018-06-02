@@ -27,7 +27,6 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.jeri.InvocationDispatcher;
 import net.jini.jeri.ProxyTrustILFactory;
 import net.jini.jeri.ServerCapabilities;
-import org.apache.river.phoenix.common.LocalAccess;
 import org.apache.river.phoenix.dl.SystemPermission;
 
 /**
@@ -44,7 +43,10 @@ import org.apache.river.phoenix.dl.SystemPermission;
  * 
  * @since 2.0.1
  * @see SystemAccessILFactory
+ * @see SystemAccessAtomicILFactory
+ * @deprecated
  **/
+@Deprecated
 public class SystemAccessProxyTrustILFactory extends ProxyTrustILFactory {
     /**
      * The group policy, if any.

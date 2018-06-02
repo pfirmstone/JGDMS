@@ -22,11 +22,18 @@ import org.apache.river.thread.wakeup.RetryTask;
 import org.apache.river.thread.wakeup.WakeupManager;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.server.TransactionConstants;
+import static net.jini.core.transaction.server.TransactionConstants.ABORTED;
+import static net.jini.core.transaction.server.TransactionConstants.COMMITTED;
+import static net.jini.core.transaction.server.TransactionConstants.VOTING;
 import net.jini.core.transaction.server.TransactionManager;
 
 /**
@@ -48,6 +55,7 @@ class SettlerTask extends RetryTask implements TransactionConstants {
     /** Logger for transactions related messages */
     private static final Logger transactionsLogger = 
         TxnManagerImpl.transactionsLogger;
+    private final AccessControlContext context;
 
     /**
      * Constructs a <code>SettlerTask</code>.
@@ -60,8 +68,12 @@ class SettlerTask extends RetryTask implements TransactionConstants {
      * 
      * @param tid transaction ID
      */
-    SettlerTask(ExecutorService manager, WakeupManager wm,
-			    TransactionManager txnmgr, long tid) {
+    SettlerTask(ExecutorService manager,
+	    WakeupManager wm,
+	    TransactionManager txnmgr,
+	    long tid,
+	    AccessControlContext context) 
+    {
 	super(manager, wm);
 
 	if (txnmgr == null)
@@ -69,6 +81,7 @@ class SettlerTask extends RetryTask implements TransactionConstants {
 					    "txnmgr must be non-null");
 	this.txnmgr = txnmgr;
 	this.tid = tid;
+	this.context = context;
     }
 
     public boolean tryOnce() {
@@ -85,27 +98,42 @@ class SettlerTask extends RetryTask implements TransactionConstants {
 		"Attempting to settle transaction id: {0}", 
 		Long.valueOf(tid));
 	    }
+	    try {
+		AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
-	    int state = txnmgr.getState(tid);
-	    switch(state) {
-	      case VOTING:
-	      case COMMITTED:
-                txnmgr.commit(tid, Long.MAX_VALUE);
-		break;
-	    
-	      case ABORTED:
-		txnmgr.abort(tid, Long.MAX_VALUE);
-		break;
+		    @Override
+		    public Object run() throws Exception {
+			int state = txnmgr.getState(tid);
+			switch(state) {
+			  case VOTING:
+			  case COMMITTED:
+			    txnmgr.commit(tid, Long.MAX_VALUE);
+			    break;
 
-	      default:
-	        if(transactionsLogger.isLoggable(Level.WARNING)) {
-		    transactionsLogger.log(Level.WARNING,
-		    "Attempting to settle transaction in an invalid state: {0}", 
-		    Integer.valueOf(state));
-	        }
-                System.err.println("Attempting to settle transaction in an invalid state:" + 
-		    Integer.valueOf(state));
+			  case ABORTED:
+			    txnmgr.abort(tid, Long.MAX_VALUE);
+			    break;
+
+			  default:
+			    if(transactionsLogger.isLoggable(Level.WARNING)) {
+				transactionsLogger.log(Level.WARNING,
+				"Attempting to settle transaction in an invalid state: {0}", 
+				Integer.valueOf(state));
+			    }
+			    System.err.println("Attempting to settle transaction in an invalid state:" + 
+				Integer.valueOf(state));
+			}
+			return null;
+		    }
+		}, context);
+	    } catch (PrivilegedActionException ex) {
+		Exception e = ex.getException();
+		if (e instanceof NoSuchObjectException) throw (NoSuchObjectException)e;
+		if (e instanceof TransactionException) throw (TransactionException)e;
+		if (e instanceof RemoteException) throw (RemoteException)e;
+		if (e instanceof RuntimeException) throw (RuntimeException)e;
 	    }
+	    
 
 	} catch (NoSuchObjectException nsoe) {
 	    if(transactionsLogger.isLoggable(Level.WARNING)) {

@@ -93,7 +93,7 @@ public class ProbeImpl implements Probe {
 	try {
 	    System.err.println(
 		"Attempting to unregister with activation system");
-	    ActivationSystem sys = ActivationGroup.getSystem();
+	    ActivationSystem sys = net.jini.activation.ActivationGroup.getSystem();
             System.err.println("Contacted activation system");
 	    sys.unregisterObject(activationID);
 	    System.err.println(

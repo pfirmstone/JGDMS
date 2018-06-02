@@ -609,6 +609,28 @@ public class LeaseRenewalManager {
 		return 1;
 	    return -1;
 	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof Entry)) return false;
+	    Entry that = (Entry) o;
+	    if (this.id != that.id) return false;
+	    if (this.renew != that.renew) return false;
+	    if (this.renewalRTT != that.renewalRTT) return false;
+	    if (!this.lease.equals(that.lease)) return false;
+	    return this.listener.equals(that.listener);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 7;
+	    hash = 67 * hash + (int) (this.id ^ (this.id >>> 32));
+	    hash = 67 * hash + (this.lease != null ? this.lease.hashCode() : 0);
+	    hash = 67 * hash + (this.listener != null ? this.listener.hashCode() : 0);
+	    hash = 67 * hash + (int) (this.renewalRTT ^ (this.renewalRTT >>> 32));
+	    hash = 67 * hash + (int) (this.renew ^ (this.renew >>> 32));
+	    return hash;
+	}
 
 	/**
 	 * Returns true if the renewal of this lease can be batched with

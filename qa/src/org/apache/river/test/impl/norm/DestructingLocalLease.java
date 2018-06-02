@@ -19,11 +19,14 @@ package org.apache.river.test.impl.norm;
 
 import java.io.ObjectInputStream;
 import java.io.IOException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Subclass of LocalLease that after a preset number of deserilizations
  * sets the expiration to 0
  */
+@AtomicSerial
 class DestructingLocalLease extends LocalLease {
     /**
      * How many deseriailzations to allow setting expiration to 0
@@ -46,6 +49,24 @@ class DestructingLocalLease extends LocalLease {
     {
 	super(initExp, renewLimit, bundle, id);
 	untilDestruction = count;
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	arg.get("untilDestruction", 0L );
+	return arg;
+    }
+    
+    DestructingLocalLease(GetArg arg) throws IOException{
+	super(check(arg));
+	untilDestruction = arg.get("untilDestruction", 0L);
+	if (untilDestruction > 0) {
+	    untilDestruction--;
+
+	    if (untilDestruction == 0) {
+		setExpiration(0);
+		System.err.println("Lease zeroed");
+	    }
+	}
     }
 	    
     /**

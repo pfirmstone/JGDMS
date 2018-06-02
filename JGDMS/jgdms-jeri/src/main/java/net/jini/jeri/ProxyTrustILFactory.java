@@ -37,7 +37,9 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  * @see net.jini.security.proxytrust.ProxyTrustExporter
+ * @deprecated use {@link AtomicILFactory} 
  */
+@Deprecated
 public class ProxyTrustILFactory extends BasicILFactory {
 
     /**
@@ -102,7 +104,8 @@ public class ProxyTrustILFactory extends BasicILFactory {
      * {@link ServerProxyTrust} or implements any illegal remote interfaces
      **/
     protected Class[] getRemoteInterfaces(Remote impl) throws ExportException {
-	if (impl != null && !(impl instanceof ServerProxyTrust)) {
+	if (impl == null) throw new NullPointerException("impl is null");
+	if (!(impl instanceof ServerProxyTrust)) {
 	    throw new ExportException("impl must implement ServerProxyTrust");
 	}
 	Class[] ifs = super.getRemoteInterfaces(impl);

@@ -751,6 +751,22 @@ public class JoinManager {
             if (seqN > o.seqN) return 1;
             return 0;
         }
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ProxyRegTask)) return false;
+	    ProxyRegTask that = (ProxyRegTask) o;
+	    if (this.seqN != that.seqN) return false;
+	    return this.proxyReg.equals(that.proxyReg);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 5;
+	    hash = 79 * hash + (this.proxyReg != null ? this.proxyReg.hashCode() : 0);
+	    hash = 79 * hash + this.seqN;
+	    return hash;
+	}
     }//end class ProxyRegTask
     
         private static final class ProxyRegTaskQueue implements FutureObserver {

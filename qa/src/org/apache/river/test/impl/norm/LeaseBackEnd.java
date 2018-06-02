@@ -26,6 +26,7 @@ import java.rmi.RemoteException;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.UnknownLeaseException;
+import net.jini.export.CodebaseAccessor;
 import net.jini.security.proxytrust.ProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;

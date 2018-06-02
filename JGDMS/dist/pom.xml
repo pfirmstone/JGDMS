@@ -47,6 +47,11 @@
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-rmi-tls</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-destroy</artifactId>
             <version>${project.version}</version>
         </dependency>

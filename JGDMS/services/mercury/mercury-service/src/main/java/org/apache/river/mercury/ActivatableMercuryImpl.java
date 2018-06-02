@@ -19,6 +19,7 @@ package org.apache.river.mercury;
 
 import java.rmi.activation.ActivationID;
 import java.rmi.MarshalledObject;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
  * Convenience class intended for use with the 
@@ -29,7 +30,8 @@ import java.rmi.MarshalledObject;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-class ActivatableMercuryImpl extends MailboxImpl {
+class ActivatableMercuryImpl extends MailboxImpl  
+			     implements DynamicProxyCodebaseAccessor {
 
     /**
      * Constructs a new instance of <code>MailboxImpl</code> that is 

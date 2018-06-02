@@ -452,12 +452,12 @@ public class QATestUtils {
      *  @param deltaT time in milliseconds to sleep
      */
     public static void waitDeltaT(long deltaT, Object lock) throws Exception {
-        long finish = System.currentTimeMillis() + deltaT;
-        synchronized (lock){
-            do {
-                lock.wait(deltaT);
-            } while (finish > System.currentTimeMillis());
-        }
+	long finish = System.currentTimeMillis() + deltaT;
+	synchronized (lock){
+	    do {
+		    lock.wait(deltaT);
+	    } while (finish > System.currentTimeMillis());
+	}
 //	Thread.sleep(deltaT);
     }
 

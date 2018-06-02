@@ -115,7 +115,16 @@ public class UnicastResponse {
      * @return a string representation of this response
      */
     public String toString() {
-	return "UnicastResponse[" + host + ":" + port + ", " +
-	       Arrays.asList(groups) + ", " + registrar + "]";
+	StringBuilder sb = new StringBuilder(256);
+	sb.append("UnicastResponse[")
+	    .append(host)
+	    .append(":")
+	    .append(port)
+	    .append(", ")
+	    .append(Arrays.asList(groups))
+	    .append(", ")
+	    .append(registrar)
+	    .append("]");
+	return sb.toString();
     }
 }

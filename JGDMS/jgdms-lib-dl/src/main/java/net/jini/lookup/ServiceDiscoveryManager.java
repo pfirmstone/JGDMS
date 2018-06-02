@@ -1954,7 +1954,7 @@ public class ServiceDiscoveryManager {
                         sItemSet.add(items[i]);
                     }//endif
                 }//end loop
-                if (sItemSet.size() == minMatches) {
+                if (sItemSet.size() >= minMatches) {//River-466
                     break;
                 }
                 duration = cache.getLeaseDuration();

@@ -43,6 +43,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.x500.X500Principal;
+import net.jini.export.ProxyAccessor;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.io.MarshalOutputStream;
 import org.apache.river.api.io.ActivationGroupDescSerializer.CmdEnv;
 
@@ -56,12 +58,14 @@ import org.apache.river.api.io.ActivationGroupDescSerializer.CmdEnv;
  * @author peter
  */
 public class AtomicMarshalOutputStream extends MarshalOutputStream {
+    private static final Logger logger = Logger.getLogger("org.apache.river.api.io");
     
     final DelegateObjectOutputStream d;
     
+    final ClassLoader defaultLoader;
     
     public AtomicMarshalOutputStream(OutputStream out, Collection context) throws IOException {
-	this(out, context, false);
+	this(out, null, context, false);
     }
     
     /**
@@ -72,14 +76,15 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
      * ObjectOutputStream, if false, it's compatible with MarshalOutputStream.
      * @throws IOException
      */
-    public AtomicMarshalOutputStream(OutputStream out, Collection context, boolean objectOutputStreamMode) throws IOException{
+    public AtomicMarshalOutputStream(OutputStream out, ClassLoader defaultLoader, Collection context, boolean objectOutputStreamMode) throws IOException{
 	super(context);
+	this.defaultLoader= defaultLoader;
 	d = new DelegateObjectOutputStream(out, this, objectOutputStreamMode);
 	d.enableReplaceObject(true);
     }
     
     @Override
-    public void writeObjectOverride(Object obj) throws IOException {
+    public final void writeObjectOverride(Object obj) throws IOException {
 	d.writeObject(obj);
 	// This is where we check the number of Object's cached and
 	// reset if we're getting towards half our limit.
@@ -186,6 +191,20 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	return result;
     }
     
+    
+    /**
+     * This implementation replaces the following types in the stream:
+     * 
+     * 
+     * @param obj
+     * @return
+     * @throws IOException 
+     */
+    @Override
+    protected Object replaceObject(Object obj) throws IOException{
+	return d.defaultReplaceObject(obj);
+    }
+    
     @Override
     protected void writeClassDescriptor(ObjectStreamClass desc)
 	throws IOException
@@ -288,6 +307,40 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	@Override
 	public Object replaceObject(Object obj) throws IOException {
 	    numObjectsCached++;
+	    if (enableReplaceObject) {
+		return aout.replaceObject(obj);
+	    } else {
+		return defaultReplaceObject(obj);
+	    }
+	}
+	
+	Object defaultReplaceObject(Object obj) throws IOException {
+	    /* If we have a ProxyAccessor, lets replace it now, because it's
+	     * likely to support AtomicSerial, unlike other serializers that don't.
+	     */
+	    logger.log(Level.FINEST, "Object in stream instance of: {0}", obj.getClass());
+	    try {
+		if (obj instanceof DynamicProxyCodebaseAccessor ){
+		    logger.log(Level.FINEST, "Object in stream instance of DynamicProxyCodebaseAccessor");
+		    obj = 
+		    ProxySerializer.create(
+			    (DynamicProxyCodebaseAccessor) obj,
+			    aout.defaultLoader,
+			    aout.getObjectStreamContext()
+		    );
+		} else if (obj instanceof ProxyAccessor ) {
+		    logger.log(Level.FINEST, "Object in stream instance of ProxyAccessor");
+		    obj = 
+		    ProxySerializer.create(
+			    (ProxyAccessor) obj,
+			    aout.defaultLoader,
+			    aout.getObjectStreamContext()
+		    );
+		}
+	    } catch (IOException e) {
+		logger.log(Level.FINE, "Unable to create ProxyAccessorSerializer", e);
+		throw e;
+	    }
 	    Class c = obj.getClass();
 	    Class s = serializers.get(c);
 	    if (c.isAnnotationPresent(AtomicSerial.class)){} // Ignore
@@ -296,19 +349,19 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    else if (s != null){
 		try {
 		    Constructor constructor = s.getDeclaredConstructor(c);
-		    return constructor.newInstance(obj);
+		    obj = constructor.newInstance(obj);
 		} catch (NoSuchMethodException ex) {
-		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    logger.log(Level.FINE, "Unable to contruct serializer", ex);
 		} catch (SecurityException ex) {
-		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    logger.log(Level.FINE, "Unable to contruct serializer", ex);
 		} catch (InstantiationException ex) {
-		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    logger.log(Level.FINE, "Unable to contruct serializer", ex);
 		} catch (IllegalAccessException ex) {
-		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    logger.log(Level.FINE, "Unable to contruct serializer", ex);
 		} catch (IllegalArgumentException ex) {
-		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    logger.log(Level.FINE, "Unable to contruct serializer", ex);
 		} catch (InvocationTargetException ex) {
-		    Logger.getLogger(AtomicMarshalOutputStream.class.getName()).log(Level.SEVERE, null, ex);
+		    logger.log(Level.FINE, "Unable to contruct serializer", ex);
 		}
 	    }
 	    else if (obj instanceof Map) obj = new MapSerializer((Map) obj);
@@ -316,7 +369,7 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    else if (obj instanceof Collection) obj = new ListSerializer((Collection) obj);
 	    else if (obj instanceof Permission) obj = new PermissionSerializer((Permission) obj);
 	    else if (obj instanceof Throwable) obj = new ThrowableSerializer((Throwable) obj);
-	    if (enableReplaceObject) return aout.replaceObject(obj);
+	    logger.log(Level.FINEST, "Returning object in stream instance of: {0}", obj.getClass());
 	    return obj;
 	}
 

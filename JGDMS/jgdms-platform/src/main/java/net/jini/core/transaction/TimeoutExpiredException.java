@@ -77,8 +77,10 @@ public class TimeoutExpiredException extends TransactionException {
     
      /**
      * AtomicSerial constructor
-     * @param arg
-     * @throws IOException 
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
      */
     public TimeoutExpiredException(GetArg arg) throws IOException{
 	super(check(arg));

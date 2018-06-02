@@ -829,6 +829,18 @@ public final class HttpsEndpoint
 	public Connection connect(OutboundRequestHandle handle) {
 	    throw new AssertionError("wrong connect method called");
 	}
+	
+	@SuppressWarnings("EmptyMethod")
+	@Override
+	public boolean equals(Object o){
+	    return super.equals(o);
+	}
+
+	@SuppressWarnings("EmptyMethod")
+	@Override
+	public int hashCode() {
+	    return super.hashCode();
+	}
     }
 
     /* Implements Connection and HttpClientSocketFactory. */

@@ -31,8 +31,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>au.net.zeus.jgdms.group</groupId>
-            <artifactId>group-dl</artifactId>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>service-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

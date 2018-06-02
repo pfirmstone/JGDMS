@@ -40,7 +40,7 @@ import javax.security.auth.Subject;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.export.ProxyAccessor;
-import net.jini.lookup.ServiceCodebaseAccessor;
+import net.jini.export.CodebaseAccessor;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientSubject;
@@ -187,8 +187,8 @@ public abstract class EndpointBasedServer
 	    ServiceRegistrar reg = response.getRegistrar();
 	    if (reg instanceof ProxyAccessor){
 		Object proxy = ((ProxyAccessor) reg).getProxy();
-		if (proxy instanceof ServiceCodebaseAccessor){
-		    ServiceCodebaseAccessor sca = (ServiceCodebaseAccessor) proxy;
+		if (proxy instanceof CodebaseAccessor){
+		    CodebaseAccessor sca = (CodebaseAccessor) proxy;
 		    classAnnotation = sca.getClassAnnotation();
 		    certFactoryType = sca.getCertFactoryType();
 		    certPathEncoding = sca.getCertPathEncoding();

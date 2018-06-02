@@ -115,7 +115,7 @@ org.apache.river.logging.LogManager.level = INFO
 net.jini.config.level = INFO
 
 # For activation
-net.jini.activation.ActivatableInvocationHandler.level = INFO
+net.jini.activation.ActivatableInvocationHandler.level = FINE
 
 # For JRMP
 net.jini.jrmp.JrmpExporter.level = INFO
@@ -181,10 +181,10 @@ org.apache.river.discovery.level = INFO
 #org.apache.river.discovery.x500.level = INFO
 
 # For the Helper Utilities
-net.jini.discovery.LookupDiscovery.level = FINE
+net.jini.discovery.LookupDiscovery.level = INFO
 net.jini.discovery.LookupLocatorDiscovery.level = INFO
-net.jini.lookup.JoinManager.level = INFO
-net.jini.lookup.ServiceDiscoveryManager.level = INFO
+net.jini.lookup.JoinManager.level = FINE
+net.jini.lookup.ServiceDiscoveryManager.level = FINE
 net.jini.lease.LeaseRenewalManager.level = INFO
 
 # For Thread Pool Utilities
@@ -198,11 +198,15 @@ org.apache.river.start.level = INFO
 #org.apache.river.start.proxy.level = INFO
 #org.apache.river.start.resources.service.level = INFO
 #org.apache.river.start.service.starter.level = INFO
-#org.apache.river.start.sharedGroup.level = INFO
+#org.apache.river.start.group.SharedGroup.level = INFO
 #org.apache.river.start.wrapper.level = INFO
 
 # For Reggie
 org.apache.river.reggie.level = INFO
+org.apache.river.reggie.service.level = FINEST
+org.apache.river.reggie.discovery.level = INFO
+org.apache.river.reggie.event.level = FINE
+org.apache.river.reggie.snapshot.level = INFO
 
 # For Mahalo
 org.apache.river.mahalo.destroy.level = INFO

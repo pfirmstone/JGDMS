@@ -105,6 +105,10 @@
     <property name="river.lib-ext.dir" location="${river.home}/${lib-ext}"/>
     <property name="river.classes.dir" location="${river.home}/${build.classes}"/>
     <property name="river.src.dir" location="${river.home}/${src}"/>
+    <!--
+    <property name="keytool.providerpath" location="${river.lib.dir}/bcprov-jdk15on-1.59.jar"/>
+    <property name="keytool.provider" value="org.bouncycastle.jce.provider.BouncyCastleProvider"/>
+    -->
 
     <property name="debug" value="true"/>
     <property name="verbose" value="false"/>
@@ -304,11 +308,21 @@
         </sequential>
     </macrodef>
 
+    <!-- 19th May 2018 Java 1.8.0_162 truststore has to be jks, pkcs12 causes 
+    java.lang.RuntimeException: Unexpected error:
+        java.security.InvalidAlgorithmParameterException:
+            the trustAnchors parameter must be non-empty -->
     <macrodef name="truststore">
         <attribute name="target" />
         <attribute name="dir" default="trust" />
         <sequential>
             <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
                 <arg value="-import"/>
                 <arg value="-alias" />
                 <arg value="@{target}" />
@@ -324,29 +338,202 @@
             </exec>
         </sequential>
     </macrodef>
-
+    
+    <macrodef name="certreq">
+        <attribute name="target" />
+        <attribute name="dir" default="trust" />
+        <sequential>
+            <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
+                <arg value="-certreq"/>
+                <arg value="-alias" />
+                <arg value="@{target}" />
+                <arg value="-keystore" />
+                <arg value="@{dir}/@{target}.keystore" />
+                <arg value="-storepass"/>
+                <arg value="@{target}pw" />
+                <arg value="-file"/>
+                <arg value="@{dir}/@{target}.request" />
+            </exec>
+        </sequential>
+    </macrodef>
+    
+    <macrodef name="cacert">
+        <attribute name="dir" default="trust"/>
+        <attribute name="jtregdir"/>
+        <attribute name="bclib"/>
+        <attribute name="properties"/>
+        <sequential>
+            <java classname="CA" 
+                  fork="true" failonerror="true"
+                  logError="true">
+                <arg value="-CA"/>
+                <jvmarg value="-Djtreg.dir=@{jtregdir}"/>
+                <jvmarg value="-Djcsi.ca.conf=@{properties}"/>
+                <classpath>
+                    <pathelement location="@{bclib}/bcprov-jdk15on-154.jar"/>
+                    <pathelement location="@{bclib}/bcpkix-jdk15on-154.jar"/>
+                    <pathelement location="@{bclib}/bcmail-jdk15on-154.jar"/>
+                    <pathelement location="@{jtregdir}/certs"/>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+    
+    <macrodef name="signrequests">
+        <attribute name="dir" default="trust"/>
+        <attribute name="jtregdir"/>
+        <attribute name="bclib"/>
+        <attribute name="properties"/>
+        <sequential>
+            <java classname="CA" 
+                  fork="true" failonerror="true"
+                  logError="true">
+                <arg value="-CR"/>
+                <jvmarg value="-Djtreg.dir=@{jtregdir}"/>
+                <jvmarg value="-Djcsi.ca.conf=@{properties}"/>
+                <classpath>
+                    <pathelement location="@{bclib}/bcprov-jdk15on-154.jar"/>
+                    <pathelement location="@{bclib}/bcpkix-jdk15on-154.jar"/>
+                    <pathelement location="@{bclib}/bcmail-jdk15on-154.jar"/>
+                    <pathelement location="@{jtregdir}/certs"/>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+    
     <macrodef name="keystore">
         <attribute name="target" />
         <attribute name="dname" />
         <attribute name="dir" default="trust" />
         <sequential>
             <genkey keypass="@{target}pw" keystore="@{dir}/@{target}.keystore"
-                validity="1800" alias="@{target}" storepass="@{target}pw"
-                dname="CN=@{dname}" />
+                    sigalg="SHA256withRSA" keyalg="RSA" storetype="pkcs12"
+                    validity="1800" alias="@{target}" storepass="@{target}pw"
+                    dname="CN=@{dname}" />
             <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
                 <arg value="-export"/>
+                <arg value="-deststoretype"/>
+                <arg value="pkcs12"/>
                 <arg value="-alias" />
                 <arg value="@{target}" />
                 <arg value="-keystore" />
                 <arg value="@{dir}/@{target}.keystore" />
-                <arg value="-keypass" />
-                <arg value="@{target}" />
                 <arg value="-dname"/>
                 <arg value="@{dname}" />
                 <arg value="-storepass"/>
                 <arg value="@{target}pw" />
                 <arg value="-file"/>
                 <arg value="@{dir}/@{target}.cert" />
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="importkeystore">
+        <attribute name="target" />
+        <attribute name="keystore"/>
+        <attribute name="password"/>
+        <attribute name="dname" />
+        <attribute name="dir" default="trust" />
+        <sequential>
+            <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
+                <arg value="-importkeystore"/>
+                <arg value="-noprompt"/>
+                <arg value="-srckeystore"/>
+                <arg value="@{dir}/@{target}.keystore"/>
+                <arg value="-srcstorepass"/>
+                <arg value="@{target}pw"/>
+                <arg value="-srcalias"/>
+                <arg value="@{target}"/>
+                <arg value="-destkeystore" />
+                <arg value="@{dir}/@{keystore}" />
+                <arg value="-dname"/>
+                <arg value="@{dname}" />
+                <arg value="-storepass"/>
+                <arg value="@{password}" />
+                <arg value="-destalias"/>
+                <arg value="@{target}"/>
+                <!--<arg value="-file"/>
+                <arg value="@{dir}/@{target}.cert" />-->
+            </exec>
+        </sequential>
+    </macrodef>
+    
+    <macrodef name="importcert">
+        <attribute name="target" />
+        <attribute name="keystore"/>
+        <attribute name="password"/>
+        <attribute name="dname" />
+        <attribute name="dir" default="trust" />
+        <sequential>
+            <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
+                <arg value="-import"/>
+                <arg value="-noprompt"/>
+                <arg value="-alias" />
+                <arg value="@{target}" />
+                <arg value="-keystore" />
+                <arg value="@{dir}/@{keystore}" />
+                <arg value="-dname"/>
+                <arg value="@{dname}" />
+                <arg value="-storepass"/>
+                <arg value="@{password}" />
+                <arg value="-file"/>
+                <arg value="@{dir}/@{target}.cert" />
+            </exec>
+        </sequential>
+    </macrodef>
+    
+    <macrodef name="importchain">
+        <attribute name="target" />
+        <attribute name="keystore" />
+        <attribute name="password" />
+        <attribute name="dname" />
+        <attribute name="dir" default="trust" />
+        <sequential>
+            <exec executable="keytool" failonerror="true">
+                <!--
+                <arg value="-providerpath"/>
+                <arg value="${keytool.providerpath}"/>
+                <arg value="-provider"/>
+                <arg value="${keytool.provider}"/>
+                -->
+                <arg value="-import"/>
+                <arg value="-noprompt"/>
+                <arg value="-deststoretype"/>
+                <arg value="pkcs12"/>
+                <arg value="-alias" />
+                <arg value="@{target}" />
+                <arg value="-keystore" />
+                <arg value="@{dir}/@{keystore}" />
+                <arg value="-dname"/>
+                <arg value="@{dname}" />
+                <arg value="-storepass"/>
+                <arg value="@{password}" />
+                <arg value="-file"/>
+                <arg value="@{dir}/@{target}.chain" />
             </exec>
         </sequential>
     </macrodef>

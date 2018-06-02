@@ -37,6 +37,7 @@ import org.apache.river.jeri.internal.HttpsEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastClient;
 import aQute.bnd.annotation.headers.RequireCapability;
 import aQute.bnd.annotation.headers.ProvideCapability;
+import org.apache.river.discovery.Plaintext;
 
 /**
  * Implements the client side of the <code>net.jini.discovery.https</code>
@@ -88,7 +89,7 @@ class Client extends UnicastClient {
 					    Collection context)
 	throws IOException, ClassNotFoundException
 	{
-	    return super.readUnicastResponse(
+	    return Plaintext.readV2UnicastResponse(
 		in,
 		defaultLoader,
 		readAnnotationCertsGrantPerm(in,verifyCodebaseIntegrity),

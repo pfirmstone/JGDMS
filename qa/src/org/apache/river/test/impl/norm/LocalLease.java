@@ -29,13 +29,19 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import net.jini.config.Configuration;
+import net.jini.config.ConfigurationException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseException;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
+import net.jini.export.ProxyAccessor;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustIterator;
@@ -44,13 +50,15 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.config.Config;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * A lease implementation that is completely local for use in some of the 
  * QA test for the LeaseRenewalService
  */
 @AtomicSerial
-class LocalLease implements Lease, Serializable {
+class LocalLease implements Lease, Serializable, ProxyAccessor {
     /** 
      * Expiration time of the lease 
      */
@@ -81,6 +89,9 @@ class LocalLease implements Lease, Serializable {
      * @serial
      */
     private long id;
+    
+    
+    private Object proxy;
 
     private static ProxyTrustImpl getProxyTrust() {
         ProxyTrustImpl proxy = new ProxyTrustImpl();
@@ -97,8 +108,9 @@ class LocalLease implements Lease, Serializable {
 					   long bundle, 
 					   long id) 
     {
-	ProxyTrustImpl pt = getProxyTrust();
-	if (pt.getProxy() instanceof RemoteMethodControl) {
+	ProxyTrustImpl pti = getProxyTrust();
+	ProxyTrust pt = pti.getProxy();
+	if (pt instanceof RemoteMethodControl) {
 	    return new ConstrainableLocalLease(initExp, renewLimit, bundle, id, pt);
 	} else {
 	    return new LocalLease(initExp, renewLimit, bundle, id);
@@ -111,8 +123,9 @@ class LocalLease implements Lease, Serializable {
 					   long id,
 					   long count) 
     {
-	ProxyTrustImpl pt = getProxyTrust();
-	if (pt.getProxy() instanceof RemoteMethodControl) {
+	ProxyTrustImpl pti = getProxyTrust();
+	ProxyTrust pt = pti.getProxy();
+	if (pt instanceof RemoteMethodControl) {
 	    return new ConstrainableFailingLocalLease(initExp, renewLimit, bundle, id, count, pt);
 	} else {
 	    return new FailingLocalLease(initExp, renewLimit, bundle, id, count);
@@ -125,8 +138,9 @@ class LocalLease implements Lease, Serializable {
 					   long id,
 					   long count) 
     {
-	ProxyTrustImpl pt = getProxyTrust();
-	if (pt.getProxy() instanceof RemoteMethodControl) {
+	ProxyTrustImpl pti = getProxyTrust();
+	ProxyTrust pt = pti.getProxy();
+	if (pt instanceof RemoteMethodControl) {
 	    return new ConstrainableDestructingLocalLease(initExp, renewLimit, bundle, id, count, pt);
 	} else {
 	    return new DestructingLocalLease(initExp, renewLimit, bundle, id, count);
@@ -146,12 +160,14 @@ class LocalLease implements Lease, Serializable {
 	this.renewLimit = renewLimit;
 	this.bundle = bundle;
 	this.id = id;
+	this.proxy = CodebaseProxy.getCodebaseProxy();
     }
 
     LocalLease(long renewLimit,
 		long bundle,
 		int serialFormat,
 		long id,
+		Object proxy,
 		long expiration)
     {
 	this.renewLimit = renewLimit;
@@ -174,6 +190,7 @@ class LocalLease implements Lease, Serializable {
 	    }
 	}
 	this.expiration = expiration;
+	this.proxy = proxy;
     }
     
     LocalLease(GetArg arg) throws IOException {
@@ -181,6 +198,7 @@ class LocalLease implements Lease, Serializable {
 	    arg.get("bundle", 0L),
 	    arg.get("serialFormat", 0),
 	    arg.get("id", 0L),
+	    arg.get("proxy", null),
 	    ((RO)arg.getReader()).expiration);
     }
 
@@ -289,6 +307,11 @@ class LocalLease implements Lease, Serializable {
     @ReadInput
     private static ReadObject getRO(){
 	return new RO();
+    }
+
+    @Override
+    public Object getProxy() {
+	return proxy;
     }
 
     private static class RO implements ReadObject {
@@ -410,6 +433,53 @@ class LocalLease implements Lease, Serializable {
 	    return (obj instanceof LocalLease);
 	}
     }
+    
+    static class CodebaseProxy implements DynamicProxyCodebaseAccessor {
+	
+	private CodebaseProxy(){}
+	
+	static Object getCodebaseProxy() {
+	    try {
+		CodebaseProxy proxy = new CodebaseProxy();
+		Exporter exporter;
+		Configuration c = QAConfig.getConfig().getConfiguration();
+		exporter = Config.getNonNullEntry(
+			c, "test", "codebaseExporter", Exporter.class,
+			new BasicJeriExporter(
+				TcpServerEndpoint.getInstance(0),
+				new BasicILFactory(null, null, LocalLease.class.getClassLoader()),
+				true,
+				false
+			)
+		);
+		return exporter.export(proxy);
+	    } catch (ConfigurationException ex) {
+		throw new RuntimeException("Unable to export codebase proxy", ex);
+	    } catch (ExportException ex) {
+		throw new RuntimeException("Unable to export codebase proxy", ex);
+	    }
+	}
+	
+	@Override
+	public String getClassAnnotation() throws IOException {
+	    return CodebaseProvider.getClassAnnotation(LocalLease.class);
+	}
+
+	@Override
+	public String getCertFactoryType() throws IOException {
+	    return null;
+	}
+
+	@Override
+	public String getCertPathEncoding() throws IOException {
+	    return null;
+	}
+
+	@Override
+	public byte[] getEncodedCerts() throws IOException {
+	    return null;
+	}
+    }
 
     @AtomicSerial
     public static class ProxyTrustImpl
@@ -429,10 +499,17 @@ class LocalLease implements Lease, Serializable {
 	public ProxyTrustImpl() {
 	    try {
 		Configuration c = QAConfig.getConfig().getConfiguration();
-		Exporter exporter = (Exporter) c.getEntry("test",
-							  "testLeaseVerifierExporter",
-							  Exporter.class,
-							  null);
+		Exporter exporter = (Exporter)
+		    c.getEntry("test",
+			      "testLeaseVerifierExporter",
+			      Exporter.class,
+			      new BasicJeriExporter(
+				TcpServerEndpoint.getInstance(0),
+				new BasicILFactory(null, null, LocalLease.class.getClassLoader()),
+				true,
+				false
+			)
+		    );
 		if (exporter == null) {
 		    return; // configuration isn't secure
 		}

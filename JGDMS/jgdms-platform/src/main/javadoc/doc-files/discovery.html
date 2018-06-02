@@ -39,9 +39,12 @@ interfaces are:
 <p>
   <ul>
 
-    <li> <a href="../api/net/jini/discovery/DiscoveryManagement.html">        <code>net.jini.discovery.DiscoveryManagement</code></a>
-    <li> <a href="../api/net/jini/discovery/DiscoveryGroupManagement.html">   <code>net.jini.discovery.DiscoveryGroupManagement</code></a>
-    <li> <a href="../api/net/jini/discovery/DiscoveryLocatorManagement.html"> <code>net.jini.discovery.DiscoveryLocatorManagement</code></a>
+    <li> <a href="../api/net/jini/discovery/DiscoveryManagement.html">        
+            <code>net.jini.discovery.DiscoveryManagement</code></a>
+    <li> <a href="../api/net/jini/discovery/DiscoveryGroupManagement.html">   
+            <code>net.jini.discovery.DiscoveryGroupManagement</code></a>
+    <li> <a href="../api/net/jini/discovery/DiscoveryLocatorManagement.html"> 
+            <code>net.jini.discovery.DiscoveryLocatorManagement</code></a>
   </ul>
 <p>
 The discovery utilities also include a set of standard helper utility 
@@ -49,9 +52,12 @@ classes that implement one or more of the discovery management
 interfaces. The helper utility classes are:
 <p>
   <ul>
-    <li> <a href="../api/net/jini/discovery/LookupDiscovery.html">        <code>net.jini.discovery.LookupDiscovery</code></a>
-    <li> <a href="../api/net/jini/discovery/LookupLocatorDiscovery.html"> <code>net.jini.discovery.LookupLocatorDiscovery</code></a>
-    <li> <a href="../api/net/jini/discovery/LookupDiscoveryManager.html"> <code>net.jini.discovery.LookupDiscoveryManager</code></a>
+    <li> <a href="../api/net/jini/discovery/LookupDiscovery.html">        
+            <code>net.jini.discovery.LookupDiscovery</code></a>
+    <li> <a href="../api/net/jini/discovery/LookupLocatorDiscovery.html"> 
+            <code>net.jini.discovery.LookupLocatorDiscovery</code></a>
+    <li> <a href="../api/net/jini/discovery/LookupDiscoveryManager.html"> 
+            <code>net.jini.discovery.LookupDiscoveryManager</code></a>
   </ul>
 <p>
 Additional classes and packages:
@@ -67,13 +73,13 @@ The <i>Jini Discovery Utilities Specification</i> is available in
 <a href="../specs/html/discoveryutil-spec.html">html</a>.
 
 <p>
-<H3>Changes since the v2.2.0 release</H3>
-
-<dl>
-
-<dt><b>None</b></dt>
-
-</dl>
+<h3>Changes since the v2.2.0 release</h3>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-374'>RIVER-374</a>] -        
+    Review how LookupLocator is used to provide host and port details for LookupLocatorDiscovery
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-11'>RIVER-11</a>] -         
+    LookupLocatorDiscovery ignores new LookupLocator instances for which only constraints differ
+</li>
 <H3>Changes since the v2.1.1 release</H3>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-17'>RIVER-17</a>] -         
 Misleading logging message when discovery constraint checking is delayed
@@ -89,7 +95,8 @@ Unicast discovery should close socket in case of connection exception.
   <dd> Changes to the <a href="../api/net/jini/discovery/package-summary.html">
        <code>net.jini.discovery</code></a> package.
        <ul>
-       <li>Parsing of the input URL and host name arguments in the corresponding       <a href="../api/net/jini/discovery/ConstrainableLookupLocator.html">
+       <li>Parsing of the input URL and host name arguments in the corresponding       
+           <a href="../api/net/jini/discovery/ConstrainableLookupLocator.html">
        <code>ConstrainableLookupLocator</code></a> and
        <a href="../api/net/jini/core/discovery/LookupLocator.html">
        <code>LookupLocator</code></a> constructors has been made stricter;
@@ -131,7 +138,8 @@ Unicast discovery should close socket in case of connection exception.
        Discovery providers that support delayed constraint checking must implement the new
        <a href="../api/org/apache/river/discovery/MulticastAnnouncementDecoder.html">
        <code>MulticastAnnouncementDecoder</code></a>
-       and <a href="../api/org/apache/river/discovery/MulticastRequestDecoder.html">       <code>MulticastRequestDecoder</code></a> interfaces.
+       and <a href="../api/org/apache/river/discovery/MulticastRequestDecoder.html">      
+           <code>MulticastRequestDecoder</code></a> interfaces.
        <li>
        The <a href="../api/org/apache/river/discovery/DiscoveryConstraints.html">
        <code>DiscoveryConstraints</code></a> class supports processing of
@@ -149,7 +157,48 @@ Unicast discovery should close socket in case of connection exception.
   <dd> The current implementation of the <code>LookupDiscovery</code>
        utility now allows <code>ConnectionRelativeTime</code> and
        <code>ConnectionAbsoluteTime</code> as part of its discovery constraints.
- 
+<h2>Changes since the 1.1 release</h2>
+
+<p>
+<dl>
+<dt><b>The <code>net.jini.discovery.LookupDiscovery</code> and
+<code>net.jini.discovery.LookupLocatorDiscovery</code> utilities are
+now more multithreaded (BugID# 4346091 and 4397364)</b></dt>
+   <dd>Although the <code>LookupDiscovery</code> and the   
+   <code>LookupLocatorDiscovery</code> utilities
+   primarily perform raw socket communication with the appropriate
+   socket timeouts, the implementation of each utility previously
+   employed a single thread to retrieve and unmarshal the lookup
+   service proxies that were discovered. Furthermore, enhancements made
+   to the <code>LookupDiscovery</code> utility for the 1.1 release of
+   the Jini Technology Starter Kit (<i>starter kit</i>) resulted in
+   additional remote calls being made in that utility's single thread
+   of execution.  Because there is no timeout control on network
+   classloading, and because remote calls can take a very long time to
+   complete (or even appear to hang), performing such calls in a single
+   thread can greatly hinder the reliability and performance of either
+   utility. As a result of this threat to reliability, and since it is
+   not necessary for the remote calls to be performed sequentially in
+   either the <code>LookupDiscovery</code> or the
+   <code>LookupLocatorDiscovery</code> utility, the implementation of
+   each utility was changed to employ multiple threads that perform the
+   appropriate remote operations in parallel.</dd>
+<p>
+<dt><b>The <code>net.jini.discovery.LookupDiscovery</code> and
+<code>net.jini.discovery.LookupDiscoveryManager</code> utilities
+now provide multicast support for systems with multiple
+ Network Interface Cards (BugID# 4425446)</b></dt>
+
+   <dd>Previously, when an entity employed either the <code>LookupDiscovery</code>
+   or the <code>LookupDiscoveryManager</code> helper utility to participate
+   in the multicast (group) discovery process, only a single name or IP address 
+   could be used to configure the system to send and receive multicast
+   packets through the network interface card associated with the given
+   name or address. Now, a <i>list</i> of names and/or addresses can be
+   used to configure the system to send and receive multicast packets
+   through any (or all) of the interfaces in the system.</dd>
+</dl>
+<p> 
   
 <!-- No issues for now
 

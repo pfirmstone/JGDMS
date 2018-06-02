@@ -42,7 +42,7 @@ public interface SafeServiceRegistrar extends ServiceRegistrar{
      * granting permissions, local attribute filtering and ultimately
      * download of the service proxy codebase and unmarshalling of a service 
      * smart proxy.  Only in the case of a smart proxy, will the Bootstrap proxy
-     * implement ServiceCodebaseAccessor, which is an optional interface.
+     * implement CodebaseAccessor, which is an optional interface.
      * 
      * For this method to be secure, the client must use <code> AtomicInputValidation</code>,
      * <code> ConfidentialityStrength, ConfidentialityStrength#STRONG} </code> and
@@ -56,7 +56,7 @@ public interface SafeServiceRegistrar extends ServiceRegistrar{
      * @see net.jini.core.constraint.RemoteMethodControl
      * @see net.jini.lookup.ServiceProxyAccessor
      * @see net.jini.lookup.ServiceAttributesAccessor
-     * @see net.jini.lookup.ServiceCodebaseAccessor
+     * @see net.jini.export.CodebaseAccessor
      */
     Object [] lookUp(ServiceTemplate tmpl, int maxProxies) throws RemoteException;
     

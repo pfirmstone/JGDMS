@@ -23,8 +23,16 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import net.jini.export.DynamicProxyCodebaseAccessor;
+import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalFactory;
 import net.jini.io.MarshalInstanceInput;
 import net.jini.io.MarshalInstanceOutput;
@@ -34,6 +42,10 @@ import net.jini.io.ObjectStreamContext;
 /**
  * Implementation of MarshalledInstance that performs input validation 
  * during un-marshaling.
+ * 
+ * Note that this implementation doesn't replace the stored object instance
+ * if it's an instance of {@link ProxyAccessor}, but will replace any {@link ProxyAccessor}
+ * references it contains.
  * 
  * @author peter
  */
@@ -104,39 +116,95 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
     public AtomicMarshalledInstance(Object obj, final Collection context)
 	throws IOException
     {
-	super(obj, context, new AtomicMarshalFactoryInstance());
+	super(obj, context, new AtomicMarshalFactoryInstance(getLoader(obj)));
     }
     
     @Override
     protected final MarshalFactory getMarshalFactory(){
-	return new AtomicMarshalFactoryInstance();
+	return new AtomicMarshalFactoryInstance(null);
+    }
+    
+    static ClassLoader getLoader(final Object o){
+	if (o == null) return null;
+	return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>(){
+
+	    public ClassLoader run() {
+		return o.getClass().getClassLoader();
+	    }
+	    
+	});
     }
     
     static class AtomicMarshalFactoryInstance implements MarshalFactory {
-
-	@Override
-	public MarshalInstanceInput createMarshalInput(InputStream objIn,
-		InputStream locIn, 
-		ClassLoader defaultLoader,
-		boolean verifyCodebaseIntegrity,
-		ClassLoader verifierLoader,
-		Collection context) throws IOException 
-	{
-	    return new AtomicMarshalledInstanceInputStream(
-		    objIn,
-		    locIn,
-		    defaultLoader,
-		    verifyCodebaseIntegrity,
-		    verifierLoader,
-		    context
-	    );
+	private final ClassLoader defaultOutLoader;
+	
+	AtomicMarshalFactoryInstance(ClassLoader defaultOutLoader){
+	    this.defaultOutLoader = defaultOutLoader;
 	}
 
 	@Override
-	public MarshalInstanceOutput createMarshalOutput(OutputStream objOut, 
-		OutputStream locOut, Collection context) throws IOException 
+	public MarshalInstanceInput createMarshalInput(final InputStream objIn,
+		final InputStream locIn, 
+		final ClassLoader defaultLoader,
+		final boolean verifyCodebaseIntegrity,
+		final ClassLoader verifierLoader,
+		final Collection context) throws IOException 
 	{
-	    return new AtomicMarshalledInstanceOutputStream(objOut, locOut, context);
+	    try {
+		return AccessController.doPrivileged(
+		    new PrivilegedExceptionAction<MarshalInstanceInput>(){
+		    
+			public MarshalInstanceInput run() throws IOException {
+			    return new AtomicMarshalledInstanceInputStream(
+				    objIn,
+				    locIn,
+				    defaultLoader,
+				    verifyCodebaseIntegrity,
+				    verifierLoader,
+				    context
+			    );
+			}
+
+		    }
+		);
+	    } catch (PrivilegedActionException ex) {
+		Exception e = ex.getException();
+		if (e instanceof IOException) throw (IOException) e;
+		if (e instanceof RuntimeException) throw (RuntimeException) e;
+		throw new IOException(
+		    "Unknown exception type throw while creating AtomicMarshalInputStream",
+		    e);
+	    }
+	    
+	}
+
+	@Override
+	public MarshalInstanceOutput createMarshalOutput(
+		final OutputStream objOut, 
+		final OutputStream locOut, 
+		final Collection context) throws IOException 
+	{
+	    try {
+		return AccessController.doPrivileged(
+		    new PrivilegedExceptionAction<MarshalInstanceOutput>(){
+		    
+			public MarshalInstanceOutput run() throws IOException {
+			    return new AtomicMarshalledInstanceOutputStream(
+				    objOut, defaultOutLoader, context
+			    );
+			}
+
+		    }
+		);
+	    } catch (PrivilegedActionException ex) {
+		Exception e = ex.getException();
+		if (e instanceof IOException) throw (IOException) e;
+		if (e instanceof RuntimeException) throw (RuntimeException) e;
+		throw new IOException(
+		    "Unknown exception type throw while creating AtomicMarshalInputStream",
+		    e);
+	    }
+	    
 	}
     }
 	
@@ -144,12 +212,13 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
         extends AtomicMarshalOutputStream implements MarshalInstanceOutput
     {
 	/** The stream on which location objects are written. */
-	private final ObjectOutputStream locOut;
+//	private final ObjectOutputStream locOut;
  
 	/** <code>true</code> if non-<code>null</code> annotations are
 	 *  written.
 	 */
-	private boolean hadAnnotations;
+	private final boolean hadAnnotations;
+	private int count;
 
 	/**
 	 * Creates a new <code>AtomicMarshalledObjectOutputStream</code> whose
@@ -157,14 +226,29 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 * location annotations (if any) will be written to
 	 * <code>locOut</code>.
 	 */
-	public AtomicMarshalledInstanceOutputStream(OutputStream objOut,
-					      OutputStream locOut,
-					      Collection context)
+	public AtomicMarshalledInstanceOutputStream(OutputStream objOut, ClassLoader loader, Collection context)
 	    throws IOException
 	{
-	    super(objOut, context);
-	    this.locOut = new ObjectOutputStream(locOut);
+	    super(objOut, loader, context, true);
+//	    this.locOut = new ObjectOutputStream(locOut);
 	    hadAnnotations = false;
+	    super.enableReplaceObject(true);
+	    count = 0;
+	}
+	
+	@Override
+	protected Object replaceObject(Object obj) throws IOException {
+	    try {
+		// Never replace the first object written if it's a ProxyAccessor,
+		// this is to allow the serial form of a smart proxy to be
+		// stored by ProxyAccessorSerializer.
+		if (count == 0 
+		    && (obj instanceof ProxyAccessor 
+		    || obj instanceof DynamicProxyCodebaseAccessor)) return obj;
+		return super.replaceObject(obj);
+	    } finally {
+		count++;
+	    }
 	}
  
 	/**
@@ -182,14 +266,14 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 */
 	@Override
 	public void writeAnnotation(String loc) throws IOException {
-	    hadAnnotations |= (loc != null);
-	    locOut.writeObject(loc);
+//	    hadAnnotations |= (loc != null);
+//	    locOut.writeObject(loc);
 	}
 
 	@Override
 	public void flush() throws IOException {
 	    super.flush();
-	    locOut.flush();
+//	    locOut.flush();
 	}
     }
     
@@ -205,7 +289,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 * The stream from which annotations will be read.  If this is
 	 * <code>null</code>, then all annotations were <code>null</code>.
 	 */
-	private final ObjectInputStream locIn;
+//	private final ObjectInputStream locIn;
  
 	/**
 	 * Creates a new <code>AtomicMarshalledObjectInputStream</code> that
@@ -227,7 +311,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 		  verifyCodebaseIntegrity,
 		  verifierLoader,
 		  context);
-	    this.locIn = (locIn == null ? null : new ObjectInputStream(locIn));
+//	    this.locIn = (locIn == null ? null : new ObjectInputStream(locIn));
 	}
  
 	/**
@@ -239,7 +323,8 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	protected String readAnnotation()
 	    throws IOException, ClassNotFoundException
 	{
-	    return (locIn == null ? null : (String)locIn.readObject());
+//	    return (locIn == null ? null : (String)locIn.readObject());
+	    return null;
 	}
     }   
 }

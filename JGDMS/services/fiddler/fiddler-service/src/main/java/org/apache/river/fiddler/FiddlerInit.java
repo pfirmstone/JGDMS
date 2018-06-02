@@ -42,6 +42,7 @@ import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
@@ -83,6 +84,10 @@ class FiddlerInit {
     Configuration config;
     AccessControlContext context;
     LoginContext loginContext;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
     
     FiddlerInit(Configuration config,
                 boolean persistent, 
@@ -241,7 +246,7 @@ class FiddlerInit {
             /* Handle items and duties related to exporting this service. */
             ServerEndpoint endpoint = TcpServerEndpoint.getInstance(0);
             InvocationLayerFactory ilFactory = 
-		    new BasicILFactory(
+		    new AtomicILFactory(
 			null,
 			null,
 			Fiddler.class.getClassLoader()
@@ -267,7 +272,7 @@ class FiddlerInit {
                 activationID = (ActivationID)aidPreparer.prepareProxy
                                                                    (activID);
                 activationSystem = (ActivationSystem)aSysPreparer.prepareProxy
-                                                                (ActivationGroup.getSystem());
+			    (net.jini.activation.ActivationGroup.getSystem());
                 defaultExporter = new ActivationExporter(activationID,
                                                          defaultExporter);
             }//endif(activationID != null)
@@ -285,6 +290,16 @@ class FiddlerInit {
                                           +"retrieving service's exporter",
                                           e);
             }
+	    
+	    codebase = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_Annotation", String.class, "");
+	    certFactoryType = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_CertFactoryType", String.class, "X.509");
+	    certPathEncoding = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+	    encodedCerts = Config.getNonNullEntry(config, FiddlerImpl.COMPONENT_NAME,
+		    "Codebase_Certs", byte[].class, new byte[0]);
+	
         } catch(Throwable e) {
             cleanupInitFailure();
             handleActivatableInitThrowable(e);

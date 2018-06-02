@@ -96,7 +96,7 @@ public class AddRemoveTest extends AbstractLeaseRenewalServiceTest {
 	// remove the lease and make certain it is the same one we added
 	logger.log(Level.FINE, "Removing the managed lease from the set.");
 	Lease managedLease = set.remove(testLease);
-	if (managedLease.equals(testLease) == false) {
+	if (!testLease.equals(managedLease)) {
 	    String message = "Remove failed to return the lease whose\n";
 	    message += "removal was requested.";
 	    throw new TestException(message);

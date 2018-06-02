@@ -141,7 +141,7 @@ class ServiceDestroyer {
         boolean deactivated = false;
         for(int i = 0; i < nSecsWait; i++) {
             try {
-                ActivationGroup.getSystem().getActivationDesc(created.aid);
+                net.jini.activation.ActivationGroup.getSystem().getActivationDesc(created.aid);
             } catch (UnknownObjectException e) {
                 deactivated = true;
                 break;

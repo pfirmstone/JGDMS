@@ -118,12 +118,14 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.JoinManager;
 import net.jini.discovery.LookupDiscovery;
+import net.jini.export.CodebaseAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.thread.NamedThreadFactory;
 import org.apache.river.mercury.proxy.*;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * <tt>MailboxImpl</tt> implements the server side of the event 
@@ -159,7 +161,7 @@ See recoverSnapshot() for exact details of what gets retrieved.
 */
 
 public class MailboxImpl implements MailboxBackEnd, TimeConstants, 
-    ServerProxyTrust, ProxyAccessor, Startable,
+    ServerProxyTrust, ProxyAccessor, Startable, CodebaseAccessor,
     ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor
  
 {
@@ -429,7 +431,11 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private Configuration config;
     private Throwable thrown;
     private boolean started = false;
-    private AccessControlContext context;
+    private final AccessControlContext context;
+    private String codebase;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
     
     ///////////////////////
     // Activation Methods
@@ -634,7 +640,10 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
         this.config = init.config;
         this.loginContext = init.loginContext;
         context = init.context;
-
+	this.codebase = init.codebase;
+	this.certFactoryType = init.certFactoryType;
+	this.certPathEncoding = init.certPathEncoding;
+	this.encodedCerts = init.encodedCerts.clone();
         // Assign fields
         
         Thread snapShotter = null;
@@ -999,7 +1008,6 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
         } finally {
             config = null;
             thrown = null;
-            context = null;
             concurrentObj.writeUnlock();
         }
     }
@@ -2587,6 +2595,28 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		serviceID.getLeastSignificantBits());
     }
 
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(MailboxBackEnd.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
+    }
+
     /**
      * The notifieR thread.  This thread is responsible for delivering events
      * to client supplied notification targets when their associated 
@@ -3033,7 +3063,14 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        }
 		try {
 		    // Notify target listener and note a successful delivery
-		    listener.notify(ev);
+		    try {
+			AccessController.doPrivileged(
+			    new NotifyListener(listener, ev), 
+			    context
+			);
+		    } catch (PrivilegedActionException e){
+			throw e.getException();
+		    }
 		    succeeded = true;
     		    deleteEvent = true;
     	            if (DELIVERY_LOGGER.isLoggable(Level.FINEST)) {
@@ -3181,8 +3218,25 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     	    return succeeded;
     	}
+
+	
     }
 
+    private static class NotifyListener implements PrivilegedExceptionAction {
+
+	private final RemoteEventListener listener;
+	private final RemoteEvent event;
+
+	public NotifyListener(RemoteEventListener listener, RemoteEvent event) {
+	    this.listener = listener;
+	    this.event = event;
+	}
+
+	public Object run() throws Exception {
+	    listener.notify(event);
+	    return null;
+	}
+    }
 
     /**
      * Termination thread code.  We do this in a separate thread to

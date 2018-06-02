@@ -72,6 +72,7 @@ public class KeyStores {
      * <code>KeyStore</code> contents
      * @param type the type of <code>KeyStore</code> to create, or
      * <code>null</code> for the default type
+     * @param password the KeyStore's password.
      * @return the <code>KeyStore</code>, with contents read from
      * <code>location</code>
      * @throws GeneralSecurityException if there are problems with the contents
@@ -81,7 +82,7 @@ public class KeyStores {
      * <code>null</code>
      * @see #getX500Principal getX500Principal
      */
-    public static KeyStore getKeyStore(String location, String type)
+    public static KeyStore getKeyStore(String location, String type, String password)
 	throws GeneralSecurityException, IOException
     {
 	if (location == null) {
@@ -99,7 +100,7 @@ public class KeyStores {
 	    in = new BufferedInputStream(in);
 	    keystore = KeyStore.getInstance(
 		type != null ? type : KeyStore.getDefaultType());
-	    keystore.load(in, null);
+	    keystore.load(in, password != null ? password.toCharArray() : null);
 	    return keystore;
 	} finally {
 	    if (in != null) {
@@ -109,6 +110,45 @@ public class KeyStores {
 		}
 	    }
 	}
+    }
+    
+    /**
+     * <p>
+     * Returns a <code>KeyStore</code> initialized with contents read from a
+     * location specified as a file or URL. This method provides a convenient
+     * way to refer to keystores from within the source for a configuration,
+     * which may then be used with {@link #getX500Principal getX500Principal}
+     * to refer to principals. </p>
+     * <p>
+     * For example, a deployer that was using <code> SslServerEndpoint </code> might
+     * use the following in the source for a {@link ConfigurationFile} to
+     * supply principals for use in security constraints: </p>
+     *
+     * <pre>
+     *  Client {
+     *      private static users = KeyStores.getKeyStore("users.ks", null);
+     *      private static client = KeyStores.getX500Principal("client", users);
+     *      //...
+     *  }
+     * </pre>
+     *
+     * @param location the file name or URL containing the
+     * <code>KeyStore</code> contents
+     * @param type the type of <code>KeyStore</code> to create, or
+     * <code>null</code> for the default type
+     * @return the <code>KeyStore</code>, with contents read from
+     * <code>location</code>
+     * @throws GeneralSecurityException if there are problems with the contents
+     * @throws IOException if an I/O error occurs when reading from
+     * <code>location</code>
+     * @throws NullPointerException if <code>location</code> is
+     * <code>null</code>
+     * @see #getX500Principal getX500Principal
+     */
+    public static KeyStore getKeyStore(String location, String type)
+	throws GeneralSecurityException, IOException
+    {
+	return getKeyStore(location, type, null);
     }
 
     /**

@@ -17,6 +17,7 @@
  */
 package org.apache.river.test.share;
 
+import java.io.IOException;
 import net.jini.core.lease.*;
 
 import java.rmi.RemoteException;
@@ -25,13 +26,13 @@ import java.util.Iterator;
 import java.util.HashMap;
 import java.util.ConcurrentModificationException;
 
-import net.jini.config.Configuration;
-import net.jini.export.Exporter;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.ProxyTrust;
-import net.jini.security.TrustVerifier;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.export.ProxyAccessor;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Implementaion of <code>LeaseMap</code> for <code>TestLease</code>.
@@ -39,7 +40,9 @@ import net.jini.core.constraint.MethodConstraints;
  * @see LandlordLease
  * @see net.jini.core.lease.LeaseMap
  */
-class TestLeaseMap extends OurAbstractLeaseMap implements RemoteMethodControl {
+@AtomicSerial
+class TestLeaseMap extends OurAbstractLeaseMap 
+		implements RemoteMethodControl, ProxyAccessor {
     /**
      * Home which this map will talk to.
      *
@@ -60,6 +63,16 @@ class TestLeaseMap extends OurAbstractLeaseMap implements RemoteMethodControl {
     TestLeaseMap(LeaseBackEnd home, Lease lease, long duration) {
 	super(lease, duration);
 	this.home = home;
+    }
+    
+    private static GetArg check(GetArg arg) throws IOException {
+	arg.get("home", null, LeaseBackEnd.class);
+	return arg;
+    }
+    
+    TestLeaseMap(GetArg arg) throws IOException{
+	super(check(arg));
+	this.home = arg.get("home", null, LeaseBackEnd.class);
     }
 
     // inherit doc comment
@@ -145,6 +158,11 @@ class TestLeaseMap extends OurAbstractLeaseMap implements RemoteMethodControl {
 
 	if (bad != null)
 	    throw new LeaseMapException("renewing", bad);
+    }
+
+    @Override
+    public Object getProxy() {
+	return home;
     }
 
     protected class IteratorImpl implements ProxyTrustIterator {

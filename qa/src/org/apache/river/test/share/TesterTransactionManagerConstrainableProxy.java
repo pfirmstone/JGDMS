@@ -17,25 +17,10 @@
  */
 package org.apache.river.test.share;
 
-import org.apache.river.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.io.ObjectInputStream;
-import java.lang.reflect.Method;
-import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
-import javax.security.auth.Subject;
-import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.discovery.LookupLocator;
-import net.jini.core.event.RemoteEventListener;
-import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceItem;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceTemplate;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
+import net.jini.core.transaction.server.TransactionManager;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;

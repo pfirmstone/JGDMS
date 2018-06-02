@@ -19,7 +19,6 @@ package org.apache.river.outrigger;
 
 import java.util.Map;
 import java.io.IOException;
-import java.rmi.Remote;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationID;
@@ -34,7 +33,6 @@ import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.UnknownTransactionException;
 import net.jini.core.transaction.server.TransactionManager;
-import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.export.ProxyAccessor;
@@ -44,7 +42,12 @@ import net.jini.space.InternalSpaceException;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.config.ConfigurationException;
+import net.jini.core.lookup.ServiceID;
+import net.jini.export.CodebaseAccessor;
 import net.jini.id.Uuid;
+import net.jini.lookup.ServiceAttributesAccessor;
+import net.jini.lookup.ServiceIDAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 
 import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
@@ -64,7 +67,9 @@ import org.apache.river.outrigger.proxy.MatchSetData;
  * @since 2.0
  */
 public class OutriggerServerWrapper 
-    implements OutriggerServer, ServerProxyTrust, ProxyAccessor, Startable
+    implements OutriggerServer, ServerProxyTrust, ProxyAccessor, Startable,
+	ServiceProxyAccessor,
+	       ServiceAttributesAccessor, ServiceIDAccessor, CodebaseAccessor
 {
     /** The object being delegated to */     
     private final OutriggerServerImpl delegate;
@@ -491,5 +496,36 @@ public class OutriggerServerWrapper
 
     public void start() throws IOException, ConfigurationException, LoginException {
         delegate.start();
+    }
+
+    @Override
+    public Entry[] getServiceAttributes() throws IOException {
+	gate();
+	return delegate.getServiceAttributes();
+    }
+
+    @Override
+    public ServiceID serviceID() throws IOException {
+	return delegate.serviceID();
+    }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return delegate.getClassAnnotation();
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return delegate.getCertFactoryType();
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return delegate.getCertPathEncoding();
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return delegate.getEncodedCerts();
     }
 }

@@ -33,6 +33,7 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSource;
@@ -614,18 +615,23 @@ public class ActivateWrapper implements Remote, Serializable {
             // Create ProtectionDomain for given codesource
 	    cs = new CodeSource(urls[i], certs);
 	    pd = new ProtectionDomain(cs, null, null, null);
+	    AccessControlContext acc = 
+		    new AccessControlContext(new ProtectionDomain[]{pd});
+	    SecurityManager sm = System.getSecurityManager();
  	    logger.log(Level.FINEST, 
 	        "Checking protection domain: {0}", pd);
 	    
 	    // Check if current domain allows desired permission
-	    if(!pd.implies(perm)) {
-	        SecurityException se =  new SecurityException(
+	    try {
+		sm.checkPermission(perm, acc);
+	    } catch (SecurityException e){
+		SecurityException se =  new SecurityException(
 		    "ProtectionDomain " + pd
 		    + " does not have required permission: " + perm);
                 logger.throwing(ActivateWrapper.class.getName(), 
 	            "checkPolicyPermission", se);
 		throw se;
-    	    }
+	    }
         }
         logger.exiting(ActivateWrapper.class.getName(), 
 	    "checkPolicyPermission");

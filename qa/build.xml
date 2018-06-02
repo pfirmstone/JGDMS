@@ -85,10 +85,10 @@
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
     <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
         default: none -->
-    <property name="harness.configs" value="none"/>
+    <property name="harness.configs" value="jsse"/>
     <!-- possible values: activatable,transient,persistent
         default: transient -->
-    <property name="harness.servicemode" value="transient"/>
+    <property name="harness.servicemode" value="activatable"/>
     <!-- enable this property if you want the QA harness to generate
         HTML reports for each test in the qa/results directory -->
     <property name="harness.generateHtml" value="false"/>
@@ -129,6 +129,8 @@
                 <include name="*.cert" />
                 <include name="*.password" />
                 <include name="*.keystore" />
+                <include name="*.request" />
+                <include name="*.key" />
                 <include name="truststore" />
             </fileset>
         </delete>
@@ -203,7 +205,7 @@
         <!--Code Coverage Options-->
         <!--<echo file="${jtreg.dir}/test.props" message="jcov.options=" append="true"/>-->
         <mkdir dir="${jtreg.dir}/JTlib-tmp" />
-        <move todir="${jtreg.dir}/JTlib-tmp">
+        <copy todir="${jtreg.dir}/JTlib-tmp">
             <filelist dir="${river.lib.dir}">
                 <file name="jgdms-collections-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
@@ -232,7 +234,7 @@
                 <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
                 <file name="phoenix-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
-        </move>
+        </copy>
         <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
         <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
@@ -258,14 +260,14 @@
              * 20 - Print full test entry and pass/fail for every test.
              * 25 - Include passing results.
              * 30 - Include additional test debugging output, including time. -->
-            <arg value="-DtestLevel=5"/>
+            <arg value="-DtestLevel=30"/>
             <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
             <!--<arg value="-Djavax.net.debug=ssl"/>-->
-            <!-- For an unknown reason the following property is ignored -->
-            <arg value="-Djavatest.maxOutputSize=300000"/>
+            <!--<arg value="-J-Djavatest.maxOutputSize=300000"/>-->
             <!--<arg value="net/jini/jeri/kerberos/UnitTests/runTestPerformance.sh" />-->
             <!--<arg value="-Bug:6307813"/>-->
             <!--<arg value="-Bug:4408449"/>-->
+            <!--<arg value="-Bug:6313626"/>-->
             <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
             <!--<arg value="net/jini/security/Security/implicitGrants/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
@@ -275,7 +277,7 @@
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
             <!--<arg value="net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java"/>-->
         </jtreg>
-        <move todir="${river.lib.dir}">
+        <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
                 <file name="jgdms-collections-3.0-SNAPSHOT.jar"/>
                 <file name="jgdms-iiop-3.0-SNAPSHOT.jar"/>
@@ -300,13 +302,13 @@
                 <file name="classserver.jar"/>
                 <file name="high-scale-lib.jar"/>-->
             </filelist>
-        </move>
-        <move todir="${river.lib-dl.dir}">
+        </delete>
+        <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
                 <file name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>        
                 <file name="phoenix-dl-3.0-SNAPSHOT.jar"/>
             </filelist>
-        </move>
+        </delete>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
@@ -418,9 +420,14 @@
                         <include name="jgdms-url-integrity-3.0-SNAPSHOT.jar"/>
                         <include name="classdep-3.0-SNAPSHOT.jar"/>
                         <include name="classserver-3.0-SNAPSHOT.jar"/>
+                        <include name="service-starter-3.0-SNAPSHOT.jar"/>
                         <include name="asm-5.0.1.jar"/>
                         <include name="asm-commons-5.0.1.jar"/>
                         <include name="high-scale-lib-1.0.6.jar"/>
+                        <include name="bcprov-jdk15on-1.59.jar"/>
+                        <include name="bctls-jdk15on-1.59.jar"/>
+                        <!-- The next must be manually copied -->
+                        <include name="security-policy-debug-3.0-SNAPSHOT.jar"/>
                     </fileset>
                     <fileset dir="${river.lib-dl.dir}">
                         <include name="jgdms-lib-dl-3.0-SNAPSHOT.jar"/>
@@ -2191,6 +2198,9 @@
         <delete>
             <fileset dir="${trust.dir}" >
                 <include name="*.keystore" />
+                <include name="*.request"/>
+                <include name="*.chain"/>
+                <include name="*.key"/>
                 <include name="*.cert" /> <!-- keystore macro sideeffect? -->
             </fileset>
         </delete>
@@ -2203,6 +2213,30 @@
         <keystore target="mahalo" dir="${trust.dir}" dname="Mahalo" />
         <keystore target="fiddler" dir="${trust.dir}" dname="Fiddler" />
         <keystore target="group" dir="${trust.dir}" dname="Group" />
+        <certreq target ="tester" dir="${trust.dir}" />
+        <certreq target="reggie" dir="${trust.dir}" />
+        <certreq target="phoenix" dir="${trust.dir}"  />
+        <certreq target="mercury" dir="${trust.dir}"  />
+        <certreq target="norm" dir="${trust.dir}" />
+        <certreq target="outrigger" dir="${trust.dir}" />
+        <certreq target="mahalo" dir="${trust.dir}"  />
+        <certreq target="fiddler" dir="${trust.dir}" />
+        <certreq target="group" dir="${trust.dir}"  />
+        <cacert dir="${trust.dir}" jtregdir="${jtreg.dir}" 
+                bclib="${jtreg.dir}/certs/lib/bouncy-castle"
+                properties="${trust.dir}/test-ca.properties"/>
+        <signrequests dir="${trust.dir}" jtregdir="${jtreg.dir}" 
+                bclib="${jtreg.dir}/certs/lib/bouncy-castle"
+                properties="${trust.dir}/test-ca.properties"/>
+        <importchain target="tester" keystore="tester.keystore" password="testerpw" dir="${trust.dir}" dname="Tester" />
+        <importchain target="reggie" keystore="reggie.keystore" password="reggiepw" dir="${trust.dir}" dname="Reggie" />
+        <importchain target="phoenix" keystore="phoenix.keystore" password="phoenixpw" dir="${trust.dir}" dname="Phoenix" />
+        <importchain target="mercury" keystore="mercury.keystore" password="mercurypw" dir="${trust.dir}" dname="Mercury" />
+        <importchain target="norm" keystore="norm.keystore" password="normpw" dir="${trust.dir}" dname="Norm" />
+        <importchain target="outrigger" keystore="outrigger.keystore" password="outriggerpw" dir="${trust.dir}" dname="Outrigger" />
+        <importchain target="mahalo" keystore="mahalo.keystore" password="mahalopw" dir="${trust.dir}" dname="Mahalo" />
+        <importchain target="fiddler" keystore="fiddler.keystore" password="fiddlerpw" dir="${trust.dir}" dname="Fiddler" />
+        <importchain target="group" keystore="group.keystore" password="grouppw" dir="${trust.dir}" dname="Group" />
     </target>
 
     <target name="are-keystores-available" >
@@ -2229,6 +2263,16 @@
                 <available file="${trust.dir}/mahalo.cert" />
                 <available file="${trust.dir}/fiddler.cert" />
                 <available file="${trust.dir}/group.cert" />
+                
+                <available file="${trust.dir}/tester.request" />
+                <available file="${trust.dir}/reggie.request" />
+                <available file="${trust.dir}/phoenix.request" />
+                <available file="${trust.dir}/mercury.request" />
+                <available file="${trust.dir}/norm.request" />
+                <available file="${trust.dir}/outrigger.request" />
+                <available file="${trust.dir}/mahalo.request" />
+                <available file="${trust.dir}/fiddler.request" />
+                <available file="${trust.dir}/group.request" />
             </and>
         </condition>
     </target>
@@ -2264,15 +2308,18 @@
 
     <target name="truststore">
         <delete file="${trust.dir}/truststore" quiet="true" />
-        <truststore target="tester" dir="${trust.dir}" />
-        <truststore target="reggie" dir="${trust.dir}" />
-        <truststore target="mercury" dir="${trust.dir}" />
-        <truststore target="norm" dir="${trust.dir}" />
-        <truststore target="phoenix" dir="${trust.dir}" />
-        <truststore target="outrigger" dir="${trust.dir}" />
-        <truststore target="mahalo" dir="${trust.dir}" />
-        <truststore target="fiddler" dir="${trust.dir}" />
-        <truststore target="group" dir="${trust.dir}" />
+        <!--<truststore target="test-ca" dir="${trust.dir}" />-->
+        <importcert target="tester" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Tester" />
+        <importcert target="reggie" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Reggie" />
+        <importcert target="phoenix" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Phoenix" />
+        <importcert target="mercury" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Mercury" />
+        <importcert target="norm" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Norm" />
+        <importcert target="outrigger" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Outrigger" />
+        <importcert target="mahalo" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Mahalo" />
+        <importcert target="fiddler" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Fiddler" />
+        <importcert target="group" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Group" />
+        <importcert target="test-ca" keystore="truststore" password="trustpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
     </target>
 
 </project>

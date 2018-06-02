@@ -20,6 +20,7 @@ package org.apache.river.qa.harness;
 import java.io.File;
 import java.io.Serializable;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 import net.jini.loader.ClassLoading;
+import org.apache.river.config.LocalHostLookup;
 
 /**
  * The <code>TestDescription</code> is an object which describes a test;
@@ -237,13 +239,15 @@ public class TestDescription implements Serializable {
      *                       or is empty
      */
     private void updateDescriptionProps(Properties props) throws TestException {
-	Set<Entry<Object,Object>> keys = props.entrySet();
-        Iterator <Entry<Object,Object>> it = keys.iterator();
-	while (it.hasNext()) {
-            Entry<Object,Object> ent = it.next();
-	    String key = (String) ent.getKey();
-	    if (keyOK(key)) {
-		properties.setProperty(key, (String) ent.getValue());
+	synchronized (props){
+	    Set<Entry<Object,Object>> keys = props.entrySet();
+	    Iterator <Entry<Object,Object>> it = keys.iterator();
+	    while (it.hasNext()) {
+		Entry<Object,Object> ent = it.next();
+		String key = (String) ent.getKey();
+		if (keyOK(key)) {
+		    properties.setProperty(key, (String) ent.getValue());
+		}
 	    }
 	}
     }
@@ -605,12 +609,8 @@ public class TestDescription implements Serializable {
     String[] getCommandLine(Properties overrides) throws TestException {
 	config.setOverrides(overrides);
 	String testClass   = getTestClassName();
-	ArrayList cmdList = new ArrayList(10);
+	ArrayList cmdList = new ArrayList(64);
 	cmdList.add(getJVM());
-        // Uncomment the following line if you want to debug permission requests
-//        cmdList.add("-Djava.security.manager=org.apache.river.tool.SecurityPolicyWriter");
-//        cmdList.add("-Djava.security.manager=java.lang.SecurityManager");
-        cmdList.add("-Djava.security.manager=org.apache.river.api.security.CombinerSecurityManager");
 	cmdList.add("-Djava.security.policy=" + getPolicyFile());
 	if (getCodebase() != null) {
 	    cmdList.add("-Djava.rmi.server.codebase=" + getCodebase());
@@ -640,13 +640,14 @@ public class TestDescription implements Serializable {
         }
         // Add test description properties
         Properties tdProp = getProperties();
-        Set<Entry<Object,Object>> tdPropSet = tdProp.entrySet();
-        Iterator<Entry<Object,Object>> it = tdPropSet.iterator();
-        while (it.hasNext()){
-            Entry<Object,Object> ent = it.next();
-            propAdd(cmdList, (String) ent.getKey(), (String) ent.getValue());
-        }
-        
+	synchronized (tdProp){
+	    Set<Entry<Object,Object>> tdPropSet = tdProp.entrySet();
+	    Iterator<Entry<Object,Object>> it = tdPropSet.iterator();
+	    while (it.hasNext()){
+		Entry<Object,Object> ent = it.next();
+		propAdd(cmdList, (String) ent.getKey(), (String) ent.getValue());
+	    }
+	}
 	cmdList.add(getWrapperClassName());
 	String[] args = getTestArgs();
 	for (int i = 0; i < args.length; i++) {

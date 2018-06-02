@@ -59,7 +59,9 @@ public final class GetLeasesResult implements Serializable {
      * @param marshalledLeases the leases being returned by the call
      */
     public GetLeasesResult(MarshalledInstance[] marshalledLeases) {
-	this.marshalledLeases = marshalledLeases.clone();
+	this.marshalledLeases = 
+		marshalledLeases != null ?
+		marshalledLeases.clone() : new MarshalledInstance[0];
     }
 
     GetLeasesResult(GetArg arg) throws IOException {

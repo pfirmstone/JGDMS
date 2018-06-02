@@ -36,7 +36,7 @@
     </properties>
 
     <dependencies>  
-         <dependency>
+        <dependency>
             <groupId>biz.aQute.bnd</groupId>
             <artifactId>biz.aQute.bnd.annotation</artifactId>
             <version>3.3.0</version>
@@ -58,6 +58,12 @@
             <version>4.6</version>
             <scope>test</scope>
         </dependency>
+        <!--<dependency>
+            <groupId>bouncycastle</groupId>
+            <artifactId>bcprov-jdk14</artifactId>
+            <version>132</version>
+            <type>jar</type>
+        </dependency>-->
     </dependencies>
 
     <build>
@@ -198,6 +204,13 @@
                         </additionalDependency>
                     </additionalDependencies>
 -->
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <configuration>
+                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
                 </configuration>
             </plugin>
         </plugins>

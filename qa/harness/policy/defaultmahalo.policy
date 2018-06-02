@@ -1,8 +1,10 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mahalo.dl.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+{
     permission java.security.AllPermission "", "";
 };
 

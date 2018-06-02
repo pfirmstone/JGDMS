@@ -25,8 +25,6 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.BufferOverflowException;
@@ -36,8 +34,11 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CoderResult;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -57,15 +58,17 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
+import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
+import net.jini.io.MarshalInputStream;
+import net.jini.io.MarshalOutputStream;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * Provides utility methods for plaintext data operations.
@@ -90,6 +93,7 @@ public class Plaintext {
 	supportedConstraints.add(ClientMinPrincipal.class);
 	supportedConstraints.add(ClientMinPrincipalType.class);
 	supportedConstraints.add(ServerMinPrincipal.class);
+	supportedConstraints.add(ServerMaxPrincipal.class);
 	supportedConstraints.add(DelegationAbsoluteTime.class);
 	supportedConstraints.add(DelegationRelativeTime.class);
     }
@@ -305,7 +309,7 @@ public class Plaintext {
 	    throw new DiscoveryProtocolException(null, e);
 	}
     }
-
+    
     /**
      * Encodes multicast announcement according to the
      * net.jini.discovery.plaintext format.
@@ -361,7 +365,7 @@ public class Plaintext {
 	    throw new DiscoveryProtocolException(null, e);
 	}
     }
-
+    
     /**
      * Decodes multicast announcement according to the
      * net.jini.discovery.plaintext format.
@@ -389,7 +393,7 @@ public class Plaintext {
 	    // read LUS service ID
 	    long idhi = buf.getLong();
 	    long idlo = buf.getLong();
-
+	    
 	    return new MulticastAnnouncement(
 		seq, host, port, groups, new ServiceID(idhi, idlo));
 
@@ -397,7 +401,7 @@ public class Plaintext {
 	    throw new DiscoveryProtocolException(null, e);
 	}
     }
-
+    
     /**
      * Writes unicast response according to the net.jini.discovery.plaintext
      * format.
@@ -434,16 +438,72 @@ public class Plaintext {
 		    if (o instanceof AtomicValidationEnforcement &&
 			    ((AtomicValidationEnforcement)o).enforced())
 		    {
-			mi = new AtomicMarshalledInstance(registrar, context);
-			break;
+			throw new UnsupportedConstraintException(
+				"Constraint not supported: "
+				+ AtomicInputValidation.YES
+			);
 		    }
 		}
+	    } else { // Avoid NPE.
+		context = Collections.EMPTY_SET;
 	    }
-	    if (mi == null) mi = new MarshalledInstance(registrar, context);
-	    new AtomicMarshalOutputStream(out, context, true).writeObject(mi);
+	    mi = new MarshalledInstance(registrar, context);
+	    new MarshalOutputStream(out, context).writeObject(mi);
 	} catch (RuntimeException e) {
 	    throw new DiscoveryProtocolException(null, e);
 	}
+    }
+    
+     /**
+     * Writes unicast response according to the net.jini.discovery.plaintext
+     * format, with the exception that the registrar proxy is written using
+     * AtomicMarshalOutputStream, compatible with MarshalOutputStream
+     * format (codebase annotations are written to the stream).
+     * 
+     * This implementation doesn't transmit a MarshalledInstance, instead
+     * it serializes the proxy directly.
+     */
+    public static void writeV2UnicastResponse(OutputStream out,
+					    UnicastResponse response,
+					    Collection context)
+	throws IOException
+    {
+	try {
+	    DataOutput dout = new DataOutputStream(out);
+
+	    // write LUS host
+	    dout.writeUTF(response.getHost());
+
+	    // write LUS port
+	    dout.writeShort(intToUshort(response.getPort()));
+
+	    // write LUS member groups
+	    String[] groups = response.getGroups();
+	    dout.writeInt(groups.length);
+	    for (int i = 0; i < groups.length; i++) {
+		dout.writeUTF(groups[i]);
+	    }
+
+	    // write LUS proxy
+	    // Note this instance is compatible with MarshalOutputStream,
+	    // it writes codebase annotations, it isn't compatible with
+	    // ObjectOutputStream
+	    Object registrar = response.getRegistrar();
+	    new AtomicMarshalOutputStream(out, getLoader(registrar), context, true).writeObject(registrar);
+	} catch (RuntimeException e) {
+	    throw new DiscoveryProtocolException(null, e);
+	}
+    }
+    
+    static ClassLoader getLoader(final Object o){
+	if (o == null) return null;
+	return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>(){
+
+	    public ClassLoader run() {
+		return o.getClass().getClassLoader();
+	    }
+	    
+	});
     }
 
     /**
@@ -451,6 +511,71 @@ public class Plaintext {
      * format.
      */
     public static UnicastResponse readUnicastResponse(
+					    InputStream in,
+					    ClassLoader defaultLoader,
+					    boolean verifyCodebaseIntegrity,
+					    ClassLoader verifierLoader,
+					    Collection context)
+	throws IOException, ClassNotFoundException
+    {
+	try {
+	    
+	    if (context != null){
+		for (Object o : context){
+		    if (o instanceof AtomicValidationEnforcement &&
+			    ((AtomicValidationEnforcement)o).enforced())
+		    {
+			throw new UnsupportedConstraintException(
+				"Unsupported constraint: " 
+				+ AtomicInputValidation.YES
+			);
+		    }
+		}
+	    }
+	    
+	    DataInput din = new DataInputStream(in);
+
+	    // read LUS host
+	    String host = din.readUTF();
+
+	    // read LUS port
+	    int port = din.readUnsignedShort();
+
+	    // read LUS member groups
+	    String[] groups = new String[din.readInt()];
+	    for (int i = 0; i < groups.length; i++) {
+		groups[i] = din.readUTF();
+	    }
+
+	    // read LUS proxy
+	    MarshalledInstance mi = (MarshalledInstance) 
+		new MarshalInputStream(
+			in,
+			defaultLoader,
+			verifyCodebaseIntegrity,
+			verifierLoader,
+			context
+		).readObject();
+	    
+	    ServiceRegistrar reg = (ServiceRegistrar) mi.get(
+		defaultLoader,
+		verifyCodebaseIntegrity,
+		verifierLoader,
+		context);
+
+	    return new UnicastResponse(host, port, groups, reg);
+
+	} catch (RuntimeException e) {
+	    throw new DiscoveryProtocolException(null, e);
+	}
+    }
+    
+    /**
+     * Reads unicast response similar to the net.jini.discovery.plaintext
+     * format, but with the exception of not using a MarshalledInstance of
+     * the Proxy, but an AtomicMarshalInputStream to directly receive it instead.
+     */
+    public static UnicastResponse readV2UnicastResponse(
 					    InputStream in,
 					    ClassLoader defaultLoader,
 					    boolean verifyCodebaseIntegrity,
@@ -473,33 +598,16 @@ public class Plaintext {
 		groups[i] = din.readUTF();
 	    }
 
-	    // read LUS proxy
-	    MarshalledInstance mi = (MarshalledInstance) 
-		AtomicMarshalInputStream.createObjectInputStream(
-			in,
-			defaultLoader,
-			verifyCodebaseIntegrity,
-			verifierLoader,
-			context
-		).readObject();
-	    if (context != null){
-		for (Object o : context){
-		    if (o instanceof AtomicValidationEnforcement &&
-			    ((AtomicValidationEnforcement)o).enforced())
-		    {
-			if (!(mi instanceof AtomicMarshalledInstance))
-			    throw new IOException(
-			"Unable to deserialize ServiceRegistrar proxy, atomic input validation not supported");
-			break;
-		    }
-		}
-	    }
-	    ServiceRegistrar reg = (ServiceRegistrar) mi.get(
-		defaultLoader,
-		verifyCodebaseIntegrity,
-		verifierLoader,
-		context);
-
+	    // read LUS proxy, defensively checking type.
+	    ServiceRegistrar reg = ((AtomicMarshalInputStream)
+		    AtomicMarshalInputStream.createObjectInputStream(
+			    in,
+			    defaultLoader,
+			    verifyCodebaseIntegrity,
+			    verifierLoader,
+			    context
+		    )).readObject(ServiceRegistrar.class);
+	    
 	    return new UnicastResponse(host, port, groups, reg);
 
 	} catch (RuntimeException e) {

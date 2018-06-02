@@ -1,26 +1,25 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.init.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.phoenix.group.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}" {
-    permission java.security.AllPermission "", "";
+grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.0-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.0-SNAPSHOT.jar", "GET:";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.platform.jar}" {
-    permission java.security.AllPermission "", "";
-};
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.platform.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
 
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
@@ -28,12 +27,12 @@ grant {
 
 grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
 {
-      permission org.apache.river.phoenix.InstantiatorPermission "*";
+      permission org.apache.river.phoenix.group.InstantiatorPermission "*";
 };
 
 grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
 {
-      permission org.apache.river.phoenix.InstantiatorPermission "*";
+      permission org.apache.river.phoenix.group.InstantiatorPermission "*";
 };
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";

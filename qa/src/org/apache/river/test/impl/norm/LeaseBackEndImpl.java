@@ -17,22 +17,17 @@
  */
 package org.apache.river.test.impl.norm;
 
+import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
-import net.jini.export.Exporter;
 import java.io.Serializable;
 
-import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.QAConfig;
 import java.rmi.server.ExportException;
 
@@ -42,12 +37,17 @@ import net.jini.config.ConfigurationException;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.constraint.MethodConstraints;
+import net.jini.export.CodebaseAccessor;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.apache.river.proxy.CodebaseProvider;
+import org.apache.river.test.share.TestParticipantImpl;
 
 /**
  * Impl of the LeaseBackEnd remote interface for use by renewal service tests
  */
-public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
+public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust, CodebaseAccessor {
     /** 
      * Map of <code>TestLease</code> ids to <code>LeaseOwners</code>
      */
@@ -88,9 +88,21 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
         try {
 	    Configuration c = QAConfig.getConfig().getConfiguration();
 	    if (c instanceof org.apache.river.qa.harness.QAConfiguration) {
-		exporter = (Exporter) c.getEntry("test", 
-						 "leaseExporter", 
-						 Exporter.class);
+		exporter = (Exporter) c.getEntry(
+		    "test", 
+		     "leaseExporter", 
+		     Exporter.class,
+		     new BasicJeriExporter(
+                        TcpServerEndpoint.getInstance(0),
+                        new BasicILFactory(
+				null, 
+				null,
+				LeaseBackEndImpl.class.getClassLoader()
+			),
+			true,
+			false
+		     )
+		);
 	    }
 	} catch (ConfigurationException e) {
 	    throw new RemoteException("Configuration problem", e);
@@ -256,6 +268,27 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
      */
     public synchronized double getAverageBatchSize() {
 	return (double)totalBatchRenewals/(double)renewAllCalls;
+    }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return CodebaseProvider.getClassAnnotation(stub != null ? stub.getClass() 
+		: LeaseBackEnd.class);
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return null;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return null;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return null;
     }
 
     private static class VerifierImpl implements TrustVerifier, Serializable {

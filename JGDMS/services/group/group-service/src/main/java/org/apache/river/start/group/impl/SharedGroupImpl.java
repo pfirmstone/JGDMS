@@ -19,7 +19,6 @@
 package org.apache.river.start.group.impl;
 
 import org.apache.river.api.util.Startable;
-import org.apache.river.start.group.proxy.*;
 import org.apache.river.start.group.SharedGroup;
 import java.io.IOException;
 import java.rmi.MarshalledObject;
@@ -38,7 +37,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
-import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
@@ -46,13 +44,9 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalledInstance;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.tcp.TcpServerEndpoint;
-import net.jini.security.BasicProxyPreparer;
-import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.proxy.BasicProxyTrustVerifier;
 
 /**
  * The provided implementation
@@ -193,14 +187,16 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *
  */
 public class SharedGroupImpl implements Remote, 
-       SharedGroupBackEnd, ServerProxyTrust, ProxyAccessor, Startable {
+       SharedGroup,
+       ServerProxyTrust, 
+       ProxyAccessor, Startable {
     
     /** Component name for configuration entries */
-    static final String START_PACKAGE = "org.apache.river.start";
+    static final String START_PACKAGE = "org.apache.river.start.group";
 
     /** Configure logger */
     static final Logger logger =
-        Logger.getLogger(START_PACKAGE + ".sharedGroup");
+        Logger.getLogger(START_PACKAGE + ".SharedGroup");
 
     /** Our prepared activation ID reference */
     private final ActivationID activationID;
@@ -285,8 +281,7 @@ public class SharedGroupImpl implements Remote,
                 loginContext.getSubject(),
                 new PrivilegedExceptionAction<SharedGroupImplInit>() {
                     public SharedGroupImplInit run() throws Exception {
-                        doInit(config, id, loginContext);
-                        return null;
+                        return doInit(config, id, loginContext);
                     }
                 },
                 null);
@@ -424,7 +419,7 @@ public class SharedGroupImpl implements Remote,
         if (!(ourStub instanceof RemoteMethodControl)) {
             throw new UnsupportedOperationException();
         } else {
-            return new ProxyVerifier((SharedGroupBackEnd)ourStub);
+            return new BasicProxyTrustVerifier(ourStub);
         }
     }
 }

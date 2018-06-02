@@ -24,6 +24,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URL;
+import java.rmi.AccessException;
+import java.rmi.AlreadyBoundException;
 import java.rmi.ConnectException;
 import java.rmi.ConnectIOException;
 import java.rmi.MarshalledObject;
@@ -33,6 +35,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
+import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
@@ -43,7 +46,11 @@ import java.rmi.activation.UnknownGroupException;
 import java.rmi.activation.UnknownObjectException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.RMIClientSocketFactory;
+import java.rmi.server.RMIServerSocketFactory;
+import java.rmi.server.RMISocketFactory;
 import java.rmi.server.UID;
+import java.rmi.server.UnicastRemoteObject;
 import java.security.CodeSource;
 import java.security.PrivilegedExceptionAction;
 import java.text.MessageFormat;
@@ -79,12 +86,13 @@ import net.jini.config.ConfigurationNotFoundException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
 import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
 import net.jini.io.MarshalledInstance;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -92,20 +100,24 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.CombinerSecurityManager;
-import org.apache.river.phoenix.common.AccessILFactory;
+import org.apache.river.config.Config;
+import org.apache.river.phoenix.common.AccessAtomicILFactory;
 import org.apache.river.phoenix.common.ActivationGroupData;
 import org.apache.river.phoenix.dl.AID;
 import org.apache.river.phoenix.dl.Activator;
 import org.apache.river.phoenix.dl.ConstrainableAID;
 import org.apache.river.phoenix.dl.InactiveGroupException;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
+import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.proxy.MarshalledWrapper;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
+//import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
  * Phoenix main class.
@@ -201,6 +213,12 @@ class Activation implements Serializable {
     private transient Thread shutdownHook;
     /** Non-null if phoenix was started by the service starter */
     private transient PhoenixStarter starter;
+    private transient String codebase;
+    private transient String certFactoryType;
+    private transient String certPathEncoding;
+    private transient byte[] encodedCerts;
+    
+    
 
     /**
      * Create an uninitialized instance of Activation that can be
@@ -272,6 +290,17 @@ class Activation implements Serializable {
             groupTimeout = getInt(config, "groupTimeout", 60000);
             unexportTimeout = getInt(config, "unexportTimeout", 60000);
             unexportWait = getInt(config, "unexportWait", 10);
+	    	    /* CodebaseAccessor configuration */
+	    
+	    codebase = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_Annotation", String.class, "");
+	    certFactoryType = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_CertFactoryType", String.class, "X.509");
+	    certPathEncoding = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+	    encodedCerts = Config.getNonNullEntry(config, PHOENIX,
+		    "Codebase_Certs", byte[].class, new byte[0]);
+
             String[] opts = (String[]) config.getEntry(
                     PHOENIX, "groupOptions", String[].class, new String[0]);
             command = new String[opts.length + 2];
@@ -322,27 +351,74 @@ class Activation implements Serializable {
             activator = new ActivatorImpl();
             ServerEndpoint se = TcpServerEndpoint.getInstance(PHOENIX_PORT);
             activatorExporter =
-                getExporter(config, "activatorExporter",
-		    new BasicJeriExporter(se, new BasicILFactory(),
-					  false, true,
-					 (Uuid) PhoenixConstants.ACTIVATOR_UUID));
+                getExporter(
+		    config,
+		    "activatorExporter",
+		    new BasicJeriExporter(
+			se, 
+			new AtomicILFactory(
+				null,
+				null,
+				activator.getClass().getClassLoader()
+			),
+			false,
+			true,
+			(Uuid) PhoenixConstants.ACTIVATOR_UUID
+		    )
+		);
             system = new SystemImpl();
             systemExporter =
-                getExporter(config, "systemExporter",
-		    new BasicJeriExporter(se, new SystemAccessILFactory(),
-					  false, true,
-					 (Uuid) PhoenixConstants.ACTIVATION_SYSTEM_UUID));
+                getExporter(
+		    config,
+		    "systemExporter",
+		    new BasicJeriExporter(
+			se, 
+			new SystemAccessAtomicILFactory(
+			    new DefaultGroupPolicy(),
+				system.getClass().getClassLoader()
+			),
+		        false,
+			true,
+			(Uuid) PhoenixConstants.ACTIVATION_SYSTEM_UUID)
+		);
             monitor = new MonitorImpl();
             monitorExporter =
-                getExporter(config, "monitorExporter",
-                            new BasicJeriExporter(se, new AccessILFactory()));
-            registry = new RegistryImpl();
-            registryExporter =
-                getExporter(config, "registryExporter", new RegistrySunExporter());
+                getExporter(
+			config,
+			"monitorExporter",
+			new BasicJeriExporter(
+				se, 
+				new AccessAtomicILFactory(
+					monitor.getClass().getClassLoader()
+				)
+			)
+		);
             monitorStub = (ActivationMonitor) monitorExporter.export(monitor);
             systemStub = (ActivationSystem) systemExporter.export(system);
             activatorStub = (Activator) activatorExporter.export(activator);
-            registryStub = (Registry) registryExporter.export(registry);
+            registryExporter = getExporter(config, "registryExporter", null);
+	    if (registryExporter != null){ // Only works on Sun JVM.
+		// REMIND: Read only registry, don't try to use bind.
+		registry = new RegistryImpl();
+		registryStub = (Registry) registryExporter.export(registry);
+	    } else {
+		registry = null;
+		RMIServerSocketFactory registryRmiServerSocketFactory = config.getEntry(
+			PHOENIX,
+			"registryRmiServerSocketFactory",
+			RMIServerSocketFactory.class, 
+			RMISocketFactory.getDefaultSocketFactory()
+		);
+		RMIClientSocketFactory registryRmiClientSocketFactory = config.getEntry(
+			PHOENIX,
+			"registryRmiClientSocketFactory",
+			RMIClientSocketFactory.class,
+			RMISocketFactory.getDefaultSocketFactory()
+		);
+		int port = getInt(config, "registryPort", ActivationSystem.SYSTEM_PORT);
+		registryStub = LocateRegistry.createRegistry(port, registryRmiClientSocketFactory, registryRmiServerSocketFactory);
+		registryStub.bind("java.rmi.activation.ActivationSystem", systemStub);
+	    }
             exported.signalAll();
             logger.info(getTextResource("phoenix.daemon.started"));
             entries = new GroupEntry[gids.length];
@@ -437,7 +513,8 @@ class Activation implements Serializable {
 					       new BasicProxyPreparer());
     }
 
-    class ActivatorImpl extends AbstractActivator implements ServerProxyTrust {
+    class ActivatorImpl extends AbstractActivator implements ServerProxyTrust,
+	    CodebaseAccessor {
 	ActivatorImpl() {
 	}
     
@@ -462,6 +539,48 @@ class Activation implements Serializable {
             try {
                 return new ConstrainableAID.Verifier(activatorStub);
             } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public String getClassAnnotation() throws IOException {
+	    readLock.lock();
+            try {
+		return "".equals(codebase) ? 
+			CodebaseProvider.getClassAnnotation(Activator.class) 
+			: codebase;
+	    } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public String getCertFactoryType() throws IOException {
+	    readLock.lock();
+            try {
+		return certFactoryType;
+	    } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public String getCertPathEncoding() throws IOException {
+	    readLock.lock();
+            try {
+		return certPathEncoding;
+	    } finally {
+                readLock.unlock();
+            }
+	}
+
+	@Override
+	public byte[] getEncodedCerts() throws IOException {
+	    readLock.lock();
+            try {
+		return encodedCerts.clone();
+	    } finally {
                 readLock.unlock();
             }
 	}
@@ -793,6 +912,17 @@ class Activation implements Serializable {
 	Shutdown() {
 	    super("Shutdown");
 	}
+	
+	boolean registryDown(boolean force){
+	    if (registryExporter != null){
+		return registryExporter.unexport(force);
+	    }
+	    try {
+		return UnicastRemoteObject.unexportObject(system, force);
+	    } catch (NoSuchObjectException ex) {
+		return true;
+	    }
+	}
 
         @Override
 	public void run() {
@@ -800,7 +930,7 @@ class Activation implements Serializable {
 	    try {
 		long stop = System.currentTimeMillis() + unexportTimeout;
 		boolean force = false;
-		while (!registryExporter.unexport(force) ||
+		while (!registryDown(force) ||
 		       !activatorExporter.unexport(force) ||
 		       !systemExporter.unexport(force) ||
 		       !monitorExporter.unexport(force))
@@ -1383,7 +1513,7 @@ class Activation implements Serializable {
 					       child.getInputStream(),
 					       child.getErrorStream());
 		    MarshalOutputStream out =
-			new MarshalOutputStream(child.getOutputStream(),
+			new AtomicMarshalOutputStream(child.getOutputStream(),
 						Collections.EMPTY_LIST);
 		    out.writeObject(id);
 		    ActivationGroupDesc gd = desc;
@@ -1533,12 +1663,17 @@ class Activation implements Serializable {
 	argv.add((cmdenv != null && cmdenv.getCommandPath() != null)
 		    ? cmdenv.getCommandPath()
 		    : command[0]);
-
+	
 	// Group-specific command options
 	if (cmdenv != null && cmdenv.getCommandOptions() != null) {
-	    argv.addAll(Arrays.asList(cmdenv.getCommandOptions()));
+	    String [] options = cmdenv.getCommandOptions();
+	    for (int i=0,l=options.length; i<l; i++){
+		if (options[i] == null) continue;
+		if (options[i].startsWith("-cp")) continue; // Beginning of class path entries.
+		if (options[i].startsWith("-")) argv.add(options[i]);
+	    }
 	}
-
+	
 	// Properties become -D parameters
 	Properties props = desc.getPropertyOverrides();
 	if (props != null) {
@@ -1551,6 +1686,21 @@ class Activation implements Serializable {
 		 * arguments or split on whitespace.
 		 */
 		argv.add("-D" + name + "=" + props.getProperty(name));
+	    }
+	}
+	
+	// Group-specific class path
+	if (cmdenv != null && cmdenv.getCommandOptions() != null) {
+	    String [] options = cmdenv.getCommandOptions();
+	    int cp = 0;
+	    for (int i=0,l=options.length; i<l; i++){
+		if (options[i] == null) continue;
+		if (cp == 0 && options[i].startsWith("-cp")) {
+		    cp = i;
+		    argv.add(options[i]);
+		}
+		if (options[i].startsWith("-")) continue;
+		if (i > cp) argv.add(options[i]);
 	    }
 	}
 
@@ -1970,6 +2120,7 @@ class Activation implements Serializable {
     public static void main(String[] args) {
 	if (System.getSecurityManager() == null) {
 	    System.setSecurityManager(new CombinerSecurityManager());
+//	    System.setSecurityManager(new SecurityPolicyWriter());
 	}
 	boolean stop = false;
 	if (args.length > 0 && args[0].equals("-stop")) {

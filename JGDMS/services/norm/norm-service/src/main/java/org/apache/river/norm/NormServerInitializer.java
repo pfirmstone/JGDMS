@@ -33,6 +33,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.NoSuchEntryException;
 import net.jini.export.Exporter;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -70,6 +71,10 @@ class NormServerInitializer {
     NormServerBaseImpl.RenewLogThread renewLogger;
     AccessControlContext context;
     Configuration config;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
 
     /**
      * Initializer object for NormServer implementations.  Can be overridden by
@@ -111,6 +116,15 @@ class NormServerInitializer {
             lrm = new LeaseRenewalManager(config);
         }
         exporter = getExporter(config);
+	codebase = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_Annotation", String.class, "");
+	certFactoryType = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_CertFactoryType", String.class, "X.509");
+	certPathEncoding = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_CertPathEncoding", String.class, "PkiPath");
+	encodedCerts = Config.getNonNullEntry(config, NormServerBaseImpl.NORM,
+		"Codebase_Certs", byte[].class, new byte[0]);
+	
         // We use some of these during the recovery process
         expMgr = new LeaseExpirationMgr();
         generator = new EventTypeGenerator();
@@ -132,7 +146,7 @@ class NormServerInitializer {
 		"serverExporter", Exporter.class,
 		new BasicJeriExporter(
 			TcpServerEndpoint.getInstance(0),
-			new BasicILFactory(null, null, NormServer.class.getClassLoader())
+			new AtomicILFactory(null, null, NormServer.class.getClassLoader())
 		)
 	);
     }

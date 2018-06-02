@@ -17,6 +17,7 @@
  */
 package org.apache.river.test.impl.mercury;
 
+import java.io.IOException;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
@@ -26,6 +27,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -46,14 +48,17 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.logging.Level;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import org.apache.river.proxy.CodebaseProvider;
 
 
 public class TestListenerImpl
-    implements TestListener, ProxyAccessor, ServerProxyTrust, Startable
+    implements TestListener, ProxyAccessor, ServerProxyTrust, Startable,
+	DynamicProxyCodebaseAccessor
 {
     private final Map events = new HashMap();
 
@@ -113,7 +118,7 @@ public class TestListenerImpl
         exporter = (Exporter) getNonNullEntry(
             config, "exporter", Exporter.class,
             new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-				  new BasicILFactory(), 
+				  new BasicILFactory(null, null, TestListener.class.getClassLoader()), 
 				  false, 
 				  true));
         context = AccessController.getContext();
@@ -202,6 +207,28 @@ public class TestListenerImpl
             }
             
         }, context);
+    }
+    
+    @Override
+    public String getClassAnnotation() throws IOException {
+	String result = CodebaseProvider.getClassAnnotation(serverStub == null ? 
+		TestListener.class : serverStub.getClass());
+	return result;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return null;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return null;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return null;
     }
 }
 

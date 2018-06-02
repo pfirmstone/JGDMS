@@ -51,10 +51,10 @@ public class ActivateWrapperRegisterBadGroup extends AbstractStartBaseTest {
 		new ActivationGroupDesc(new Properties(), null);
         logger.log(Level.INFO, "Received activation group ID");
 	ActivationGroupID actID =
-		ActivationGroup.getSystem().registerGroup(actDesc);
+		net.jini.activation.ActivationGroup.getSystem().registerGroup(actDesc);
 	    
         logger.log(Level.INFO, "Destroying activation group");
-	ActivationGroup.getSystem().unregisterGroup(actID);
+	net.jini.activation.ActivationGroup.getSystem().unregisterGroup(actID);
     
         logger.log(Level.INFO, "Attempting to register with a bogus activation"
 		+ " group ID");
@@ -63,7 +63,7 @@ public class ActivateWrapperRegisterBadGroup extends AbstractStartBaseTest {
 		    ActivateWrapper.register(actID, 
 					     adesc, 
 					     false, 
-					     ActivationGroup.getSystem());
+					     net.jini.activation.ActivationGroup.getSystem());
             throw new TestException( "ActivateWrapper.register()"
 				     + " did not throw UnknownGroupException" );
         } catch (UnknownGroupException ae) {

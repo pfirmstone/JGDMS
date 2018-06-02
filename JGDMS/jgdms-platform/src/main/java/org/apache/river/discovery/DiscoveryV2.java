@@ -423,7 +423,7 @@ class DiscoveryV2 extends Discovery {
 	    try {
 		udc.checkUnicastDiscoveryConstraints(constraints);
 		fids.add(ent.getKey());
-		if (fids.size() == MAX_FORMATS) {
+		if (fids.size() >= MAX_FORMATS) {
 		    logger.log(Level.WARNING, "truncating format ID list");
 		    break;
 		}
@@ -533,7 +533,7 @@ class DiscoveryV2 extends Discovery {
 	UnicastDiscoveryServer uds = null;
 	long fid = NULL_FORMAT_ID;
 	Map<Long,DiscoveryFormatProvider> udsMap = formatIdMaps[UNICAST_DISCOVERY_SERVER];
-	while (inBuf.hasRemaining()) {
+	while (inBuf.hasRemaining()) { // Fully reads buffer
 	    fid = inBuf.getLong();
 	    UnicastDiscoveryServer s = 
 		(UnicastDiscoveryServer) udsMap.get(Long.valueOf(fid));
@@ -541,7 +541,6 @@ class DiscoveryV2 extends Discovery {
 		try {
 		    s.checkUnicastDiscoveryConstraints(constraints);
 		    uds = s;
-		    break;
 		} catch (Exception e) {
 		    logger.log(Levels.HANDLED,
 			       "constraint check failed for " + uds, e);

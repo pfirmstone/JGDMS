@@ -311,7 +311,10 @@ public class BasicJeriTrustVerifier implements TrustVerifier {
 				TrustVerifier.Context ctx)
 	throws RemoteException
     {
-	if (handler.getClass() != BasicInvocationHandler.class) {
+	Class handlerClass = handler.getClass();
+	if (handlerClass != BasicInvocationHandler.class ||
+		handlerClass != AtomicInvocationHandler.class) 
+	{
 	    return false;
 	}
 	

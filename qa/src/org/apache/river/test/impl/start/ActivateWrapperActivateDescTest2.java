@@ -54,13 +54,13 @@ public class ActivateWrapperActivateDescTest2 extends AbstractStartBaseTest {
     
         logger.log(Level.INFO, "Obtaining probe reference");
         ActivationID aid = 
-	        ActivateWrapper.register(gid, adesc, false, ActivationGroup.getSystem());
+	        ActivateWrapper.register(gid, adesc, false, net.jini.activation.ActivationGroup.getSystem());
         logger.log(Level.INFO, "Obtaining activation id");
         logger.log(Level.INFO, "ActivationID: " + aid);
     
         logger.log(Level.INFO, "Obtaining ActivationDesc via activation system");
         ActivationDesc desc = 
-                ActivationGroup.getSystem().getActivationDesc(aid);
+                net.jini.activation.ActivationGroup.getSystem().getActivationDesc(aid);
         logger.log(Level.INFO, "ActivationDesc: " + desc);
     
         logger.log(Level.INFO, "Comparing ActivationDesc vs ActivateDesc");

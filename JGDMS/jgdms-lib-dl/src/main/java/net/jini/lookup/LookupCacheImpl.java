@@ -66,6 +66,7 @@ import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -1861,7 +1862,9 @@ final class LookupCacheImpl implements LookupCache {
 	try {
 	    Exporter defaultExporter = 
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                    new BasicILFactory(), false, false
+                    new AtomicILFactory(null, null, LookupCacheImpl.class.getClassLoader()),
+		    false,
+		    false
                 );
 	    lookupListenerExporter = 
                 sdm.thisConfig.getEntry(
@@ -2032,6 +2035,19 @@ final class LookupCacheImpl implements LookupCache {
                 );
             return 0;
         }
+
+	@Override
+	public int hashCode() {
+	    int hash = 3;
+	    hash = 89 * hash + (this.task != null ? this.task.hashCode() : 0);
+	    return hash;
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableFutureTask)) return false;
+	    return this.task.equals(((ComparableFutureTask)o).task);
+	}
 
     }
 

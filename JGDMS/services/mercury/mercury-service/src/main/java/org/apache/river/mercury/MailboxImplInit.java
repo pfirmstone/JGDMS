@@ -45,6 +45,7 @@ import net.jini.core.entry.Entry;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -83,6 +84,10 @@ class MailboxImplInit {
     Configuration config;
     AccessControlContext context;
     LoginContext loginContext;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
 
     MailboxImplInit(Configuration config, 
                     boolean persistent, 
@@ -98,7 +103,10 @@ class MailboxImplInit {
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "activationSystemPreparer: {0}", activationSystemPreparer);
             }
-            activationSystem = (ActivationSystem) activationSystemPreparer.prepareProxy(ActivationGroup.getSystem());
+            activationSystem = (ActivationSystem) 
+		    activationSystemPreparer.prepareProxy(
+			    net.jini.activation.ActivationGroup.getSystem()
+		    );
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
                 MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Prepared activation system is: {0}", activationSystem);
             }
@@ -117,7 +125,7 @@ class MailboxImplInit {
 			    activationID, 
 			    new BasicJeriExporter(
 				    TcpServerEndpoint.getInstance(0),
-				    new BasicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
+				    new AtomicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
 				    false,
 				    true
 			    )
@@ -136,7 +144,7 @@ class MailboxImplInit {
 		    Exporter.class,
 		    new BasicJeriExporter(
 			    TcpServerEndpoint.getInstance(0),
-			    new BasicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
+			    new AtomicILFactory(null, null, MailboxBackEnd.class.getClassLoader()),
 			    false,
 			    true
 		    )
@@ -145,6 +153,17 @@ class MailboxImplInit {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Non-activatable service exporter is: {0}", exporter);
             }
         }
+	
+	codebase = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_Annotation", String.class, "");
+	certFactoryType = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_CertFactoryType", String.class, "X.509");
+	certPathEncoding = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_CertPathEncoding", String.class, "PkiPath");
+	encodedCerts = Config.getNonNullEntry(config, MailboxImpl.MERCURY,
+		"Codebase_Certs", byte[].class, new byte[0]);
+	
+	
         listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "listenerPreparer", ProxyPreparer.class, new BasicProxyPreparer());
         if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
             MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Listener preparer is: {0}", listenerPreparer);

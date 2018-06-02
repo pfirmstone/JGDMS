@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -166,9 +167,9 @@ public final class Security {
     /**
      * Weak map from ClassLoader to SoftReference(IntegrityVerifier[]).
      */
-    private static final Map<ClassLoader,SoftReference<IntegrityVerifier[]>> integrityMap 
-	    = new WeakHashMap<ClassLoader,SoftReference<IntegrityVerifier[]>>();
-
+//    private static final Map<ClassLoader,SoftReference<IntegrityVerifier[]>> integrityMap 
+//	    = new WeakHashMap<ClassLoader,SoftReference<IntegrityVerifier[]>>();
+//   Not suitable for OSGi environment.
     /**
      * SecurityManager instance used to obtain caller's Class.
      */
@@ -339,10 +340,16 @@ public final class Security {
      * integrity verifier instance. An implementation of this method is
      * permitted to cache the verifier instances associated with a
      * class loader, rather than recreating them on every call.
+     * <p>
+     * Caching of verifier instances is currently not performed as it would
+     * not be compatible with an OSGi environment.  In an OSGi environment
+     * the OSGi service registry is used to lookup IntegrityVerifiers instead
+     * of the service loader.
      *
      * @param codebase space-separated list of URLs, or <code>null</code>
      * @param loader the class loader for finding integrity verifiers, or
-     * <code>null</code> to use the context class loader
+     * <code>null</code> to use the context class loader.  This argument is
+     * ignored in an OSGi environment.
      * @throws MalformedURLException if the specified codebase contains
      * an invalid URL
      * @throws SecurityException if any URL in the specified codebase
@@ -435,38 +442,38 @@ public final class Security {
     private static IntegrityVerifier[] getIntegrityVerifiers(
 							final ClassLoader cl)
     {
-	SoftReference<IntegrityVerifier[]> ref;
-	synchronized (integrityMap) {
-	    ref = integrityMap.get(cl);
-	}
-	IntegrityVerifier[] verifiers = null;
-	if (ref != null) {
-	    verifiers = ref.get();
-	}
-	if (verifiers == null) {
-	    final List<IntegrityVerifier> list = new LinkedList<IntegrityVerifier>();
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
-		    for (Iterator<IntegrityVerifier> iter =
-			     Service.providers(IntegrityVerifier.class, cl);
-			 iter.hasNext(); )
-		    {
-			list.add(iter.next());
-		    }
-		    return null;
+//	SoftReference<IntegrityVerifier[]> ref;
+//	synchronized (integrityMap) {
+//	    ref = integrityMap.get(cl);
+//	}
+	IntegrityVerifier[] verifiers;// = null;
+//	if (ref != null) {
+//	    verifiers = ref.get();
+//	}
+//	if (verifiers == null) {
+	final List<IntegrityVerifier> list = new LinkedList<IntegrityVerifier>();
+	AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		for (Iterator<IntegrityVerifier> iter =
+			 Service.providers(IntegrityVerifier.class, cl);
+		     iter.hasNext(); )
+		{
+		    list.add(iter.next());
 		}
-	    });
-	    if (getIntegrityLogger().isLoggable(Level.FINE)) {
-		getIntegrityLogger().logp(Level.FINE, Security.class.getName(),
-				     "verifyCodebaseIntegrity",
-				     "integrity verifiers {0}",
-				     new Object[]{list});
+		return null;
 	    }
-	    verifiers = list.toArray( new IntegrityVerifier[list.size()]);
-	    synchronized (integrityMap) {
-		integrityMap.put(cl, new SoftReference<IntegrityVerifier[]>(verifiers));
-	    }
+	});
+	if (getIntegrityLogger().isLoggable(Level.FINE)) {
+	    getIntegrityLogger().logp(Level.FINE, Security.class.getName(),
+				 "verifyCodebaseIntegrity",
+				 "integrity verifiers {0}",
+				 new Object[]{list});
 	}
+	verifiers = list.toArray( new IntegrityVerifier[list.size()]);
+//	    synchronized (integrityMap) {
+//		integrityMap.put(cl, new SoftReference<IntegrityVerifier[]>(verifiers));
+//	    }
+//	}
 	return verifiers;
     }
 
@@ -759,6 +766,136 @@ public final class Security {
         return AccessController.doPrivileged(act, combine(acc, subject));
     }
     
+    public static Runnable withContext(Runnable runnable,
+				       AccessControlContext context)
+    {
+	if (runnable instanceof Comparable) 
+	    return new ComparableRunnableImpl(runnable, context);
+	return new RunnableImpl(runnable, context);
+    }
+    
+    private static class RunnableImpl implements Runnable {
+	protected final Runnable runnable;
+	protected final AccessControlContext context;
+	
+	RunnableImpl(Runnable runnable, AccessControlContext context){
+	    this.runnable = runnable;
+	    this.context = context;
+	}
+
+	public void run() {
+	    AccessController.doPrivileged(new PrivilegedAction(){
+
+		public Object run() {
+		    runnable.run();
+		    return null;
+		}
+		
+	    }, context);
+	}
+    }
+    
+    private static class ComparableRunnableImpl extends RunnableImpl 
+				implements Comparable<ComparableRunnableImpl> {
+
+	public ComparableRunnableImpl(Runnable runnable, AccessControlContext context) {
+	    super(runnable, context);
+	}
+
+	public int compareTo(ComparableRunnableImpl o) {
+	    int result = ((Comparable) runnable).compareTo(o.runnable);
+	    if (result != 0) return result;
+	    int myHash = context.hashCode();
+	    int otherHash = o.context.hashCode();
+	    return myHash == otherHash ? 0 : (myHash < otherHash ? -1 : 0);
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableRunnableImpl)) return false;
+	    if  (!runnable.equals(((ComparableRunnableImpl) o).runnable)) return false;
+	    return context.equals(((ComparableRunnableImpl) o).context);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 5;
+	    hash = hash << runnable.hashCode() - hash;
+	    return hash << context.hashCode() - hash;
+	}
+	
+    }
+    
+    /**
+     * Decorates a callable with the given context, and allows it to be
+     * executed within that context.
+     * 
+     * @param <V> The type of the object returned from Callable.call().
+     * @param callable The callable to execute with the given context.
+     * @param context The context in which the callable is to execute. 
+     * @return The callable to be submitted to an ExecutorService.
+     */
+    public static <V> Callable<V> withContext(Callable<V> callable,
+					      AccessControlContext context)
+    {
+	if (callable instanceof Comparable) 
+	    return new ComparableCallableImpl<V>(callable, context);
+	return new CallableImpl<V>(callable, context);
+    }
+    
+    private static class CallableImpl<V> implements Callable<V> {
+	protected final AccessControlContext context;
+	protected final Callable<V> c;
+	
+	CallableImpl(Callable<V> c, AccessControlContext context){
+	    this.c = c;
+	    this.context = context;
+	}
+
+	public V call() throws Exception {
+	    try {
+	    return AccessController.doPrivileged( 
+		new PrivilegedExceptionAction<V>(){
+
+		    public V run() throws Exception {
+			return c.call();
+		    }
+    
+		}, context);
+	    } catch (PrivilegedActionException e){
+		throw e.getException();
+	    }
+	}
+	
+    }
+    
+    private static class ComparableCallableImpl<V> 
+			    extends CallableImpl<V> implements Comparable<ComparableCallableImpl> {
+
+	ComparableCallableImpl( Callable<V> c, AccessControlContext context){
+	    super(c, context);
+	}
+
+	public int compareTo(ComparableCallableImpl o) {
+	    return ((Comparable)c).compareTo(o.c);
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableCallableImpl)) return false;
+	    if  (!c.equals(((ComparableCallableImpl) o).c)) return false;
+	    return context.equals(((ComparableCallableImpl) o).context);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 5;
+	    hash = hash << c.hashCode() - hash;
+	    return hash << context.hashCode() - hash;
+	}
+	
+    }
+    
     
     private static AccessControlContext combine(final AccessControlContext acc, final Subject subject){
         return AccessController.doPrivileged(new PrivilegedAction<AccessControlContext>(){
@@ -954,7 +1091,7 @@ public final class Security {
     {
 	Policy policy = getPolicy();
 	if (!(policy instanceof DynamicPolicy)) {
-	    throw new UnsupportedOperationException("grants not supported");
+	    throw new UnsupportedOperationException("grants not supported by policy: " + policy);
 	}
 	((DynamicPolicy) policy).grant(cl, principals, permissions);
 	if (getPolicyLogger().isLoggable(Level.FINER)) {

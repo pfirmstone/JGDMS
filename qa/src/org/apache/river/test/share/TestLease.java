@@ -23,6 +23,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
+import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -32,7 +33,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * <code>LocalLease</code>.
  */
 @AtomicSerial
-public class TestLease extends OurAbstractLease {
+public class TestLease extends OurAbstractLease implements ProxyAccessor {
     /** 
      * id of the lease
      * @serial
@@ -154,6 +155,11 @@ public class TestLease extends OurAbstractLease {
     /** Set the expiration. */
     void setExpiration(long expiration) {
 	this.expiration = expiration;
+    }
+
+    @Override
+    public Object getProxy() {
+	return home;
     }
 }
 

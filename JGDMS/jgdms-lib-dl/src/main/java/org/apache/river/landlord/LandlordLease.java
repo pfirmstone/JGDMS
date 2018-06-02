@@ -25,6 +25,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -43,7 +44,8 @@ import org.apache.river.lease.ID;
  * @since 2.0
  */
 @AtomicSerial
-public class LandlordLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
+public class LandlordLease extends AbstractLease 
+		implements ReferentUuid, ID<Uuid>, ProxyAccessor {
     static final long serialVersionUID = 2L;
 
     /**
@@ -239,5 +241,9 @@ public class LandlordLease extends AbstractLease implements ReferentUuid, ID<Uui
     @Override
     public Uuid identity() {
         return cookie;
+    }
+
+    public Object getProxy() {
+	return landlord;
     }
 }

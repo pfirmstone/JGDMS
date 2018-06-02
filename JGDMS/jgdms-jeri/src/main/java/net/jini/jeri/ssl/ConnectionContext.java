@@ -22,6 +22,7 @@ import java.security.Principal;
 import java.util.Iterator;
 import java.util.Set;
 import javax.security.auth.x500.X500Principal;
+import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.ClientAuthentication;
 import net.jini.core.constraint.ClientMaxPrincipal;
 import net.jini.core.constraint.ClientMaxPrincipalType;
@@ -38,6 +39,7 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
+import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 
 /**
@@ -55,6 +57,9 @@ final class ConnectionContext extends Utilities {
 
     /** Constraints supported, without integrity or connection timeout */
     private static final long OK = Long.MAX_VALUE;
+    
+    /** Constraints supported with deserialization atomic input validation */
+    private static final long ATOMICITY = -2;
 
     /** Constraints supported with codebase integrity */
     private static final long INTEGRITY = -3;
@@ -75,8 +80,8 @@ final class ConnectionContext extends Utilities {
     /** The server principal, or null for an anonymous server */
     final Principal server;
 
-    /** Whether codebase integrity should be enforced */
-    private final boolean integrity;
+    /** Whether codebase integrity and atomicity should be enforced */
+    private final boolean upperLayerConstraints;
 
     /**
      * Whether the connection is being considered on the client side, which
@@ -92,6 +97,12 @@ final class ConnectionContext extends Utilities {
 
     /** Whether the preferences specify Integrity.YES */
     private boolean integrityPreferred;
+    
+    /** Whether the requirements specify AtomicInputValidation.YES */
+    private boolean atomicityRequired;
+    
+    /** Whether the preferences specify AtomicInputValidation.YES */
+    private boolean atomicityPreferred;
 
     /** The absolute connection time, or Long.MAX_VALUE if not specified */
     private long connectionTime = Long.MAX_VALUE;
@@ -102,34 +113,36 @@ final class ConnectionContext extends Utilities {
     /**
      * Creates an instance that represents using the specified cipher suite,
      * client and server principals, whether to guarantee codebase integrity,
+     * input validation failure atomicity during deserialization
      * and constraints.  Null values for the principals mean they are
      * anonymous.  Non-X.500 principals are permitted to allow specifying a
      * dummy principal if the principal is unknown.  Returns null if the
      * constraints are not supported.
      */
-    static ConnectionContext getInstance(String cipherSuite,
-					 Principal client,
-					 Principal server,
-					 boolean integrity,
-					 boolean clientSide,
-					 InvocationConstraints constraints)
+    static ConnectionContext getInstance(
+	    String cipherSuite, 
+	    Principal client, 
+	    Principal server,
+	    boolean upperLayerConstraints, 
+	    boolean clientSide, 
+	    InvocationConstraints constraints)
     {
 	ConnectionContext context = new ConnectionContext(
-	    cipherSuite, client, server, integrity, clientSide);
+	    cipherSuite, client, server, upperLayerConstraints, clientSide);
 	return context.supported(constraints) ? context : null;
     }
 
     /** Creates an instance of this class. */
     private ConnectionContext(String cipherSuite,
-			      Principal client,
-			      Principal server,
-			      boolean integrity,
-			      boolean clientSide)
+				Principal client,
+				Principal server,
+				boolean upperLayerConstraints,
+				boolean clientSide)
     {
 	this.cipherSuite = cipherSuite;
 	this.client = client;
 	this.server = server;
-	this.integrity = integrity;
+	this.upperLayerConstraints = upperLayerConstraints;
 	this.clientSide = clientSide;
 	boolean serverAuth = doesServerAuthentication(cipherSuite);
 	if (serverAuth != (server != null)
@@ -159,6 +172,11 @@ final class ConnectionContext extends Utilities {
 	} else if (integrityPreferred) {
 	    sb.append(", integrity: preferred");
 	}
+	if (atomicityRequired) {
+	    sb.append(", input validation failure atomicity: required");
+	} else if (atomicityPreferred) {
+	    sb.append(", input validation failure atomicity: preferred");
+	}
 	if (connectionTime != Long.MAX_VALUE) {
 	    sb.append(", connectionTime = ").append(connectionTime);
 	}
@@ -173,6 +191,16 @@ final class ConnectionContext extends Utilities {
     /** Returns whether integrity is preferred. */
     boolean getIntegrityPreferred() {
 	return integrityPreferred;
+    }
+    
+     /** Returns whether atomicity is required. */
+    boolean getAtomicityRequired() {
+	return atomicityRequired;
+    }
+
+    /** Returns whether atomicity is preferred. */
+    boolean getAtomicityPreferred() {
+	return atomicityPreferred;
     }
 
     /**
@@ -205,6 +233,8 @@ final class ConnectionContext extends Utilities {
 	    }
 	    if (r == INTEGRITY) {
 		integrityRequired = true;
+	    } else if (r == ATOMICITY){
+		atomicityRequired = true;
 	    } else if (connectionTime > r) {
 		connectionTime = r;
 	    }
@@ -219,15 +249,19 @@ final class ConnectionContext extends Utilities {
 		if (!integrityRequired) {
 		    integrityPreferred = true;
 		}
+	    } else if (r == ATOMICITY){
+		if (!atomicityRequired){
+		    atomicityPreferred = true;
+		}
 	    } else if (connectionTime > r) {
 		connectionTime = r;
 	    }
 	}
-	if (integrity && !integrityRequired && !integrityPreferred) {
-	    return false;
-	} else {
-	    return true;
+	if (upperLayerConstraints){
+	    if (!integrityRequired && !integrityPreferred && !atomicityRequired
+		    && !atomicityPreferred) return false;
 	}
+	return true;
     }
 
     /**
@@ -241,8 +275,11 @@ final class ConnectionContext extends Utilities {
 	if (constraint instanceof ConstraintAlternatives) {
 	    return supported((ConstraintAlternatives) constraint);
 	} else if (constraint instanceof Integrity) {
-	    return integrity && constraint == Integrity.YES
+	    return upperLayerConstraints && constraint == Integrity.YES
 		? INTEGRITY : NOT_SUPPORTED;
+	} else if (constraint instanceof AtomicInputValidation){
+	    return upperLayerConstraints && constraint == AtomicInputValidation.YES
+		? ATOMICITY : NOT_SUPPORTED;
 	} else if (constraint instanceof Confidentiality) {
 	    return ok(doesEncryption(cipherSuite) ==
 		      (constraint == Confidentiality.YES));
@@ -251,41 +288,33 @@ final class ConnectionContext extends Utilities {
 		      (hasStrongKeyCipherAlgorithms(cipherSuite)
 		       == (constraint == ConfidentialityStrength.STRONG)));
 	} else if (constraint instanceof ClientAuthentication) {
-	    return ok((client == null) ==
-		      (constraint == ClientAuthentication.NO));
+	    return ok((client != null) ==
+		      (constraint == ClientAuthentication.YES));
 	} else if (constraint instanceof ClientMinPrincipalType) {
-	    return ok(client == null ||
-		      constraint.equals(clientMinPrincipalType));
+	    return ok(constraint.equals(clientMinPrincipalType));
 	} else if (constraint instanceof ClientMaxPrincipalType) {
-	    return ok(client == null ||
-		      ((ClientMaxPrincipalType) constraint).elements().contains(
+	    return ok(((ClientMaxPrincipalType) constraint).elements().contains(
 			  X500Principal.class));
 	} else if (constraint instanceof ClientMinPrincipal) {
-	    if (client == null) {
-		return OK;
-	    } 
 	    Set elements = ((ClientMinPrincipal) constraint).elements();
 	    return ok(elements.size() == 1 && elements.contains(client));
 	} else if (constraint instanceof ClientMaxPrincipal) {
-	    return ok(client == null ||
-		      ((ClientMaxPrincipal) constraint).elements().contains(
-			  client));
+	    return ok(((ClientMaxPrincipal) constraint).elements().contains(client));
 	} else if (constraint instanceof Delegation) {
-	    return ok(client == null || (constraint == Delegation.NO));
+	    return ok((constraint == Delegation.NO));
 	} else if (constraint instanceof DelegationAbsoluteTime) {
 	    return OK;
 	} else if (constraint instanceof DelegationRelativeTime) {
 	    return ok(!clientSide);
 	} else if (constraint instanceof ServerAuthentication) {
-	    return ok((server == null) ==
-		      (constraint == ServerAuthentication.NO));
+	    return ok((server != null) ==
+		      (constraint == ServerAuthentication.YES));
 	} else if (constraint instanceof ServerMinPrincipal) {
-	    if (server == null) {
-		return OK;
-	    }
 	    Set elements = ((ServerMinPrincipal) constraint).elements();
 	    return ok(elements.size() == 1 && elements.contains(server));
-	} else if (constraint instanceof ConnectionAbsoluteTime) {
+	} else if (constraint instanceof ServerMaxPrincipal) {
+	    return ok(((ServerMaxPrincipal) constraint).elements().contains(server));
+	}else if (constraint instanceof ConnectionAbsoluteTime) {
 	    return Math.max(((ConnectionAbsoluteTime) constraint).getTime(), 0);
 	} else if (constraint instanceof ConnectionRelativeTime) {
 	    return ok(!clientSide);
@@ -338,5 +367,41 @@ final class ConnectionContext extends Utilities {
 	} else {
 	    return OK;
 	}
+    }
+    
+    @Override
+    public int hashCode() {
+	int hash = 7;
+	hash = 17 * hash + (this.cipherSuite != null ? this.cipherSuite.hashCode() : 0);
+	hash = 17 * hash + (this.client != null ? this.client.hashCode() : 0);
+	hash = 17 * hash + (this.server != null ? this.server.hashCode() : 0);
+	hash = 17 * hash + (this.upperLayerConstraints ? 1 : 0);
+	hash = 17 * hash + (this.clientSide ? 1 : 0);
+	hash = 17 * hash + (this.notSupported ? 1 : 0);
+	hash = 17 * hash + (this.integrityRequired ? 1 : 0);
+	hash = 17 * hash + (this.integrityPreferred ? 1 : 0);
+	hash = 17 * hash + (this.atomicityRequired ? 1 : 0);
+	hash = 17 * hash + (this.atomicityPreferred ? 1 : 0);
+	hash = 17 * hash + (int) (this.connectionTime ^ (this.connectionTime >>> 32));
+	hash = 17 * hash + this.preferences;
+	return hash;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (!(o instanceof ConnectionContext)) return false;
+	ConnectionContext that = (ConnectionContext) o;
+	if (this.atomicityPreferred != that.atomicityPreferred) return false;
+	if (this.atomicityRequired != that.atomicityRequired) return false;
+	if (this.clientSide != that.clientSide) return false;
+	if (this.integrityPreferred != that.integrityPreferred) return false;
+	if (this.integrityRequired != that.integrityRequired) return false;
+	if (this.notSupported != that.notSupported) return false;
+	if (this.upperLayerConstraints != that.upperLayerConstraints) return false;
+	if (this.connectionTime != that.connectionTime) return false;
+	if (this.preferences != that.preferences) return false;
+	if (!this.cipherSuite.equals(that.cipherSuite)) return false;
+	if (!this.client.equals(that.client)) return false;
+	return this.server.equals(that.server);
     }
 }

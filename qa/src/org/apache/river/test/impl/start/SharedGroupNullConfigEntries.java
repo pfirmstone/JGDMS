@@ -77,7 +77,7 @@ public class SharedGroupNullConfigEntries extends QATestEnvironment implements T
 	logger.log(Level.INFO, "run()");
 
         SharedGroup group_proxy = null;
-	final String serviceName = "org.apache.river.start.SharedGroup";
+	final String serviceName = "org.apache.river.start.group.SharedGroup";
 	final int numGroups = 
 	    getConfig().getIntConfigVal(serviceName + ".instances", -1);
 	if (numGroups <= 0) {

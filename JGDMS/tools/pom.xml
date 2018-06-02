@@ -41,5 +41,6 @@
         <module>jarwrapper</module>
         <module>preferredlistgen</module>
         <module>security-policy-debug</module>
+        <module>policy-condenser</module>
     </modules>
 </project>

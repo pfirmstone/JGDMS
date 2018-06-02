@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -36,7 +37,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @since 2.0
  */
 @AtomicSerial
-abstract class AbstractProxy implements ReferentUuid, Serializable {
+abstract class AbstractProxy implements ReferentUuid, Serializable, ProxyAccessor {
     private static final long serialVersionUID = 1;
 
     /**
@@ -120,5 +121,10 @@ abstract class AbstractProxy implements ReferentUuid, Serializable {
     /* inherit javadoc */
     public Uuid getReferentUuid() {
 	return uuid;
+    }
+    
+    @Override
+    public Object getProxy() {
+	return server;
     }
 }

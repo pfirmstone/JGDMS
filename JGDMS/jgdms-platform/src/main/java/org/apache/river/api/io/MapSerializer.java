@@ -43,11 +43,13 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
     private static Ent[] convert(Map map){
         Ent [] entrySet = new Ent[map.size()];
         Set<Entry> eSet = map.entrySet();
-	Iterator<Entry> it = eSet.iterator();
-	for (int i = 0; it.hasNext(); i++){
-	    entrySet[i] = new Ent(it.next());
+	synchronized (map){
+	    Iterator<Entry> it = eSet.iterator();
+	    for (int i = 0; it.hasNext(); i++){
+		entrySet[i] = new Ent(it.next());
+	    }
+	    return entrySet;
 	}
-        return entrySet;
     }
     
     MapSerializer(Map<K,V> map){

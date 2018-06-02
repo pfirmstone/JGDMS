@@ -10,28 +10,15 @@ grant {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.net.SocketPermission "medusa", "resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.collections.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+{
     permission java.security.AllPermission "", "";
 };

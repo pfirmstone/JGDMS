@@ -231,8 +231,14 @@ public final class ActivatableInvocationHandler
 	    throws InvalidObjectException 
     {
 	if (!hasConsistentConstraints(uproxy, clientConstraints)) {
-		throw new InvalidObjectException(
-		    "inconsistent constraints between underlying proxy and invocation handler");
+		StringBuilder sb = new StringBuilder(128);
+		sb.append("inconsistent constraints between underlying proxy and invocation handler\n")
+		  .append("Proxy:\n");
+		if (uproxy instanceof RemoteMethodControl)
+		  sb.append(((RemoteMethodControl)uproxy).getConstraints());
+		sb.append("InvocationHandler:\n");
+		sb.append(clientConstraints);
+		throw new InvalidObjectException(sb.toString());
 	    }
 	return clientConstraints;
     }
@@ -425,7 +431,7 @@ public final class ActivatableInvocationHandler
      * times. On subsequent attempts, <code>true</code> will be passed to
      * the activation identifier's <code>activate</code> method, if passing
      * <code>false</code> returned the same underlying proxy as before or
-     * if <code>NoSuchObjectException</code> was thrown by the call to the
+     * if <code>NonExistantObjectException</code> was thrown by the call to the
      * underlying proxy.
      *
      * <li>If the final attempt at reflective invocation throws
@@ -879,7 +885,7 @@ public final class ActivatableInvocationHandler
      * passing <code>false</code> returned the same underlying proxy as
      * before (when compared using the <code>equals</code> method) or if
      * the exception passed to <code>setException</code> is an instance of
-     * <code>NoSuchObjectException</code>. If an activation attempt results
+     * <code>NonExistantObjectException</code>. If an activation attempt results
      * in an exception, that exception is thrown by the <code>next</code>
      * method of the iterator and iteration terminates.
      *
@@ -1120,7 +1126,7 @@ public final class ActivatableInvocationHandler
 	} catch (RemoteException e) {
 	    throw new ConnectIOException("activation failed", e);
 	} catch (UnknownObjectException e) {
-	    throw new net.jini.export.NoSuchObjectException("object not registered", e);
+	    throw new net.jini.export.NonExistantObjectException("object not registered", e);
 	} catch (ActivationException e) {
 	    throw new ActivateFailedException("activation failed", e);
 	} 

@@ -28,6 +28,8 @@ import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * A basic trust verifier for proxies.  This trust verifier is used to
@@ -41,6 +43,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
+@AtomicSerial
 public final class BasicProxyTrustVerifier
     implements TrustVerifier, Serializable
 {
@@ -62,6 +65,14 @@ public final class BasicProxyTrustVerifier
      * {@link TrustEquivalence}
      */
     public BasicProxyTrustVerifier(Object proxy) {
+	this(check(proxy));
+    }
+    
+    BasicProxyTrustVerifier(GetArg arg) throws IOException{
+	this(check(arg.get("proxy", null, RemoteMethodControl.class)));
+    }
+        
+    private static RemoteMethodControl check(Object proxy){
 	if (!(proxy instanceof RemoteMethodControl)) {
 	    throw new IllegalArgumentException(
 		"proxy not a RemoteMethodControl instance");
@@ -69,7 +80,11 @@ public final class BasicProxyTrustVerifier
 	    throw new IllegalArgumentException(
 		"proxy not a TrustEquivalence instance");
 	}
-	this.proxy = (RemoteMethodControl) proxy;
+	return (RemoteMethodControl) proxy;
+    }
+    
+    private BasicProxyTrustVerifier(RemoteMethodControl proxy){
+	this.proxy = proxy;
     }
 	
     /**
@@ -101,6 +116,12 @@ public final class BasicProxyTrustVerifier
 	throws IOException, ClassNotFoundException
     {
 	in.defaultReadObject();
+	check(proxy);
+    }
+    
+    private static RemoteMethodControl check(RemoteMethodControl proxy) 
+	    throws InvalidObjectException
+    {
 	if (proxy == null) {
 	    throw new InvalidObjectException(
 		"proxy not a RemoteMethodControl instance");
@@ -108,6 +129,7 @@ public final class BasicProxyTrustVerifier
 	    throw new InvalidObjectException(
 		"proxy not a TrustEquivalence instance");
 	}
+	return (RemoteMethodControl) proxy;
     }
 }
     

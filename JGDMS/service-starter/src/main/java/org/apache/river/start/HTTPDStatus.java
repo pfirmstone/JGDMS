@@ -73,7 +73,7 @@ public class HTTPDStatus {
     public static void httpdWarning(String codebase) {
         if (codebase == null) {
 	    logger.log(Level.WARNING, "httpserver.warning",
-	        new Object[] {codebase, "Codebase is null"});
+	        new Object[] {"Codebase is null"});
 	    return;
 	}
         StringTokenizer st = new StringTokenizer(codebase," ");

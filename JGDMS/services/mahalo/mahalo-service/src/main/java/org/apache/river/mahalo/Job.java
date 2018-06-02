@@ -17,6 +17,10 @@
  */
 package org.apache.river.mahalo;
 
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import org.apache.river.thread.wakeup.WakeupManager;
 import java.util.Iterator;
 import java.util.Set;
@@ -29,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.security.Security;
 
 /**
  * A <code>Job</code> manages the division of work for a problem
@@ -49,6 +54,7 @@ abstract class Job {
 					//the job is responsible
                                         // sync on tasks.
     static final Logger logger = TxnManagerImpl.participantLogger;
+    private final AccessControlContext context;
     
     /**
      * Create the <code>Job</code> object giving it the
@@ -57,12 +63,13 @@ abstract class Job {
      *
      * @param pool the <code>ExecutorService</code> which provides the threads
      */
-    Job(ExecutorService pool, WakeupManager wm) {
+    Job(ExecutorService pool, WakeupManager wm, AccessControlContext context) {
         this.wm = wm;
 	this.pool = pool;
         pend = new AtomicInteger(-1);
         results = new ConcurrentHashMap<Integer,Object>();
         tasks = new ConcurrentHashMap<Runnable,Integer>();
+	this.context = context;
     }
 
 
@@ -81,7 +88,22 @@ abstract class Job {
 	int rank = tmp.intValue();
         attempts.incrementAndGet(rank);
 
-	Object r = doWork(who, param);
+	Object r;
+	try {
+	    r = AccessController.doPrivileged(new PrivilegedExceptionAction(){
+
+		@Override
+		public Object run() throws Exception {
+		    return doWork(who, param);
+		}
+		
+	    }, context);
+	} catch (PrivilegedActionException ex) {
+	    Exception e = ex.getException();
+	    if (e instanceof JobException) throw (JobException) e;
+	    throw new RuntimeException(e);
+	}
+		
         
 	if (r == null) return false;
 

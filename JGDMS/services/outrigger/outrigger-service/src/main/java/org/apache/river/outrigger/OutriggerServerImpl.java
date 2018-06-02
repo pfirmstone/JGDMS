@@ -103,6 +103,8 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.export.CodebaseAccessor;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -120,6 +122,7 @@ import org.apache.river.outrigger.proxy.StorableResource;
 import org.apache.river.outrigger.proxy.OutriggerQueryCookie;
 import org.apache.river.outrigger.proxy.ProxyVerifier;
 import org.apache.river.admin.JavaSpaceAdmin;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * A basic implementation of a JavaSpaces<sup>TM</sup> 
@@ -169,7 +172,7 @@ import org.apache.river.admin.JavaSpaceAdmin;
 public class OutriggerServerImpl 
     implements OutriggerServer, TimeConstants, LocalLandlord, Recover,
 	       ServerProxyTrust, Startable, ServiceProxyAccessor,
-	       ServiceAttributesAccessor, ServiceIDAccessor
+	       ServiceAttributesAccessor, ServiceIDAccessor, CodebaseAccessor
 {	
     /**
      * Component name we use to find items in the configuration and loggers.
@@ -514,13 +517,16 @@ public class OutriggerServerImpl
     private Throwable thrown;
     private Exception except;
     private boolean persistent;
-    private long maxServerQueryTimeout;
-    private AccessControlContext context;
+    private final long maxServerQueryTimeout;
+    private final AccessControlContext context;
+    private String codebase;
+    private String certFactoryType;
+    private String certPathEncoding;
+    private byte[] encodedCerts;
 
     /**
      * Create a new <code>OutriggerServerImpl</code> server (possibly a
      * new incarnation of an activatable one).
-     * Exports the server as well.
      *
      * @param activationID of the server, may be null.
      * @param lifeCycle the object to notify when this
@@ -564,7 +570,7 @@ public class OutriggerServerImpl
 	    loginContext = (LoginContext) config.getEntry(
 		COMPONENT_NAME, "loginContext", LoginContext.class, null);
 	    if (loginContext == null) {
-		h = init(config, persistent, activationID, wrapper);
+		h = init(config, persistent, activationID);
 	    } else {
 		loginContext.login();
 		try {
@@ -572,7 +578,7 @@ public class OutriggerServerImpl
 			loginContext.getSubject(),
 			new PrivilegedExceptionAction<InitHolder>() {
 			    public InitHolder run() throws Exception {
-				return init(config, persistent, activationID, wrapper);
+				return init(config, persistent, activationID);
 			    }
 			},
 			null);
@@ -604,6 +610,10 @@ public class OutriggerServerImpl
             activationSystem = h.activationSystem;
             transactionManagerPreparer = h.transactionManagerPreparer;
             listenerPreparer = h.listenerPreparer;
+	    this.codebase = h.codebase;
+	    this.certFactoryType = h.certFactoryType;
+	    this.certPathEncoding = h.certPathEncoding;
+	    this.encodedCerts = h.encodedCerts.clone();
             exporter = h.exporter;
             contents = h.contents;
             templates = h.templates;
@@ -817,7 +827,6 @@ public class OutriggerServerImpl
             starter = null;
             except = null;
             thrown = null;
-            context = null;
         }
     }
 
@@ -830,6 +839,28 @@ public class OutriggerServerImpl
     public ServiceID serviceID() throws IOException {
 	return new ServiceID(topUuid.getMostSignificantBits(),
 			    topUuid.getLeastSignificantBits());
+    }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(OutriggerServer.class) 
+		: codebase;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return certFactoryType;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return certPathEncoding;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return encodedCerts.clone();
     }
 
     private static class InitHolder {
@@ -859,6 +890,10 @@ public class OutriggerServerImpl
         Thread starter;
         long maxServerQueryTimeout;
         AccessControlContext context;
+	private String codebase;
+	private String certFactoryType;
+	private String certPathEncoding;
+	private byte[] encodedCerts;
     }
 
     /**
@@ -881,15 +916,14 @@ public class OutriggerServerImpl
      * @throws ConfigurationException if the <code>Configuration</code> is 
      * malformed.  */
     private InitHolder init(Configuration config, 
-                        boolean persistent, 
-                        ActivationID activationID,
-                        OutriggerServerWrapper serverGate) 
+			    boolean persistent,
+			    ActivationID activationID) 
     	throws IOException, ConfigurationException, ActivationException
     {
         InitHolder h = new InitHolder();
         h.context = AccessController.getContext();
         
-            h.txnMonitor = new TxnMonitor(this, config);
+            h.txnMonitor = new TxnMonitor(this, config, h.context);
             /* Get the activation related preparers we need */
 
             // Default do nothing preparer
@@ -908,10 +942,10 @@ public class OutriggerServerImpl
                          ProxyPreparer.class, defaultPreparer);
 
                 h.activationID = 
-                    (ActivationID)aidPreparer.prepareProxy(h.activationID);
+                    (ActivationID)aidPreparer.prepareProxy(activationID);
                 h.activationSystem =
                     (ActivationSystem)aSysPreparer.prepareProxy(
-                        ActivationGroup.getSystem());
+                        net.jini.activation.ActivationGroup.getSystem());
             }
 
 
@@ -925,6 +959,17 @@ public class OutriggerServerImpl
                 (ProxyPreparer)Config.getNonNullEntry(config, 
                     COMPONENT_NAME, "listenerPreparer",
                     ProxyPreparer.class, defaultPreparer);
+	    
+	    /* CodebaseAccessor configuration */
+	    
+	    h.codebase = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_Annotation", String.class, "");
+	    h.certFactoryType = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_CertFactoryType", String.class, "X.509");
+	    h.certPathEncoding = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+	    h.encodedCerts = Config.getNonNullEntry(config, COMPONENT_NAME,
+		    "Codebase_Certs", byte[].class, new byte[0]);
 
             /* Export the server. */
 
@@ -937,7 +982,7 @@ public class OutriggerServerImpl
              */
             final Exporter basicExporter = 
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-                                      new BasicILFactory(null, null, OutriggerServer.class.getClassLoader()), false, true);
+                                      new AtomicILFactory(null, null, OutriggerServer.class.getClassLoader()), false, true);
             if (activationID == null) {
                 h.exporter = (Exporter)Config.getNonNullEntry(config,
                     COMPONENT_NAME,	"serverExporter", Exporter.class,
@@ -1456,7 +1501,7 @@ public class OutriggerServerImpl
      * <code>null</code>
      */
     void enqueueDelivery(EventSender sender) {
-	notifier.enqueueDelivery(sender);
+	notifier.enqueueDelivery(sender, context);
     }
 
     /**
@@ -4133,7 +4178,7 @@ public class OutriggerServerImpl
 	throw cje;
     } 
 
-    /** Log and throw new NoSuchObjectException */
+    /** Log and throw new NonExistantObjectException */
     private NoSuchObjectException throwNewNoSuchObjectException(
 	    String msg, Logger logger)
 	throws NoSuchObjectException
@@ -4141,12 +4186,12 @@ public class OutriggerServerImpl
 	throw throwNewNoSuchObjectException(msg, null, logger);
     }
 
-    /** Log and throw new NoSuchObjectException with a nested exception */
+    /** Log and throw new NonExistantObjectException with a nested exception */
     private NoSuchObjectException throwNewNoSuchObjectException(
 	    String msg, Throwable t, Logger logger)
 	throws NoSuchObjectException
     {
-	final NoSuchObjectException nsoe = new net.jini.export.NoSuchObjectException(msg, t);
+	final NoSuchObjectException nsoe = new net.jini.export.NonExistantObjectException(msg, t);
 	logger.log(Levels.FAILED, msg, nsoe);
 	throw nsoe;
     }

@@ -62,8 +62,6 @@ import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
-import org.apache.river.api.io.AtomicMarshalInputStream;
-import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.jeri.internal.runtime.Util;
@@ -140,21 +138,33 @@ import org.apache.river.logging.Levels;
  *
  * </table>
  **/
-@AtomicSerial
 public class BasicInvocationHandler
     implements InvocationHandler, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -783920361025791412L;
 
+    // Allowing atomic deserialization of this class may allow
+    // an attacker to deserialize a reflective proxy that uses
+    // standard Java serialization via an atomic stream, then use
+    // that proxy as an attack vector.  So this class isn't annotated with
+    // @AtomicSerial for that reason.
+    // A permission check cannot be used to controll access as there are no
+    // ProtectionDomain's on the stack to represent the untrusted principal
+    // of the serialized input.
+    // We implement atomic deserialization methods here for
+    // AtomicInvocationHander to utilise, these invariants belong
+    // to BasicInvocationHandler, they must be checked by BasicInvocationHander.
+    // Unfortunately it isn't an option to allow an atomicially constrained
+    // stream to deserialize a proxy that isn't atomic.
+    // A proxy can still be obtained that uses standard java serialization
+    // through a marshalled instance, to do so requires
+    // DeSerializationPermission MARSHALL.
+    
     /**
      * invoke logger
      **/
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicInvocationHandler");
-    
-    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
-	= AccessController.doPrivileged(new GetBooleanAction(
-		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
 
     /** size of the method constraint cache (per instance) */
     private static final int CACHE_SIZE = 3;
@@ -657,7 +667,7 @@ public class BasicInvocationHandler
 	    throw new AssertionError(method);
 	}
     }
-
+    
     /**
      * Holds information about the communication failure of a remote
      * call attempt.
@@ -822,8 +832,10 @@ public class BasicInvocationHandler
 	    ros.write(0x00);			// marshalling protocol version
 	    ros.write(integrity ? 0x01 : 0x00);	// integrity
 	    }
-
-	    context = new ArrayList(2);
+	    
+	    context = new ArrayList(3);
+	    if (clientConstraints != null) context.add(clientConstraints);
+	    
 	    Util.populateContext(context, integrity, atomicValidation);
 
 
@@ -1059,7 +1071,7 @@ public class BasicInvocationHandler
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
     protected ObjectOutputStream
-        createMarshalOutputStream(Object proxy,
+        createMarshalOutputStream(final Object proxy,
 				  Method method,
 				  OutboundRequest request,
 				  Collection context)
@@ -1079,11 +1091,11 @@ public class BasicInvocationHandler
 			if (o instanceof AtomicValidationEnforcement &&
 			    ((AtomicValidationEnforcement) o).enforced())
 			{
-			    return new AtomicMarshalOutputStream(out, unmodContext);
+			    throw new UnsupportedConstraintException(
+				"cannot satisfy unfulfilled constraint: " + o);
 			}
 		    }
-		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) return new MarshalOutputStream(out, unmodContext);
-		    return new AtomicMarshalOutputStream(out, unmodContext);
+		    return new MarshalOutputStream(out, unmodContext);
 		}
 		
 	    });
@@ -1149,32 +1161,26 @@ public class BasicInvocationHandler
 	final ClassLoader proxyLoader = getProxyLoader(proxy.getClass());
 	final Collection unmodContext = Collections.unmodifiableCollection(context);
 	
-	MarshalInputStream in;
+	ObjectInputStream in;
 	try {
-	    in = AccessController.doPrivileged(new PrivilegedExceptionAction<MarshalInputStream>(){
+	    in = AccessController.doPrivileged(new PrivilegedExceptionAction<ObjectInputStream>(){
 		
 		@Override
-		public MarshalInputStream run() throws Exception {
+		public ObjectInputStream run() throws Exception {
 		    for (Object o : unmodContext){
 			if (o instanceof AtomicValidationEnforcement &&
-				((AtomicValidationEnforcement) o).enforced()){
-				    return (MarshalInputStream) 
-					AtomicMarshalInputStream.create(
-					    request.getResponseInputStream(),
-				   proxyLoader, integrity, proxyLoader,
-				   unmodContext);
+				((AtomicValidationEnforcement) o).enforced())
+			{
+			    throw new UnsupportedConstraintException(
+				"cannot satisfy unfulfilled constraint: " + o);
 			}
 		    }
-		    if (ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET) 
-			return new MarshalInputStream(
+			MarshalInputStream min = new MarshalInputStream(
 					request.getResponseInputStream(),
 					proxyLoader, integrity, proxyLoader,
 					unmodContext);
-		    else return AtomicMarshalInputStream.create(
-					request.getResponseInputStream(),
-					proxyLoader, integrity, proxyLoader,
-					unmodContext);
-		    
+			min.useCodebaseAnnotations();	
+			return min;
 		}
 		
 	    });
@@ -1183,16 +1189,14 @@ public class BasicInvocationHandler
 	    if (e instanceof IOException) throw (IOException) e;
 	    if (e instanceof RuntimeException) throw (RuntimeException)e;
 	    throw new IOException(ex);
-	}
-	    
-	in.useCodebaseAnnotations();
+	}	
 	return in;
     }
 
     /**
      * Returns the class loader for the specified proxy class.
      */
-    private static ClassLoader getProxyLoader(final Class proxyClass) {
+    static ClassLoader getProxyLoader(final Class proxyClass) {
 	return (ClassLoader)
 	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {

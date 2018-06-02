@@ -32,7 +32,7 @@ import java.util.logging.Logger;
  */
 public class BJETransportListener implements TransportListener{
 
-    private static Hashtable listeners = new Hashtable();
+    private static final Hashtable listeners = new Hashtable();
     private static TransportListener mainListener = new BJETransportListener();
     private static Logger log = Logger.getLogger("org.apache.river.test.spec.jeri"
         + ".basicjeriexporter.util");
@@ -48,10 +48,12 @@ public class BJETransportListener implements TransportListener{
         }
         message += "on object: " + obj;
         log.finest(message);
-        Iterator it = listeners.keySet().iterator();
-        while(it.hasNext()){
-            ((TransportListener) it.next()).called(m, obj,args);
-        }
+	synchronized (listeners){
+	    Iterator it = listeners.keySet().iterator();
+	    while(it.hasNext()){
+		((TransportListener) it.next()).called(m, obj,args);
+	    }
+	}
     }
 
     public static void deRegisterListener(TransportListener tl) {

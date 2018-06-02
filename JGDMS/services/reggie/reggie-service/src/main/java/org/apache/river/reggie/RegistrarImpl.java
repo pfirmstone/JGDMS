@@ -114,7 +114,7 @@ import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceAttributesAccessor;
-import net.jini.lookup.ServiceCodebaseAccessor;
+import net.jini.export.CodebaseAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.id.ReferentUuid;
@@ -122,6 +122,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -129,6 +130,7 @@ import net.jini.lookup.JoinManager;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalledInstance;
@@ -177,7 +179,7 @@ import org.apache.river.reggie.proxy.*;
  */
 class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Startable,
 	ServiceProxyAccessor, ServiceAttributesAccessor, ServiceIDAccessor,
-	ServiceCodebaseAccessor
+	CodebaseAccessor
 {
 
     /** Maximum minMax lease duration for both services and events */
@@ -197,7 +199,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     /** Lease ID always assigned to self */
     private static final Uuid myLeaseID = UuidFactory.create(0L, 0L);
     /** Logger used by this service */
-    private static final Logger logger = Logger.getLogger(COMPONENT);
+    private static final Logger LOGGER = Logger.getLogger(COMPONENT + ".service");
+    
+    private static final Logger EVENT_LOGGER = Logger.getLogger(COMPONENT + ".event");
+    
+    private static final Logger DISCOVERY_LOGGER = Logger.getLogger(COMPONENT + ".discovery");
+    
+    private static final Logger SNAPSHOT_LOGGER = Logger.getLogger(COMPONENT + ".snapshot");
 
     /** Base set of initial attributes for self */
     private static final Entry[] baseAttrs = {
@@ -419,10 +427,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private String unicastDiscoveryHost;
     private Configuration config;
     private Exception constructionException;
-    private AccessControlContext context;
+    private final AccessControlContext context;
     private final String certFactoryType;
     private final String certPathEncoding;
     private final byte[] encodedCerts;
+    private final String codebase;
     
 
     /**
@@ -497,7 +506,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             }
             return result;
         } catch (Throwable t) {
-	    logger.log(Level.SEVERE, "Reggie initialization failed", t);
+	    LOGGER.log(Level.SEVERE, "Reggie initialization failed", t);
 	    if (t instanceof Exception) {
 		throw (Exception) t;
 	    } else {
@@ -511,6 +520,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         this.snapshotNotifier = concurrentObj.newCondition();
         this.eventNotifier = concurrentObj.newCondition();
         this.serviceNotifier = concurrentObj.newCondition();
+	this.codebase = init.codebase;
 	this.certFactoryType = init.certFactoryType;
 	this.certPathEncoding = init.certPathEncoding;
 	this.encodedCerts = init.encodedCerts.clone();
@@ -604,8 +614,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             snapshotter = threads.get(5);
             if (init.persistent){
                 log = new ReliableLog(init.persistenceDirectory, new LocalLogHandler(this));
-                if (logger.isLoggable(Level.CONFIG)) {
-                    logger.log(Level.CONFIG, "using persistence directory {0}",
+                if (SNAPSHOT_LOGGER.isLoggable(Level.CONFIG)) {
+                    SNAPSHOT_LOGGER.log(Level.CONFIG, "using persistence directory {0}",
                                new Object[]{ init.persistenceDirectory });
                 }
             } else {
@@ -644,7 +654,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     @Override
     public String getClassAnnotation() throws IOException {
-	return CodebaseProvider.getClassAnnotation(RegistrarProxy.class);
+	return "".equals(codebase) ? 
+		CodebaseProvider.getClassAnnotation(RegistrarProxy.class) 
+		: codebase;
     }
 
     @Override
@@ -822,7 +834,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    {
 			throw (Error) e;
 		    }
-		    logger.log(Level.WARNING,
+		    EVENT_LOGGER.log(Level.WARNING,
 			       "failed to recover event listener", e);
 		}
 	    }
@@ -900,9 +912,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    listener =
 			(RemoteEventListener) preparer.prepareProxy(listener);
 		} catch (Exception e) {
-		    if (logger.isLoggable(Level.WARNING)) {
-			logThrow(
-			    Level.WARNING,
+		    if (EVENT_LOGGER.isLoggable(Level.WARNING)) {
+			logThrow(EVENT_LOGGER, Level.WARNING,
 			    getClass().getName(),
 			    "prepareListener",
 			    "failed to prepare event listener {0}",
@@ -942,7 +953,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		{
 		    throw (Error) e;
 		}
-		logger.log(Level.WARNING,
+		EVENT_LOGGER.log(Level.WARNING,
 			   "failed to recover event listener", e);
 	    }
 	}
@@ -2191,8 +2202,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	/** Send the event */
         @Override
 	public Boolean call() throws Exception {
-	    if (logger.isLoggable(Level.FINE)) {
-		logger.log(
+	    if (EVENT_LOGGER.isLoggable(Level.FINE)) {
+		EVENT_LOGGER.log(
 		    Level.FINE,
 		    "notifying listener {0} of event {1}",
 		    new Object[]{ listener, Long.valueOf(reg.eventID) });
@@ -2226,7 +2237,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		switch (ThrowableConstants.retryable(e)) {
 		case ThrowableConstants.BAD_OBJECT:
 		    if (e instanceof Error) {
-			logger.log(
+			EVENT_LOGGER.log(
 			    Levels.HANDLED, "exception sending event", e);
 			throw (Error) e;
 		    }
@@ -2235,16 +2246,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    /* If the listener throws UnknownEvent or some other
 		     * definite exception, we can cancel the lease.
 		     */
-		    logger.log(Level.INFO, "exception sending event", e);
+		    EVENT_LOGGER.log(Level.INFO, "exception sending event", e);
 		    try {
 			registrar.cancelEventLease(reg.eventID, reg.leaseID);
 		    } catch (UnknownLeaseException ee) {
-			logger.log(
+			EVENT_LOGGER.log(
 			    Levels.HANDLED,
 			    "exception canceling event lease",
 			    e);
 		    } catch (RemoteException ee) {
-			logger.log(
+			EVENT_LOGGER.log(
 			    Levels.HANDLED,
 			    "The server has been shutdown",
 			    e);
@@ -2307,10 +2318,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    reggie.multicastRequestSubjectChecker, true);
 	    } catch (Exception e) {
 		if (!(e instanceof InterruptedIOException) &&
-		    logger.isLoggable(Levels.HANDLED))
+		    DISCOVERY_LOGGER.isLoggable(Levels.HANDLED))
 		{
-		    logThrow(
-			Levels.HANDLED,
+		    logThrow(DISCOVERY_LOGGER, Levels.HANDLED,
 			getClass().getName(),
 			"run",
 			"exception decoding multicast request from {0}:{1}",
@@ -2329,10 +2339,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    req.checkConstraints();
 		} catch (Exception e) {
 		    if (!(e instanceof InterruptedIOException) &&
-			logger.isLoggable(Levels.HANDLED))
+			DISCOVERY_LOGGER.isLoggable(Levels.HANDLED))
 		    {
-			logThrow(
-			    Levels.HANDLED,
+			logThrow(DISCOVERY_LOGGER, Levels.HANDLED,
 			    getClass().getName(),
 			    "run",
 			    "exception decoding multicast request from {0}:{1}",
@@ -2405,9 +2414,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    if (addr == null)
 			addr = new InetAddress[]{};
 		} catch (UnknownHostException e) {
-		    if (logger.isLoggable(Level.INFO)) {
-			logThrow(
-			    Level.INFO,
+		    if (DISCOVERY_LOGGER.isLoggable(Level.INFO)) {
+			logThrow(DISCOVERY_LOGGER, Level.INFO,
 			    getClass().getName(),
 			    "run",
 			    "failed to resolve host {0};"
@@ -2439,8 +2447,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			     new InetSocketAddress(addr[i], port), timeout);
 			return;
 		    } catch (Exception e) {
-			if (logger.isLoggable(Levels.HANDLED)) {
-			    logThrow(Levels.HANDLED, getClass().getName(),
+			if (DISCOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+			    logThrow(DISCOVERY_LOGGER, Levels.HANDLED, getClass().getName(),
 				     "run", "exception responding to {0}:{1}",
 				     new Object[] {addr[i], Integer.valueOf(port)}
 				     , e);
@@ -2454,9 +2462,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		            + " before successful response");
 		}
 	    } catch (Exception e) {
-		if (logger.isLoggable(Level.INFO)) {
-		    logThrow(
-			Level.INFO,
+		if (DISCOVERY_LOGGER.isLoggable(Level.INFO)) {
+		    logThrow(DISCOVERY_LOGGER, Level.INFO,
 			getClass().getName(),
 			"run",
 			"failed to respond to {0} on port {1}",
@@ -2478,7 +2485,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 try {
                     s.close();
                 } catch (IOException e) {
-                    logger.log(Levels.HANDLED, "exception closing socket", e);
+                    DISCOVERY_LOGGER.log(Levels.HANDLED, "exception closing socket", e);
                 }
             }
         }
@@ -2512,9 +2519,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    try {
 		reggie.respond(socket);
 	    } catch (Exception e) {
-	        if (logger.isLoggable(Levels.HANDLED)) {
-		    logThrow(
-			Levels.HANDLED,
+	        if (DISCOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
+		    logThrow(DISCOVERY_LOGGER, Levels.HANDLED,
 			getClass().getName(),
 			"run",
 			"exception handling unicast discovery from {0}:{1}",
@@ -2553,8 +2559,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			reggie.deleteService(reg, now);
 			reggie.addLogRecord(new ServiceLeaseCancelledLogObj(
 					    reg.item.getServiceID(), reg.leaseID));
-			if (logger.isLoggable(Level.FINE)) {
-			    logger.log(
+			if (LOGGER.isLoggable(Level.FINE)) {
+			    LOGGER.log(
 				Level.FINE,
 				"expired service registration {0}",
 				new Object[]{ reg.item.getServiceID() });
@@ -2598,8 +2604,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			    break;
 			}
 			reggie.deleteEvent(reg);
-			if (logger.isLoggable(Level.FINE)) {
-			    logger.log(
+			if (EVENT_LOGGER.isLoggable(Level.FINE)) {
+			    EVENT_LOGGER.log(
 				Level.FINE,
 				"expired event registration {0} for {1}",
 				new Object[]{ reg.leaseID, reg.listener });
@@ -2647,7 +2653,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			now = System.currentTimeMillis();
 		    } catch (InterruptedException e) {
                         Thread.currentThread().interrupt(); // restore
-			logger.log(
+			LOGGER.log(
 			     Levels.HANDLED, "exception during unexport wait", e);
 		    }
 		}
@@ -2680,13 +2686,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    reggie.closeRequestSockets(cancelledTasks);
 	    if (reggie.log != null) {
 		reggie.log.deletePersistentStore();
-		logger.finer("deleted persistence directory");
+		SNAPSHOT_LOGGER.finer("deleted persistence directory");
 	    }
 	    if (reggie.activationID != null) {
 		try {
 		    ActivationGroup.inactive(reggie.activationID, reggie.serverExporter);
 		} catch (Exception e) {
-		    logger.log(Level.INFO, "exception going inactive", e);
+		    LOGGER.log(Level.INFO, "exception going inactive", e);
 		}
 	    }
 	    if (reggie.lifeCycle != null) {
@@ -2696,10 +2702,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		try {
 		    reggie.loginContext.logout();
 		} catch (LoginException e) {
-		    logger.log(Level.INFO, "logout failed", e);
+		    LOGGER.log(Level.INFO, "logout failed", e);
 		}
 	    }
-	    logger.info("Reggie shutdown completed");
+	    LOGGER.info("Reggie shutdown completed");
 	}
     }
 
@@ -2745,9 +2751,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			socket.joinGroup(requestAddr);
 		    } catch (IOException e) {
 			failedInterfaces.add(nic);
-			if (logger.isLoggable(failureLogLevel)) {
-			    logThrow(
-				failureLogLevel,
+			if (DISCOVERY_LOGGER.isLoggable(failureLogLevel)) {
+			    logThrow(DISCOVERY_LOGGER, failureLogLevel,
 				getClass().getName(),
 				"<init>",
 				"exception enabling {0}",
@@ -2761,7 +2766,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    socket.joinGroup(requestAddr);
 		} catch (IOException e) {
 		    failedInterfaces.add(null);
-		    logger.log(
+		    DISCOVERY_LOGGER.log(
 			Level.WARNING,
 			"exception enabling default interface", e);
 		}
@@ -2834,7 +2839,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    if (interrupted) {
 			break;
 		    }
-		    logger.log(Levels.HANDLED,
+		    DISCOVERY_LOGGER.log(Levels.HANDLED,
 			       "exception receiving multicast request", e);
 		}
 	    }
@@ -2865,11 +2870,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
 		    Level l = reggie.multicastInterfacesSpecified ?
 			Level.INFO : Level.FINE;
-		    if (logger.isLoggable(l)) {
+		    if (DISCOVERY_LOGGER.isLoggable(l)) {
 			if (nic != null) {
-			    logger.log(l, "enabled {0}", new Object[]{ nic });
+			    DISCOVERY_LOGGER.log(l, "enabled {0}", new Object[]{ nic });
 			} else {
-			    logger.log(l, "enabled default interface");
+			    DISCOVERY_LOGGER.log(l, "enabled default interface");
 			}
 		    }
 		} catch (IOException e) {
@@ -2920,7 +2925,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    listen = reggie.serverSocketFactory.createServerSocket(Constants.discoveryPort);
                     port = Constants.discoveryPort;
 		} catch (IOException e) {
-		    logger.log(
+		    DISCOVERY_LOGGER.log(
 			Levels.HANDLED, "failed to bind to default port", e);
 		}
 	    }
@@ -2928,7 +2933,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 try {
                     listen = reggie.serverSocketFactory.createServerSocket(port);
                 } catch (IOException e){
-                    logger.log(Level.INFO, "failed to bind to port " + port, e);
+                    DISCOVERY_LOGGER.log(Level.INFO, "failed to bind to port " + port, e);
                     if (arbitraryPort){
                         listen = reggie.serverSocketFactory.createServerSocket(0);
                         ephemeral = true;
@@ -2938,7 +2943,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 }
 	    }
             port = listen.getLocalPort();
-            logger.log(Level.INFO, "Reggie Unicast Discovery listening on port {0}", port);
+            DISCOVERY_LOGGER.log(Level.INFO, "Reggie Unicast Discovery listening on port {0}", port);
             this.listen = listen;
 	    this.port = port;
             if (ephemeral) reggie.unicastPort = port;
@@ -2952,7 +2957,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			try {
 			    socket.close();
 			} catch (IOException e) {
-			    logger.log(
+			    DISCOVERY_LOGGER.log(
 				Levels.HANDLED, "exception closing socket", e);
 			}
 			break;
@@ -2961,7 +2966,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		} catch (InterruptedIOException e) {
 		    break;
 		} catch (Exception e) {
-		    logger.log(
+		    DISCOVERY_LOGGER.log(
 			Levels.HANDLED, "exception listening on socket", e);
 		}
 		/* if we fail in any way, just forget about it */
@@ -2969,7 +2974,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    try {
 		listen.close();
 	    } catch (IOException e) {
-		logger.log(
+		DISCOVERY_LOGGER.log(
 		    Levels.HANDLED, "exception closing server socket", e);
 	    }
 	}
@@ -3085,7 +3090,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    try {
 		        packets.addAll(Arrays.asList(ei.next()));
 		    } catch (Exception e) {
-			logger.log( (e instanceof 
+			DISCOVERY_LOGGER.log( (e instanceof 
 				     UnsupportedConstraintException)
 				    ? Levels.HANDLED : Level.INFO,
 				    "exception encoding multicast"
@@ -3102,7 +3107,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    } catch (InterruptedIOException e) {
 		return false;
 	    } catch (IOException e) {
-		logger.log(
+		DISCOVERY_LOGGER.log(
 		    Level.INFO, "exception sending multicast announcement", e);
 	    }
 	    return true;
@@ -3142,9 +3147,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		try {
 		    socket.setNetworkInterface(nic);
 		} catch (SocketException e) {
-		    if (logger.isLoggable(failureLogLevel)) {
-			logThrow(
-			    failureLogLevel,
+		    if (DISCOVERY_LOGGER.isLoggable(failureLogLevel)) {
+			logThrow(DISCOVERY_LOGGER, failureLogLevel,
 			    getClass().getName(),
 			    "send",
 			    "exception setting {0}",
@@ -3161,9 +3165,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    throw e;
 		} catch (IOException e) {
 		    if (nic != null) {
-			if (logger.isLoggable(failureLogLevel)) {
-			    logThrow(
-				failureLogLevel,
+			if (DISCOVERY_LOGGER.isLoggable(failureLogLevel)) {
+			    logThrow(DISCOVERY_LOGGER, failureLogLevel,
 				getClass().getName(),
 				"send",
 				"exception sending packet on {0}",
@@ -3171,7 +3174,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				e);
 			}
 		    } else {
-			logger.log(
+			DISCOVERY_LOGGER.log(
 			    failureLogLevel,
 			    "exception sending packet on default interface",
 			    e);
@@ -3236,7 +3239,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    if (reggie.log == null) {
 		return;
 	    }
-            reggie.concurrentObj.readLock();
+            reggie.concurrentObj.writeLock();
 	    try {
 		while (!Thread.currentThread().isInterrupted()) {
                     try {
@@ -3252,11 +3255,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                         // InterruptedException is never thrown in try
                         if (Thread.currentThread().isInterrupted())
                             return;
-                        logger.log(Level.WARNING, "snapshot failed", e);
+                        LOGGER.log(Level.WARNING, "snapshot failed", e);
                     }
 		}
 	    } finally {
-		reggie.concurrentObj.readUnlock();
+		reggie.concurrentObj.writeUnlock();
 	    }
 	}
     }
@@ -3298,8 +3301,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	concurrentObj.writeLock();
 	try {
 	    ServiceRegistration reg = registerDo(nitem, leaseDuration);
-	    if (logger.isLoggable(Level.FINE)) {
-		logger.log(
+	    if (LOGGER.isLoggable(Level.FINE)) {
+		LOGGER.log(
 		    Level.FINE,
 		    "registered instance of {0} as {1}",
 		    new Object[]{
@@ -3358,8 +3361,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	try {
 	    EventRegistration reg = notifyDo(
 		tmpl, transitions, listener, handback, leaseDuration, false);
-	    if (logger.isLoggable(Level.FINE)) {
-		logger.log(
+	    if (EVENT_LOGGER.isLoggable(Level.FINE)) {
+		EVENT_LOGGER.log(
 		    Level.FINE,
 		    "registered event listener {0} as {1}",
 		    new Object[]{
@@ -3385,8 +3388,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	try {
 	    EventRegistration reg = notifyDo(
 		tmpl, transitions, listener, handback, leaseDuration, true);
-	    if (logger.isLoggable(Level.FINE)) {
-		logger.log(
+	    if (EVENT_LOGGER.isLoggable(Level.FINE)) {
+		EVENT_LOGGER.log(
 		    Level.FINE,
 		    "registered event listener {0} as {1}",
 		    new Object[]{
@@ -3517,8 +3520,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	try {
 	    cancelServiceLeaseDo(serviceID, leaseID);
 	    addLogRecord(new ServiceLeaseCancelledLogObj(serviceID, leaseID));
-	    if (logger.isLoggable(Level.FINE)) {
-		logger.log(
+	    if (LOGGER.isLoggable(Level.FINE)) {
+		LOGGER.log(
 		    Level.FINE,
 		    "cancelled service registration {0}",
 		    new Object[]{ serviceID });
@@ -3551,8 +3554,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	try {
 	    cancelEventLeaseDo(eventID, leaseID);
 	    addLogRecord(new EventLeaseCancelledLogObj(eventID, leaseID));
-	    if (logger.isLoggable(Level.FINE)) {
-		logger.log(
+	    if (EVENT_LOGGER.isLoggable(Level.FINE)) {
+		EVENT_LOGGER.log(
 		    Level.FINE,
 		    "cancelled event registration {0}",
 		    new Object[]{ leaseID });
@@ -3598,18 +3601,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	try {
 	    Exception[] exceptions = cancelLeasesDo(regIDs, leaseIDs);
 	    addLogRecord(new LeasesCancelledLogObj(regIDs, leaseIDs));
-	    if (logger.isLoggable(Level.FINE)) {
+	    if (LOGGER.isLoggable(Level.FINE)) {
 		for (int i = 0; i < regIDs.length; i++) {
 		    if (exceptions != null && exceptions[i] != null) {
 			continue;
 		    }
 		    if (regIDs[i] instanceof ServiceID) {
-			logger.log(
+			LOGGER.log(
 			    Level.FINE,
 			    "cancelled service registration {0}",
 			    new Object[]{ regIDs[i] });
 		    } else {
-			logger.log(
+			EVENT_LOGGER.log(
 			    Level.FINE,
 			    "cancelled event registration {0}",
 			    new Object[]{ leaseIDs[i] });
@@ -3692,8 +3695,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    }
 	    lookupGroups = dgm.getGroups();
 	    addLogRecord(new LookupGroupsChangedLogObj(lookupGroups));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "added lookup groups {0}",
 		    new Object[]{ Arrays.asList(groups) });
@@ -3713,8 +3716,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    dgm.removeGroups(groups);
 	    lookupGroups = dgm.getGroups();
 	    addLogRecord(new LookupGroupsChangedLogObj(lookupGroups));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "removed lookup groups {0}",
 		    new Object[]{ Arrays.asList(groups) });
@@ -3736,8 +3739,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    }
 	    lookupGroups = dgm.getGroups();
 	    addLogRecord(new LookupGroupsChangedLogObj(lookupGroups));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "set lookup groups {0}",
 		    new Object[]{ 
@@ -3771,8 +3774,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    dlm.addLocators(locators);
 	    lookupLocators = dlm.getLocators();
 	    addLogRecord(new LookupLocatorsChangedLogObj(lookupLocators));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "added lookup locators {0}",
 		    new Object[]{ Arrays.asList(locators) });
@@ -3794,8 +3797,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    dlm.removeLocators(locators);
 	    lookupLocators = dlm.getLocators();
 	    addLogRecord(new LookupLocatorsChangedLogObj(lookupLocators));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "removed lookup locators {0}",
 		    new Object[]{ Arrays.asList(locators) });
@@ -3817,8 +3820,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    dlm.setLocators(locators);
 	    lookupLocators = dlm.getLocators();
 	    addLogRecord(new LookupLocatorsChangedLogObj(lookupLocators));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "set lookup locators {0}",
 		    new Object[]{ Arrays.asList(locators) });
@@ -3840,8 +3843,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		announcer.notify();
 	    }
 	    addLogRecord(new MemberGroupsChangedLogObj(memberGroups));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "added member groups {0}",
 		    new Object[]{ Arrays.asList(groups) });
@@ -3866,8 +3869,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		announcer.notify();
 	    }
 	    addLogRecord(new MemberGroupsChangedLogObj(memberGroups));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "removed member groups {0}",
 		    new Object[]{ Arrays.asList(groups) });
@@ -3897,8 +3900,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    synchronized (announcer) {
 		announcer.notify();
 	    }
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "set member groups {0}",
 		    new Object[]{ Arrays.asList(groups) });
@@ -3954,8 +3957,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		announcer.notify();
 	    }
 	    addLogRecord(new UnicastPortSetLogObj(port));
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(
+	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+		DISCOVERY_LOGGER.log(
 		    Level.CONFIG,
 		    "changed unicast discovery port to {0}",
 		    new Object[]{ Integer.valueOf(unicast.port) });
@@ -3969,16 +3972,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public void destroy() throws RemoteException {
 	concurrentObj.priorityWriteLock();
 	try {
-	    logger.info("starting Reggie shutdown");
+	    LOGGER.info("starting Reggie shutdown");
 	    /* unregister with activation system if activatable */
 	    if (activationID != null) {
 		try {
 		    activationSystem.unregisterObject(activationID);
 		} catch (ActivationException e) {
-		    logger.log(Levels.HANDLED,
+		    LOGGER.log(Levels.HANDLED,
 			       "exception unregistering activation ID", e);
 		} catch (RemoteException e) {
-		    logger.log(Level.WARNING,
+		    LOGGER.log(Level.WARNING,
 			       "aborting Reggie shutdown", e);
 		    throw e;
 		}
@@ -4324,7 +4327,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		{
 		    throw (Error) e;
 		}
-		logger.log(
+		LOGGER.log(
 		    Level.WARNING, "failed to recover LUS attribute", e);
 	    }
 	}
@@ -4369,7 +4372,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		{
 		    throw (Error) e;
 		}
-		logger.log(
+		LOGGER.log(
 		    Level.WARNING, "failed to recover lookup locator", e);
 	    }
 	}
@@ -4401,9 +4404,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			throw (RuntimeException) e;
 		    }
 		}
-		if (logger.isLoggable(Level.WARNING)) {
-		    logThrow(
-			Level.WARNING,
+		if (DISCOVERY_LOGGER.isLoggable(Level.WARNING)) {
+		    logThrow(DISCOVERY_LOGGER, Level.WARNING,
 			RegistrarImpl.class.getName(),
 			"prepareLocators",
 			"failed to prepare lookup locator {0}",
@@ -4418,12 +4420,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     /**
      * Logs a thrown exception.
      */
-    private static void logThrow(Level level,
-				 String className,
-				 String methodName,
-				 String message,
-				 Object[] args,
-				 Throwable thrown)
+    private static void logThrow(Logger logger,
+				Level level,
+				String className,
+				String methodName,
+				String message,
+				Object[] args,
+				Throwable thrown)
     {
 	java.util.logging.LogRecord lr =
 	    new java.util.logging.LogRecord(level, message);
@@ -4854,14 +4857,15 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				  minMaxServiceLease));
     }
 
+    //TODO: finish https discovery
     private void respondHttps(Socket socket) throws Exception {
 	try {
 	    try {
 		socket.setTcpNoDelay(true);
 		socket.setKeepAlive(true);		
 	    } catch (SocketException e) {
-		if (logger.isLoggable(Levels.HANDLED))
-		    logger.log(Levels.HANDLED,
+		if (DISCOVERY_LOGGER.isLoggable(Levels.HANDLED))
+		    DISCOVERY_LOGGER.log(Levels.HANDLED,
 			       "problem setting socket options", e);
 	    }
 	    socket.setSoTimeout(
@@ -4881,7 +4885,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    try {
 		socket.close();
 	    } catch (IOException e) {
-		logger.log(Levels.HANDLED, "exception closing socket", e);
+		DISCOVERY_LOGGER.log(Levels.HANDLED, "exception closing socket", e);
 	    }
 	}
     }
@@ -4893,8 +4897,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		socket.setTcpNoDelay(true);
 		socket.setKeepAlive(true);		
 	    } catch (SocketException e) {
-		if (logger.isLoggable(Levels.HANDLED))
-		    logger.log(Levels.HANDLED,
+		if (DISCOVERY_LOGGER.isLoggable(Levels.HANDLED))
+		    DISCOVERY_LOGGER.log(Levels.HANDLED,
 			       "problem setting socket options", e);
 	    }
 	    socket.setSoTimeout(
@@ -4915,7 +4919,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    try {
 		socket.close();
 	    } catch (IOException e) {
-		logger.log(Levels.HANDLED, "exception closing socket", e);
+		DISCOVERY_LOGGER.log(Levels.HANDLED, "exception closing socket", e);
 	    }
 	}
     }
@@ -5004,6 +5008,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 private int httpsUnicastPort;
 	 boolean enableHttpsUnicast;
 	 Discovery httpsDiscovery;
+	 String codebase;
         
         
         
@@ -5060,7 +5065,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     activationIdPreparer.prepareProxy(activationID);
                 this.activationSystem = (ActivationSystem)
                     activationSystemPreparer.prepareProxy(
-                        ActivationGroup.getSystem());
+                        net.jini.activation.ActivationGroup.getSystem());
 
                 this.serverExporter = (Exporter) Config.getNonNullEntry(
                     config, COMPONENT, "serverExporter", Exporter.class,
@@ -5068,7 +5073,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                         this.activationID,
                         new BasicJeriExporter(
                             TcpServerEndpoint.getInstance(0),
-                            new BasicILFactory(null, null, Registrar.class.getClassLoader()))),
+                            new AtomicILFactory(null, null, Registrar.class.getClassLoader()))),
                     this.activationID);
             } else {
                 this.activationID = null;
@@ -5078,7 +5083,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     config, COMPONENT, "serverExporter", Exporter.class,
                     new BasicJeriExporter(
                         TcpServerEndpoint.getInstance(0),
-                        new BasicILFactory(null, null, Registrar.class.getClassLoader())));
+                        new AtomicILFactory(null, null, Registrar.class.getClassLoader())));
             }
 
             /* fetch "initial*" config entries, first time starting up */
@@ -5167,15 +5172,15 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 multicastInterfacesSpecified = false;
             }
             if (multicastInterfaces == null) {
-                logger.config("using system default interface for multicast");
+                DISCOVERY_LOGGER.config("using system default interface for multicast");
             } else if (multicastInterfaces.length == 0) {
                 if (multicastInterfacesSpecified) {
-                    logger.config("multicast disabled");
+                    DISCOVERY_LOGGER.config("multicast disabled");
                 } else {
-                    logger.severe("no network interfaces detected");
+                    DISCOVERY_LOGGER.severe("no network interfaces detected");
                 }
-            } else if (logger.isLoggable(Level.CONFIG)) {
-                logger.log(Level.CONFIG, "multicasting on interfaces {0}",
+            } else if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
+                DISCOVERY_LOGGER.log(Level.CONFIG, "multicasting on interfaces {0}",
                            new Object[]{ Arrays.asList(multicastInterfaces) });
             }
 
@@ -5223,6 +5228,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     new NamedThreadFactory("Reggie_Discovery_Response", false)
                 ) 
             );
+	    this.codebase = Config.getNonNullEntry(config, COMPONENT,
+		    "Codebase_Annotation", String.class, "");
 	    this.certFactoryType = Config.getNonNullEntry(config, COMPONENT,
 		    "Codebase_CertFactoryType", String.class, "X.509");
 	    this.certPathEncoding = Config.getNonNullEntry(config, COMPONENT,
@@ -5358,7 +5365,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                                 announcer.interrupt();
                                 announcer.join();
                             } catch (Throwable t) {
-                                logThrow(Level.FINEST, getClass().getName(), 
+                                logThrow(LOGGER, Level.FINEST, getClass().getName(), 
                                     "run", "exception shutting announcer down",
                                     new Object[]{}, t);
                             }
@@ -5366,8 +5373,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     }));
 
                     snapshotter.start();
-                    if (logger.isLoggable(Level.INFO)) {
-                        logger.log(Level.INFO, "started Reggie: {0}, {1}, {2}",
+                    if (LOGGER.isLoggable(Level.INFO)) {
+                        LOGGER.log(Level.INFO, "started Reggie: {0}, {1}, {2}",
                                    new Object[]{ myServiceID,
                                                  Arrays.asList(memberGroups),
                                                  myLocator });
@@ -5382,7 +5389,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             // These object no longer needed, set free.
             config = null;
             unicastDiscoveryHost = null;
-            context = null;
             concurrentObj.writeUnlock();
         }
     
@@ -5422,7 +5428,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    if (reg != null)
 		deleteService(reg, now);
 	}
-	Util.checkRegistrantServiceID(nitem.getServiceID(), logger, Level.FINE);
+	Util.checkRegistrantServiceID(nitem.getServiceID(), LOGGER, Level.FINE);
 	SvcReg reg = new SvcReg(nitem, newLeaseID(), now + leaseDuration);
 	addService(reg);
 	generateEvents(null, nitem, now);
@@ -6147,7 +6153,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	if (item != null)
 	    item = copyItem(item);
         // Should never be null.
-	eventTaskMap.get(reg).submit(new EventTask(reg, sid, item, transition, proxy, this, now));
+	eventTaskMap.get(reg).submit(
+	    Security.withContext(
+		new EventTask(reg, sid, item, transition, proxy, this, now),
+		context
+	    )
+	);
     }
 
     /** Generate a new service ID */
@@ -6218,7 +6229,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	stream.writeInt(httpsUnicastPort);
 	stream.writeBoolean(enableHttpsUnicast);
 	stream.flush();
-	logger.finer("wrote state snapshot");
+	LOGGER.finer("wrote state snapshot");
     }
 
     /**
@@ -6276,7 +6287,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	recoverEventRegistrations(stream);
 	httpsUnicastPort = stream.readInt();
 	enableHttpsUnicast = stream.readBoolean();
-	logger.finer("recovered state from snapshot");
+	LOGGER.finer("recovered state from snapshot");
     }
 
     /** Recovers service registrations and reggie's lookup attributes */
@@ -6343,8 +6354,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	}
 	try {
 	    log.update(rec, true);
-	    if (logger.isLoggable(Level.FINER)) {
-		logger.log(Level.FINER, "wrote log record {0}",
+	    if (LOGGER.isLoggable(Level.FINER)) {
+		LOGGER.log(Level.FINER, "wrote log record {0}",
 			   new Object[]{ rec });
 	    }
 	    if (logFileSize.incrementAndGet() >= persistenceSnapshotThreshold) {
@@ -6355,7 +6366,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    }
 	} catch (Exception e) {
 	    if (!Thread.currentThread().isInterrupted()) {
-		logger.log(Level.WARNING, "log update failed", e);
+		LOGGER.log(Level.WARNING, "log update failed", e);
 	    }
 	}
     }

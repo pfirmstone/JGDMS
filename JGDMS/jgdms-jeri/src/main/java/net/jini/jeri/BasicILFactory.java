@@ -243,6 +243,7 @@ public class BasicILFactory extends AbstractILFactory {
     /**
      * Returns a string representation of this factory.
      **/
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder(100);
         sb.append(super.toString())

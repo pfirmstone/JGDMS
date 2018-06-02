@@ -87,8 +87,11 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
 
     /** The number of milliseconds to wait to allow an event listener to
      *  perform its duties after events have been sent by the Registrar
+     * Previously this was 10, but configuration always resulted in 5000,
+     * no matter what the configured value was.  5000 was too short for
+     * SSL Endpoints.
      */
-    public long deltaTListener = 10;
+    public final long deltaTListener = 10000;
 
     /** The set of possible interfaces implemented by the service classes that
      *  will be registered for testing
@@ -375,9 +378,15 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
 
 	/** The number of milliseconds to wait to allow an event listener to
 	 *  perform its duties after events have been sent by the Registrar
+	 * 
+	 * This call always resulted in 5000,
+	 * no matter what the configured value was.  5000 was too short for
+	 * SSL Endpoints.
+	 * 
+	 * TODO: Work out why this isn't working.
 	 */
-	deltaTListener = QATestUtils.N_MS_PER_SEC*config.getIntConfigVal
-	    ("org.apache.river.test.spec.lookupservice.deltaTListener",10);
+//	deltaTListener = QATestUtils.N_MS_PER_SEC*config.getIntConfigVal
+//	    ("org.apache.river.test.spec.lookupservice.deltaTListener", 20);
 
         outputRoot = config.getStringConfigVal
 	    ("org.apache.river.test.spec.lookupservice.outputRoot", DEF_OUTPUT_ROOT);

@@ -352,7 +352,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
 						   ActivationException
     {
 	if (activationID != null) {
-	    activationSystem = ActivationGroup.getSystem();
+	    activationSystem = net.jini.activation.ActivationGroup.getSystem();
 	    // if not the none configuration, prepare proxies
 	    if (!noneConfiguration) {
 		ProxyPreparer activationIdPreparer =

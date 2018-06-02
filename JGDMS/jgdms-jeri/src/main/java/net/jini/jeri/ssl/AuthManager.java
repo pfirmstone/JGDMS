@@ -23,6 +23,7 @@ import java.lang.ref.WeakReference;
 import java.security.GeneralSecurityException;
 import java.security.KeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.CertPath;
@@ -96,7 +97,7 @@ abstract class AuthManager extends FilterX509TrustManager
     AuthManager(Subject subject,
 		Set permittedLocalPrincipals,
 		Set permittedRemotePrincipals)
-	throws NoSuchAlgorithmException
+	throws NoSuchAlgorithmException, NoSuchProviderException
     {
 	super(permittedRemotePrincipals);
 	subjectRef = new WeakReference(subject);

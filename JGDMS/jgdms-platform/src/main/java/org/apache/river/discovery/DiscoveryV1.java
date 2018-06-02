@@ -391,7 +391,7 @@ class DiscoveryV1 extends Discovery {
 	    MarshalledInstance mi = 
 		new MarshalledInstance((MarshalledObject) oin.readObject());
 	    ServiceRegistrar reg = 
-		(ServiceRegistrar) mi.get(defaultLoader, false, null, context);
+		(ServiceRegistrar) mi.get(defaultLoader, false, verifierLoader, context);
 
 	    // read LUS member groups
 	    int ngroups = oin.readInt();

@@ -25,6 +25,7 @@ import java.io.ObjectStreamField;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
@@ -231,9 +232,16 @@ public final class ConstrainableLookupLocator
     public ServiceRegistrar getRegistrar()
 	throws IOException, ClassNotFoundException
     {
-	return getRegistrar((constraints != null) ?
-	    constraints.getConstraints(getRegistrarMethod) :
-	    InvocationConstraints.EMPTY);
+	InvocationConstraints ic;
+	Collection context = null;
+	if (constraints != null){
+	    ic = constraints.getConstraints(getRegistrarMethod);
+	    context = new ArrayList(1);
+	    context.add(constraints);
+	} else {
+	    ic = InvocationConstraints.EMPTY;
+	}
+	return getRegistrar(ic, context);
     }
 
     /**
@@ -252,12 +260,19 @@ public final class ConstrainableLookupLocator
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {
-	InvocationConstraints ic = (constraints != null) ?
-	    constraints.getConstraints(getRegistrarTimeoutMethod) :
-	    InvocationConstraints.EMPTY;
+	InvocationConstraints ic;
+	Collection context = null;
+	if (constraints != null){
+	    ic = constraints.getConstraints(getRegistrarTimeoutMethod);
+	    context = new ArrayList(1);
+	    context.add(constraints);
+	} else {
+	    ic = InvocationConstraints.EMPTY;
+	}
 	Collection reqs = new ArrayList(ic.requirements());
 	reqs.add(new UnicastSocketTimeout(timeout));
-	return getRegistrar(new InvocationConstraints(reqs, ic.preferences()));
+	return getRegistrar(
+		new InvocationConstraints(reqs, ic.preferences()), context);	
     }
 
     /**

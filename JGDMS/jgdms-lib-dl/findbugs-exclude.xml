@@ -14,6 +14,12 @@
         <Bug pattern="VO_VOLATILE_INCREMENT" />
     </Match>
     <Match>
+        <!-- Removing a lease that doesn't exist has no effect, this is ok. -->
+        <Class name="net.jini.lookup.JoinManager" />
+        <Method name="replaceRegistrationDo"/>
+        <Bug pattern="DE_MIGHT_IGNORE" />
+    </Match> 
+    <Match>
         <!-- Static analysis thinks ClassCastException is caught when cast to
              ServiceProxyAccessor fails, but it is guaranteed not to cause a
              ClassCastException.  The ClassCastException is actually thrown

@@ -8,6 +8,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.rive
 
 grant {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {

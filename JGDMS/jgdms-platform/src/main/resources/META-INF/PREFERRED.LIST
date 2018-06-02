@@ -68,7 +68,16 @@ Preferred: true
 Name: net/jini/config/Utilities.class
 Preferred: true
 
-Name: net/jini/export/ServerContext$1.class
+Name: net/jini/export/ServerContext$Spi.class
+Preferred: true
+
+Name: net/jini/export/CodebaseAccessor.class
+Preferred: true
+
+Name: net/jini/export/ProxyAccessor.class
+Preferred: true
+
+Name: net/jini/export/DynamicProxyCodebaseAccessor.class
 Preferred: true
 
 Name: net/jini/id/UuidFactory$Impl.class

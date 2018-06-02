@@ -94,8 +94,11 @@ public final class ConstraintAlternatives
     
     /**
      * AtomicSerial constructor.
-     * @param arg 
-     * @throws java.io.IOException 
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws java.io.IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
+     * @throws InvalidObjectException if object invariants aren't satisfied.
      */
     public ConstraintAlternatives(GetArg arg) throws IOException{
 	this(validate(arg.get("constraints", null, InvocationConstraint[].class)), false);

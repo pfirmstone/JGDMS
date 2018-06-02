@@ -46,6 +46,7 @@ import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.ProxyPreparer;
 import net.jini.space.JavaSpace;
 import org.apache.river.api.security.CombinerSecurityManager;
+import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
  * Base class for spaces QA tests.  Provides convenience functions for
@@ -193,6 +194,7 @@ public abstract class TestBase extends QATestEnvironment {
         // set security manager
         if (System.getSecurityManager() == null) {
         System.setSecurityManager(new CombinerSecurityManager());
+//	    System.setSecurityManager(new SecurityPolicyWriter()); // Seems to be ok here with jsse
         }
         return new Test(){
 

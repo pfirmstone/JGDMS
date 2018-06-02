@@ -310,6 +310,9 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
 	    ((SharedGroup) serviceRef).destroyVM();
 	} catch (ActivationException e) {
 	    throw new RemoteException("destroyVM failed", e);
+	} catch (ClassCastException e){
+	    throw new RemoteException("SharedGroup loaded by: " + SharedGroup.class.getClassLoader().toString() +
+		    "\nserviceRef proxy loaded by: " +serviceRef.getClass().getClassLoader().toString(), e);
 	}
     }
  

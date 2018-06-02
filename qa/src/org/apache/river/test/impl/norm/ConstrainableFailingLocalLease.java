@@ -39,7 +39,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 class ConstrainableFailingLocalLease extends FailingLocalLease 
                                      implements RemoteMethodControl 
 {
-     ProxyTrustImpl pt;
+     ProxyTrust pt;
 
     /**
      * Create a local lease with the specified initial expiration time 
@@ -54,7 +54,7 @@ class ConstrainableFailingLocalLease extends FailingLocalLease
 			           long bundle, 
 			           long id, 
 				   long count,
-			           ProxyTrustImpl pt) 
+			           ProxyTrust pt) 
     {
 	super(initExp, renewLimit, bundle, id, count);
 	this.pt = pt;
@@ -62,13 +62,11 @@ class ConstrainableFailingLocalLease extends FailingLocalLease
     
     ConstrainableFailingLocalLease(GetArg arg) throws IOException{
 	super(check(arg));
-	pt = arg.get("pt", null, ProxyTrustImpl.class);
+	pt = arg.get("pt", null, ProxyTrust.class);
     }
     
     private static GetArg check(GetArg arg) throws IOException{
-	ProxyTrustImpl pt = arg.get("pt", null, ProxyTrustImpl.class);
-	if (!(pt instanceof ProxyTrust)) 
-	    throw new InvalidObjectException("pt must be instance of ProxyTrust");
+	ProxyTrust pt = arg.get("pt", null, ProxyTrust.class);
 	if (!(pt instanceof RemoteMethodControl)) 
 	    throw new InvalidObjectException("pt must be instance of RemoteMethodControl");
 	return arg;
@@ -96,16 +94,16 @@ class ConstrainableFailingLocalLease extends FailingLocalLease
     }
 
     protected ProxyTrustIterator getProxyTrustIterator() {
-	return new IteratorImpl(pt.getProxy());
+	return new IteratorImpl(pt);
     }
 
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-	((RemoteMethodControl) pt.getProxy()).setConstraints(constraints);
+	((RemoteMethodControl) pt).setConstraints(constraints);
 	return this;
     }
 
     public MethodConstraints getConstraints() {
-	return ((RemoteMethodControl) pt.getProxy()).getConstraints();
+	return ((RemoteMethodControl) pt).getConstraints();
     }
 
     private static class VerifierImpl implements TrustVerifier, Serializable {

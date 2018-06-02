@@ -24,6 +24,7 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
 import java.rmi.server.RMIClassLoaderSpi;
+import java.security.Guard;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,6 +84,8 @@ import net.jini.loader.ClassLoading;
 public class MarshalInputStream
     extends ObjectInputStream implements ObjectStreamContext
 {
+    
+    private static final Guard clCheck = new RuntimePermission("getClassLoader");
     /**
      * maps keywords for primitive types and void to corresponding
      * Class objects
@@ -197,11 +200,31 @@ public class MarshalInputStream
 
     /**
      * 
-     * @param defaultLoader
-     * @param verifyCodebaseIntegrity
-     * @param verifierLoader
-     * @param context
-     * @throws IOException 
+     *  @param defaultLoader the class loader value (possibly
+     * <code>null</code>) to pass as the <code>defaultLoader</code>
+     * argument to <code>ClassLoading</code> methods
+     *
+     * @param verifyCodebaseIntegrity if <code>true</code>, this
+     * stream will verify that codebase annotation URLs used to load
+     * classes resolved by this stream provide content integrity
+     *
+     * @param verifierLoader the class loader value (possibly
+     * <code>null</code>) to pass to
+     * <code>Security.verifyCodebaseIntegrity</code>, if
+     * <code>verifyCodebaseIntegrity</code> is <code>true</code>
+     *
+     * @param context the collection of context information objects to
+     * be returned by this stream's {@link #getObjectStreamContext
+     * getObjectStreamContext} method
+     *
+     * @throws IOException if the superclass's constructor throws an
+     * <code>IOException</code>
+     *
+     * @throws SecurityException if the superclass's constructor
+     * throws a <code>SecurityException</code>
+     *
+     * @throws NullPointerException if <code>in</code> or
+     * <code>context</code> is <code>null</code>
      */
     protected MarshalInputStream(ClassLoader defaultLoader,
 				 boolean verifyCodebaseIntegrity,
@@ -275,7 +298,16 @@ public class MarshalInputStream
      * invoked on this stream, then the codebase value chosen is the
      * value that was returned by <code>readAnnotation</code>;
      * otherwise, the codebase value chosen is <code>null</code>.
-     *
+     * 
+     * <p>
+     * If the name of the class
+     * described by <code>classDesc</code> equals the Java
+     * programming language keyword for a primitive type or
+     * <code>void</code>, then this method returns the
+     * <code>Class</code> corresponding to that primitive type or
+     * <code>void</code> ({@link Integer#TYPE} for <code>int</code>,
+     * {@link Void#TYPE} for <code>void</code>, and so forth).
+     * 
      * <p>This method then invokes {@link ClassLoading#loadClass
      * ClassLoading.loadClass} with the chosen codebase value as the
      * first argument, the name of the class described by
@@ -284,15 +316,8 @@ public class MarshalInputStream
      * <code>verifyCodebaseIntegrity</code>, and
      * <code>verifierLoader</code> values that were passed to this
      * stream's constructor as the third, fourth, and fifth arguments.
-     * If <code>ClassLoading.loadClass</code> throws a
-     * <code>ClassNotFoundException</code> and the name of the class
-     * described by <code>classDesc</code> equals the Java
-     * programming language keyword for a primitive type or
-     * <code>void</code>, then this method returns the
-     * <code>Class</code> corresponding to that primitive type or
-     * <code>void</code> ({@link Integer#TYPE} for <code>int</code>,
-     * {@link Void#TYPE} for <code>void</code>, and so forth).
-     * Otherwise, if <code>ClassLoading.loadClass</code> throws an
+     * 
+     * If <code>ClassLoading.loadClass</code> throws an
      * exception, this method throws that exception, and if it returns
      * normally, this method returns the <code>Class</code> returned
      * by <code>ClassLoading.loadClass</code>.
@@ -325,26 +350,17 @@ public class MarshalInputStream
 	String codebase = usingCodebaseAnnotations ? annotation : null;
 
 	String name = classDesc.getName();
-	try {
-	    return ClassLoading.loadClass(codebase,
-					  name,
-					  defaultLoader,
-					  verifyCodebaseIntegrity,
-					  verifierLoader);
-	} catch (ClassNotFoundException e) {
-	    Class c = (Class) specialClasses.get(name);
-	    if (c != null) {
-		return c;
-	    } else {
-		throw e;
-	    }
-	}
-    }
-
-    protected Class superResolveClass(ObjectStreamClass classDesc) 
-	 throws IOException, ClassNotFoundException
-    {
-	return super.resolveClass(classDesc);
+	// Previously special classes were only sent after catching an
+	// exception, this caused some confusing messages in logging, in
+	// addition, exceptional conditions should not be used for the
+	// normal path of code execution.
+	Class c = (Class) specialClasses.get(name);
+	if (c != null) return c;
+	return ClassLoading.loadClass(codebase,
+				      name,
+				      defaultLoader,
+				      verifyCodebaseIntegrity,
+				      verifierLoader);
     }
 
     /**
@@ -416,12 +432,6 @@ public class MarshalInputStream
 					   verifierLoader);
     }
 
-    protected Class superResolveProxyClass(String[] interfaceNames) 
-	    throws IOException, ClassNotFoundException
-    {
-	return super.resolveProxyClass(interfaceNames);
-    }
-
     /**
      * Reads and returns a class annotation string value (possibly
      * <code>null</code>) that was written by a corresponding
@@ -458,5 +468,27 @@ public class MarshalInputStream
 	    ioe.initCause(e);
 	    throw ioe;
 	}
+    }
+    
+    /**
+     * The default class loader passed in during construction.
+     * @return the default ClassLoader, or null.
+     * @throws SecurityException if the caller doesn't have 
+     * {@link java.lang.RuntimePermission} "getClassLoader"
+     */
+    public ClassLoader getDefaultClassLoader(){
+	clCheck.checkGuard(null);
+	return defaultLoader;
+    }
+    
+    /**
+     * The verifier class loader passed in during construction.
+     * @return the verifier ClassLoader, or null.
+     * @throws SecurityException if the caller doesn't have 
+     * {@link java.lang.RuntimePermission} "getClassLoader"
+     */
+    public ClassLoader getVerifierClassLoader(){
+	clCheck.checkGuard(null);
+	return verifierLoader;
     }
 }

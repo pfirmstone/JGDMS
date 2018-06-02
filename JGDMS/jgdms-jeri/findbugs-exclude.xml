@@ -9,23 +9,20 @@
      * references the BasicObjectEndpoint will prevent the impl from being
      * garbage collected. -->
         <Class name="net.jini.jeri.BasicJeriExporter$ImplContainer" />
+        <Field name="impl"/>
         <Bug pattern="URF_UNREAD_FIELD" />
     </Match>
     <Match>
         <!-- Holds a strong reference to a BasicObjectEndpoint until an
      * acknowledgment has been received. -->
         <Class name="net.jini.jeri.BasicObjectEndpoint$AckListener"/>
+        <Field name="ref"/>
         <Bug pattern="URF_UNREAD_FIELD"/>
     </Match>
     <Match>
-        <!-- Method is documented to throw NPE, superclass method performs
-            null check        -->
-        <Class name="net.jini.jeri.ProxyTrustILFactory"/>
-        <Bug pattern="NP_NULL_PARAM_DEREF"/>
-    </Match>
-    <Match>
         <!-- SocketFactory is intended to be Serializable.        -->
-        <Class names="net.jini.jeri.http.HttpEndpoint"/>
+        <Class name="net.jini.jeri.http.HttpEndpoint"/>
+        <Field name="sf"/>
         <Bug pattern="SE_BAD_FIELD"/>
     </Match>
     <Match>
@@ -36,6 +33,7 @@
     <Match>
         <!-- SocketFactory is intended to be Serializable. -->
         <Class name="net.jini.jeri.kerberos.KerberosEndpoint"/>
+        <Field name="csf"/>
         <Bug pattern="SE_BAD_FIELD"/>
     </Match>
     <Match>
@@ -46,6 +44,7 @@
     <Match>
         <!-- IOException ignored on socket close -->
         <Class name="net.jini.jeri.kerberos.KerberosUtil$Connection"/>
+        <Method name="close"/>
         <Bug pattern="DE_MIGHT_IGNORE"/>
     </Match>
     <Match>
@@ -57,6 +56,7 @@
         <!-- Only Boolean.TRUE, Boolean.FALSE and null are used, no danger
              of incorrect reference comparison -->
         <Class name="net.jini.jeri.ssl.SslEndpointImpl"/>
+        <Method name="getCallContext"/>
         <Bug pattern="RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN"/>
     </Match>
     <Match>
@@ -67,6 +67,7 @@
     <Match>
         <!-- IOException ignored on socket close -->
         <Class name="org.apache.river.jeri.internal.http.HttpClientConnection"/>
+        <Method name="disconnect"/>
         <Bug pattern="DE_MIGHT_IGNORE"/>
     </Match>
 </FindBugsFilter>

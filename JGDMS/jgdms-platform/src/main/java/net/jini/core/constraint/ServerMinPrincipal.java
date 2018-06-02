@@ -21,12 +21,12 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
@@ -59,6 +59,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0
  */
+@AtomicSerial
 public final class ServerMinPrincipal
 				implements InvocationConstraint, Serializable
 {

@@ -59,8 +59,10 @@ public interface TransactionManager extends Remote, TransactionConstants {
 	
 	/**
 	 * AtomicSerial constructor
-	 * @param arg
-	 * @throws IOException 
+	 * 
+	 * @param arg atomic deserialization parameter 
+	 * @throws IOException if there are I/O errors while reading from GetArg's
+	 *         underlying <code>InputStream</code>
 	 */
 	public Created(GetArg arg) throws IOException{
 	    this(arg.get("id", 0L),

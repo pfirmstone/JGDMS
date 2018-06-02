@@ -32,6 +32,7 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -225,16 +226,19 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                 throw new IllegalArgumentException
                                  ("LookupLocator has been discovered already");
             }
+	    Collection context = null;
 	    InvocationConstraints ic = InvocationConstraints.EMPTY;
 	    if (l instanceof RemoteMethodControl) {
 		MethodConstraints mc =
 		    ((RemoteMethodControl) l).getConstraints();
+		context = new ArrayList(1);
+		context.add(mc);
 		if (mc != null) {
 		    ic = mc.getConstraints(getRegistrarMethod);
 		}
 	    }
 	    try {
-                doUnicastDiscovery(l, ic);
+                doUnicastDiscovery(l, ic, context);
 		return true;
 	    } catch (Throwable e) {
                 if( logger.isLoggable(Level.INFO) ) {
@@ -265,7 +269,8 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
         *  contained in the <code>locator</code> parameter of this class.
 	*/
         private void doUnicastDiscovery(LookupLocator locator,
-					InvocationConstraints ic)
+					InvocationConstraints ic, 
+					final Collection context)
 	    throws IOException, ClassNotFoundException
         {
 	    UnicastResponse resp = new MultiIPDiscovery() {
@@ -281,7 +286,7 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 					    dc.getUnfulfilledConstraints(),
 					    null,
 					    null,
-					    null);
+					    context);
 		    
 		}
 		

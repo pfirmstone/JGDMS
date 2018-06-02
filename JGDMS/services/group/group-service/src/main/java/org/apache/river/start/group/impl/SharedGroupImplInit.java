@@ -29,13 +29,12 @@ import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.Exporter;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.start.group.SharedGroup;
-import org.apache.river.start.group.proxy.SharedGroupBackEnd;
 
 /**
  *  This is created and discarded during construction of (@link SharedGroupImpl).
@@ -76,7 +75,7 @@ class SharedGroupImplInit {
 	 */
 	activationSystem = (ActivationSystem) 
 	    activationSystemPreparer.prepareProxy(
-                ActivationGroup.getSystem());
+                net.jini.activation.ActivationGroup.getSystem());
         SharedGroupImpl.logger.log(Level.FINE, "Prepared ActivationSystem: {0}",
             activationSystem);
 	activationID = (ActivationID)  
@@ -94,10 +93,10 @@ class SharedGroupImplInit {
 		    activationID,
 		    new BasicJeriExporter(
 			TcpServerEndpoint.getInstance(0), 
-			new BasicILFactory(
+			new AtomicILFactory(
 			    null,
 			    null,
-			    SharedGroupBackEnd.class.getClassLoader()),
+			    SharedGroupImpl.class.getClassLoader()),
 			false,
 			true)
 		),

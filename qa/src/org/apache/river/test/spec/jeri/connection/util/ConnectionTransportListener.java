@@ -29,7 +29,7 @@ import java.util.logging.Logger;
  */
 public class ConnectionTransportListener implements TransportListener{
 
-    private static Hashtable listeners = new Hashtable();
+    private static final Hashtable listeners = new Hashtable();
     private static TransportListener mainListener =
         new ConnectionTransportListener();
     private static Logger log = AbstractConnectionTest.getLogger();
@@ -40,10 +40,12 @@ public class ConnectionTransportListener implements TransportListener{
 
     public void called (String methodName) {
         log.finest("Registered call for " + methodName);
-        Iterator it = listeners.keySet().iterator();
-        while(it.hasNext()){
-            ((TransportListener) it.next()).called(methodName);
-        }
+	synchronized (listeners){
+	    Iterator it = listeners.keySet().iterator();
+	    while(it.hasNext()){
+		((TransportListener) it.next()).called(methodName);
+	    }
+	}
     }
 
     public static void deRegisterListener(TransportListener tl) {

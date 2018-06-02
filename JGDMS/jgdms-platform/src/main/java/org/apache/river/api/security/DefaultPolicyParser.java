@@ -27,6 +27,7 @@ import org.apache.river.impl.Messages;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -37,17 +38,28 @@ import java.security.cert.X509Certificate;
 import java.security.AccessController;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Permission;
 import java.security.Principal;
+import java.security.PrivilegedActionException;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.DefaultPolicyScanner.GrantEntry;
@@ -55,6 +67,7 @@ import org.apache.river.api.security.DefaultPolicyScanner.KeystoreEntry;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
 import org.apache.river.api.security.DefaultPolicyScanner.PrincipalEntry;
 import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
+import org.apache.river.thread.NamedThreadFactory;
 
 
 /**
@@ -77,8 +90,9 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * @see org.apache.river.api.security.DefaultPolicyScanner
  * @see org.apache.river.api.security.PermissionGrant
  */
-class DefaultPolicyParser implements PolicyParser {
-
+public class DefaultPolicyParser implements PolicyParser {
+    // Delay logging until after the policy and security manager are constructed.
+    final ExecutorService logExec;
     // Pluggable scanner for a specific file format
     private final DefaultPolicyScanner scanner;
 
@@ -87,14 +101,20 @@ class DefaultPolicyParser implements PolicyParser {
      * {@link org.apache.river.api.security.DefaultPolicyScanner DefaultPolicyScanner} 
      * is used. 
      */
-    DefaultPolicyParser() {
-        scanner = new DefaultPolicyScanner();
+    public DefaultPolicyParser() {
+	this(new DefaultPolicyScanner());
     }
 
     /** 
      * Extension constructor for plugging-in custom scanner.
      */
     DefaultPolicyParser(DefaultPolicyScanner s) {
+	this.logExec = 
+//		Executors.newScheduledThreadPool(0,
+		new ThreadPoolExecutor(0, 1, 1L, TimeUnit.SECONDS,
+		    new LinkedBlockingQueue(),
+		    new NamedThreadFactory("JGDMS Policy logger", true)
+		);
         this.scanner = s;
     }
 
@@ -134,20 +154,23 @@ class DefaultPolicyParser implements PolicyParser {
         KeyStore ks = initKeyStore(keystores, location, system, resolve);
 
         Collection<PermissionGrant> result = new HashSet<PermissionGrant>();
-        for (Iterator<GrantEntry> iter = grantEntries.iterator(); iter.hasNext();) {
-            DefaultPolicyScanner.GrantEntry ge = iter.next();
-            try {
-                PermissionGrant pe = resolveGrant(ge, ks, system, resolve);
-                if (!pe.isVoid()) {
-                    result.add(pe);
-                }
-            }
-            catch (Exception e) {
-                if ( e instanceof SecurityException ) throw (SecurityException) e;
-                System.err.println("Problem parsing policy: "+ location 
-                        + "\n" + e);
-            }
-        }
+	for (DefaultPolicyScanner.GrantEntry ge : grantEntries) {
+	    try {
+		PermissionGrant pe = resolveGrant(ge, ks, system, resolve);
+		if (!pe.isVoid()) {
+		    result.add(pe);
+		}
+	    }
+	    catch (Exception e) {
+		if ( e instanceof SecurityException ) throw (SecurityException) e;
+		// Bad policy syntax usually results in difficult to trace
+		// problems, the sooner we fail, the sooner the problem
+		// is evident, for example in an operating environment
+		// with a misconfigured policy, it's better to fail 
+		// immediately than to experience a problem later.
+		log(Level.CONFIG, "security.1A9", new Object[]{ge}, e);
+	    }
+	}
         
         return result;
     }
@@ -203,34 +226,49 @@ class DefaultPolicyParser implements PolicyParser {
                         codebases.add(getURI(it.next()));
                     }
                 } catch (ExpansionFailedException e) {
-                    codebases.add(getURI(cb));
+                    log(Level.CONFIG, "security.1A7", new Object[]{e.getMessage()});
                 }
             } else {
                 codebases.add(getURI(cb));
             }
         }
+	String[] aliases = new String[0];
         if ( signerString != null) {
-            if (resolve) {
-                signerString = PolicyUtils.expand(signerString, system);
-            }
-            signers = resolveSigners(ks, signerString);
+	    try {
+		if (resolve) {
+		    signerString = PolicyUtils.expand(signerString, system);
+		}
+	    } catch (ExpansionFailedException e){
+		log(Level.CONFIG, "security.1A6", new Object[]{e.getMessage()});
+	    }
+            
+	    StringTokenizer snt = new StringTokenizer(signerString, ",");
+	    List<String> alias = new ArrayList<String>(snt.countTokens());
+	    while (snt.hasMoreTokens()){
+		alias.add(snt.nextToken().trim());
+	    }
+	    aliases = alias.toArray(new String[alias.size()]);
+	    signers = resolveSigners(ks, aliases);
         }
         if (ge.getPrincipals(null) != null) {
-            String principalName = null;
-            String principalClass = null;
-            for (Iterator<PrincipalEntry> iter = ge.getPrincipals(system).iterator(); iter.hasNext();) {
-                DefaultPolicyScanner.PrincipalEntry pe = iter.next();
-                principalName = pe.getName();
-                principalClass = pe.getKlass();
-                if (resolve) {
-                    principalName = PolicyUtils.expand(principalName, system);
-                }
-                if (principalClass == null) {
-                    principals.add(getPrincipalByAlias(ks, principalName));
-                } else {
-                    principals.add(new UnresolvedPrincipal(principalClass, principalName));
-                }
-            }
+            String principalName;
+            String principalClass;
+	    for (PrincipalEntry pe : ge.getPrincipals(system)) {
+		principalName = pe.getName();
+		principalClass = pe.getKlass();
+		try {
+		    if (resolve) {
+			principalName = PolicyUtils.expand(principalName, system);
+		    }
+		} catch (ExpansionFailedException e){
+		    log(Level.CONFIG, "security.1A4", new Object[]{e.getMessage()});
+		}
+		if (principalClass == null) {
+		    principals.add(getPrincipalByAlias(ks, principalName));
+		} else {
+		    principals.add(new UnresolvedPrincipal(principalClass, principalName));
+		}
+	    }
         }
         Collection<PermissionEntry> pec = ge.getPermissions();
         if (pec != null) {
@@ -239,11 +277,11 @@ class DefaultPolicyParser implements PolicyParser {
                 DefaultPolicyScanner.PermissionEntry pe = iter.next();
                 try {
                     permissions.add(resolvePermission(pe, ge, ks, system, resolve));
-                }
-                catch (Exception e) {
+                } catch (ExpansionFailedException e){
+		    log(Level.CONFIG, "security.1A5", new Object[]{pe.toString(),e.getMessage()});
+		} catch (Exception e) {
                     if ( e instanceof SecurityException ) throw (SecurityException) e;
-                    // TODO: log warning.
-                    System.err.println(e);
+                    log(Level.CONFIG, "security.1A5", new Object[]{pe.toString(),e.getMessage()});
                 }
             }
         }
@@ -252,8 +290,9 @@ class DefaultPolicyParser implements PolicyParser {
         while (iter.hasNext()){
             pgb.uri(iter.next());
         }
+	
         return pgb
-            .certificates(signers)
+            .certificates(signers, aliases)
             .principals(principals.toArray(new Principal[principals.size()]))
             .permissions(permissions.toArray(new Permission[permissions.size()]))
             .context(PermissionGrantBuilder.URI)
@@ -387,27 +426,26 @@ class DefaultPolicyParser implements PolicyParser {
 
             if ("self".equals(protocol)) { //$NON-NLS-1$
                 //need expanding to list of principals in grant clause 
-                if (ge.getPrincipals(null) != null && ge.getPrincipals(null).size() != 0) {
+                if (ge.getPrincipals(null) != null && !ge.getPrincipals(null).isEmpty()) {
                     StringBuilder sb = new StringBuilder();
-                    for (Iterator<PrincipalEntry> iter = ge.getPrincipals(null).iterator(); iter
-                            .hasNext();) {
-                        DefaultPolicyScanner.PrincipalEntry pr = iter
-                                .next();
-                        if (pr.getKlass() == null) {
-                            // aliased X500Principal
-                            try {
-                                sb.append(pc2str(getPrincipalByAlias(ks, pr.getName())));
-                            }
-                            catch (Exception e) {
-                                if ( e instanceof SecurityException ) throw (SecurityException) e;
-                                throw new PolicyUtils.ExpansionFailedException(
-                                        Messages.getString("security.143", pr.getName()), e); //$NON-NLS-1$
-                            }
-                        } else {
-                            sb.append(pr.getKlass()).append(" \"").append(pr.getName()) //$NON-NLS-1$
-                                    .append("\" "); //$NON-NLS-1$
-                        }
-                    }
+		    for (DefaultPolicyScanner.PrincipalEntry pr : ge.getPrincipals(null)) {
+			if (pr.getKlass() == null) {
+			    // aliased X500Principal
+			    try {
+				sb.append(pc2str(getPrincipalByAlias(ks, pr.getName())));
+			    }
+			    catch (KeyStoreException e) {
+				throw new PolicyUtils.ExpansionFailedException(
+					Messages.getString("security.143", pr.getName()), e); //$NON-NLS-1$
+			    } catch (CertificateException e) {
+				throw new PolicyUtils.ExpansionFailedException(
+					Messages.getString("security.143", pr.getName()), e); //$NON-NLS-1$
+			    }
+			} else {
+			    sb.append(pr.getKlass()).append(" \"").append(pr.getName()) //$NON-NLS-1$
+				    .append("\" "); //$NON-NLS-1$
+			}
+		    }
                     return sb.toString();
                 } else {
                     throw new PolicyUtils.ExpansionFailedException(
@@ -418,11 +456,13 @@ class DefaultPolicyParser implements PolicyParser {
                 try {
                     return pc2str(getPrincipalByAlias(ks, data));
                 }
-                catch (Exception e) {
-                    if ( e instanceof SecurityException ) throw (SecurityException) e;
+                catch (KeyStoreException e) {
                     throw new PolicyUtils.ExpansionFailedException(
                             Messages.getString("security.143", data), e); //$NON-NLS-1$
-                }
+                } catch (CertificateException e) {
+		    throw new PolicyUtils.ExpansionFailedException(
+			    Messages.getString("security.143", data), e); //$NON-NLS-1$
+		}
             }
             throw new PolicyUtils.ExpansionFailedException(
                     Messages.getString("security.145", protocol)); //$NON-NLS-1$
@@ -456,13 +496,22 @@ class DefaultPolicyParser implements PolicyParser {
                     signers));
         }
 
-        Collection<Certificate> certs = new HashSet<Certificate>();
+        Collection<Certificate> certs = new ArrayList<Certificate>();
         StringTokenizer snt = new StringTokenizer(signers, ","); //$NON-NLS-1$
         while (snt.hasMoreTokens()) {
             //XXX cache found certs ??
             certs.add(ks.getCertificate(snt.nextToken().trim()));
         }
         return certs.toArray(new Certificate[certs.size()]);
+    }
+    
+    Certificate[] resolveSigners(KeyStore ks, String[] signers) throws KeyStoreException{
+	if (signers == null || signers.length == 0) return new Certificate[0];
+	Collection<Certificate> certs = new ArrayList<Certificate>(signers.length);
+	for (int i=0,l=signers.length; i<l; i++){
+	    certs.add(ks.getCertificate(signers[i]));
+	}
+	return certs.toArray(new Certificate[certs.size()]);
     }
 
     /**
@@ -510,37 +559,78 @@ class DefaultPolicyParser implements PolicyParser {
      */
     KeyStore initKeyStore(List<KeystoreEntry>keystores,
             URL base, Properties system, boolean resolve) {
-        for (int i = 0; i < keystores.size(); i++) {
-            try {
-                DefaultPolicyScanner.KeystoreEntry ke = keystores.get(i);
-                String url = ke.getUrl(), type = ke.getType();
-                if (resolve) {
-                    url = PolicyUtils.expandURL(url, system);
-                    if (type != null) {
-                        type = PolicyUtils.expand(type, system);
-                    }
-                }
-                if (type == null || type.length() == 0) {
-                    type = KeyStore.getDefaultType();
-                }
-                KeyStore ks = KeyStore.getInstance(type);
-                URL location = new URL(base, url);
-                InputStream is = AccessController
-                        .doPrivileged(new PolicyUtils.URLLoader(location));
-                try {
-                    ks.load(is, null);
-                }
-                finally {
-                    is.close();
-                }
-                return ks;
-            }
-            catch (Exception e) {
-                if ( e instanceof SecurityException ) throw (SecurityException) e;
-                e.printStackTrace(System.err);
-                // TODO: log warning
-            }
-        }
+	for (KeystoreEntry ke : keystores) {
+	    try {
+		String url = ke.getUrl(), type = ke.getType();
+		if (resolve) {
+		    url = PolicyUtils.expandURL(url, system);
+		    if (type != null) {
+			type = PolicyUtils.expand(type, system);
+		    }
+		}
+		if (type == null || type.length() == 0) {
+		    type = KeyStore.getDefaultType();
+		}
+		KeyStore ks = KeyStore.getInstance(type);
+		URL location = new URL(base, url);
+		InputStream is = AccessController
+			.doPrivileged(new PolicyUtils.URLLoader(location));
+		try {
+		    ks.load(is, null);
+		}
+		finally {
+		    is.close();
+		}
+		return ks;
+	    }
+	    catch (ExpansionFailedException e) {
+		log(Level.CONFIG, "security.8A", e);
+	    } catch (KeyStoreException e) {
+		log(Level.CONFIG, "security.8A", e);
+	    } catch (PrivilegedActionException e) {
+		log(Level.CONFIG, "security.8A", e);
+	    } catch (IOException e) {
+		log(Level.CONFIG, "security.8A", e);
+	    } catch (NoSuchAlgorithmException e) {
+		log(Level.CONFIG, "security.8A", e);
+	    } catch (CertificateException e) {
+		log(Level.CONFIG, "security.8A", e);
+	    }
+	}
         return null;
     }
+    
+    void log(Level level, String message){
+        log(level, message, null, null);
+    }
+    
+    void log(Level level, String message, Throwable thrown){
+        log(level, message, null, thrown);
+    }
+    
+    void log(Level level, String message, Object[] parameters){
+        log(level, message, parameters, null);
+    }
+    
+    void log(final Level level,
+		    final String message,
+		    final Object[] parameters,
+		    final Throwable thrown)
+    {
+//	logExec.shedule(
+	logExec.submit(
+	    new Runnable(){
+		public void run() {
+		    Logger.getLogger("net.jini.security.policy").log(
+			level,
+			Messages.getString(message, parameters),
+			thrown);
+		}
+	    }
+//		,
+//	    1,
+//	    TimeUnit.SECONDS
+	);
+    }
+    
 }

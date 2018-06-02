@@ -59,6 +59,7 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
+import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.OutboundRequestIterator;
@@ -113,6 +114,7 @@ import org.apache.river.logging.Levels;
  * <li> {@link ServerAuthentication}
  * <li> {@link ServerMinPrincipal}, when it contains a single
  *	<code>X500Principal</code> only
+ * <li> {@link ServerMaxPrincipal}, when it contains an {@link X500Principal}
  * </ul> <p>
  *
  * Note that {@link ConnectionRelativeTime} and {@link DelegationRelativeTime}

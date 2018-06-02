@@ -18,6 +18,7 @@
 
 package org.apache.river.start.group;
 
+import java.rmi.Remote;
 import java.rmi.activation.ActivationException;
 import java.rmi.RemoteException;
 
@@ -31,7 +32,7 @@ import java.rmi.RemoteException;
  *
  */
 
-public interface SharedGroup {
+public interface SharedGroup extends Remote {
     /**
      * Cause the hosting VM to exit. 
      * This method should (in effect) spawn a

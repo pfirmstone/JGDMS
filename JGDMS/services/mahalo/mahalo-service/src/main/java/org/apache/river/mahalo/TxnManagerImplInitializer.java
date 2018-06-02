@@ -47,6 +47,7 @@ import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -82,6 +83,10 @@ class TxnManagerImplInitializer {
     Uuid topUuid = null;
     AccessControlContext context = null;
     InterruptedStatusThread settleThread =null;
+    String codebase;
+    String certFactoryType;
+    String certPathEncoding;
+    byte[] encodedCerts;
 
     TxnManagerImplInitializer(Configuration config, boolean persistent, ActivationID activationID, InterruptedStatusThread settleThread) throws ConfigurationException, RemoteException, ActivationException, IOException {
         this.settleThread = settleThread;
@@ -100,7 +105,7 @@ class TxnManagerImplInitializer {
                         "activationSystemPreparer: {0}", activationSystemPreparer);
             }
             activationSystem = (ActivationSystem) 
-                    activationSystemPreparer.prepareProxy(ActivationGroup.getSystem());
+                    activationSystemPreparer.prepareProxy(net.jini.activation.ActivationGroup.getSystem());
             if (TxnManagerImpl.initLogger.isLoggable(Level.CONFIG)) {
                 TxnManagerImpl.initLogger.log(Level.CONFIG, 
                         "Prepared activation system is: {0}", activationSystem);
@@ -124,7 +129,7 @@ class TxnManagerImplInitializer {
                     Exporter.class, 
                     new ActivationExporter(activationID, 
                         new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-                            new BasicILFactory(null, null, TxnManager.class.getClassLoader()), 
+                            new AtomicILFactory(null, null, TxnManager.class.getClassLoader()), 
                             false, 
                             true)
                         ), 
@@ -140,7 +145,7 @@ class TxnManagerImplInitializer {
 		    Exporter.class,
 		    new BasicJeriExporter(
 			    TcpServerEndpoint.getInstance(0),
-			    new BasicILFactory(null, null, TxnManager.class.getClassLoader()),
+			    new AtomicILFactory(null, null, TxnManager.class.getClassLoader()),
 			    false,
 			    true
 		    )
@@ -162,6 +167,16 @@ class TxnManagerImplInitializer {
         if (TxnManagerImpl.initLogger.isLoggable(Level.CONFIG)) {
             TxnManagerImpl.initLogger.log(Level.CONFIG, "leasePeriodPolicy is: {0}", txnLeasePeriodPolicy);
         }
+	
+	codebase = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_Annotation", String.class, "");
+	certFactoryType = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_CertFactoryType", String.class, "X.509");
+	certPathEncoding = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_CertPathEncoding", String.class, "PkiPath");
+	encodedCerts = Config.getNonNullEntry(config, TxnManager.MAHALO,
+		"Codebase_Certs", byte[].class, new byte[0]);
+	
         if (persistent) {
             persistenceDirectory = (String) Config.getNonNullEntry(config, TxnManager.MAHALO, "persistenceDirectory", String.class);
             if (TxnManagerImpl.initLogger.isLoggable(Level.CONFIG)) {

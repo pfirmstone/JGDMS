@@ -18,6 +18,8 @@
 
 package org.apache.river.api.security;
 
+import java.io.File;
+import java.io.FilePermission;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -35,6 +37,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import javax.security.auth.PrivateCredentialPermission;
 
 /**
  *
@@ -93,21 +96,72 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
         return hashCode;
     }
     
+    /**
+     * 
+     * @return 
+     */
     @Override
     public String toString(){
         StringBuilder sb = new StringBuilder(300);
-        sb.append("Principals: \n");
         Iterator<Principal> palIt = pals.iterator();
         while (palIt.hasNext()){
-            sb.append(palIt.next().toString())
-              .append("\n");
+	    Principal principal = palIt.next();
+	    sb.append("principal ");
+	    if (principal instanceof UnresolvedPrincipal){
+		sb.append(((UnresolvedPrincipal)principal).getClassName());
+	    } else {
+		sb.append(principal.getClass().getCanonicalName());
+	    }
+	    sb.append(" \"");
+	    sb.append(principal.getName());
+	    if (!palIt.hasNext()) sb.append("\",\n");
+	    else sb.append("\"\n");
         }
-        sb.append("\nPermissions: \n");
+	sb.append("{\n");
         Iterator<Permission> permIt = getPermissions().iterator();
         while (permIt.hasNext()){
-            sb.append(permIt.next().toString())
-              .append("\n");
+	    Permission p = permIt.next();
+	    sb.append("    permission ");
+	    sb.append(p.getClass().getCanonicalName());
+	    sb.append(" \"");
+	    if (p instanceof PrivateCredentialPermission){
+		PrivateCredentialPermission pcp = (PrivateCredentialPermission) p;
+		String credential = pcp.getCredentialClass();
+		String [][] princpals = pcp.getPrincipals();
+		sb.append(credential);
+		sb.append(" ");
+		for (int i=0,l=princpals.length; i<l; i++){
+		    String [] pals = princpals [i];
+		    for (int j=0,m=pals.length; j<m; j++){
+			sb.append(pals[j]);
+			if (j < m-1) sb.append(" \\\"");
+			else sb.append("\\\"");
+		    }
+		    if (i < l-1) sb.append(" ");
+		}
+	    } else {
+		/* Some complex permissions have quoted strings embedded or
+		literal carriage returns that must be escaped.  */
+		String name = p.getName();
+		if (p instanceof FilePermission && File.separatorChar == '\\'){
+		    name = name.replace("\\", "\\\\");
+		} else {
+		    name = name.replace("\\\"", "\\\\\"").replace("\"","\\\"").replace("\r","\\\r");
+		}
+		sb.append(name);
+	    }
+	    String actions = p.getActions();
+	    if (actions != null && !"".equals(actions)){
+		sb.append("\", \"");
+		sb.append(actions);
+		sb.append("\"");
+	    } else {
+		sb.append("\"");
+	    }
+	    // REMIND signedBy?
+	    sb.append(";\n");
         }     
+	sb.append("};\n\n");
         return sb.toString();
     }
         
@@ -195,6 +249,17 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
 
     public boolean implies(CodeSource codeSource, Principal[] pal) {
 	return implies(pal);
+    }
+    
+    @Override
+    public boolean impliesEquivalent(PermissionGrant grant) {
+	if (!(grant instanceof PrincipalGrant)) return false;
+	return pals.equals(((PrincipalGrant)grant).pals);
+    }
+       
+    @Override
+    public boolean isDyanamic() {
+	return false;
     }
 
     public PermissionGrantBuilder getBuilderTemplate() {

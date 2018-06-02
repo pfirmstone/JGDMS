@@ -123,22 +123,24 @@ public class Driver implements LegacyTest {
         InputStream is = url.openStream();
         Properties props = new Properties();
         props.load(is);
-        Iterator it = props.keySet().iterator();
-        while (it.hasNext()) {
-            String property = (String) it.next();
-            String value = null;
-            value = config.getStringConfigVal(property,null);
-            if (property.equals("policy")) {
-                property = "java.security.policy";
-            }
-            if (value!=null){
-                String prop = "-D" + property.trim() + "=" + value.trim()
-                    + " ";
-                System.out.println(prop);
-                log.log(Level.FINE,prop);
-                command += prop;
-            }
-        }
+	synchronized (props){
+	    Iterator it = props.keySet().iterator();
+	    while (it.hasNext()) {
+		String property = (String) it.next();
+		String value = null;
+		value = config.getStringConfigVal(property,null);
+		if (property.equals("policy")) {
+		    property = "java.security.policy";
+		}
+		if (value!=null){
+		    String prop = "-D" + property.trim() + "=" + value.trim()
+			+ " ";
+		    System.out.println(prop);
+		    log.log(Level.FINE,prop);
+		    command += prop;
+		}
+	    }
+	}
         if (config.getStringConfigVal("end2end.kerberos",null)!=null) {
             command += "-Dend2end.kerberos=true ";
             initializeKerberos();

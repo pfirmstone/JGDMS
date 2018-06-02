@@ -17,6 +17,7 @@
  */
 package org.apache.river.test.share;
 
+import java.io.IOException;
 import net.jini.core.lease.*;
 import java.rmi.RemoteException;
 import java.io.Serializable;
@@ -25,6 +26,9 @@ import java.util.Set;
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Iterator;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
 
 /**
  * Lifted from org.apache.river.lease.AbstractLeaseMap so we can have a codebase
@@ -36,6 +40,7 @@ import java.util.Iterator;
  * canContainKey, renewAll, and cancelAll, and serialization of any subclass
  * state.
  */
+@AtomicSerial
 public abstract class OurAbstractLeaseMap implements LeaseMap, Serializable {
     /**
      * Map from Lease to Long(duration), where all leases have the same
@@ -52,14 +57,27 @@ public abstract class OurAbstractLeaseMap implements LeaseMap, Serializable {
     protected OurAbstractLeaseMap(Lease lease, long duration) {
 	this(new java.util.HashMap(13), lease, duration);
     }
+    
+    protected OurAbstractLeaseMap(GetArg arg) throws IOException {
+	this(Valid.copyMap(
+		arg.get("map", null, Map.class),
+		new java.util.HashMap(13), 
+		Lease.class,
+		Long.class)
+	);
+    }
+    
+    private OurAbstractLeaseMap(Map map){
+	this.map = map;
+    }
 
     /**
      * Provide a map of your choice.  It is assumed that
      * canContainKey(lease) is true.
      */
     protected OurAbstractLeaseMap(Map map, Lease lease, long duration) {
-	this.map = map;
-	map.put(lease, new Long(duration));
+	this(map);
+	this.map.put(lease, Long.valueOf(duration));
     }
 
     /** Check that the key is valid for this map */

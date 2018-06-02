@@ -29,6 +29,7 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
+import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -48,7 +49,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin, 
-    Serializable, ReferentUuid 
+    Serializable, ReferentUuid, ProxyAccessor 
 {
 
     private static final long serialVersionUID = 2L;
@@ -204,6 +205,10 @@ public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
     /** Proxies for servers with the same ID are considered equal. */
     public boolean equals(Object o) {
         return ReferentUuids.compare(this,o);
+    }
+    
+    public Object getProxy() {
+	return server;
     }
     
    /** When an instance of this class is deserialized, this method is

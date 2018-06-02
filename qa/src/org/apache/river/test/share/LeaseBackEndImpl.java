@@ -17,6 +17,7 @@
  */
 package org.apache.river.test.share;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
@@ -40,11 +41,17 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.export.CodebaseAccessor;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.apache.river.proxy.CodebaseProvider;
 
 /**
  * Impl of the LeaseBackEnd remote interface for use by renewal service tests
  */
-public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
+public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust,
+	CodebaseAccessor {
 
     /**
      * Index into lease and owner arrays 
@@ -103,9 +110,21 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
 	Exporter exporter = QAConfig.getDefaultExporter();
 	if (c instanceof org.apache.river.qa.harness.QAConfiguration) {
 	    try {
-		exporter = (Exporter) c.getEntry("test",
-						 "leaseExporter",
-						 Exporter.class);
+		exporter = (Exporter) c.getEntry(
+		    "test",
+		    "leaseExporter",
+		    Exporter.class,
+		    new BasicJeriExporter(
+			TcpServerEndpoint.getInstance(0),
+			new BasicILFactory(
+				null, 
+				null,
+				LeaseBackEndImpl.class.getClassLoader()
+			),
+			true,
+			false
+		    )
+		);
 	    } catch (ConfigurationException e) {
 		throw new RemoteException("Configuration error", e);
 	    }
@@ -230,6 +249,26 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
 
 	if (map != null)
 	    throw new LeaseMapException("cancelling", map);
+	return null;
+    }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	return CodebaseProvider.getClassAnnotation(LeaseBackEnd.class);
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return null;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return null;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
 	return null;
     }
 

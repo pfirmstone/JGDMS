@@ -31,8 +31,10 @@ import org.apache.river.start.ServiceStarter;
 import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.io.MarshalledInstance;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -45,7 +47,8 @@ import net.jini.security.ProxyPreparer;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-class ActivatableNormServerImpl extends NormServerBaseImpl {
+class ActivatableNormServerImpl extends NormServerBaseImpl 
+				implements DynamicProxyCodebaseAccessor {
     /** Our activation ID */
     private final ActivationID activationID;
 
@@ -139,7 +142,7 @@ class ActivatableNormServerImpl extends NormServerBaseImpl {
                     new BasicProxyPreparer());
             activationSystem =
                 (ActivationSystem) activationSystemPreparer.prepareProxy(
-                    ActivationGroup.getSystem());
+                    net.jini.activation.ActivationGroup.getSystem());
             ProxyPreparer activationIdPreparer = (ProxyPreparer)
                 Config.getNonNullEntry(
                     config, NORM, "activationIdPreparer", ProxyPreparer.class,
@@ -157,7 +160,10 @@ class ActivatableNormServerImpl extends NormServerBaseImpl {
                 new ActivationExporter(
                     activationID,
                     new BasicJeriExporter(
-                        TcpServerEndpoint.getInstance(0), new BasicILFactory())),
+                        TcpServerEndpoint.getInstance(0),
+			new AtomicILFactory(null, null, ActivatableNormServerImpl.class.getClassLoader())
+		    )
+		),
                 activationID);
             return result;
         }

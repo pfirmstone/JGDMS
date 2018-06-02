@@ -37,18 +37,23 @@
 
     <dependencies>  
 		 
-         <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>jgdms-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>jgdms-jeri</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>jgdms-rmi-tls</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>jgdms-url-integrity</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -198,6 +203,13 @@
                         </additionalDependency>
                     </additionalDependencies>
 -->
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>findbugs-maven-plugin</artifactId>
+                <configuration>
+                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
                 </configuration>
             </plugin>
         </plugins>

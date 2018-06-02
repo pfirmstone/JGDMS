@@ -18,9 +18,12 @@
 
 package org.apache.river.test.share;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.util.BitSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.transaction.Transaction;
@@ -30,11 +33,17 @@ import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.config.Config;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
+import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.qa.harness.QAConfig;
 
 /**
@@ -43,8 +52,10 @@ import org.apache.river.qa.harness.QAConfig;
 public class TestParticipantImpl
     implements TxnManagerTestOpcodes, TransactionConstants,
 	       TransactionParticipant, TestParticipant, ProxyAccessor,
-	       ServerProxyTrust
+	       ServerProxyTrust, DynamicProxyCodebaseAccessor
 {
+    private static final Logger logger = 
+	    Logger.getLogger("org.apache.river.qa.harness.service");    
     private final String name;
     private final BitSet behavior; 
     private final Object lock2;
@@ -66,17 +77,16 @@ public class TestParticipantImpl
 	crashcount = System.currentTimeMillis();
 	behavior   = new BitSet(OPERATION_COUNT);
 	Configuration c = QAConfig.getConfig().getConfiguration();
-	exporter = QAConfig.getDefaultExporter();
-	if (c instanceof org.apache.river.qa.harness.QAConfiguration) {
 	    try {
-		exporter = (Exporter) c.getEntry("test",
-						 "transactionParticipantExporter",
-						 Exporter.class);
+		exporter = 
+		Config.getNonNullEntry(
+                    c, "test", "transactionParticipantExporter", Exporter.class,
+                    new BasicJeriExporter(
+                        TcpServerEndpoint.getInstance(0),
+                        new BasicILFactory(null, null, TestParticipantImpl.class.getClassLoader())));
 	    } catch (ConfigurationException e) {
 		throw new RemoteException("Configuration Error", e);
 	    }
-	}
-        // Can't export here without this escaping.
     }
 
     public Object getProxy() {
@@ -324,4 +334,28 @@ public class TestParticipantImpl
     public static void main(String[] args) throws RemoteException {
 	TestParticipant part = new TestParticipantImpl();
     }
+
+    @Override
+    public String getClassAnnotation() throws IOException {
+	String result = CodebaseProvider.getClassAnnotation(proxy == null ? 
+		TestParticipant.class : proxy.getClass());
+	logger.log(Level.FINE, "Annotation: " + result);
+	return result;
+    }
+
+    @Override
+    public String getCertFactoryType() throws IOException {
+	return null;
+    }
+
+    @Override
+    public String getCertPathEncoding() throws IOException {
+	return null;
+    }
+
+    @Override
+    public byte[] getEncodedCerts() throws IOException {
+	return null;
+    }
+   
 }

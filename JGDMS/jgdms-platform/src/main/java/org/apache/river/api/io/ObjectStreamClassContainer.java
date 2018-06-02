@@ -78,7 +78,7 @@ class ObjectStreamClassContainer {
         SecurityManager sm = System.getSecurityManager();
         if (sm == null) return;
 	if (context != null && perm != null) {
-	    context.checkPermission(perm);
+	    sm.checkPermission(perm, context);
 	}
 	if (!hasReadObjectNoData() && !hasReadObject()) {
 	    //Ok if there's no data.
@@ -303,7 +303,7 @@ class ObjectStreamClassContainer {
 	}
     }
 
-    Object invokeReadResolve(Object o) throws ObjectStreamException {
+    Object invokeReadResolve(Object o) throws ObjectStreamException, IOException, ClassNotFoundException {
 	try {
 //	    if (readResolveMethod == null) {
 //		readResolveMethod = getReadResolveMethod(o.getClass());
@@ -320,10 +320,16 @@ class ObjectStreamClassContainer {
 	    Throwable target = ex.getTargetException();
 	    if (target instanceof ObjectStreamException) {
 		throw (ObjectStreamException) target;
+	    } else if (target instanceof IOException){
+		throw (IOException) target;
+	    } else if (target instanceof ClassNotFoundException){
+		throw (ClassNotFoundException) target;
 	    } else if (target instanceof Error) {
 		throw (Error) target;
-	    } else {
+	    } else if (target instanceof RuntimeException){
 		throw (RuntimeException) target;
+	    } else {
+		throw new IOException("Exception thrown while invoking readResolve", target);
 	    }
 	}
 	return null;

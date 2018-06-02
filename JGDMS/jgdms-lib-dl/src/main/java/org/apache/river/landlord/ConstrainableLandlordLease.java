@@ -316,5 +316,17 @@ final public class ConstrainableLandlordLease extends LandlordLease
 			    leaseMapMethodMapArray),
 	    landlordUuid(), this, duration);
     }
+
+    @SuppressWarnings("EmptyMethod")
+    @Override
+    public int hashCode() {
+	return super.hashCode();
+    }
+    
+    @SuppressWarnings("EmptyMethod")
+    @Override
+    public boolean equals(Object o){
+	return super.equals(o);
+    }
 }
 

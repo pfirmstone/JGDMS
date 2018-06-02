@@ -22,6 +22,9 @@ import java.rmi.registry.Registry;
 
 /**
  * Abstract class for generating JRMP and IIOP stubs.
+ * 
+ * Note this class requires the rmic compiller to generate stubs, this will be
+ * removed in a future release.
  *
  * @author Sun Microsystems, Inc.
  * 

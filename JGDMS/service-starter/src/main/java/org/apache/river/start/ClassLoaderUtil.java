@@ -97,6 +97,7 @@ public class ClassLoaderUtil {
     public static URL[] getCodebaseURLs(String codebase)
         throws MalformedURLException
     {
+	if (codebase == null) return null;
         StringTokenizer st = new StringTokenizer(codebase);
         URL[] urls = new URL[st.countTokens()];
         for (int i=0; st.hasMoreTokens(); i++) {

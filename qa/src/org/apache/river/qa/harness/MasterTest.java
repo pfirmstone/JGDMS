@@ -25,6 +25,7 @@ import java.io.PrintStream;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.util.StringTokenizer;
 import java.util.logging.Logger;
@@ -36,12 +37,27 @@ import javax.security.auth.Subject;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.security.policy.DynamicPolicy;
+import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.security.CombinerSecurityManager;
+//import org.apache.river.tool.SecurityPolicyWriter;
+//import org.bouncycastle.jce.provider.BouncyCastleProvider;
+//import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 
 /**
  * A wrapper which drives the execution of a test on the master host.
  */
 class MasterTest {
+    
+    /**
+     * Note the selection of cipher suite provider must be determined at the
+     * server end, so the client can use a compatible provider.
+     */
+   static {
+//	java.security.Security.addProvider(new BouncyCastleProvider());
+//	java.security.Security.addProvider(new BouncyCastleJsseProvider());
+//	java.security.Security.setProperty("ssl.KeyManagerFactory.algorithm", "PKIX");
+   }
 
     private final static int EXTERNAL_REQUEST_PORT=10005;
 
@@ -85,8 +101,12 @@ class MasterTest {
 	logger.log(Level.FINE, "Starting MasterTest");
         if (System.getSecurityManager() == null) {
 //	    System.setSecurityManager(new java.rmi.RMISecurityManager());
-//            System.setSecurityManager(new ProfilingSecurityManager());
+//            System.setSecurityManager(new SecurityPolicyWriter()); // Seems to be ok here
             System.setSecurityManager(new CombinerSecurityManager());
+	}
+	Policy policy = Policy.getPolicy();
+	if (!(policy instanceof DynamicPolicy)){
+	    Policy.setPolicy(new DynamicPolicyProvider(policy));
 	}
 	if (args.length < 1) {
 	    exit(false, Test.ENV, "Arguments missing");

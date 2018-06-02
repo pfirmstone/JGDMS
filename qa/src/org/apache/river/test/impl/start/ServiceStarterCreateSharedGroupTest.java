@@ -104,7 +104,7 @@ public class ServiceStarterCreateSharedGroupTest extends StarterBase implements 
             ActivationGroupDesc adesc =  null;
 	    try {
                 adesc = 
-		    ActivationGroup.getSystem().getActivationGroupDesc(gid);
+		    net.jini.activation.ActivationGroup.getSystem().getActivationGroupDesc(gid);
 		ActivationGroupDesc.CommandEnvironment ce = 
 		    adesc.getCommandEnvironment(); 
 		String[] opts = ce.getCommandOptions();
