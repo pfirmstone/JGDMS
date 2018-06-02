@@ -158,8 +158,10 @@ public class MarshalledInstance implements Serializable {
      *
      * @param obj The Object to be contained in the new 
      *          <code>MarshalledInstance</code>
-     * @param context
-     * @param marshalFactory
+     * @param context the collection of context information objects or
+     *        <code>null</code>
+     * @param marshalFactory MarshalFactory used to create underlying MarshalInstanceInput
+     * and MarshalInstanceOutput.
      * @throws IOException if the object cannot be serialized
      * @throws NullPointerException if context or marshalFactory is null.
      */
@@ -373,7 +375,7 @@ public class MarshalledInstance implements Serializable {
     /**
      * Sub classes implement this method to use alternative Serialization
      * frameworks to unmarshall data.
-     * @return 
+     * @return a new MarshalFactory instance.
      */
     protected MarshalFactory getMarshalFactory(){
 	return new MarshalFactoryInstance();

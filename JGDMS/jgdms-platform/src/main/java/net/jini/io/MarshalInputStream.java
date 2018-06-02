@@ -200,11 +200,31 @@ public class MarshalInputStream
 
     /**
      * 
-     * @param defaultLoader
-     * @param verifyCodebaseIntegrity
-     * @param verifierLoader
-     * @param context
-     * @throws IOException 
+     *  @param defaultLoader the class loader value (possibly
+     * <code>null</code>) to pass as the <code>defaultLoader</code>
+     * argument to <code>ClassLoading</code> methods
+     *
+     * @param verifyCodebaseIntegrity if <code>true</code>, this
+     * stream will verify that codebase annotation URLs used to load
+     * classes resolved by this stream provide content integrity
+     *
+     * @param verifierLoader the class loader value (possibly
+     * <code>null</code>) to pass to
+     * <code>Security.verifyCodebaseIntegrity</code>, if
+     * <code>verifyCodebaseIntegrity</code> is <code>true</code>
+     *
+     * @param context the collection of context information objects to
+     * be returned by this stream's {@link #getObjectStreamContext
+     * getObjectStreamContext} method
+     *
+     * @throws IOException if the superclass's constructor throws an
+     * <code>IOException</code>
+     *
+     * @throws SecurityException if the superclass's constructor
+     * throws a <code>SecurityException</code>
+     *
+     * @throws NullPointerException if <code>in</code> or
+     * <code>context</code> is <code>null</code>
      */
     protected MarshalInputStream(ClassLoader defaultLoader,
 				 boolean verifyCodebaseIntegrity,
