@@ -82,7 +82,7 @@ final class ConnectionContext extends Utilities {
 
     /** Whether codebase integrity and atomicity should be enforced */
     private final boolean upperLayerConstraints;
-    
+
     /**
      * Whether the connection is being considered on the client side, which
      * does not support relative time constraints.
@@ -367,5 +367,41 @@ final class ConnectionContext extends Utilities {
 	} else {
 	    return OK;
 	}
+    }
+    
+    @Override
+    public int hashCode() {
+	int hash = 7;
+	hash = 17 * hash + (this.cipherSuite != null ? this.cipherSuite.hashCode() : 0);
+	hash = 17 * hash + (this.client != null ? this.client.hashCode() : 0);
+	hash = 17 * hash + (this.server != null ? this.server.hashCode() : 0);
+	hash = 17 * hash + (this.upperLayerConstraints ? 1 : 0);
+	hash = 17 * hash + (this.clientSide ? 1 : 0);
+	hash = 17 * hash + (this.notSupported ? 1 : 0);
+	hash = 17 * hash + (this.integrityRequired ? 1 : 0);
+	hash = 17 * hash + (this.integrityPreferred ? 1 : 0);
+	hash = 17 * hash + (this.atomicityRequired ? 1 : 0);
+	hash = 17 * hash + (this.atomicityPreferred ? 1 : 0);
+	hash = 17 * hash + (int) (this.connectionTime ^ (this.connectionTime >>> 32));
+	hash = 17 * hash + this.preferences;
+	return hash;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if (!(o instanceof ConnectionContext)) return false;
+	ConnectionContext that = (ConnectionContext) o;
+	if (this.atomicityPreferred != that.atomicityPreferred) return false;
+	if (this.atomicityRequired != that.atomicityRequired) return false;
+	if (this.clientSide != that.clientSide) return false;
+	if (this.integrityPreferred != that.integrityPreferred) return false;
+	if (this.integrityRequired != that.integrityRequired) return false;
+	if (this.notSupported != that.notSupported) return false;
+	if (this.upperLayerConstraints != that.upperLayerConstraints) return false;
+	if (this.connectionTime != that.connectionTime) return false;
+	if (this.preferences != that.preferences) return false;
+	if (!this.cipherSuite.equals(that.cipherSuite)) return false;
+	if (!this.client.equals(that.client)) return false;
+	return this.server.equals(that.server);
     }
 }
