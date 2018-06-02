@@ -1,0 +1,9 @@
+<FindBugsFilter>
+    <Match>
+        <Class name="net.jini.activation.ActivationGroup" />
+        <!-- This is a known bug that cannot be fixed without breaking
+             backward compatibility, and there isn't a compelling enough reason
+             to do so. -->
+        <Bug pattern="	NM_SAME_SIMPLE_NAME_AS_SUPERCLASS" />
+    </Match>
+</FindBugsFilter>
