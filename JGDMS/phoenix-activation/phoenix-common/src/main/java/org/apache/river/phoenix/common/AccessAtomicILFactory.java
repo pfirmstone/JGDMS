@@ -48,7 +48,7 @@ public class AccessAtomicILFactory extends AtomicILFactory {
      * constraints, no permission class, and the specified smart proxy
      * or service implementation class, used to determined the ClassLoader.
      * The specified class loader of proxyOrService is used by the 
-     * {@link #createInstancescreateInstances} method.
+     * {@link #createInstances createInstances} method.
      *
      * @param proxyOrService class of the smart proxy or service implementation.
      * @throws NullPointerException if proxyOrService is null.
