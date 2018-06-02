@@ -282,7 +282,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	Set clientPrincipals = getClientPrincipals(constraints.requirements());
 	boolean requiredClient = clientPrincipals != null;
 	boolean constrainedServer = getServerPrincipals(constraints) != null;
-	Boolean getSubject = null;
+	Boolean subjectPrivilege = null;
 	if (!requiredClient) {
 	    /* Try using principals from Subject instead */
 	    if (clientSubject == null) {
@@ -302,8 +302,8 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		}
 	    }
 	    if (clientPrincipals.isEmpty()) {
-		getSubject = getSubjectPermitted();
-		if (getSubject.equals(Boolean.FALSE)) {
+		subjectPrivilege = getSubjectPermitted();
+		if (subjectPrivilege.equals(Boolean.FALSE)) {
 		    /* Don't reveal that the client Subject has no principals.
 		     * Provide a dummy Principal (no credentials) which cannot
 		     * be authenticated in order to follow the same code path
@@ -349,10 +349,10 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		 * caller could determine Subject principals for itself, then
 		 * pass on the SecurityException.
 		 */
-		if (!requiredClient && getSubject == null) {
-		    getSubject = getSubjectPermitted();
+		if (!requiredClient && subjectPrivilege == null) {
+		    subjectPrivilege = getSubjectPermitted();
 		}
-		if (requiredClient || getSubject == Boolean.TRUE) {
+		if (requiredClient || subjectPrivilege) {
 		    if (logger.isLoggable(Levels.FAILED)) {
 			logThrow(
 			    logger, Levels.FAILED,
@@ -401,10 +401,10 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    if (constrainedServer) {
 		checkSubject = true;
 	    } else {
-		if (getSubject == null) {
-		    getSubject = getSubjectPermitted();
+		if (subjectPrivilege == null) {
+		    subjectPrivilege = getSubjectPermitted();
 		}
-		checkSubject = (getSubject == Boolean.TRUE);
+		checkSubject = (subjectPrivilege == Boolean.TRUE);
 	    }
 	    if (checkSubject) {
 		/* Check subject if caller has any access */
@@ -786,6 +786,22 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		result = suiteIndex - other.suiteIndex;
 	    }
 	    return result;
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableConnectionContext)) return false;
+	    ComparableConnectionContext that = (ComparableConnectionContext) o;
+	    if (this.suiteIndex != that.suiteIndex) return false;
+	    return this.context.equals(that.context);
+	}
+
+	@Override
+	public int hashCode() {
+	    int hash = 3;
+	    hash = 97 * hash + (this.context != null ? this.context.hashCode() : 0);
+	    hash = 97 * hash + this.suiteIndex;
+	    return hash;
 	}
 
 	public String toString() {
