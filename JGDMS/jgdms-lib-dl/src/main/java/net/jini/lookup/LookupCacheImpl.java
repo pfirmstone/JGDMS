@@ -2036,6 +2036,19 @@ final class LookupCacheImpl implements LookupCache {
             return 0;
         }
 
+	@Override
+	public int hashCode() {
+	    int hash = 3;
+	    hash = 89 * hash + (this.task != null ? this.task.hashCode() : 0);
+	    return hash;
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (!(o instanceof ComparableFutureTask)) return false;
+	    return this.task.equals(((ComparableFutureTask)o).task);
+	}
+
     }
 
     /**
