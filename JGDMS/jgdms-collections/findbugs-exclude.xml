@@ -1,0 +1,9 @@
+<FindBugsFilter>
+    <Match>
+        <Class name="org.apache.river.thread.ReadersWriter" />
+        <!-- The reason to notify waiters is determined by the calling thread,
+             this isn't a bug.        -->
+        <Method name="waiterNotify"/>
+        <Bug pattern="NN_NAKED_NOTIFY" />
+    </Match>
+</FindBugsFilter>
