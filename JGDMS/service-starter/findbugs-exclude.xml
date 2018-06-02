@@ -1,0 +1,23 @@
+<FindBugsFilter>
+    <Match>
+        <!-- The Activation constructor is only ever called by privileged code -->
+        <Class name="org.apache.river.start.ActivateWrapper" />
+        <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED" />
+    </Match>
+    <Match>
+        <!-- Only ever called by privileged code -->
+        <Class name="org.apache.river.start.NonActivatableServiceDescriptor" />
+        <Method name="create"/>
+        <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED" />
+    </Match>
+    <Match>
+        <!-- Configuration is a non serializable interface, we don't want to
+             make it Serializable, as this would force all Configuration's 
+             to implement Serializable, and we don't want to make it a 
+             more specific instance. -->
+        <Class name="org.apache.river.start.NonActivatableServiceDescriptor" />
+        <Field name="configuration"/>
+        <Bug pattern="SE_BAD_FIELD" />
+    </Match>
+    
+</FindBugsFilter>
