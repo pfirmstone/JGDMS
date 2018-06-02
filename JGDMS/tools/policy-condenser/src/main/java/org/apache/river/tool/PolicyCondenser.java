@@ -42,7 +42,7 @@ import org.apache.river.api.security.PolicyParser;
  * 
  * The condenser will replace properties in grant files passed in using -Dprop=value
  * 
- * >java -cp policy-condenser-3.0-SNAPSHOT.jar;%RIVER.HOME%\lib\* 
+ * java -cp policy-condenser-3.0-SNAPSHOT.jar;%RIVER.HOME%\lib\* 
  * org.apache.river.tool.PolicyCondenser security.policy
  * 
  * @see KeyStore
