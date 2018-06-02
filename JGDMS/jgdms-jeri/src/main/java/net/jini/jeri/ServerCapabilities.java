@@ -57,7 +57,7 @@ public interface ServerCapabilities {
      * net.jini.core.constraint} package must be fully implemented by
      * the transport layer and thus must not be returned by this
      * method; the two exceptions are {@link Integrity} and
-     * {@link AtomicInputValidation}, for which the
+     * {@link net.jini.core.constraint.AtomicInputValidation}, for which the
      * transport layer is responsible for the data integrity aspect
      * and higher layers are responsible for the code integrity
      * and atomic input validation aspects.
