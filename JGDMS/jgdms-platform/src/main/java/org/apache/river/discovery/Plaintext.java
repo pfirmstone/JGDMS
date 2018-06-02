@@ -38,6 +38,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -57,6 +58,7 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
+import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
@@ -67,7 +69,6 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.io.context.AtomicValidationEnforcement;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * Provides utility methods for plaintext data operations.
@@ -92,6 +93,7 @@ public class Plaintext {
 	supportedConstraints.add(ClientMinPrincipal.class);
 	supportedConstraints.add(ClientMinPrincipalType.class);
 	supportedConstraints.add(ServerMinPrincipal.class);
+	supportedConstraints.add(ServerMaxPrincipal.class);
 	supportedConstraints.add(DelegationAbsoluteTime.class);
 	supportedConstraints.add(DelegationRelativeTime.class);
     }
@@ -442,6 +444,8 @@ public class Plaintext {
 			);
 		    }
 		}
+	    } else { // Avoid NPE.
+		context = Collections.EMPTY_SET;
 	    }
 	    mi = new MarshalledInstance(registrar, context);
 	    new MarshalOutputStream(out, context).writeObject(mi);
