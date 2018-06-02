@@ -18,7 +18,6 @@
 
 package org.apache.river.api.security;
 
-import java.io.Serializable;
 import java.security.AllPermission;
 import java.security.Permission;
 import java.security.PermissionCollection;
@@ -70,18 +69,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Enumerating through it's elements.  ConcurrentPermission's keeps a cache
  * of elements, but makes no guarantees that new elements will be
  * added during an Enumeration.
- * 
- * TODO: Serialization properly
- * @version 0.5 2012/04/18
+ *
+ * @version 0.6 2018/05/15
  * 
  * @author Peter Firmstone
  * @since 3.0.0
  * @serial permsMap
  */
-final class ConcurrentPermissions extends PermissionCollection 
-implements Serializable {
+final class ConcurrentPermissions extends PermissionCollection {
 
-    private static final long serialVersionUID=1L;
     /* unresolved is never returned or allowed to escape, it's elements() method
      * isn't used to return an Enumeration yet 
      * Duplicate Permissions could potentially be returned if unresolved is
@@ -91,9 +87,9 @@ implements Serializable {
      * This creates issues with java.security.AccessControlContext and
      * causes it to throw an exception.
      */ 
-    private transient PermissionPendingResolutionCollection unresolved;
+    private final PermissionPendingResolutionCollection unresolved;
     private final ConcurrentMap<Class<?>, PermissionCollection> permsMap;
-    private transient volatile boolean allPermission;
+    private volatile boolean allPermission;
     
     /* Let Permissions, UnresolvedPermission and 
      * UnresolvedPermissionCollection resolve all unresolved permission's
@@ -117,7 +113,7 @@ implements Serializable {
     }
     
     /**
-     * Threadsafe
+     * @Threadsafe
      * @param permission
      */   
     @Override
@@ -158,7 +154,7 @@ implements Serializable {
     
     /**
      * Returns true if Permission is implied for this PermissionDomain.
-     * Threadsafe this method is also a mutator method for internal state
+     * @Threadsafe this method is also a mutator method for internal state
      * 
      * @see Permission
      * @param permission
@@ -325,18 +321,16 @@ implements Serializable {
     
     private static class PermissionPendingResolution extends Permission {
             private static final long serialVersionUID = 1L;
-            private transient String type; //Class name of underlying permission
-            private transient String name; //Target name of underlying permission
-            private transient String actions;
+            private String name; //Target name of underlying permission
+            private String actions;
             /* We have our own array copy of certs, prevents unnecessary 
              * array creation every time .getUnresolvedCerts() is called.
              */ 
-            private transient Certificate [] targetCerts;
+            private Certificate [] targetCerts;
             private UnresolvedPermission unresolvedPermission;
 
         PermissionPendingResolution(UnresolvedPermission up){
             super(up.getUnresolvedType());
-            type = up.getUnresolvedType();
             name = up.getUnresolvedName();
             actions = up.getUnresolvedActions();
             // don't need to defensive copy, UnresolvedPermission already does it.
