@@ -59,6 +59,7 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
+import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.OutboundRequestIterator;
