@@ -113,7 +113,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 	    /**
 	     * This check prevents us accidentally creating a new ClassLoader for
 	     * a returned proxy that can be resolved by the parent ClassLoader
-	     * but where that loader hasn't be cached.
+	     * but where that loader hasn't been cached.
 	     */
 	    loader = parent;
 	} else {
