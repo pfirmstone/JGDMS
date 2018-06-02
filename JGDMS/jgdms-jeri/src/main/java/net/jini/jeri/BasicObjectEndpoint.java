@@ -152,7 +152,7 @@ import org.apache.river.logging.Levels;
  * <code>Endpoint</code> is created.
  *
  * <p>If a dirty call fails with a communication exception other than
- * a <code>NoSuchObjectException</code>, the DGC client implementation
+ * a <code>NonExistantObjectException</code>, the DGC client implementation
  * should make a reasonable effort to retry the dirty call (in a
  * network-friendly manner).  Also, after such a failed dirty call for
  * a given <code>Endpoint</code> and object identifier, any clean call
@@ -174,7 +174,7 @@ import org.apache.river.logging.Levels;
  * to be phantom reachable at the same time).
  *
  * <p>If a clean call fails with a communication exception other than
- * a <code>NoSuchObjectException</code>, the DGC client implementation
+ * a <code>NonExistantObjectException</code>, the DGC client implementation
  * should make a reasonable effort to retry the clean call, in a
  * network-friendly manner, especially while the DGC client's lease
  * for the <code>Endpoint</code> remains valid (or while dirty calls
@@ -482,7 +482,7 @@ public final class BasicObjectEndpoint
             }
 	    // REMIND: Do we want to read a server-supplied reason string?
             if (ex != null){
-                return new net.jini.export.NoSuchObjectException("no such object in table, input stream close threw IOException: ", ex);
+                return new net.jini.export.NonExistantObjectException("no such object in table, input stream close threw IOException: ", ex);
             }
 	    return new NoSuchObjectException("no such object in table");
 
