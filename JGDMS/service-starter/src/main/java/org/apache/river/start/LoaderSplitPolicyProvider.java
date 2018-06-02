@@ -263,7 +263,8 @@ public class LoaderSplitPolicyProvider
                return defaultPolicy;
                }
             });
-            delegateMap.putIfAbsent(ldr, p);
+            Policy existed = delegateMap.putIfAbsent(ldr, p);
+	    if (existed != null) p = existed;
 	}
 	return p;
     }

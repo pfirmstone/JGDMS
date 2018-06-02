@@ -566,7 +566,7 @@ public class AggregatePolicyProvider
             ccl = getContextClassLoader();
             int hash = 3;
             hash = 61 * hash + (this.ccl != null ? this.ccl.hashCode() : 0);
-            hash = 61 * hash + (this.sc != null ? this.sc.hashCode() : 0);
+            hash = 61 * hash + this.sc.hashCode();
             hashCode = hash;
 	}
 

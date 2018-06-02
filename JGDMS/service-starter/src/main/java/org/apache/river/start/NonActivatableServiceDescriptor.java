@@ -334,7 +334,7 @@ public class NonActivatableServiceDescriptor
 	this.policy = policy;
 	this.classpath = importCodebase;
 	this.implClassName = implClassName;
-	this.serverConfigArgs = serverConfigArgs;
+	this.serverConfigArgs = serverConfigArgs != null ? serverConfigArgs.clone() : null;
         this.configuration = null ;
 	this.lifeCycle =
 	    (lifeCycle == null)?NoOpLifeCycle:lifeCycle;
