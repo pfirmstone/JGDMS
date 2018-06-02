@@ -58,8 +58,10 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
     /**
      * {@link AtomicSerial} constructor.  This object should be cloned 
      * during de-serialization.
-     * @param arg
-     * @throws IOException 
+     * 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
      */
     public ServiceItem(GetArg arg) throws IOException {
 	this( arg == null ? null: arg.get("serviceID", null, ServiceID.class),

@@ -73,8 +73,9 @@ public class ServiceTemplate implements java.io.Serializable, Cloneable {
      * should be cloned in a secure stream to prevent an attacker retaining 
      * a reference to mutable state.
      * 
-     * @param arg
-     * @throws IOException 
+     * @param arg atomic deserialization parameter 
+     * @throws IOException if there are I/O errors while reading from GetArg's
+     *         underlying <code>InputStream</code>
      */
     public ServiceTemplate(GetArg arg) throws IOException {
 	/* Any class cast exceptions will be occur before Object's default
