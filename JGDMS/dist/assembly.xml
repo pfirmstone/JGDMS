@@ -91,8 +91,7 @@
                 <exclude>au.net.zeus.jgdms.mercury:mercury-dl:jar</exclude>
                 <exclude>au.net.zeus.jgdms.norm:norm-dl:jar</exclude>	
                 <exclude>au.net.zeus.jgdms.fiddler:fiddler-dl:jar</exclude>
-                <exclude>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</exclude>	
-                <exclude>au.net.zeus.jgdms.group:group-dl:jar</exclude>		
+                <exclude>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</exclude>
             </excludes>
             <outputDirectory>lib</outputDirectory>
 	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
@@ -110,8 +109,7 @@
                 <include>au.net.zeus.jgdms.mercury:mercury-dl:jar</include>
                 <include>au.net.zeus.jgdms.norm:norm-dl:jar</include>
                 <include>au.net.zeus.jgdms.fiddler:fiddler-dl:jar</include>
-                <include>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</include>	
-                <include>au.net.zeus.jgdms.group:group-dl:jar</include>							
+                <include>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</include>					
             </includes>
             <outputDirectory>lib-dl</outputDirectory>
 	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
