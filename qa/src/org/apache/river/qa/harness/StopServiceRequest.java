@@ -48,7 +48,7 @@ class StopServiceRequest implements SlaveRequest {
 	}
     }
     
-    StopServiceRequest(GetArg arg) throws IOException{
+    StopServiceRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("marshalledServiceRef", null, MarshalledInstance.class));
     }
     

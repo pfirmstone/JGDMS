@@ -25,7 +25,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.admin.Administrable;
+import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
@@ -120,14 +122,30 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 					       ServiceRegInitializer
     {
         public final int i;
+	public final Object proxy;
 	private transient BootStrapService bootStrapService;
-        public TestService(int i) {
+	private transient Configuration config;
+        public TestService(int i, Configuration testConfig) {
             this.i = i;
-	    bootStrapService = new BootStrapService(this);
+	    config = testConfig;
+	    bootStrapService = new BootStrapService(this, config);
+	    Object bootStrapProxy = null;
+	    try {
+		bootStrapService.start();
+		bootStrapProxy = bootStrapService.getBootStrapProxy();
+	    } catch (Exception ex) {
+		Logger.getLogger(AbstractBaseTest.class.getName()).log(Level.SEVERE, null, ex);
+	    }
+	    proxy = bootStrapProxy;
         }//end constructor
 	
-	public TestService(GetArg arg) throws IOException{
-	    this(arg.get("i", 0));
+	private TestService(int i, java.lang.reflect.Proxy proxy){
+	    this.i = i;
+	    this.proxy = proxy;
+	}
+	
+	public TestService(GetArg arg) throws IOException, ClassNotFoundException{
+	    this(arg.get("i", 0), arg.get("proxy", null, java.lang.reflect.Proxy.class));
 	}
 	
         public boolean equals(Object obj) {
@@ -151,11 +169,13 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 
 	@Override
 	public Object getProxy() {
-	    return bootStrapService.getBootStrapProxy();
+	    return proxy;
 	}
 
 	@Override
 	public ServiceRegistration setServiceRegistration(ServiceRegistration regist, Entry[] regAttr) {
+	    if (bootStrapService == null) throw new IllegalArgumentException(
+		"setServiceRegistration call can only be made on originating service");
 	    return bootStrapService.setServiceRegistration(regist, regAttr);
 	}
     }//end class TestService
@@ -167,11 +187,11 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      */
     @AtomicSerial
     public static class TestServiceBadEquals extends TestService {
-        public TestServiceBadEquals(int i) {
-            super(i);
+        public TestServiceBadEquals(int i, Configuration config) {
+            super(i, config);
         }//end constructor
 	
-	public TestServiceBadEquals(GetArg arg) throws IOException{
+	public TestServiceBadEquals(GetArg arg) throws IOException, ClassNotFoundException{
 	    super(arg);
 	}
 	
@@ -779,13 +799,13 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
             TestServiceInterface testService = null;
             switch(serviceType) {
                 case TEST_SERVICE:
-                    testService = new TestService(srvcVal);
+                    testService = new TestService(srvcVal, config.getConfiguration());
                     break;
                 case TEST_SERVICE_BAD_EQUALS:
-                    testService = new TestServiceBadEquals(srvcVal);
+                    testService = new TestServiceBadEquals(srvcVal, config.getConfiguration());
                     break;
                 default:
-                    testService = new TestService(srvcVal);
+                    testService = new TestService(srvcVal, config.getConfiguration());
                     break;
             }//end switch(serviceType)
             getExpectedServiceList().add( testService );

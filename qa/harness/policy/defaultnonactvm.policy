@@ -31,7 +31,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib/harness-killer.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
 }; 
 
-grant { 
+grant {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";

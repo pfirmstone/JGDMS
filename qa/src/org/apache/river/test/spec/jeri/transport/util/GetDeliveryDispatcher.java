@@ -27,6 +27,7 @@ import java.io.ObjectInputStream;
 
 //java.util
 import java.util.logging.Logger;
+import org.apache.river.qa.harness.TestException;
 
 public class GetDeliveryDispatcher implements RequestDispatcher {
 
@@ -76,11 +77,14 @@ public class GetDeliveryDispatcher implements RequestDispatcher {
         }
     }
 
-    public int dispatchCalled(){
+    public int dispatchCalled() throws TestException{
+	long start = System.currentTimeMillis();
+	long finish = start + 900000L;
         synchronized(lock) {
-            if (!callDone) {
+            while (!callDone) {
                 try {
-                    lock.waitForSignal();
+                    lock.waitForSignal(2000L);
+		    if (System.currentTimeMillis() > finish) throw new TestException("waiting too long for dispatch call");
                 } catch (InterruptedException e) {
                    e.printStackTrace();
                 }
@@ -93,11 +97,11 @@ public class GetDeliveryDispatcher implements RequestDispatcher {
     }
 
     private class Lock {
-        public synchronized void waitForSignal() throws InterruptedException {
+        public synchronized void waitForSignal(long timeout) throws InterruptedException {
             AbstractEndpointTest.getLogger().finest("Waiting on the lock."
                 + " Call done is " + callDone);
-            wait();
-        }
+		wait(timeout);
+	    }
 
         public synchronized void signal() {
            AbstractEndpointTest.getLogger().finest("Releasing the lock."

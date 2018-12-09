@@ -150,7 +150,8 @@ class ServiceDestroyer {
                 Thread.sleep(1*N_MS_PER_SEC);
             } catch (InterruptedException e){
                 Thread.currentThread().interrupt();
-        }
+		break;
+	    }
         }
         if(!deactivated) return DEACTIVATION_TIMEOUT;
         return DESTROY_SUCCESS;

@@ -59,13 +59,13 @@ public class TestLease extends OurAbstractLease implements ProxyAccessor {
 	this.home = home;
     }
     
-    public TestLease(GetArg arg) throws IOException{
+    public TestLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	id = arg.get("id", 0);
 	home = arg.get("home", null, LeaseBackEnd.class);
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	arg.get("id", 0);
 	arg.get("home", null, LeaseBackEnd.class);
 	return arg;

@@ -71,7 +71,7 @@ final class LookupSimulatorProxyVerifier implements TrustVerifier, Serializable 
 	this.server = server;
     }
 
-    LookupSimulatorProxyVerifier(GetArg arg) throws IOException {
+    LookupSimulatorProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("server",null, LookupSimulator.class));
     }
 

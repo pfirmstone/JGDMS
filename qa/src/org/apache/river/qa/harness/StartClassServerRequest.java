@@ -41,7 +41,7 @@ class StartClassServerRequest implements SlaveRequest {
 	this.serviceName = serviceName;
     }
     
-    StartClassServerRequest(GetArg arg) throws IOException{
+    StartClassServerRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("serviceName", null, String.class));
     }
 

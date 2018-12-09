@@ -51,7 +51,7 @@ class StartApplicationServerRequest implements SlaveRequest {
 	this.registryHost = registryHost;
     }
     
-    StartApplicationServerRequest(GetArg arg) throws IOException{
+    StartApplicationServerRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("registryHost", null, String.class));
     }
 

@@ -233,6 +233,9 @@ public class AppleUserImpl extends QATestEnvironment implements AppleUser, Test 
 
     // inherit javadoc
     public Test construct(QAConfig sysConfig) throws Exception {
+	System.setProperty(
+		"sun.rmi.registry.registryFilter",
+		"java.**;net.jini.**;org.apache.river.**");
 	super.construct(sysConfig);
         return this;
     }

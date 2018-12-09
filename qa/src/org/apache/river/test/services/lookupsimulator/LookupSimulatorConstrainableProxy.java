@@ -124,12 +124,12 @@ final class LookupSimulatorConstrainableProxy
 	this.constraints = constraints;
     }
 
-    LookupSimulatorConstrainableProxy(GetArg arg) throws IOException {
+    LookupSimulatorConstrainableProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	constraints = (MethodConstraints) arg.get("constraints", null);
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	LookupSimulatorProxy lsp = new LookupSimulatorProxy(arg);
 	MethodConstraints constraints 
 		= arg.get("constraints", null, MethodConstraints.class);

@@ -38,6 +38,7 @@ import net.jini.core.transaction.server.*;
 import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.jeri.AtomicILFactory;
+import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.TrustVerifier;
@@ -103,7 +104,9 @@ public class TesterTransactionManager
 
     private void doExport(Configuration c) throws RemoteException {
 	Exporter exporter = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-				     new AtomicILFactory(null, null, TesterTransactionManager.class ));
+//				     new AtomicILFactory(null, null, TesterTransactionManager.class )
+				     new BasicILFactory()
+	);
 	if (c instanceof org.apache.river.qa.harness.QAConfiguration) {
 	    try {
 		exporter = (Exporter) c.getEntry("test",

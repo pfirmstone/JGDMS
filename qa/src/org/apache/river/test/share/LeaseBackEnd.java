@@ -136,7 +136,7 @@ public interface LeaseBackEnd extends Remote, ProxyTrust {
 	    this.denied = denied;
 	}
 	
-	public RenewResults(GetArg arg) throws IOException{
+	public RenewResults(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("granted", null, long[].class),
 		 arg.get("denied", null, Exception[].class));
 	}

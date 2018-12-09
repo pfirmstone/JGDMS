@@ -29,7 +29,7 @@ import net.jini.event.MailboxRegistration;
 import net.jini.event.MailboxPullRegistration;
 
 public class TestUtils {
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     private static final String DEFAULT_MAILBOX_NAME = "EventMailbox";
     private static int generatorCount = 0;
     private static int listenerCount = 0;

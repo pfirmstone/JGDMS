@@ -2237,6 +2237,26 @@
         <importchain target="mahalo" keystore="mahalo.keystore" password="mahalopw" dir="${trust.dir}" dname="Mahalo" />
         <importchain target="fiddler" keystore="fiddler.keystore" password="fiddlerpw" dir="${trust.dir}" dname="Fiddler" />
         <importchain target="group" keystore="group.keystore" password="grouppw" dir="${trust.dir}" dname="Group" />
+        <!-- Must import CA Cert into each keystore or we get 
+        javax.net.ssl.SSLHandshakeException: Received fatal alert: bad_certificate -->
+        <importcert target="test-ca" keystore="tester.keystore" password="testerpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="reggie.keystore" password="reggiepw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="phoenix.keystore" password="phoenixpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="mercury.keystore" password="mercurypw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="norm.keystore" password="normpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="outrigger.keystore" password="outriggerpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="mahalo.keystore" password="mahalopw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="fiddler.keystore" password="fiddlerpw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
+        <importcert target="test-ca" keystore="group.keystore" password="grouppw" dir="${trust.dir}" 
+                    dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
     </target>
 
     <target name="are-keystores-available" >
@@ -2309,15 +2329,10 @@
     <target name="truststore">
         <delete file="${trust.dir}/truststore" quiet="true" />
         <!--<truststore target="test-ca" dir="${trust.dir}" />-->
+        <!-- certs required by x500 discovery provider -->
         <importcert target="tester" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Tester" />
         <importcert target="reggie" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Reggie" />
-        <importcert target="phoenix" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Phoenix" />
-        <importcert target="mercury" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Mercury" />
-        <importcert target="norm" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Norm" />
-        <importcert target="outrigger" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Outrigger" />
-        <importcert target="mahalo" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Mahalo" />
         <importcert target="fiddler" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Fiddler" />
-        <importcert target="group" keystore="truststore" password="trustpw" dir="${trust.dir}" dname="Group" />
         <importcert target="test-ca" keystore="truststore" password="trustpw" dir="${trust.dir}" 
                     dname="CN=Test CA, OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US" />
     </target>

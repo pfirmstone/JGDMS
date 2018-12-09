@@ -60,12 +60,12 @@ class ConstrainableDestructingLocalLease extends DestructingLocalLease
 	this.pt = pt;
     }
     
-    ConstrainableDestructingLocalLease(AtomicSerial.GetArg arg) throws IOException{
+    ConstrainableDestructingLocalLease(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	pt = arg.get("pt", null, ProxyTrust.class);
     }
     
-    private static AtomicSerial.GetArg check(AtomicSerial.GetArg arg) throws IOException{
+    private static AtomicSerial.GetArg check(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException{
 	ProxyTrust pt = arg.get("pt", null, ProxyTrust.class);
 	if (!(pt instanceof RemoteMethodControl)) 
 	    throw new InvalidObjectException("pt must be instance of RemoteMethodControl");

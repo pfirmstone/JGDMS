@@ -41,11 +41,11 @@ public class UnreadableTestLease extends TestLease {
 	super(id, home, expiration);
     }
     
-    public UnreadableTestLease(GetArg arg) throws IOException{
+    public UnreadableTestLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	if (failMode) {
 	    TestLease lease = new TestLease(arg);
 	    String message = "UnreadableTestLease: deserialization refused! " +

@@ -65,12 +65,12 @@ class TestLeaseMap extends OurAbstractLeaseMap
 	this.home = home;
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	arg.get("home", null, LeaseBackEnd.class);
 	return arg;
     }
     
-    TestLeaseMap(GetArg arg) throws IOException{
+    TestLeaseMap(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	this.home = arg.get("home", null, LeaseBackEnd.class);
     }

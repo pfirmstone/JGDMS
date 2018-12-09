@@ -54,12 +54,12 @@ final class TesterTransactionManagerConstrainableProxy
 	this.constraints = constraints;
     }
 
-    TesterTransactionManagerConstrainableProxy(GetArg arg) throws IOException {
+    TesterTransactionManagerConstrainableProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	constraints = (MethodConstraints) arg.get("constraints", null);
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	arg.get("constraints", null, MethodConstraints.class);
 	return arg;
     }

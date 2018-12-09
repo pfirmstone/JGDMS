@@ -105,7 +105,7 @@ public class QATestUtils {
         /** @serial */
         private Entry[][] attrs;
 	
-	public SrvcAttrTuple(GetArg arg) throws IOException, CloneNotSupportedException{
+	public SrvcAttrTuple(GetArg arg) throws IOException, CloneNotSupportedException, ClassNotFoundException{
 	    this(Valid.copy(arg.get("srvcItems", null, ServiceItem[].class)),
 		Valid.deepCopy(arg.get("attrs", null, Entry[][].class)),
 		arg.get("srvcObj", null),

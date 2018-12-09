@@ -31,7 +31,6 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
 import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -64,6 +63,7 @@ import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.export.ProxyAccessor;
 import net.jini.export.DynamicProxyCodebaseAccessor;
+import net.jini.jeri.AtomicILFactory;
 import org.apache.river.proxy.CodebaseProvider;
 
 public class TestGeneratorImpl 
@@ -141,7 +141,7 @@ public class TestGeneratorImpl
         exporter = (Exporter) getNonNullEntry(
             config, "exporter", Exporter.class,
             new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-				  new BasicILFactory(null, null, TestGenerator.class.getClassLoader()), 
+				  new AtomicILFactory(null, null, TestGenerator.class), 
 				  false, 
 				  true));
 	generatorUuid = UuidFactory.generate();

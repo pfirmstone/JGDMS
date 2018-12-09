@@ -1,17 +1,32 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+{
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.lib.dl.jar}" {
-    permission java.security.AllPermission "", "";
+grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
-    permission java.security.AllPermission "", "";
+grant codebase "httpmd://${HOST}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
+grant
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "medusa:9082", "connect,resolve";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
@@ -42,6 +57,19 @@ grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
 grant principal javax.security.auth.x500.X500Principal "CN=Norm"
 {
       permission net.jini.security.AccessPermission "*";
+      permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+      permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+      permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Norm\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+      permission javax.security.auth.AuthPermission "getSubject";
+      permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
+      permission java.io.FilePermission "ALL_FILES" "read";
+      permission java.lang.RuntimePermission, "modifyThread";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+      permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=Group"

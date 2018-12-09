@@ -39,6 +39,7 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -447,9 +448,9 @@ class LocalLease implements Lease, Serializable, ProxyAccessor {
 			c, "test", "codebaseExporter", Exporter.class,
 			new BasicJeriExporter(
 				TcpServerEndpoint.getInstance(0),
-				new BasicILFactory(null, null, LocalLease.class.getClassLoader()),
+				new AtomicILFactory(null, null, LocalLease.class.getClassLoader()),
 				true,
-				false
+				true
 			)
 		);
 		return exporter.export(proxy);
@@ -488,7 +489,7 @@ class LocalLease implements Lease, Serializable, ProxyAccessor {
 	private ProxyTrust proxy;
         private transient Exporter exporter;
 
-	ProxyTrustImpl(GetArg arg) throws IOException {
+	ProxyTrustImpl(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg.get("proxy", null, ProxyTrust.class));
 	}
 	
@@ -505,9 +506,9 @@ class LocalLease implements Lease, Serializable, ProxyAccessor {
 			      Exporter.class,
 			      new BasicJeriExporter(
 				TcpServerEndpoint.getInstance(0),
-				new BasicILFactory(null, null, LocalLease.class.getClassLoader()),
+				new AtomicILFactory(null, null, LocalLease.class.getClassLoader()),
 				true,
-				false
+				true
 			)
 		    );
 		if (exporter == null) {

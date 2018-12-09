@@ -152,7 +152,9 @@ class KillerImpl
 		    logger.log(Level.FINEST, "...rslt = " + unexported);
 
 		    if (!unexported) {
-			Thread.yield();
+			synchronized (this){
+			    Thread.currentThread().wait(1000);
+			}
 		    }
 		}
 	    } catch (NoSuchObjectException e) {

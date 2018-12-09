@@ -40,7 +40,7 @@ class RandomUserDefinedClass implements java.io.Serializable {
         aString = s;
     }
     
-    public RandomUserDefinedClass(GetArg arg) throws IOException{
+    public RandomUserDefinedClass(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("aInt", 0),
 	     arg.get("aFloat", 0.0f),
 	     arg.get("aString", null, String.class)

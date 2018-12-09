@@ -26,7 +26,6 @@ import java.rmi.RemoteException;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lease.UnknownLeaseException;
-import net.jini.export.CodebaseAccessor;
 import net.jini.security.proxytrust.ProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -148,7 +147,7 @@ public interface LeaseBackEnd extends Remote, ProxyTrust {
 	    this.denied = denied;
 	}
 	
-	public RenewResults(GetArg arg) throws IOException{
+	public RenewResults(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("granted", null, long[].class),
 		 arg.get("denied", null, Throwable[].class));
 	}

@@ -301,6 +301,7 @@ class MasterTest {
 		"=============================\n");
 	    testEnv.tearDown();
 	} catch (Exception e) { //ignore failures, no logical recovery
+	    logger.log(Level.INFO, "Exception occurred during teardown", e);
 	}
 	if (config.getTestIndex() < config.getTestTotal()) {
 	    config.callTestHost(new TestStatusRequest("advancing to test " + (config.getTestIndex() + 1) + " of " + config.getTestTotal()));

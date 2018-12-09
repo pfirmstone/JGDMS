@@ -61,7 +61,7 @@ public class TesterTransactionManagerProxy implements TransactionManager,
 	this.sid = sid;
     }
 
-    TesterTransactionManagerProxy(GetArg arg) throws IOException  {
+    TesterTransactionManagerProxy(GetArg arg) throws IOException, ClassNotFoundException  {
 	this(arg.get("server", null, TransactionManager.class), arg.get("sid", 0));
     }
     

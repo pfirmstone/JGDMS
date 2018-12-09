@@ -91,7 +91,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      * no matter what the configured value was.  5000 was too short for
      * SSL Endpoints.
      */
-    public final long deltaTListener = 10000;
+    public final long deltaTListener = 60000;
 
     /** The set of possible interfaces implemented by the service classes that
      *  will be registered for testing

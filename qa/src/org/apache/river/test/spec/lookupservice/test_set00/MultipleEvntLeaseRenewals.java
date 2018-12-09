@@ -47,7 +47,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
     private static int EXPECTED_N_MATCHES = 1;
     /* lease duration to 1 minute */
     private final static long DEFAULT_LEASEDURATION
-                                                = (4*QATestUtils.N_MS_PER_MIN);
+                                                = (6*QATestUtils.N_MS_PER_MIN);
     private final static int DEFAULT_LOOP_COUNT = 5;
     private final static int  loopCount= DEFAULT_LOOP_COUNT;   
     private final static long leaseDuration = DEFAULT_LEASEDURATION;

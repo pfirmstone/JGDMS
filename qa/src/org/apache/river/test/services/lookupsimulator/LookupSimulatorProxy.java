@@ -61,7 +61,7 @@ public class LookupSimulatorProxy implements LookupSimulatorProxyInterface {
         this.serviceID = serviceID;
     }//end constructor
 
-    public LookupSimulatorProxy(GetArg arg)throws IOException{
+    public LookupSimulatorProxy(GetArg arg)throws IOException, ClassNotFoundException{
 	this (Valid.notNull(arg.get("server", null, LookupSimulator.class), "null server"),
 	      Valid.notNull(arg.get("serviceID", null, ServiceID.class), "null serviceID"));
     }

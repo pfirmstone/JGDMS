@@ -8,6 +8,20 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
+grant codebase "httpmd://${HOST}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
 grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
 {
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
@@ -19,7 +33,11 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
-
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-mercury-bogusimpl.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission 
+        "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuremercury.policy";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
 
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";

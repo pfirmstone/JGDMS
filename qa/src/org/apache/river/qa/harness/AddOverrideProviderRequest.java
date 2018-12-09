@@ -42,7 +42,7 @@ class AddOverrideProviderRequest implements SlaveRequest {
 	this.provider = provider;
     }
     
-    public AddOverrideProviderRequest(GetArg arg) throws IOException{
+    public AddOverrideProviderRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("provider", null, OverrideProvider.class));
     }
 

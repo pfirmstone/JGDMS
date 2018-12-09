@@ -18,11 +18,14 @@
 package org.apache.river.test.spec.lookupservice.service;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.qa.harness.QAConfig;
 
 @AtomicSerial
 public class Service02 implements Serializable,
@@ -33,7 +36,12 @@ public class Service02 implements Serializable,
     
     public Service02(int i) {
         this.i = i;
-	service = new BootStrapService(this);
+	service = new BootStrapService(this, QAConfig.getConfig().getConfiguration());
+	try {
+	    service.start();
+	} catch (Exception ex) {
+	    Logger.getLogger(Service02.class.getName()).log(Level.SEVERE, null, ex);
+	}
     }
 
     public Service02(GetArg arg) throws IOException{

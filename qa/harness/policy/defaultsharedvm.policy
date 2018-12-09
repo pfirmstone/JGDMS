@@ -679,3 +679,11 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.d
     permission java.io.FilePermission "file:null\lib\security\local_policy.jar", "read";
 };
 
+
+grant codebase "http://${HOST}/${org.apache.river.phoenix.dl.jar}" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
+

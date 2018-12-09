@@ -23,7 +23,11 @@ import java.rmi.RemoteException;
 // All other imports
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import net.jini.admin.Administrable;
@@ -107,7 +111,7 @@ public class StressTest extends MatchTestCore {
      * Not valid until <code>construct()</code> is called.
      * @see StressTest#construct
      */
-    private volatile Executor taskMgr = null;
+    private volatile ExecutorService taskMgr = null;
 
     /**
      * Maintains number of task objects created.  Used to
@@ -247,10 +251,11 @@ public class StressTest extends MatchTestCore {
         if (entryAllocation == 0) {
             throw new TestException("Too many reader tasks requested");
         }
-        taskMgr = Executors.newFixedThreadPool(numReaders + numWriters);
+//        taskMgr = Executors.newFixedThreadPool(numReaders + numWriters);
 //		new TaskManager(numReaders + numWriters,
 //                1000 * 60, // idle timeout -- 60 secs
 //                1.0f); // load factor
+	taskMgr = new ThreadPoolExecutor(0, numReaders + numWriters, 60, TimeUnit.SECONDS, new SynchronousQueue());
         return this;
     }
 
@@ -397,7 +402,10 @@ public class StressTest extends MatchTestCore {
                 // trap, but do nothing.
             }
         }
-
+	taskMgr.shutdown();
+	while (!taskMgr.isTerminated()){
+	    taskMgr.awaitTermination(30, TimeUnit.SECONDS);
+	}
         /*
          * Verify that the space is "clean". All written entries
          * should have been taken by this point.
@@ -455,8 +463,8 @@ public class StressTest extends MatchTestCore {
      */
     private synchronized void shutdownWait() {
         try {
-            if (!restartNotificationSent) {
-                wait();
+            while (!restartNotificationSent) {
+                wait(10000L);
             }
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -1033,7 +1041,7 @@ public class StressTest extends MatchTestCore {
         /**
          * Resets internal counter to zero.
          */
-        void reset() {
+        synchronized void reset() {
 
             // Integer assignment is atomic.
             _count = 0;

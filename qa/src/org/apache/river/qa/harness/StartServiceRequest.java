@@ -47,7 +47,7 @@ class StartServiceRequest implements SlaveRequest {
 	this.count = count;
     }
     
-    StartServiceRequest(GetArg arg) throws IOException{
+    StartServiceRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("serviceName", null, String.class),
 	     arg.get("count", 0));
     }

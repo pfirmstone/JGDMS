@@ -8,6 +8,19 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
+grant codebase "httpmd://${HOST}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
 
 grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
@@ -16,6 +29,17 @@ grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.net.SocketPermission "${HOST}", "resolve";
       permission javax.security.auth.AuthPermission "getSubject";
+      permission java.lang.RuntimePermission "modifyThread";
+      permission java.lang.RuntimePermission "modifyThreadGroup";
+      permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
+        "connect";
+      permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"",
+        "connect";
+      permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"",
+        "connect";
 };
 
 

@@ -111,7 +111,10 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
                     getTxmgr()).getAdmin();
             admin = (DestroyAdmin) getConfig().prepare("test.mahaloAdminPreparer",
                                                          admin);
-
+	    // The following line prevents java.net.ConnectException: Connection refused: connect
+	    // that occurs with AtomicILFactory, once the service has gone away,
+	    // it's proxy codebase annotation can no longer be obtained.
+	    shouldMatch.nullifyTransaction(); 
             admin.destroy();
         } catch (UnmarshalException ue) {
 
@@ -206,6 +209,10 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
 		}
 	    }
         }
+	
+	synchronized void nullifyTransaction(){
+	    txn = null;
+	}
 
         synchronized void waitUntilTaking() throws Exception {
 	    while (!startedToTake) {

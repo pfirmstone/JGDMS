@@ -46,7 +46,7 @@ class SetDynamicParameterRequest implements SlaveRequest {
 	this.value = value;
     }
     
-    public SetDynamicParameterRequest(GetArg arg) throws IOException{
+    public SetDynamicParameterRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("name", null, String.class),
 	    arg.get("value", null, String.class));
     }

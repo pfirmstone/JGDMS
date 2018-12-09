@@ -29,8 +29,19 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.admin.Administrable;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -45,7 +56,9 @@ import net.jini.lease.LeaseRenewalSet;
 import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.ProxyPreparer;
 import net.jini.space.JavaSpace;
+import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.api.security.CombinerSecurityManager;
+import org.apache.river.thread.NamedThreadFactory;
 import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
@@ -362,7 +375,7 @@ public abstract class TestBase extends QATestEnvironment {
             logger.log(Level.INFO, "...awake");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-    }
+	}
     }
 
     /**
@@ -577,53 +590,80 @@ public abstract class TestBase extends QATestEnvironment {
      */
     public void tearDown() {
         try {
-//              for (int i = 0; i < services.length; i++) {
-//                  if (services[i] != null) {
-//                      try {
-//                          Administrable service = (Administrable) services[i];
-//                          DestroyAdmin dadmin = (DestroyAdmin) service.getAdmin();
-//                          dadmin.destroy();
-//                      } catch (NoSuchObjectException ex) {
+              for (int i = 0; i < services.length; i++) {
+                  if (services[i] != null) {
+                      try {
+                          Administrable service = (Administrable) services[i];
+                          DestroyAdmin dadmin = (DestroyAdmin) service.getAdmin();
+                          dadmin.destroy();
+                      } catch (NoSuchObjectException ex) {
 
-//                          /*
-//                           * Ignore it: it means that activatable object
-//                           * no longer registered
-//                           */
-//                      } catch (Throwable t) {
-//                          cleanupFailure("Trouble destroying " + services[i] +
-//                              " " + t.getMessage());
-//                      }
-//                  }
-//              }
+                          /*
+                           * Ignore it: it means that activatable object
+                           * no longer registered
+                           */
+                      } catch (Throwable t) {
+                          cleanupFailure("Trouble destroying " + services[i] +
+                              " " + t.getMessage());
+                      }
+                  }
+              }
 
-//              if (admin != null) {
-//                  try {
-//                      DestroyAdmin dadmin = (DestroyAdmin) admin;
-//                      dadmin.destroy();
-//                  } catch (Throwable t) {
-//                      cleanupFailure("Trouble destroying " + admin + " " +
-//                          t.getMessage());
-//                  }
-//              }
+              if (admin != null) {
+                  try {
+                      DestroyAdmin dadmin = (DestroyAdmin) admin;
+                      dadmin.destroy();
+                  } catch (Throwable t) {
+                      cleanupFailure("Trouble destroying " + admin + " " +
+                          t.getMessage());
+                  }
+              }
 
             if (destroy) {
+		ExecutorService executor;
+		List<Future> leaseCancelTasks = new LinkedList<Future>();
                 synchronized (leaseList) {
+		    executor = 
+			new ThreadPoolExecutor(0, 
+				10,
+				60L,
+				TimeUnit.SECONDS,
+				new ArrayBlockingQueue(leaseList.size() + 1), // Add one in case it's zero.
+				new NamedThreadFactory("Test Lease cancel thread", true)
+			);
                     for (Iterator i = leaseList.iterator(); i.hasNext();) {
-                        ((LeaseRec) i.next()).cancel();
+			leaseCancelTasks.add(executor.submit(new Callable(){
+
+			    @Override
+			    public Object call() throws Exception {
+				((LeaseRec) i.next()).cancel();
+				return Boolean.TRUE;
+			    }
+			    
+			}));
+                        
                     }
                 }
-
-                try {
-                    logger.log(Level.FINE, "Waiting " + cleanupWait
-                            + " ms after cleanup() call");
-
-                    if (cleanupWait > 0) {
-                        Thread.sleep(cleanupWait);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    // Do nothing.
-                }
+		Iterator<Future> leaseCancelResults = leaseCancelTasks.iterator();
+		while (leaseCancelResults.hasNext()){
+		    Future result = leaseCancelResults.next();
+		    try {
+			result.get(cleanupWait, TimeUnit.SECONDS);
+		    } catch (TimeoutException ex){
+			String message = 
+			    "Warning: Test TestBase did not shutdown cleanly!\nReason: " 
+				+ ex.getMessage();
+			logger.log(Level.INFO, message);
+			ex.printStackTrace();
+			result.cancel(true);
+		    } catch (ExecutionException ex){
+			Throwable cause = ex.getCause();
+			if (cause instanceof TestException) throw (TestException) cause;
+		    } catch (InterruptedException e){
+			Thread.currentThread().interrupt();
+		    }
+		}
+		executor.shutdownNow();
             }
         } catch (Exception ex) {
             String message = "Warning: Test TestBase did not shutdown "

@@ -51,7 +51,7 @@ public class EndpointWrapper implements Endpoint, Serializable, TrustEquivalence
         className = Util.getClassName(endpoint);
     }
     
-    EndpointWrapper(GetArg arg) throws IOException{
+    EndpointWrapper(GetArg arg) throws IOException, ClassNotFoundException{
         this(arg.get("endpoint", null, Endpoint.class),
              arg.get("className", null, String.class)
         );

@@ -361,7 +361,7 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
         ServiceTemplate[] lookupTmpl  = new ServiceTemplate[getnServices()];
         for(int i=0;i<expectedService.length;i++) {
             int val = SERVICE_BASE_VALUE+i;
-            expectedService[i] = new TestService(val);
+            expectedService[i] = new TestService(val, config.getConfiguration());
             lookupTmpl[i] = null; 
             /* Create template that matches on type and attribute */
 	    Class c = Class.forName(testServiceClassname);
@@ -400,9 +400,9 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
 							   waitDur);
 	    long endTime = System.currentTimeMillis();
 	    long actualBlockTime = endTime-startTime;
-	    long waitError = (actualBlockTime-waitDur)/1000;
+	    long waitError = actualBlockTime/1000-waitDur/1000;
 	    /* Blocking time should be less than the full amount */
-	    if(waitError >= 0) {
+	    if(waitError > 0) {
 		throw new TestException(" -- blocked longer than expected "
 					+"-- requested block = "
 					+waitDurSecs+" second(s), actual "

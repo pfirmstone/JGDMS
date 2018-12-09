@@ -158,13 +158,13 @@ public class NonActivatableServiceStarterAdmin extends AbstractServiceAdmin
 				   + serviceName, e);
 	}
         //XXX temporary work-around for jrmp dgc problem
-	try {
-	    serviceRef = new MarshalledInstance(serviceRef).get(false);
-        } catch (IOException e) {
-	    throw new TestException("Problem unmarshalling proxy", e);
-        } catch (ClassNotFoundException e) {
-            throw new TestException("Problem unmarshalling proxy", e);
-        }
+//	try {
+//	    serviceRef = new MarshalledInstance(serviceRef).get(false);
+//        } catch (IOException e) {
+//	    throw new TestException("Problem unmarshalling proxy", e);
+//        } catch (ClassNotFoundException e) {
+//            throw new TestException("Problem unmarshalling proxy", e);
+//        }
 	serviceRef = doProxyPreparation(serviceRef);
     }
 

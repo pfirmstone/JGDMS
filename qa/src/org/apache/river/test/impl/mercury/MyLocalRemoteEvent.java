@@ -35,7 +35,7 @@ public class MyLocalRemoteEvent extends RemoteEvent
 	super(source, eventID, seqNum, handback);
     }
     
-    public MyLocalRemoteEvent(GetArg arg) throws IOException{
+    public MyLocalRemoteEvent(GetArg arg) throws IOException, ClassNotFoundException{
 	super(arg);
 }
 }

@@ -54,7 +54,7 @@ class KillVMRequest implements SlaveRequest {
 	}
     }
     
-    public KillVMRequest(GetArg arg) throws IOException{
+    public KillVMRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("marshalledProxy", null, MarshalledInstance.class));
     }
 

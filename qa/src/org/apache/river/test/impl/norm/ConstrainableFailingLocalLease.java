@@ -60,12 +60,12 @@ class ConstrainableFailingLocalLease extends FailingLocalLease
 	this.pt = pt;
     }
     
-    ConstrainableFailingLocalLease(GetArg arg) throws IOException{
+    ConstrainableFailingLocalLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	pt = arg.get("pt", null, ProxyTrust.class);
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	ProxyTrust pt = arg.get("pt", null, ProxyTrust.class);
 	if (!(pt instanceof RemoteMethodControl)) 
 	    throw new InvalidObjectException("pt must be instance of RemoteMethodControl");

@@ -148,7 +148,7 @@ public class LookupWait extends AbstractBaseTest {
         if(nSrvcs > 0) {// Create the template for lookup with or without attrs
             /* Will register N services with N attribute after a delay */
             i = nSrvcs-1;
-            expectedService = new TestService(SERVICE_BASE_VALUE+i);
+            expectedService = new TestService(SERVICE_BASE_VALUE+i, config.getConfiguration());
             if(    (firstStageFilter != null)
                 && (firstStageFilter instanceof ServiceItemFilter) )
             {

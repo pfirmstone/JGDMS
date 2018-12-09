@@ -34,3 +34,11 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.l
 grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}" {
     permission java.security.AllPermission "", "";
 };
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activation.jar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}" {
+    permission java.security.AllPermission "", "";
+};

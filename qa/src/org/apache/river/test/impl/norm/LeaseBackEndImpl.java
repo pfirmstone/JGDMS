@@ -38,6 +38,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -94,7 +95,7 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust, Codebas
 		     Exporter.class,
 		     new BasicJeriExporter(
                         TcpServerEndpoint.getInstance(0),
-                        new BasicILFactory(
+                        new AtomicILFactory(
 				null, 
 				null,
 				LeaseBackEndImpl.class.getClassLoader()

@@ -19,7 +19,17 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+      permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
+};
 
+grant
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "medusa:9082", "connect,resolve";
+};
 
 grant codebase "file:${org.apache.river.qa.harness.harnessJar}
 {

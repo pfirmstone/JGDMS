@@ -50,6 +50,7 @@ import javax.security.auth.login.LoginException;
 import net.jini.event.MailboxPullRegistration;
 import net.jini.event.InvalidIteratorException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
+import net.jini.jeri.AtomicILFactory;
 import org.apache.river.proxy.CodebaseProvider;
 
 public class TestPullListenerImpl 
@@ -118,7 +119,7 @@ public class TestPullListenerImpl
         exporter = (Exporter) getNonNullEntry(
             config, "exporter", Exporter.class,
             new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-				  new BasicILFactory(), 
+				  new AtomicILFactory(null, null, TestPullListenerImpl.class), 
 				  false, 
 				  true));
         context = AccessController.getContext();

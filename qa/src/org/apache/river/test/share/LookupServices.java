@@ -758,6 +758,8 @@ public class LookupServices {
 	    hostname = "localhost";
 	    try {
 		hostname = InetAddress.getLocalHost().getHostName();
+		int index = hostname.indexOf('/');
+		if (index > 0) hostname = hostname.substring(0, index);
 	    } catch(UnknownHostException e) {
 		e.printStackTrace();
 	    }

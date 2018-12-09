@@ -18,10 +18,10 @@
 package org.apache.river.test.spec.io.util;
 
 import java.rmi.server.RMIClassLoaderSpi;
-import java.rmi.server.RMIClassLoader;
 import java.net.MalformedURLException;
 import java.util.logging.Logger;
 import java.util.Arrays;
+import net.jini.loader.pref.PreferredClassProvider;
 
 /**
  * Provides a way for methods to return configurable values.
@@ -38,6 +38,16 @@ import java.util.Arrays;
 public class FakeRMIClassLoaderSpi extends RMIClassLoaderSpi {
 
     Logger logger;
+    /*	Why defaultSpi was changed from RMIClassLoader to PreferredClassProvider:
+	java.lang.SecurityException: attempt to add a Permission to a readonly Permissions object
+	at java.security.Permissions.add(Permissions.java:126)
+	at java.security.Policy$UnsupportedEmptyCollection.add(Policy.java:827)
+	at sun.rmi.server.LoaderHandler.getLoaderAccessControlContext(LoaderHandler.java:1005)
+	at sun.rmi.server.LoaderHandler.lookupLoader(LoaderHandler.java:881)
+	at sun.rmi.server.LoaderHandler.getClassLoader(LoaderHandler.java:318)
+	at java.rmi.server.RMIClassLoader$2.getClassLoader(RMIClassLoader.java:653)
+	at org.apache.river.test.spec.io.util.FakeRMIClassLoaderSpi.getClassLoader(FakeRMIClassLoaderSpi.java:102)
+    */
     RMIClassLoaderSpi defaultSpi;
 
     // static variable returned by getClassAnnotation method
@@ -85,7 +95,7 @@ public class FakeRMIClassLoaderSpi extends RMIClassLoaderSpi {
         super();
         logger = Logger.getLogger("org.apache.river.qa.harness.test");
         logger.entering(getClass().getName(),"constructor");
-        defaultSpi = RMIClassLoader.getDefaultProviderInstance();
+        defaultSpi = new PreferredClassProvider();
     }
 
     public String getClassAnnotation(Class cl) {

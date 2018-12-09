@@ -29,6 +29,8 @@ import org.apache.river.qa.harness.TestException;
 import java.rmi.*;
 import net.jini.admin.JoinAdmin;
 import java.util.Set;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 
 public class LookupLocatorAdminTest extends LookupTestBase {
@@ -47,6 +49,19 @@ public class LookupLocatorAdminTest extends LookupTestBase {
     {
 	LookupLocator[] fromService = joinAdmin.getLookupLocators();
 	LookupLocator[] shouldBe = (LookupLocator[])locators.toArray(LLarray);
+	// For jsse services with constraints, as constraints are a client
+	// concern they differ and this affects equality of ConstrainableLookupLocator's
+	if (fromService.length == shouldBe.length){
+	    for (int i=0, l = shouldBe.length; i < l; i++){
+		if (shouldBe[i] instanceof RemoteMethodControl && 
+			fromService[i] instanceof RemoteMethodControl){
+		    MethodConstraints constraints 
+			= ((RemoteMethodControl) shouldBe[i]).getConstraints();
+		    fromService[i] = (LookupLocator) 
+		    ((RemoteMethodControl)fromService[i]).setConstraints(constraints);
+		}
+	    }
+	}
 	if (!arraysEqual(shouldBe, fromService)) {
 	    logger.log(Level.INFO, op + " did not work");
 	    logger.log(Level.INFO, "Should have:");

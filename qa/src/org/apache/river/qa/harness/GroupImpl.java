@@ -21,13 +21,21 @@ package org.apache.river.qa.harness;
 import org.apache.river.start.NonActivatableServiceDescriptor;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 //import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -131,8 +139,22 @@ class GroupImpl implements NonActivatableGroup {
         if (transformer != null) {
             desc = (NonActivatableServiceDescriptor) transformer.transform(desc);
         }
+	
+	LoginContext loginContext = null;
+       try {
+	   loginContext = starterConfig.getEntry(
+		   "org.apache.river.qa.harness.GroupImpl", "loginContext", LoginContext.class, null);
+       } catch (ConfigurationException ex) {
+	   Logger.getLogger(GroupImpl.class.getName()).log(Level.SEVERE, null, ex);
+       }
+        
         try {
-            NonActivatableServiceDescriptor.Created created = (NonActivatableServiceDescriptor.Created) desc.create(starterConfig);
+	    NonActivatableServiceDescriptor.Created created;
+	    if (loginContext != null) {
+		created = doInitWithLogin(desc, starterConfig, loginContext);
+	    } else {
+		created = doInit(desc, starterConfig);
+	    }
             synchronized (this) {
                 serviceList.add(created);
             }
@@ -142,4 +164,43 @@ class GroupImpl implements NonActivatableGroup {
         }
     }
     
+    /**
+     * Method that attempts to login before deledating the
+     * rest of the initialization process to <code>doInit</code>
+     */
+    private NonActivatableServiceDescriptor.Created doInitWithLogin(
+	    final NonActivatableServiceDescriptor desc,
+	    final Configuration config,
+	    LoginContext loginContext) throws Exception
+    {
+        loginContext.login();
+        try {
+	    AccessControlContext context = AccessController.getContext();
+	    Subject subject = loginContext.getSubject();
+            return Subject.doAsPrivileged(
+                subject,
+                new PrivilegedExceptionAction<NonActivatableServiceDescriptor.Created>() 
+		{
+		    @Override
+                    public NonActivatableServiceDescriptor.Created run() throws Exception {
+                        return doInit(desc, config);
+                    }
+                },
+                context);
+        } catch (PrivilegedActionException e) {
+           try {
+                loginContext.logout();
+            } catch (LoginException le) {
+                System.out.println("Trouble logging out" + le);
+            }
+            throw e.getException();
+        }
+    }
+
+    private NonActivatableServiceDescriptor.Created doInit(
+	    NonActivatableServiceDescriptor desc, Configuration config)
+	    throws Exception 
+    {
+        return (NonActivatableServiceDescriptor.Created) desc.create(config);
+    }
 }

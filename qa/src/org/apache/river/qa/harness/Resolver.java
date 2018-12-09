@@ -74,7 +74,7 @@ class Resolver implements Serializable {
         this.config = config;
     }
     
-    Resolver(GetArg arg) throws IOException{
+    Resolver(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("config", null, QAConfig.class),
 	     Valid.copyMap(
 		arg.get("tokenMap", null, Map.class),

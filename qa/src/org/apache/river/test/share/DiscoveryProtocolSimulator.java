@@ -1075,7 +1075,7 @@ public class DiscoveryProtocolSimulator {
         String host = System.getProperty("java.rmi.server.hostname");
         if (host == null) {
             host = InetAddress.getLocalHost().getHostName();
-        }
+	    }
         thisInetAddress = InetAddress.getByName(host);
         unicastRequestThread = new UnicastThread(unicastPort);
         synchronized (lockLookupLocator){

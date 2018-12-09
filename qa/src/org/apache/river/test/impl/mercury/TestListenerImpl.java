@@ -29,30 +29,24 @@ import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.UnknownEventException;
-import net.jini.core.event.RemoteEventListener;
-
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.logging.Level;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import net.jini.jeri.AtomicILFactory;
 import org.apache.river.proxy.CodebaseProvider;
 
 
@@ -77,7 +71,7 @@ public class TestListenerImpl
     public TestListenerImpl(String[] configArgs, LifeCycle lc) throws Exception {
         final Configuration config =
             ConfigurationProvider.getInstance(configArgs);
-        LoginContext loginContext = (LoginContext) config.getEntry(
+        LoginContext loginContext = config.getEntry(
             LISTENER, "loginContext", LoginContext.class, null);
         if (loginContext != null) {
             doInitWithLogin(config, loginContext);
@@ -118,7 +112,7 @@ public class TestListenerImpl
         exporter = (Exporter) getNonNullEntry(
             config, "exporter", Exporter.class,
             new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-				  new BasicILFactory(null, null, TestListener.class.getClassLoader()), 
+				  new AtomicILFactory(null, null, TestListener.class), 
 				  false, 
 				  true));
         context = AccessController.getContext();

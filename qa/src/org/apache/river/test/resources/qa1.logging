@@ -174,6 +174,9 @@ net.jini.loader.pref.PreferredClassLoader.preferred.level = SEVERE
 net.jini.loader.pref.PreferredClassLoader.exception.level = SEVERE
 net.jini.loader.pref.PreferredClassProvider.level = SEVERE
 
+# For ClassLoading
+net.jini.loader.ClassLoading.level = SEVERE
+
 # For Security: trust, integrity, policy and permission granting,
 #               proxy trust verification
 net.jini.security.level = SEVERE
@@ -202,6 +205,9 @@ net.jini.lease.LeaseRenewalManager.level = SEVERE
 org.apache.river.thread.RetryTask.level = SEVERE
 org.apache.river.thread.WakeupManager.level = SEVERE
 org.apache.river.thread.ThreadPool.level = SEVERE
+
+# For Service Loader
+org.apache.river.resource.Service.level = SEVERE
 
 # For Starting the Services
 org.apache.river.start.level = SEVERE

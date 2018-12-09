@@ -68,10 +68,12 @@ import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
+import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.RFC3986URLClassLoader;
+import org.apache.river.config.LocalHostLookup;
 import org.apache.river.start.ClassLoaderUtil;
 import org.apache.river.system.CommandLine.BadInvocationException;
 import org.apache.river.system.MultiCommandLine;
@@ -287,7 +289,7 @@ public final class QAConfig implements Serializable {
 
     private String resumeMessage;
     
-    public QAConfig(GetArg arg) throws IOException{
+    public QAConfig(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("uniqueString", null, String.class),
 	    arg.get("overrideProviders", null, List.class),
 	    arg.get("failureAnalyzers", null, List.class),

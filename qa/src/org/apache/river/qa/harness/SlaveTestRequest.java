@@ -41,7 +41,7 @@ class SlaveTestRequest implements HarnessRequest {
 	this.config = config;
     }
     
-    SlaveTestRequest(GetArg arg) throws IOException{
+    SlaveTestRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("config", null, QAConfig.class));
     }
 

@@ -50,12 +50,12 @@ public class ConstrainableTestLease extends TestLease implements RemoteMethodCon
 	this.home = home;
     }
     
-    public ConstrainableTestLease(GetArg arg) throws IOException{
+    public ConstrainableTestLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(arg);
 	home = arg.get("home", null, LeaseBackEnd.class);
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	Valid.isInstance(ProxyTrust.class,
 	    Valid.isInstance(RemoteMethodControl.class, 
 		arg.get("home", null, LeaseBackEnd.class)

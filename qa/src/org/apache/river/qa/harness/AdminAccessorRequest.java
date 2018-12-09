@@ -56,7 +56,7 @@ class AdminAccessorRequest implements SlaveRequest {
 	this.methodName = methodName;
     }
     
-    AdminAccessorRequest(GetArg arg) throws IOException{
+    AdminAccessorRequest(GetArg arg) throws IOException, ClassNotFoundException{
 	this(
 	    arg.get("methodName", null, String.class),
 	    arg.get("marshalledServiceRef", null, MarshalledInstance.class)

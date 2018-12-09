@@ -51,12 +51,12 @@ public class ConstrainableUnreadableTestLease extends UnreadableTestLease implem
 	this.home = home;
     }
     
-    public ConstrainableUnreadableTestLease(GetArg arg) throws IOException{
+    public ConstrainableUnreadableTestLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	home = arg.get("home", null, LeaseBackEnd.class);
     }
     
-    private static GetArg check(GetArg arg) throws InvalidObjectException, IOException{
+    private static GetArg check(GetArg arg) throws InvalidObjectException, IOException, ClassNotFoundException{
 	Valid.isInstance(ProxyTrust.class,
 	    Valid.isInstance(RemoteMethodControl.class,
 		arg.get("home", null, LeaseBackEnd.class)

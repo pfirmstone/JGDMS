@@ -22,9 +22,15 @@ import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.admin.Administrable;
+import net.jini.config.Configuration;
+import net.jini.config.ConfigurationException;
 import net.jini.core.entry.Entry;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.UnknownLeaseException;
@@ -39,6 +45,8 @@ import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import org.apache.river.admin.DestroyAdmin;
+import org.apache.river.api.util.Startable;
+import org.apache.river.config.Config;
 import org.apache.river.lookup.entry.LookupAttributes;
 
 /**
@@ -49,19 +57,37 @@ import org.apache.river.lookup.entry.LookupAttributes;
  * @author peter
  */
 public class BootStrapService implements ServiceIDAccessor, ServiceProxyAccessor,
-	ServiceAttributesAccessor, Administrable, DestroyAdmin, ServiceRegistration {
+	ServiceAttributesAccessor, Administrable, DestroyAdmin, ServiceRegistration,
+	Startable {
     
     private final ProxyAccessor serviceProxy;
     private Remote proxy;
     private ServiceRegistration serviceRegistration;
     private Entry [] lookupAttr;
     private Exporter exporter;
+//    private final Configuration config;
+//    private final AccessControlContext context;
     
-    public BootStrapService(ProxyAccessor originalProxy)
+    public BootStrapService(ProxyAccessor originalProxy, Configuration config)
     {
 	serviceProxy = originalProxy;
 	this.exporter = null;
 	this.lookupAttr = new Entry[0];
+//	this.config = config;
+//	this.context = AccessController.getContext();
+	try {
+	    exporter = Config.getNonNullEntry(
+		    config, "test", "codebaseExporter", Exporter.class,
+		    new BasicJeriExporter(
+			    TcpServerEndpoint.getInstance(0),
+			    new AtomicILFactory(null, BootStrapService.class),
+			    true,
+			    true
+		    )
+	    );
+	} catch (ConfigurationException ex) {
+	    Logger.getLogger(BootStrapService.class.getName()).log(Level.SEVERE, null, ex);
+	}
     }
 
     public ServiceRegistration setServiceRegistration(ServiceRegistration regist, Entry [] regAttr)
@@ -94,18 +120,6 @@ public class BootStrapService implements ServiceIDAccessor, ServiceProxyAccessor
     public Object getBootStrapProxy() 
     {
 	synchronized (this) {
-	    if (proxy == null){
-		exporter = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-			new AtomicILFactory(null, BootStrapService.class), true, true);
-		try {
-		    proxy = exporter.export(this);
-		} catch (ExportException ex) {
-		    exporter.unexport(true);
-		    exporter = null;
-		    Logger.getLogger(Service00.class.getName()).log(Level.SEVERE, null, ex);
-		    return null;
-		}
-	    }
 	    return proxy;
 	}
     }
@@ -186,6 +200,11 @@ public class BootStrapService implements ServiceIDAccessor, ServiceProxyAccessor
 		lookupAttr = entrys.clone();
 	    }
 	}
+    }
+
+    @Override
+    public synchronized void start() throws Exception {
+	proxy = exporter.export((Remote) BootStrapService.this);
     }
 
 }

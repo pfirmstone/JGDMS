@@ -170,7 +170,7 @@ final class SmartProxy implements SmartInterface,
     this.coordinator = coordinator;
     }
     
-    SmartProxy(GetArg arg) throws IOException{
+    SmartProxy(GetArg arg) throws IOException, ClassNotFoundException{
         this(arg.get("remoteProxy", null, Remote.class), null);
     }
 
@@ -291,7 +291,7 @@ final class SmartProxy implements SmartInterface,
         (RemoteMethodControl) ((SmartProxy) smartProxy).remoteProxy;
     }
     
-    Verifier(GetArg arg) throws IOException{
+    Verifier(GetArg arg) throws IOException, ClassNotFoundException{
         this(arg.get("remoteProxy", null, RemoteMethodControl.class));
     }
     

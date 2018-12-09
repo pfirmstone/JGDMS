@@ -1466,7 +1466,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             this.renewDur = renewDur;
         }//end constructor
 
-	TestServiceProxy(GetArg arg) throws IOException {
+	TestServiceProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(notNull(arg.get("innerProxy", null, RemoteTestServiceInterface.class),
 	       "TestServiceProxy.readObject failure - innerProxy field is null" ),
 		notNull(arg.get("proxyID", null, Uuid.class),
@@ -1561,12 +1561,12 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                 this.methodConstraints = methodConstraints;
             }//end constructor
 
-	    ConstrainableTestServiceProxy(GetArg arg) throws IOException {
+	    ConstrainableTestServiceProxy(GetArg arg) throws IOException, ClassNotFoundException {
 		super(check(arg));
 		methodConstraints = (MethodConstraints) arg.get("methodConstraints", null);
 	    }
 	    
-	    private static GetArg check(GetArg arg) throws IOException {
+	    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 		TestServiceProxy tsp = new TestServiceProxy(arg);
 		MethodConstraints methodConstraints =  
 		    arg.get("methodConstraints", null, MethodConstraints.class);
@@ -1655,7 +1655,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             this.proxyID = proxyID;
 	}
 
-	ProxyVerifier(GetArg arg) throws IOException {
+	ProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg.get("innerProxy", null, RemoteTestServiceInterface.class),
 		    arg.get("proxyID", null, Uuid.class));
 	} 

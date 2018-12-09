@@ -325,7 +325,8 @@ public class TakeTest05 extends JavaSpaceTest {
         }
         if (result.size() != expectedResult.size()) {
             throw new TestException(testName + " failed. "
-                                    + "Taken result is not as expected.");
+		+ "Taken result size " + result.size() + " is not as expected. "
+		    + expectedResult.size());
         }
         for (Iterator expectedItr = expectedResult.iterator();
              expectedItr.hasNext();) {

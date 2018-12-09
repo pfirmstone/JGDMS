@@ -57,7 +57,7 @@ abstract class OurAbstractLeaseMap implements LeaseMap, Serializable {
 	this(new java.util.HashMap(13), lease, duration);
     }
     
-    protected OurAbstractLeaseMap(GetArg arg) throws IOException{
+    protected OurAbstractLeaseMap(GetArg arg) throws IOException, ClassNotFoundException {
 	this(new java.util.HashMap(arg.get("map", null, Map.class)));
     }
     

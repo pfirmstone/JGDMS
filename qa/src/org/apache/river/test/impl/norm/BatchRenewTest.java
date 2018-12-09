@@ -49,6 +49,8 @@ public class BatchRenewTest extends TestBase implements Test {
 
     /** Array of LeaseBackEndImpl */
     private LeaseBackEndImpl homes[] = new LeaseBackEndImpl[5];
+    
+    LocalLease localLease;
 
     public Test construct(QAConfig sysConfig) throws Exception {
 	super.construct(sysConfig);
@@ -239,8 +241,9 @@ public class BatchRenewTest extends TestBase implements Test {
 
 	// Add a local lease to get things primed
 	long now = System.currentTimeMillis();
-	set.renewFor(LocalLease.getLocalLease(now + 600000, 600000, 1, now),
-		     Lease.FOREVER);
+	// Strong reference to prevent garbage collection.
+	localLease = LocalLease.getLocalLease(now + 600000, 600000, 1, now);
+	set.renewFor(localLease, Lease.FOREVER);
 
 	for (int i=0; i<homes.length; i++) {
 	    homes[i] = createBackEnd(set);
