@@ -242,18 +242,23 @@ public abstract class ActivationGroup
 		    host, port, new TlsRMIClientSocketFactory()
 	    );
 	} catch (RemoteException ex) {
-	    if (AccessController.doPrivileged(new GetBooleanAction("net.jini.security.allowInsecureConnections"))){
-		return java.rmi.activation.ActivationGroup.getSystem();
-	    } else {
-		throw new ActivationException("Unable to establish connection with secure Registry", ex);
-	    }
+	    throw new ActivationException("Unable to obtain Registry stub", ex);
 	}
 	if (registry == null) throw new ActivationException("Registry not runing");
 	try {
 	    return (ActivationSystem) 
 		    registry.lookup("java.rmi.activation.ActivationSystem");
 	} catch (RemoteException ex) {
-	    throw new ActivationException("Unable to contact registry",ex);
+	    boolean insecure = false;
+	    try {
+		insecure = AccessController.doPrivileged(
+		    new GetBooleanAction("net.jini.security.allowInsecureConnections"));
+	    } catch (SecurityException e){} // Ignore
+	    if (insecure){
+		return java.rmi.activation.ActivationGroup.getSystem();
+	    } else {
+		throw new ActivationException("Unable to establish connection with secure Registry", ex);
+	    }
 	} catch (NotBoundException ex) {
 	    throw new ActivationException("ActivationSystem not bound",ex);
 	}

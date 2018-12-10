@@ -156,7 +156,7 @@ public final class ActivatableInvocationHandler
      * The activation identifier.
      * @serial
      */
-    private final ActivationID id;
+    private Object id;
     
     /**
      * The underlying proxy or <code>null</code>.
@@ -184,10 +184,25 @@ public final class ActivatableInvocationHandler
 	}
     }
     
-    public ActivatableInvocationHandler(GetArg arg) throws IOException {
+    public ActivatableInvocationHandler(GetArg arg) throws IOException, ClassNotFoundException {
 	this(Valid.notNull(arg.get("id", null, ActivationID.class), "id is null"),
-		arg.get("uproxy",null, Remote.class),
-		checkConstraints(arg.get("uproxy", null, Remote.class), arg.get("clientConstraints", null, MethodConstraints.class)));
+	     arg.get("uproxy",null, Remote.class),
+	     getConstraints(arg));
+    }
+    
+    private static MethodConstraints getConstraints(GetArg arg) throws IOException, ClassNotFoundException{
+	Remote proxy = arg.get("uproxy",null, Remote.class);
+	MethodConstraints clientConstraints = 
+		arg.get("clientConstraints", null, MethodConstraints.class);
+	MethodConstraints proxyCon = null;
+	if (proxy instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)proxy).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return proxyCon;
+	} else {
+	    checkConstraints(proxy, clientConstraints);
+	    return clientConstraints;
+	} 
     }
 
     /**
@@ -236,7 +251,7 @@ public final class ActivatableInvocationHandler
 		  .append("Proxy:\n");
 		if (uproxy instanceof RemoteMethodControl)
 		  sb.append(((RemoteMethodControl)uproxy).getConstraints());
-		sb.append("InvocationHandler:\n");
+		sb.append("\nInvocationHandler:\n");
 		sb.append(clientConstraints);
 		throw new InvalidObjectException(sb.toString());
 	    }
@@ -283,8 +298,8 @@ public final class ActivatableInvocationHandler
      *
      * @return the activation identifier
      */
-    public ActivationID getActivationID() {
-	return id;
+    public synchronized ActivationID getActivationID() {
+	return (ActivationID) id;
     }
 
     /**
@@ -544,7 +559,7 @@ public final class ActivatableInvocationHandler
 	    return Proxy.newProxyInstance(
 		getProxyLoader(proxyClass),
 		proxyClass.getInterfaces(),
-		new ActivatableInvocationHandler(id, newProxy, mc));
+		new ActivatableInvocationHandler(getActivationID(), newProxy, mc));
 	    // IllegalArgumentException means proxy argument was bogus
 		    
 	} else if (name.equals("getConstraints")) {
@@ -1016,16 +1031,16 @@ public final class ActivatableInvocationHandler
      **/
     @Override
     public boolean checkTrustEquivalence(Object obj) {
-	if (this == obj) {
-	    return true;
-	} else if (!(obj instanceof ActivatableInvocationHandler) ||
+	if (this == obj) return true;
+	ActivationID id = getActivationID();
+	if (!(obj instanceof ActivatableInvocationHandler) ||
 		   !(id instanceof TrustEquivalence))
 	{
 	    return false;
 	}
 	ActivatableInvocationHandler other =
 	    (ActivatableInvocationHandler) obj;
-	if (!((TrustEquivalence) id).checkTrustEquivalence(other.id) ||
+	if (!((TrustEquivalence) id).checkTrustEquivalence(other.getActivationID()) ||
 	    (clientConstraints != other.clientConstraints &&
 	     (clientConstraints == null ||
 	      !clientConstraints.equals(other.clientConstraints))))
@@ -1088,6 +1103,7 @@ public final class ActivatableInvocationHandler
 	
 	uproxy = null;
 	try {
+	    ActivationID id = getActivationID();
 	    if (proxy != null && enableGrant) {
 		try {
 		    Security.grant(proxy.getClass(), id.getClass());
@@ -1105,8 +1121,20 @@ public final class ActivatableInvocationHandler
 	    }
 	    ActivatableInvocationHandler handler =
 		(ActivatableInvocationHandler) obj;
-	    if (!id.equals(handler.id)) {
-		throw new ActivateFailedException("unexpected activation id");
+	    /* Equality of ActivationID instances are influenced by the 
+	     * equality of their Activator proxy's InvocationHandler,
+	     * when client constraints differ, and everything else is 
+	     * identical, they will not be equal.  Proxy's deserialized
+	     * by atomic input streams will inherit the constraints of
+	     * the stream from which they were deserialized. */
+//	    if (!id.equals(handler.id)) {
+	    if (id.hashCode() != handler.getActivationID().hashCode()) { // Same UID.
+		StringBuilder sb = new StringBuilder(128);
+		sb.append("unexpected activation id: ")
+			.append(handler.getActivationID())
+			.append(" expected: ")
+			.append(id);
+		throw new ActivateFailedException(sb.toString());
 	    }
 	    
 	    Remote newUproxy;
@@ -1149,7 +1177,7 @@ public final class ActivatableInvocationHandler
 	}
 	ActivatableInvocationHandler other =
 	    (ActivatableInvocationHandler) obj;
-	return (id.equals(other.id) &&
+	return (getActivationID().equals(other.getActivationID()) &&
 		(clientConstraints == other.clientConstraints ||
 		 (clientConstraints != null &&
 		  clientConstraints.equals(other.clientConstraints))));
@@ -1159,7 +1187,7 @@ public final class ActivatableInvocationHandler
      * Returns a hash code value for this object.
      */
     public int hashCode() {
-	return id.hashCode();
+	return getActivationID().hashCode();
     }
 
     /**
@@ -1206,15 +1234,15 @@ public final class ActivatableInvocationHandler
      * @throws ClassNotFoundException if class not found.
      * @throws IOException if de-serialization problem occurs.
      **/
-    private void readObject(ObjectInputStream s)
+    private synchronized void readObject(ObjectInputStream s)
 	throws IOException, ClassNotFoundException
     {
 	s.defaultReadObject();
-	if (id == null) {
-	    throw new InvalidObjectException("id is null");
-	} else {
-	    checkConstraints(uproxy, clientConstraints);
-	}
+	if (id == null) throw new InvalidObjectException("id is null");
+	if (id instanceof Resolve) id = ((Resolve)id).readResolve();
+	if (!(id instanceof ActivationID)) 
+	    throw new InvalidObjectException("id must be an instance of ActivationID");
+	checkConstraints(uproxy, clientConstraints);	
     }
 
     /**
