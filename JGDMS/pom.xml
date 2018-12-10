@@ -104,11 +104,13 @@
 
   <properties>
     <github.repo.basename>pfirmstone</github.repo.basename>
-    <groovy.version>2.2.1</groovy.version>
+    <groovy.version>2.3.0</groovy.version>
     <gmaven.version>1.4</gmaven.version>
-    <bouncy.version>1.59</bouncy.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
     <junit.version>4.8.2</junit.version>
+    <tychoExtrasVersion>1.2.0</tychoExtrasVersion>
+    <tychoVersion>1.2.0</tychoVersion>
+    <maven.Jarsigner.version>1.4</maven.Jarsigner.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
@@ -129,22 +131,6 @@
         </pluginRepository>
     </pluginRepositories>
 -->
-  <!--<repositories>-->
-    <!--<repository>
-      <id>local-snapshots</id>
-      <url>file:\C:\Users\Peter\Documents\repo</url>
-    </repository>-->
-    <!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in jgdms-url-integrity -->
-    <!--<repository>
-		    <id>boundary-site</id>
-		    <url>http://maven.boundary.com/artifactory/repo</url>
-        </repository>
-		
-        <repository>
-		    <id>hashnot</id>
-		    <url>http://mvn.hashnot.com/content/groups/public</url>
-        </repository>-->
-  <!--</repositories>-->
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -155,18 +141,8 @@
       <dependency>
         <groupId>org.codehaus.groovy.maven</groupId>
         <artifactId>gmaven-plugin</artifactId>
-        <version>${gma}</version>
+        <version>${gmaven.version}</version>
       </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>${bouncy.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bctls-jdk15on</artifactId>
-            <version>${bouncy.version}</version>
-        </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -219,6 +195,27 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>tidy-maven-plugin</artifactId>
           <version>1.0.0</version>
+        </plugin>
+        <!-- https://wiki.eclipse.org/Tycho/Pack200 -->
+        <plugin>
+            <groupId>org.eclipse.tycho.extras</groupId>
+            <artifactId>tycho-pack200a-plugin</artifactId>
+            <version>${tychoExtrasVersion}</version>
+        </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jarsigner-plugin</artifactId>
+            <version>${maven.Jarsigner.version}</version>
+        </plugin>
+        <plugin>
+            <groupId>org.eclipse.tycho.extras</groupId>
+            <artifactId>tycho-pack200b-plugin</artifactId>
+            <version>${tychoExtrasVersion}</version>
+        </plugin>
+        <plugin>
+            <groupId>org.eclipse.tycho</groupId>
+            <artifactId>tycho-p2-plugin</artifactId>
+            <version>${tychoVersion}</version>
         </plugin>
         <!-- reporting plugins : begin -->
         <plugin>
