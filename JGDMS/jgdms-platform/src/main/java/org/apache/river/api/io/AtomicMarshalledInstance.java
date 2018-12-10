@@ -20,8 +20,6 @@ package org.apache.river.api.io;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -29,8 +27,6 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalFactory;
@@ -43,6 +39,9 @@ import net.jini.io.ObjectStreamContext;
  * Implementation of MarshalledInstance that performs input validation 
  * during un-marshaling.
  * 
+ * Unlike MarshalledInstance, AtomicMarshalledInstance does not use code base
+ * annotations by default.
+ * 
  * Note that this implementation doesn't replace the stored object instance
  * if it's an instance of {@link ProxyAccessor}, but will replace any {@link ProxyAccessor}
  * references it contains.
@@ -52,8 +51,17 @@ import net.jini.io.ObjectStreamContext;
 @AtomicSerial
 public final class AtomicMarshalledInstance extends MarshalledInstance {
     
-    AtomicMarshalledInstance(AtomicSerial.GetArg arg) throws IOException{
+    private static final long serialVersionUID = 1L;
+    
+    /**
+     * @serial
+     */
+    private final boolean useCodebaseAnnotations;
+    
+    AtomicMarshalledInstance(AtomicSerial.GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	super(arg);
+	useCodebaseAnnotations = arg.get("useCodebaseAnnotations", false);
     }
     
     /**
@@ -79,6 +87,7 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
      */
     public AtomicMarshalledInstance(java.rmi.MarshalledObject mo) {
 	super(mo);
+	useCodebaseAnnotations = false;
     }
     
     /**
@@ -95,7 +104,20 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
      * @throws IOException if the object cannot be serialized
      */
     public AtomicMarshalledInstance(Object obj) throws IOException {
-	this(obj, Collections.EMPTY_SET);
+	this(obj, false, Collections.EMPTY_SET);
+    }
+    
+    /**
+     * A special case, called by ProxySerializer, where the first object in the stream is
+     * not substituted or replaced.
+     * 
+     * @param accessor the smart proxy
+     * @param context the stream context
+     * @throws IOException 
+     */
+    AtomicMarshalledInstance(Object accessor, final Collection context, boolean replace) throws IOException {
+	super(accessor, context, new AtomicMarshalFactoryInstance(getLoader(accessor), replace, false));
+	useCodebaseAnnotations = false;
     }
     
     /**
@@ -116,12 +138,35 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
     public AtomicMarshalledInstance(Object obj, final Collection context)
 	throws IOException
     {
-	super(obj, context, new AtomicMarshalFactoryInstance(getLoader(obj)));
+	this(obj, false, context);
+    }
+    
+    /**
+     * Creates a new <code>AtomicMarshalledInstance</code> that contains the
+     * marshalled representation of the current state of the supplied
+     * object. The object is serialized with the semantics defined by
+     * <code>AtomicMarshalOutputStream</code>. The output stream used to marshal the
+     * object implements {@link ObjectStreamContext} and returns the given
+     * collection from its {@link ObjectStreamContext#getObjectStreamContext
+     * getObjectStreamContext} method.
+     *
+     * @param obj The Object to be contained in the new 
+     *          <code>AtomicMarshalledInstance</code>
+     * @param useCodebaseAnnotations if true uses codebase annotations for class resolution.
+     * @param context the collection of context information objects
+     * 
+     * @throws IOException if the object cannot be serialized
+     * @throws NullPointerException if <code>context</code> is <code>null</code>
+     */
+    public AtomicMarshalledInstance(Object obj, boolean useCodebaseAnnotations, final Collection context) 
+	    throws IOException{
+	super(obj, context, new AtomicMarshalFactoryInstance(getLoader(obj), true, useCodebaseAnnotations));
+	this.useCodebaseAnnotations = useCodebaseAnnotations;
     }
     
     @Override
     protected final MarshalFactory getMarshalFactory(){
-	return new AtomicMarshalFactoryInstance(null);
+	return new AtomicMarshalFactoryInstance(null, false, useCodebaseAnnotations);
     }
     
     static ClassLoader getLoader(final Object o){
@@ -137,9 +182,15 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
     
     static class AtomicMarshalFactoryInstance implements MarshalFactory {
 	private final ClassLoader defaultOutLoader;
+	private final boolean replace;
+	private final boolean useCodebaseAnnotations;
 	
-	AtomicMarshalFactoryInstance(ClassLoader defaultOutLoader){
+	AtomicMarshalFactoryInstance(ClassLoader defaultOutLoader,
+		boolean replace, boolean useCodebaseAnnotations)
+	{
 	    this.defaultOutLoader = defaultOutLoader;
+	    this.replace = replace;
+	    this.useCodebaseAnnotations = useCodebaseAnnotations;
 	}
 
 	@Override
@@ -161,7 +212,8 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 				    defaultLoader,
 				    verifyCodebaseIntegrity,
 				    verifierLoader,
-				    context
+				    context,
+				    useCodebaseAnnotations
 			    );
 			}
 
@@ -190,7 +242,12 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 		    
 			public MarshalInstanceOutput run() throws IOException {
 			    return new AtomicMarshalledInstanceOutputStream(
-				    objOut, defaultOutLoader, context
+				    objOut,
+				    locOut,
+				    defaultOutLoader,
+				    context,
+				    replace,
+				    useCodebaseAnnotations
 			    );
 			}
 
@@ -212,13 +269,14 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
         extends AtomicMarshalOutputStream implements MarshalInstanceOutput
     {
 	/** The stream on which location objects are written. */
-//	private final ObjectOutputStream locOut;
+	private final AtomicMarshalOutputStream locOut;
  
 	/** <code>true</code> if non-<code>null</code> annotations are
 	 *  written.
 	 */
-	private final boolean hadAnnotations;
+	private boolean hadAnnotations;
 	private int count;
+	private final boolean useCodebaseAnnotations;
 
 	/**
 	 * Creates a new <code>AtomicMarshalledObjectOutputStream</code> whose
@@ -226,14 +284,21 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 * location annotations (if any) will be written to
 	 * <code>locOut</code>.
 	 */
-	public AtomicMarshalledInstanceOutputStream(OutputStream objOut, ClassLoader loader, Collection context)
-	    throws IOException
+	public AtomicMarshalledInstanceOutputStream(OutputStream objOut,
+						    OutputStream locOut,
+						    ClassLoader loader,
+						    Collection context,
+						    boolean replace,
+						    boolean useCodebaseAnnotations)
+							    throws IOException
 	{
-	    super(objOut, loader, context, true);
-//	    this.locOut = new ObjectOutputStream(locOut);
+	    super(objOut, loader, context, useCodebaseAnnotations);
+	    this.locOut = new AtomicMarshalOutputStream(locOut, loader, context, useCodebaseAnnotations);
 	    hadAnnotations = false;
 	    super.enableReplaceObject(true);
-	    count = 0;
+	    count = replace ? 1 : 0;
+	    this.useCodebaseAnnotations = useCodebaseAnnotations;
+	    
 	}
 	
 	@Override
@@ -266,14 +331,16 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 */
 	@Override
 	public void writeAnnotation(String loc) throws IOException {
-//	    hadAnnotations |= (loc != null);
-//	    locOut.writeObject(loc);
+	    if (useCodebaseAnnotations){
+		hadAnnotations |= (loc != null);
+		locOut.writeObject(loc);
+	    }
 	}
 
 	@Override
 	public void flush() throws IOException {
 	    super.flush();
-//	    locOut.flush();
+	    locOut.flush();
 	}
     }
     
@@ -289,7 +356,8 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 * The stream from which annotations will be read.  If this is
 	 * <code>null</code>, then all annotations were <code>null</code>.
 	 */
-//	private final ObjectInputStream locIn;
+//	private final DataInputStream locIn;
+	private final AtomicMarshalInputStream locIn;
  
 	/**
 	 * Creates a new <code>AtomicMarshalledObjectInputStream</code> that
@@ -299,18 +367,23 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	 * <code>null</code>.
 	 */
 	AtomicMarshalledInstanceInputStream(InputStream objIn,
-				      InputStream locIn,
-				      ClassLoader defaultLoader,
-				      boolean verifyCodebaseIntegrity,
-				      ClassLoader verifierLoader,
-				      Collection context)
+					    InputStream locIn,
+					    ClassLoader defaultLoader,
+					    boolean verifyCodebaseIntegrity,
+					    ClassLoader verifierLoader,
+					    Collection context,
+					    boolean readAnnotations)
 	    throws IOException
 	{
 	    super(objIn,
 		  defaultLoader,
 		  verifyCodebaseIntegrity,
 		  verifierLoader,
-		  context);
+		  context,
+		  readAnnotations);
+	    this.locIn = readAnnotations && locIn != null? 
+		new AtomicMarshalInputStream(locIn, defaultLoader,
+		    verifyCodebaseIntegrity, verifierLoader, context, readAnnotations) : null;
 //	    this.locIn = (locIn == null ? null : new ObjectInputStream(locIn));
 	}
  
@@ -323,8 +396,8 @@ public final class AtomicMarshalledInstance extends MarshalledInstance {
 	protected String readAnnotation()
 	    throws IOException, ClassNotFoundException
 	{
-//	    return (locIn == null ? null : (String)locIn.readObject());
-	    return null;
+	    return locIn == null ? null : locIn.readObject(String.class);
+//	    return null;
 	}
     }   
 }

@@ -583,7 +583,7 @@ public class BasicProxyPreparer implements ProxyPreparer, Serializable {
      * @param arg
      * @throws IOException 
      */
-    protected BasicProxyPreparer(GetArg arg) throws IOException
+    protected BasicProxyPreparer(GetArg arg) throws IOException, ClassNotFoundException
     {
 	this(arg.get("verify", true),
 	     arg.get("methodConstraintsSpecified", true),

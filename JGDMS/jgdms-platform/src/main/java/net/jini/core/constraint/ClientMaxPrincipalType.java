@@ -88,7 +88,7 @@ public final class ClientMaxPrincipalType
 	this(check(clazz), true);
     }
     
-    public ClientMaxPrincipalType(GetArg arg) throws IOException{
+    public ClientMaxPrincipalType(GetArg arg) throws IOException, ClassNotFoundException{
 	this(verify(arg.get("classes", null, Class[].class)), true);
     }
     

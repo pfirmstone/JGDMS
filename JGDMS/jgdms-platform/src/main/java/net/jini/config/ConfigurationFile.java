@@ -2868,7 +2868,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 		    check(lineno, override, description, t));
         }
 	
-	public ErrorDescriptor(GetArg arg) throws IOException{
+	public ErrorDescriptor(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("lineno", -1),
 		 arg.get("override", -1),
 		 arg.get("description", null, String.class),

@@ -26,6 +26,7 @@ class ObjectSlot {
     // If this field has a default value (true) or something has been
     // assigned (false)
     private boolean defaulted = true;
+    private ClassNotFoundException exception = null;
 
     /**
      * @return the field
@@ -44,7 +45,8 @@ class ObjectSlot {
     /**
      * @return the fieldValue
      */
-    public synchronized Object getFieldValue() {
+    public synchronized Object getFieldValue() throws ClassNotFoundException {
+	if (exception != null) throw exception;
 	return fieldValue;
     }
 
@@ -53,6 +55,10 @@ class ObjectSlot {
      */
     public synchronized void setFieldValue(Object fieldValue) {
 	this.fieldValue = fieldValue;
+    }
+    
+    public synchronized void setFieldException(ClassNotFoundException e){
+	this.exception = e;
     }
 
     /**

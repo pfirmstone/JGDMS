@@ -135,6 +135,7 @@ public class DefaultPolicyParser implements PolicyParser {
      */
     public Collection<PermissionGrant> parse(URL location, Properties system)
             throws Exception {
+	log(Level.FINER, "\nDefaultPolicyParser::parse policy: " + location + "\n");
         boolean resolve = PolicyUtils.canExpandProperties();
         Reader r = new BufferedReader(new InputStreamReader(
                 AccessController
@@ -171,7 +172,7 @@ public class DefaultPolicyParser implements PolicyParser {
 		log(Level.CONFIG, "security.1A9", new Object[]{ge}, e);
 	    }
 	}
-        
+        log(Level.FINEST, result.toString());
         return result;
     }
 
@@ -621,10 +622,13 @@ public class DefaultPolicyParser implements PolicyParser {
 	logExec.submit(
 	    new Runnable(){
 		public void run() {
-		    Logger.getLogger("net.jini.security.policy").log(
-			level,
-			Messages.getString(message, parameters),
-			thrown);
+		    Logger logger = Logger.getLogger("net.jini.security.policy");
+		    if (logger.isLoggable(level)){
+			logger.log(
+			    level,
+			    Messages.getString(message, parameters),
+			    thrown);
+		    }
 		}
 	    }
 //		,

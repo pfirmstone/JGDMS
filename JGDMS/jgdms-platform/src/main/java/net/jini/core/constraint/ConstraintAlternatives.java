@@ -100,7 +100,7 @@ public final class ConstraintAlternatives
      *         underlying <code>InputStream</code>
      * @throws InvalidObjectException if object invariants aren't satisfied.
      */
-    public ConstraintAlternatives(GetArg arg) throws IOException{
+    public ConstraintAlternatives(GetArg arg) throws IOException, ClassNotFoundException{
 	this(validate(arg.get("constraints", null, InvocationConstraint[].class)), false);
     }
     

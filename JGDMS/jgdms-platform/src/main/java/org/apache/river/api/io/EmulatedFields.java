@@ -291,14 +291,17 @@ class EmulatedFields {
      *
      * @throws IllegalArgumentException
      *             if the corresponding field can not be found.
+     * @throws ClassNotFoundException if class of Object cannot be resolved.
      */
-    public synchronized Object get(String name, Object defaultValue) throws IllegalArgumentException {
-	ObjectSlot slot = findSlot(name, null);
+    public synchronized <T> T get(String name, T defaultValue, Class<T> type) 
+	    throws IllegalArgumentException, ClassNotFoundException {
+	ObjectSlot slot = findSlot(name, type);
 	// if not initialized yet, we give the default value
-	if (slot == null || slot.getField().getType().isPrimitive()) {
+	if (slot == null) return defaultValue;
+	if (slot.getField().getType().isPrimitive()) {
 	    throw new IllegalArgumentException();
 	}
-	return slot.isDefaulted() ? defaultValue : slot.getFieldValue();
+	return (T) (slot.isDefaulted() ? defaultValue : slot.getFieldValue());
     }
 
     /**

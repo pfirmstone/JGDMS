@@ -60,7 +60,7 @@ class URISerializer implements Serializable {
        }
     }
     
-    URISerializer(AtomicSerial.GetArg arg) throws IOException {
+    URISerializer(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg.get("uriExternalForm", null, String.class)));
     }
     

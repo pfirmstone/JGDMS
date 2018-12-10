@@ -43,7 +43,7 @@ class PropertiesSerializer implements Serializable {
 	m = new MapSerializer(p);
     }
     
-    PropertiesSerializer(GetArg arg) throws IOException{
+    PropertiesSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(getProperties(arg.get("m", null, MapSerializer.class)));
     }
     

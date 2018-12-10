@@ -25,6 +25,8 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.BufferOverflowException;
@@ -58,7 +60,6 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
-import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
@@ -93,7 +94,6 @@ public class Plaintext {
 	supportedConstraints.add(ClientMinPrincipal.class);
 	supportedConstraints.add(ClientMinPrincipalType.class);
 	supportedConstraints.add(ServerMinPrincipal.class);
-	supportedConstraints.add(ServerMaxPrincipal.class);
 	supportedConstraints.add(DelegationAbsoluteTime.class);
 	supportedConstraints.add(DelegationRelativeTime.class);
     }
@@ -448,7 +448,7 @@ public class Plaintext {
 		context = Collections.EMPTY_SET;
 	    }
 	    mi = new MarshalledInstance(registrar, context);
-	    new MarshalOutputStream(out, context).writeObject(mi);
+	    new ObjectOutputStream(out).writeObject(mi);
 	} catch (RuntimeException e) {
 	    throw new DiscoveryProtocolException(null, e);
 	}
@@ -549,13 +549,7 @@ public class Plaintext {
 
 	    // read LUS proxy
 	    MarshalledInstance mi = (MarshalledInstance) 
-		new MarshalInputStream(
-			in,
-			defaultLoader,
-			verifyCodebaseIntegrity,
-			verifierLoader,
-			context
-		).readObject();
+		new ObjectInputStream(in).readObject();
 	    
 	    ServiceRegistrar reg = (ServiceRegistrar) mi.get(
 		defaultLoader,
@@ -600,12 +594,12 @@ public class Plaintext {
 
 	    // read LUS proxy, defensively checking type.
 	    ServiceRegistrar reg = ((AtomicMarshalInputStream)
-		    AtomicMarshalInputStream.createObjectInputStream(
-			    in,
+		    AtomicMarshalInputStream.create(in,
 			    defaultLoader,
 			    verifyCodebaseIntegrity,
 			    verifierLoader,
-			    context
+			    context,
+			    false
 		    )).readObject(ServiceRegistrar.class);
 	    
 	    return new UnicastResponse(host, port, groups, reg);

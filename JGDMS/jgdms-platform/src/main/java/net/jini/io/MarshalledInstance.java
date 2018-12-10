@@ -102,7 +102,7 @@ public class MarshalledInstance implements Serializable {
 
     static final long serialVersionUID = -5187033771082433496L;
     
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException{
 	byte [] objBytes = arg.get("objBytes", null, byte[].class);
 	byte [] locBytes = arg.get("locBytes", null, byte[].class);
 	int hash = arg.get("hash", 0);
@@ -121,11 +121,11 @@ public class MarshalledInstance implements Serializable {
 	return true;
     }
     
-    public MarshalledInstance(GetArg arg) throws IOException{
+    public MarshalledInstance(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg), arg);
     }
     
-    private MarshalledInstance( boolean check, GetArg arg) throws IOException {
+    private MarshalledInstance( boolean check, GetArg arg) throws IOException, ClassNotFoundException {
 	objBytes = Valid.copy(arg.get("objBytes", null, byte[].class));
 	locBytes = Valid.copy(arg.get("locBytes", null, byte[].class));
 	hash = arg.get("hash", 0);

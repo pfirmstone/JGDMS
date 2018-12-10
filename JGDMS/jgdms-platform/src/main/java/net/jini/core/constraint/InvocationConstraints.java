@@ -99,7 +99,7 @@ public final class InvocationConstraints implements Serializable {
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code> 
      */
-    public InvocationConstraints(GetArg arg) throws IOException{
+    public InvocationConstraints(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("reqs", null, InvocationConstraint[].class),
 	     arg.get("prefs", null, InvocationConstraint[].class),
 	     true

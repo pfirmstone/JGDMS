@@ -38,7 +38,7 @@ class ListSerializer<T> extends AbstractList<T> implements Serializable {
      */
     private final T[] elements;
     
-    public ListSerializer(GetArg arg) throws IOException {
+    public ListSerializer(GetArg arg) throws IOException, ClassNotFoundException {
 	this((T[]) arg.get("elements", new Object [0], Object[].class));
     }
     

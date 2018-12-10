@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.rmi.server.RMIClassLoaderSpi;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Collection;
 import net.jini.loader.ClassLoading;
 /**
@@ -107,7 +105,7 @@ public class MarshalOutputStream
 //            }
 //            
 //        });
-            }
+    }
             
     protected MarshalOutputStream(Collection context) throws IOException{
 	super();

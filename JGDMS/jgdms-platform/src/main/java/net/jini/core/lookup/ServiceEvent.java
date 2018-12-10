@@ -79,7 +79,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	}
     }
     
-    public ServiceEvent(GetArg arg) throws IOException{
+    public ServiceEvent(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	serviceID = (ServiceID) arg.get("serviceID", null);
 	transition = arg.get("transition", 0);

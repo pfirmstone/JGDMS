@@ -82,7 +82,7 @@ public class TimeoutExpiredException extends TransactionException {
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      */
-    public TimeoutExpiredException(GetArg arg) throws IOException{
+    public TimeoutExpiredException(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	committed = arg.get("committed", false);
     }

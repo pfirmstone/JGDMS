@@ -61,7 +61,7 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
         );
     }
     
-    MapSerializer(GetArg arg) throws IOException{
+    MapSerializer(GetArg arg) throws IOException, ClassNotFoundException{
         this(
             arg.get("entrySet", new Ent[0], Ent[].class),
             arg.get("comparator", null, Comparator.class)
@@ -132,7 +132,7 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
 	    this(entry.getKey(), entry.getValue());
 	}
 	
-	public Ent(GetArg arg) throws IOException{
+	public Ent(GetArg arg) throws IOException, ClassNotFoundException{
 	    this((K) key(arg), (V) value(arg));
 	}
 	
@@ -151,7 +151,7 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
 	    }
 	}
 	
-	private static <K> K key(GetArg arg) throws IOException {
+	private static <K> K key(GetArg arg) throws IOException, ClassNotFoundException {
 	    Class<K> keyClass = arg.get("keyClass", null, Class.class);
 	    K key;
 	    if (keyClass != null){
@@ -162,7 +162,7 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
 	    return key;
 	}
 	
-	private static <V> V value(GetArg arg) throws IOException {
+	private static <V> V value(GetArg arg) throws IOException, ClassNotFoundException {
 	    Class<V> valueClass = arg.get("valueClass", null, Class.class);
 	    V value;
 	    if (valueClass != null){

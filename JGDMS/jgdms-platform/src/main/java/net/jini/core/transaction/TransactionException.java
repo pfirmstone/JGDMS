@@ -50,7 +50,7 @@ public class TransactionException extends AtomicException {
         super(desc, cause);
     }
     
-    public TransactionException(GetArg arg) throws IOException{
+    public TransactionException(GetArg arg) throws IOException, ClassNotFoundException{
 	super(arg);
     }
 }

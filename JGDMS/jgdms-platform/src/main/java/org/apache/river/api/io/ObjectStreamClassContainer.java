@@ -23,6 +23,8 @@ import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.Permission;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,6 +62,7 @@ class ObjectStreamClassContainer {
     private Constructor constructor;
     private Object[] constructorParams;
     private AccessControlContext context;
+    private ClassNotFoundException deserializedClassNotFound;
 
     ObjectStreamClassContainer() {
 	empty = new ObjectStreamField[0];
@@ -116,7 +119,12 @@ class ObjectStreamClassContainer {
 		@Override
 		public AccessControlContext run() {
 		    List<ProtectionDomain> domains = new ArrayList<ProtectionDomain>();
-		    Class clazz = forClass();
+		    Class clazz = null;
+		    try {
+			clazz = forClass();
+		    } catch (ClassNotFoundException ex) {
+			Logger.getLogger(ObjectStreamClassContainer.class.getName()).log(Level.SEVERE, null, ex);
+		    }
 		    while (clazz != null) {
 			domains.add(clazz.getProtectionDomain());
 			clazz = clazz.getSuperclass();
@@ -304,6 +312,7 @@ class ObjectStreamClassContainer {
     }
 
     Object invokeReadResolve(Object o) throws ObjectStreamException, IOException, ClassNotFoundException {
+	if (o == null) return null;
 	try {
 //	    if (readResolveMethod == null) {
 //		readResolveMethod = getReadResolveMethod(o.getClass());
@@ -383,7 +392,7 @@ class ObjectStreamClassContainer {
 	});
     }
 
-    void setClass(final Class<?> c) {
+    void setClass(final Class<?> c) throws ClassNotFoundException {
 	if (c == null) throw new NullPointerException("class cannot be null");
 	resolvedClass = c;
 	readResolveMethod = getReadResolveMethod(c);
@@ -461,29 +470,36 @@ class ObjectStreamClassContainer {
 	return this.handle == that.handle;
     }
 
-    void putInMap() {
+    void putInMap() throws ClassNotFoundException {
 	lookup.putIfAbsent(forClass(), this);
     }
 
-    void setLocalClassDescriptor(ObjectStreamClass descriptor) {
+    void setLocalClassDescriptor(ObjectStreamClass descriptor) throws ClassNotFoundException {
 	localClass = descriptor;
 	if (isProxy) {
-	    constructor = AccessController.doPrivileged(new PrivilegedAction<Constructor>() {
-		@Override
-		public Constructor run() {
-		    try {
-			Class[] params = {InvocationHandler.class};
-			Constructor constructor = getLocalClass().forClass().getDeclaredConstructor(params);
-			constructor.setAccessible(true);
-			return constructor;
-		    } catch (NoSuchMethodException ex) {
-			Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
-		    } catch (SecurityException ex) {
-			Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
+	    try {
+		constructor = AccessController.doPrivileged(new PrivilegedExceptionAction<Constructor>() {
+		    @Override
+		    public Constructor run() throws ClassNotFoundException {
+			try {
+			    Class[] params = {InvocationHandler.class};
+			    Constructor constructor = getLocalClass().forClass().getDeclaredConstructor(params);
+			    constructor.setAccessible(true);
+			    return constructor;
+			} catch (NoSuchMethodException ex) {
+			    Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
+			} catch (SecurityException ex) {
+			    Logger.getLogger(ObjectStreamClassInformation.class.getName()).log(Level.SEVERE, null, ex);
+			}
+			return null;
 		    }
-		    return null;
-		}
-	    });
+		});
+	    } catch (PrivilegedActionException ex) {
+		Exception e = ex.getException();
+		if (e instanceof ClassNotFoundException) throw (ClassNotFoundException)e;
+		if (e instanceof RuntimeException) throw (RuntimeException)e;
+		throw new RuntimeException("Unexpected exception", ex);
+	    }
 	    constructorParams = new Object[1];
 	    constructorParams[0] = new InvocationHandler() {
 		@Override
@@ -502,7 +518,12 @@ class ObjectStreamClassContainer {
 	return superClass;
     }
 
-    Class<?> forClass() {
+    Class<?> forClass() throws ClassNotFoundException {
+	if (deserializedClassNotFound != null 
+//		&& localClass == null 
+//		&& resolvedClass == null 
+//		&& deserializedClass == null
+		) throw deserializedClassNotFound;
 	if (resolvedClass != null) {
 	    return resolvedClass;
 	}
@@ -515,7 +536,7 @@ class ObjectStreamClassContainer {
 	return localClass != null ? localClass.forClass() : null;
     }
 
-    String getName() {
+    String getName() throws ClassNotFoundException {
 	if (osci != null) {
 	    return osci.getFullyQualifiedClassName();
 	}
@@ -571,22 +592,28 @@ class ObjectStreamClassContainer {
     /**
      * @return the localClass
      */
-    public ObjectStreamClass getLocalClass() {
+    public ObjectStreamClass getLocalClass() throws ClassNotFoundException {
+	if (deserializedClassNotFound != null && localClass == null) throw deserializedClassNotFound;
 	return localClass;
     }
 
     /**
      * @return the deserializedClass
      */
-    public ObjectStreamClass getDeserializedClass() {
+    public ObjectStreamClass getDeserializedClass() throws ClassNotFoundException {
+	if (deserializedClassNotFound != null && deserializedClass == null) throw deserializedClassNotFound;
 	return deserializedClass;
     }
 
     /**
      * @param deserializedClass the deserializedClass to set
      */
-    public void setDeserializedClass(ObjectStreamClass deserializedClass) {
+    public void setDeserializedClass(ObjectStreamClass deserializedClass){
 	this.deserializedClass = deserializedClass;
+    }
+    
+    public void setDeserializedClassNotFound(ClassNotFoundException ex){
+	this.deserializedClassNotFound = ex;
     }
 
     /**

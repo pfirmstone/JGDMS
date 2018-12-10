@@ -130,7 +130,7 @@ public class RemoteEvent extends java.util.EventObject {
      */
     protected MarshalledInstance miHandback;
 
-    private static Object check(GetArg arg) throws IOException {
+    private static Object check(GetArg arg) throws IOException, ClassNotFoundException {
 	Object source = Valid.notNull(arg.get("source", null),"source cannot be null");
 	arg.get("eventID", 0L);
 	long seqNum = arg.get("seqNum", -1L);
@@ -142,16 +142,16 @@ public class RemoteEvent extends java.util.EventObject {
 	return source;
     }
     
-    public RemoteEvent(GetArg arg) throws IOException {
+    public RemoteEvent(GetArg arg) throws IOException, ClassNotFoundException {
 	this (arg, check(arg));
     }
     
-    private RemoteEvent(GetArg arg, Object source) throws IOException{
+    private RemoteEvent(GetArg arg, Object source) throws IOException, ClassNotFoundException{
 	super(source);
 	this.source = source;
 	eventID = arg.get("eventID", -1L);
 	seqNum = arg.get("seqNum", -1L);
-	handback = (MarshalledObject) arg.get("handback", null);
+	handback = arg.get("handback", null, MarshalledObject.class);
 	try{
 	    miHandback = arg.get("miHandback", null, MarshalledInstance.class); // Type check
 	} catch (IllegalArgumentException ex){} // Ignore, earlier version.
@@ -243,6 +243,7 @@ public class RemoteEvent extends java.util.EventObject {
      */
     @Deprecated
     public MarshalledObject getRegistrationObject() {
+	if (handback == null && miHandback != null) return miHandback.convertToMarshalledObject();
 	return handback;
     }
     

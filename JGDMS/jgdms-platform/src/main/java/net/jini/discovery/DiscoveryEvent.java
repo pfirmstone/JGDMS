@@ -88,7 +88,7 @@ public class DiscoveryEvent extends EventObject {
 	this(source, groups, groups.keySet().toArray(new ServiceRegistrar[groups.size()]));
     }
     
-    public DiscoveryEvent(GetArg arg) throws IOException{
+    public DiscoveryEvent(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("source",null),
 	     check(arg.get("groups", null, Map.class)),
 	     Valid.copy(Valid.notNull(arg.get("regs", null, ServiceRegistrar[].class), "regs cannot be null"))

@@ -140,4 +140,19 @@
         <Class name="org.apache.river.logging.LogManager"/>
         <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     </Match>
+    <Match>
+        <!-- Checked to ensure null pointer dereference wasn't possible -->
+        <Class name="net.jini.constraint.StringMethodConstraints$MethodKey"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_MIGHT_BE_INFEASIBLE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.river.api.io.AtomicMarshalInputStream"/>
+        <Method name="discardData"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.river.config.KeyStores"/>
+        <Method name="getKeyStore"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
 </FindBugsFilter>

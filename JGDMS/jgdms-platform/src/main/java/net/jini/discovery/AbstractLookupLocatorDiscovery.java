@@ -306,7 +306,7 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 		    logger.log(
 			Levels.HANDLED,
 			"Exception occured during unicast discovery " +
-			addr + ":" + port, e);
+			addr.getHostAddress() + ":" + port, e);
 		}
 		
 	    }.getResponse(locator.scheme(), locator.getHost(), locator.getPort(), ic);

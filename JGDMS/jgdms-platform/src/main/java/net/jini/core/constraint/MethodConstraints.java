@@ -62,5 +62,5 @@ public interface MethodConstraints {
      * constraints that can be returned by <code>getConstraints</code>,
      * in arbitrary order and with duplicates permitted
      */
-    Iterator possibleConstraints();
+    Iterator<InvocationConstraints> possibleConstraints();
 }

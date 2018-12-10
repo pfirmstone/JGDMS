@@ -48,14 +48,14 @@ public interface ProxyCodebaseSpi {
      * 
      * @param bootstrapProxy an instance of {@link net.jini.core.constraint.RemoteMethodControl} and
      * {@link net.jini.security.proxytrust.TrustEquivalence}
-     * @param proxy marshalled proxy to be deserialized.
+     * @param serviceProxy marshalled serviceProxy to be deserialized.
      * @param parentLoader default loader of the current stream.
      * @param verifierLoader verifier loader of the current stream.
      * @param context the {@link net.jini.io.ObjectStreamContext} may contain
      * client {@link net.jini.core.constraint.MethodConstraints} to apply to
      * {@link CodebaseAccessor} methods.  The context should also be passed
      * to the {@link MarshalledInstance} get method.
-     * @return unmarshalled proxy instance.
+     * @return unmarshalled serviceProxy instance.
      * @throws IOException if an 
      *         <code>IOException</code> occurs while deserializing the
      *         object from its internal representation
@@ -67,7 +67,7 @@ public interface ProxyCodebaseSpi {
      */
     public Object resolve(
 	    CodebaseAccessor bootstrapProxy,
-	    MarshalledInstance proxy,
+	    MarshalledInstance serviceProxy,
 	    ClassLoader parentLoader,
 	    ClassLoader verifierLoader,
 	    Collection context) throws IOException, ClassNotFoundException;

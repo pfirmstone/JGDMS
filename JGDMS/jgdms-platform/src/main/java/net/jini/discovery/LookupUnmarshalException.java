@@ -240,7 +240,7 @@ public class LookupUnmarshalException extends AtomicException {
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      */
-    public LookupUnmarshalException(GetArg arg) throws IOException{
+    public LookupUnmarshalException(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, 
 	     Valid.copy(arg.get("registrars", null, ServiceRegistrar[].class)),
 	     Valid.copy(arg.get("marshalledRegistrars", null, MarshalledObject[].class)),
@@ -259,7 +259,8 @@ public class LookupUnmarshalException extends AtomicException {
     private LookupUnmarshalException(GetArg arg,
 				    ServiceRegistrar[] registrars,
                                     MarshalledObject[] marshalledRegistrars,
-                                    Throwable[]        exceptions) throws IOException
+                                    Throwable[]        exceptions) 
+	    throws IOException, ClassNotFoundException
     {
 	this(arg, registrars, marshalledRegistrars, exceptions,
 		validate(registrars, marshalledRegistrars, exceptions));
@@ -278,7 +279,8 @@ public class LookupUnmarshalException extends AtomicException {
 				    ServiceRegistrar[] registrars,
                                     MarshalledObject[] marshalledRegistrars,
                                     Throwable[]        exceptions,
-				    boolean	       check) throws IOException
+				    boolean	       check) 
+	    throws IOException, ClassNotFoundException
     {
 	super(arg); // Super has to check it's invariants.
 	this.registrars = registrars;

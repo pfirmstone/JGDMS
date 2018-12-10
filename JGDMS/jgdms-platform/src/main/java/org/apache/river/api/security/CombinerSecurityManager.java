@@ -42,6 +42,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -189,7 +190,14 @@ extends SecurityManager implements CachingSecurityManager {
         executor = 
                 new ThreadPoolExecutor(numberOfCores, poolSizeLimit, 20L, 
                 TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), 
-                new NamedThreadFactory("CombinerSecurityManager", true),
+                new ThreadFactory(){
+
+		    public Thread newThread(Runnable r) {
+			Thread t = new Thread(r, "CombinerSecurityManager_thread");
+			t.setDaemon(true);
+			return t;
+		    }
+		},
                 new ThreadPoolExecutor.CallerRunsPolicy());
         permCompare = RC.comparator(new PermissionComparator());
         threadContext = new ThreadLocal<SecurityContext>();

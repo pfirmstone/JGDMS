@@ -596,8 +596,8 @@ public class ProxyTrustVerifier implements TrustVerifier {
 		    logger.log(Level.FINER, "remarshalling verifier");
 		    MarshalInputStream in =
 			(MarshalInputStream) AtomicMarshalInputStream.create(
-			       new ByteArrayInputStream(bout.toByteArray()),
-			       bcl, false, null, Collections.EMPTY_SET);
+				new ByteArrayInputStream(bout.toByteArray()),
+			       bcl, false, null, Collections.EMPTY_SET, true);
 		    in.useCodebaseAnnotations();
 		    verifier = (TrustVerifier) in.readObject();
 		    in.close();

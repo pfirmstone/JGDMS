@@ -96,7 +96,7 @@ class ActivationGroupIDSerializer implements Serializable {
 	}
     }
     
-    ActivationGroupIDSerializer(GetArg arg) throws IOException{
+    ActivationGroupIDSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(
 	    check(
 		Valid.notNull(

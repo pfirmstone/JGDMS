@@ -543,7 +543,7 @@ class DiscoveryV2 extends Discovery {
 		    uds = s;
 		} catch (Exception e) {
 		    logger.log(Levels.HANDLED,
-			       "constraint check failed for " + uds, e);
+			       "constraint check failed for " + s, e);
 		}
 	    }
 	}
@@ -564,6 +564,10 @@ class DiscoveryV2 extends Discovery {
 	    throw new DiscoveryProtocolException("format negotiation failed");
 	}
 
+	if (logger.isLoggable(Level.FINEST)) {
+	    logger.log(Level.FINEST, "handing off to send {0} using format provider {1}, {2}, {3}",
+		       new Object[]{ response, uds, constraints, checker });
+	}
 	// hand off to format provider to send response data
 	uds.handleUnicastDiscovery(
 	    response, socket, constraints, checker, context,

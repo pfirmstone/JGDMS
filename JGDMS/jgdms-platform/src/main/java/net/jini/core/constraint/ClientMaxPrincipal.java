@@ -83,7 +83,7 @@ public final class ClientMaxPrincipal
      *         underlying <code>InputStream</code>
      * @throws InvalidObjectException if object invariants aren't satisfied.
      */
-    public ClientMaxPrincipal(GetArg arg) throws IOException {
+    public ClientMaxPrincipal(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg.get("principals", null, Principal[].class)), true);
     }
     

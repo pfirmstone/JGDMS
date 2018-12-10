@@ -54,7 +54,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
      */
     public final long id;
     
-    public ServerTransaction(GetArg arg) throws IOException{
+    public ServerTransaction(GetArg arg) throws IOException, ClassNotFoundException{
 	this(Valid.notNull(arg.get("mgr", null, TransactionManager.class), 
 		"TransactionManager cannot be null"),
 	     arg.get("id", 0L)

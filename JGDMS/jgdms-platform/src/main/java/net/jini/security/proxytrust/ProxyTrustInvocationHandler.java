@@ -86,7 +86,8 @@ public final class ProxyTrustInvocationHandler
 	this(main, boot, check(main, boot));
     }
     
-    public ProxyTrustInvocationHandler(GetArg arg) throws InvalidObjectException, IOException
+    public ProxyTrustInvocationHandler(GetArg arg) 
+	    throws InvalidObjectException, IOException, ClassNotFoundException
     {
 	this(true,
 	     arg.get("main", null, RemoteMethodControl.class),

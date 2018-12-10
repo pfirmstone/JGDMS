@@ -73,7 +73,7 @@ class SetSerializer<T> extends AbstractSet<T> implements SortedSet<T>, Serializa
      *         if content is not an Object[] array type or comparator is not
      *         an instance of Comparator.
      */
-    SetSerializer(GetArg arg) throws IOException {
+    SetSerializer(GetArg arg) throws IOException, ClassNotFoundException {
         this(
             (T[]) arg.get("content", new Object[0], Object[].class),
             arg.get("comparator", null, Comparator.class)

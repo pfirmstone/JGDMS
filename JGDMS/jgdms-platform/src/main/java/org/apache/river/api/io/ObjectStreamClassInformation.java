@@ -136,7 +136,7 @@ class ObjectStreamClassInformation {
     /**
      * Reads non-proxy class descriptor information from given DataInputStream.
      */
-    void read(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    void read(ObjectInputStream in) throws IOException {
 	//    	System.out.println("read in class descriptor");
 	fullyQualifiedClassName = in.readUTF();
 	if (fullyQualifiedClassName.length() == 0) {
@@ -236,7 +236,7 @@ class ObjectStreamClassInformation {
     //        }
     //        return classSig;
     //    }
-    void readFields(ObjectInputStream in) throws IOException {
+    void readFields(ObjectInputStream in) throws IOException, ClassNotFoundException {
 	//    	System.out.println("readFields");
 	int numFields = in.readShort();
 	if (isEnum && numFields != 0) {

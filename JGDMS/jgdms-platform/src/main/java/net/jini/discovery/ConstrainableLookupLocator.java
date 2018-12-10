@@ -148,13 +148,14 @@ public final class ConstrainableLookupLocator
 	this.constraints = constraints;
     }
 
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	// Checks type invariant.
 	arg.get("constraints", null, MethodConstraints.class);
 	return arg;
     }
     
-    public ConstrainableLookupLocator(GetArg arg) throws IOException {
+    public ConstrainableLookupLocator(GetArg arg) 
+	    throws IOException, ClassNotFoundException {
 	super(check(arg));
 	constraints = (MethodConstraints) arg.get("constraints", null);
     }
@@ -190,22 +191,25 @@ public final class ConstrainableLookupLocator
 
     @Override
     public int hashCode() {
-	int hash = super.hashCode();
-	hash = 79 * hash + (this.constraints != null ? this.constraints.hashCode() : 0);
-	return hash;
+	return super.hashCode();
+//	int hash = super.hashCode();
+//	hash = 79 * hash + (this.constraints != null ? this.constraints.hashCode() : 0);
+//	return hash;
     }
     
+    @Override
     public boolean equals(Object o){
-	if ( this == o ) return true;
-	if ( o == null ) return false;
-	if ( !(super.equals(o))) return false;
-	if ( o instanceof ConstrainableLookupLocator ) {
-	    ConstrainableLookupLocator that = (ConstrainableLookupLocator) o;
-	    if ( constraints != null ) {
-		if ( constraints.equals(that.constraints) ) return true;
-	    } else if ( constraints == that.constraints) return true;
-	}
-	return false;
+	return super.equals(o);
+//	if ( this == o ) return true;
+//	if ( o == null ) return false;
+//	if ( !(super.equals(o))) return false;
+//	if ( o instanceof ConstrainableLookupLocator ) {
+//	    ConstrainableLookupLocator that = (ConstrainableLookupLocator) o;
+//	    if ( constraints != null ) {
+//		if ( constraints.equals(that.constraints) ) return true;
+//	    } else if ( constraints == that.constraints) return true;
+//	}
+//	return false;
     }
 
     /**

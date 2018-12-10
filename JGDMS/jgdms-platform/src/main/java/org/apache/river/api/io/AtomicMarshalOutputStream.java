@@ -71,15 +71,23 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
     /**
      *
      * @param out
+     * @param defaultLoader
      * @param context
-     * @param objectOutputStreamMode if true stream format is compatible with 
-     * ObjectOutputStream, if false, it's compatible with MarshalOutputStream.
+     * @param writeCodebaseAnnotations if false stream format is generally compatible with 
+     * ObjectOutputStream and annotations aren't written to stream, if true,
+     * it's generally compatible with MarshalOutputStream and annotations are
+     * written to stream.
      * @throws IOException
      */
-    public AtomicMarshalOutputStream(OutputStream out, ClassLoader defaultLoader, Collection context, boolean objectOutputStreamMode) throws IOException{
+    public AtomicMarshalOutputStream(OutputStream out,
+				     ClassLoader defaultLoader,
+				     Collection context,
+				     boolean writeCodebaseAnnotations) 
+	throws IOException
+    {
 	super(context);
 	this.defaultLoader= defaultLoader;
-	d = new DelegateObjectOutputStream(out, this, objectOutputStreamMode);
+	d = new DelegateObjectOutputStream(out, this, writeCodebaseAnnotations);
 	d.enableReplaceObject(true);
     }
     
@@ -90,6 +98,11 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	// reset if we're getting towards half our limit.
 	// One day this limit will become too small.
 	if (d.numObjectsCached > 32768) reset();
+    }
+    
+    @Override
+    protected void writeAnnotation(String annotation) throws IOException {
+	super.writeAnnotation(annotation);
     }
     
     @Override
@@ -253,13 +266,13 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	final Map<Class,Class> serializers;
 	final AtomicMarshalOutputStream aout;
 	int numObjectsCached = 0;
-	final boolean objectOutputStreamMode;
+	final boolean writeAnnotations;
 	boolean enableReplaceObject;
 	
-	DelegateObjectOutputStream(OutputStream out, AtomicMarshalOutputStream aout, boolean objectOutputStreamMode) throws IOException{
+	DelegateObjectOutputStream(OutputStream out, AtomicMarshalOutputStream aout, boolean writeCodebaseAnnotations) throws IOException{
 	    super(out);
 	    this.aout = aout;
-	    this.objectOutputStreamMode = objectOutputStreamMode;
+	    this.writeAnnotations = writeCodebaseAnnotations;
 	    this.serializers = new HashMap<Class,Class>(24);
 	    serializers.put(Byte.class, ByteSerializer.class);
 	    serializers.put(Short.class, ShortSerializer.class);
@@ -284,16 +297,14 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    serializers.put(Date.class, DateSerializer.class);
 	}
 	
-	    @Override
+	@Override
 	protected void annotateClass(Class<?> cl) throws IOException {
-	    if (objectOutputStreamMode) super.annotateClass(cl);
-	    aout.annotateClass(cl);
+	    if (writeAnnotations) aout.annotateClass(cl);
 	}
 
 	@Override
 	public void annotateProxyClass(Class<?> cl) throws IOException {
-	    if (objectOutputStreamMode) super.annotateProxyClass(cl);
-	    else aout.annotateProxyClass(cl);
+	    if (writeAnnotations) aout.annotateProxyClass(cl);
 	}
 
 	@Override

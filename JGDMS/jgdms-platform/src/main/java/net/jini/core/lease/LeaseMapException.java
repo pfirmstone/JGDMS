@@ -76,7 +76,7 @@ public class LeaseMapException extends LeaseException {
      *         underlying <code>InputStream</code>
      * @throws InvalidObjectException if object invariants aren't satisfied.
      */
-    public LeaseMapException(GetArg arg) throws IOException{
+    public LeaseMapException(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg,
 	     Valid.copyMap( //Defensive copy of exceptionMap into new HashMap
 		 Valid.notNull(
@@ -92,7 +92,8 @@ public class LeaseMapException extends LeaseException {
     }
     
     private LeaseMapException(GetArg arg,
-			      Map<Lease,Throwable> exceptionMap) throws IOException 
+			      Map<Lease,Throwable> exceptionMap) 
+	    throws IOException, ClassNotFoundException
     {
         super(arg);
 	this.exceptionMap = exceptionMap;

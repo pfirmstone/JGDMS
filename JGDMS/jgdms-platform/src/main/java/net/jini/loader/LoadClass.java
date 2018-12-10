@@ -133,6 +133,12 @@ public class LoadClass {
             if (t instanceof NullPointerException) {
                 throw (NullPointerException) t;
             }
+	    if (t instanceof RuntimeException){
+		throw (RuntimeException) t;
+	    }
+	    if (t instanceof Error){
+		throw (Error) t;
+	    }
             throw new ClassNotFoundException(
                     "Unable to find Class:" + name, t);
         } catch (TimeoutException ex) {

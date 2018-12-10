@@ -476,7 +476,7 @@ public class MarshalInputStream
      * @throws SecurityException if the caller doesn't have 
      * {@link java.lang.RuntimePermission} "getClassLoader"
      */
-    public ClassLoader getDefaultClassLoader(){
+    public final ClassLoader getDefaultClassLoader(){
 	clCheck.checkGuard(null);
 	return defaultLoader;
     }
@@ -487,7 +487,7 @@ public class MarshalInputStream
      * @throws SecurityException if the caller doesn't have 
      * {@link java.lang.RuntimePermission} "getClassLoader"
      */
-    public ClassLoader getVerifierClassLoader(){
+    public final ClassLoader getVerifierClassLoader(){
 	clCheck.checkGuard(null);
 	return verifierLoader;
     }

@@ -53,7 +53,7 @@ class X500PrincipalSerializer implements Serializable {
         encoded = principal.getEncoded();
     }
     
-    X500PrincipalSerializer(GetArg arg) throws IOException{
+    X500PrincipalSerializer(GetArg arg) throws IOException, ClassNotFoundException{
         this(new X500Principal(arg.get("encoded", new byte[0], byte[].class)));
     }
     

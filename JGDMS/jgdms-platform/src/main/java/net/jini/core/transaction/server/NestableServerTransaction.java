@@ -52,12 +52,12 @@ public class NestableServerTransaction extends ServerTransaction
      */
     public final NestableServerTransaction parent;
     
-    public NestableServerTransaction(GetArg arg) throws IOException{
+    public NestableServerTransaction(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	this.parent = arg.get("parent", null, NestableServerTransaction.class);
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	arg.get("parent", null, NestableServerTransaction.class);
 	return arg;
     }

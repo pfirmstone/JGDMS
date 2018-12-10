@@ -64,7 +64,7 @@ class ActivationDescSerializer implements Serializable {
 	this.actDesc = actDesc;
     }
     
-    ActivationDescSerializer(GetArg arg) throws IOException{
+    ActivationDescSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(
 	    new ActivationDesc(
 		Valid.notNull(

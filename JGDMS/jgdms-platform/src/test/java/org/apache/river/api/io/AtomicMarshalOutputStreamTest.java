@@ -49,7 +49,7 @@ public class AtomicMarshalOutputStreamTest {
 	ObjectInputStream ois = null;
 	try {
 	    baos = new ByteArrayOutputStream();
-	    oos = new AtomicMarshalOutputStream(new BufferedOutputStream(baos), null, null, true);
+	    oos = new AtomicMarshalOutputStream(new BufferedOutputStream(baos), null, null, false);
 	    oos.writeObject(mi);
 	    oos.flush();
 	    data = baos.toByteArray();

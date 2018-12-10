@@ -43,7 +43,7 @@ class MarshalledObjectSerializer implements Serializable {
 	this.instance = inst;
     }
     
-    public MarshalledObjectSerializer(GetArg arg) throws IOException{
+    public MarshalledObjectSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg.get("instance", null, MarshalledInstance.class)));
     }
     

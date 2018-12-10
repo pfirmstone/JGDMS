@@ -125,15 +125,20 @@ class GetArgImpl extends AtomicSerial.GetArg {
     }
 
     @Override
-    public <T> T get(String name, T val, Class<T> type) throws IOException {
+    public <T> T get(String name, T val, Class<T> type) throws IOException, ClassNotFoundException {
 	// T will be replaced by Object by the compilers erasure.
 	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
-	T result = fields != null? (T) fields.get(name, val): val;
+	T result = null;
+	if (fields instanceof EmulatedFieldsForLoading){
+	    result = ((EmulatedFieldsForLoading) fields).get(name, val, type);
+	} else if (fields != null){
+	    result = (T) fields.get(name, val);
+	}	
 	if (type.isInstance(result)) {
 	    return result;
 	}
 	if (result == null) {
-	    return null;
+	    return val;
 	}
 	InvalidObjectException e = new InvalidObjectException("Input validation failed");
 	e.initCause(new ClassCastException("Attempt to assign object of incompatible type: "

@@ -41,7 +41,7 @@ public class AtomicMarshalInputStreamTest {
 	oos.flush();
 	byte [] bits = baos.toByteArray();
 	ByteArrayInputStream bais = new ByteArrayInputStream(bits);
-	ObjectInputStream instance = AtomicMarshalInputStream.create(bais, null, false, null, null);
+	ObjectInputStream instance = AtomicMarshalInputStream.create(bais, null, false, null, null, false);
 	Have result = (Have) instance.readObject();
 	assertEquals(expResult, result);
     }
@@ -56,13 +56,13 @@ public class AtomicMarshalInputStreamTest {
 	oos.flush();
 	byte [] bits = baos.toByteArray();
 	ByteArrayInputStream bais = new ByteArrayInputStream(bits);
-	ObjectInputStream in = AtomicMarshalInputStream.create(bais, null, false, null, null);
+	ObjectInputStream in = AtomicMarshalInputStream.create(bais, null, false, null, null, false);
 	UnmarshalException ue2 = (UnmarshalException) in.readObject();
 	assertEquals(ue.getMessage(), ue2.getMessage());
     }
 
     /**
-     * Test of createObjectInputStream method, of class AtomicMarshalInputStream.
+     * Test of create method, of class AtomicMarshalInputStream.
      */
     @Test
     public void testObjectOutputStreamCompatibility() throws Exception {
@@ -80,11 +80,11 @@ public class AtomicMarshalInputStreamTest {
 	    oos.flush();
 	    data = baos.toByteArray();
 	    bais = new ByteArrayInputStream(data);
-	    ois = AtomicMarshalInputStream.createObjectInputStream(new BufferedInputStream(bais),
+	    ois = AtomicMarshalInputStream.create(new BufferedInputStream(bais),
 		    null,
 		    false,
 		    null,
-		    null
+		    null, false
 	    );
 	    MarshalledInstance result = (MarshalledInstance) ois.readObject();
 	    assertEquals(mi, result);
@@ -99,10 +99,10 @@ public class AtomicMarshalInputStreamTest {
     }
 
     /**
-     * Test of createObjectInputStream method, of class AtomicMarshalInputStream.
+     * Test of create method, of class AtomicMarshalInputStream.
      */
     @Test
-    public void testCreateObjectInputStream() throws Exception {
+    public void testCreate() throws Exception {
 	System.out.println("createObjectInputStream");
 	MarshalledInstance mi = new MarshalledInstance("Test object");
 	ByteArrayOutputStream baos = null;
@@ -112,16 +112,16 @@ public class AtomicMarshalInputStreamTest {
 	ObjectInputStream ois = null;
 	try {
 	    baos = new ByteArrayOutputStream();
-	    oos = new AtomicMarshalOutputStream(new BufferedOutputStream(baos), null, null, true);
+	    oos = new AtomicMarshalOutputStream(new BufferedOutputStream(baos), null, null, false);
 	    oos.writeObject(mi);
 	    oos.flush();
 	    data = baos.toByteArray();
 	    bais = new ByteArrayInputStream(data);
-	    ois = AtomicMarshalInputStream.createObjectInputStream(new BufferedInputStream(bais),
+	    ois = AtomicMarshalInputStream.create(new BufferedInputStream(bais),
 		    null,
 		    false,
 		    null,
-		    null
+		    null, false
 	    );
 	    MarshalledInstance result = (MarshalledInstance) ois.readObject();
 	    assertEquals(mi, result);

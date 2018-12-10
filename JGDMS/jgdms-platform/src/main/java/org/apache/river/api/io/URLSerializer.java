@@ -49,7 +49,7 @@ class URLSerializer implements Serializable {
     private final String urlExternalForm;
     private final /*transient*/ URL url;
     
-    URLSerializer(GetArg arg) throws IOException {
+    URLSerializer(GetArg arg) throws IOException, ClassNotFoundException {
 	this(new URL(null, arg.get("urlExternalForm", null, String.class)));
     }
     

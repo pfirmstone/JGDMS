@@ -131,12 +131,13 @@ public @interface AtomicSerial {
 	 * @param arg GetArg caller sensitive arguments used by implementing constructor.
 	 * @return new instance of T.
 	 * @throws java.io.InvalidClassException if constructor is non compliant
-	 * or doesn't exist. 
+	 * or doesn't exist.
+	 * @throws java.lang.ClassNotFoundException 
 	 * @throws java.io.InvalidObjectException if invariant check fails
 	 * @throws NullPointerException if arg or type is null.
 	 */
 	public static <T> T instantiate(final Class<T> type, final GetArg arg)
-		throws IOException {
+		throws IOException, ClassNotFoundException {
 	    if (arg == null) throw new NullPointerException();
 	    if (type == null) throw new NullPointerException();
 	    final Class[] param = { GetArg.class };
@@ -180,6 +181,7 @@ public @interface AtomicSerial {
 		Throwable e = ex.getCause();
 		if (e instanceof InvalidObjectException) throw (InvalidObjectException) e;
 		if (e instanceof IOException) throw (IOException) e;
+		if (e instanceof ClassNotFoundException) throw (ClassNotFoundException) e;
 		if (e instanceof RuntimeException) throw (RuntimeException) e;
 		InvalidObjectException ioe = new InvalidObjectException(
 		    "Construction failed: " + type);
@@ -331,6 +333,8 @@ public @interface AtomicSerial {
          * @return the value of the named <code>Object</code> field
          * @throws IOException if there are I/O errors while reading from the
          *         underlying <code>InputStream</code>
+	 * @throws java.lang.ClassNotFoundException if class is not resolvable
+	 *	   from the default loader.
          * @throws IllegalArgumentException if type of <code>name</code> is
          *         not serializable or if the field type is incorrect
 	 * @throws InvalidObjectException containing a ClassCastException cause 
@@ -338,7 +342,7 @@ public @interface AtomicSerial {
 	 * @throws NullPointerException if type is null.
          */
         public abstract <T> T get(String name, T val, Class<T> type) 
-		throws IOException;
+		throws IOException, ClassNotFoundException;
 	
 	public abstract GetArg validateInvariants(  String[] fields, 
 						    Class[] types,

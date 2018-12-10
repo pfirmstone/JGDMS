@@ -51,7 +51,7 @@ public class UnknownLeaseException extends LeaseException {
 	super(reason);
     }
     
-    public UnknownLeaseException(GetArg arg) throws IOException{
+    public UnknownLeaseException(GetArg arg) throws IOException, ClassNotFoundException{
 	super(arg);
     }
 }

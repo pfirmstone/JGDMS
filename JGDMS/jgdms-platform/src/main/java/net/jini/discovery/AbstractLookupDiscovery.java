@@ -78,6 +78,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.action.GetBooleanAction;
 import org.apache.river.config.Config;
 import org.apache.river.config.LocalHostLookup;
 import org.apache.river.discovery.Discovery;
@@ -2088,8 +2089,8 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 		new PrivilegedExceptionAction() {
 		    public Object run() throws UnknownHostException {
 			return LocalHostLookup.getLocalHost();
-		    }
-		})).getHostAddress();
+			    }
+		})).getCanonicalHostName();
 	} catch (PrivilegedActionException e) {
 	    // Remove host information if caller does not have privileges
 	    // to see it.

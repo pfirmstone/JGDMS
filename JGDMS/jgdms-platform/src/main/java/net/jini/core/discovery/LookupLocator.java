@@ -31,7 +31,6 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.Socket;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -169,7 +168,7 @@ public class LookupLocator implements Serializable {
      * Only this constructor doesn't check invariants.
      * @param uri 
      */
-    private LookupLocator(URI uri){
+    private LookupLocator(Uri uri){
 	super();
         scheme = uri.getScheme();
         host = uri.getHost();
@@ -182,7 +181,7 @@ public class LookupLocator implements Serializable {
      * @param port
      * @return 
      */
-    private static URI parseURI(String scheme, String host, int port){
+    private static Uri parseURI(String scheme, String host, int port){
 	if (host == null) {
             throw new NullPointerException("null host");
         }
@@ -198,11 +197,11 @@ public class LookupLocator implements Serializable {
         }
     }
     
-    public LookupLocator(GetArg arg) throws IOException{
+    public LookupLocator(GetArg arg) throws IOException, ClassNotFoundException{
 	this(parseURI(getScheme(arg), arg.get("host", null, String.class), arg.get("port", 0)));
     }
     
-    private static String getScheme(GetArg arg) throws IOException{
+    private static String getScheme(GetArg arg) throws IOException, ClassNotFoundException{
         String scheme = "jini";
         try {
             scheme = arg.get("scheme", scheme, String.class);
@@ -247,13 +246,13 @@ public class LookupLocator implements Serializable {
     /**
      * Check invariants before super() is called.
      */
-    private static URI parseURI(String url) throws MalformedURLException {
+    private static Uri parseURI(String url) throws MalformedURLException {
         if (url == null) {
             throw new NullPointerException("url is null");
         }
-        URI uri = null;
+        Uri uri = null;
         try {
-            uri = Uri.uriToURI(Uri.parseAndCreate(url));
+            uri = Uri.parseAndCreate(url);
         } catch (URISyntaxException e) {
             MalformedURLException mue
                     = new MalformedURLException("URI parsing failure: " + url);
@@ -283,7 +282,7 @@ public class LookupLocator implements Serializable {
         if (port == -1) {
             port = "https".equals(scheme)? HTTPS_DISCOVERY_PORT : DISCOVERY_PORT;
             try {
-                uri = new URI(
+                uri = new Uri(
                         uri.getScheme(),
                         uri.getRawUserInfo(),
                         uri.getHost(), 

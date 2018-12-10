@@ -96,6 +96,7 @@ import org.apache.river.resource.Service;
 public final class ClassLoading {
     private final static Logger logger = Logger.getLogger(ClassLoading.class.getName());
     private static volatile RMIClassLoaderSpi provider;
+    private static SecurityException exception;
     private static final Object lock = new Object();
     private static final Guard permission = new RuntimePermission("setFactory");
     
@@ -135,26 +136,31 @@ public final class ClassLoading {
                 Iterator<RMIClassLoaderSpi> iter = 
 			Service.providers(RMIClassLoaderSpi.class, providerLoader);
                 RMIClassLoaderSpi spi;
-                try {
-                    while ( iter.hasNext() ) {
-                        try {
-                            spi = iter.next();
-                            if (spi != null) {
-                                if (!name.equals(spi.getClass().getName()))
-                                    continue;
-                                logger.log(Level.CONFIG, "loaded: {0}", name);
-                                return spi;
-                            }
-                        } catch (Throwable e) {
-                            logger.log( 
-                                    Level.CONFIG, 
-                                    "error loading RMIClassLoaderSpi: {0}",
-                                    new Object[]{e}
-                            );
-                        }
-                    }
-                } catch (Throwable t) { }
-                logger.log(Level.CONFIG, "uable to find {0}" , name);
+		while ( iter.hasNext() ) {
+		    try {
+			spi = iter.next();
+			if (spi != null) {
+			    if (!name.equals(spi.getClass().getName()))
+				continue;
+			    logger.log(Level.CONFIG, "loaded: {0}", name);
+			    return spi;
+			}
+		    } catch (Throwable e) {
+			logger.log( 
+				Level.CONFIG, 
+				"error loading RMIClassLoaderSpi: {0}",
+				new Object[]{e}
+			);
+		        if (e instanceof ExceptionInInitializerError){
+			    e = ((ExceptionInInitializerError)e).getCause();
+			} 
+		        if (e instanceof SecurityException){
+			    exception = (SecurityException) e;
+			    return null;
+			}
+		    }
+		}
+                logger.log(Level.CONFIG, "Unable to find {0}" , name);
                 return null;
             }
         });
@@ -236,6 +242,7 @@ public final class ClassLoading {
     public static ClassLoader getClassLoader(String codebase)
         throws MalformedURLException, SecurityException
     {
+	if (exception != null) throw exception;
         if (provider != null) return provider.getClassLoader(codebase);
         return RMIClassLoader.getClassLoader(codebase);
     }

@@ -82,7 +82,7 @@ public final class ClientMinPrincipalType
      *         underlying <code>InputStream</code>
      * @throws InvalidObjectException if object invariants aren't satisfied.
      */
-    public ClientMinPrincipalType(GetArg arg) throws IOException{
+    public ClientMinPrincipalType(GetArg arg) throws IOException, ClassNotFoundException{
 	this(verify(arg.get("classes", null, Class[].class)));
     }
     

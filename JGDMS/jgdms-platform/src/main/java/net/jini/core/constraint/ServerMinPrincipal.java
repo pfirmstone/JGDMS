@@ -77,7 +77,7 @@ public final class ServerMinPrincipal
      */
     private final Principal[] principals;
     
-    public ServerMinPrincipal(GetArg arg) throws IOException{
+    public ServerMinPrincipal(GetArg arg) throws IOException, ClassNotFoundException{
 	this(validate(arg.get("principals", null, Principal[].class)), true);
     }
     

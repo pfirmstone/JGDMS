@@ -214,8 +214,21 @@ class EmulatedFieldsForLoading extends ObjectInputStream.GetField {
      *             If the corresponding field can not be found.
      */
     @Override
-    public Object get(String name, Object defaultValue) throws IOException, IllegalArgumentException {
-	return emulatedFields.get(name, defaultValue);
+    public Object get(String name, Object defaultValue) 
+	    throws IOException, IllegalArgumentException {
+	try {
+	    return emulatedFields.get(name, defaultValue, null);
+	} catch (ClassNotFoundException ex) {
+	    // Need to throw something more specific, so upper calls
+	    // can rethrow class not found exception.
+	    throw new IOException("Unable to get field: " + name, ex);
+	}
+    }
+    
+    public <T> T get(String name, T defaultValue, Class<T> type)
+	    throws IOException, IllegalArgumentException, ClassNotFoundException 
+    {
+	return emulatedFields.get(name, defaultValue, type);
     }
 
     /**

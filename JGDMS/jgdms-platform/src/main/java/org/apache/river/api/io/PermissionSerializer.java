@@ -192,7 +192,7 @@ final class PermissionSerializer implements Serializable {
      * @param arg
      * @throws IOException 
      */
-    PermissionSerializer (GetArg arg) throws IOException {
+    PermissionSerializer (GetArg arg) throws IOException, ClassNotFoundException {
 	this( 
 	    create(
 		arg.get("targetType", null, Class.class),

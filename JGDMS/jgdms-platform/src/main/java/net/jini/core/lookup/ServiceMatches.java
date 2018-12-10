@@ -59,7 +59,7 @@ public class ServiceMatches implements java.io.Serializable {
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      */
-    public ServiceMatches(GetArg arg) throws IOException {
+    public ServiceMatches(GetArg arg) throws IOException, ClassNotFoundException {
 	// The only invariant is the ServiceItem[] type check, which is done
 	// before super() is called.
 	// arg can be null, required to pass ToStringTest legacy test.

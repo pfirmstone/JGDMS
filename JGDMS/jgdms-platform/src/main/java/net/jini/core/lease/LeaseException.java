@@ -52,7 +52,7 @@ public class LeaseException extends AtomicException {
 	super(reason);
     }
     
-    public LeaseException(GetArg arg) throws IOException {
+    public LeaseException(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
     }
 }

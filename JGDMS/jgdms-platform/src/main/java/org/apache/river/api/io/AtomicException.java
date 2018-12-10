@@ -72,7 +72,7 @@ public abstract class AtomicException extends Exception {
 	super(cause);
     }
     
-    protected AtomicException(GetArg arg) throws IOException{
+    protected AtomicException(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("message", null, String.class),
 	     arg.get("cause", null, Throwable.class),
 	     arg.get("stack", null, StackTraceElement[].class),
@@ -97,7 +97,9 @@ public abstract class AtomicException extends Exception {
     private void writeObject(ObjectOutputStream out) throws IOException {
 	ObjectOutputStream.PutField pf = out.putFields();
 	pf.put("message", super.getMessage());
-	pf.put("cause", super.getCause());
+	Throwable cause = super.getCause();
+	if (cause == this) cause = null;
+	pf.put("cause", cause);
 	pf.put("stack", super.getStackTrace());
 	pf.put("suppressed", super.getSuppressed());
 	out.writeFields();

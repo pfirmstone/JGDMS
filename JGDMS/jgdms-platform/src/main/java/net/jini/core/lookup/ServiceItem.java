@@ -63,7 +63,7 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      */
-    public ServiceItem(GetArg arg) throws IOException {
+    public ServiceItem(GetArg arg) throws IOException, ClassNotFoundException {
 	this( arg == null ? null: arg.get("serviceID", null, ServiceID.class),
 	      arg == null ? null: arg.get("service", null),
 	      arg == null ? null: arg.get("attributeSets", null, Entry[].class));

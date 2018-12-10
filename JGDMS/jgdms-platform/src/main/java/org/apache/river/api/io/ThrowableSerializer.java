@@ -23,6 +23,7 @@ import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
@@ -30,6 +31,7 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URISyntaxException;
 import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -111,13 +113,18 @@ class ThrowableSerializer implements Serializable {
 	suppressed = t.getSuppressed();
         if (t instanceof InvalidClassException) {
             classname = ((InvalidClassException)t).classname;
-        } else {
+        } else if (t instanceof URISyntaxException){
+	    classname = ((URISyntaxException)t).getInput();
+	} else {
             classname = null;
         }
         if (t instanceof OptionalDataException) {
             length = ((OptionalDataException)t).length;
             eof = ((OptionalDataException)t).eof;
-        } else {
+        } else if (t instanceof URISyntaxException){
+	    length = ((URISyntaxException)t).getIndex();
+	    eof = false;
+	} else {
             length = 0;
             eof = false;
         }
@@ -143,14 +150,22 @@ class ThrowableSerializer implements Serializable {
 	}
     }
     
-    public ThrowableSerializer(GetArg arg) throws IOException{
+    public ThrowableSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg));
     }
     
-    private static Throwable check(GetArg arg) throws IOException{
+    private static Throwable check(GetArg arg) throws IOException, ClassNotFoundException{
 	@SuppressWarnings("unchecked")
-	Class<? extends Throwable>clas = Valid.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
-        if (!Throwable.class.isAssignableFrom(clas)) throw new InvalidObjectException("clazz must be assignable to Throwable");
+	Class<? extends Throwable> clas = null;
+	try {
+	    clas = Valid.notNull(arg.get("clazz", null, Class.class), "clazz cannot be null");
+	} catch (ClassNotFoundException e){
+	    throw e;
+	    //TODO: create a throwable with exception class name, message and
+	    //stack trace then add it as a suppressed exception.
+	}
+        if (!Throwable.class.isAssignableFrom(clas)) 
+	    throw new InvalidObjectException("clazz must be assignable to Throwable");
 	logger.log(Level.FINER, "deserializing {0}", clas);
 	String message = arg.get("message", null, String.class);
 	Throwable cause = arg.get("cause", null, Throwable.class);
@@ -166,6 +181,9 @@ class ThrowableSerializer implements Serializable {
         if (InvalidClassException.class.equals(clas)){
             result = new InvalidClassException(classname, message);
             if (cause != null) result.initCause(cause);
+	} else if (URISyntaxException.class.equals(clas)){
+	    result = new URISyntaxException(classname, message, length);
+	    if (cause != null) result.initCause(cause);
         } else if (OptionalDataException.class.equals(clas)){
             try {
                 if (length > 0) {

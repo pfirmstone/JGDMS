@@ -47,7 +47,7 @@ class FileSerializer implements Serializable{
 	file = new File(uri);
     }
     
-    public FileSerializer(GetArg arg) throws IOException{
+    public FileSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("path", null, URI.class));
     }
     

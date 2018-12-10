@@ -78,7 +78,7 @@ class ActivationGroupDescSerializer implements Serializable {
      * @param arg
      * @throws IOException 
      */
-    ActivationGroupDescSerializer(GetArg arg) throws IOException {
+    ActivationGroupDescSerializer(GetArg arg) throws IOException, ClassNotFoundException {
 	this( 
 	    new ActivationGroupDesc(
 	    // A null group class name indicates the system's default ActivationGroup implementation.
@@ -91,7 +91,7 @@ class ActivationGroupDescSerializer implements Serializable {
 	);
     }
     
-    private static Properties getProperties(GetArg arg) throws IOException{
+    private static Properties getProperties(GetArg arg) throws IOException, ClassNotFoundException{
 	Map properties = arg.get("properties", null, Properties.class);
 	Properties prop = new Properties();
 	Set<Map.Entry> set = properties.entrySet();
@@ -155,7 +155,7 @@ class ActivationGroupDescSerializer implements Serializable {
 	 * @param arg
 	 * @throws IOException 
 	 */
-	CmdEnv(GetArg arg) throws IOException{
+	CmdEnv(GetArg arg) throws IOException, ClassNotFoundException{
 	    this( new CommandEnvironment(
 		    arg.get("cmdPath", null, String.class),
 		    arg.get("argv", null, String[].class)

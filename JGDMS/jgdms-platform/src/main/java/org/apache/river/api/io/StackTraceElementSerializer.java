@@ -75,7 +75,7 @@ class StackTraceElementSerializer implements Serializable {
      * @param arg
      * @throws IOException 
      */
-    public StackTraceElementSerializer(GetArg arg) throws IOException{
+    public StackTraceElementSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(Valid.notNull(arg.get("declaringClass", null, String.class),
 		"declaring class cannot be null"),
 	    Valid.notNull(arg.get("methodName", null, String.class),

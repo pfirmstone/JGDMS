@@ -64,7 +64,7 @@ public interface TransactionManager extends Remote, TransactionConstants {
 	 * @throws IOException if there are I/O errors while reading from GetArg's
 	 *         underlying <code>InputStream</code>
 	 */
-	public Created(GetArg arg) throws IOException{
+	public Created(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("id", 0L),
 		 arg.get("lease", null, Lease.class)
 	    );

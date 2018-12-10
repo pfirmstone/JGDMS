@@ -67,7 +67,7 @@ public interface NestableTransaction extends Transaction {
 	    this.lease = lease;
         }
 	
-	public Created(GetArg arg) throws IOException{
+	public Created(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("transaction", null, NestableTransaction.class),
 		 arg.get("lease", null, Lease.class)
 	    );
