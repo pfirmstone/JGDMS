@@ -27,16 +27,19 @@ import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TreeMap;
+import net.jini.constraint.BasicMethodConstraints.MethodDesc;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
- * Basic implementation of {@link MethodConstraints}, allowing limited
- * wildcard matching on method names and parameter types. Methods can be
- * specified by exact name and parameter types (matching a single method),
+ * A string only implementation of {@link MethodConstraints}, allowing limited
+ * wildcard matching on method names and parameter class name strings. Methods can be
+ * specified by exact name and parameter class names (matching a single method),
  * by exact name (matching all methods with that name), by name prefix
  * (matching all methods with names that start with that prefix), by name
  * suffix (matching all methods with names that end with that suffix), and
@@ -45,29 +48,29 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * {@link net.jini.config.Configuration} rather than being
  * explicitly constructed.
  *
- * @author Sun Microsystems, Inc.
+ * Canonical class name strings are used in place of class instances for
+ * serialization compatiblity, to avoid ClassNotFoundExceptions or the
+ * requirement to use codebase annotations, when classes don't exist.
  * 
- * @since 2.0
- * @deprecated use @link{StringMethodConstraints} instead
+ * @since 3.1
  */
-@Deprecated
 @AtomicSerial
-public final class BasicMethodConstraints
+public final class StringMethodConstraints
 			implements MethodConstraints, Serializable
 {
-    private static final long serialVersionUID = 1432234194703790047L;
+    private static final long serialVersionUID = 1L;
 
     /**
      * @serialField descs MethodDesc[] The ordered method descriptors.
      */
     private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("descs", MethodDesc[].class, true)
+        new ObjectStreamField("descs", StringMethodDesc[].class, true)
     };
 
     /**
      * The ordered method descriptors.
      */
-    private final MethodDesc[] descs;
+    private final StringMethodDesc[] descs;
 
     /**
      * Descriptor for specifying the constraints associated with one or
@@ -79,10 +82,10 @@ public final class BasicMethodConstraints
      * names that end with that suffix), and by a default that matches all
      * methods.
      *
-     * @since 2.0
+     * @since 3.1
      */
     @AtomicSerial
-    public static final class MethodDesc implements Serializable {
+    public static final class StringMethodDesc implements Serializable {
 	private static final long serialVersionUID = 6773269226844208999L;
 
 	/**
@@ -100,7 +103,7 @@ public final class BasicMethodConstraints
 	 */
 	private static final ObjectStreamField[] serialPersistentFields = {
 	    new ObjectStreamField("name", String.class),
-	    new ObjectStreamField("types", Class[].class, true),
+	    new ObjectStreamField("types", String[].class, true),
 	    new ObjectStreamField("constraints", InvocationConstraints.class)
 	};
 
@@ -115,34 +118,34 @@ public final class BasicMethodConstraints
 	 * The formal parameter types of the method, in declared order,
 	 * or <code>null</code> for wildcard parameter types.
 	 */
-	final Class[] types;
+	final String[] types;
 	/**
 	 * The non-empty constraints for the specified method or methods, or
 	 * <code>null</code> if there are no constraints.
 	 */
 	final InvocationConstraints constraints;
 
-	private MethodDesc(boolean check, 
+	private StringMethodDesc(boolean check, 
 			   String name,
-			   Class[] types,
+			   String[] types,
 			   InvocationConstraints constraints)
 	{
 	    this.name = name;
-	    this.types = types == null ? null : (Class[]) types.clone();
+	    this.types = types;// == null ? null : types.clone();
 	    if (constraints != null && constraints.isEmpty()) {
 		constraints = null;
 	    }
 	    this.constraints = constraints;
 	}
 	
-	public MethodDesc(GetArg arg) throws IOException, ClassNotFoundException{
+	public StringMethodDesc(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(checkSerial(
 		    arg.get("name", null, String.class),
-		    arg.get("types", null, Class[].class),
+		    arg.get("types", null, String[].class),
 		    arg.get("constraints", null, InvocationConstraints.class)
 		),
 		(String) arg.get("name", null),
-		(Class[]) arg.get("types", null),
+		(String[]) arg.get("types", null),
 		(InvocationConstraints) arg.get("constraints", null)
 	    );
 	}
@@ -163,18 +166,39 @@ public final class BasicMethodConstraints
 	 * <code>types</code> is <code>null</code> or any element of
 	 * <code>types</code> is <code>null</code>
 	 * @throws IllegalArgumentException if <code>name</code> is not a
-	 * syntactically valid method name
+	 * syntactically valid method
 	 */
-	public MethodDesc(String name,
+	public StringMethodDesc(String name,
 			  Class[] types,
 			  InvocationConstraints constraints)
 	{
-	    this(check(name, types),
+	    this(
 		name,
-		types,
+		convert(types),
 		constraints
 	    );
+	}
+	
+	private static String[] convert(Class[] types){
+	    if (types == null) return null;
+	    int len = types.length;
+	    String [] result = new String[len];
+	    for (int i = 0; i < len; i++){
+		result[i] = types[i].getCanonicalName();
 	    }
+	    return result;
+	}
+	
+	StringMethodDesc(String name,
+			   String[] types,
+			   InvocationConstraints constraints)
+	{
+	    this( check(name, types),
+		    name, 
+		    types,
+		    constraints
+	    );
+	}
 
 	/**
 	 * Creates a descriptor that matches all methods with names that
@@ -196,7 +220,7 @@ public final class BasicMethodConstraints
 	 * @throws IllegalArgumentException if <code>name</code> does not
 	 * match any syntactically valid method name
 	 */
-	public MethodDesc(String name, InvocationConstraints constraints) {
+	public StringMethodDesc(String name, InvocationConstraints constraints) {
 	    this(check(name, null),
 		name,
 		null,
@@ -214,7 +238,7 @@ public final class BasicMethodConstraints
 	 */
 	private static boolean checkSerial(
 		String name, 
-		Class[] types,
+		String[] types,
 		InvocationConstraints constraints) throws InvalidObjectException
 	{
 	    if (name == null) {
@@ -244,7 +268,7 @@ public final class BasicMethodConstraints
 	 * the first character of that name with '*', and verifies that none
 	 * of the elements of types are null.
 	 */
-	private static boolean check(String name, Class[] types) {
+	private static boolean check(String name, String[] types) {
 	    boolean star = types == null;
 	    int len = name.length();
 	    if (len == 0) {
@@ -282,7 +306,7 @@ public final class BasicMethodConstraints
 	 *
 	 * @param constraints the constraints, or <code>null</code>
 	 */
-	public MethodDesc(InvocationConstraints constraints) {
+	public StringMethodDesc(InvocationConstraints constraints) {
 	     this(false,
 		null,
 		null,
@@ -311,8 +335,8 @@ public final class BasicMethodConstraints
 	 * @return the parameter types, or <code>null</code> if this
 	 * descriptor matches all parameter types or all methods
 	 */
-	public Class[] getParameterTypes() {
-	    return types == null ? null : (Class[]) types.clone();
+	public String[] getParameterTypes() {
+	    return types == null ? null : types.clone();
 	}
 
 	/**
@@ -349,10 +373,10 @@ public final class BasicMethodConstraints
 	public boolean equals(Object obj) {
 	    if (this == obj) {
 		return true;
-	    } else if (!(obj instanceof MethodDesc)) {
+	    } else if (!(obj instanceof StringMethodDesc)) {
 		return false;
 	    }
-	    MethodDesc od = (MethodDesc) obj;
+	    StringMethodDesc od = (StringMethodDesc) obj;
 	    return ((name == null ?
 		     od.name == null : name.equals(od.name)) &&
 		    Arrays.equals(types, od.types) &&
@@ -382,7 +406,7 @@ public final class BasicMethodConstraints
 		    if (i > 0) {
 			buf.append(", ");
 		    }
-		    buf.append(types[i].getName());
+		    buf.append(types[i]);
 		}
 		buf.append(')');
 	    }
@@ -413,6 +437,31 @@ public final class BasicMethodConstraints
 	    checkSerial(name, types, constraints);
             }
         }
+    
+    private static StringMethodDesc[] convert(MethodDesc[] descs){
+	int len = descs.length;
+	StringMethodDesc[] result = new StringMethodDesc[len];
+	for (int i = 0; i < len; i++){
+	    result [i] = descs[i].getName() != null ?
+		new StringMethodDesc(
+		    descs[i].getName(),
+		    descs[i].getParameterTypes(),
+		    descs[i].getConstraints()
+		)
+		: new StringMethodDesc(descs[i].getConstraints());
+	}
+	check(result);
+	return result;
+    }
+    
+    /**
+     * Creates a new StringMethodConstraints instance from BasicMethodConstraints.
+     * 
+     * @param constraints 
+     */
+    public StringMethodConstraints(BasicMethodConstraints constraints){
+	this(true, convert(constraints.getMethodDescs()));
+    }
 
     /**
      * Creates an instance with the specified ordered array of descriptors.
@@ -431,7 +480,7 @@ public final class BasicMethodConstraints
      * if any descriptor is preceded by another descriptor that matches at
      * least the same methods
      */
-    public BasicMethodConstraints(MethodDesc[] descs) {
+    public StringMethodConstraints(StringMethodDesc[] descs) {
 	this(check(descs), descs.clone());
     }
     
@@ -444,9 +493,9 @@ public final class BasicMethodConstraints
      *         underlying <code>InputStream</code>
      * @throws InvalidObjectException if object invariants aren't satisfied.
      */
-    public BasicMethodConstraints(GetArg arg) throws IOException, ClassNotFoundException{
-	this(checkSerial(arg.get("descs", null, MethodDesc[].class)),
-	     arg.get("descs", new MethodDesc[0], MethodDesc[].class).clone());
+    public StringMethodConstraints(GetArg arg) throws IOException, ClassNotFoundException{
+	this(checkSerial(arg.get("descs", null, StringMethodDesc[].class)),
+	     arg.get("descs", new StringMethodDesc[0], StringMethodDesc[].class).clone());
     }
     
     /**
@@ -454,11 +503,11 @@ public final class BasicMethodConstraints
      * @param check
      * @param descs 
      */
-    private BasicMethodConstraints(boolean check, MethodDesc[] descs){
+    private StringMethodConstraints(boolean check, StringMethodDesc[] descs){
 	this.descs = descs;
     }
 
-    private static boolean checkSerial(MethodDesc[] descs) throws InvalidObjectException{
+    private static boolean checkSerial(StringMethodDesc[] descs) throws InvalidObjectException{
 	try {
 	    return check(descs);
 	} catch (RuntimeException e) {
@@ -473,13 +522,13 @@ public final class BasicMethodConstraints
      * least the same methods. Throws NullPointerException if the array or
      * any element is null.
      */
-    private static boolean check(MethodDesc[] descs) {
+    private static boolean check(StringMethodDesc[] descs) {
 	if (descs.length == 0) {
 	    throw new IllegalArgumentException(
 					 "must have at least one descriptor");
 	}
 	for (int i = 0; i < descs.length; i++) {
-	    MethodDesc desc = descs[i];
+	    StringMethodDesc desc = descs[i];
 	    String dname = desc.name;
 	    if (dname == null) {
 		if (i < descs.length - 1) {
@@ -489,7 +538,7 @@ public final class BasicMethodConstraints
 	    } else if (dname.charAt(0) == '*') {
 		int dlen = dname.length() + 1;
 		for (int j = 0; j < i; j++) {
-		    MethodDesc prev = descs[j];
+		    StringMethodDesc prev = descs[j];
 		    String pname = prev.name;
 		    if (pname.charAt(0) == '*' &&
 			pname.regionMatches(1, dname, dlen - pname.length(),
@@ -500,7 +549,7 @@ public final class BasicMethodConstraints
 		}
 	    } else if (dname.charAt(dname.length() - 1) == '*') {
 		for (int j = 0; j < i; j++) {
-		    MethodDesc prev = descs[j];
+		    StringMethodDesc prev = descs[j];
 		    String pname = prev.name;
 		    int plen = pname.length() - 1;
 		    if (pname.charAt(plen) == '*' &&
@@ -511,7 +560,7 @@ public final class BasicMethodConstraints
 		}
 	    } else {
 		for (int j = 0; j < i; j++) {
-		    MethodDesc prev = descs[j];
+		    StringMethodDesc prev = descs[j];
 		    String pname = prev.name;
 		    int plen = pname.length() - 1;
 		    if (pname.charAt(0) == '*') {
@@ -539,7 +588,7 @@ public final class BasicMethodConstraints
      * Throws IllegalArgumentException if the parameter types of prev cover
      * those of desc.
      */
-    private static void check(MethodDesc prev, MethodDesc desc) {
+    private static void check(StringMethodDesc prev, StringMethodDesc desc) {
 	if (prev.types == null || Arrays.equals(prev.types, desc.types)) {
 	    StringBuffer buf = new StringBuffer();
 	    prev.toString(buf, false);
@@ -558,8 +607,8 @@ public final class BasicMethodConstraints
      *
      * @param constraints the constraints, or <code>null</code>
      */
-    public BasicMethodConstraints(InvocationConstraints constraints) {
-	descs = new MethodDesc[]{new MethodDesc(constraints)};
+    public StringMethodConstraints(InvocationConstraints constraints) {
+	descs = new StringMethodDesc[]{new StringMethodDesc(constraints)};
     }
 
     /**
@@ -576,7 +625,7 @@ public final class BasicMethodConstraints
 	InvocationConstraints sc = null;
     outer:
 	for (int i = 0; i < descs.length; i++) {
-	    MethodDesc desc = descs[i];
+	    StringMethodDesc desc = descs[i];
 	    String dname = desc.name;
 	    if (dname == null) {
 		sc = desc.constraints;
@@ -592,7 +641,7 @@ public final class BasicMethodConstraints
 		    continue;
 		}
 		for (int j = types.length; --j >= 0; ) {
-		    if (types[j] != desc.types[j]) {
+		    if (!types[j].getCanonicalName().equals(desc.types[j])) {
 			continue outer;
 		    }
 		}
@@ -659,13 +708,63 @@ public final class BasicMethodConstraints
     }
     
     /**
+     * Creates a new BasicMethodConstraints instance that contains all constraints
+     * in both this and the passed in constraints in an order that ensures
+     * that preceeding method descriptors don't match all methods that later 
+     * descriptors do;
+     * 
+     * @param constraints to be combined with this.
+     * @return a new BasicMethodConstraints instance.
+     */
+    public StringMethodConstraints combine(StringMethodConstraints constraints){
+	if (constraints == null) throw 
+		new NullPointerException("constraints cannot be null");
+	Map<MethodKey,InvocationConstraints> methodConstraints 
+		= new TreeMap<MethodKey, InvocationConstraints>();
+	for (int i = 0, l = descs.length; i < l; i++){
+	    methodConstraints.put(
+		new MethodKey(descs[i].getName(), descs[i].getParameterTypes()),
+		descs[i].getConstraints()
+	    );
+	}
+	StringMethodDesc[] newDescs = constraints.getMethodDescs();
+	for (int i = 0, l = newDescs.length; i < l; i++){
+	    MethodKey key = new MethodKey(
+		    newDescs[i].getName(),
+		    newDescs[i].getParameterTypes()
+	    );
+	    InvocationConstraints existCons = methodConstraints.get(key);
+	    if (existCons != null){
+		InvocationConstraints combCons = InvocationConstraints.combine(existCons, newDescs[i].getConstraints());
+		methodConstraints.replace(key, existCons, combCons);
+		continue;
+	    }
+	    methodConstraints.put(key, newDescs[i].getConstraints());
+	}
+	int len = methodConstraints.size();
+	StringMethodDesc[] combinedDescs = new StringMethodDesc[len];
+	Iterator<Map.Entry<MethodKey, InvocationConstraints>> ents 
+		= methodConstraints.entrySet().iterator();
+	for (int i = 0; ents.hasNext(); i++){
+	    Map.Entry<MethodKey, InvocationConstraints> ent = ents.next();
+	    MethodKey key = ent.getKey();
+	    if (key.name == null) {
+		combinedDescs[i] = new StringMethodDesc(ent.getValue());
+	    } else {
+		combinedDescs[i] = new StringMethodDesc(key.name, key.parameters, ent.getValue());
+	    }
+	}
+	return new StringMethodConstraints(check(combinedDescs), combinedDescs);
+    }
+
+    /**
      * Returns the descriptors. Returns a new non-<code>null</code> array
      * every time it is called.
      *
      * @return the descriptors as a new non-<code>null</code> array
      */
-    public MethodDesc[] getMethodDescs() {
-	return (MethodDesc[]) descs.clone();
+    public StringMethodDesc[] getMethodDescs() {
+	return (StringMethodDesc[]) descs.clone();
     }
 
     /**
@@ -696,8 +795,8 @@ public final class BasicMethodConstraints
      */
     public boolean equals(Object obj) {
 	return (this == obj ||
-		(obj instanceof BasicMethodConstraints &&
-		 Arrays.equals(descs, ((BasicMethodConstraints) obj).descs)));
+		(obj instanceof StringMethodConstraints &&
+		 Arrays.equals(descs, ((StringMethodConstraints) obj).descs)));
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {
@@ -749,5 +848,98 @@ public final class BasicMethodConstraints
 	    throw ee;
 	}
 	throw e;
+    }
+    
+    /**
+     * Order is based on natural ordering that ensures preceeding keys don't 
+     * match all methods of later orderings.
+     */
+    private static class MethodKey implements Comparable<MethodKey>{
+	private final String name;
+	private final String[] parameters;
+	private final int hashCode;
+	
+	MethodKey(String name, String[] parameters){
+	    this.name = name;
+	    this.parameters = parameters;
+	    int hash = 7;
+	    hash = 97 * hash + (this.name != null ? this.name.hashCode() : 0);
+	    hash = 97 * hash + Arrays.hashCode(this.parameters);
+	    this.hashCode = hash;
+	}
+	
+	@Override
+	public boolean equals(Object o){
+	    if (this == o) return true;
+	    if (!(o instanceof MethodKey)) return false;
+	    MethodKey that = (MethodKey) o;
+	    if (this.hashCode != that.hashCode) return false; // prevents NPE when name is null
+	    if (!this.name.equals(that.name)) return false;
+	    return Arrays.equals(this.parameters, that.parameters);
+	}
+
+	@Override
+	public int hashCode() {
+	    return hashCode;
+	}
+
+	public int compareTo(MethodKey o) {
+	    if (hashCode == o.hashCode) return 0;
+	    if (name == null && o.name == null) return 0; // can only be one default.
+	    // default is always last.
+	    if (name != null && o.name == null) return -1; 
+	    if (name == null && o.name != null) return 1;
+	    if (name.charAt(0) == '*') {
+		int dlen = name.length() + 1;
+		    if (o.name.charAt(0) == '*' &&
+			o.name.regionMatches(1, name, dlen - o.name.length(),
+					    o.name.length() - 1))
+		    {
+			if (o.parameters == null || 
+			    Arrays.equals(parameters, o.parameters)) return -1;
+			return 1;
+		    }
+		
+	    }
+	    if (name.charAt(name.length() - 1) == '*') {
+		int plen = o.name.length() - 1;
+		if (o.name.charAt(plen) == '*' &&
+		    o.name.regionMatches(0, name, 0, plen))
+		{
+		    if (o.parameters == null || 
+			Arrays.equals(parameters, o.parameters)) return -1;
+		    return 1;
+		}
+	    }
+	    int plen = o.name.length() - 1;
+	    if (o.name.charAt(0) == '*') {
+		if (name.regionMatches(name.length() - plen,
+					o.name, 1, plen))
+		{
+		    if (o.parameters == null || 
+			Arrays.equals(parameters, o.parameters)) return -1;
+		    return 1;
+		}
+	    } else if (o.name.charAt(plen) == '*') {
+		if (name.regionMatches(0, o.name, 0, plen)) {
+		    if (o.parameters == null || 
+			Arrays.equals(parameters, o.parameters)) return -1;
+		    return 1;
+		}
+	    } else {
+		if (o.name.equals(name)) {
+		    if (o.parameters == null && parameters != null) return -1;
+		    return 1;
+		}
+	    }
+	    int n = name.compareTo(o.name);
+	    if ( n != 0) return n;
+	    n = parameters.length - o.parameters.length;
+	    if (n < 0) return -1;
+	    if (n > 0) return 1;
+	    n = Arrays.hashCode(parameters) - Arrays.hashCode(o.parameters);
+	    if (n > 0) return 1;
+	    return -1; // arrays aren't equal.
+	}
     }
 }
