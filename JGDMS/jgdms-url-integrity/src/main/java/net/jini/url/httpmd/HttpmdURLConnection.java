@@ -18,6 +18,8 @@
 
 package net.jini.url.httpmd;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -25,6 +27,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.jar.JarInputStream;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Pack200;
 
 /**
  * An HTTP URL connection for HTTPMD URLs.
@@ -42,6 +47,8 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
 
     /** The URL specifying the location of the data. */
     private final URL content;
+    
+    private final boolean pack200;
 
     /** Creates an HTTP URL connection for an HTTPMD URL. */
     HttpmdURLConnection(URL url) throws IOException, MalformedURLException {
@@ -54,6 +61,8 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
 	    throw new MalformedURLException(
 		"Message digest parameter is missing");
 	}
+	String filePath = path.substring(0, semiIndex);
+	pack200 = filePath.endsWith("pack.gz");
 	int equalsIndex = path.indexOf('=', semiIndex);
 	if (equalsIndex < 0) {
 	    throw new MalformedURLException(
@@ -112,6 +121,7 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
     }
 
     /** Returns our URL, not the one for the HTTP connection. */
+    @Override
     public URL getURL() {
 	return url;
     }
@@ -120,17 +130,24 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
      * Returns an input stream that uses MdInputStream to check that the input
      * has the expected message digest.
      */
+    @Override
     public InputStream getInputStream() throws IOException {
 	try {
-	    return new MdInputStream(url,
+	    InputStream result = new MdInputStream(url,
 				     delegateConnection.getInputStream(),
 				     MessageDigest.getInstance(algorithm),
 				     expectedDigest);
+	    if (pack200){
+		Pack200.Unpacker unpacker = Pack200.newUnpacker();
+		ByteArrayOutputStream baos = new ByteArrayOutputStream(102400);
+		JarOutputStream jout = new JarOutputStream(baos);
+		unpacker.unpack(result, jout);
+		result = new JarInputStream(new ByteArrayInputStream(baos.toByteArray()));
+	    }
+	    return result;
 	} catch (NoSuchAlgorithmException e) {
-	    IOException t = new IOException(
-		"Message digest algorithm not found: " + algorithm);
-	    t.initCause(e);
-	    throw t;
+	    throw new IOException("Message digest algorithm not found: " 
+		    + algorithm, e);
 	}
     }
 }
