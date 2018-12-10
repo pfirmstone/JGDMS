@@ -188,7 +188,8 @@ public class SharedActivationGroupDescriptor
 	}
     }
     
-    SharedActivationGroupDescriptor(GetArg arg) throws IOException{
+    SharedActivationGroupDescriptor(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	this(
 		Valid.notNull(arg.get("policy", null, String.class), "Policy cannot be null"),
 		Valid.notNull(arg.get("classpath", null, String.class), "Classpath cannot be null"),

@@ -267,7 +267,7 @@ public class ActivateWrapper implements Remote, Serializable {
 	 */
 	public final MarshalledObject data;
 	
-	public ActivateDesc(GetArg arg) throws IOException
+	public ActivateDesc(GetArg arg) throws IOException, ClassNotFoundException
 	{
 	    this(arg.get("className", null, String.class),
 		    Valid.nullElement(arg.get("importLocation", null, URL[].class),

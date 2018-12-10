@@ -341,7 +341,8 @@ public class NonActivatableServiceDescriptor
         this.servicePreparer = preparer;    
     }
     
-    public NonActivatableServiceDescriptor(GetArg arg) throws IOException{
+    public NonActivatableServiceDescriptor(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	this(arg.get("codebase", null, String.class),
 	    Valid.notNull(arg.get("policy", null, String.class), "policy cannot be null"),
 	    Valid.notNull(arg.get("classpath", null, String.class), "import codebase cannot be null"),

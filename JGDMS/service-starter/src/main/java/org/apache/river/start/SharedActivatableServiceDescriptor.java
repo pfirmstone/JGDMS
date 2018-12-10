@@ -304,7 +304,8 @@ public class SharedActivatableServiceDescriptor
         }//end constructor
     }//end class Created
 
-    public SharedActivatableServiceDescriptor(GetArg arg) throws IOException{
+    public SharedActivatableServiceDescriptor(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	this(arg,
 	    arg.get("sharedGroupLog", null, String.class),
 	    arg.get("restart", false),
@@ -318,7 +319,8 @@ public class SharedActivatableServiceDescriptor
 						// Optional Args,      
 						boolean restart,
 						String host,
-						int port) throws IOException
+						int port) 
+	    throws IOException, ClassNotFoundException
     {
 	super(arg);
 	this.sharedGroupLog = sharedGroupLog;

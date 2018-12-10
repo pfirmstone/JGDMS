@@ -124,7 +124,8 @@ public final class SharedActivationPolicyPermission extends Permission
 	this.policyPermission = policyPermission;
     }
     
-    public SharedActivationPolicyPermission(GetArg arg) throws IOException{
+    public SharedActivationPolicyPermission(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	this(
 	    Valid.notNull(
 		arg.get("policy", null, String.class), "policy cannot be null"
