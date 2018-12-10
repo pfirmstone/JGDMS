@@ -21,12 +21,15 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InvalidObjectException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -211,8 +214,14 @@ public class ProxyBundleProvider implements ProxyCodebaseSpi, BundleActivator {
 	    }
 	    if (proxyBundlePath == null) proxyBundlePath = codebases[0].toString();
 	    try {
-		Bundle proxyBundle = bc.installBundle(proxyBundlePath);
-		loader = new BundleDelegatingClassLoader(proxyBundle);
+		final Bundle proxyBundle = bc.installBundle(proxyBundlePath);
+		loader = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>(){
+
+		    public ClassLoader run() {
+			return new BundleDelegatingClassLoader(proxyBundle);
+		    }
+		    
+		});
 		ClassLoader existed = cache.putIfAbsent(loaderKey, loader);
 		if (existed != null){
 		    loader = existed;
@@ -225,8 +234,15 @@ public class ProxyBundleProvider implements ProxyCodebaseSpi, BundleActivator {
 	    }
 	}
 	Object sp = smartProxy.get(loader, true, null, context);
-//	if (sp instanceof RemoteMethodControl)
-//	    sp = ((RemoteMethodControl)sp).setConstraints(mc);
+	if (mc != null){
+	    if (sp instanceof RemoteMethodControl){
+		sp = ((RemoteMethodControl)sp).setConstraints(mc);
+	    } else {
+		throw new InvalidObjectException(
+		    "Proxy must be an instance of RemoteMethodControl, when constraints are in force"
+		);
+	    }
+	}
 	return sp;
     }
 
