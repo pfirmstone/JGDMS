@@ -529,7 +529,9 @@ public interface JavaSpace05 extends JavaSpace {
      *         positive nor {@link Lease#ANY Lease.ANY}
      * @throws NullPointerException if <code>tmpls</code> or
      *         <code>listener</code> is <code>null</code> 
+     * @deprecated
      */
+    @Deprecated
     public EventRegistration 
 	registerForAvailabilityEvent(Collection          tmpls, 
 				     Transaction         txn,

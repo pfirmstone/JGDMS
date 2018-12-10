@@ -63,13 +63,14 @@ public class ThrowThis extends AtomicException {
      * AtomicSerial
      * @param arg
      * @throws IOException 
+     * @throws java.lang.ClassNotFoundException 
      */
-    public ThrowThis(GetArg arg) throws IOException{
+    public ThrowThis(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	toThrow = arg.get("toThrow", null, RemoteException.class);
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	Valid.notNull(arg.get("toThrow", null, RemoteException.class),
 		"RemoteException cannot be null");
 	return arg;

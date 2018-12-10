@@ -213,7 +213,7 @@ public class LeaseUnmarshalException extends AtomicException {
 	this.exceptions = exceptions;
     }
     
-    public LeaseUnmarshalException(GetArg arg) throws IOException
+    public LeaseUnmarshalException(GetArg arg) throws IOException, ClassNotFoundException
     {
 	super(validateSerial(arg));
 	unmarshalledLeases 
@@ -224,7 +224,7 @@ public class LeaseUnmarshalException extends AtomicException {
 	    = Valid.copy(arg.get("exceptions", null, Throwable[].class));
     }
     
-    private static GetArg validateSerial(GetArg arg) throws IOException{
+    private static GetArg validateSerial(GetArg arg) throws IOException, ClassNotFoundException{
 	MarshalledObject[] marshalledLeases 
 	    = arg.get("stillMarshalledLeases", null, MarshalledObject[].class);
 	Throwable[] exceptions = arg.get("exceptions", null, Throwable[].class);

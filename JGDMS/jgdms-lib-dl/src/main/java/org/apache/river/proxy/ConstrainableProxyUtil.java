@@ -20,6 +20,9 @@ package org.apache.river.proxy;
 
 import java.io.InvalidObjectException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import net.jini.constraint.BasicMethodConstraints.MethodDesc;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
@@ -78,6 +81,48 @@ public class ConstrainableProxyUtil {
 		methodConstraints.getConstraints(from));
 	}
 	return new BasicMethodConstraints(descs);
+    }
+    
+    /**
+     * Creates a {@link MethodConstraints} using the constraints in
+     * <code>methodConstraints</code>, but with the methods remapped according
+     * to <code>mappings</code>, where the second element of each pair of
+     * elements is mapped to the first.  For example, if
+     * <code>methodConstraints</code> returns constraints <code>C1</code> for
+     * method <code>M1</code>, and the elements of mappings are methods
+     * <code>M1</code> and <code>M2</code>, then the resulting method
+     * constraints return <code>C1</code> for method <code>M2</code>.
+     *
+     * @param methodConstraints the method constraints whose methods should be
+     *	      reverse translated, or <code>null</code> for empty constraints
+     * @param mappings the method mappings
+     * @return the reverse translated method constraints
+     * @throws NullPointerException if <code>mappings</code> is
+     *	       <code>null</code> or contains <code>null</code> elements
+     * @throws IllegalArgumentException if <code>mappings</code> contains an
+     *	       odd number of elements
+     */
+    public static MethodConstraints reverseTranslateConstraints(
+	MethodConstraints methodConstraints,
+	Method[] mappings)
+    {
+	if (mappings.length % 2 != 0) {
+	    throw new IllegalArgumentException("mappings has odd length");
+	} else if (methodConstraints == null) {
+	    return null;
+	}
+	int count = mappings.length / 2;
+	MethodDesc[] descs = new MethodDesc[count];
+	for (int i = mappings.length - 1; i >= 0; i-= 2) {
+	    Method to = mappings[i - 1];
+	    Method from = mappings[i];
+	    descs[--count] = new MethodDesc(
+		to.getName(), to.getParameterTypes(),
+		methodConstraints.getConstraints(from));
+	}
+	// remove any duplicates.
+	Set<MethodDesc> mdesc = new HashSet<MethodDesc>(Arrays.asList(descs));
+	return new BasicMethodConstraints(mdesc.toArray(new MethodDesc[mdesc.size()]));
     }
 
     /**

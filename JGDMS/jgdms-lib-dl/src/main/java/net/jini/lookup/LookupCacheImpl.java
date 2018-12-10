@@ -51,6 +51,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.logging.Level;
 import net.jini.config.ConfigurationException;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.entry.Entry;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
@@ -62,12 +64,8 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.export.Exporter;
-import net.jini.lookup.ServiceAttributesAccessor;
-import net.jini.lookup.ServiceIDAccessor;
-import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.TrustVerifier;
@@ -1698,14 +1696,26 @@ final class LookupCacheImpl implements LookupCache {
     /**
      * Convenience method that performs a byte-wise comparison, including
      * codebases, of the services referenced by the given service items, and
-     * returns the result. If the services cannot be compared, it is assumed
+     * returns the result. Since instances of RemoteMethodControl may
+     * have different MethodConstraints and these affect marshaled bytes, we
+     * ensure constraints are identical.
+     * 
+     * If the services cannot be compared, it is assumed
      * that the versions are not the same, and <code>false</code> is returned.
      */
     private static boolean sameVersion(ServiceItem item0, ServiceItem item1) {
 	boolean fullyEqual = false;
 	try {
-	    MarshalledInstance mi0 = new MarshalledInstance(item0.service);
-	    MarshalledInstance mi1 = new MarshalledInstance(item1.service);
+	    Object service0 = item0.service;
+	    Object service1 = item1.service;
+	    if (service0 instanceof RemoteMethodControl 
+		    && service1 instanceof RemoteMethodControl)
+	    {
+		MethodConstraints constraints = ((RemoteMethodControl)service0).getConstraints();
+		service1 = ((RemoteMethodControl) service1).setConstraints(constraints);
+	    }
+	    MarshalledInstance mi0 = new MarshalledInstance(service0);
+	    MarshalledInstance mi1 = new MarshalledInstance(service1);
 	    fullyEqual = mi0.fullyEquals(mi1);
 	} catch (IOException e) {
             if (ServiceDiscoveryManager.logger.isLoggable(Level.INFO)){

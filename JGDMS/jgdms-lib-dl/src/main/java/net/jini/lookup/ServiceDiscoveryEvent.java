@@ -143,8 +143,9 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      * AtomicSerial constructor
      * @param arg
      * @throws IOException 
+     * @throws java.lang.ClassNotFoundException 
      */
-    public ServiceDiscoveryEvent(GetArg arg) throws IOException{
+    public ServiceDiscoveryEvent(GetArg arg) throws IOException, ClassNotFoundException{
 	// source cannot be null in the constructor, but it is after 
 	// deserialization because it is transient.
 	this(Boolean.TRUE, arg.get("preEventItem", null, ServiceItem.class),

@@ -127,7 +127,7 @@ public class LeaseRenewalEvent extends EventObject {
 	this.ex = ex;
     }
     
-    public LeaseRenewalEvent(GetArg arg) throws IOException{
+    public LeaseRenewalEvent(GetArg arg) throws IOException, ClassNotFoundException{
 	this(null, 
 	     arg.get("lease", null, Lease.class), 
 	     arg.get("expiration", 0L),

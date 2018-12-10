@@ -209,15 +209,29 @@ final public class ConstrainableLandlordLease extends LandlordLease
 	this.methodConstraints = methodConstraints;
     }
 
-    ConstrainableLandlordLease(GetArg arg) throws IOException {
-	super(check(arg));
-	methodConstraints = (MethodConstraints) arg.get("methodConstraints", null);
+    ConstrainableLandlordLease(GetArg arg) 
+	    throws IOException, ClassNotFoundException {
+	this(arg, check(arg));
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    ConstrainableLandlordLease(GetArg arg, MethodConstraints constraints) 
+	    throws IOException, ClassNotFoundException{
+	super(arg);
+	this.methodConstraints = constraints;
+    }
+    
+    private static MethodConstraints check(GetArg arg) 
+	    throws IOException, ClassNotFoundException {
 	LandlordLease ll = new LandlordLease(arg);
 	MethodConstraints methodConstraints 
 		= (MethodConstraints) arg.get("methodConstraints", null);
+	MethodConstraints proxyCon = null;
+	if (ll.landlord() instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)ll.landlord()).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return ConstrainableProxyUtil.reverseTranslateConstraints(
+		    proxyCon, methodMapArray);
+	}
 	/* basic validation of landlord and cookie were performed by
 	 * LandlordLease.readObject(), we just need to verify than
 	 * landlord implements RemoteMethodControl and that it has
@@ -225,7 +239,7 @@ final public class ConstrainableLandlordLease extends LandlordLease
 	 */
 	ConstrainableProxyUtil.verifyConsistentConstraints(
             methodConstraints, ll.landlord(), methodMapArray);
-	return arg;
+	return methodConstraints;
     }
 
     /**

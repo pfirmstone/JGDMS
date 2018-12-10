@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -617,8 +618,8 @@ public class LeaseRenewalManager {
 	    if (this.id != that.id) return false;
 	    if (this.renew != that.renew) return false;
 	    if (this.renewalRTT != that.renewalRTT) return false;
-	    if (!this.lease.equals(that.lease)) return false;
-	    return this.listener.equals(that.listener);
+	    if (!Objects.equals(this.lease, that.lease)) return false;
+	    return Objects.equals(this.listener, that.listener);
 	}
 
 	@Override

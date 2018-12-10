@@ -151,7 +151,7 @@ public class UnusableEntriesException extends AtomicException {
     private UnusableEntriesException(GetArg arg,
 				     Collection<Entry> entries,
 				     Collection<UnusableEntryException> exceptions) 
-	    throws IOException
+	    throws IOException, ClassNotFoundException
     {
 	super(arg);
 	this.entries = entries.isEmpty() ? 
@@ -159,7 +159,9 @@ public class UnusableEntriesException extends AtomicException {
 	this.exceptions = exceptions;
     } 
     
-    public UnusableEntriesException(GetArg arg) throws IOException{
+    public UnusableEntriesException(GetArg arg) 
+	    throws IOException, ClassNotFoundException
+    {
 	this(arg, 
 	     arg.get("entries", null, Collection.class),
 	     Collections.unmodifiableCollection(

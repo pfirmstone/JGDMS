@@ -68,7 +68,7 @@ public final class BasicProxyTrustVerifier
 	this(check(proxy));
     }
     
-    BasicProxyTrustVerifier(GetArg arg) throws IOException{
+    BasicProxyTrustVerifier(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg.get("proxy", null, RemoteMethodControl.class)));
     }
         

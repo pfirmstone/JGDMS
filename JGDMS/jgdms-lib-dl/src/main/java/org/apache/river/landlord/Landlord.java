@@ -171,7 +171,7 @@ public interface Landlord extends Remote {
 	    this.denied = Valid.copy(denied);
 	}
 	
-	public RenewResults(GetArg arg) throws IOException, CloneNotSupportedException{
+	public RenewResults(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(Valid.notNull(arg.get("granted", null, long[].class), "granted cannot be null"),
 		arg.get("denied", null, Exception[].class));
 	}

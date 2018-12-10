@@ -25,6 +25,7 @@ import java.rmi.MarshalledObject;
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.event.RemoteEvent;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -55,7 +56,8 @@ public abstract class AvailabilityEvent extends RemoteEvent {
      */
     private final boolean visibilityTransition;
 
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	// If this class is not in the heirarchy of classes the stream
 	// may have been tampered with, see the Serialization Specification
 	// section 3.5, this is equivalent to readObjectNoData().
@@ -74,12 +76,14 @@ public abstract class AvailabilityEvent extends RemoteEvent {
 		"AvailabilityEvent should always have data");
     }
     
-    private AvailabilityEvent(GetArg arg, boolean visibilityTransition) throws IOException{
+    private AvailabilityEvent(GetArg arg, boolean visibilityTransition) 
+	    throws IOException, ClassNotFoundException{
 	super(arg);
 	this.visibilityTransition = visibilityTransition;
     }
     
-    protected AvailabilityEvent(GetArg arg) throws IOException {
+    protected AvailabilityEvent(GetArg arg) 
+	    throws IOException, ClassNotFoundException {
 	this(arg, check(arg));
     }
     
@@ -96,11 +100,35 @@ public abstract class AvailabilityEvent extends RemoteEvent {
      *                  invisible to visible
      * @throws NullPointerException if <code>source</code> is
      *        <code>null</code>
+     * @deprecated
      */
+    @Deprecated
     protected AvailabilityEvent(JavaSpace        source,
 				long             eventID,
 				long             seqNum,
 				MarshalledObject handback,
+				boolean          visibilityTransition) 
+    {
+	super(source, eventID, seqNum, handback);
+	this.visibilityTransition = visibilityTransition;
+    }
+    
+    /**
+     * Create a new <code>AvailabilityEvent</code> instance.
+     * @param source    the event source
+     * @param eventID   the event identifier
+     * @param seqNum    the event sequence number
+     * @param handback  the handback object
+     * @param visibilityTransition <code>true</code> if this event
+     *                  must also signal a transition from
+     *                  invisible to visible
+     * @throws NullPointerException if <code>source</code> is
+     *        <code>null</code>
+     */
+    protected AvailabilityEvent(JavaSpace        source,
+				long             eventID,
+				long             seqNum,
+				MarshalledInstance handback,
 				boolean          visibilityTransition) 
     {
 	super(source, eventID, seqNum, handback);

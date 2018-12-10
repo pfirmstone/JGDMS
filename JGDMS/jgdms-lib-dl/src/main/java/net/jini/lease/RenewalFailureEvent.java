@@ -68,7 +68,8 @@ public abstract class RenewalFailureEvent extends RemoteEvent {
      * @param arg
      * @throws IOException 
      */
-    protected RenewalFailureEvent(GetArg arg) throws IOException{
+    protected RenewalFailureEvent(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	super(arg);
     }
 

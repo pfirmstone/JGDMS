@@ -84,6 +84,26 @@ public abstract class AbstractIDLeaseMap<K extends Lease> extends AbstractMap<K,
                 Ref.WEAK, Ref.STRONG, 10000, 10000);
         set = new ConcurrentSkipListSet<Entry<K,Long>>();
     }
+    
+    /** 
+     * Constructor for subclasses, bypassing checkKey method. Subclasses
+     * are responsible for enforcing invariants during construction.
+     * 
+     * @param key
+     * @param value 
+     */
+    protected AbstractIDLeaseMap(K key, Long value){
+	/* This constructor was created specifically for ConstrainableFiddlerLeaseMap, 
+	 * which was not possible to complete construction as it's methodConstraints
+	 * was null at the time of it's checkKey call, which always returned
+	 * false as a result.
+	 */
+	this();
+	Object identity = getIdentity(key);
+        LeaseEntry<K> entry = new LeaseEntry<K>(identity, leaseMap, durationMap, set);
+	// Puts the first key value in map, bypassing checkKey.
+        entry.isNew(key, value);
+    }
 
     @Override
     public Set<Entry<K,Long>> entrySet() {

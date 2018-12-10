@@ -59,7 +59,7 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      */
     private final MarshalledInstance marshalledLease;
 
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	MarshalledInstance marshalledThrowable = 
 		(MarshalledInstance) arg.get("marshalledThrowable", null);
 	MarshalledInstance marshalledLease = 
@@ -69,7 +69,7 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
 	return arg;
     }
     
-    public BasicRenewalFailureEvent(GetArg arg) throws IOException {
+    public BasicRenewalFailureEvent(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
 	marshalledThrowable = 
 		(MarshalledInstance) arg.get("marshalledThrowable", null);

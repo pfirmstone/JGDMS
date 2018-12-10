@@ -110,14 +110,14 @@ public class LandlordLease extends AbstractLease
 	this.landlordUuid = landlordUuid;
     }
 
-    LandlordLease(GetArg arg) throws IOException {
+    LandlordLease(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	cookie = arg.get("cookie", null, Uuid.class);
 	landlord = arg.get("landlord", null, Landlord.class);
 	landlordUuid = arg.get("landlordUuid", null, Uuid.class);
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	Uuid cookie = arg.get("cookie", null, Uuid.class);
 	Landlord landlord = arg.get("landlord", null, Landlord.class);
 	Uuid landlordUuid = arg.get("landlordUuid", null, Uuid.class);

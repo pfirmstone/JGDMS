@@ -36,14 +36,16 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public class ExpirationWarningEvent extends RemoteEvent {
     private static final long serialVersionUID = -2020487536756927350L;
 
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) 
+	    throws IOException, ClassNotFoundException {
 	RemoteEvent sup = new RemoteEvent(arg);
 	if (sup.getID() != LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID)
 	    throw new InvalidObjectException("Illegal object state");
 	return arg;
     }
     
-    public ExpirationWarningEvent(GetArg arg) throws IOException {
+    public ExpirationWarningEvent(GetArg arg) 
+	    throws IOException, ClassNotFoundException {
 	super(check(arg));
     }
 
