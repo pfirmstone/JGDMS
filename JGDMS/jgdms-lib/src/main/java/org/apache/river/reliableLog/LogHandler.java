@@ -18,6 +18,7 @@
 
 package org.apache.river.reliableLog;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -92,6 +93,24 @@ public abstract class LogHandler {
      */
     public void readUpdate(InputStream in) throws Exception {
 	ObjectInputStream  s = new ObjectInputStream(in);
+	applyUpdate(s.readObject());
+    }
+    
+    /**
+     * Reads a stably logged update (a serializable object) from a
+     * stream.  This callback is invoked during recovery, once for
+     * every record in the log.  After reading the update, this method
+     * invokes the applyUpdate (abstract) method in order to execute
+     * the update.
+     *
+     * @param in the input stream
+     * @param loader the ClassLoader used to located class files during deserialization.
+     *
+     * @exception Exception can raise any exception
+     * @since 3.1
+     */
+    public void readUpdate(InputStream in, ClassLoader loader) throws Exception{
+	ObjectInputStream  s = new LogObjectInputStream(in, loader);
 	applyUpdate(s.readObject());
     }
 

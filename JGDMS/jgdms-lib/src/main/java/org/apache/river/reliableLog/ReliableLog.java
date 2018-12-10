@@ -137,6 +137,20 @@ public class ReliableLog {
      * @throws IOException if an other I/O error occurs
      */
     public void recover() throws IOException {
+	recover(null);
+    }
+    
+    /**
+     * Retrieves the contents of the snapshot file by calling the client
+     * supplied recover callback and then applies the incremental updates
+     * by calling the readUpdate callback for each logged updated.
+     *
+     * @param loader for locating class files during recovery.
+     * @throws LogException if recovery fails due to serious log corruption,
+     * or if an exception is thrown by the recover or readUpdate callbacks
+     * @throws IOException if an other I/O error occurs
+     */
+    public void recover(ClassLoader loader) throws IOException {
 	if (version == 0) 
 	    return;
 	
@@ -184,7 +198,7 @@ public class ReliableLog {
 		    break;
 		}
 		try {
-		    handler.readUpdate(new LogInputStream(din, updateLen));
+		    handler.readUpdate(new LogInputStream(din, updateLen), loader);
 		} catch (Exception e) {
 		    throw new LogException("read update failed", e);
 		}
