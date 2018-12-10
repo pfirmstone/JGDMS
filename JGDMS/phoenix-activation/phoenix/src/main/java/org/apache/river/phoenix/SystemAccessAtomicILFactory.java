@@ -240,7 +240,7 @@ public class SystemAccessAtomicILFactory extends AtomicILFactory{
 				ClassLoader loader)
 	    throws ExportException
 	{
-	    super(methods, serverCaps, serverConstraints, permClass, loader);
+	    super(methods, serverCaps, serverConstraints, permClass, loader, false);
 	    if (impl == null) {
 		throw new NullPointerException("impl is null");
 	    }

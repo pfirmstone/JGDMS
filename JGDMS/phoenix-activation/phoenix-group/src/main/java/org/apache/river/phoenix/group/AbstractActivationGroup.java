@@ -461,7 +461,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	    this.sys = sys;
 	}
 	
-	public WrappedGID(GetArg arg) throws IOException {
+	public WrappedGID(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg.get("id", null, ActivationGroupID.class),
 		    arg.get("sys", null, ActivationSystem.class));
 	}

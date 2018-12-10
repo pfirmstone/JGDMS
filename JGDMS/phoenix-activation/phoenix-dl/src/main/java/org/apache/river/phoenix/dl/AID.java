@@ -28,6 +28,7 @@ import java.rmi.activation.ActivationID;
 import java.rmi.server.UID;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import net.jini.activation.Resolve;
 import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -45,7 +46,7 @@ public class AID extends ActivationID {
     protected final UID uid;
 
     @AtomicSerial
-    static final class State implements Serializable, ProxyAccessor {
+    static final class State implements Serializable, ProxyAccessor, Resolve {
 	private static final long serialVersionUID = 4479839553358267720L;
 
 	private final Activator activator;
@@ -56,12 +57,12 @@ public class AID extends ActivationID {
 	    this.uid = uid;
 	}
 	
-	public State(GetArg arg) throws IOException{
+	public State(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("activator", null, Activator.class),
 		 arg.get("uid", null, UID.class));
 	}
 
-	private Object readResolve() {
+	public Object readResolve() {
 	    return new AID(activator, uid);
 	}
 
@@ -124,6 +125,13 @@ public class AID extends ActivationID {
 	    return (uid.equals(id.uid) && activator.equals(id.activator));
 	}
 	return false;
+    }
+    
+    @Override
+    public String toString(){
+	StringBuilder sb = new StringBuilder();
+	sb.append("AID Activator ").append(activator).append(", UID ").append(uid);
+	return sb.toString();
     }
 
     private Object writeReplace() {

@@ -53,7 +53,7 @@ public class ActivationGroupData implements Serializable {
 	this.config = (config == null ? null : (String[]) config.clone());
     }
     
-    ActivationGroupData(GetArg arg) throws IOException{
+    ActivationGroupData(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("config", null, String[].class));
     }
 

@@ -239,7 +239,7 @@ class Activation implements Serializable {
         unexported = writeLock.newCondition();
     }
     
-    Activation(GetArg arg) throws IOException{
+    Activation(GetArg arg) throws IOException, ClassNotFoundException{
 	this(
 	    Valid.copyMap(
 		arg.get("idTable", null, Map.class),
@@ -1110,7 +1110,7 @@ class Activation implements Serializable {
 	    this.activation = activation;
 	}
 	
-	GroupEntry(GetArg arg) throws IOException{
+	GroupEntry(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(
 		    arg.get("desc", null, ActivationGroupDesc.class),
 		    arg.get("groupID", null, ActivationGroupID.class),
@@ -1733,7 +1733,7 @@ class Activation implements Serializable {
 	    this.activation = activation;
 	}
 	
-	ObjectEntry(GetArg arg) throws IOException{
+	ObjectEntry(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("desc", null, ActivationDesc.class),
 		 arg.get("activation", null, Activation.class));
 	}
@@ -2198,7 +2198,7 @@ class Activation implements Serializable {
 		}
 		ActLogHandler handler = new ActLogHandler();
 		ReliableLog log = new ReliableLog(logName, handler);
-		log.recover();
+		log.recover(Activation.class.getClassLoader());
 		Activation state = handler.getState();
 		if (state == null) {
 		    log.snapshot();

@@ -104,7 +104,7 @@ public class AccessAtomicILFactory extends AtomicILFactory {
 				ClassLoader loader)
 	    throws ExportException
 	{
-	    super(methods, caps, null, null, loader);
+	    super(methods, caps, null, null, loader, false);
 	}
 
 	/**

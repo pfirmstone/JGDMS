@@ -25,6 +25,7 @@ import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationID;
 import java.rmi.server.UID;
+import net.jini.activation.Resolve;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.ProxyAccessor;
@@ -73,7 +74,7 @@ public final class ConstrainableAID extends AID
     private final MethodConstraints constraints;
 
     @AtomicSerial
-    static final class State implements Serializable, ProxyAccessor {
+    static final class State implements Serializable, ProxyAccessor, Resolve {
 	private static final long serialVersionUID = 1673734348880788487L;
 	private final Activator activator;
 	private final UID uid;
@@ -85,22 +86,30 @@ public final class ConstrainableAID extends AID
 	    this.constraints = constraints;
 	}
 	
-	public State(GetArg arg) throws IOException{
-	    this(validate(arg),
+	public State(GetArg arg) throws IOException, ClassNotFoundException{
+	    this(arg.get("activator", null, Activator.class),
 		 arg.get("uid", null, UID.class),
-		 arg.get("constraints", null, MethodConstraints.class));
+		 validate(arg));
 	}
 	
-	private static Activator validate(GetArg arg) throws IOException{
+	private static MethodConstraints validate(GetArg arg) throws IOException, ClassNotFoundException{
 	    Activator activator = arg.get("activator", null, Activator.class);
+	    MethodConstraints constraints = arg.get("constraints", null, MethodConstraints.class);
+	    MethodConstraints proxyCon = null;
+	    if (activator instanceof RemoteMethodControl && 
+		(proxyCon = ((RemoteMethodControl)activator).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		return ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMapping);
+	    }
 	    ConstrainableProxyUtil.verifyConsistentConstraints(
-		    arg.get("constraints", null, MethodConstraints.class),
+		    constraints,
 		    activator, 
 		    methodMapping);
-	    return activator;
+	    return constraints;
 	}
 
-	private Object readResolve() throws InvalidObjectException {
+	public Object readResolve() throws InvalidObjectException {
 	    return new ConstrainableAID(activator, uid, constraints);
 	}
 
@@ -149,7 +158,7 @@ public final class ConstrainableAID extends AID
 	    this.activator = activator;
 	}
 	
-	Verifier(GetArg arg) throws IOException{
+	Verifier(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(validate(arg.get("activator", null, RemoteMethodControl.class)));
 	}
 	
@@ -278,6 +287,13 @@ public final class ConstrainableAID extends AID
 	return (uid.equals(aid.uid) &&
 		((TrustEquivalence) activator).checkTrustEquivalence(
 							   aid.activator));
+    }
+    
+    @Override
+    public String toString(){
+	StringBuilder sb = new StringBuilder(super.toString());
+	sb.append(", MethodConstraints ").append(constraints);
+	return sb.toString();
     }
 
     private Object writeReplace() {
