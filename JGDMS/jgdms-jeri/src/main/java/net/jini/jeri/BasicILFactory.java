@@ -76,7 +76,7 @@ public class BasicILFactory extends AbstractILFactory {
     public BasicILFactory(MethodConstraints serverConstraints,
 			  Class permissionClass)
     {
-	this(serverConstraints, permissionClass, null);
+	this(serverConstraints, permissionClass, (ClassLoader )null);
     }
     
     /**
@@ -107,6 +107,35 @@ public class BasicILFactory extends AbstractILFactory {
 	BasicInvocationDispatcher.checkPermissionClass(permissionClass);
 	this.serverConstraints = serverConstraints;
 	this.permissionClass = permissionClass;
+    }
+    
+     /**
+     * Creates a <code>BasicILFactory</code> with the specified server
+     * constraints, permission class, and class loader.  The server
+     * constraints, if not <code>null</code>, are used to enforce minimum
+     * constraints for remote calls. The permission class, if not
+     * <code>null</code>, is used to perform server-side access control on
+     * incoming remote calls.  The class loader, which may be
+     * <code>null</code>, is passed to the superclass constructor and is
+     * used by the {@link #createInstances createInstances}
+     * method.
+     *
+     * @param	serverConstraints the server constraints, or <code>null</code>
+     * @param	permissionClass the permission class, or <code>null</code>
+     * @param proxyOrServiceClass the class of the smart proxy, or service
+     *		interface of a dynamic proxy.
+     * @throws	IllegalArgumentException if the permission class is
+     *		abstract, is not a subclass of {@link Permission}, or does
+     *		not have a public constructor that has either one
+     *		<code>String</code> parameter or one {@link Method}
+     *		parameter and has no declared exceptions
+     * @throws NullPointerException if proxyOrServiceClass is null.
+     **/
+    public BasicILFactory(MethodConstraints serverConstraints,
+			  Class permissionClass,
+			  Class proxyOrServiceClass)
+    {
+	this(serverConstraints, permissionClass, proxyOrServiceClass.getClassLoader());
     }
     
     /**

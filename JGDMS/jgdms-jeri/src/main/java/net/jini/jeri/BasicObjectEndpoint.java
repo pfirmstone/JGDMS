@@ -29,6 +29,9 @@ import java.io.Serializable;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,11 +42,15 @@ import java.util.NoSuchElementException;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
+import net.jini.constraint.StringMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.AcknowledgmentSource;
+import net.jini.io.context.ClientSubject;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -243,7 +250,7 @@ public final class BasicObjectEndpoint
 
     /** optional local reference to remote object (to maintain reachability) */
     private transient Object impl;
-
+    
     private static boolean checkSerial(Endpoint ep, Uuid id) throws InvalidObjectException{
 	try {
 	    return check(ep, id);
@@ -278,7 +285,7 @@ public final class BasicObjectEndpoint
      * @param arg
      * @throws IOException 
      */
-    BasicObjectEndpoint(GetArg arg) throws IOException {
+    BasicObjectEndpoint(GetArg arg) throws IOException, ClassNotFoundException {
 	this(true,
 	    Valid.notNull(arg.get("ep", null, Endpoint.class), "null endpoint"),
 	    Valid.notNull(arg.get("id", null, Uuid.class), "null object identifier"),
@@ -293,7 +300,57 @@ public final class BasicObjectEndpoint
 	 */
 	if (dgc) {
 	    RO r = (RO) arg.getReader();
-	    r.batchContext.addLiveRef(this); // Safe publication of this.
+	    DgcBatchContext batchContext;
+	    /*
+	     * REMIND: short circuit lookup with thread local,
+	     * to avoid synchronization overhead in the common case?
+	     *
+	     * Peter Firmstone, 13th December 2014: This synchronization
+	     * appears to be uncontended in stress tests; there is no 
+	     * need to optimise at this time.
+	     */
+	    synchronized (streamBatches) {
+		batchContext = (DgcBatchContext) streamBatches.get(r.in);
+		if (batchContext == null) {
+		    batchContext = new DgcBatchContext();
+		    try {				// REMIND: priority??
+			((ObjectInputStream) r.in).registerValidation(batchContext, 0);
+		    } catch (InvalidObjectException e) { // should be NPE
+			throw new AssertionError();
+		    }
+		    streamBatches.put((ObjectInputStream) r.in, batchContext);
+		}
+	    }
+	    batchContext.addLiveRef(this); // Safe publication of this.
+	    
+	    Collection streamContext = arg.getObjectStreamContext();
+	    Iterator contextIter = streamContext.iterator();
+	    MethodConstraints clientConstraints = null;
+	    ClientSubject clientSubject = null;
+	    AccessControlContext context;
+	    while (contextIter.hasNext()){
+		Object next = contextIter.next();
+		if (next instanceof MethodConstraints && clientConstraints == null){
+		    clientConstraints = (MethodConstraints) next;
+		} else if (next instanceof ClientSubject){
+		    clientSubject = (ClientSubject) next;
+		}
+		
+	    }
+	    if (clientSubject != null){
+		context = Subject.doAs(clientSubject.getClientSubject(),
+		    new PrivilegedAction<AccessControlContext>(){
+
+			public AccessControlContext run() {
+			    return AccessController.getContext();
+			}
+			    
+		    }
+		);
+	    } else {
+		context = AccessController.getContext();
+	    }
+	    dgcClient.setDGCContext(ep, clientConstraints, context);
 	}
     }
     
@@ -327,7 +384,7 @@ public final class BasicObjectEndpoint
 	 * tracked by the local client-side DGC system.
 	 */
 	if (dgc) {
-	    dgcClient.registerRefs(ep, Collections.singleton(this)); // Safe publication of this reference.
+	    dgcClient.registerRefs(ep, (Collection) Collections.singleton(this)); // Safe publication of this reference.
 	}
     }
 
@@ -417,7 +474,29 @@ public final class BasicObjectEndpoint
      *
      * @throws NullPointerException {@inheritDoc}
      **/
-    public OutboundRequestIterator newCall(InvocationConstraints constraints) {
+    public OutboundRequestIterator newCall(final InvocationConstraints constraints) {
+	// Set DGC context relative to the Endpoint, this would be the same
+	// as setting the context for every call through the Endpoint.
+	// It's usually the Endpoint that obtains the current Subject,
+	// so it makes sense for the constraints to also be applied as well
+	// because it's typically the Endpoint we're trying to constrain.
+//	if (dgc){ 
+//	    final AccessControlContext context = AccessController.getContext();
+//	    AccessController.doPrivileged(new PrivilegedAction(){
+//
+//		public Object run() {
+//		    if (context.getDomainCombiner() != null){
+//			dgcClient.setDGCContext(ep, 
+//			    new StringMethodConstraints(constraints),
+//			    context
+//			);
+//		    }
+//		    return null;
+//		}
+//		
+//	    });
+//	    
+//	}
 	final OutboundRequestIterator iter = ep.newRequest(constraints);
 	return new OutboundRequestIterator() {
 
@@ -631,11 +710,12 @@ public final class BasicObjectEndpoint
      * @return a string representation of this
      * <code>BasicObjectEndpoint</code>
      **/
+    @Override
     public String toString() {
 	return
 	    "BasicObjectEndpoint[" + (dgc ? "DGC," : "") + id + "," + ep + "]";
     }
-
+    
     /**
      * If this <code>BasicObjectEndpoint</code> participates in DGC
      * and if <code>out</code> is an instance of {@link
@@ -732,30 +812,12 @@ public final class BasicObjectEndpoint
 
     private static final class RO implements ReadObject{
 	
-	DgcBatchContext batchContext;
+//	DgcBatchContext batchContext;
+	private ObjectInput in;
 
 	@Override
 	public void read(ObjectInput in) throws IOException, ClassNotFoundException {
-	    /*
-	     * REMIND: short circuit lookup with thread local,
-	     * to avoid synchronization overhead in the common case?
-	     *
-	     * Peter Firmstone, 13th December 2014: This synchronization
-	     * appears to be uncontended in stress tests; there is no 
-	     * need to optimise at this time.
-	     */
-	    synchronized (streamBatches) {
-		batchContext = (DgcBatchContext) streamBatches.get(in);
-		if (batchContext == null) {
-		    batchContext = new DgcBatchContext();
-		    try {				// REMIND: priority??
-			((ObjectInputStream) in).registerValidation(batchContext, 0);
-		    } catch (InvalidObjectException e) { // should be NPE
-			throw new AssertionError();
-		    }
-		    streamBatches.put((ObjectInputStream) in, batchContext);
-		}
-	    }
+	    this.in = in;
 	}
 	
     }
@@ -770,7 +832,8 @@ public final class BasicObjectEndpoint
     private static class DgcBatchContext implements ObjectInputValidation {
 
 	/* maps Endpoint to List<BasicObjectEndpoint> */
-	private final Map endpointTable = new HashMap(3);
+	private final Map<Endpoint,Collection<ObjectEndpoint>> endpointTable 
+		= new HashMap<Endpoint,Collection<ObjectEndpoint>>(3);
 
 	DgcBatchContext() { }
 
@@ -780,12 +843,14 @@ public final class BasicObjectEndpoint
 	     * for each distinct endpoint.
 	     */
 	    Endpoint endpoint = ref.getEndpoint();
-	    Collection refList = (Collection) endpointTable.get(endpoint);
-	    if (refList == null) {
-		refList = new ArrayList();
-		endpointTable.put(endpoint, refList);
+	    synchronized (endpointTable){
+		Collection<ObjectEndpoint> refList = endpointTable.get(endpoint);
+		if (refList == null) {
+		    refList = new ArrayList<ObjectEndpoint>();
+		    endpointTable.put(endpoint, refList);
+		}
+		refList.add(ref);
 	    }
-	    refList.add(ref);
 	}
 
 	public void validateObject() {	// doesn't throw InvalidObjectException
@@ -793,14 +858,18 @@ public final class BasicObjectEndpoint
 	     * Perform a batch DGC registration for each list of
 	     * live references to the same endpoint.
 	     */
-	    Iterator iter = endpointTable.entrySet().iterator();
-	    while (iter.hasNext()) {
-		Map.Entry entry = (Map.Entry) iter.next();
-		Endpoint endpoint = (Endpoint) entry.getKey();
-		Collection refList = (Collection) entry.getValue();
-		dgcClient.registerRefs(endpoint, refList);
+	    synchronized (endpointTable){
+		Iterator<Map.Entry<Endpoint,Collection<ObjectEndpoint>>> iter
+			= endpointTable.entrySet().iterator();
+		while (iter.hasNext()) {
+		    Map.Entry<Endpoint,Collection<ObjectEndpoint>> entry 
+			    = iter.next();
+		    Endpoint endpoint = entry.getKey();
+		    Collection<ObjectEndpoint> refList = entry.getValue();
+		    dgcClient.registerRefs(endpoint, refList);
+		}
+		endpointTable.clear();
 	    }
-	    endpointTable.clear();
 	}
     }
 }

@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509TrustManager;
 import net.jini.security.Security;
 
@@ -39,7 +40,7 @@ import net.jini.security.Security;
  *
  * 
  */
-class FilterX509TrustManager extends Utilities implements X509TrustManager {
+abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements X509TrustManager {
 
     /* -- Fields -- */
 
@@ -88,11 +89,11 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
     {
 	trustManager.checkClientTrusted(chain, authType);
 	check(chain);
-	if (SERVER_LOGGER.isLoggable(Level.FINE)) {
-	    SERVER_LOGGER.log(Level.FINE,
+	if (Utilities.SERVER_LOGGER.isLoggable(Level.FINE)) {
+	    Utilities.SERVER_LOGGER.log(Level.FINE,
 			     "check client trusted succeeds " +
 			     "for auth type {0}\nchain {1}",
-			     new Object[] { authType, toString(chain) });
+			     new Object[] { authType, Utilities.toString(chain) });
 	}
     }
 
@@ -101,11 +102,11 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
     {
 	trustManager.checkServerTrusted(chain, authType);
 	check(chain);
-	if (CLIENT_LOGGER.isLoggable(Level.FINE)) {
-	    CLIENT_LOGGER.log(Level.FINE,
+	if (Utilities.CLIENT_LOGGER.isLoggable(Level.FINE)) {
+	    Utilities.CLIENT_LOGGER.log(Level.FINE,
 			     "check server trusted succeeds " +
 			     "for auth type {0}\nchain {1}",
-			     new Object[] { authType, toString(chain) });
+			     new Object[] { authType, Utilities.toString(chain) });
 	}
     }
 
@@ -152,8 +153,8 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
     {
 	synchronized (lock){
 	    if (tm != null) return tm;
-	    final TrustManagerFactory factory = JSSE_PROVIDER != null ?
-		    TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm, JSSE_PROVIDER)
+	    final TrustManagerFactory factory = Utilities.JSSE_PROVIDER != null ?
+		    TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm, Utilities.JSSE_PROVIDER)
 		    : TrustManagerFactory.getInstance(trustManagerFactoryAlgorithm);
 	    Security.doPrivileged(
 		new PrivilegedAction() {
@@ -170,7 +171,7 @@ class FilterX509TrustManager extends Utilities implements X509TrustManager {
 			     */
 			    factory.init((KeyStore) null);
 			} catch (KeyStoreException e) {
-			    INIT_LOGGER.log(
+			    Utilities.INIT_LOGGER.log(
 				Level.WARNING,
 				"Problem initializing JSSE trust manager keystore",
 				e);

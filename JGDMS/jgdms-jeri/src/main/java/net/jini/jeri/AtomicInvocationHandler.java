@@ -32,6 +32,7 @@ import net.jini.io.MarshalOutputStream;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.jeri.internal.runtime.Util;
 
 /**
  *
@@ -39,19 +40,64 @@ import org.apache.river.api.io.AtomicSerial;
  */
 @AtomicSerial
 public class AtomicInvocationHandler extends BasicInvocationHandler {
+    private static final long serialVersionUID = 1L;
+    
+    /**
+     * @serial
+     */
+    private final boolean useCodebaseAnnotations;
 
     public AtomicInvocationHandler(AtomicInvocationHandler other, MethodConstraints clientConstraints) {
 	super(other, clientConstraints);
+	this.useCodebaseAnnotations = other.useCodebaseAnnotations;
     }
 
     public AtomicInvocationHandler(AtomicSerial.GetArg arg) throws IOException {
 	super(arg);
+	this.useCodebaseAnnotations = arg.get("useCodebaseAnnotations", false);
     }
 
-    public AtomicInvocationHandler(ObjectEndpoint oe, MethodConstraints serverConstraints) {
+    public AtomicInvocationHandler(ObjectEndpoint oe,
+				   MethodConstraints serverConstraints,
+				   boolean useCodebaseAnnotations) 
+    {
 	super(oe, serverConstraints);
+	this.useCodebaseAnnotations = useCodebaseAnnotations;
     }
     
+    /**
+     * Unlike BasicInvocationHandler, AtomicInvocationHandler doesn't consider
+     * client constraints in equals comparisons, only the object endpoint and
+     * server constraints.
+     * 
+     * AtomicMarshalInputStream assigns client constraints during un-marshaling,
+     * furthermore the client may decide to reassign client constraints.  This
+     * is unique to AtomicMarshalInputStream and is designed to prevent one 
+     * service proxy from utilising and de-serializing other proxy's without
+     * client applied constraints.  This causes problems with proxy identity.
+     * 
+     * @param o
+     * @return 
+     */
+    @Override
+    public boolean equals(Object o){
+	if (this == o) return true;
+	if (!(o instanceof AtomicInvocationHandler)) return false;
+	AtomicInvocationHandler other = (AtomicInvocationHandler) o;
+	return
+		useCodebaseAnnotations == other.useCodebaseAnnotations &&
+	    Util.sameClassAndEquals(getObjectEndpoint(), other.getObjectEndpoint()) 
+	    && Util.equals(getServerConstraints(), other.getServerConstraints());
+    }
+    
+   @Override
+    public int hashCode() {
+	int hash = 7;
+	ObjectEndpoint oe = getObjectEndpoint();
+	hash = 67 * hash + oe.hashCode();
+	return hash;
+    }
+  
     /**
      * Returns a new {@link ObjectOutputStream} instance to use to write
      * objects to the request output stream obtained by invoking the {@link
@@ -94,7 +140,12 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 		
 		@Override
 		public MarshalOutputStream run() throws Exception {
-		    return new AtomicMarshalOutputStream(out, getProxyLoader(proxy.getClass()), unmodContext, true);
+		    return new AtomicMarshalOutputStream(
+			    out,
+			    getProxyLoader(proxy.getClass()),
+			    unmodContext,
+			    useCodebaseAnnotations
+		    );
 		}
 		
 	    });
@@ -167,10 +218,9 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 		
 		@Override
 		public ObjectInputStream run() throws Exception {
-		    return AtomicMarshalInputStream.createObjectInputStream(
-				    request.getResponseInputStream(),
+		    return AtomicMarshalInputStream.create(request.getResponseInputStream(),
 				    proxyLoader, integrity, proxyLoader,
-				    unmodContext);
+				    unmodContext, useCodebaseAnnotations);
 		}
 		
 	    });
@@ -182,5 +232,5 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 	}	
 	return in;
     }
-    
+
 }

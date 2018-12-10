@@ -791,8 +791,9 @@ public final class HttpEndpoint
      * AtomicSerial constructor.
      * @param arg
      * @throws IOException 
+     * @throws java.lang.ClassNotFoundException 
      */
-    public HttpEndpoint(GetArg arg) throws IOException{
+    public HttpEndpoint(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("host", null, String.class),
 	     arg.get("port", 0),
 	     arg.get("sf", null, SocketFactory.class)

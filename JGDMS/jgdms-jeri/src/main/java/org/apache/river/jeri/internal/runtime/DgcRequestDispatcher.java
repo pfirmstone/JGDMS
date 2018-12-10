@@ -39,15 +39,12 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.export.ServerContext;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
-import net.jini.io.MarshalInputStream;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.AtomicInvocationDispatcher;
-import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.jeri.InboundRequest;
 import net.jini.jeri.InvocationDispatcher;
 import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerCapabilities;
-import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.jeri.internal.runtime.ObjectTable.NoSuchObject;
 import org.apache.river.logging.Levels;
@@ -59,18 +56,12 @@ import org.apache.river.logging.Levels;
 public class DgcRequestDispatcher implements RequestDispatcher {
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicJeriExporter");
-    
-//    private static final boolean ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET 
-//	= AccessController.doPrivileged(new GetBooleanAction(
-//		"net.jini.jeri.ONLY_VALIDATE_INPUT_IF_CONSTRAINT_SET"));
-
 
     private static final Collection<Method> dgcDispatcherMethods =
             new ArrayList<Method>(2);
     static {
 	Method[] methods = DgcServer.class.getMethods();
-	for (int i = 0; i < methods.length; i++) {
-	    final Method m = methods[i];
+	for (final Method m : methods) {
 	    AccessController.doPrivileged(new PrivilegedAction() {
 		public Object run() {
 		    m.setAccessible(true);
@@ -108,8 +99,9 @@ public class DgcRequestDispatcher implements RequestDispatcher {
             dgcDispatcher =
                 new AtomicInvocationDispatcher(
                     dgcDispatcherMethods, dgcServerCapabilities,
-                    null, null, this.getClass().getClassLoader())
+                    null, null, this.getClass().getClassLoader(), false)
                 {
+		    @Override
                     protected ObjectInputStream createMarshalInputStream(
                         Object impl,
                         InboundRequest request,
@@ -118,10 +110,10 @@ public class DgcRequestDispatcher implements RequestDispatcher {
                         throws IOException
                     {
                         ClassLoader loader = getClassLoader();
-			return AtomicMarshalInputStream.createObjectInputStream(
+			return AtomicMarshalInputStream.create(
 			    request.getRequestInputStream(),
 			    loader, integrity, loader,
-			    Collections.unmodifiableCollection(context));
+			    Collections.unmodifiableCollection(context), false);
                     }
                 };
         } catch (ExportException e) {
@@ -188,7 +180,7 @@ public class DgcRequestDispatcher implements RequestDispatcher {
         try {
             InputStream in = request.getRequestInputStream();
             Uuid id = UuidFactory.read(in);
-            Target target = null;
+            Target target;
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST, "id={0}", id);
             }

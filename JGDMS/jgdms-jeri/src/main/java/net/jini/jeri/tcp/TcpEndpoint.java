@@ -240,7 +240,7 @@ public final class TcpEndpoint
 	return port;
     }
 
-    TcpEndpoint(GetArg arg) throws IOException {
+    TcpEndpoint(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("host", null, String.class),
 	    checkSerial(arg.get("host", null, String.class), arg.get("port", 0)),
 	    arg.get("sf", null, SocketFactory.class)

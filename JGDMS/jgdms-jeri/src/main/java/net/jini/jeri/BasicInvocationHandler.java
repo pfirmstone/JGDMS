@@ -138,27 +138,16 @@ import org.apache.river.logging.Levels;
  *
  * </table>
  **/
+@AtomicSerial
 public class BasicInvocationHandler
     implements InvocationHandler, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -783920361025791412L;
 
-    // Allowing atomic deserialization of this class may allow
-    // an attacker to deserialize a reflective proxy that uses
-    // standard Java serialization via an atomic stream, then use
-    // that proxy as an attack vector.  So this class isn't annotated with
-    // @AtomicSerial for that reason.
-    // A permission check cannot be used to controll access as there are no
-    // ProtectionDomain's on the stack to represent the untrusted principal
-    // of the serialized input.
-    // We implement atomic deserialization methods here for
-    // AtomicInvocationHander to utilise, these invariants belong
-    // to BasicInvocationHandler, they must be checked by BasicInvocationHander.
-    // Unfortunately it isn't an option to allow an atomicially constrained
-    // stream to deserialize a proxy that isn't atomic.
-    // A proxy can still be obtained that uses standard java serialization
-    // through a marshalled instance, to do so requires
-    // DeSerializationPermission MARSHALL.
+    // Allow to be deserialized by atomic streams, AtomicInputValidation
+    // constraint can be used by to prevent use and preventing this from
+    // being deserialized may prevent use of trusted services with
+    // encryption that don't require atomic input validation.
     
     /**
      * invoke logger
@@ -1564,6 +1553,7 @@ public class BasicInvocationHandler
      * @return	<code>true</code> if <code>obj</code> is equivalent to
      *		this object; <code>false</code> otherwise
      **/
+    @Override
     public boolean equals(Object obj) {
 	if (obj == this) {
 	    return true;
@@ -1573,7 +1563,7 @@ public class BasicInvocationHandler
 	BasicInvocationHandler other = (BasicInvocationHandler) obj;
 	return
 	    Util.sameClassAndEquals(oe, other.oe) &&
-	    Util.equals(clientConstraints, other.clientConstraints) &&
+//	    Util.equals(clientConstraints, other.clientConstraints) &&
 	    Util.equals(serverConstraints, other.serverConstraints);
     }
 

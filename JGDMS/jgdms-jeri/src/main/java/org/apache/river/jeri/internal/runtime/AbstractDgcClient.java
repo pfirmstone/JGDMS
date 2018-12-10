@@ -26,8 +26,11 @@ import java.rmi.ConnectException;
 import java.rmi.ConnectIOException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,13 +40,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.id.Uuid;
+import net.jini.jeri.Endpoint;
+import net.jini.jeri.ObjectEndpoint;
 
 /**
- * AbstractDgcClient implements the client-side behavior of RMI's
+ * AbstractDgcClient implements the client-side behavior of JERI's
  * distributed garbage collection system abstractly with respect to
- * the types used to represent transport endpoints, object IDs, and
- * live remote references.  The actual types used for endpoints,
- * object IDs, and live references depends on the concrete subclass.
+ * the types used to represent live remote references.  
+ * The actual type used for live references depends on the concrete subclass.
  *
  * The entry point into the machinery of AbstractDgcClient is the
  * "registerRefs" method: when a live reference enters the scope of
@@ -118,14 +125,23 @@ abstract class AbstractDgcClient {
 
     /** next sequence number for DGC calls (access synchronized on class) */
     private static long nextSequenceNum = Long.MIN_VALUE;
-
+    
     /**
-     * endpoint table: maps generic endpoint to EndpointEntry
-     * (lock guards endpointTable)
+     * TODO
+     * JDK-5053529 reduce number of "RenewClean" threads created by
+     * client-side DGC implementation.  
+     * Also requires a single reference queue.
+     * For handling lease renewals and clean calls.
      */
-    private final Map endpointTable = new HashMap(5);
+//    private static final ExecutorService RENEW_CLEAN_EXECUTOR 
+//	= Executors.newCachedThreadPool(
+//	    new NamedThreadFactory("JERI DGC Client RenewClean Thread", false)
+//	);
+
+    private final Map<Endpoint,EndpointEntry> endpointTable;
 
     protected AbstractDgcClient() {
+	endpointTable = new HashMap<Endpoint,EndpointEntry>(5);
     }
 
     /**
@@ -141,13 +157,13 @@ abstract class AbstractDgcClient {
 	    throws RemoteException;
     }
     /** Returns a proxy for making DGC calls to the given endpoint. */
-    protected abstract DgcProxy getDgcProxy(Object endpoint);
+    protected abstract DgcProxy getDgcProxy(Endpoint endpoint);
     /** Indicates that resources for the given endpoint may be freed. */
-    protected abstract void freeEndpoint(Object endpoint);
+    protected abstract void freeEndpoint(Endpoint endpoint);
     /** Returns the endpoint in the given live reference. */
-    protected abstract Object getRefEndpoint(Object ref);
+    protected abstract Endpoint getRefEndpoint(ObjectEndpoint ref);
     /** Returns the object ID in the given live reference. */
-    protected abstract Object getRefObjectID(Object ref);
+    protected abstract Uuid getRefObjectID(ObjectEndpoint ref);
 
     /**
      * Registers the live reference instances in the supplied collection to
@@ -156,7 +172,7 @@ abstract class AbstractDgcClient {
      * All of the live references in the list must be for remote objects at
      * the given endpoint.
      */
-    protected final void registerRefs(Object endpoint, Collection refs) {
+    protected void registerRefs(Endpoint endpoint, Collection<ObjectEndpoint> refs) {
 	/*
 	 * Look up the given endpoint and register the refs with it.
 	 * The retrieved entry may get removed from the global endpoint
@@ -197,9 +213,9 @@ abstract class AbstractDgcClient {
      * Looks up the EndpointEntry for the given endpoint.  An entry is
      * created if one does not already exist.
      */
-    private EndpointEntry getEndpointEntry(Object endpoint) {
+    protected EndpointEntry getEndpointEntry(Endpoint endpoint) {
 	synchronized (endpointTable) {
-	    EndpointEntry entry = (EndpointEntry) endpointTable.get(endpoint);
+	    EndpointEntry entry = endpointTable.get(endpoint);
 	    if (entry == null) {
 		entry = new EndpointEntry(endpoint);
                 entry.start();
@@ -226,13 +242,13 @@ abstract class AbstractDgcClient {
      * maps live reference objects to RefEntry objects and the renew/clean
      * thread that handles asynchronous client-side DGC operations.
      */
-    private final class EndpointEntry {
+    final class EndpointEntry {
 
 	/** the endpoint that this EndpointEntry is for */
-	private final Object endpoint;
+	private final Endpoint endpoint;
 	/** synthesized reference to the remote server-side DGC */
 	private final DgcProxy dgcProxy;
-	/** renew/clean thread for handling lease renewals and clean calls */
+	/** renew/clean thread for handling lease renewals and clean calls, may be null */
 	private final Thread renewCleanThread;
 	/** reference queue for phantom references */
 	private final ReferenceQueue refQueue = new ReferenceQueue();
@@ -243,9 +259,9 @@ abstract class AbstractDgcClient {
 	private volatile boolean removed = false;
 
 	/** table of refs held for endpoint: maps object ID to RefEntry */
-	private final Map refTable = new HashMap(5);
+	private final Map<Uuid,RefEntry> refTable = new HashMap<Uuid,RefEntry>(5);
 	/** set of RefEntry instances from last (failed) dirty call */
-	private final Set invalidRefs = new HashSet(5);
+	private final Set<RefEntry> invalidRefs = new HashSet<RefEntry>(5);
 
 	/** absolute time to renew current lease to this endpoint */
 	private long renewTime = Long.MAX_VALUE;
@@ -266,12 +282,14 @@ abstract class AbstractDgcClient {
          * iterating and processing pending Clean Requests*/
 	private final Set<CleanRequest> pendingCleans 
                 = Collections.newSetFromMap(new ConcurrentHashMap<CleanRequest,Boolean>(5));
+	private MethodConstraints clientConstraints;
+	private AccessControlContext context;
 
-	private EndpointEntry(final Object endpoint) {
+	private EndpointEntry(final Endpoint endpoint) {
 	    this.endpoint = endpoint;
 	    dgcProxy = getDgcProxy(endpoint);
 	    renewCleanThread = (Thread)	AccessController.doPrivileged(
-		new NewThreadAction(new RenewCleanThread(),
+		new NewThreadAction(new RenewClean(),
 				    "RenewClean-" + endpoint, true));
 	}
         
@@ -286,6 +304,11 @@ abstract class AbstractDgcClient {
         boolean removed(){
             return removed;
         }
+	
+	synchronized void setContext(MethodConstraints clientConstraints, AccessControlContext context){
+	    this.clientConstraints = clientConstraints;
+	    this.context = context;
+	}
 
 	/**
 	 * Registers the live reference instances in the supplied list to
@@ -299,7 +322,7 @@ abstract class AbstractDgcClient {
 	 * This method must NOT be invoked while synchronized on this
 	 * EndpointEntry.
 	 */
-	boolean registerRefs(Collection refs) {
+	boolean registerRefs(Collection<ObjectEndpoint> refs) {
 	    assert !Thread.holdsLock(this);
 
 	    Set refsToDirty = null;	// entries for refs needing dirty
@@ -310,13 +333,13 @@ abstract class AbstractDgcClient {
 		    return false;
 		}
 
-		Iterator iter = refs.iterator();
+		Iterator<ObjectEndpoint> iter = refs.iterator();
 		while (iter.hasNext()) {
-		    Object ref = iter.next();
+		    ObjectEndpoint ref = iter.next();
 		    assert getRefEndpoint(ref).equals(endpoint);
 
-		    Object objectID = getRefObjectID(ref);
-		    RefEntry refEntry = (RefEntry) refTable.get(objectID);
+		    Uuid objectID = getRefObjectID(ref);
+		    RefEntry refEntry = refTable.get(objectID);
 		    if (refEntry == null) {
 			refEntry = new RefEntry(objectID);
 			refTable.put(objectID, refEntry);
@@ -381,10 +404,10 @@ abstract class AbstractDgcClient {
 	 * This method must NOT be invoked while synchronized on this
 	 * EndpointEntry.
 	 */
-	private void makeDirtyCall(Set refEntries, long sequenceNum) {
+	private void makeDirtyCall(Set refEntries, final long sequenceNum) {
 	    assert !Thread.holdsLock(this);
 
-	    Object[] ids;
+	    final Object[] ids;
 	    if (refEntries != null) {
 		ids = createObjectIDArray(refEntries);
 	    } else {
@@ -392,9 +415,45 @@ abstract class AbstractDgcClient {
 	    }
 
 	    long startTime = System.currentTimeMillis();
+	    final DgcProxy proxy;
+	    MethodConstraints constraints;
+	    AccessControlContext callContext;
+	    synchronized (this){
+		constraints = clientConstraints;
+		if (context == null ){
+		    context = AccessController.getContext();
+		} else if ( AccessController.doPrivileged(   
+			    new PrivilegedAction<Boolean>(){
+				public Boolean run() {
+				    return context.getDomainCombiner() == null;
+				}
+			    }
+			)
+		    )
+		{
+		    context = AccessController.getContext();
+		}
+		callContext = context;
+	    }
+	    
+	    if (constraints != null){
+		proxy = (DgcProxy) 
+		    ((RemoteMethodControl) dgcProxy).setConstraints(constraints);
+	    } else {
+		proxy = dgcProxy;
+	    }
+	    
 	    try {
-		long duration = dgcProxy.dirty(sequenceNum, ids, leaseValue);
+		long duration = AccessController.doPrivileged(
+		    new PrivilegedExceptionAction<Long>()
+		    {
 
+			public Long run() throws RemoteException {
+			    return proxy.dirty(sequenceNum, ids, leaseValue);
+			}
+
+		    }, callContext
+		);
 		synchronized (this) {
 		    dirtyFailures = 0;
 
@@ -409,98 +468,100 @@ abstract class AbstractDgcClient {
 			expirationTime = startTime + duration;
 		    }
 		}
+	    } catch (PrivilegedActionException ex){
+		Exception e = ex.getException();
+		if (e instanceof NoSuchObjectException) {
+		    synchronized (this) {
+			setRenewTime(Long.MAX_VALUE);
+			invalidRefs.addAll(refTable.values());
+		    }
+		} else {
+		    long endTime = System.currentTimeMillis();
 
-	    } catch (NoSuchObjectException e) {
-		synchronized (this) {
-		    setRenewTime(Long.MAX_VALUE);
-		    invalidRefs.addAll(refTable.values());
-		}
-	    } catch (Exception e) {
-		long endTime = System.currentTimeMillis();
+		    synchronized (this) {
+			dirtyFailures++;
 
-		synchronized (this) {
-		    dirtyFailures++;
-
-		    if (dirtyFailures == 1) {
-			/*
-			 * If this was the first recent failed dirty call,
-			 * reschedule another one immediately, in case there
-			 * was just a transient network problem, and remember
-			 * the start time and duration of this attempt for
-			 * future calculations of the delays between retries.
-			 */
-			dirtyFailureStartTime = startTime;
-			dirtyFailureDuration = endTime - startTime;
-			setRenewTime(endTime);
-		    } else {
-			/*
-			 * For each successive failed dirty call, wait for a
-			 * (binary) exponentially increasing delay before
-			 * retrying, to avoid network congestion.
-			 */
-			int n = dirtyFailures - 2;
-			if (n == 0) {
+			if (dirtyFailures == 1) {
 			    /*
-			     * Calculate the initial retry delay from the
-			     * average time elapsed for each of the first
-			     * two failed dirty calls.  The result must be
-			     * at least 1000ms, to prevent a tight loop.
+			     * If this was the first recent failed dirty call,
+			     * reschedule another one immediately, in case there
+			     * was just a transient network problem, and remember
+			     * the start time and duration of this attempt for
+			     * future calculations of the delays between retries.
 			     */
-			    dirtyFailureDuration =
-				Math.max((dirtyFailureDuration +
-					  (endTime - startTime)) >> 1, 1000);
-			}
-			long newRenewTime =
-			    endTime + (dirtyFailureDuration << n);
-
-			/*
-			 * Continue if the last known held lease has not
-			 * expired, or else at least a fixed number of times,
-			 * or at least until we've tried for a fixed amount
-			 * of time (the default lease value we request).
-			 */
-			if (newRenewTime < expirationTime ||
-			    dirtyFailures < dirtyFailureRetries ||
-			    newRenewTime < dirtyFailureStartTime + leaseValue)
-			{
-			    setRenewTime(newRenewTime);
+			    dirtyFailureStartTime = startTime;
+			    dirtyFailureDuration = endTime - startTime;
+			    setRenewTime(endTime);
 			} else {
 			    /*
-			     * Give up: postpone lease renewals until next
-			     * ref is registered for this endpoint.
+			     * For each successive failed dirty call, wait for a
+			     * (binary) exponentially increasing delay before
+			     * retrying, to avoid network congestion.
 			     */
-			    setRenewTime(Long.MAX_VALUE);
-			}
-		    }
+			    int n = dirtyFailures - 2;
+			    if (n == 0) {
+				/*
+				 * Calculate the initial retry delay from the
+				 * average time elapsed for each of the first
+				 * two failed dirty calls.  The result must be
+				 * at least 1000ms, to prevent a tight loop.
+				 */
+				dirtyFailureDuration =
+				    Math.max((dirtyFailureDuration +
+					      (endTime - startTime)) >> 1, 1000);
+			    }
+			    long newRenewTime =
+				endTime + (dirtyFailureDuration << n);
 
-		    if (refEntries != null) {
-			/*
-			 * Add all of these refs to the set of refs for this
-			 * endpoint that may be invalid (this AbstractDgcClient
-			 * may not be in the server's referenced set), so that
-			 * we will attempt to explicitly dirty them again in
-			 * the future.
-			 */
-			invalidRefs.addAll(refEntries);
-			
-			/*
-			 * Record that a dirty call has failed for all of these
-			 * refs, so that clean calls for them in the future
-			 * will be strong.
-			 */
-			Iterator iter = refEntries.iterator();
-			while (iter.hasNext()) {
-			    RefEntry refEntry = (RefEntry) iter.next();
-			    refEntry.markDirtyFailed();
+			    /*
+			     * Continue if the last known held lease has not
+			     * expired, or else at least a fixed number of times,
+			     * or at least until we've tried for a fixed amount
+			     * of time (the default lease value we request).
+			     */
+			    if (newRenewTime < expirationTime ||
+				dirtyFailures < dirtyFailureRetries ||
+				newRenewTime < dirtyFailureStartTime + leaseValue)
+			    {
+				setRenewTime(newRenewTime);
+			    } else {
+				/*
+				 * Give up: postpone lease renewals until next
+				 * ref is registered for this endpoint.
+				 */
+				setRenewTime(Long.MAX_VALUE);
+			    }
 			}
-		    }
 
-		    /*
-		     * If the last known held lease will have expired before
-		     * the next renewal, all refs might be invalid.
-		     */
-		    if (renewTime >= expirationTime) {
-			invalidRefs.addAll(refTable.values());
+			if (refEntries != null) {
+			    /*
+			     * Add all of these refs to the set of refs for this
+			     * endpoint that may be invalid (this AbstractDgcClient
+			     * may not be in the server's referenced set), so that
+			     * we will attempt to explicitly dirty them again in
+			     * the future.
+			     */
+			    invalidRefs.addAll(refEntries);
+
+			    /*
+			     * Record that a dirty call has failed for all of these
+			     * refs, so that clean calls for them in the future
+			     * will be strong.
+			     */
+			    Iterator iter = refEntries.iterator();
+			    while (iter.hasNext()) {
+				RefEntry refEntry = (RefEntry) iter.next();
+				refEntry.markDirtyFailed();
+			    }
+			}
+
+			/*
+			 * If the last known held lease will have expired before
+			 * the next renewal, all refs might be invalid.
+			 */
+			if (renewTime >= expirationTime) {
+			    invalidRefs.addAll(refTable.values());
+			}
 		    }
 		}
 	    }
@@ -532,10 +593,10 @@ abstract class AbstractDgcClient {
 	}
 
 	/**
-	 * RenewCleanThread handles the asynchronous client-side DGC activity
+	 * RenewClean handles the asynchronous client-side DGC activity
 	 * for this entry: renewing the leases and making clean calls.
 	 */
-	private class RenewCleanThread implements Runnable {
+	private class RenewClean implements Runnable {
 
 	    public void run() {
 		do {
@@ -690,19 +751,42 @@ abstract class AbstractDgcClient {
 	 */
 	private void makeCleanCalls() {
 	    assert !Thread.holdsLock(this);
-
+	    final DgcProxy proxy;
+	    MethodConstraints constraints;
+	    AccessControlContext callContext;
+	    synchronized (this){
+		constraints = clientConstraints;
+		callContext = context;
+	    }
+	    if (constraints != null){
+		proxy = (DgcProxy) 
+		    ((RemoteMethodControl) dgcProxy).setConstraints(constraints);
+	    } else {
+		proxy = dgcProxy;
+	    }
+	    
 	    Iterator iter = pendingCleans.iterator();
 	    while (iter.hasNext()) {
-		CleanRequest request = (CleanRequest) iter.next();
+		final CleanRequest request = (CleanRequest) iter.next();
 		try {
-		    dgcProxy.clean(request.sequenceNum, request.objectIDs,
-				  request.strong);
+		    AccessController.doPrivileged(
+			new PrivilegedExceptionAction()
+			{
+
+			    public Object run() throws RemoteException {
+				proxy.clean(request.sequenceNum,
+					    request.objectIDs,
+					    request.strong);
+				return Boolean.TRUE;
+			    }
+
+			}, callContext);
 		    iter.remove();
-		} catch (NoSuchObjectException e) {
-		    iter.remove();
-		} catch (Exception e) {
-		    if (e instanceof ConnectException ||
-			e instanceof ConnectIOException)
+		} catch (PrivilegedActionException ex){
+		    Exception e = ex.getException();
+		    if (e instanceof NoSuchObjectException) iter.remove();
+		    else if (e instanceof ConnectException ||
+			     e instanceof ConnectIOException)
 		    {
 			/*
 			 * If we get a ConnectException, the target DGC likely
@@ -718,9 +802,7 @@ abstract class AbstractDgcClient {
 			if (request.connectFailures.incrementAndGet() >= cleanConnectRetries) {
 			    iter.remove();
 			}
-		    } else {
-			// possible transient failure, retain clean request
-		    }
+		    }// else possible transient failure, retain clean request
 		}
 	    }
 	}
@@ -784,7 +866,7 @@ abstract class AbstractDgcClient {
 	     * This method must ONLY be invoked while synchronized on this
 	     * RefEntry's EndpointEntry.
 	     */
-	    void addInstanceToRefSet(Object ref) {
+	    void addInstanceToRefSet(ObjectEndpoint ref) {
 		assert Thread.holdsLock(EndpointEntry.this);
 		assert getRefObjectID(ref).equals(objectID);
 
@@ -817,7 +899,7 @@ abstract class AbstractDgcClient {
 	     */
 	    boolean isRefSetEmpty() {
 		assert Thread.holdsLock(EndpointEntry.this);
-		return refSet.size() == 0;
+		return refSet.isEmpty();
 	    }
 
 	    /**

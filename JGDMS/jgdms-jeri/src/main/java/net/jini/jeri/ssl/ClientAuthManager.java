@@ -52,7 +52,7 @@ class ClientAuthManager extends AuthManager {
     /* -- Fields -- */
 
     /** Client logger */
-    private static final Logger logger = CLIENT_LOGGER;
+    private static final Logger logger = Utilities.CLIENT_LOGGER;
 
     /** The server certificate chosen by the first handshake. */
     private X509Certificate serverCredential;
@@ -284,7 +284,7 @@ class ClientAuthManager extends AuthManager {
 		       "get client aliases for key type {0}\n" +
 		       "and issuers {1}\nreturns {2}",
 		       new Object[] {
-			   keyType, toString(issuers), toString(result)
+			   keyType, Utilities.toString(issuers), Utilities.toString(result)
 		       });
 	}
 	return result;
@@ -362,7 +362,7 @@ class ClientAuthManager extends AuthManager {
 		Level.FINE,
 		"choose client alias for key types {0}\nand issuers {1}\n" +
 		"returns {2}",
-		new Object[] { toString(keyTypes), toString(issuers), result });
+		new Object[] { Utilities.toString(keyTypes), Utilities.toString(issuers), result });
 	}
 	return result;
     }
@@ -375,8 +375,8 @@ class ClientAuthManager extends AuthManager {
     
     /* -- Implement X509ExtendedKeyManager -- */
     
-//    @Override
-//    public String chooseEngineClientAlias(String[] keyTypes, Principal[] issuers, SSLEngine engine) {
-//	return chooseClientAlias(keyTypes, issuers, null);
-//    }
+    @Override
+    public String chooseEngineClientAlias(String[] keyTypes, Principal[] issuers, SSLEngine engine) {
+	return chooseClientAlias(keyTypes, issuers, null);
+    }
 }

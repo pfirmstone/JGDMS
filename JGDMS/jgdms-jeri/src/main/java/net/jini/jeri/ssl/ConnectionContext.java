@@ -39,7 +39,6 @@ import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.ServerAuthentication;
-import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 
 /**
@@ -312,9 +311,7 @@ final class ConnectionContext extends Utilities {
 	} else if (constraint instanceof ServerMinPrincipal) {
 	    Set elements = ((ServerMinPrincipal) constraint).elements();
 	    return ok(elements.size() == 1 && elements.contains(server));
-	} else if (constraint instanceof ServerMaxPrincipal) {
-	    return ok(((ServerMaxPrincipal) constraint).elements().contains(server));
-	}else if (constraint instanceof ConnectionAbsoluteTime) {
+	} else if (constraint instanceof ConnectionAbsoluteTime) {
 	    return Math.max(((ConnectionAbsoluteTime) constraint).getTime(), 0);
 	} else if (constraint instanceof ConnectionRelativeTime) {
 	    return ok(!clientSide);

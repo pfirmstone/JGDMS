@@ -105,7 +105,7 @@ final class ObjectTable {
 	}
         SecurityContext securityContext = Security.getContext();
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
-        Target t = null;
+        Target t;
         t = new Target(id, rds, allowDGC, keepAlive,this,
                 securityContext, ccl, keepAliveCount);
         synchronized (requestDispatchersLock){
@@ -329,12 +329,12 @@ final class ObjectTable {
                     });
             }
 
-            for (int i = 0; i < ids.length; i++) {
-                Target target = dgcRequestDispatcher.get(ids[i]);
-                if (target != null) {
-                    target.unreferenced(clientID, sequenceNum, strong);
-                }
-            }
+	    for (Uuid id : ids) {
+		Target target = dgcRequestDispatcher.get(id);
+		if (target != null) {
+		    target.unreferenced(clientID, sequenceNum, strong);
+		}
+	    }
         }
     }
 

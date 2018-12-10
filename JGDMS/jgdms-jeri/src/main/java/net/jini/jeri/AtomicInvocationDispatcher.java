@@ -36,9 +36,18 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
  * @author peter
  */
 public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
+    
+    private final boolean useAnnotations;
 
-    public AtomicInvocationDispatcher(Collection methods, ServerCapabilities serverCapabilities, MethodConstraints serverConstraints, Class permissionClass, ClassLoader loader) throws ExportException {
+    public AtomicInvocationDispatcher(Collection methods,
+				      ServerCapabilities serverCapabilities,
+				      MethodConstraints serverConstraints,
+				      Class permissionClass,
+				      ClassLoader loader,
+				      boolean useAnnotations) throws ExportException 
+    {
 	super(methods, serverCapabilities, serverConstraints, permissionClass, loader);
+	this.useAnnotations = useAnnotations;
     }
     
     /**
@@ -101,10 +110,9 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 		
 		@Override
 		public ObjectInputStream run() throws Exception {
-		    return AtomicMarshalInputStream.createObjectInputStream(
-			    request.getRequestInputStream(),
+		    return AtomicMarshalInputStream.create(request.getRequestInputStream(),
 			    streamLoader, integrity,
-			    streamLoader, unmodContext);
+			    streamLoader, unmodContext, useAnnotations);
 		}
     
 	    });
@@ -167,7 +175,7 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 			    request.getResponseOutputStream(), 
 			    getStreamLoader(impl), 
 			    Collections.unmodifiableCollection(context), 
-			    true
+			    useAnnotations
 		    );
 		}
 							  

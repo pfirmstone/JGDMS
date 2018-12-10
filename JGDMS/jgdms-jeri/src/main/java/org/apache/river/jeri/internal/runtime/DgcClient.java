@@ -21,6 +21,7 @@ package org.apache.river.jeri.internal.runtime;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -28,10 +29,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.jeri.AtomicInvocationHandler;
-import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.BasicObjectEndpoint;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.ObjectEndpoint;
@@ -59,7 +61,7 @@ public final class DgcClient extends AbstractDgcClient {
 	Logger.getLogger("net.jini.jeri.BasicObjectEndpoint");
 
     private static final Class[] proxyInterfaces =
-	new Class[] { DgcServer.class };
+	new Class[] { DgcServer.class, RemoteMethodControl.class };
 
     /** unique identifier for this DgcClient as a client of DGC */
     private static final Uuid clientID = UuidFactory.generate();
@@ -68,37 +70,46 @@ public final class DgcClient extends AbstractDgcClient {
 	super();
     }
 
-    public void registerRefs(Endpoint endpoint, Collection refs) {
+    @Override
+    public void registerRefs(Endpoint endpoint, Collection<ObjectEndpoint> refs) {
 	super.registerRefs(endpoint, refs);
     }
 
-    protected DgcProxy getDgcProxy(Object endpoint) {
+    protected DgcProxy getDgcProxy(Endpoint endpoint) {
 	Endpoint e = (Endpoint) endpoint;
 	ObjectEndpoint oe = new BasicObjectEndpoint(e, Jeri.DGC_ID, false);
-	InvocationHandler ih = new AtomicInvocationHandler(oe, null);
+	InvocationHandler ih = new AtomicInvocationHandler(oe, null, false);
 	DgcServer proxy =
 	    (DgcServer) Proxy.newProxyInstance(getClass().getClassLoader(),
 					       proxyInterfaces, ih);
 	return new DgcProxyImpl(proxy);
     }
 
-    protected void freeEndpoint(Object endpoint) {
+    protected void freeEndpoint(Endpoint endpoint) {
 	// we don't need to do anything special for freed endpoints
     }
 
-    protected Object getRefEndpoint(Object ref) {
+    protected Endpoint getRefEndpoint(ObjectEndpoint ref) {
 	BasicObjectEndpoint oei = (BasicObjectEndpoint) ref;
 	assert oei.getEnableDGC();
 	return oei.getEndpoint();
     }
 
-    protected Object getRefObjectID(Object ref) {
+    protected Uuid getRefObjectID(ObjectEndpoint ref) {
 	BasicObjectEndpoint oei = (BasicObjectEndpoint) ref;
 	assert oei.getEnableDGC();
 	return oei.getObjectIdentifier();
     }
+    
+    public void setDGCContext(Endpoint endpoint,
+	    MethodConstraints clientConstraints,
+	    AccessControlContext context)
+    {
+	EndpointEntry entry = super.getEndpointEntry(endpoint);
+	entry.setContext(clientConstraints, context);
+    }
 
-    private static class DgcProxyImpl implements DgcProxy {
+    private static class DgcProxyImpl implements DgcProxy, RemoteMethodControl {
 
 	private final DgcServer dgcServer;
 
@@ -123,20 +134,12 @@ public final class DgcClient extends AbstractDgcClient {
 
 	    // client-suggested duration is ignored
 	    try {
-		return ((Long) AccessController.doPrivileged(
-		    new PrivilegedExceptionAction() {
-			public Object run() throws RemoteException {
-			    long l = dgcServer.dirty(clientID, sequenceNum,
-						     idsCopy);
-			    return Long.valueOf(l);
-			}
-		    }, null)).longValue();	// ensure no Subject
-	    } catch (PrivilegedActionException e) {
+		return dgcServer.dirty(clientID, sequenceNum,idsCopy);
+	    } catch (RemoteException e){
 		if (logger.isLoggable(Levels.HANDLED)) {
-		    logger.log(Levels.HANDLED,
-			       "exception occurred", e.getCause());
+		    logger.log(Levels.HANDLED, "exception occurred", e);
 		}
-		throw (RemoteException) e.getCause();
+		throw e;
 	    }
 	}
 
@@ -157,23 +160,26 @@ public final class DgcClient extends AbstractDgcClient {
 			Boolean.valueOf(strong), clientID
 		    });
 	    }
-
+	    
 	    try {
-		AccessController.doPrivileged(
-		    new PrivilegedExceptionAction() {
-			public Object run() throws RemoteException {
-			    dgcServer.clean(clientID, sequenceNum,
-					    idsCopy, strong);
-			    return null;
-			}
-		    }, null);	// ensure no Subject
-	    } catch (PrivilegedActionException e) {
+		dgcServer.clean(clientID, sequenceNum, idsCopy, strong);
+	    } catch (RemoteException e){
 		if (logger.isLoggable(Levels.HANDLED)) {
 		    logger.log(Levels.HANDLED,
-			       "exception occurred", e.getCause());
+			       "exception occurred", e);
 		}
-		throw (RemoteException) e.getCause();
+		throw e;
 	    }
+	}
+
+	public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+	    DgcServer server = (DgcServer) 
+		    ((RemoteMethodControl) dgcServer).setConstraints(constraints);
+	    return new DgcProxyImpl(server);
+	}
+
+	public MethodConstraints getConstraints() {
+	    return ((RemoteMethodControl) dgcServer).getConstraints();
 	}
     }
 }

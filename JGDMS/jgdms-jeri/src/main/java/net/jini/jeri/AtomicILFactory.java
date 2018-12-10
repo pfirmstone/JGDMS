@@ -29,13 +29,18 @@ import net.jini.core.constraint.MethodConstraints;
  * factory is used in conjunction with the {@link BasicJeriExporter} class.
  * 
  * Serialization is performed with atomic input validation.  Class codebase
- * annotations are not appended in the stream, instead each endpoint
- * must have the same class visibility via the default ClassLoader.
- *
+ * annotations are not appended in the stream by default, each endpoint
+ * must have class visibility determined a default ClassLoader.  The
+ * proxy's AtomicInvocationHandler ClassLoader will be that of the codebase
+ * determined by {@link net.jini.export.CodebaseAccessor}, proxy's
+ * are serialized independently and do not share state.
+ * 
  * @author  Peter.
  * @since 3.1
  **/
 public class AtomicILFactory extends BasicILFactory {
+    
+    private boolean useAnnotations;
     
     /**
      * Creates a <code>AtomicILFactory</code> with the specified server
@@ -50,18 +55,33 @@ public class AtomicILFactory extends BasicILFactory {
      *
      * @param	serverConstraints the server constraints, or <code>null</code>
      * @param	permissionClass the permission class, or <code>null</code>
-     * @param	loader the class loader, or <code>null</code>
+     * @param	loader the class loader
      * @throws	IllegalArgumentException if the permission class is
      *		abstract, is not a subclass of {@link java.security.Permission}, or does
      *		not have a public constructor that has either one
      *		<code>String</code> parameter or one {@link java.lang.reflect.Method}
      *		parameter and has no declared exceptions
+     * @throws NullPointerException if loader is null.
      **/
     public AtomicILFactory(MethodConstraints serverConstraints,
 			  Class permissionClass,
 			  ClassLoader loader)
     {
-	super(serverConstraints, permissionClass, loader);
+	this(serverConstraints, permissionClass, loader, false);
+    }
+    
+    private AtomicILFactory(MethodConstraints serverConstraints,
+			    Class permissionClass,
+			    ClassLoader loader,
+			    boolean useAnnotations)
+    {
+	super(serverConstraints, permissionClass, notNull(loader));
+	this.useAnnotations = useAnnotations;
+    }
+    
+    private static <T> T notNull(T object) throws NullPointerException{
+	if (object == null) throw new NullPointerException();
+	return object;
     }
     
     /**
@@ -75,7 +95,7 @@ public class AtomicILFactory extends BasicILFactory {
      *
      * @param	serverConstraints the server constraints, or <code>null</code>
      * @param	proxyOrServiceImplClass the class of the smart proxy 
-     *		implementation or the class of the service implementation 
+     *		implementation or the class of the service interface 
      *		for dynamic proxy's.
      * @throws	IllegalArgumentException if the permission class is
      *		abstract, is not a subclass of {@link java.security.Permission}, or does
@@ -106,7 +126,7 @@ public class AtomicILFactory extends BasicILFactory {
      * @param	serverConstraints the server constraints, or <code>null</code>
      * @param	permissionClass the permission class, or <code>null</code>
      * @param	proxyOrServiceImplClass the class of the smart proxy 
-     *		implementation or the class of the service implementation 
+     *		implementation or the class of the service interface 
      *		for dynamic proxy's.
      * @throws	IllegalArgumentException if the permission class is
      *		abstract, is not a subclass of {@link java.security.Permission}, or does
@@ -122,6 +142,54 @@ public class AtomicILFactory extends BasicILFactory {
 			    Class proxyOrServiceImplClass)
     {
 	this(serverConstraints, permissionClass, proxyOrServiceImplClass.getClassLoader());
+    }
+    
+    /**
+     * Creates a <code>AtomicILFactory</code> with the specified server
+     * constraints, permission class, and proxy or service implementation class.
+     * The server constraints, if not <code>null</code>, are used to enforce 
+     * minimum constraints for remote calls. The permission class, if not
+     * <code>null</code>, is used to perform server-side access control on
+     * incoming remote calls.  The proxy or service implementation class, 
+     * which cannot be <code>null</code>, is used to obtain the ClassLoader
+     * to be passed to the superclass constructor and is used by the 
+     * {@link #createInstances createInstances} method.
+     *
+     * @param	serverConstraints the server constraints, or <code>null</code>
+     * @param	permissionClass the permission class, or <code>null</code>
+     * @param	proxyOrServiceImplClass the class of the smart proxy 
+     *		implementation or the class of the service interface 
+     *		for dynamic proxy's, the ClassLoader of this class determines
+     *		class visibility and resolution for deserialized objects.
+     * @param useAnnotations if true, write codebase annotations to
+     *		the stream.  If the service or remote object, accepts parameter
+     *		classes that are not part of the Service API and not resolved
+     *		by the smart proxy or Remote Object stub's ClassLoader, then if
+     *		useAnnotations is true the stream will be annotated with a 
+     *		codebase, from which additional classes can be resolved.
+     *		If useAnnotations is true, care should be taken to ensure
+     *		downloaded codebases are trusted, such as by utilizing
+     *		net.jini.loader.pref.RequireDlPermProvider. 
+     *		See {@link net.jini.loader.ClassLoading ClassLoading} for details.
+     *		It is advisable to sign the codebase or utilize
+     *		{@link net.jini.core.constraint.Integrity Integrrity} constraints.
+     *		
+     * @throws	IllegalArgumentException if the permission class is
+     *		abstract, is not a subclass of {@link java.security.Permission}, or does
+     *		not have a public constructor that has either one
+     *		<code>String</code> parameter or one {@link java.lang.reflect.Method}
+     *		parameter and has no declared exceptions
+     * @throws SecurityException if caller doesn't have {@link RuntimePermission} 
+     *		"getClassLoader".
+     * @throws NullPointerException if proxyorServiceImplClass is null.
+     **/
+    public AtomicILFactory(MethodConstraints serverConstraints,
+			    Class permissionClass,
+			    Class proxyOrServiceImplClass,
+			    boolean useAnnotations)
+			    
+    {
+	this(serverConstraints, permissionClass, proxyOrServiceImplClass.getClassLoader(), useAnnotations);
     }
     
     /**
@@ -152,7 +220,7 @@ public class AtomicILFactory extends BasicILFactory {
 	if (impl == null) {
 	    throw new NullPointerException();
 	}
-	return new AtomicInvocationHandler(oe, getServerConstraints());
+	return new AtomicInvocationHandler(oe, getServerConstraints(), useAnnotations);
     }
     
     /**
@@ -185,7 +253,8 @@ public class AtomicILFactory extends BasicILFactory {
 	return new AtomicInvocationDispatcher(methods, caps,
 					     getServerConstraints(),
 					     getPermissionClass(),
-					     getClassLoader());
+					     getClassLoader(), 
+					     useAnnotations);
     }
 	
     @Override

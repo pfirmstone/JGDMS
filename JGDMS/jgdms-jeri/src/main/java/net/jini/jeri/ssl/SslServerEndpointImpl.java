@@ -287,6 +287,8 @@ class SslServerEndpointImpl extends Utilities {
 		    keyTypes.add(cert.getPublicKey().getAlgorithm());
 		}
 	    }
+	} else {
+	    throw new UnsupportedConstraintException("Server credentials unsuitable for TLS");
 	}
 	String[] suites = getSupportedCipherSuites();
 	for (int suiteIndex = suites.length; --suiteIndex >= 0; ) {

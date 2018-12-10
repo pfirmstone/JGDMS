@@ -328,52 +328,49 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		 ClassLoader loader)
 	throws ExportException 
 	{
-	if (serverCapabilities == null) {
-	    throw new NullPointerException();
-	}
-	this.methods = new HashMap();
-	this.loader = loader;
-	for (Iterator iter = methods.iterator(); iter.hasNext(); ) {
-	    Object m = iter.next();
-	    if (m == null) {
-		throw new NullPointerException("methods contains null");
-	    } else if (!(m instanceof Method)) {
-		throw new IllegalArgumentException(
-		    "methods must contain only Methods");
+	    if (serverCapabilities == null) {
+		throw new NullPointerException();
 	    }
-	    this.methods.put(Long.valueOf(Util.getMethodHash((Method) m)), m);
+	    this.methods = new HashMap();
+	    this.loader = loader;
+	    for (Iterator iter = methods.iterator(); iter.hasNext(); ) {
+		Object m = iter.next();
+		if (m == null) {
+		    throw new NullPointerException("methods contains null");
+		} else if (!(m instanceof Method)) {
+		    throw new IllegalArgumentException(
+			"methods must contain only Methods");
+		}
+		this.methods.put(Long.valueOf(Util.getMethodHash((Method) m)), m);
+	    }
+	    this.serverConstraints = serverConstraints;
+	    if (permissionClass != null) {
+		Util.checkPackageAccess(permissionClass);
+	    }
+	    permConstructor = getConstructor(permissionClass);
+
+	    permUsesMethod =
+		(permConstructor != null &&
+		 permConstructor.getParameterTypes()[0] == Method.class);
+	    permissions = (permConstructor == null ?
+			   null :
+			   new IdentityHashMap(methods.size() + 2));
+	    try {
+		if (serverConstraints == null) {
+		    checkConstraints(serverCapabilities,
+				     InvocationConstraints.EMPTY);
+		} else {
+		    Iterator iter = serverConstraints.possibleConstraints();
+		    while (iter.hasNext()) {
+			checkConstraints(serverCapabilities,
+					 (InvocationConstraints) iter.next());
+		    }
+		}
+	    } catch (UnsupportedConstraintException e) {
+		throw new ExportException(
+		    "server does not support some constraints", e);
+	    }
 	}
-	this.serverConstraints = serverConstraints;
-	if (permissionClass != null) {
-	    Util.checkPackageAccess(permissionClass);
-	}
-	permConstructor = getConstructor(permissionClass);
-	
-	permUsesMethod =
-	    (permConstructor != null &&
-	     permConstructor.getParameterTypes()[0] == Method.class);
-	permissions = (permConstructor == null ?
-		       null :
-		       new IdentityHashMap(methods.size() + 2));
-	// We can't authenticate the client, and it's not safe for
-	// anon clients in TLS endpoints, hence the next block of code
-	// has been disabled.
-//	try {
-//	    if (serverConstraints == null) {
-//		checkConstraints(serverCapabilities,
-//				 InvocationConstraints.EMPTY);
-//	    } else {
-//		Iterator iter = serverConstraints.possibleConstraints();
-//		while (iter.hasNext()) {
-//		    checkConstraints(serverCapabilities,
-//				     (InvocationConstraints) iter.next());
-//		}
-//	    }
-//	} catch (UnsupportedConstraintException e) {
-//	    throw new ExportException(
-//		"server does not support some constraints", e);
-//	}
-    }
     }
 
     /**

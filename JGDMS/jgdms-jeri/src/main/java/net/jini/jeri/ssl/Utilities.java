@@ -414,7 +414,7 @@ abstract class Utilities
 
     /**
      * Returns the principals specified by a ClientMinPrincipal,
-     * ClientMaxPrincipal, ServerMinPrincipal or ServerMaxPrincipal constraint, or an alternatives
+     * ClientMaxPrincipal, ServerMinPrincipal constraint, or an alternatives
      * of one of those types.
      */
     private static Set getPrincipals(InvocationConstraint constraint,
@@ -429,12 +429,7 @@ abstract class Utilities
 		return null;
 	    }
 	    principals = ((ServerMinPrincipal) constraint).elements();
-	} else if (constraint instanceof ServerMaxPrincipal) {
-	    if (client) {
-		return null;
-	    }
-	    principals = ((ServerMaxPrincipal) constraint).elements();
-	}else if (!client) {
+	} else if (!client) {
 	    return null;
 	} else if (constraint instanceof ClientMinPrincipal) {
 	    principals = ((ClientMinPrincipal) constraint).elements();

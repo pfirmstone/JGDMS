@@ -70,4 +70,9 @@
         <Method name="disconnect"/>
         <Bug pattern="DE_MIGHT_IGNORE"/>
     </Match>
+    <Match>
+        <Class name="org.apache.river.jeri.internal.mux.Mux"/>
+        <Method name="readServerConnectionHeader"/>
+        <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
+    </Match>
 </FindBugsFilter>

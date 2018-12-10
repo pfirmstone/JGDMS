@@ -32,7 +32,6 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -150,7 +149,7 @@ abstract class AuthManager extends FilterX509TrustManager
 		    }
 		    result.add(
 			SubjectCredentials.getCertificateName(
-			    firstX509Cert(chain)));
+			    Utilities.firstX509Cert(chain)));
 		}
 		continue;
 	    } catch (GeneralSecurityException e) {
@@ -160,11 +159,11 @@ abstract class AuthManager extends FilterX509TrustManager
 	    }
 	    Logger logger = getLogger();
 	    if (logger.isLoggable(Levels.HANDLED)) {
-		logThrow(logger, Levels.HANDLED,
+		Utilities.logThrow(logger, Levels.HANDLED,
 			 AuthManager.class, "getAliases",
 			 "get aliases for key type {0}\nand issuers {1}\n" +
 			 "caught exception",
-			 new Object[] { keyType, toString(issuers) },
+			 new Object[] { keyType, Utilities.toString(issuers) },
 			 exception);
 	    }
 	}
@@ -211,11 +210,11 @@ abstract class AuthManager extends FilterX509TrustManager
 	    exceptions.add(exception);
 	    Logger logger = getLogger();
 	    if (logger.isLoggable(Levels.HANDLED)) {
-		logThrow(logger, Levels.HANDLED,
+		Utilities.logThrow(logger, Levels.HANDLED,
 			 AuthManager.class, "chooseCredential",
 			 "choose credential for key type {0}\n" +
 			 "and issuers {1}\ncaught exception",
-			 new Object[] { keyType, toString(issuers) },
+			 new Object[] { keyType, Utilities.toString(issuers) },
 			 exception);
 	    }
 	}
@@ -269,7 +268,7 @@ abstract class AuthManager extends FilterX509TrustManager
 					     Principal[] issuers)
       	throws GeneralSecurityException
     {
-	X509Certificate head = firstX509Cert(chain);
+	X509Certificate head = Utilities.firstX509Cert(chain);
 	String certKeyType = head.getPublicKey().getAlgorithm();
 	if (!certKeyType.equals(keyType)) {
 	    return null;
@@ -295,7 +294,7 @@ abstract class AuthManager extends FilterX509TrustManager
 		    : new X500Principal(issuers[i].getName());
 	    }
 	}
-	checkValidity(chain, x500Issuers);
+	Utilities.checkValidity(chain, x500Issuers);
 
 	/*
 	 * Check that a critical key usage extension, if present, permits use
@@ -368,7 +367,7 @@ abstract class AuthManager extends FilterX509TrustManager
 	X509Certificate cert2 = cred2.getCertificate();
 	if (cert1 == null
 	    || cert2 == null
-	    || !safeEquals(cert1.getSubjectDN(), cert2.getSubjectDN()))
+	    || !Utilities.safeEquals(cert1.getSubjectDN(), cert2.getSubjectDN()))
 	{
 	    return false;
 	}
@@ -399,14 +398,14 @@ abstract class AuthManager extends FilterX509TrustManager
 	if (chain != null) {
 	    try {
 		X500PrivateCredential xpc =
-		    getPrivateCredential(firstX509Cert(chain));
+		    getPrivateCredential(Utilities.firstX509Cert(chain));
 		if (xpc != null) {
 		    return xpc.getPrivateKey();
 		}
 	    } catch (SecurityException e) {
 		Logger logger = getLogger();
 		if (logger.isLoggable(Levels.HANDLED)) {
-		    logThrow(logger, Levels.HANDLED,
+		    Utilities.logThrow(logger, Levels.HANDLED,
 			     AuthManager.class, "getPrivateKey",
 			     "get private key for alias {0}\n" +
 			     "caught exception",

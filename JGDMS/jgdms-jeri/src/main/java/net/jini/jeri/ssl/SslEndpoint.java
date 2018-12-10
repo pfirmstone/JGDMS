@@ -57,9 +57,10 @@ import net.jini.core.constraint.DelegationAbsoluteTime;
 import net.jini.core.constraint.DelegationRelativeTime;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraints;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
-import net.jini.core.constraint.ServerMaxPrincipal;
+import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.OutboundRequestIterator;
@@ -113,8 +114,7 @@ import org.apache.river.logging.Levels;
  * <li> {@link Integrity#YES}
  * <li> {@link ServerAuthentication}
  * <li> {@link ServerMinPrincipal}, when it contains a single
- *	<code>X500Principal</code> only
- * <li> {@link ServerMaxPrincipal}, when it contains an {@link X500Principal}
+ *	<code>X500Principal</code>
  * </ul> <p>
  *
  * Note that {@link ConnectionRelativeTime} and {@link DelegationRelativeTime}
@@ -390,6 +390,12 @@ public final class SslEndpoint
 	String serverHost, int port, SocketFactory socketFactory)
     {
 	impl = new SslEndpointImpl(this, serverHost, port, socketFactory);
+    }
+    
+    public void checkConstraints(InvocationConstraints constraints) 
+					throws UnsupportedConstraintException 
+    {
+	impl.checkConstraints(constraints);
     }
 
     /**
@@ -693,7 +699,7 @@ public final class SslEndpoint
 	return serverHost;
     }
     
-    public SslEndpoint(AtomicSerial.GetArg arg) throws IOException{
+    public SslEndpoint(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException{
 	this(true,
 	     arg.get("serverHost", null, String.class),
 	     arg.get("port", 0),

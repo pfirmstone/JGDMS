@@ -679,7 +679,7 @@ public final class HttpsEndpoint
 	impl = new HttpsEndpointImpl(this, serverHost, port, socketFactory);
     }
     
-    public HttpsEndpoint(GetArg arg) throws IOException{
+    public HttpsEndpoint(GetArg arg) throws IOException, ClassNotFoundException{
 	this(true,
 	     arg.get("serverHost", null, String.class),
 	     arg.get("port", 0),

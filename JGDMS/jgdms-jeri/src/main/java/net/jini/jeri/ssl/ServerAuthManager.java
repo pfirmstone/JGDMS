@@ -55,7 +55,7 @@ class ServerAuthManager extends AuthManager {
     /* -- Fields -- */
 
     /** Server transport logger */
-    private static final Logger logger = SERVER_LOGGER;
+    private static final Logger logger = Utilities.SERVER_LOGGER;
 
     /** The SSLSessionContext for all connections. */
     private final SSLSessionContext sslSessionContext;
@@ -114,7 +114,7 @@ class ServerAuthManager extends AuthManager {
 	synchronized (credentialCache) {
 	    if (sslSessionContext.getSession(session.getId()) != null) {
 		Object val = credentialCache.get(
-		    getKeyAlgorithm(session.getCipherSuite()));
+		    Utilities.getKeyAlgorithm(session.getCipherSuite()));
 		if (val instanceof X500PrivateCredential) {
 		    X500PrivateCredential cred = (X500PrivateCredential) val;
 		    if (!cred.isDestroyed()) {
@@ -149,7 +149,7 @@ class ServerAuthManager extends AuthManager {
 		throw new SecurityException("Session not valid");
 	    }
 	    Object val = credentialCache.get(
-		getKeyAlgorithm(session.getCipherSuite()));
+		Utilities.getKeyAlgorithm(session.getCipherSuite()));
 	    if (val == null) {
 		throw new SecurityException(
 		    "No credential cached for key type");
@@ -323,7 +323,7 @@ class ServerAuthManager extends AuthManager {
 		       "get server aliases for key type {0}\n" +
 		       "and issuers {1}\nreturns {2}",
 		       new Object[] {
-			   keyType, toString(issuers), toString(result)
+			   keyType, Utilities.toString(issuers), Utilities.toString(result)
 		       });
 	}
 	return result;
@@ -352,11 +352,11 @@ class ServerAuthManager extends AuthManager {
                         checkCredentials(cred, null, "listen");
 		} catch (SecurityException e) {
 		    if (logger.isLoggable(Levels.HANDLED)) {
-			logThrow(logger, Levels.HANDLED,
+			Utilities.logThrow(logger, Levels.HANDLED,
 				 ServerAuthManager.class, "chooseServerAlias",
 				 "choose server alias for key type {0}\n" +
 				 "and issuers {1}\ncaught exception",
-				 new Object[] { keyType, toString(issuers) },
+				 new Object[] { keyType, Utilities.toString(issuers) },
 				 e);
 		    }
 		    /*
@@ -374,7 +374,7 @@ class ServerAuthManager extends AuthManager {
 				(byte[]) en.nextElement());
 			if (session != null) {
 			    String suite = session.getCipherSuite();
-			    if (keyType.equals(getKeyAlgorithm(suite))) {
+			    if (keyType.equals(Utilities.getKeyAlgorithm(suite))) {
 				session.invalidate();
 			    }
 			}
@@ -407,15 +407,15 @@ class ServerAuthManager extends AuthManager {
 	    logger.log(Level.FINE,
 		       "choose server alias for key type {0}\nissuers {1}\n" +
 		       "returns {2}",
-		       new Object[] { keyType, toString(issuers), result });
+		       new Object[] { keyType, Utilities.toString(issuers), result });
 	}
 	return result;
     }
     
     /* -- Implement X509ExtendedKeyManager -- */
     
-//    @Override
-//    public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
-//	return chooseServerAlias(keyType, issuers, null);
-//    }
+    @Override
+    public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
+	return chooseServerAlias(keyType, issuers, null);
+    }
 }

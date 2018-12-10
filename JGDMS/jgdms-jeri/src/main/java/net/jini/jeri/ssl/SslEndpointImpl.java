@@ -253,6 +253,12 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    return connectionManager;
 	}
     }
+    
+    void checkConstraints(InvocationConstraints constraints) 
+				    throws UnsupportedConstraintException
+    {
+	getCallContext(constraints);
+    }
 
     /**
      * Returns a context for making a remote call with the specified
@@ -279,31 +285,36 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		    return Subject.getSubject(acc);
 		}
 	    });
+	/*
+	 * Fail early, not a security risk, as it doesn't provide any information
+	 * about the logged in Subject, as there isn't one.
+	 */
+	if (clientSubject == null) 
+	    throw new UnsupportedConstraintException(
+			    "Client must be logged on and caller must do as");
 	Set clientPrincipals = getClientPrincipals(constraints.requirements());
 	boolean requiredClient = clientPrincipals != null;
 	boolean constrainedServer = getServerPrincipals(constraints) != null;
 	Boolean subjectPrivilege = null;
 	if (!requiredClient) {
 	    /* Try using principals from Subject instead */
-	    if (clientSubject == null) {
-		clientPrincipals = Collections.EMPTY_SET;
-	    } else {
-		/*
-		 * XXX: Work around BugID 4892841, Subject.getPrincipals(Class)
-		 * not thread-safe against changes to principals.
-		 * -tjb[18.Jul.2003]
-                 * 
-                 * This was fixed in Java 1.5 which is now our minimum
-                 * supported version.
-		 */
-		synchronized (clientSubject.getPrincipals()) {
-		    clientPrincipals =
-			clientSubject.getPrincipals(X500Principal.class);
-		}
+	    
+	    /*
+	     * XXX: Work around BugID 4892841, Subject.getPrincipals(Class)
+	     * not thread-safe against changes to principals.
+	     * -tjb[18.Jul.2003]
+	     * 
+	     * This was fixed in Java 1.5 which is now our minimum
+	     * supported version.
+	     */
+	    synchronized (clientSubject.getPrincipals()) {
+		clientPrincipals =
+		    clientSubject.getPrincipals(X500Principal.class);
 	    }
+	    
 	    if (clientPrincipals.isEmpty()) {
 		subjectPrivilege = getSubjectPermitted();
-		if (subjectPrivilege.equals(Boolean.FALSE)) {
+		if (Boolean.FALSE.equals(subjectPrivilege)) {
 		    /* Don't reveal that the client Subject has no principals.
 		     * Provide a dummy Principal (no credentials) which cannot
 		     * be authenticated in order to follow the same code path
@@ -404,7 +415,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		if (subjectPrivilege == null) {
 		    subjectPrivilege = getSubjectPermitted();
 		}
-		checkSubject = (subjectPrivilege == Boolean.TRUE);
+		checkSubject = (Boolean.TRUE.equals(subjectPrivilege));
 	    }
 	    if (checkSubject) {
 		/* Check subject if caller has any access */
@@ -535,8 +546,10 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
       top:
 	for (int i = contexts.size(); --i >= 0; ) {
 	    ConnectionContext context = (ConnectionContext) contexts.get(i);
-	    if (context.client == null) {
-		continue;			/* Anonymous client OK */
+	    if (context.client == null){ /* Anonymous client !OK */
+		logger.log(Levels.HANDLED, "client not logged in");
+		contexts.remove(i);
+		continue;
 	    }
 	    Collection certs = (Collection) publicCreds.get(context.client);
 	    if (certs == null) {
