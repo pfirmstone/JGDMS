@@ -53,7 +53,7 @@ public class ServiceTypeBase implements Serializable {
 	this.codebase = codebase;
     }
     
-    public ServiceTypeBase(GetArg arg) throws IOException{
+    public ServiceTypeBase(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("type", null, ServiceType.class),
 	    arg.get("codebase", null, String.class));
     }

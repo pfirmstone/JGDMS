@@ -17,6 +17,7 @@
  */
 package org.apache.river.outrigger;
 
+import java.io.Closeable;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
@@ -104,6 +105,7 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.core.transaction.server.TransactionConstants;
 import net.jini.export.CodebaseAccessor;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
@@ -690,6 +692,68 @@ public class OutriggerServerImpl
 
                 @Override
                 public Object run() throws ExportException, ConfigurationException, IOException {
+		    // Register shutdown hook for graceful shutdown of persistant state.
+		    Runtime.getRuntime().addShutdownHook(new Thread(new Runnable(){
+
+			@Override
+			public void run() {
+			    // Clean up and rethrow.
+			    lifecycleLogger.log(Level.INFO, 
+				"JVM Shutdown, Outrigger server attempting graceful shutdown");
+			    
+			    serverGate.rejectCalls(
+				new NoSuchObjectException("Service is shutting down, try again later"));
+
+			     // If we created a JoinStateManager,
+			    try {
+				joinStateManager.destroy();
+			    } catch (Throwable t) {
+				// Ignore and go on
+			    }
+
+			    if (expirationOpQueue != null)
+				expirationOpQueue.terminate();
+
+			    if (txnMonitor != null) {
+				try {
+				    txnMonitor.destroy();
+				} catch (Throwable t) {
+				    // Ignore and go on
+				}
+			    }
+
+			    // Interrupt and join independent threads
+			    if (notifier != null) {
+				try {
+				    notifier.terminate();
+				} catch (Throwable t) {
+				    // Ignore and go on
+				}
+			    }
+
+			    if (operationJournal != null) {
+				try {
+				    operationJournal.terminate();
+				} catch (Throwable t) {
+				    // Ignore and go on
+				}	       
+			    }
+
+			    unwindReaper(templateReaperThread);
+			    unwindReaper(entryReaperThread);
+			    unwindReaper(contentsQueryReaperThread);
+
+			    // Close (but do not destroy) the store
+			    if (store != null) {
+				try {
+				    store.close();
+				} catch (Throwable t) {
+				    // Ignore and go on
+				}
+			    }
+			}
+			
+		    }));
                     ourRemoteRef = (OutriggerServer) exporter.export(serverGate);
                             // This takes a while the first time, so let's get it going
                     txnMonitor.start();
@@ -1561,8 +1625,7 @@ public class OutriggerServerImpl
 
     // purposefully inherit doc comment from supertype
     public EventRegistration
-	notify(EntryRep tmpl, Transaction tr, RemoteEventListener listener,
-	       long leaseTime, MarshalledObject handback)
+	notify(EntryRep tmpl, Transaction tr, RemoteEventListener listener, long leaseTime, MarshalledInstance handback)
 	throws TransactionException, RemoteException
     {
 	opsLogger.entering("OutriggerServerImpl", "notify");
@@ -1630,9 +1693,14 @@ public class OutriggerServerImpl
     }
 
 
-    public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
-	    Transaction tr, boolean visibilityOnly, RemoteEventListener listener,
-  	    long leaseTime, MarshalledObject handback)
+    @Override
+    public EventRegistration registerForAvailabilityEvent(
+	    EntryRep[] tmpls,
+	    Transaction tr,
+	    boolean visibilityOnly,
+	    RemoteEventListener listener,
+	    long leaseTime,
+	    MarshalledInstance handback)
         throws TransactionException, RemoteException
     {
 	opsLogger.entering("OutriggerServerImpl", "registeForAvailabilityEvent");
@@ -3202,7 +3270,7 @@ public class OutriggerServerImpl
 		logDestroyPhase("calling lifeCycle.unregister");
 		lifeCycle.unregister(serverGate);
 	    }
-
+	    
 	    if (loginContext != null) {
 		try {
 		    logDestroyPhase("logging out");

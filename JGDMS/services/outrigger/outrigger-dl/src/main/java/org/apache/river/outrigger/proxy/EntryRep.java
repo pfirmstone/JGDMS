@@ -44,6 +44,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.space.JavaSpace;
+import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
@@ -444,6 +445,19 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     public static String matchAnyClassName() {
 	return matchAnyRep.classFor();
     }
+    
+    /**
+     * 
+     * @param tmpl 
+     * @return  
+     */
+    public boolean primeEntryClass(Entry tmpl){
+	if (tmpl !=null && className != null && className.equals(tmpl.getClass().getCanonicalName())){
+	    realClass = tmpl.getClass();
+	    return true;
+	}
+	return false;
+    }
 
     /**
      * @return An <code>Entry</code> object built out of this
@@ -467,9 +481,10 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
                       
             synchronized (this){
                 className = this.className;
-                realClass = CodebaseProvider.loadClass(codebase, className,
+		if (realClass == null){
+		    realClass = CodebaseProvider.loadClass(codebase, className,
                                                    null, integrity, null);
-
+		}
                 if (findHash(realClass, false).longValue() != hash)
                     throw throwNewUnusableEntryException(
                         new IncompatibleClassChangeError(realClass + " changed"));
@@ -918,6 +933,8 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	    id = UuidFactory.create(bits0, bits1);
 	}
 
+	// REMIND: Do we want to check for AtomicMarshalInputStream?
+	
 	expires      = in.readLong();
 	codebase     = (String)in.readObject();
 	className    = (String)in.readObject();

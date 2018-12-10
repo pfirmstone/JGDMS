@@ -133,6 +133,7 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -799,7 +800,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 */
 	transient boolean newNotify;
 	
-	public EventReg(GetArg arg) throws IOException {
+	public EventReg(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg.get("eventID", 0L),
 		    arg.get("leaseID", null, Uuid.class),
 		    arg.get("tmpl", null, Template.class),
@@ -2211,7 +2212,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    try {
 		if (!newNotify){
 		    listener.notify(
-			new RegistrarEvent(proxy,
+			new ConstrainableRegistrarEvent((RemoteMethodControl)proxy,
 			    reg.eventID,
 			    seqNo,
 			    (MarshalledObject) reg.handback,
@@ -2222,7 +2223,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    );
 		} else {
 		    listener.notify(
-			new RegistrarEvent(proxy,
+			new ConstrainableRegistrarEvent((RemoteMethodControl) proxy,
 			    reg.eventID,
 			    seqNo,
 			    (MarshalledInstance) reg.handback,
@@ -5246,9 +5247,21 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 unicastDiscoveryHost = (String) Config.getNonNullEntry(
                     config, COMPONENT, "unicastDiscoveryHost", String.class);
             } catch (NoSuchEntryException e) {
-                // fix for 4906732: only invoke getCanonicalHostName if needed
-                unicastDiscoveryHost =
-                    LocalHostLookup.getLocalHost().getCanonicalHostName();
+		// fix for 4906732: only invoke getCanonicalHostName if needed
+		boolean ipv6 = AccessController.doPrivileged(
+			new GetBooleanAction("java.net.preferIPv6Addresses"));
+		if (ipv6){
+		    String address = LocalHostLookup.getHostAddress();
+		    int i = address.lastIndexOf("%"); // Remove NIC details if present
+		    if (i >0){
+			address = address.substring(0, i);
+		    }
+		    StringBuilder sb = new StringBuilder();
+		    sb.append('[').append(address).append(']');
+		    unicastDiscoveryHost = sb.toString();
+		} else {
+		    unicastDiscoveryHost = LocalHostLookup.getHostName();
+		}
             }
             try {
                 this.unicastDiscoverySubjectChecker =
@@ -5283,7 +5296,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         try {
             if (log != null) {
                 inRecovery = true;
-                log.recover();
+                log.recover(RegistrarImpl.class.getClassLoader());
                 inRecovery = false;
             }
 	    if (enableHttpsUnicast){

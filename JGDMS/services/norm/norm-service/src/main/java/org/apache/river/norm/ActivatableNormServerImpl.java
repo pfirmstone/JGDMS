@@ -107,7 +107,7 @@ class ActivatableNormServerImpl extends NormServerBaseImpl
         /* Any Exception thrown happens prior to super being called, so this
          * isn't susceptible to finalizer attacks.
          */
-        this(init(getConfigOptions(activationID, data), new Init(true /* persistent */)));
+        this(init(getConfigOptions(activationID, data), new Init(true /* persistent */, activationID)));
     }
     
     private ActivatableNormServerImpl(NormServerInitializer init){
@@ -132,8 +132,9 @@ class ActivatableNormServerImpl extends NormServerBaseImpl
         private ActivationSystem activationSystem;
         private ActivationID activationID;
         
-        Init(boolean persistent){
+        Init(boolean persistent, ActivationID activationID){
             super(persistent, null);
+	    this.activationID = activationID;
         }
         void initAsSubject(Configuration config) throws Exception {
             ProxyPreparer activationSystemPreparer =

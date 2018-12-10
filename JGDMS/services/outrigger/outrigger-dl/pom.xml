@@ -79,21 +79,68 @@
                     </configuration>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>retrotranslator-maven-plugin</artifactId>
-                <version>1.0-alpha-4</version>
+                <groupId>org.eclipse.tycho.extras</groupId>
+                <artifactId>tycho-pack200a-plugin</artifactId>
                 <executions>
-                    <execution>
-                        <goals>
-                            <goal>translate-project</goal>
-                        </goals>
-                        <configuration>
-                            <classifier>jdk14</classifier>
-                            <attach>true</attach>
-                        </configuration>
-                    </execution>
+                        <execution>
+                                <id>pack200-normalize</id>
+                                <goals>
+                                        <goal>normalize</goal>
+                                </goals>
+                                <phase>package</phase>
+                        </execution>
                 </executions>
-            </plugin>
+            </plugin>  
+            <!-- To be enabled -->
+            <!--<plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jarsigner-plugin</artifactId>
+                <version>1.4</version>
+                <executions>
+                  <execution>
+                    <id>sign</id>
+                    <goals>
+                      <goal>sign</goal>
+                    </goals>
+                    <phase>package</phase>
+                  </execution>
+                </executions>
+                <configuration>
+                  <keystore>/path/to/the/keystore</keystore>
+                  <alias>Alias name</alias>
+                  <storepass>Store password</storepass>
+                  <keypass>Key password</keypass>
+                </configuration>
+              </plugin>-->
+            <plugin>
+                <groupId>org.eclipse.tycho.extras</groupId>
+                <artifactId>tycho-pack200b-plugin</artifactId>
+                <executions>
+                        <execution>
+                                <id>pack200-pack</id>
+                                <goals>
+                                        <goal>pack</goal>
+                                </goals>
+                                <phase>package</phase>
+                        </execution>
+                </executions>
+            </plugin>   
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-p2-plugin</artifactId>
+                <executions>
+                        <execution>
+                                <id>p2-metadata</id>
+                                <goals>
+                                        <goal>p2-metadata</goal>
+                                </goals>
+                                <phase>package</phase>
+                        </execution>
+                </executions>
+                <configuration>
+                        <defaultP2Metadata>false</defaultP2Metadata>
+                </configuration>
+            </plugin> 
         </plugins>
     </build>
 </project>

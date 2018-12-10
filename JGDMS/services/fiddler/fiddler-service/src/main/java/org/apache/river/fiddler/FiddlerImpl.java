@@ -5145,7 +5145,7 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
                 if (persistent){
                     logHandler.setFiddler(FiddlerImpl.this);
                     inRecovery = true;
-                    log.recover();
+                    log.recover(FiddlerImpl.class.getClassLoader());
                     inRecovery = false;
                 }
                 

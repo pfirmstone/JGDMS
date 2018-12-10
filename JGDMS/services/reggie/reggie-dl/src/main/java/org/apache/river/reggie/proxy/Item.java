@@ -27,9 +27,12 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteObject;
+import java.util.Collection;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.security.Security;
@@ -139,7 +142,8 @@ public final class Item implements Serializable, Cloneable {
      * @throws ClassCastException
      * @throws NullPointerException
      */
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	arg.get("serviceID", null, ServiceID.class);
 	// serviceID is assigned by Reggie if null.
 	arg.get("serviceType", null, ServiceType.class);
@@ -164,11 +168,11 @@ public final class Item implements Serializable, Cloneable {
      * @param arg
      * @throws IOException 
      */
-    public Item(GetArg arg) throws IOException{
+    public Item(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     };
     
-    private Item(GetArg arg, boolean check) throws IOException{
+    private Item(GetArg arg, boolean check) throws IOException, ClassNotFoundException{
 	super(); // instance has been created here.
 	serviceID = arg.get("serviceID", null, ServiceID.class);
 	serviceType = arg.get("serviceType", null, ServiceType.class);
@@ -176,6 +180,17 @@ public final class Item implements Serializable, Cloneable {
 	service = arg.get("service", null, MarshalledWrapper.class);
 	attributeSets = Valid.copy(arg.get("attributeSets", null, EntryRep[].class));
 	bootstrapProxy = arg.get("bootstrapProxy", null, Proxy.class);
+    }
+    
+    public Item(Item item, MethodConstraints constraints){
+	this(item.serviceID,
+	    item.serviceType,
+	    item.codebase,
+	    item.service,
+	    item.attributeSets.clone(),
+	    item.bootstrapProxy != null ? 
+	    (Proxy)((RemoteMethodControl)item.bootstrapProxy).setConstraints(constraints): null
+	);
     }
 
     /**
@@ -238,6 +253,20 @@ public final class Item implements Serializable, Cloneable {
 	}
     }
     
+    public ServiceItem get(Collection context){
+	Object obj = null;
+	try {
+	    obj = service.get(null, null, context);
+	} catch (Throwable e) {
+	    RegistrarProxy.handleException(e);
+	}
+	synchronized (this){
+	    return new ServiceItem(serviceID,
+			       obj,
+			       EntryRep.toEntry(attributeSets));
+	}
+    }
+    
     public Proxy getProxy() {
 	return bootstrapProxy;
     }
@@ -252,7 +281,7 @@ public final class Item implements Serializable, Cloneable {
 	    for (int i = attrSets.length; --i >= 0; ) {
 		attrSets[i] = (EntryRep)attrSets[i].clone();
 	    }
-	    return new Item(serviceID, serviceType, codebase, service, attrSets, null);
+	    return new Item(serviceID, serviceType, codebase, service, attrSets, bootstrapProxy);
     }
 
     /**

@@ -258,7 +258,8 @@ class ClientLeaseWrapper implements Lease, Serializable {
 	if (clientLease == null) {
 	    Lease unmarshalledLease = null;
 	    try {
-		unmarshalledLease = (Lease) marshalledClientLease.get(false);
+		ClassLoader loader = getClass().getClassLoader();
+		unmarshalledLease = (Lease) marshalledClientLease.get(loader, false, loader, null);
 	    } catch (IOException e) {
 		logger.log(Levels.HANDLED,
 			   "Problem unmarshalling lease -- will retry later",
@@ -474,7 +475,8 @@ class ClientLeaseWrapper implements Lease, Serializable {
 	    // try to unmarshal client lease
 	    Lease unmarshalledLease;
 	    try {
-		unmarshalledLease = (Lease) marshalledClientLease.get(false);
+		ClassLoader loader = this.getClass().getClassLoader();
+		unmarshalledLease = (Lease) marshalledClientLease.get(loader, false, loader, null);
 	    } catch (IOException e) {
 		UnmarshalException t = new UnmarshalException(
 		    "ClientLeaseWrapper.renew:Could not unmarshal client " +

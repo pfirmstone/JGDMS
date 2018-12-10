@@ -414,14 +414,28 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 	    return lease;
 	}
 	
-	ConstrainableSetProxy(GetArg arg) throws IOException {
-	    super(check(arg));
-	    methodConstraints = (MethodConstraints) 
-		    arg.get("methodConstraints", null);
-	    server2 = constrainServer(server, methodConstraints, methodMap2);
+	ConstrainableSetProxy(GetArg arg) throws IOException, ClassNotFoundException {
+	    this(arg, check(arg), 
+		constrainServer(
+		    new AbstractProxy(arg){}.server, 
+		    arg.get("methodConstraints", null, MethodConstraints.class), 
+		    methodMap2
+		)
+	    );
+	}
+	
+	ConstrainableSetProxy(GetArg arg,
+			      MethodConstraints constraints, 
+			      NormServer server2) 
+		throws IOException, ClassNotFoundException
+	{
+	    super(arg);
+	    methodConstraints = constraints;
+	    this.server2 = server2;
 	}
 
-	private static GetArg check(GetArg arg) throws IOException {
+	private static MethodConstraints check(GetArg arg) 
+		throws IOException, ClassNotFoundException {
 	    SetProxy sp = new SetProxy(arg);
 	    if (!(sp.server instanceof RemoteMethodControl)) {
 		throw new InvalidObjectException(
@@ -430,11 +444,17 @@ public class SetProxy extends AbstractProxy implements LeaseRenewalSet {
 		throw new InvalidObjectException(
 		    "ourLease is not a ConstrainableLandlordLease");
 	    }
-	    MethodConstraints methodConstraints = (MethodConstraints) 
-		    arg.get("methodConstraints", null);
+	    MethodConstraints methodConstraints = 
+		    arg.get("methodConstraints", null, MethodConstraints.class);
+	    MethodConstraints proxyCon = null;
+	    if ((proxyCon = ((RemoteMethodControl)sp.server).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		return ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMap1);
+	    }
 	    ConstrainableProxyUtil.verifyConsistentConstraints(
 		methodConstraints, sp.server, methodMap1);
-	    return arg;
+	    return methodConstraints;
 	}
 
 	/**

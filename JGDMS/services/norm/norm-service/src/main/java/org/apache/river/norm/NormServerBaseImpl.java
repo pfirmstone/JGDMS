@@ -243,15 +243,16 @@ abstract class NormServerBaseImpl
     private Configuration config;
     
     private boolean started;
-    private String certFactoryType;
-    private String certPathEncoding;
-    private byte[] encodedCerts;
-    private String codebase;
+    private final String certFactoryType;
+    private final String certPathEncoding;
+    private final byte[] encodedCerts;
+    private final String codebase;
 
     ////////////////////////////////
     // Methods defined in NormServer
 
     // Inherit java doc from super type
+    @Override
     public void renewFor(Uuid id, Lease leaseToRenew,
 			 long membershipDuration, long renewDuration) 
 	throws RemoteException, ThrowThis
@@ -488,6 +489,7 @@ abstract class NormServerBaseImpl
 
 
     // Inherit java doc from super type
+    @Override
     public Lease remove(Uuid id, Lease leaseToRemove)
 	throws RemoteException, ThrowThis
     {
@@ -557,6 +559,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public GetLeasesResult getLeases(Uuid id) throws ThrowThis {
 	ready.check();
 	final LeaseSet set = getSet(id);
@@ -573,6 +576,7 @@ abstract class NormServerBaseImpl
 
 
     // Inherit java doc from super type
+    @Override
     public EventRegistration setExpirationWarningListener(
 				 Uuid		     id,
 				 RemoteEventListener listener, 
@@ -673,6 +677,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public EventRegistration setRenewalFailureListener(
 				 Uuid		     id,
 				 RemoteEventListener listener, 
@@ -855,6 +860,7 @@ abstract class NormServerBaseImpl
 	// Methods needed to meet contract of SendMonitor
 	
 	// Inherit java doc from super type
+	@Override
 	public void definiteException(EventType           type,
 				      RemoteEvent         ev,
 				      long                registrationNumber,
@@ -882,6 +888,7 @@ abstract class NormServerBaseImpl
 	}
 	
 	// Inherit java doc from super type
+	@Override
 	public boolean isCurrent() {
 	    synchronized (set) {
 		return NormServerBaseImpl.isCurrent(set);
@@ -945,6 +952,7 @@ abstract class NormServerBaseImpl
     // Methods defined in LeaseRenewalService
 
     // Inherit java doc from super type
+    @Override
     public LeaseRenewalSet createLeaseRenewalSet(long leaseDuration) {
 	ready.check();
 	final Uuid newID      = UuidFactory.generate();
@@ -1015,6 +1023,7 @@ abstract class NormServerBaseImpl
      *	       implement both {@link RemoteMethodControl} and {@link
      *	       TrustEquivalence}
      */
+    @Override
     public TrustVerifier getProxyVerifier() {
 	return new ProxyVerifier(serverProxy, serverUuid);
     }
@@ -1038,6 +1047,7 @@ abstract class NormServerBaseImpl
             }
         }
 
+	@Override
 	public void run() {
 	    while (!hasBeenInterrupted()) {
 		try {
@@ -1128,6 +1138,7 @@ abstract class NormServerBaseImpl
     // Methods defined in Landlord
 
     // Inherit java doc from super type
+    @Override
     public long renew(Uuid cookie, long extension) 
 	throws UnknownLeaseException, LeaseDeniedException
     {
@@ -1165,6 +1176,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public void cancel(Uuid cookie) throws UnknownLeaseException {
 	ready.check();
 	final LeaseSet set = (LeaseSet) setTable.get(cookie);
@@ -1205,6 +1217,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public RenewResults renewAll(Uuid[] cookies, long[] extensions) {
 	ready.check();
 	/* Cookie types checked in individual renew calls */
@@ -1212,6 +1225,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public Map cancelAll(Uuid[] cookies) {
 	ready.check();
 	/* Cookie types checked in individual cancel calls */
@@ -1418,6 +1432,7 @@ abstract class NormServerBaseImpl
 	    notifyAll();
 	}
 
+	@Override
 	public void run() {
 	    while (!hasBeenInterrupted()) {
 		synchronized (this) {
@@ -1465,6 +1480,7 @@ abstract class NormServerBaseImpl
     // Methods defined in Administrable
 
     // Inherit java doc from super type
+    @Override
     public Object getAdmin() {
 	ready.check();
 	return adminProxy;
@@ -1474,12 +1490,14 @@ abstract class NormServerBaseImpl
     // Methods defined in JoinAdmin
 
     // Inherit java doc from super type
+    @Override
     public Entry[] getLookupAttributes() {
 	ready.check();
 	return joinState.getAttributes();
     }
 
     // Inherit java doc from super type
+    @Override
     public void addLookupAttributes(Entry[] attrSets) {
 	ready.check();
 	joinState.addAttributes(attrSets, true);
@@ -1487,6 +1505,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public void modifyLookupAttributes(Entry[] attrSetTemplates, 
 				       Entry[] attrSets) 
     {
@@ -1496,12 +1515,14 @@ abstract class NormServerBaseImpl
     }
   
     // Inherit java doc from super type
+    @Override
     public String[] getLookupGroups() {
 	ready.check();
 	return joinState.getGroups();
     }
 
     // Inherit java doc from super type
+    @Override
     public void addLookupGroups(String[] groups) {
 	ready.check();
 	joinState.addGroups(groups);
@@ -1512,6 +1533,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public void removeLookupGroups(String[] groups) {
 	ready.check();
 	joinState.removeGroups(groups);
@@ -1522,6 +1544,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public void setLookupGroups(String[] groups) {
 	ready.check();
 	joinState.setGroups(groups);
@@ -1532,12 +1555,14 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public LookupLocator[] getLookupLocators() {
 	ready.check();
 	return joinState.getLocators();
     }
 
     // Inherit java doc from super type
+    @Override
     public void addLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {
@@ -1554,6 +1579,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public void removeLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {
@@ -1570,6 +1596,7 @@ abstract class NormServerBaseImpl
     }
 
     // Inherit java doc from super type
+    @Override
     public void setLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {
@@ -1587,12 +1614,12 @@ abstract class NormServerBaseImpl
 
     /** Returns the contents of an array as a string. */
     private static String toString(Object[] array) {
-	if (array == null) {
-	    return "null";
-	}
-	StringBuffer sb = new StringBuffer(String.valueOf(array[0]));
-	for (int i = 1; i < array.length; i++) {
-	    sb.append(", ").append(array[i]);
+	if (array == null) return "null";
+	int length = array.length;
+	StringBuilder sb = new StringBuilder(length * 16);
+	for (int i = 0; i < length; i++) {
+	    sb.append(array[i]);
+	    if ( i < length - 1) sb.append(", ");
 	}
 	return sb.toString();
     }
@@ -1601,6 +1628,7 @@ abstract class NormServerBaseImpl
     // Methods defined in DestroyAdmin
 
     // Inherit java doc from super type
+    @Override
     public void destroy() throws RemoteException {
 	ready.shutdown();
 	logger.log(Level.INFO, "Destroying Norm service");
@@ -1652,6 +1680,7 @@ abstract class NormServerBaseImpl
 	    setDaemon(false);
 	}
 
+	@Override
 	public void run() {
 	    logger.log(Level.FINEST, "DestroyThread running");
 	    
@@ -1672,7 +1701,7 @@ abstract class NormServerBaseImpl
 
 		    unexported = unexport(false);
 
-		    logger.log(Level.FINEST, "...rslt = " + unexported);
+		    logger.log(Level.FINEST, "...rslt = {0}", unexported);
 
 		    if (!unexported) {
 			// Thread.yield();
@@ -1751,6 +1780,7 @@ abstract class NormServerBaseImpl
     /* -- Implement ServiceProxyAccessor -- */
 
     /** {@inheritDoc} */
+    @Override
     public Object getServiceProxy() {
 	ready.check();
 	return normProxy;
@@ -1759,6 +1789,7 @@ abstract class NormServerBaseImpl
     /* -- Implement ProxyAccessor -- */
 
     /** {@inheritDoc} */
+    @Override
     public Object getProxy() {
 	/* Don't wait until ready to return the server proxy */
 	return serverProxy;
@@ -1768,6 +1799,7 @@ abstract class NormServerBaseImpl
     // Server setup code
 
     /** Returns a string representation of this object. */
+    @Override
     public String toString() {
 	String className = getClass().getName();
 	className = className.substring(className.lastIndexOf('.') + 1);
@@ -1806,6 +1838,7 @@ abstract class NormServerBaseImpl
 		    Subject.doAsPrivileged(
 			init.loginContext.getSubject(),
 			new PrivilegedExceptionAction() {
+			    @Override
 			    public Object run() throws Exception {
 				init.initAsSubject(config);
 				return null;
@@ -1865,6 +1898,7 @@ abstract class NormServerBaseImpl
 	logger.log(r);
     }
     
+    @Override
     public void start() throws Exception {
         synchronized (this){
             if (started) return;

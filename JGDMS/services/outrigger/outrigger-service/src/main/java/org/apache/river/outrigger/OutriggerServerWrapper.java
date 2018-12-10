@@ -45,6 +45,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.export.CodebaseAccessor;
 import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
@@ -269,17 +270,14 @@ public class OutriggerServerWrapper
     }
 
     public EventRegistration
-	notify(EntryRep tmpl, Transaction txn, RemoteEventListener listener,
-	       long lease, MarshalledObject handback)
+	notify(EntryRep tmpl, Transaction txn, RemoteEventListener listener, long lease, MarshalledInstance handback)
 	throws TransactionException, RemoteException 
     {
 	gate();
 	return delegate.notify(tmpl, txn, listener, lease, handback);
     }
 
-    public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
-	    Transaction txn, boolean visibilityOnly, RemoteEventListener listener,
-  	    long leaseTime, MarshalledObject handback)
+    public EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls, Transaction txn, boolean visibilityOnly, RemoteEventListener listener, long leaseTime, MarshalledInstance handback)
         throws TransactionException, RemoteException
     {
 	gate();

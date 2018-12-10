@@ -43,17 +43,28 @@ final class ConstrainableRegistration
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static GetArg check(GetArg arg) throws IOException {
+    private static MethodConstraints check(GetArg arg) throws IOException {
 	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
 	Registration reg = new Registration(arg);
+	MethodConstraints proxyCon = null;
+	if (reg.server instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)reg.server).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return ConstrainableProxyUtil.reverseTranslateConstraints(
+		    proxyCon, methodMappings);
+	}
 	ConstrainableProxyUtil.verifyConsistentConstraints(
 	    constraints, reg.server, methodMappings);
-	return arg;
+	return constraints;
     }
    
     ConstrainableRegistration(GetArg arg) throws IOException {
-	super(check(arg));
-	constraints = (MethodConstraints) arg.get("constraints", null);
+	this(arg, check(arg));
+    }
+    
+    ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException{
+	super(arg);
+	this.constraints = constraints;
     }
 
     /**

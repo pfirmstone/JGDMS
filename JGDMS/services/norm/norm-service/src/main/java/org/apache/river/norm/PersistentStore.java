@@ -29,6 +29,7 @@ import net.jini.config.ConfigurationException;
 import org.apache.river.norm.proxy.StoreException;
 import org.apache.river.norm.proxy.CorruptedStoreException;
 import org.apache.river.norm.lookup.SubStore;
+import org.apache.river.norm.proxy.NormServer;
 import org.apache.river.reliableLog.LogHandler;
 import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.system.FileSystem;
@@ -116,7 +117,7 @@ class PersistentStore {
 	    }
 
 	    try {
-		log.recover();
+		log.recover(NormServerBaseImpl.class.getClassLoader());
 	    } catch (IOException e) {
 		throw new CorruptedStoreException(
 		    "Failure recovering reliable log", e);	    

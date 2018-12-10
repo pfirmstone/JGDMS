@@ -34,6 +34,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
 
 import net.jini.id.Uuid;
 import net.jini.space.InternalSpaceException;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This interface is the private wire protocol to the Outrigger
@@ -340,14 +341,14 @@ public interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param txn transaction
      * @param listener listener
      * @param lease lease duration in milliseconds
-     * @param handback MarshalledObject.
+     * @param handback MarshalledInstance.
      * @return the EventRegistration.
      * @throws TransactionException if a transaction related exception occurs.
      * @throws RemoteException if a communication related exception occurs.
      */
     EventRegistration
 	notify(EntryRep tmpl, Transaction txn, RemoteEventListener listener,
-	       long lease, MarshalledObject handback)
+	       long lease, MarshalledInstance handback)
 	throws TransactionException, RemoteException;
 
     /**
@@ -460,7 +461,7 @@ public interface OutriggerServer extends TransactionParticipant, Landlord,
     EventRegistration registerForAvailabilityEvent(EntryRep[] tmpls,
 	    Transaction txn, boolean visibilityOnly, 
             RemoteEventListener listener, long leaseTime, 
-            MarshalledObject handback)
+            MarshalledInstance handback)
         throws TransactionException, RemoteException;
 
     /**

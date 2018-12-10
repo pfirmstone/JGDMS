@@ -378,8 +378,19 @@ public class FiddlerLease extends AbstractLease
      *         equal to the object on which this method is invoked;
      *         <code>false</code> otherwise.
      */
+    @Override
     public boolean equals(Object obj) {
         return ReferentUuids.compare(this,obj);
+    }
+    
+    @Override
+    public String toString(){
+	StringBuilder builder = new StringBuilder(128);
+	builder.append("FiddlerLease serverID: ").append(serverID).append("\n");
+	builder.append("FiddlerLease registrationID: ").append(registrationID)
+		.append("\n");
+	builder.append("FiddlerLease leaseID: ").append(leaseID).append("\n");
+	return builder.toString();
     }
 
     /** When an instance of this class is deserialized, this method is
@@ -601,21 +612,31 @@ public class FiddlerLease extends AbstractLease
 	 * @param arg
 	 * @throws IOException 
 	 */
-	ConstrainableFiddlerLease(GetArg arg) throws IOException {
-	    super(check(arg));
-	    this.methodConstraints 
-		    = (MethodConstraints) arg.get("methodConstraints", null);
+	ConstrainableFiddlerLease(GetArg arg) throws IOException, ClassNotFoundException {
+	   this(arg, check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException{
+	ConstrainableFiddlerLease(GetArg arg, MethodConstraints constraints) throws IOException{
+	    super(arg);
+	    this.methodConstraints = constraints;
+	}
+	
+	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException{
 	    FiddlerLease fl = new FiddlerLease(arg);
 	    MethodConstraints methodConstraints 
-		    = (MethodConstraints) arg.get("methodConstraints", null);
+		    = arg.get("methodConstraints", null, MethodConstraints.class);
+	    MethodConstraints proxyCon = null;
+	    if (fl.server instanceof RemoteMethodControl && 
+		(proxyCon = ((RemoteMethodControl)fl.server).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		return ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMapArray);
+	    }
 	    ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
                                                         fl.server,
                                                         methodMapArray);
-	    return arg;
+	    return methodConstraints;
 	}
 
         /**

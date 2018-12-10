@@ -90,11 +90,12 @@ public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
 	this.proxyID = serviceProxyID;
     }
 
-    TxnMgrAdminProxy(GetArg arg) throws IOException{
+    TxnMgrAdminProxy(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg), arg.get("proxyID", null, Uuid.class));
     }
     
-    private static TxnManager check(GetArg arg) throws IOException{
+    private static TxnManager check(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	TxnManager server = arg.get("server", null, TxnManager.class);
 	Uuid proxyID = (Uuid) arg.get("proxyID", null);
     
@@ -274,11 +275,13 @@ public class TxnMgrAdminProxy implements DestroyAdmin, JoinAdmin,
             super( constrainServer(server, methodConstraints), proxyID);
         }//end constructor
 
-	ConstrainableTxnMgrAdminProxy(GetArg arg) throws IOException {
+	ConstrainableTxnMgrAdminProxy(GetArg arg) 
+		throws IOException, ClassNotFoundException {
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException{
+	private static GetArg check(GetArg arg) 
+		throws IOException, ClassNotFoundException{
 	    TxnMgrAdminProxy p = new TxnMgrAdminProxy(arg);
 	    // Verify that the server implements RemoteMethodControl
             if( !(p.server instanceof RemoteMethodControl) ) {

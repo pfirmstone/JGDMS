@@ -54,7 +54,7 @@ public class RemoteEventIteratorData implements Serializable {
 	this.events = events;
     }
     
-    RemoteEventIteratorData(GetArg arg) throws IOException{
+    RemoteEventIteratorData(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("uuid", null, Uuid.class),
 	     Valid.copyCol(
 		 arg.get("events", null, Collection.class),

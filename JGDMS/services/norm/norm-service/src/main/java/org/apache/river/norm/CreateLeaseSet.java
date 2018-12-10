@@ -17,14 +17,17 @@
  */
 package org.apache.river.norm;
 
+import java.io.IOException;
 import java.util.Map;
-import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * Class that logs the creation of a set by the service
  *
  * @author Sun Microsystems, Inc.
  */
+@AtomicSerial
 class CreateLeaseSet extends LoggedOperation {
     private static final long serialVersionUID = 1L;
 
@@ -41,6 +44,15 @@ class CreateLeaseSet extends LoggedOperation {
     protected CreateLeaseSet(LeaseSet set) {
 	super(set.getUuid());
 	this.set = set;
+    }
+    
+    /**
+     * Constructor for @AtomicSerial
+     * @param arg serial arguments.
+     * @throws IOException 
+     */
+    protected CreateLeaseSet(GetArg arg) throws IOException, ClassNotFoundException{
+	this(arg.get("set", null, LeaseSet.class));
     }
 
     // Inherit java doc from super type

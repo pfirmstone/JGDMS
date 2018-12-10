@@ -64,7 +64,7 @@ public class Matches implements Serializable {
      */
     private final int totalMatches;
     
-    Matches(GetArg arg) throws IOException{
+    Matches(GetArg arg) throws IOException, ClassNotFoundException{
 	this(Valid.copyCol(arg.get("items", null, List.class),
 			   new LinkedList<Item>(),
 			   Item.class),

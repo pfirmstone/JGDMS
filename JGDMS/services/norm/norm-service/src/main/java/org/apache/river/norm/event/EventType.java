@@ -164,7 +164,7 @@ public class EventType implements Serializable {
      * @param arg
      * @throws IOException 
      */
-    public EventType(GetArg arg) throws IOException{
+    public EventType(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("marshalledListener", null, MarshalledObject.class),
 	     arg.get("handback", null, MarshalledObject.class),
 	     arg.get("registrationNumber", 0L),

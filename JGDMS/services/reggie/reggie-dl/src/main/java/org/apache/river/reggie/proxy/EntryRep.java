@@ -91,7 +91,8 @@ public final class EntryRep implements Serializable, Cloneable {
 	return flds;
     }
     
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	EntryClass eclass = Valid.notNull(
 	    arg.get("eclass", null, EntryClass.class), 
 	    "eclass cannot be null"
@@ -104,11 +105,12 @@ public final class EntryRep implements Serializable, Cloneable {
 	return true;
     }
     
-    EntryRep(GetArg arg) throws IOException{
+    EntryRep(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
     
-    private EntryRep(GetArg arg, boolean check) throws IOException{
+    private EntryRep(GetArg arg, boolean check) 
+	    throws IOException, ClassNotFoundException{
 	eclass = arg.get("eclass", null, EntryClass.class);
 	codebase = arg.get("codebase", null, String.class);
 	fields = Valid.copy(arg.get("fields", null, Object[].class));

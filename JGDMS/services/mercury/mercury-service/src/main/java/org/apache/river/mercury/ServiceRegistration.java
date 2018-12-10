@@ -116,7 +116,7 @@ class ServiceRegistration extends AbstractLeasedResource
     
     private transient volatile Condition iteratorCondition;
 
-    public ServiceRegistration(GetArg arg) throws IOException{
+    public ServiceRegistration(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("cookie", null, Uuid.class),
 	    arg.get("eventIterator", null, EventLogIterator.class),
 	    arg.get("iteratorCondition", null, Condition.class),

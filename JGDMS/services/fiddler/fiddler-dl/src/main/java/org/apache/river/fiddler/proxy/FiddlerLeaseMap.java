@@ -116,10 +116,9 @@ class FiddlerLeaseMap extends AbstractIDLeaseMap<FiddlerLease> {
      *                 is the "mapped" value corresponding to the lease key.
      */
     private FiddlerLeaseMap(Fiddler server, FiddlerLease lease, long duration){
-        super();
+        super(lease, duration);
         this.server = server;
         this.serverID = lease.getServerID();
-        put(lease, duration);
     }//end constructor
 
     /**
@@ -146,8 +145,15 @@ class FiddlerLeaseMap extends AbstractIDLeaseMap<FiddlerLease> {
      * @see net.jini.core.lease.Lease#canBatch
      */
     public boolean canContainKey(Object key) {
-        return (    (key instanceof FiddlerLease)
+        boolean result = (    (key instanceof FiddlerLease)
                  && (serverID.equals(((FiddlerLease)key).getServerID()))  );
+	if (!result) {
+	    StringBuilder builder = new StringBuilder(128);
+	    builder.append("Key invalid for LeaseMap, serverID: ").append(serverID);
+	    builder.append("\nKey :").append(key);
+	    throw new IllegalArgumentException(builder.toString());
+	}
+	return result;
     }
 
     /**
@@ -366,10 +372,11 @@ class FiddlerLeaseMap extends AbstractIDLeaseMap<FiddlerLease> {
          * <p><ul>
          *    <li> the leases are the same type; that is, the leases are 
          *         both instances of the same, constrainable, service-specific
-         *         <code>Lease</code> implementation
-         *    <li> the leases were granted by the same backend server
-         *    <li> the leases have the same constraints
-         *                      
+         *         <code>Lease</code> implementation </li>
+         *    <li> the leases were granted by the same backend server </li>
+         *    <li> the leases have the same constraints. </li>
+         *                  
+	 * </ul>
          * @param key reference to the object that this method examines to
          *        determine if this map will accept or reject it as a key
          *                      

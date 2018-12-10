@@ -17,10 +17,10 @@
  */
 package org.apache.river.outrigger;
 
-import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.space.InternalSpaceException;
 import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 
 /**
@@ -62,7 +62,7 @@ class TransactableEventWatcher extends EventRegistrationWatcher
      *         <code>null</code>.
      */
     TransactableEventWatcher(long timestamp, long startOrdinal, Uuid cookie,
-	MarshalledObject handback, long eventID, 
+	MarshalledInstance handback, long eventID, 
 	RemoteEventListener listener, Txn txn)
     {
 	super(timestamp, startOrdinal, cookie, handback, eventID);

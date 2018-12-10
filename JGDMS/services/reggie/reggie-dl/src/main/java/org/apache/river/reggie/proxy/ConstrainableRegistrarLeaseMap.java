@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.Lease;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial;
 
 /**
  * RegistrarLeaseMap subclass that supports constraints.

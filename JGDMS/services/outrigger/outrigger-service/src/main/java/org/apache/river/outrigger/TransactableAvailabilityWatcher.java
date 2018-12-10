@@ -21,6 +21,7 @@ import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.space.InternalSpaceException;
 import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 
 /**
@@ -65,6 +66,23 @@ class TransactableAvailabilityWatcher extends AvailabilityRegistrationWatcher
      */
     TransactableAvailabilityWatcher(long timestamp, long startOrdinal,
 	Uuid cookie, boolean visibilityOnly, MarshalledObject handback,
+	long eventID, RemoteEventListener listener, Txn txn)
+    {
+	super(timestamp, startOrdinal, cookie, visibilityOnly, handback,
+	      eventID);
+
+	if (listener == null)
+	    throw new NullPointerException("listener must be non-null");
+
+	if (txn == null)
+	    throw new NullPointerException("txn must be non-null");
+
+	this.listener = listener;
+	this.txn = txn;
+    }
+    
+    TransactableAvailabilityWatcher(long timestamp, long startOrdinal,
+	Uuid cookie, boolean visibilityOnly, MarshalledInstance handback,
 	long eventID, RemoteEventListener listener, Txn txn)
     {
 	super(timestamp, startOrdinal, cookie, visibilityOnly, handback,

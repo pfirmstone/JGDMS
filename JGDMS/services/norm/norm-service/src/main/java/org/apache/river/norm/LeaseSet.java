@@ -559,7 +559,7 @@ class LeaseSet implements Serializable, LeasedResource {
     /**
      * Return the absolute time when a expiration warning should be sent.
      */
-    long getWarningTime() {
+    synchronized long getWarningTime() {
 	return expiration - minWarning;
     }
 

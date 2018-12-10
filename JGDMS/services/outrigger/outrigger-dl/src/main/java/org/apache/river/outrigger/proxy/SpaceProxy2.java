@@ -47,9 +47,10 @@ import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.Security;
-import net.jini.space.JavaSpace05;
 import net.jini.space.MatchSet;
+import net.jini.space.TupleSpace;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.landlord.LandlordLease;
@@ -71,7 +72,7 @@ import org.apache.river.landlord.LandlordLease;
  */
 // @see OutriggerSpace
 @AtomicSerial
-public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
+public class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
 			     Serializable, ProxyAccessor
 {
     static final long serialVersionUID = 1L;
@@ -356,7 +357,7 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		throw new AssertionError("space.read() returned null");
 	    } else if (rslt instanceof EntryRep) {
 		// Got an answer, return it
-		return entryFrom((EntryRep)rslt);
+		return entryFrom((EntryRep)rslt, tmpl);
 	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
 		/* Will still want to go on if there is time, but pass
 		 * the new cookie
@@ -404,7 +405,7 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		return null;
 	    } else if (rslt instanceof EntryRep) {
 		// Got an answer, return it
-		return entryFrom((EntryRep)rslt);
+		return entryFrom((EntryRep)rslt, tmpl);
 	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
 		/* Will still want to go on if there is time, but pass
 		 * the new cookie
@@ -451,7 +452,7 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		throw new AssertionError("space.take() returned null");
 	    } else if (rslt instanceof EntryRep) {
 		// Got an answer, return it
-		return entryFrom((EntryRep)rslt);
+		return entryFrom((EntryRep)rslt, tmpl);
 	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
 		/* Will still want to go on if there is time, but pass
 		 * the new cookie
@@ -499,7 +500,7 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		return null;
 	    } else if (rslt instanceof EntryRep) {
 		// Got an answer, return it
-		return entryFrom((EntryRep)rslt);
+		return entryFrom((EntryRep)rslt, tmpl);
 	    } else if (rslt instanceof OutriggerServer.QueryCookie) {
 		/* Will still want to go on if there is time, but pass
 		 * the new cookie
@@ -534,6 +535,16 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
     public EventRegistration
 	notify(Entry tmpl, Transaction txn, RemoteEventListener listener,
 	       long lease, MarshalledObject handback)
+	throws TransactionException, RemoteException
+    {
+	return space.notify(repFor(tmpl), txn, listener, lease,
+		handback != null ? new MarshalledInstance(handback) : null);
+    }
+	
+	// inherit doc comment
+    public EventRegistration
+	notify(Entry tmpl, Transaction txn, RemoteEventListener listener,
+	       long lease, MarshalledInstance handback)
 	throws TransactionException, RemoteException
     {
 	return space.notify(repFor(tmpl), txn, listener, lease, handback);
@@ -618,9 +629,17 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 		final Collection entries = new LinkedList();
 		Collection exceptions = null;
 		
-		for (int i=0,l=reps.length; i<l; i++) {
+		for (int i=0,l=reps.length; i<l ; i++) {
 		    try {
-			entries.add(entryFrom(reps[i]));
+			Iterator tmplsIt = tmpls.iterator();
+			while (tmplsIt.hasNext()){ // Try each template for class resolution.
+			    Entry tmpl = (Entry) tmplsIt.next();
+			    Entry e = entryFrom(reps[i], tmpl);
+			    if (e != null) {
+				entries.add(e);
+				break;
+			    }
+			}
 		    } catch (UnusableEntryException e) {
 			if (exceptions == null)
 			    exceptions = new LinkedList();
@@ -669,9 +688,22 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
     {
 	return space.registerForAvailabilityEvent(
 	    repFor(tmpls, "tmpls"), txn, visibilityOnly, listener,
+	    leaseDuration, new MarshalledInstance(handback));
+    }
+	
+    public EventRegistration registerForAvailabilityEvent(
+		Collection tmpls,
+		Transaction txn,
+		boolean visibilityOnly,
+		RemoteEventListener listener,
+		long leaseDuration,
+		MarshalledInstance handback) 
+	    throws TransactionException, RemoteException 
+    {
+	return space.registerForAvailabilityEvent(
+	    repFor(tmpls, "tmpls"), txn, visibilityOnly, listener,
 	    leaseDuration, handback);
     }
-
 
     // inherit doc comment
     public MatchSet contents(Collection tmpls,		      
@@ -682,7 +714,7 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
     {
 	final MatchSetData msd = 
 	    space.contents(repFor(tmpls, "tmpls"), txn, leaseDuration, maxEntries);
-	return new MatchSetProxy(msd, this, space);
+	return new MatchSetProxy(msd, this, space, tmpls);
     }
 
     /* We break up lease creation into two methods. newLease takes
@@ -778,9 +810,10 @@ public class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
     /**
      * Return an entry generated from the given rep.
      */
-    static Entry entryFrom(EntryRep rep) throws UnusableEntryException {
+    static Entry entryFrom(EntryRep rep, Entry tmpl) throws UnusableEntryException {
 	if (rep == null)
 	    return null;
+	rep.primeEntryClass(tmpl);
 	return rep.entry();
     }
 

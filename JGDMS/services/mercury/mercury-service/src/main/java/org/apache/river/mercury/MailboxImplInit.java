@@ -25,7 +25,6 @@ import org.apache.river.landlord.LeasePeriodPolicy;
 import org.apache.river.mercury.proxy.MailboxBackEnd;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.security.AccessControlContext;
@@ -46,7 +45,6 @@ import net.jini.discovery.DiscoveryManagement;
 import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
@@ -99,7 +97,13 @@ class MailboxImplInit {
         context = AccessController.getContext();
         // Get activation specific configuration items, if activated
         if (activationID != null) {
-            ProxyPreparer activationSystemPreparer = Config.getNonNullEntry(config, MailboxImpl.MERCURY, "activationSystemPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+            ProxyPreparer activationSystemPreparer = Config.getNonNullEntry(
+		    config,
+		    MailboxImpl.MERCURY,
+		    "activationSystemPreparer", 
+		    ProxyPreparer.class,
+		    new BasicProxyPreparer()
+	    );
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "activationSystemPreparer: {0}", activationSystemPreparer);
             }
@@ -110,7 +114,13 @@ class MailboxImplInit {
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
                 MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Prepared activation system is: {0}", activationSystem);
             }
-            ProxyPreparer activationIdPreparer = Config.getNonNullEntry(config, MailboxImpl.MERCURY, "activationIdPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+            ProxyPreparer activationIdPreparer = Config.getNonNullEntry(
+		    config,
+		    MailboxImpl.MERCURY,
+		    "activationIdPreparer",
+		    ProxyPreparer.class,
+		    new BasicProxyPreparer()
+	    );
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "activationIdPreparer: {0}", activationIdPreparer);
             }
@@ -164,17 +174,35 @@ class MailboxImplInit {
 		"Codebase_Certs", byte[].class, new byte[0]);
 	
 	
-        listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "listenerPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+        listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
+		config,
+		MailboxImpl.MERCURY,
+		"listenerPreparer",
+		ProxyPreparer.class,
+		new BasicProxyPreparer()
+	);
         if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
             MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Listener preparer is: {0}", listenerPreparer);
         }
         /* Get the proxy preparers for the lookup locators to join */
-        locatorToJoinPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "locatorToJoinPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+        locatorToJoinPreparer = (ProxyPreparer) Config.getNonNullEntry(
+		config,
+		MailboxImpl.MERCURY,
+		"locatorToJoinPreparer",
+		ProxyPreparer.class,
+		new BasicProxyPreparer()
+	);
         if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
             MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Locator preparer is: {0}", locatorToJoinPreparer);
         }
         // Create lease policy -- used by recovery logic, below
-        leasePolicy = (LeasePeriodPolicy) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "leasePeriodPolicy", LeasePeriodPolicy.class, new FixedLeasePeriodPolicy(3 * TimeConstants.HOURS, 1 * TimeConstants.HOURS));
+        leasePolicy = (LeasePeriodPolicy) Config.getNonNullEntry(
+		config,
+		MailboxImpl.MERCURY,
+		"leasePeriodPolicy",
+		LeasePeriodPolicy.class,
+		new FixedLeasePeriodPolicy(3 * TimeConstants.HOURS, 1 * TimeConstants.HOURS)
+	);
         if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
             MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "LeasePeriodPolicy is: {0}", leasePolicy);
         }
@@ -185,12 +213,24 @@ class MailboxImplInit {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Persistence directory is: {0}", persistenceDirectory);
             }
             // Note: referenced by recovery logic in rebuildTransientState()
-            recoveredListenerPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "recoveredListenerPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+            recoveredListenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
+		    config,
+		    MailboxImpl.MERCURY,
+		    "recoveredListenerPreparer",
+		    ProxyPreparer.class,
+		    new BasicProxyPreparer()
+	    );
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Recovered listener preparer is: {0}", recoveredListenerPreparer);
             }
             // Note: referenced by recovery logic, below
-            recoveredLocatorToJoinPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "recoveredLocatorToJoinPreparer", ProxyPreparer.class, new BasicProxyPreparer());
+            recoveredLocatorToJoinPreparer = (ProxyPreparer) Config.getNonNullEntry(
+		    config,
+		    MailboxImpl.MERCURY,
+		    "recoveredLocatorToJoinPreparer",
+		    ProxyPreparer.class,
+		    new BasicProxyPreparer()
+	    );
             if (MailboxImpl.INIT_LOGGER.isLoggable(Level.CONFIG)) {
                 MailboxImpl.INIT_LOGGER.log(Level.CONFIG, "Recovered locator preparer is: {0}", recoveredLocatorToJoinPreparer);
             }

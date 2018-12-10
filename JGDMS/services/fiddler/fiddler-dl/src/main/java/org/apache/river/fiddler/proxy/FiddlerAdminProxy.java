@@ -838,21 +838,32 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
 	    this.methodConstraints = methodConstraints;
         }//end constructor
 
-	private static GetArg check(GetArg arg) throws IOException {
+	private static MethodConstraints check(GetArg arg) throws IOException {
 	    FiddlerAdminProxy fap = new FiddlerAdminProxy(arg);
 	    MethodConstraints methodConstraints = (MethodConstraints) 
 		    arg.get("methodConstraints", null);
+	    MethodConstraints proxyCon = null;
+	    if (fap.server instanceof RemoteMethodControl && 
+		(proxyCon = ((RemoteMethodControl)fap.server).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		return ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMapArray);
+	    }
 	    /* Verify the server and its constraints */
             ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
                                                         fap.server,
                                                         methodMapArray);
-	    return arg;
-	}		       
+	    return methodConstraints;
+	}	
+	
 	ConstrainableFiddlerAdminProxy(GetArg arg) throws IOException {
-	    super(check(arg));
-	    methodConstraints = (MethodConstraints) 
-		    arg.get("methodConstraints", null);
+	    this(arg, check(arg));
+	}
+	
+	ConstrainableFiddlerAdminProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+	    super(arg);
+	    methodConstraints = constraints;
 	}
 
         /** Returns a copy of the given server proxy having the client method

@@ -92,7 +92,7 @@ public class ListenerProxy implements RemoteEventListener, Serializable,
         }
     }
 
-    ListenerProxy(GetArg arg) throws IOException {
+    ListenerProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	this(Valid.notNull(
 		arg.get("server", null, MailboxBackEnd.class),
 		"server cannot be null"
@@ -226,21 +226,32 @@ public class ListenerProxy implements RemoteEventListener, Serializable,
             this.methodConstraints = methodConstraints;
         }
 
-	ConstrainableListenerProxy(GetArg arg) throws IOException {
-	    super(check(arg));
-	    methodConstraints = (MethodConstraints) 
-		    arg.get("methodConstraints", null);
+	ConstrainableListenerProxy(GetArg arg) throws IOException, ClassNotFoundException {
+	    this(arg, check(arg));
 	}
 
-	private static GetArg check(GetArg arg) throws IOException {
+	ConstrainableListenerProxy(GetArg arg, MethodConstraints constraints) 
+		throws IOException, ClassNotFoundException{
+	    super(arg);
+	    methodConstraints = constraints;
+	}
+	private static MethodConstraints check(GetArg arg) 
+		throws IOException, ClassNotFoundException {
 	    ListenerProxy lp = new ListenerProxy(arg);
-	    MethodConstraints methodConstraints = (MethodConstraints) 
-		    arg.get("methodConstraints", null);
+	    MethodConstraints methodConstraints =
+		    arg.get("methodConstraints", null, MethodConstraints.class);
+	    MethodConstraints proxyCon = null;
+	    if (lp.server instanceof RemoteMethodControl && 
+		(proxyCon = ((RemoteMethodControl)lp.server).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		return ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMap1);
+	    }
 	    /* Verify the server and its constraints */
             ConstrainableProxyUtil.verifyConsistentConstraints(methodConstraints,
                                                         lp.server,
                                                         methodMap1);
-	    return arg;
+	    return methodConstraints;
 	}
         /**
          * Returns a copy of the server proxy with the specified client

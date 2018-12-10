@@ -53,7 +53,7 @@ public class EntryClassBase implements Serializable {
 	this.codebase = codebase;
     }
     
-    public EntryClassBase(GetArg arg) throws IOException{
+    public EntryClassBase(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("eclass", null, EntryClass.class),
 	    arg.get("codebase", null, String.class)
 	);

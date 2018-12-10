@@ -32,6 +32,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.space.JavaSpace;
@@ -131,7 +132,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 					 Transaction.class,
 					 RemoteEventListener.class,
 					 long.class,
-					 MarshalledObject.class}),
+					 MarshalledInstance.class}),
 
 	ProxyUtil.getMethod(JavaSpace05.class, "contents", 
 			    new Class[] {Collection.class,
@@ -191,16 +192,25 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
     }
 
     ConstrainableSpaceProxy2(GetArg arg) throws IOException{
-	super(check(arg));
-	methodConstraints = (MethodConstraints) 
-		arg.get("methodConstraints", null);
+	this(arg, check(arg));
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    ConstrainableSpaceProxy2(GetArg arg, MethodConstraints constraints) throws IOException{
+	super(arg);
+	methodConstraints = constraints;
+    }
+    
+    private static MethodConstraints check(GetArg arg) throws IOException {
 	SpaceProxy2 sp2 = new SpaceProxy2(arg);
 	MethodConstraints methodConstraints = (MethodConstraints) 
 		arg.get("methodConstraints", null);
-	
+	MethodConstraints proxyCon = null;
+	if (sp2.space instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)sp2.space).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return ConstrainableProxyUtil.reverseTranslateConstraints(
+		    proxyCon, methodMapArray);
+	}
 	/* Basic validation of space, spaceUuid, and 
 	 * serverMaxServerQueryTimeout was performed by
 	 * SpaceProxy2.readObject(), we just need to verify than
@@ -209,7 +219,7 @@ public final class ConstrainableSpaceProxy2 extends SpaceProxy2
 	 */
 	ConstrainableProxyUtil.verifyConsistentConstraints(
 	    methodConstraints, sp2.space, methodMapArray);
-	return arg;
+	return methodConstraints;
     }
 
     /**

@@ -66,22 +66,44 @@ final class ConstrainableEventLease
 	ConstrainableProxyUtil.verifyConsistentConstraints(
 	    constraints, proxy, methodMappings);
     }
+    
+    static MethodConstraints reverseTranslateConstraints(MethodConstraints constraints) {
+	return ConstrainableProxyUtil.reverseTranslateConstraints(
+		constraints, methodMappings);
+    }
+
 
 
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    
-    private static GetArg check(GetArg arg) throws IOException{
+    /**
+     * The server proxy will have been downloaded first and already have 
+     * constraints applied by AtomicMarshalInputStream.
+     * @param arg
+     * @return
+     * @throws IOException 
+     */
+    private static MethodConstraints check(GetArg arg) throws IOException{
 	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
 	EventLease el = new EventLease(arg);
+	MethodConstraints proxyCon = null;
+	if (el.server instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)el.server).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return reverseTranslateConstraints(proxyCon);
+	}
 	verifyConsistentConstraints(constraints, el.server);
-	return arg;
+	return constraints;
     }
     
     ConstrainableEventLease(GetArg arg) throws IOException{
-	super(check(arg));
-	constraints = (MethodConstraints) arg.get("constraints", null);
+	this(arg, check(arg));
+    }
+    
+    ConstrainableEventLease(GetArg arg, MethodConstraints constraints) throws IOException{
+	super(arg);
+	this.constraints = constraints;
     }
 
     /**

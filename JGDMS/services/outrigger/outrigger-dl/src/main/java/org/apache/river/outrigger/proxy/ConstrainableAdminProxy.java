@@ -175,15 +175,25 @@ public final class ConstrainableAdminProxy extends AdminProxy
     }
 
     ConstrainableAdminProxy(GetArg arg)throws IOException {
-	super(check(arg));
-	methodConstraints = (MethodConstraints) 
-		arg.get("methodConstraints", null);
+	this(arg, check(arg));
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    ConstrainableAdminProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+	super(arg);
+	methodConstraints = constraints;
+    }
+    
+    private static MethodConstraints check(GetArg arg) throws IOException {
 	AdminProxy ap = new AdminProxy(arg);
 	MethodConstraints methodConstraints = (MethodConstraints) 
 		arg.get("methodConstraints", null);
+	MethodConstraints proxyCon = null;
+	if (ap.admin instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)ap.admin).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return ConstrainableProxyUtil.reverseTranslateConstraints(
+		    proxyCon, methodMapArray);
+	}
 	/* basic validation of admin and spaceUuid was performed by
 	 * AdminProxy.readObject(), we just need to verify than space
 	 * implements RemoteMethodControl and that it has appropriate
@@ -191,7 +201,7 @@ public final class ConstrainableAdminProxy extends AdminProxy
 	 */
 	ConstrainableProxyUtil.verifyConsistentConstraints(
 	    methodConstraints, ap.admin, methodMapArray);
-	return arg;
+	return methodConstraints;
     }
 
     /**

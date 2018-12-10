@@ -139,7 +139,7 @@ public class AdminProxy
 	Util.getMethod(DestroyAdmin.class, "destroy", new Class[0]),
 	Util.getMethod(DestroyAdmin.class, "destroy", new Class[0])
     };
-    
+
     /**
      * The registrar.
      *
@@ -166,6 +166,11 @@ public class AdminProxy
 		constraints, methodMappings);
     }
     
+    static MethodConstraints reverseTranslateConstraints(MethodConstraints constraints) {
+	return ConstrainableProxyUtil.reverseTranslateConstraints(
+		constraints, methodMappings);
+    }
+  
     static void verifyConsistentConstraints(MethodConstraints constraints, Object server) 
 	    throws InvalidObjectException{
 	ConstrainableProxyUtil.verifyConsistentConstraints(

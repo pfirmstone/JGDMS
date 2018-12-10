@@ -31,7 +31,6 @@ import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.export.ProxyAccessor;
-import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -51,13 +50,12 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
 
     /**
      * The new state of the serviceItem, or null if the serviceItem has been
-     * deleted from the lookup service.  This is either a ServiceItem,
-     * an Item (to be converted to a ServiceItem when getServiceItem is called),
-     * or a bootstrapProxy;
+     * deleted from the lookup service.  This is either a ServiceItem, or
+     * an Item (to be converted to a ServiceItem when getServiceItem is called).
      *
      * @serial
      */
-    private volatile Object serviceItem;
+    volatile Object serviceItem;
     /**
      * The service ID of the serviceItem that triggered the event.  This field is used
      * instead of the inherited serviceID field (which is set to null) and is
@@ -73,7 +71,7 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
 	return new RO();
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	Object serviceItem = arg.get("serviceItem", null);
 	if (serviceItem == null ||
 	    serviceItem instanceof ServiceItem ||
@@ -85,7 +83,7 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
 	throw new InvalidObjectException("Invariants weren't satisfied");
     }
     
-    public RegistrarEvent(GetArg arg) throws IOException {
+    public RegistrarEvent(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	serviceItem = arg.get("serviceItem", null);
 	servID = ((RO) arg.getReader()).servID;
@@ -143,6 +141,9 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
     /**
      * Returns the new state of the serviceItem, or null if the serviceItem was deleted
      * from the lookup service.
+     * 
+     * @return the new state of the serviceItem, or null if the serviceItem was deleted
+     * from the lookup service.
      */
     @Override
     public ServiceItem getServiceItem() {
@@ -167,6 +168,7 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
     }
 
     // javadoc inherited from ServiceEvent
+    @Override
     public ServiceID getServiceID() {
 	return servID;
     }
@@ -194,8 +196,8 @@ public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
     }
 
     public Object getProxy() {
-	Object source = getSource();
-	if (source instanceof ProxyAccessor) return ((ProxyAccessor)source).getProxy();
+	Object src = getSource();
+	if (src instanceof ProxyAccessor) return ((ProxyAccessor)src).getProxy();
 	throw new IllegalStateException("source wasn't a service registrar proxy");
     }
     

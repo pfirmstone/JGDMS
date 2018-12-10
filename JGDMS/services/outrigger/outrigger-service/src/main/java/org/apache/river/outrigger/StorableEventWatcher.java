@@ -21,17 +21,19 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.io.StreamCorruptedException;
-import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.outrigger.proxy.StorableResource;
 
 /**
  * Subclass of <code>EventRegistrationWatcher</code> for non-transactional
  * persistent event registrations.
+ * 
+ * Note that the persistent file format / serial form has changed, earlier
+ * implementations can be read by this, but it is not backward compatible.
  */
 class StorableEventWatcher extends EventRegistrationWatcher
     implements StorableResource<StorableEventWatcher>
@@ -85,7 +87,7 @@ class StorableEventWatcher extends EventRegistrationWatcher
      *        or <code>listener</code> arguments are <code>null</code>.
      */
     StorableEventWatcher(long timestamp, long startOrdinal, Uuid cookie, 
-			 MarshalledObject handback, long eventID, 
+			 MarshalledInstance handback, long eventID, 
 			 RemoteEventListener listener)
     {
 	super(timestamp, startOrdinal, cookie, handback, eventID);
@@ -144,7 +146,7 @@ class StorableEventWatcher extends EventRegistrationWatcher
 	cookie = UuidFactory.read(in);
 	expiration = in.readLong();
 	eventID = in.readLong();
-	handback = (MarshalledObject)in.readObject();	
+	handback = in.readObject();	
 	listener = (StorableReference)in.readObject();
 	if (listener == null)
 	    throw new StreamCorruptedException(

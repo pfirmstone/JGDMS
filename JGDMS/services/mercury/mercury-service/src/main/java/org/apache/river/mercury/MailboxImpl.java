@@ -713,7 +713,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         if (MailboxImpl.INIT_LOGGER.isLoggable(Level.FINEST)) {
                         MailboxImpl.INIT_LOGGER.log(Level.FINEST, "Recovering persistent state");
                         }
-                        log.recover();  
+                        log.recover(MailboxImpl.class.getClassLoader());  
                     }
                     if (serviceID == null) {
                         // First time up, get initial values
@@ -808,6 +808,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                                         "Restoring reg transient state ...");
                                     }
                                     try {
+					reg.setCondition(concurrentObj.newCondition());
                                         concurrentObj.writeUnlock();//release
                                         // Holding a lock while calling this method should be avoided.
                                         reg.restoreTransientState(recoveredListenerPreparer);
@@ -4615,14 +4616,24 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
 	/* Overrides snapshot() defined in ReliableLog's LogHandler class. */
 	public void snapshot(OutputStream out) throws IOException {
-	    takeSnapshot(out);
+	    concurrentObj.readLock();
+	    try {
+		takeSnapshot(out);
+	    } finally {
+		concurrentObj.readUnlock();
+	    }
 	}
 
 	/* Overrides recover() defined in ReliableLog's LogHandler class. */
 	public void recover(InputStream in)
 	    throws IOException, ClassNotFoundException
 	{
-	    recoverSnapshot(in);
+	    concurrentObj.writeLock();
+	    try {
+		recoverSnapshot(in);
+	    } finally {
+		concurrentObj.writeUnlock();
+	    }
 	}
 
 	/**

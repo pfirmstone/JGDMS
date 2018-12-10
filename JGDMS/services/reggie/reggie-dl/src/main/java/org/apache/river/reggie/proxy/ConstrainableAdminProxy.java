@@ -18,6 +18,7 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import net.jini.core.constraint.MethodConstraints;
@@ -43,16 +44,28 @@ final class ConstrainableAdminProxy
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static GetArg check(GetArg arg) throws IOException{
-	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+    private static MethodConstraints checkConstraints(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
+	MethodConstraints constraints = arg.get("constraints", null, MethodConstraints.class);
 	AdminProxy sup = new AdminProxy(arg);
+	MethodConstraints proxyCon = null;
+	if (sup.server instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)sup.server).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return reverseTranslateConstraints(proxyCon);
+	}
 	verifyConsistentConstraints(constraints, sup.server);
-	return arg;
+	return constraints;
     }
     
-    ConstrainableAdminProxy(GetArg arg) throws IOException{
-	super(check(arg));
-	constraints = (MethodConstraints) arg.get("constraints", null);
+    ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException{
+	this(arg, checkConstraints(arg));
+    }
+    
+    ConstrainableAdminProxy(GetArg arg, MethodConstraints constraints) 
+	    throws IOException, ClassNotFoundException{
+	super(arg);
+	this.constraints = constraints;
     }
 
     /**

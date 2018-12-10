@@ -72,7 +72,8 @@ final class ConstrainableServiceLease
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static AtomicSerial.GetArg check(AtomicSerial.GetArg arg) throws IOException{
+    private static MethodConstraints check(AtomicSerial.GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	RegistrarLease rl = new RegistrarLease(arg){
 	    private UnsupportedOperationException exception(){
 		return new UnsupportedOperationException("Validator only.");
@@ -84,14 +85,26 @@ final class ConstrainableServiceLease
 	    public void cancel() throws UnknownLeaseException,
 		    RemoteException { throw exception();}
 	};
-	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	MethodConstraints proxyCon = null;
+	if (rl.server instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)rl.server).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return ConstrainableProxyUtil.reverseTranslateConstraints(
+		    proxyCon, methodMappings);
+	}
+	MethodConstraints constraints = arg.get("constraints", null, MethodConstraints.class);
 	verifyConsistentConstraints(constraints, rl.server);
-	return arg;
+	return constraints;
     }
     
-    ConstrainableServiceLease(AtomicSerial.GetArg arg) throws IOException{
-	super(check(arg));
-	constraints = (MethodConstraints) arg.get("constraints", null);
+    ConstrainableServiceLease(AtomicSerial.GetArg arg) 
+	    throws IOException, ClassNotFoundException{
+	this(arg, check(arg));
+    }
+    
+    ConstrainableServiceLease(AtomicSerial.GetArg arg, MethodConstraints constraints) throws IOException{
+	super(arg);
+	this.constraints = constraints;
     }
 
     /**

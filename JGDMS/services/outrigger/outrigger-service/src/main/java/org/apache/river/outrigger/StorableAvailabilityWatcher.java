@@ -25,6 +25,7 @@ import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 import org.apache.river.outrigger.proxy.StorableResource;
 
@@ -88,6 +89,39 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
      */
     StorableAvailabilityWatcher(long timestamp, long startOrdinal, Uuid cookie, 
         boolean visibilityOnly, MarshalledObject handback, long eventID, 
+        RemoteEventListener listener)
+    {
+	super(timestamp, startOrdinal, cookie, visibilityOnly, handback,
+	      eventID);
+
+	if (listener == null)
+	    throw new NullPointerException("listener must be non-null");
+	this.listener = new StorableReference(listener);
+    }
+    
+    /**
+     * Create a new <code>StorableAvailabilityWatcher</code>.
+     * @param timestamp the value that is used
+     *        to sort <code>TransitionWatcher</code>s.
+     * @param startOrdinal the highest ordinal associated
+     *        with operations that are considered to have occurred 
+     *        before the operation associated with this watcher.
+     * @param cookie The unique identifier associated
+     *        with this watcher. Must not be <code>null</code>.
+     * @param visibilityOnly pass <code>true</code> if client
+     *        only wants visibility events
+     * @param handback The handback object that
+     *        should be sent along with event
+     *        notifications to the the listener.
+     * @param eventID The event ID for event type
+     *        represented by this object. 
+     * @param listener The object to notify of
+     *        matches.
+     * @throws NullPointerException if the <code>cookie</code>,
+     *        or <code>listener</code> arguments are <code>null</code>.
+     */
+    StorableAvailabilityWatcher(long timestamp, long startOrdinal, Uuid cookie, 
+        boolean visibilityOnly, MarshalledInstance handback, long eventID, 
         RemoteEventListener listener)
     {
 	super(timestamp, startOrdinal, cookie, visibilityOnly, handback,
@@ -169,7 +203,7 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
             expiration = in.readLong();
             eventID = in.readLong();
             visibilityOnly = in.readBoolean();
-            handback = (MarshalledObject)in.readObject();	
+            handback = in.readObject();	
             listener = (StorableReference)in.readObject();
             if (listener == null)
                 throw new StreamCorruptedException(

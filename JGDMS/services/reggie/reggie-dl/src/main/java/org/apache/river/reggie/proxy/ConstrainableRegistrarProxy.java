@@ -103,17 +103,30 @@ final class ConstrainableRegistrarProxy
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
-    private static GetArg check(GetArg arg) throws IOException{
+    private static MethodConstraints check(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
 	RegistrarProxy sup = new RegistrarProxy(arg);
-	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	MethodConstraints constraints = arg.get("constraints", null, MethodConstraints.class);
+	MethodConstraints proxyCon = null;
+	if (sup.server instanceof RemoteMethodControl && 
+	    (proxyCon = ((RemoteMethodControl)sup.server).getConstraints()) != null) {
+	    // Constraints set during proxy deserialization.
+	    return ConstrainableProxyUtil.reverseTranslateConstraints(
+		    proxyCon, methodMappings);
+	}
 	ConstrainableProxyUtil.verifyConsistentConstraints(
 	    constraints, sup.server, methodMappings);
-	return arg;
+	return constraints;
     }
     
-    ConstrainableRegistrarProxy(GetArg arg) throws IOException{
-	super(check(arg));
-	constraints = (MethodConstraints) arg.get("constraints", null);
+    ConstrainableRegistrarProxy(GetArg arg) 
+	    throws IOException, ClassNotFoundException{
+	this(arg, check(arg));
+    }
+    
+    ConstrainableRegistrarProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+	super(arg);
+	this.constraints = constraints;
     }
     
     /**

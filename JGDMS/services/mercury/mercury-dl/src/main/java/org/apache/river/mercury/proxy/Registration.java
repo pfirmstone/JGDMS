@@ -338,19 +338,31 @@ public class Registration implements MailboxPullRegistration,
 	}
 	
 	ConstrainableRegistration(GetArg arg) throws IOException {
-	    super(check(arg));
-	    methodConstraints = (MethodConstraints) 
-		    arg.get("methodConstraints", null);
+	    this(arg, check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException {
+	ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException{
+	    super(arg);
+	    methodConstraints = constraints;
+	}
+	
+	private static MethodConstraints check(GetArg arg) throws IOException {
 	    Registration r = new Registration(arg);
 	    MethodConstraints methodConstraints = (MethodConstraints) 
 		    arg.get("methodConstraints", null);
-	    /* Verify the server and its constraints */
-            ConstrainableProxyUtil.verifyConsistentConstraints(methodConstraints,
+	    MethodConstraints proxyCon = null;
+	    if (r.mailbox instanceof RemoteMethodControl && 
+		(proxyCon = ((RemoteMethodControl)r.mailbox).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		methodConstraints = ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMap1);
+	    } else {
+		/* Verify the server and its constraints */
+		ConstrainableProxyUtil.verifyConsistentConstraints(
+							methodConstraints,
                                                         r.mailbox,
                                                         methodMap1);
+	    }
             if( !(r.lease instanceof ConstrainableLandlordLease) ) {
                 throw new InvalidObjectException
                                 ("Registration.readObject failure - "
@@ -375,7 +387,7 @@ public class Registration implements MailboxPullRegistration,
                                          +"is not equal to "
                                          +"proxy ID");
             }   
-	    return arg;
+	    return methodConstraints;
 	}
 	
 	// inherit javadoc from supertype

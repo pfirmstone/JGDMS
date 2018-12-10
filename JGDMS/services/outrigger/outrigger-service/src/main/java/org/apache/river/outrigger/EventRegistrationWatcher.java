@@ -24,6 +24,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.UnknownEventException;
 import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 import net.jini.space.JavaSpace;
 import org.apache.river.landlord.LeasedResource;
@@ -53,7 +54,7 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    MarshalledObject handback;
+    Object handback;
 
     /** 
      * The event ID associated with this registration
@@ -136,6 +137,36 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 	this.handback = handback;
 	this.eventID = eventID;
     }
+    
+    /**
+     * Create a new <code>EventRegistrationWatcher</code>.
+     * @param timestamp the value that is used
+     *        to sort <code>TransitionWatcher</code>s.
+     * @param startOrdinal the highest ordinal associated
+     *        with operations that are considered to have occurred 
+     *        before the operation associated with this watcher.
+     * @param cookie The unique identifier associated
+     *        with this watcher. Must not be <code>null</code>.
+     * @param handback The handback object that
+     *        should be sent along with event
+     *        notifications to the the listener.
+     * @param eventID The event ID for event type
+     *        represented by this object.
+     * @throws NullPointerException if the <code>cookie</code>
+     *        argument is <code>null</code>.
+     */
+    EventRegistrationWatcher(long timestamp, long startOrdinal, Uuid cookie,
+	MarshalledInstance handback, long eventID)
+    {
+	super(timestamp, startOrdinal);
+
+	if (cookie == null)
+	    throw new NullPointerException("cookie must be non-null");
+
+	this.cookie = cookie;
+	this.handback = handback;
+	this.eventID = eventID;
+    }
 
     /**
      * Process the given transition by queuing up a task with the
@@ -168,7 +199,13 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 		doneFor = true;
 	    } else {
 		currentSeqNum++;
-		owner.getServer().enqueueDelivery(new BasicEventSender(currentSeqNum, eventID, handback));
+		owner.getServer().enqueueDelivery(
+			new BasicEventSender(
+			    currentSeqNum,
+			    eventID,
+			    handback instanceof MarshalledObject ?
+				new MarshalledInstance((MarshalledObject) handback)
+				: (MarshalledInstance) handback));
 	    }
 	}
 
@@ -306,9 +343,9 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
         
         private final long seqNum;
         private final long eventID;
-        private final MarshalledObject handback;
+        private final MarshalledInstance handback;
         
-        BasicEventSender(long seqNum, long eventID, MarshalledObject handback){
+        BasicEventSender(long seqNum, long eventID, MarshalledInstance handback){
             this.seqNum = seqNum;
             this.eventID = eventID;
             this.handback = handback;

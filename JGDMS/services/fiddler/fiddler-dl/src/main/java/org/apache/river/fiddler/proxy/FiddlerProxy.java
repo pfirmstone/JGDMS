@@ -439,9 +439,12 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
 	 * @throws IOException 
 	 */
 	ConstrainableFiddlerProxy(GetArg arg) throws IOException {
-	    super(check(arg));
-	    this.methodConstraints 
-		    = (MethodConstraints) arg.get("methodConstraints", null);
+	    this(arg, check(arg));
+	}
+	
+	ConstrainableFiddlerProxy(GetArg arg, MethodConstraints constraints) throws IOException{
+	    super(arg);
+	    this.methodConstraints = constraints;
 	}
 	
 	/**
@@ -450,16 +453,23 @@ public class FiddlerProxy implements Administrable, LookupDiscoveryService,
 	 * @return
 	 * @throws IOException 
 	 */
-	private static GetArg check(GetArg arg) throws IOException {
+	private static MethodConstraints check(GetArg arg) throws IOException {
 	    FiddlerProxy fp = new FiddlerProxy(arg);
 	    MethodConstraints methodConstraints 
 		    = (MethodConstraints) arg.get("methodConstraints", null);
 	    /* Verify the server and its constraints */
+	    MethodConstraints proxyCon = null;
+	    if (fp.server instanceof RemoteMethodControl && 
+		(proxyCon = ((RemoteMethodControl)fp.server).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		return ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMapArray);
+	    }
             ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
                                                         fp.server,
                                                         methodMapArray);
-	    return arg;
+	    return methodConstraints;
 	}
 
         /** Returns a copy of the given server proxy having the client method

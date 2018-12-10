@@ -98,7 +98,7 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
 	this.proxyID = id;
     }
     
-    TxnMgrProxy (GetArg arg) throws IOException {
+    TxnMgrProxy (GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg), arg.get("proxyID", null, Uuid.class));
     }
     
@@ -260,11 +260,13 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
                   id);
         }
 
-	ConstrainableTxnMgrProxy(GetArg arg) throws IOException {
+	ConstrainableTxnMgrProxy(GetArg arg) 
+		throws IOException, ClassNotFoundException {
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException {
+	private static GetArg check(GetArg arg) 
+		throws IOException, ClassNotFoundException {
 	    TxnMgrProxy p = new TxnMgrProxy(arg);
 	    // Verify that the server implements RemoteMethodControl
             if( !(p.backend instanceof RemoteMethodControl) ) {

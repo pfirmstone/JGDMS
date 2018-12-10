@@ -18,6 +18,8 @@
 package org.apache.river.outrigger.proxy;
 
 import java.rmi.RemoteException;
+import java.util.Collection;
+import java.util.Iterator;
 
 import net.jini.core.entry.Entry;
 import net.jini.core.entry.UnusableEntryException;
@@ -58,8 +60,9 @@ class MatchSetProxy implements MatchSet {
 
     /** True if reps[i] could not be unpacked */
     private volatile boolean unpackFailure = true; 
+    private final Collection tmpls;
 
-    MatchSetProxy(MatchSetData inital, SpaceProxy2 parent, OutriggerServer space) {
+    MatchSetProxy(MatchSetData inital, SpaceProxy2 parent, OutriggerServer space, Collection tmpls) {
 	uuid = inital.uuid;
 	this.space = space;
 	if (uuid != null) 
@@ -69,6 +72,7 @@ class MatchSetProxy implements MatchSet {
 	reps = inital.reps;
 
 	i=0;
+	this.tmpls = tmpls;
     }
 
     public Lease getLease() {
@@ -87,6 +91,11 @@ class MatchSetProxy implements MatchSet {
 
 	unpackFailure = true;
 	lastRepReturned = reps[i++];
+	Iterator tmplsIt = tmpls.iterator();
+	while (tmplsIt.hasNext()){
+	    Entry tmpl = (Entry) tmplsIt.next();
+	    if (lastRepReturned.primeEntryClass(tmpl)) break;
+	}
 	final Entry rslt = lastRepReturned.entry();
 	unpackFailure = false;
 	return rslt;

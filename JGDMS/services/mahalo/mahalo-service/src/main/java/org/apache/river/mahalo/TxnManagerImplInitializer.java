@@ -129,7 +129,7 @@ class TxnManagerImplInitializer {
                     Exporter.class, 
                     new ActivationExporter(activationID, 
                         new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
-                            new AtomicILFactory(null, null, TxnManager.class.getClassLoader()), 
+                            new AtomicILFactory(null, null, TxnManager.class, true), 
                             false, 
                             true)
                         ), 
@@ -145,7 +145,7 @@ class TxnManagerImplInitializer {
 		    Exporter.class,
 		    new BasicJeriExporter(
 			    TcpServerEndpoint.getInstance(0),
-			    new AtomicILFactory(null, null, TxnManager.class.getClassLoader()),
+			    new AtomicILFactory(null, null, TxnManager.class, true),
 			    false,
 			    true
 		    )

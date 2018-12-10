@@ -60,7 +60,7 @@ public class RenewResults implements Serializable {
 	this.exceptions = exceptions;
     }
     
-    public RenewResults(GetArg arg) throws IOException{
+    public RenewResults(GetArg arg) throws IOException, ClassNotFoundException{
 	this(Valid.copy(arg.get("durations", null, long[].class)),
 		Valid.copy(arg.get("exceptions", null, Exception[].class)));
     }

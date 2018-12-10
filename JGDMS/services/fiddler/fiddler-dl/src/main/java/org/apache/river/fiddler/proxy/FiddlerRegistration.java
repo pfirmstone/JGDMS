@@ -1271,21 +1271,32 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
 	    this.methodConstraints = methodConstraints;
         }//end constructor
 
-	ConstrainableFiddlerRegistration(GetArg arg) throws IOException {
-	    super(check(arg));
-	    methodConstraints 
-		    = (MethodConstraints) arg.get("methodConstraints", null);
+	ConstrainableFiddlerRegistration(GetArg arg) throws IOException, ClassNotFoundException {
+	    this(arg, check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException {
+	ConstrainableFiddlerRegistration(GetArg arg, MethodConstraints constraints) throws IOException{
+	    super(arg);
+	    this.methodConstraints = constraints;
+	}
+	
+	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	    FiddlerRegistration fr = new FiddlerRegistration(arg);
 	    MethodConstraints methodConstraints 
-		    = (MethodConstraints) arg.get("methodConstraints", null);
+		    = arg.get("methodConstraints", null, MethodConstraints.class);
 	    /* Verify server1 constraints */
-            ConstrainableProxyUtil.verifyConsistentConstraints
+	    MethodConstraints proxyCon = null;
+	    if (fr.server instanceof RemoteMethodControl && 
+		(proxyCon = ((RemoteMethodControl)fr.server).getConstraints()) != null) {
+		// Constraints set during proxy deserialization.
+		methodConstraints = ConstrainableProxyUtil.reverseTranslateConstraints(
+			proxyCon, methodMapArray);
+	    } else {
+		ConstrainableProxyUtil.verifyConsistentConstraints
                                                        (methodConstraints,
                                                         fr.server,
                                                         methodMapArray);
+	    }
 
             /* Verify server3 constraints */
             Object source = fr.eventReg.getSource();
@@ -1303,7 +1314,7 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
                                +"failure - eventReg lease is not an instance "
                                +" of ConstrainableFiddlerLease");
             }//endif
-	    return arg;
+	    return methodConstraints;
 	}
 
         /** Returns a copy of the given server proxy having the client method

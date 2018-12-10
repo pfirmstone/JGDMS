@@ -133,7 +133,7 @@ class JoinStateManager extends LogHandler {
             operationsLogger.entering(JoinStateManager.class.getName(), 
 	        "recover");
 	}
-	if (log != null) log.recover();
+	if (log != null) log.recover(JoinStateManager.class.getClassLoader());
 	if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(JoinStateManager.class.getName(), 
 	        "recover");

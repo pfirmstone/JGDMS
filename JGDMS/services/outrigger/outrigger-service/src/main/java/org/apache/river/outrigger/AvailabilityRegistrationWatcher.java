@@ -26,9 +26,11 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.UnknownEventException;
 import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 import net.jini.space.JavaSpace;
 import org.apache.river.landlord.LeasedResource;
+import org.apache.river.outrigger.proxy.ConstrainableOutriggerAvailabilityEvent;
 import org.apache.river.outrigger.proxy.EntryRep;
 import org.apache.river.outrigger.proxy.OutriggerAvailabilityEvent;
 
@@ -57,7 +59,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * Only for use by subclasses.
      * Should not be changed.
      */
-    MarshalledObject handback;
+    Object handback;
 
     /**
      * <code>true</code> if client is interested
@@ -138,6 +140,40 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      */
     AvailabilityRegistrationWatcher(long timestamp, long startOrdinal, 
 	Uuid cookie, boolean visibilityOnly, MarshalledObject handback, 
+        long eventID)
+    {
+	super(timestamp, startOrdinal);
+
+	if (cookie == null)
+	    throw new NullPointerException("cookie must be non-null");
+
+	this.cookie = cookie;
+	this.handback = handback;
+	this.eventID = eventID;
+	this.visibilityOnly = visibilityOnly;
+    }
+    
+    /**
+     * Create a new <code>AvailabilityRegistrationWatcher</code>.
+     * @param timestamp the value that is used
+     *        to sort <code>TransitionWatcher</code>s.
+     * @param startOrdinal the highest ordinal associated
+     *        with operations that are considered to have occurred 
+     *        before the operation associated with this watcher.
+     * @param cookie The unique identifier associated
+     *        with this watcher. Must not be <code>null</code>.
+     * @param visibilityOnly pass <code>true</code> if client
+     *        only wants visibility events
+     * @param handback The handback object that
+     *        should be sent along with event
+     *        notifications to the the listener.
+     * @param eventID The event ID for event type
+     *        represented by this object.
+     * @throws NullPointerException if the <code>cookie</code>
+     *        argument is <code>null</code>.
+     */
+    AvailabilityRegistrationWatcher(long timestamp, long startOrdinal, 
+	Uuid cookie, boolean visibilityOnly, MarshalledInstance handback, 
         long eventID)
     {
 	super(timestamp, startOrdinal);
@@ -362,8 +398,16 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
                     cancel();
                     return;
                 }
-                event = new OutriggerAvailabilityEvent(source, eventID, ourSeqNumber, 
-					       handback, isVisible, rep);
+                event = new ConstrainableOutriggerAvailabilityEvent(
+		    source,
+		    eventID,
+		    ourSeqNumber,    
+		    handback instanceof MarshalledObject ?
+			new MarshalledInstance((MarshalledObject) handback)
+			: (MarshalledInstance) handback,
+		    isVisible,
+		    rep
+		);
             }// end sync(AvailabilityRegistrationWatcher.this)
             // Overridden keep out of sync block.
 	    getListener(preparer).notify( event );
