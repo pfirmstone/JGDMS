@@ -19,13 +19,13 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InvalidObjectException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.cert.CertPath;
@@ -39,8 +39,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import net.jini.constraint.BasicMethodConstraints;
+import net.jini.constraint.StringMethodConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
@@ -80,7 +80,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 
     @Override
     public Object resolve(CodebaseAccessor bootstrapProxy,
-			MarshalledInstance smartProxy,
+			MarshalledInstance serviceProxy,
 			final ClassLoader parent,
 			ClassLoader verifier,
 			Collection context) 
@@ -205,10 +205,38 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 		if (existed != null) loader = existed;
 	    }
 	}
-	Object sp = smartProxy.get(loader, true, verifier, context);
-	// Don't set constraints on smart proxy.
-//	if (sp instanceof RemoteMethodControl && mc != null)
-//	    sp = ((RemoteMethodControl)sp).setConstraints(mc);
+	Object sp = serviceProxy.get(loader, true, verifier, context);
+	/**
+	 * The following exists because a trusted proxy might be using a third
+	 * party service and whish to apply it's own constraints to the third
+	 * party proxy, however the client is also applying constraints to the
+	 * trusted proxy that's de-serializing the third party proxy,
+	 * so we must ensure that all constraints are applied
+	 * to the third party proxy.
+	 */
+	if (mc != null){
+	    if (sp instanceof RemoteMethodControl){
+		RemoteMethodControl rmc = (RemoteMethodControl) sp;
+		MethodConstraints existing = rmc.getConstraints();
+		if (existing instanceof BasicMethodConstraints )
+		{
+		    existing = new StringMethodConstraints((BasicMethodConstraints) existing);
+		} 
+		if (mc instanceof BasicMethodConstraints){
+		    mc = new StringMethodConstraints((BasicMethodConstraints) mc);
+		}
+		if (existing instanceof StringMethodConstraints 
+			&& mc instanceof StringMethodConstraints )
+		{
+		    mc = ((StringMethodConstraints)mc).combine((StringMethodConstraints)existing);
+		}
+		sp = rmc.setConstraints(mc);
+	    } else {
+		throw new InvalidObjectException(
+		    "Proxy must be an instance of RemoteMethodControl, when constraints are in force " + sp
+		);
+	    }
+	}
 	return sp;
     }
     

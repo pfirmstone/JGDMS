@@ -22,13 +22,14 @@ import java.rmi.server.RMIClassLoader;
 import net.jini.loader.DownloadPermission;
 import aQute.bnd.annotation.headers.RequireCapability;
 import aQute.bnd.annotation.headers.ProvideCapability;
+import net.jini.loader.ClassLoading;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
  * classes and enforces {@link DownloadPermission}.
  *
- * <p>See the {@link RMIClassLoader} specification for information
- * about how to install and configure the <code>RMIClassLoader</code>
+ * <p>See the {@link RMIClassLoader} and {@link ClassLoading} specifications for
+ * information about how to install and configure the <code>RMIClassLoader</code>
  * service provider.
  *
  * @author Sun Microsystems, Inc.
