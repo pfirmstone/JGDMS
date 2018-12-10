@@ -33,6 +33,10 @@ import org.apache.river.jeri.internal.SslEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastClient;
 import aQute.bnd.annotation.headers.RequireCapability;
 import aQute.bnd.annotation.headers.ProvideCapability;
+import java.util.Iterator;
+import java.util.Set;
+import net.jini.core.constraint.InvocationConstraint;
+import net.jini.jeri.ssl.ConfidentialityStrength;
 
 /**
  * Implements the client side of the <code>net.jini.discovery.ssl</code>
@@ -74,7 +78,10 @@ public class Client extends UnicastClient {
 				       InvocationConstraints constraints)
 	    throws UnsupportedConstraintException
 	{
-	    return SslEndpoint.getInstance("ignored", 1, factory);
+	    checkConstraints(constraints);
+	    SslEndpoint endpoint = SslEndpoint.getInstance("ignored", 1, factory);
+	    endpoint.checkConstraints(constraints);
+	    return endpoint;
 	}
 
 	@Override
@@ -83,6 +90,23 @@ public class Client extends UnicastClient {
 		return MessageDigest.getInstance("SHA-1");
 	    } catch (NoSuchAlgorithmException ex) {
 		throw new AssertionError(ex);
+	    }
+	}
+	
+	private void checkConstraints(InvocationConstraints constraints) throws UnsupportedConstraintException{
+	    Set<InvocationConstraint> required = constraints.requirements();
+	    Iterator<InvocationConstraint> itReq = required.iterator();
+	    while (itReq.hasNext()){
+		InvocationConstraint c = itReq.next();
+		if (c == ConfidentialityStrength.STRONG) 
+		    throw new UnsupportedConstraintException("SHA-1 is weak " + c);
+	    }
+	    Set<InvocationConstraint> pref = constraints.preferences();
+	    Iterator<InvocationConstraint> itPref = pref.iterator();
+	    while (itPref.hasNext()){
+		InvocationConstraint c = itPref.next();
+		if (c == ConfidentialityStrength.STRONG) 
+		    throw new UnsupportedConstraintException("SHA-1 is weak " + c);
 	    }
 	}
     }

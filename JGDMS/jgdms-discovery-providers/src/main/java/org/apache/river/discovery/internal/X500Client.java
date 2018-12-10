@@ -191,6 +191,7 @@ public class X500Client
 	    this.signed = signed;
 	}
 
+	@Override
 	public void checkConstraints() throws IOException {
 	    try {
 		X500Constraints cons = X500Constraints.process(constraints,

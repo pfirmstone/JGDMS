@@ -42,4 +42,9 @@ public class BaseProvider implements DiscoveryFormatProvider {
     public String getFormatName() {
 	return formatName;
     }
+    
+    @Override
+    public String toString() {
+	return "DiscoveryFormatProvider: " + formatName;
+    }
 }

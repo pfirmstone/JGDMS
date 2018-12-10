@@ -32,6 +32,11 @@ import org.apache.river.jeri.internal.SslEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastServer;
 import aQute.bnd.annotation.headers.RequireCapability;
 import aQute.bnd.annotation.headers.ProvideCapability;
+import java.util.Iterator;
+import java.util.Set;
+import net.jini.core.constraint.InvocationConstraint;
+import net.jini.core.constraint.InvocationConstraints;
+import net.jini.jeri.ssl.ConfidentialityStrength;
 
 /**
  * Implements the server side of the <code>net.jini.discovery.ssl</code>
@@ -87,6 +92,28 @@ public class Server extends UnicastServer {
 	    } catch (NoSuchAlgorithmException ex) {
 		throw new AssertionError(ex);
 	    }
+	}
+	
+	@Override
+	public void checkUnicastDiscoveryConstraints(
+					    InvocationConstraints constraints) 
+		throws UnsupportedConstraintException
+	{
+	    Set<InvocationConstraint> required = constraints.requirements();
+	    Iterator<InvocationConstraint> itReq = required.iterator();
+	    while (itReq.hasNext()){
+		InvocationConstraint c = itReq.next();
+		if (c == ConfidentialityStrength.STRONG) 
+		    throw new UnsupportedConstraintException("SHA-1 is considered weak " + c);
+	    }
+	    Set<InvocationConstraint> pref = constraints.preferences();
+	    Iterator<InvocationConstraint> itPref = pref.iterator();
+	    while (itPref.hasNext()){
+		InvocationConstraint c = itPref.next();
+		if (c == ConfidentialityStrength.STRONG) 
+		    throw new UnsupportedConstraintException("SHA-1 is considered weak " + c);
+	    }
+	    super.checkUnicastDiscoveryConstraints(constraints);
 	}
     }
 }
