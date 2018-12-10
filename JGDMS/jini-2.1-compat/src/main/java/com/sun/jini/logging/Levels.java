@@ -101,7 +101,7 @@ public class Levels {
 	    this.localizedLevelName = localizedLevelName;
 	}
 	
-	public LevelData(GetArg arg) throws IOException{
+	public LevelData(GetArg arg) throws IOException, ClassNotFoundException{
 	    this(arg.get("name", null, String.class),
 		 arg.get("value", 0),
 		 arg.get("resourceBundleName", null, String.class),

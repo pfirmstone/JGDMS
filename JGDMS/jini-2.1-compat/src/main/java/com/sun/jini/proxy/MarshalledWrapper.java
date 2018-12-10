@@ -134,7 +134,7 @@ public class MarshalledWrapper implements Serializable {
 	this(check(instance), false);
     }
     
-    public MarshalledWrapper(GetArg arg) throws IOException {
+    public MarshalledWrapper(GetArg arg) throws IOException, ClassNotFoundException {
 	this(validate(arg.get("instance", null, MarshalledInstance.class)),
 		((RO) arg.getReader()).integrity);
     }

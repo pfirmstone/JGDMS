@@ -36,7 +36,7 @@ public class NonActivatableServiceDescriptor extends org.apache.river.start.NonA
     public NonActivatableServiceDescriptor(String exportCodebase, String policy, String importCodebase, String implClassName, String[] serverConfigArgs, LifeCycle lifeCycle, ProxyPreparer preparer) {
 	super(exportCodebase, policy, importCodebase, implClassName, serverConfigArgs, lifeCycle, preparer);
     }
-    public NonActivatableServiceDescriptor(AtomicSerial.GetArg arg) throws IOException {
+    public NonActivatableServiceDescriptor(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
     }
 
