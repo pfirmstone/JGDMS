@@ -85,7 +85,7 @@
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
     <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
         default: none -->
-    <property name="harness.configs" value="jsse"/>
+    <property name="harness.configs" value="jsse,jeri"/>
     <!-- possible values: activatable,transient,persistent
         default: transient -->
     <property name="harness.servicemode" value="activatable"/>
