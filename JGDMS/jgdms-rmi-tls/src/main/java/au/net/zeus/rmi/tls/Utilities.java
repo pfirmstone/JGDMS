@@ -312,53 +312,50 @@ class Utilities {
     static SSLContext getClientSSLContextInfo(Subject clientSubject) {
 	SSLContext sslContext = null;
 	ClientSubjectKeyManager authManager = CLIENT_TLS_MANAGER_MAP.get(clientSubject);
-	while (true){
-	    if (authManager != null){
-		try {
-		    sslContext = CLIENT_TLS_CONTEXT_MAP.get(clientSubject);
-		    authManager.checkAuthentication();
-		} catch (GeneralSecurityException ex) {
-		    CLIENT_TLS_MANAGER_MAP.remove(clientSubject, authManager);
-		    CLIENT_TLS_CONTEXT_MAP.remove(clientSubject, sslContext);
-		    sslContext = null;
-		}
-	    }
-	    if (sslContext != null) {
-		if (CLIENT_LOGGER.isLoggable(Level.FINEST)) {
-		    CLIENT_LOGGER.log(Level.FINEST,
-				     "get client SSL context for {0}\nreturns existing {1}",
-				     new Object[] { clientSubject, sslContext });
-		}
-		return sslContext;
-	    }
-
-	    /* Create a new SSL context */
+	if (authManager != null){
 	    try {
+		sslContext = CLIENT_TLS_CONTEXT_MAP.get(clientSubject);
+		authManager.checkAuthentication();
+	    } catch (GeneralSecurityException ex) {
+		CLIENT_TLS_MANAGER_MAP.remove(clientSubject, authManager);
+		CLIENT_TLS_CONTEXT_MAP.remove(clientSubject, sslContext);
+		sslContext = null;
+	    }
+	}
+	if (sslContext != null) {
+	    if (CLIENT_LOGGER.isLoggable(Level.FINEST)) {
+		CLIENT_LOGGER.log(Level.FINEST,
+				 "get client SSL context for {0}\nreturns existing {1}",
+				 new Object[] { clientSubject, sslContext });
+	    }
+	    return sslContext;
+	}
+
+	/* Create a new SSL context */
+	try {
 		if (JSSE_PROVIDER != null){
 		    sslContext = SSLContext.getInstance(SSL_PROTOCOL,JSSE_PROVIDER);
 		} else {
 		    sslContext = SSLContext.getInstance(SSL_PROTOCOL);
 		}
-	    } catch (NoSuchAlgorithmException e) {
-		throw initializationError(e, "finding SSL context");
-	    } catch (NoSuchProviderException e) {
-		throw initializationError(e, "finding SSL context");
-	    }
+	} catch (NoSuchAlgorithmException e) {
+	    throw initializationError(e, "finding SSL context");
+	} catch (NoSuchProviderException e) {
+	    throw initializationError(e, "finding SSL context");
+	}
 
-	    try {
-		authManager = new ClientSubjectKeyManager(
-		    clientSubject
-		);
-		ClientSubjectKeyManager existed = CLIENT_TLS_MANAGER_MAP.putIfAbsent(clientSubject, authManager);
-		if (existed == null) break;
-		authManager = existed;
-	    } 
-	    catch (NoSuchAlgorithmException e) {
-		throw initializationError(e, "creating key or trust manager");
-	    } 
-	    catch (NoSuchProviderException e) {
-		throw initializationError(e, "creating key manager");
-	    } 
+	try {
+	    authManager = new ClientSubjectKeyManager(
+		clientSubject
+	    );
+	    ClientSubjectKeyManager existed = CLIENT_TLS_MANAGER_MAP.putIfAbsent(clientSubject, authManager);
+	    if (existed != null) authManager = existed;
+	} 
+	catch (NoSuchAlgorithmException e) {
+	    throw initializationError(e, "creating key or trust manager");
+	} 
+	catch (NoSuchProviderException e) {
+	    throw initializationError(e, "creating key manager");
 	}
 	
 	/* Initialize SSL context */
@@ -399,6 +396,7 @@ class Utilities {
 				 "get client SSL context for {0}\nreturns new {1},\n but it already existed {2}",
 				 new Object[] { clientSubject, sslContext, existed });
 	    }
+	    // REMIND: Should we return existed?
 	}
 	return sslContext;
     }

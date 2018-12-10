@@ -81,6 +81,7 @@ class ClientSubjectKeyManager extends SubjectKeyManager {
 	    }
 	    Logger logger = Logger.getLogger(SubjectKeyManager.class.getName());
 	    if (logger.isLoggable(Levels.HANDLED)) {
+		logger.log(Levels.HANDLED, "Swallowed SecurityException thrown", exception);
 	    }
 	}
 	if (result == null) {

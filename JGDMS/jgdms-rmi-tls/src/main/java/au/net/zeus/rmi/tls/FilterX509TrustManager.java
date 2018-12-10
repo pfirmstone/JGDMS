@@ -111,13 +111,11 @@ abstract class FilterX509TrustManager extends Utilities implements X509TrustMana
 
     /**
      * Specifies the set of permitted remote principals.
-     * 
-     * externally synchronized.
      *
      * @param principals the set of permitted remote principals, or null if no
      *	      restriction
      */
-    void setPermittedRemotePrincipals(Set principals) {
+    synchronized void setPermittedRemotePrincipals(Set principals) {
 	this.principals = (principals == null) ? null : new HashSet(principals);
     }	
 

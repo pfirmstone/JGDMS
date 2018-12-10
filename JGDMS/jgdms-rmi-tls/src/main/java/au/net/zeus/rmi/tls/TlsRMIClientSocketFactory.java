@@ -47,6 +47,7 @@ public final class TlsRMIClientSocketFactory implements RMIClientSocketFactory {
 		}
 	    }
 	);
+	if (subject == null) throw new IOException("Unable to connect to server: client not logged in, null subject");
 	SSLContext sslContext = Utilities.getClientSSLContextInfo(subject);
 	SSLSocket socket;
 	// Exclusive access while handshake occurs.
