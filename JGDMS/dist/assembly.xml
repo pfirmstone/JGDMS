@@ -100,7 +100,7 @@
         <!-- All proxy and dl jars go into the lib-dl directory -->
         <dependencySet>
 			<useProjectArtifact>false</useProjectArtifact>
-            <useStrictFiltering>true</useStrictFiltering>
+            <useStrictFiltering>false</useStrictFiltering>
             <includes>
                 <include>au.net.zeus.jgdms:jgdms-lib-dl:jar</include>
                 <include>au.net.zeus.jgdms.reggie:reggie-dl:jar</include>
@@ -109,7 +109,7 @@
                 <include>au.net.zeus.jgdms.mercury:mercury-dl:jar</include>
                 <include>au.net.zeus.jgdms.norm:norm-dl:jar</include>
                 <include>au.net.zeus.jgdms.fiddler:fiddler-dl:jar</include>
-                <include>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</include>					
+                <include>au.net.zeus.jgdms.phoenix-activation:phoenix-dl:jar</include>			
             </includes>
             <outputDirectory>lib-dl</outputDirectory>
 	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
