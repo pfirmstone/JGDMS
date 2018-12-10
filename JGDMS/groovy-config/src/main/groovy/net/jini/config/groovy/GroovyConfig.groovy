@@ -18,6 +18,8 @@ package net.jini.config.groovy
 import net.jini.config.*
 import org.codehaus.groovy.control.CompilerConfiguration
 
+//import aQute.bnd.annotation.headers.ProvideCapability
+//import aQute.bnd.annotation.headers.RequireCapability
 import java.lang.reflect.Constructor
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -26,6 +28,12 @@ import java.util.logging.Logger
  *
  * @author Dennis Reedy
  */
+//@RequireCapability(
+//	ns="osgi.extender",
+//	filter="(osgi.extender=osgi.serviceloader.registrar)")
+//@ProvideCapability(
+//	ns="osgi.serviceloader",
+//	name="net.jini.config.Configuration")
 class GroovyConfig implements net.jini.config.Configuration {
     private Map<String, GroovyObject> groovyConfigs = new HashMap<String, GroovyObject>()
     private ConfigurationFile configFile
