@@ -1299,7 +1299,8 @@ public class JoinManager {
             synchronized (runningTasks){
                 Iterator<Future> it = runningTasks.iterator();
                 while (it.hasNext()){
-                    it.next().cancel(false);
+                    Future f = it.next();
+		    if (f != null) f.cancel(false);
                 }
                 runningTasks.clear();
             }
