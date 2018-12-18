@@ -3338,13 +3338,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         }
     }
     
+    static enum Reference { CIRCULAR, UNSHARED, DISCARDED }
     
-    
-    
-    
-    public static enum Reference { CIRCULAR, UNSHARED, DISCARDED }
-    
-    public static class ClassNotFound {
+    static class ClassNotFound {
 	ClassNotFoundException ex;
 
 	private ClassNotFound(ClassNotFoundException ex) {

@@ -29,7 +29,7 @@ import java.io.ObjectStreamException;
  */
 @Serializer(replaceObType = Double.class)
 @AtomicExternal
-public class DoubleSerializer implements Externalizable {
+class DoubleSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private double d;

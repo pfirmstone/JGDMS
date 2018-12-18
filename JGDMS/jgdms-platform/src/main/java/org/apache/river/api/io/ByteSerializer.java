@@ -29,7 +29,7 @@ import java.io.ObjectStreamException;
  */
 @Serializer(replaceObType = Byte.class)
 @AtomicExternal
-public class ByteSerializer implements Externalizable {
+class ByteSerializer implements Externalizable {
     private static final long serialVersionUID = 1L;
     
     private byte b;

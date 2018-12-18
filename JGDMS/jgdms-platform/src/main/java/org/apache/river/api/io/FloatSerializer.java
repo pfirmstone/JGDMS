@@ -29,7 +29,7 @@ import java.io.ObjectStreamException;
  */
 @Serializer(replaceObType = Float.class)
 @AtomicExternal
-public class FloatSerializer implements Externalizable {
+class FloatSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private float f;

@@ -25,7 +25,7 @@
 
 <center>
 <h1><code>net.jini.jeri</code><br>
-JGDMS v3.0.0 Release Notes</h1>
+JGDMS v3.1.0 Release Notes</h1>
 </center>
 <HR>
 <UL>
@@ -35,6 +35,12 @@ JGDMS v3.0.0 Release Notes</h1>
 href="../api/net/jini/jeri/package-summary.html"><code>net.jini.jeri</code></a>
 package and its subpackages provide APIs for Jini extensible remote
 invocation (Jini ERI) and several Jini ERI transport layer providers.
+<H3>Changes since the v3.1.0 release</H3>
+<p>SSL and HTTPS providers have been updated to TLSv1.2, insecure ciphers have 
+    been removed, strong and weak ciphers have been updated for constraints.</p>
+<p>AtomicILFactory has been added to the library to allow failure atomic de-serialization of
+untrusted data, this allows clients and services to perform some de-serialization
+prior to authentication, without the vulnerabilities of standard Java Serialization.</p>
 <H3>Changes since the v2.2.0 release</H3>
 
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-397'>RIVER-397</a>] - Mux.start() can block indefinitely

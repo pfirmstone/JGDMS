@@ -22,18 +22,36 @@ import java.util.Collection;
 import net.jini.core.constraint.MethodConstraints;
 
 /**
+ * <p>
  * An atomic serialization implementation of an {@link InvocationLayerFactory}.  
  * This factory is used to create a {@link java.lang.reflect.Proxy} instance with a {@link
  * AtomicInvocationHandler} and to create a {@link
  * AtomicInvocationDispatcher} for a remote object being exported.  This
  * factory is used in conjunction with the {@link BasicJeriExporter} class.
- * 
+ * </p><p>
  * Serialization is performed with atomic input validation.  Class codebase
  * annotations are not appended in the stream by default, each endpoint
  * must have class visibility determined a default ClassLoader.  The
  * proxy's AtomicInvocationHandler ClassLoader will be that of the codebase
  * determined by {@link net.jini.export.CodebaseAccessor}, proxy's
  * are serialized independently and do not share state.
+ * </p><p>
+ * Refer to {@link org.apache.river.api.io} for Atomic
+ * Serialization, any service or object exported using this factory must
+ * implement {@link org.apache.river.api.io.AtomicSerial}.
+ * </p><p>
+ * If a service or object exported by this service uses a smart proxy,
+ * that smart proxy must implement {@link net.jini.export.ProxyAccessor} and
+ * the service or exported object must implement {@link net.jini.export.CodebaseAccessor},
+ * allowing a client de-serializing the service proxy, to authenticate
+ * the service, provision its codebase and apply any constraints.
+ * </p><p>
+ * If a service or object exported by this service doesn't utilise a smart proxy,
+ * but still needs to a codebase to resolve certain interface classes, then
+ * that service or object must implement {@link net.jini.export.DynamicProxyCodebaseAccessor}.
+ * </p><p>
+ * Codebases are provisioned using {@link net.jini.loader.ProxyCodebaseSpi}
+ * </p>
  * 
  * @author  Peter.
  * @since 3.1

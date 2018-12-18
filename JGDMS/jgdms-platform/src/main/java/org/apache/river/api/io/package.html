@@ -1,0 +1,148 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Atomic Serialization</title>
+    </head>
+    <body>
+        <p>Atomic serialization is designed to allow users to perform
+            de-serialization of untrusted data, serial form of {@literal @}AtomicSerial
+            objects is compatible with Java Serialization.
+        </p>
+        <h1>Atomic Serialization example:</h1>
+        
+        <pre><code>
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import net.jini.core.lookup.ServiceMatches;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Valid;
+
+{@literal @}AtomicSerial
+class Matches implements Serializable {
+
+    private static final long serialVersionUID = 2L;
+
+    /**
+     * ServiceMatches.items as an List of Item
+     *
+     * @serial
+     */
+    private final List&lt;Item&gt; items;
+    /**
+     * ServiceMatches.totalMatches
+     *
+     * @serial
+     */
+    private final int totalMatches;
+
+    Matches(GetArg arg) throws IOException{
+        this(Valid.copyCol(arg.get("items", null, List.class),
+		           new LinkedList&lt;Item&gt;(),
+		           Item.class),
+            arg.get("totalMatches",0)
+        );
+    }
+
+    /** Simple constructor. */
+    Matches(List&lt;Item&gt; items, int totalMatches) {
+        this.items = items;
+        this.totalMatches = totalMatches;
+    }
+
+    /** Converts a Matches to a ServiceMatches. */
+    ServiceMatches get() throws RemoteException {
+        return new ServiceMatches(Item.toServiceItem(items), totalMatches);
+    }
+}
+</code></pre>
+        
+        <h2>Discussion of example</h2>
+        <p>Notice the annotation {@literal @}AtomicSerial? this indicates the class has a
+            constructor that accepts a single GetArg argument.  Implementing
+            {@literal @}AtomicSerial is actually very simple, and in most cases only
+            requires the addition of a constructor.  Valid provides utility
+            methods to simplify validation of invariants, in this case the List
+            is being defensively copied into a new LinkedList and all elements
+            are type checked, ensuring they are instances of Item.   You may
+            have also noticed that GetArg.get(String name, T default, Class type)
+            performs type checking.</p>
+        <p>In case you're wondering why type checking is necessary, java
+            Generic's only perform type checks at compile time, an attacker
+            could send you a Collection containing an object you're not
+            expecting, so it's important to validate the contents of your
+            collections during construction.</p>
+        <p>It is a requirement of {@literal @}AtomicSerial that all invariant checks
+            are performed before calling a superclass constructor, this
+            guarantees an instance of your object will not be created if
+            invariants are not satisfied, thus an attacker cannot obtain
+            an instance using a finalizer or stream reference.  GetArg is caller
+            sensitive, so you can pass it to a superclass constructor, 
+            the superclass and extending child class cannot get at each other's
+            fields and they may even use the same field names without conflict,
+            because each class has its own field namespace.</p>
+        <p>Note that the Item class above also implements {@literal @}AtomicSerial, it too
+            performs invariant validation.  In fact, the administrator can use
+            the java security policy to control which codebases may be involved 
+            in deserialization, by granting permission 
+            org.apache.river.api.io.DeSerializationPermission "ATOMIC";  
+            Serializable Object's that only have primitive fields, or are 
+            stateless, don't need to implement {@literal @}AtomicSerial and are not 
+            controlled by DeSerializationPermission at this time.</p>
+        <p>There's also a lot more going on under the hood, the developer need
+            not be too concerned about, for example the above List of items 
+            is replaced with a safe List implementation during serialization
+            by org.apache.river.api.io.AtomicMarshalOutputStream.
+            Because Java Collections cannot be safely deserialized without
+            the risk of DOS occurring, Collection, List, Set, SortedSet, Map
+            and SortedMap's are all replaced in the stream, so most of the
+            hard work is done for you, all you have to do is defensively copy
+            during construction, perform type checks and check any other
+            invariants you may have.  Valid also provides a lot of other useful
+            invariant validation methods a developer might typically perform,
+            such as throwing an InvalidObjectException with a message if an
+            argument shouldn't be null.</p>
+        <p>Unlike standard java serialization, the attacker doesn't have access
+            to the full classpath, but a much reduced attack surface; 
+            only classes belonging to domains with DeSerializationPermission.
+            Attackers are much less likely to be able to create a graph of
+            objects with method call chains used for gadget attacks, provided
+            scope has been limited by DeSerializationPermission and each object
+            checks its own invariants.</p>
+        <p>Object's require permission to be created, while invariant checks
+            and Java's strong type system limit the possible graph of object
+            references an attacker can create.  Circular references are
+            prohibited to avoid infinite recursion and limits are placed
+            on the serial Object cache and array lengths.  Objects are
+            responsible for recreating their own circular reference structures
+            during construction if required.</p>
+
+        @since 3.1.0
+
+    </body>
+</html>

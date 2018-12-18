@@ -29,7 +29,7 @@ import java.io.ObjectStreamException;
  */
 @Serializer(replaceObType = Boolean.class)
 @AtomicExternal
-public class BooleanSerializer implements Externalizable {
+class BooleanSerializer implements Externalizable {
     private final static long serialVersionUID = 1L;
     
     private boolean b;
