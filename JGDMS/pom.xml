@@ -90,9 +90,14 @@
   </modules>
 
   <scm>
+<!-- @todo revert these to peter's github repo - maybe fix 'developerConnection' suffix too: pfirmstone.git to: JGDMS.git
       <connection>scm:git:git://github.com/pfirmstone/JGDMS.git</connection>
       <developerConnection>scm:git:git@github.com:pfirmstone/pfirmstone.git</developerConnection>
       <url>https://github.com/pfirmstone/JGDMS</url>
+-->
+      <connection>scm:git:git://github.com/bhamail/JGDMS.git</connection>
+      <developerConnection>scm:git:git@github.com:bhamail/JGDMS.git</developerConnection>
+      <url>https://github.com/bhamail/JGDMS</url>
       <tag>HEAD</tag>
   </scm>
   <distributionManagement>
