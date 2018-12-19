@@ -6,3 +6,29 @@ ${project.description}
 The prior static site docs can be viewed here: [Static Site](old-static-site/index.html)
 
 [Introduction](old-static-site/doc/index.html) docs are also available.
+
+Release Process
+---------------
+
+The release process uses the [maven-release-plugin](http://maven.apache.org/maven-release/maven-release-plugin/) to
+update all the versions at once auto-magically.
+See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide-releasing.html) for an overview.
+
+1. First do a "dryRun" of the release:prepare goal to make sure initial changes look valid:
+
+    mvn release:prepare -DdryRun=true
+
+  After this completes, examine the parent pom version, and spot check the various sub-module pom versions. You can see
+  more details in the pom.xml.next, pom.xml.releaseBackup, and pom.xml.tag files created by this step.
+
+  If something goes wrong, or look amiss, you can revert the "prepare" changes via the following command:
+
+    mvn release:clean
+
+2. Perform a "real" release:prepare goal
+
+    mvn release:prepare
+
+3. Perform the release:
+
+    mvn release:stage  (or mvn release:perform?)
