@@ -90,13 +90,13 @@
   </modules>
 
   <scm>
-<!-- @todo revert these to peter's github repo - maybe fix 'developerConnection' suffix too: pfirmstone.git to: JGDMS.git
+<!-- @todo revert to peter's github repo - maybe fix 'developerConnection' suffix too: pfirmstone.git to: JGDMS.git
       <connection>scm:git:git://github.com/pfirmstone/JGDMS.git</connection>
       <developerConnection>scm:git:git@github.com:pfirmstone/pfirmstone.git</developerConnection>
       <url>https://github.com/pfirmstone/JGDMS</url>
 -->
-      <connection>scm:git:git://github.com/bhamail/JGDMS.git</connection>
-      <developerConnection>scm:git:git@github.com:bhamail/JGDMS.git</developerConnection>
+      <connection>scm:git:git://github.com/${github.repo.basename}/JGDMS.git</connection>
+      <developerConnection>scm:git:git@github.com:${github.repo.basename}/JGDMS.git</developerConnection>
       <url>https://github.com/bhamail/JGDMS</url>
       <tag>HEAD</tag>
   </scm>
@@ -121,7 +121,10 @@
   </distributionManagement>
 
   <properties>
+<!-- @todo revert to peter's github repo
     <github.repo.basename>pfirmstone</github.repo.basename>
+-->
+    <github.repo.basename>bhamail</github.repo.basename>
     <groovy.version>2.3.0</groovy.version>
     <gmaven.version>1.4</gmaven.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
@@ -139,7 +142,7 @@
             <id></id>
             <name></name>
             <url>scp://</url>
-        </repository>        
+        </repository>
     </distributionManagement>
 
     <pluginRepositories>
