@@ -31,4 +31,14 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
 
 3. Perform the release:
 
-        mvn release:stage  (or mvn release:perform?)
+    In my case, I needed to export the following in my shell in order for gpg to work correctly:
+
+        export GPG_TTY=$(tty)
+
+    Then:
+
+        mvn release:perform  (or mvn release:stage?)
+
+    If things go "badly(tm)", you can undo the release process via:
+
+        mvn release:rollback
