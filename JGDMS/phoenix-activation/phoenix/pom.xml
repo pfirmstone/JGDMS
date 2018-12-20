@@ -20,7 +20,7 @@
     <parent>
         <groupId>au.net.zeus.jgdms</groupId>
         <artifactId>phoenix-activation</artifactId>
-        <version>3.0-SNAPSHOT</version>
+        <version>3.0.1-RC-04</version>
     </parent>
 
     <groupId>au.net.zeus.jgdms.phoenix-activation</groupId>
@@ -95,19 +95,19 @@
                     <arguments>
                         <argument>-v1.1</argument>
                         <argument>-classpath</argument>
-                        <classpath></classpath>
+                        <classpath />
                         <argument>-d</argument>
                         <argument>${basedir}/target/classes</argument>
                         <argument>org.apache.river.phoenix.AbstractRegistry</argument>
                     </arguments>
                 </configuration>
                     <!--<exec executable="rmic">
-                        <arg value="-v1.1"/>
-                        <arg value="-classpath"/>
-                        <arg value="${build.classes.dir}"/>
-                        <arg value="-d"/>
-                        <arg value="${build.classes.dir}"/>
-                        <arg value="au.net.zeus.jgdms.phoenix.AbstractRegistry"/>
+                        <arg value="-v1.1" />
+                        <arg value="-classpath" />
+                        <arg value="${build.classes.dir}" />
+                        <arg value="-d" />
+                        <arg value="${build.classes.dir}" />
+                        <arg value="au.net.zeus.jgdms.phoenix.AbstractRegistry" />
                     </exec>-->
             </plugin>
             <!--<plugin>

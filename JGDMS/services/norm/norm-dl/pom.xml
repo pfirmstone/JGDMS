@@ -20,7 +20,7 @@
     <parent>
         <groupId>au.net.zeus.jgdms</groupId>
         <artifactId>norm</artifactId>
-        <version>3.0-SNAPSHOT</version>
+        <version>3.0.1-RC-04</version>
     </parent>
 
     <groupId>au.net.zeus.jgdms.norm</groupId>
