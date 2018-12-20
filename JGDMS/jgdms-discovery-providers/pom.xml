@@ -20,7 +20,7 @@
     <parent>
         <groupId>au.net.zeus</groupId>
         <artifactId>jgdms</artifactId>
-        <version>3.0-SNAPSHOT</version>
+        <version>3.0.1-RC-03</version>
     </parent>
 
     <groupId>au.net.zeus.jgdms</groupId>
@@ -49,7 +49,7 @@
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-jeri</artifactId>
-            <version>3.0-SNAPSHOT</version>
+            <version>3.0.1-RC-03</version>
             <type>jar</type>
         </dependency>
         <dependency>
@@ -119,7 +119,7 @@
                <artifactId>gmaven-plugin</artifactId>
                <configuration>
                     <providerSelection>${gmavenProviderSelection}</providerSelection>
-                    <source/>
+                    <source />
                 </configuration>
                 <executions>
                     <execution>
