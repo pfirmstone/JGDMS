@@ -4,7 +4,7 @@
 
   <groupId>au.net.zeus</groupId>
   <artifactId>jgdms</artifactId>
-  <version>3.0-SNAPSHOT</version>
+  <version>3.0.1-RC-01</version>
   <packaging>pom</packaging>
 
   <name>JGDMS Project</name>
@@ -37,7 +37,7 @@
     <developer>
       <id>peter_firmstone</id>
       <name>Peter Firmstone</name>
-      <email></email>
+      <email />
       <roles>
         <role>Developer</role>
       </roles>
@@ -98,7 +98,7 @@
       <connection>scm:git:git://github.com/bhamail/JGDMS.git</connection>
       <developerConnection>scm:git:git@github.com:bhamail/JGDMS.git</developerConnection>
       <url>https://github.com/bhamail/JGDMS</url>
-      <tag>HEAD</tag>
+      <tag>jgdms-3.0.1-RC-01</tag>
   </scm>
   <distributionManagement>
     <!--<snapshotRepository>
