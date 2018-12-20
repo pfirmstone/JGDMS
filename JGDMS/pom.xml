@@ -4,7 +4,7 @@
 
   <groupId>au.net.zeus</groupId>
   <artifactId>jgdms</artifactId>
-  <version>3.0.1-RC-03</version>
+  <version>3.0.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>JGDMS Project</name>
@@ -98,7 +98,7 @@
       <connection>scm:git:git://github.com/${github.repo.basename}/JGDMS.git</connection>
       <developerConnection>scm:git:git@github.com:${github.repo.basename}/JGDMS.git</developerConnection>
       <url>https://github.com/bhamail/JGDMS</url>
-      <tag>jgdms-3.0.1-RC-03</tag>
+      <tag>HEAD</tag>
   </scm>
   <distributionManagement>
     <!--<snapshotRepository>
