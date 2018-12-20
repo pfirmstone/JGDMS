@@ -20,7 +20,7 @@
     <parent>
         <groupId>au.net.zeus.jgdms</groupId>
         <artifactId>reggie</artifactId>
-        <version>3.0.1-RC-01</version>
+        <version>3.0.2-SNAPSHOT</version>
     </parent>
 
     <groupId>au.net.zeus.jgdms.reggie</groupId>

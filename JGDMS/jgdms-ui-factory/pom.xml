@@ -20,7 +20,7 @@
     <parent>
         <groupId>au.net.zeus</groupId>
         <artifactId>jgdms</artifactId>
-        <version>3.0.1-RC-01</version>
+        <version>3.0.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -40,13 +40,13 @@
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>
-            <version>3.0.1-RC-01</version>
+            <version>3.0.2-SNAPSHOT</version>
             <type>jar</type>
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-lib-dl</artifactId>
-            <version>3.0.1-RC-01</version>
+            <version>3.0.2-SNAPSHOT</version>
             <type>jar</type>
         </dependency>
         <dependency>
