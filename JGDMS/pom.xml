@@ -482,5 +482,30 @@
               </plugins>
           </build>
       </profile>
+      <!-- Disable maven-scm-publish-plugin during release:perform.
+      Need to publish doc manually and/or @todo investigate using site-maven-plugin https://github.github.com/maven-plugins/site-plugin/
+       -->
+      <profile>
+          <id>release-scm-site-publish</id>
+          <activation>
+              <property>
+                  <name>performRelease</name>
+                  <value>true</value>
+              </property>
+          </activation>
+          <build>
+              <plugins>
+                  <plugin>
+                      <artifactId>maven-scm-publish-plugin</artifactId>
+                      <executions>
+                          <execution>
+                              <id>scm-publish</id> <!-- must be same identifier defined in <build><plugins> section -->
+                              <phase>none</phase> <!-- this disables plugin -->
+                          </execution>
+                      </executions>
+                  </plugin>
+              </plugins>
+          </build>
+      </profile>
   </profiles>
 </project>
