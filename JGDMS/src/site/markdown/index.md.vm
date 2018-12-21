@@ -50,3 +50,14 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
     If things go "badly(tm)", you can undo the release process via:
 
         mvn release:rollback
+
+4. (temporary) Manually publish the docs:
+
+    Eventually, this step show become obsolete, and the docs would be published during the prior "release:perform" step.
+    For now though, we need to jump through some additional hoops to publish the docs to the github gh-pages site.
+    See: "Doc Publishing" in [Documentation Documentation](docdocs.html)
+
+    The idea is to checkout the just released "tag", and run:
+
+        mvn site site:stage
+        mvn scm-publish:publish-scm
