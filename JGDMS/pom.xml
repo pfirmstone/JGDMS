@@ -92,7 +92,7 @@
   <scm>
       <connection>scm:git:git://github.com/${github.repo.basename}/JGDMS.git</connection>
       <developerConnection>scm:git:git@github.com:${github.repo.basename}/JGDMS.git</developerConnection>
-      <url>https://github.com/bhamail/JGDMS</url>
+      <url>https://github.com/${github.repo.basename}/JGDMS</url>
       <tag>HEAD</tag>
   </scm>
   <distributionManagement>
