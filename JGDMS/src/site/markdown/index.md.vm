@@ -80,3 +80,5 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
 
         mvn site site:stage
         mvn scm-publish:publish-scm
+
+5. Push your local branch to github so the tags/changes created during the release process will be publicly accessible.
