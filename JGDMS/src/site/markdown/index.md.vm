@@ -64,7 +64,7 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
 
     Then:
 
-        mvn release:perform  (or mvn release:stage?)
+        mvn release:perform
 
     If things go "badly(tm)", you can undo the release process via:
 
