@@ -39,7 +39,21 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
 
 3. Perform the release:
 
-    In my case, I needed to export the following in my shell in order for gpg to work correctly:
+    One-time setup is required for you to publish to Central. Be sure the following exists
+    in your `~/.m2/settings.xml` file. Your OSSRH Jira ID and passwrod are needed.
+    See [OSSRH Guide](https://central.sonatype.org/pages/ossrh-guide.html) for details
+
+        ...
+        <servers>
+            <server>
+                <id>ossrh</id>
+                <username>YOUR_OSSRH_JIRA_ID</username>
+                <password>YOUR_YOUR_OSSRH_JIRA_PASSWORD</password>
+            </server>
+            ...
+        </servers>
+
+    In my case, I also needed to export the following in my shell in order for gpg to work correctly:
 
         export GPG_TTY=$(tty)
 
@@ -53,7 +67,7 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
 
 4. (temporary) Manually publish the docs:
 
-    Eventually, this step show become obsolete, and the docs would be published during the prior "release:perform" step.
+    Eventually, this step should become obsolete, and the docs would be published during the prior "release:perform" step.
     For now though, we need to jump through some additional hoops to publish the docs to the github gh-pages site.
     See: "Doc Publishing" in [Documentation Documentation](docdocs.html)
 
