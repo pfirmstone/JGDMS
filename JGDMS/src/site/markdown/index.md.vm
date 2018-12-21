@@ -46,7 +46,7 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
 
     One-time setup is required for you to publish to Central. Be sure the following exists
     in your `~/.m2/settings.xml` file. Your OSSRH Jira ID and passwrod are needed.
-    See [OSSRH Guide](https://central.sonatype.org/pages/ossrh-guide.html) for details
+    See [OSSRH Guide](https://central.sonatype.org/pages/ossrh-guide.html) for details.
 
         ...
         <servers>
