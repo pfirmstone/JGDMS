@@ -69,7 +69,7 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
 
     Eventually, this step should become obsolete, and the docs would be published during the prior "release:perform" step.
     For now though, we need to jump through some additional hoops to publish the docs to the github gh-pages site.
-    See: "Doc Publishing" in [Documentation Documentation](docdocs.html)
+    See: "Doc Publishing" in [Documentation Documentation](docdocs.html) (and yes, I did mean to say it twice. ;) ).
 
     The idea is to checkout the just released "tag", and run:
 
