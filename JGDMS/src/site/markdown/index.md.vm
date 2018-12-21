@@ -25,15 +25,15 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
         What is SCM release tag or label for "JGDMS Project"? (au.net.zeus:jgdms) jgdms-3.0.1-RC-07: :
         What is the new development version for "JGDMS Project"? (au.net.zeus:jgdms) 3.0.1-RC-07-SNAPSHOT: : 3.0.2-SNAPSHOT
 
-    Notice the naming convention above. The intent is to add the suffix "-RC-xx" to the version only when producing a
-    "candidate"/"test" release. When producing a "final" release, you omit this suffix from the version. e.g. "3.0.2".
+    Notice the version naming convention above. The intent is to add the suffix `-RC-xx` to the version only when producing a
+    "candidate"/"test" release. When producing a "final" release, you omit this suffix from the version. e.g. `3.0.2`.
 
-    The "new development version" should always have the "-SNAPSHOT" suffix.
+    The "new development version" should always have a `-SNAPSHOT` suffix.
 
     After the dryRun completes, examine the parent pom version, and spot check the various sub-module pom versions. You can see
     more details in the `pom.xml.next`, `pom.xml.releaseBackup`, and `pom.xml.tag` files created by this step.
 
-    If something goes wrong, or look amiss, you can revert the "prepare" changes via the following command. Even if all
+    If something goes wrong, or looks amiss, you can revert the "prepare" changes via the following command. Even if all
     looks good, do a "release:clean" before proceeding to step 2.
 
         mvn release:clean
