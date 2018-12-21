@@ -26,9 +26,11 @@ See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide
         What is the new development version for "JGDMS Project"? (au.net.zeus:jgdms) 3.0.1-RC-07-SNAPSHOT: : 3.0.2-SNAPSHOT
 
     Notice the naming convention above. The intent is to add the suffix "-RC-xx" to the version only when producing a
-    "candidate"/"test" release. When producing a "final" release, you should omit this suffix. e.g. "3.0.2".
+    "candidate"/"test" release. When producing a "final" release, you omit this suffix from the version. e.g. "3.0.2".
 
-    After this completes, examine the parent pom version, and spot check the various sub-module pom versions. You can see
+    The "new development version" should always have the "-SNAPSHOT" suffix.
+
+    After the dryRun completes, examine the parent pom version, and spot check the various sub-module pom versions. You can see
     more details in the `pom.xml.next`, `pom.xml.releaseBackup`, and `pom.xml.tag` files created by this step.
 
     If something goes wrong, or look amiss, you can revert the "prepare" changes via the following command. Even if all
