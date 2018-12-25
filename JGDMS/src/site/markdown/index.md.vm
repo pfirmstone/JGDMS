@@ -6,3 +6,79 @@ ${project.description}
 The prior static site docs can be viewed here: [Static Site](old-static-site/index.html)
 
 [Introduction](old-static-site/doc/index.html) docs are also available.
+
+Release Process
+---------------
+
+The release process uses the [maven-release-plugin](http://maven.apache.org/maven-release/maven-release-plugin/) to
+update all the versions at once auto-magically.
+See: [Using the Maven Release plugin](https://maven.apache.org/guides/mini/guide-releasing.html) for an overview.
+
+1. First do a "dryRun" of the release:prepare goal to make sure initial changes look valid:
+
+        mvn release:prepare -DdryRun=true
+
+    Below is a snippet showing the type of prompts to expect during this step:
+
+        [INFO] Checking dependencies and plugins for snapshots ...
+        What is the release version for "JGDMS Project"? (au.net.zeus:jgdms) 3.0: : 3.0.1-RC-07
+        What is SCM release tag or label for "JGDMS Project"? (au.net.zeus:jgdms) jgdms-3.0.1-RC-07: :
+        What is the new development version for "JGDMS Project"? (au.net.zeus:jgdms) 3.0.1-RC-07-SNAPSHOT: : 3.0.2-SNAPSHOT
+
+    Notice the version naming convention above. The intent is to add the suffix `-RC-xx` to the version only when producing a
+    "candidate"/"test" release. When producing a "final" release, you omit this suffix from the version. e.g. `3.0.2`.
+
+    The "new development version" should always have a `-SNAPSHOT` suffix.
+
+    After the dryRun completes, examine the parent pom version, and spot check the various sub-module pom versions. You can see
+    more details in the `pom.xml.next`, `pom.xml.releaseBackup`, and `pom.xml.tag` files created by this step.
+
+    If something goes wrong, or looks amiss, you can revert the "prepare" changes via the following command. Even if all
+    looks good, do a "release:clean" before proceeding to step 2.
+
+        mvn release:clean
+
+2. Perform a "real" release:prepare goal
+
+        mvn release:prepare
+
+3. Perform the release:
+
+    One-time setup is required for you to publish to Central. Be sure the following exists
+    in your `~/.m2/settings.xml` file. Your OSSRH Jira ID and passwrod are needed.
+    See [OSSRH Guide](https://central.sonatype.org/pages/ossrh-guide.html) for details.
+
+        ...
+        <servers>
+            <server>
+                <id>ossrh</id>
+                <username>YOUR_OSSRH_JIRA_ID</username>
+                <password>YOUR_YOUR_OSSRH_JIRA_PASSWORD</password>
+            </server>
+            ...
+        </servers>
+
+    In my case, I also needed to export the following in my shell in order for gpg to work correctly:
+
+        export GPG_TTY=$(tty)
+
+    Then:
+
+        mvn release:perform
+
+    If things go "badly(tm)", you can undo the release process via:
+
+        mvn release:rollback
+
+4. (temporary) Manually publish the docs:
+
+    Eventually, this step should become obsolete, and the docs would be published during the prior "release:perform" step.
+    For now though, we need to jump through some additional hoops to publish the docs to the github gh-pages site.
+    See: "Doc Publishing" in [Documentation Documentation](docdocs.html) (and yes, I did mean to say it twice. ;) ).
+
+    The idea is to checkout the just released "tag", and run:
+
+        mvn site site:stage
+        mvn scm-publish:publish-scm
+
+5. Push your local branch to github so the tags/changes created during the release process will be publicly accessible.

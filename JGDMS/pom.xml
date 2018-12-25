@@ -4,7 +4,7 @@
 
   <groupId>au.net.zeus</groupId>
   <artifactId>jgdms</artifactId>
-  <version>3.1.0</version>
+  <version>3.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>JGDMS Project</name>
@@ -90,9 +90,9 @@
   </modules>
 
   <scm>
-      <connection>scm:git:git://github.com/pfirmstone/JGDMS.git</connection>
-      <developerConnection>scm:git:git@github.com:pfirmstone/pfirmstone.git</developerConnection>
-      <url>https://github.com/pfirmstone/JGDMS</url>
+      <connection>scm:git:git://github.com/${github.repo.basename}/JGDMS.git</connection>
+      <developerConnection>scm:git:git@github.com:${github.repo.basename}/JGDMS.git</developerConnection>
+      <url>https://github.com/${github.repo.basename}/JGDMS</url>
       <tag>HEAD</tag>
   </scm>
   <distributionManagement>
@@ -134,7 +134,7 @@
             <id></id>
             <name></name>
             <url>scp://</url>
-        </repository>        
+        </repository>
     </distributionManagement>
 
     <pluginRepositories>
@@ -255,11 +255,11 @@
         </plugin>
         <plugin>
           <artifactId>maven-site-plugin</artifactId>
-          <version>3.6</version>
+          <version>3.7.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-scm-publish-plugin</artifactId>
-          <version>1.1</version>
+          <version>3.0.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-javadoc-plugin</artifactId>
@@ -275,6 +275,31 @@
           </configuration>
         </plugin>
         <!-- reporting plugins : end -->
+        <!-- release plugins : begin -->
+        <plugin>
+            <artifactId>maven-release-plugin</artifactId>
+            <version>2.5.3</version>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.maven.scm</groupId>
+                    <artifactId>maven-scm-provider-gitexe</artifactId>
+                    <!-- Latest version known to work. Newer versions (e.g. 1.11.1) may produce error like this:
+                    [ERROR] Failed to execute goal org.apache.maven.plugins:maven-release-plugin:2.5.3:prepare (default-cli) on project jgdms: Execution default-cli of goal org.apache.maven.plugins:maven-release-plugin:2.5.3:prepare failed: An API incompatibility was encountered while executing org.apache.maven.plugins:maven-release-plugin:2.5.3:prepare: java.lang.NoSuchMethodError: org.apache.maven.scm.ScmTagParameters.isSign()Z
+                    -->
+                    <version>1.9.5</version>
+                </dependency>
+            </dependencies>
+        </plugin>
+        <plugin>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <version>2.8.2</version>
+        </plugin>
+        <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <version>1.6.8</version>
+        </plugin>
+          <!-- release plugins : end -->
       </plugins>
     </pluginManagement>
 
@@ -346,7 +371,6 @@
       <!-- for publishing maven site to gh-pages : end -->
       <plugin>
           <artifactId>maven-deploy-plugin</artifactId>
-          <version>2.8.2</version>
           <executions>
               <execution>
                   <id>default-deploy</id>
@@ -358,27 +382,18 @@
           </executions>
       </plugin>
       <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-release-plugin</artifactId>
-          <version>2.5.3</version>
           <configuration>
+              <autoVersionSubmodules>true</autoVersionSubmodules>
               <localCheckout>true</localCheckout>
               <pushChanges>false</pushChanges>
               <mavenExecutorId>forked-path</mavenExecutorId>
-              <arguments>-Dgpg.passphrase=${gpg.passphrase}</arguments>
+              <arguments>-Dgpg.passphrase=${cli.gpg.passphrase}</arguments>
           </configuration>
-          <dependencies>
-              <dependency>
-                  <groupId>org.apache.maven.scm</groupId>
-                  <artifactId>maven-scm-provider-gitexe</artifactId>
-                  <version>1.9.5</version>
-              </dependency>
-          </dependencies>
       </plugin>
       <plugin>
           <groupId>org.sonatype.plugins</groupId>
           <artifactId>nexus-staging-maven-plugin</artifactId>
-          <version>1.6.7</version>
           <extensions>true</extensions>
           <configuration>
               <serverId>ossrh</serverId>
@@ -449,7 +464,6 @@
           <build>
               <plugins>
                   <plugin>
-                      <groupId>org.apache.maven.plugins</groupId>
                       <artifactId>maven-gpg-plugin</artifactId>
                       <version>1.6</version>
                       <executions>
@@ -459,6 +473,31 @@
                               <goals>
                                   <goal>sign</goal>
                               </goals>
+                          </execution>
+                      </executions>
+                  </plugin>
+              </plugins>
+          </build>
+      </profile>
+      <!-- Disable maven-scm-publish-plugin during "release:perform".
+      Need to publish doc manually and/or @todo investigate using site-maven-plugin https://github.github.com/maven-plugins/site-plugin/
+       -->
+      <profile>
+          <id>release-scm-site-publish</id>
+          <activation>
+              <property>
+                  <name>performRelease</name>
+                  <value>true</value>
+              </property>
+          </activation>
+          <build>
+              <plugins>
+                  <plugin>
+                      <artifactId>maven-scm-publish-plugin</artifactId>
+                      <executions>
+                          <execution>
+                              <id>scm-publish</id> <!-- must be same identifier defined in <build><plugins> section -->
+                              <phase>none</phase> <!-- this disables plugin -->
                           </execution>
                       </executions>
                   </plugin>
