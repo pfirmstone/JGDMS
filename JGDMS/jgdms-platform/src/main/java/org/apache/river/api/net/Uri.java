@@ -28,21 +28,27 @@ import org.apache.river.impl.Messages;
 
 /**
  * This class represents an immutable instance of a URI as defined by RFC 3986.
- * 
+ * <p>
  * This class replaces java.net.URI functionality.
- * 
+ * <p>
  * Unlike java.net.URI this class is not Serializable and hashCode and 
  * equality is governed by strict RFC3986 normalisation. In addition "other"
  * characters allowed in java.net.URI as specified by javadoc, not specifically 
  * allowed by RFC3986 are illegal and must be escaped.  This strict adherence
  * is essential to eliminate false negative or positive matches.
- * 
+ * <p>
  * In addition to RFC3896 normalisation, on OS platforms with a \ file separator
  * the path is converted to UPPER CASE for comparison for file: schema, during
  * equals and hashCode calls.
- * 
+ * <p>
  * IPv6 and IPvFuture host addresses must be enclosed in square brackets as per 
- * RFC3986.
+ * RFC3986.  A zone delimiter %, if present, must be represented in escaped %25
+ * form.
+ * <p>
+ * In addition to RFC3896 normalization, IPv6 host addresses will be normalized
+ * to comply with RFC 5952 A Recommendation for IPv6 Address Text Representation. 
+ * This is to ensure consistent equality between identical IPv6 addresses.
+ * 
  * @since 3.0.0
  */
 public final class Uri implements Comparable<Uri> {

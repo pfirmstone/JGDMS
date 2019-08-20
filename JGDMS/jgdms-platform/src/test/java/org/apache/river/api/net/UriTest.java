@@ -484,7 +484,7 @@ public class UriTest extends TestCase {
         // accept [] as part of valid ipv6 host name
         Uri uri = new Uri("ftp", "[0001:1234::0001]", "/dir1/dir2", "query",
                 "frag");
-        assertEquals("Returned incorrect host", "[0001:1234::0001]", uri
+        assertEquals("Returned incorrect host", "[1:1234::1]", uri
                 .getHost());
 
         // do not accept [] as part of invalid ipv6 address

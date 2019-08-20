@@ -19,6 +19,8 @@ package org.apache.river.api.net;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.river.impl.Messages;
 
 /**
@@ -322,16 +324,130 @@ final class UriParser {
                 throw new URISyntaxException(authority, Messages.getString("luni.A0"), hostindex); //$NON-NLS-1$
             }
             return;
-        }
+        }    
         if (!isValidHost(forceServer, tempHost)) {
             return;
         }
         // this is a server based uri,
         // fill in the userinfo, host and port fields
+        // If IPv6, we need to normalize representation to comply with RFC 5952
         userinfo = tempUserinfo;
-        host = tempHost;
+        host = rfc5952Normalize(tempHost);
         port = tempPort;
         serverAuthority = true;
+    }
+    
+    private static final Pattern OCTET_BEGIN_ZERO = Pattern.compile(
+            // ipv6 octet | ipv4 address
+            "^([0]{1,3})([0-9a-f]{1,3})$"
+    );
+    
+    private static final Pattern IPv4 = Pattern.compile(
+            "^([1-2]{0,1}[0-5]{0,1}[0-5]{1}\\.[1-2]{0,1}[0-5]{0,1}[0-5]{1}\\.[1-2]{0,1}[0-5]{0,1}[0-5]{1}\\.[1-2]{0,1}[0-5]{0,1}[0-5]{1})$"
+    );
+    
+    /**
+     * Normalize IPv6 to preferred representation as per RFC 5952.
+     * @param host
+     * @return 
+     */
+    private String rfc5952Normalize(String host) throws URISyntaxException{
+        if (host.charAt(0) == '[' && host.charAt(1) != 'v'){ //IPv6
+            // RFC 4007 <address>%<zone_id>
+            // RFC 6874 [<address>%25<zone_id>]
+            int delimiter = host.indexOf("%25");
+            String address, zone_id;
+            if (delimiter > 0) {
+                address = Uri.toAsciiLowerCase(host.substring(1, delimiter));
+                zone_id = host.substring(delimiter+3, host.length()-1);
+            } else {
+                address = Uri.toAsciiLowerCase(host.substring(1,host.length()-1));
+                zone_id = null;
+            }
+            String [] hostAddressOctets;
+            // Expand all shortened forms.
+            int shortened = address.indexOf("::");
+            if (shortened >= 0){ // Shortened form.
+                String beginning = address.substring(0, shortened);
+                String end = address.substring(shortened + 2, address.length());
+                // Split into octets.
+                String [] beg = beginning.split(":");
+                String [] en = end.split(":");
+                // Is it an IPv4 mapped address ?
+                Matcher isIPv4mapped = IPv4.matcher(en[en.length-1]);
+                if (isIPv4mapped.matches()){
+                    hostAddressOctets = new String [7];
+                } else {
+                    hostAddressOctets = new String [8];
+                }
+                for (int i = 0, len = hostAddressOctets.length; i < len; i++){
+                    hostAddressOctets[i] = "0";  // Populate with zero's.
+                }
+                // populate from beginning
+                for (int i = 0, len = beg.length, lenO = hostAddressOctets.length; i < len && i < lenO; i++){
+                    hostAddressOctets[i] = beg[i];
+                }
+                // populate from end backwards.
+                for (int i = hostAddressOctets.length - 1, j = en.length - 1; i >= 0 && j >= 0; i--, j--){
+                    hostAddressOctets[i] = en[j];
+                }
+            } else {
+                hostAddressOctets = address.split(":");
+            }
+            
+            // Strip leading zero's
+            for (int i = 0, l=hostAddressOctets.length; i < l; i++){
+                Matcher match = OCTET_BEGIN_ZERO.matcher(hostAddressOctets[i]);
+                if (match.matches()) hostAddressOctets[i] = match.group(2);
+            }
+            
+            // Identify maximum length of zero's and abbreviate.
+            int zeroCount = 0;
+            int maxZeroCount = 0;
+            int maxBeginIndex = -1;
+            int maxLastIndex = -1;
+            int beginIndex = -1;
+            int lastIndex = -1;
+            for (int i = 0, l = hostAddressOctets.length; i < l; i++){
+                if ("0".equals(hostAddressOctets[i])) {
+                    if (zeroCount == 0) beginIndex = i;
+                    lastIndex = i;
+                    zeroCount ++;
+                } else {  // Reset
+                    if (zeroCount > maxZeroCount){
+                        maxZeroCount = zeroCount;
+                        maxBeginIndex = beginIndex;
+                        maxLastIndex = lastIndex; // Exclusive of current index.
+                    }
+                    zeroCount = 0;
+                }
+            }
+            if (zeroCount > maxZeroCount){ // In case the last octet is :0.
+                maxZeroCount = zeroCount;
+                maxBeginIndex = beginIndex;
+                maxLastIndex = lastIndex; // Exclusive of current index.
+            }
+            StringBuilder sb = new StringBuilder(64);
+            sb.append('[');
+            if (maxZeroCount > 1){ // Abbreviate.
+                for (int i = 0, l = hostAddressOctets.length; i < l; i ++){
+                    if (i == 0 && maxBeginIndex == 0) sb.append(":");  // Special case with leading zero.
+                    if (i == maxBeginIndex) sb.append(":");
+                    if (maxBeginIndex <= i && i <= maxLastIndex) continue;
+                    sb.append(hostAddressOctets[i]);
+                    if (i < l - 1) sb.append(":");
+                }
+            } else { // No abbreviation
+                for (int i = 0, l = hostAddressOctets.length; i < l; i++){
+                    sb.append(hostAddressOctets[i]);
+                    if (i < l - 1) sb.append(":");
+                }
+            }
+            if (zone_id != null) sb.append("%25").append(zone_id);
+            sb.append(']');
+            return sb.toString();
+        }
+        return host;
     }
 
     private void validateUserinfo(String uri, String userinfo, int index) throws URISyntaxException {
@@ -436,10 +552,17 @@ final class UriParser {
     }
 
     private boolean isValidIP6Address(String ipAddress) {
+        // Section 2.3 Unreserved characters (Allowed in zone).
+        char [] lowalpha = new char[0];
+        char [] upalpha = lowalpha;
+        char [] numeric= lowalpha;
+        char [] unres_punct= lowalpha;
+        
         int length = ipAddress.length();
         boolean doubleColon = false;
         int numberOfColons = 0;
         int numberOfPeriods = 0;
+        boolean zone = false;
         String word = ""; //$NON-NLS-1$
         char c = 0;
         char prevChar;
@@ -479,6 +602,7 @@ final class UriParser {
             // case for the last 32-bits represented as IPv4
             // x:x:x:x:x:x:d.d.d.d
                 case '.':
+                    if (zone) break; // Allowed
                     numberOfPeriods++;
                     if (numberOfPeriods > 3) {
                         return false;
@@ -498,6 +622,7 @@ final class UriParser {
                     word = ""; //$NON-NLS-1$
                     break;
                 case ':':
+                    if (zone) return false;
                     numberOfColons++;
                     if (numberOfColons > 7) {
                         return false;
@@ -513,7 +638,34 @@ final class UriParser {
                     }
                     word = ""; //$NON-NLS-1$
                     break;
+                case '%':
+                    if (zone) return false; // Can only be one % sign to avoid complicated parsing, See RFC 6874
+                    String zoneId = ipAddress.substring(i, i+3);
+                    if ("%25".equals(zoneId)){
+                        zone = true;
+                    }
+                    // Initialize unreserved allowable characters
+                    lowalpha = "abcdefghijklmnopqrstuvwxyz".toCharArray();
+                    upalpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+                    numeric = "0123456789".toCharArray();
+                    unres_punct = new char[] {'-' , '.' , '_' , '~'};
+                    word = ""; //$NON-NLS-1$
+                    break;
                 default:
+                    if (zone){ // The following is allowed in zone.
+                        for (int j = 0, len = lowalpha.length; j < len; j++){
+                            if (c == lowalpha[j]) break;
+                        }
+                        for (int j = 0, len = upalpha.length; j < len; j++){
+                            if (c == upalpha[j]) break;
+                        }
+                        for (int j = 0, len = numeric.length; j < len; j++){
+                            if (c == numeric[j]) break;
+                        }
+                        for (int j = 0, len = unres_punct.length; j < len; j++){
+                            if (c == unres_punct[j]) break;
+                        }
+                    }
                     if (word.length() > 3) {
                         return false;
                     }
