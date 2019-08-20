@@ -35,6 +35,8 @@ import java.net.URISyntaxException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collection;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicSerial;
@@ -86,6 +88,17 @@ public class LookupLocator implements Serializable {
     private static final short DISCOVERY_PORT = 4160;
     
     private static final short HTTPS_DISCOVERY_PORT = 443;
+    /*  IPv6 Regex by Dartware, LLC is licensed under a 
+        Creative Commons Attribution-ShareAlike 3.0 Unported License.
+        http://creativecommons.org/licenses/by-sa/3.0/
+        
+        IPv6 regular expression courtesy of Dartware, LLC (http://intermapper.com)
+        For full details see http://intermapper.com/ipv6regex
+     */
+    private static final Pattern IPV6 = Pattern.compile(
+       //     123                 3   4                  42 56                 6   7                  89                                   910  11                                 1110  8  75 1213              13  151617              17    16 1819                                 1920 21                                 2120 18 1512 2223              23  242526              26    25 2728
+        "^\\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))(%.+)?\\s*$"
+    );
     
     /**
      * The name of the host at which to perform discovery.
@@ -185,8 +198,27 @@ public class LookupLocator implements Serializable {
 	if (host == null) {
             throw new NullPointerException("null host");
         }
+        Matcher isIPv6 = IPV6.matcher(host); //  Try to match and encapsulate
         StringBuilder sb = new StringBuilder();
-        sb.append(scheme).append("://").append(host);
+        sb.append(scheme).append("://");
+        if (isIPv6.matches()){
+            sb.append('[');
+            int zone = host.indexOf('%');
+            if (zone > 0) {
+                // Strip zone component, it has no relevance outside of this host.
+                sb.append(host.substring(0, zone));
+            } else sb.append(host);
+            sb.append(']');
+        } else if (host.startsWith("[")){ // Properly escaped IPv6 or IP Future.
+            int zone = host.indexOf('%');
+            if (zone > 0) {
+                // Strip zone component, it has no relevance outside of this host.
+                sb.append(host.substring(0, zone));
+                sb.append(']'); // Replace closing square bracket.
+            } else sb.append(host);
+        } else { 
+            sb.append(host);
+        }
         if (port != -1) { //URI compliance -1 is converted to discoveryPort.
             sb.append(":").append(port);
         }
@@ -222,16 +254,26 @@ public class LookupLocator implements Serializable {
      * argument must meet any one of the following syntactical requirements:
      * <ul>
      * <li>A host as required by a <i>server-based naming authority</i> in
-     * section 3.2.2 of <a href="http://www.ietf.org/rfc/rfc2396.txt">
-     * <i>RFC 2396: Uniform Resource Identifiers (URI): Generic Syntax</i></a>
+     * section 3.2.2 of <a href="http://www.ietf.org/rfc/rfc3986.txt">
+     * <i>RFC 3986: Uniform Resource Identifiers (URI): Generic Syntax</i></a>
      * <li>A literal IPv6 address as defined by
-     * <a href="http://www.ietf.org/rfc/rfc2732.txt">
-     * <i>RFC 2732: Format for Literal IPv6 Addresses in URL's</i></a>
-     * <li>A literal IPv6 address as defined by
-     * <a href="http://www.ietf.org/rfc/rfc3513.txt">
-     * <i>RFC 3513: Internet Protocol Version 6 (IPv6) Addressing Architecture
-     * </i></a>
+     * <a href="http://www.ietf.org/rfc/rfc4291.txt">
+     * <i>RFC 4291: IP Version 6 Addressing Architecture</i></a>
+     * <a href="http://www.ietf.org/rfc/rfc4007.txt">
+     * <i>RFC 4007: IPv6 Scoped Address Architecture</i></a>
+     * <a href="http://www.ietf.org/rfc/rfc6874.txt">
+     * <i>RFC 6874: Representing IPv6 Zone Identifiers in Address Literals and 
+     * Uniform Resource Identifiers</i></a>
      * </ul>
+     * 
+     * This constructor attempts to identify an unenclosed IPv6
+     * host address and if recognized, encloses the IPv6 address within square brackets.
+     * 
+     * If an IPv6 zone is present as delimited by '%' or '%25' when correctly escaped,
+     * this constructor will strip the zone from the IPv6 address, 
+     * as it is only of meaning on the local node and would also make the Object 
+     * equals contract indeterminate as the zone is an optional component without
+     * rules for normalization.
      *
      * @param host the name of the host to contact
      * @param port the number of the port to connect to
@@ -533,6 +575,6 @@ public class LookupLocator implements Serializable {
 		    "Invariants not satisfied during deserialization");
 	    e.initCause(ex);
 	    throw e;
+        }
     }
-}
 }
