@@ -1,4 +1,4 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-platform-3.1.1-SNAPSHOT.jar" {
     permission java.security.AllPermission "", "";
 };
 
@@ -11,7 +11,22 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
 };
 
 grant codebase "file:${org.apache.river.qa.harness.testJar}" {
-    permission java.security.AllPermission "", "";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.io.FilePermission "<<ALL FILES>>", "read,execute";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write,delete";
+    permission java.net.SocketPermission "*", "accept,connect,listen,resolve";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission net.jini.security.GrantPermission
+        "java.security.AllPermission \"\", \"\"";
+    permission net.jini.discovery.DiscoveryPermission "*";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
+    permission java.net.URLPermission "http://${HOST}:9080/*", "GET:";
+    permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
+        "connect";
+    permission javax.security.auth.AuthPermission "getSubject";
 };
 
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
@@ -22,7 +37,61 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.test.home}${/}lib${/}ld.jar" {
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}ld.jar" {
     permission net.jini.discovery.DiscoveryPermission "*";
     permission java.net.SocketPermission "*", "connect";
+    permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}ld.jar", "read";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-jeri-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-discovery-providers-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-collections-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}service-starter-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-url-integrity-3.1.1-SNAPSHOT.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester" {
+    permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
+        "connect";
+    permission net.jini.security.AuthenticationPermission
+        "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"",
+        "connect";
+};
+
+grant {
+    permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}-", "read";
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}ld.jar", "read";
 };
