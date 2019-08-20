@@ -43,7 +43,7 @@ import net.jini.lookup.ServiceProxyAccessor;
  * proxy to a lookup service with minimal functionality is needed
  * (for example, testing).
  */
-interface LookupSimulator extends Remote, 
+public interface LookupSimulator extends Remote, // Made public to prevent java.rmi.server.ExportException proxy implements non-public interface
 				  DiscoveryAdmin,
 				  DestroyAdmin,
 				  ServiceProxyAccessor
