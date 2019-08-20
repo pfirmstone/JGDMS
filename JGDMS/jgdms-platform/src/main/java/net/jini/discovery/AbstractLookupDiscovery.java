@@ -276,6 +276,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     
     private final Exception thrown;
     private final MethodConstraints methodConstraints;
+    private final long startTime;
 
     /** Data structure containing task data processed by the Notifier Thread */
     private static class NotifyTask {
@@ -756,8 +757,14 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 		    && (initialMulticastRequestDelayRange > 0)
 		    && (multicastRequestMax >= 0))
 		{
-		    Thread.sleep((long) (Math.random() *
-					 initialMulticastRequestDelayRange));
+                    // Avoid waiting too long, unfortunately we can't start early,
+                    // so we would be later on average, unless we also reduce the
+                    // upper bound by a similar amount.
+                    long currentTime = System.currentTimeMillis();
+                    long delay = currentTime - startTime;
+                    long adjustedDelayRange = initialMulticastRequestDelayRange - 2 * delay;
+                    if (adjustedDelayRange > 0) 
+                        Thread.sleep((long) (Math.random() * adjustedDelayRange));
 		}
 		for (count = multicastRequestMax;
                                           --count >= 0 && !isInterrupted(); )
@@ -1388,6 +1395,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         boolean isDefaultWakeupMgr;
         long initialMulticastRequestDelayRange;
 	private MethodConstraints methodConstraints;
+        long startTime;
         
         private Initializer(Configuration config) throws ConfigurationException,
                 UnsupportedConstraintException, UnknownHostException, SocketException
@@ -1395,6 +1403,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
             /* Read Configuration */
 
             if(config == null)  throw new NullPointerException("config is null");
+            startTime = System.currentTimeMillis();
             /* Lookup service proxy preparer */
             registrarPreparer = (ProxyPreparer)config.getEntry
                                                         (COMPONENT_NAME,
@@ -1592,6 +1601,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         discoveryWakeupMgr = init.discoveryWakeupMgr;
         isDefaultWakeupMgr = init.isDefaultWakeupMgr;
         initialMulticastRequestDelayRange = init.initialMulticastRequestDelayRange;
+        startTime = init.startTime;
         /* end Init */
         
         if(nicsToUse ==  NICS_USE_NONE) { //disable discovery
