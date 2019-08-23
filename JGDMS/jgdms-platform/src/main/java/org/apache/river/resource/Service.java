@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.LinkedHashSet;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.LoadClass;
 
@@ -115,7 +116,15 @@ import net.jini.loader.LoadClass;
  * The provider-lookup mechanism always executes in the security context of the
  * caller.  Trusted system code should typically invoke the methods in this
  * class from within a privileged security context.
- *
+ * 
+ * <p>
+ * <h2>NOTE AND TODO:</h2>
+ * This service provider will be updated to use {@link java.util.ServiceLoader}
+ * and the OSGi service registry, for compatibility with modular environments
+ * and the simplification this implementation.  This class will remain to provide 
+ * indirection for all local service providers, to allow compatibility
+ * with both modular environments.
+ * 
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
@@ -283,9 +292,10 @@ public final class Service {
 	    try {
 		Class<S> c = LoadClass.forName(cn, true, loader);
 		if (!service.isAssignableFrom(c)) {
-			log.severe("service classloader is "
-					  + service.getClass().getClassLoader()
-					  + ", provider loader is " + loader);
+                    log.log(Level.SEVERE,
+                        "service classloader is {0}, provider loader is {1}",
+                        new Object[]{service.getClass().getClassLoader(), loader}
+                    );
 		    fail(service, "Provider " + cn + " is of incorrect type");
 		}
 		return c.newInstance();
