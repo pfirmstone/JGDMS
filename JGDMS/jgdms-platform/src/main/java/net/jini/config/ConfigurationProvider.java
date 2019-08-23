@@ -29,22 +29,39 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.jini.loader.LoadClass;
 import net.jini.security.Security;
 import org.apache.river.logging.Levels;
+import org.apache.river.resource.Service;
 
 /**
  * Provides a standard means for obtaining {@link Configuration} instances,
- * using a configurable provider. This class cannot be instantiated. The
- * configuration provider can be specified by providing a resource named
+ * using a configurable provider. This class cannot be instantiated. 
+ * <p>
+ * New implementations of {@link Configuration} should use the 
+ * {@link ConfigurationServiceFactory} provider mechanism as a means of indirection
+ * as {@link Configuration} implementations require a constructor with parameters 
+ * as detailed below that isn't compatible with {@link java.util.ServiceLoader} or the OSGi
+ * service registry.
+ * <p>
+ * ConfigurationProvider currently utilizes an internal implementation that is
+ * similar to {@link java.util.ServiceLoader}, it is not clear how well this
+ * will work in modular jvm's going forward, the {@link ConfigurationServiceFactory}
+ * implementation can have a zero argument constructor and this serves to 
+ * simplify and allow the use of {@link java.util.ServiceLoader} and the OSGi
+ * service registry.
+ * <p>
+ * The configuration provider can be specified by providing a resource named
  * "META-INF/services/net.jini.config.Configuration" containing the name of the
  * provider class. If multiple resources with that name are available, then the
  * one used will be the last one returned by {@link ClassLoader#getResources
  * ClassLoader.getResources}. If the resource is not found, the {@link
  * ConfigurationFile} class is used. <p>
- *
+ * 
  * Downloaded code can specify its own class loader in a call to {@link
  * #getInstance(String[],ClassLoader) getInstance(String[], ClassLoader)} in
  * order to use the configuration provider specified in the JAR file from which
@@ -91,11 +108,14 @@ import org.apache.river.logging.Levels;
  */
 public class ConfigurationProvider {
 
-    private static final String resourceName =
+    private static final String RESOURCE_NAME =
 	"META-INF/services/" + Configuration.class.getName();
+    
+    private static final String RESOURCE_SRV_FACTORY_NAME =
+	"META-INF/services/" + ConfigurationServiceFactory.class.getName();
 
     /** Config logger. */
-    private static final Logger logger = Logger.getLogger("net.jini.config");
+    private static final Logger LOGGER = Logger.getLogger("net.jini.config");
 
     /** This class cannot be instantiated. */
     private ConfigurationProvider() {
@@ -177,18 +197,9 @@ public class ConfigurationProvider {
     public static Configuration getInstance(String[] options, ClassLoader cl)
 	throws ConfigurationException
     {
-		/*
-		  ClassLoader resourceLoader = (cl != null) ? cl :
-		  (ClassLoader) Security.doPrivileged(
-		  new PrivilegedAction() {
-		  public Object run() {
-		  return Thread.currentThread().getContextClassLoader();
-		  }
-		  });
-		*/
 		ClassLoader resourceLoader=cl;
 		if (resourceLoader == null) {
-			logger.fine("Null class loader provided, fetching context class loader...");
+			LOGGER.fine("Null class loader provided, fetching context class loader...");
 			resourceLoader =
                             (ClassLoader) Security.doPrivileged(
                                 new PrivilegedAction() {
@@ -196,22 +207,32 @@ public class ConfigurationProvider {
                                         return Thread.currentThread().getContextClassLoader();
                                     }
                                 });
-			logger.fine("...resource class loader is now: " + resourceLoader);
+			LOGGER.fine("...resource class loader is now: " + resourceLoader);
 		}
 	final ClassLoader finalResourceLoader = (resourceLoader == null)
 	    ? Utilities.bootstrapResourceLoader : resourceLoader;
-	logger.fine("Final resource class loader is: " + finalResourceLoader);
+	LOGGER.fine("Final resource class loader is: " + finalResourceLoader);
+        Iterator<ConfigurationServiceFactory> services = 
+                Service.providers(ConfigurationServiceFactory.class, finalResourceLoader);
+        while(services.hasNext()){
+            ConfigurationServiceFactory csf = services.next();
+            try {
+                Configuration result = csf.getInstance(options, finalResourceLoader);
+                if (result != null) return result;
+            } catch (ConfigurationException e){
+                LOGGER.log(Level.FINE, "Exception thrown while trying to obtain Configuration", e);
+            }
+        }
 	String cname = null;
 	ConfigurationException configEx = null;
 	try {
-	    cname = (String) Security.doPrivileged(
-		new PrivilegedExceptionAction() {
+	    cname = (String) Security.doPrivileged(new PrivilegedExceptionAction() {
 		    public Object run()
 			throws ConfigurationException, IOException
 		    {
 			URL resource = null;
 			Enumeration providers = 
-			    finalResourceLoader.getResources(resourceName);
+			    finalResourceLoader.getResources(RESOURCE_NAME);
 			while (providers.hasMoreElements()) {
 			    resource = (URL) providers.nextElement();
 			}
@@ -232,7 +253,7 @@ public class ConfigurationProvider {
 		"problem accessing provider resources", e);
 	}
 	if (configEx != null) {
-	    logger.log(Levels.FAILED, "getting configuration provider throws",
+	    LOGGER.log(Levels.FAILED, "getting configuration provider throws",
 		       configEx);
 	    throw configEx;
 	}
@@ -278,7 +299,7 @@ public class ConfigurationProvider {
 	    configEx = new ConfigurationException(
 		"problem with provider class", e);
 	}
-	logger.log(Levels.FAILED, "getting configuration throws", configEx);
+	LOGGER.log(Levels.FAILED, "getting configuration throws", configEx);
 	throw configEx;
     }
 
