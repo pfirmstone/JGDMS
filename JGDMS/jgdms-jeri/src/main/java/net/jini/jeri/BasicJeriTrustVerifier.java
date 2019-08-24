@@ -32,6 +32,8 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
 import aQute.bnd.annotation.headers.RequireCapability;
 import aQute.bnd.annotation.headers.ProvideCapability;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Trust verifier for dynamic proxies and object endpoints used in Jini
@@ -49,7 +51,7 @@ import aQute.bnd.annotation.headers.ProvideCapability;
 	ns="osgi.serviceloader",
 	name="net.jini.security.TrustVerifier")
 public class BasicJeriTrustVerifier implements TrustVerifier {
-
+    private static final Logger LOGGER = Logger.getLogger("net.jini.jeri.BasicJeriTrustVerifier");
     /**
      * Creates an instance.
      */
@@ -254,6 +256,7 @@ public class BasicJeriTrustVerifier implements TrustVerifier {
 	    return true;
 	} else if (!Remote.class.isAssignableFrom(intf) || !intf.isInterface())
 	{
+            LOGGER.log(Level.FINEST, "Problem with class {0}, either it didn't implement Remote or wasn' an interface", intf);
 	    return false;
 	}
 	Method[] methods = intf.getMethods();
@@ -266,6 +269,7 @@ public class BasicJeriTrustVerifier implements TrustVerifier {
 		    continue methods;
 		}
 	    }
+            LOGGER.log(Level.FINEST, "Method {0} cannot throw a RemoteException", methods[i]);
 	    return false;
 	}
 	return true;
@@ -312,9 +316,10 @@ public class BasicJeriTrustVerifier implements TrustVerifier {
 	throws RemoteException
     {
 	Class handlerClass = handler.getClass();
-	if (handlerClass != BasicInvocationHandler.class ||
-		handlerClass != AtomicInvocationHandler.class) 
+	if (handlerClass != BasicInvocationHandler.class &&
+                handlerClass != AtomicInvocationHandler.class) 
 	{
+            LOGGER.log(Level.FINEST, "InvocationHandler {0} not BasicInvocationHandler or AtomicInvocationHandler", handlerClass);
 	    return false;
 	}
 	
@@ -378,6 +383,7 @@ public class BasicJeriTrustVerifier implements TrustVerifier {
 	if (sup == null) {
 	    return true;
 	} else if (sub == null) {
+            LOGGER.log(Level.FINEST, "Sub ClassLoader is null, returning false");
 	    return false;
 	}
 	do {
@@ -386,6 +392,7 @@ public class BasicJeriTrustVerifier implements TrustVerifier {
 	    }
 	    sub = sub.getParent();
 	} while (sub != null);
+        LOGGER.log(Level.FINEST, "Sub ClassLoader was not a child ClassLoader of sup, returning false");
 	return false;
     }
 }
