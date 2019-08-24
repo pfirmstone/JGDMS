@@ -80,7 +80,9 @@ public class LookupLocator implements Serializable {
         /** @serialField The name of the host at which to perform discovery. */
         new ObjectStreamField("host", String.class),
 	/** @serialField The port number on the host at which to perform discovery. */
-	new ObjectStreamField("port", Integer.TYPE)
+	new ObjectStreamField("port", Integer.TYPE),
+        /** @serialField the URL scheme used to perform discovery. */
+        new ObjectStreamField("scheme", String.class)
     };
     /**
      * The port for both unicast and multicast boot requests.
@@ -102,20 +104,20 @@ public class LookupLocator implements Serializable {
     
     /**
      * The name of the host at which to perform discovery.
-     *
+     * @since 1.0
      * @serial
      */
     protected final String host;
     /**
      * The port number on the host at which to perform discovery.
-     *
+     * @since 1.0
      * @serial
      */
     protected final int port;
     
     /**
      * Either <code>"jini"</code> or <code>"https"</code>.
-     * 
+     * @since 3.1
      * @serial
      */
     private final String scheme;
@@ -172,6 +174,7 @@ public class LookupLocator implements Serializable {
      * @param url the URL to use
      * @throws MalformedURLException <code>url</code> could not be parsed
      * @throws NullPointerException if <code>url</code> is <code>null</code>
+     * @since 1.0
      */
     public LookupLocator(String url) throws MalformedURLException {
 	this(parseURI(url));
@@ -229,6 +232,15 @@ public class LookupLocator implements Serializable {
         }
     }
     
+    /**
+     * Deserialization constructor.
+     * 
+     * @param arg
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     * @since 3.1
+     * @see AtomicSerial
+     */
     public LookupLocator(GetArg arg) throws IOException, ClassNotFoundException{
 	this(parseURI(getScheme(arg), arg.get("host", null, String.class), arg.get("port", 0)));
     }
@@ -280,6 +292,7 @@ public class LookupLocator implements Serializable {
      * @throws IllegalArgumentException if <code>port</code> is not between
      * 1 and 65535 (both included) or if <code>host</code> cannot be parsed.
      * @throws NullPointerException if <code>host</code> is <code>null</code>
+     * @since 1.0
      */
     public LookupLocator(String host, int port) {
         this(parseURI("jini", host, port));
@@ -352,8 +365,9 @@ public class LookupLocator implements Serializable {
      * "jini" or "https".
      * 
      * @return scheme string.
+     * @since 3.1
      */
-    public String scheme() {
+    public final String scheme() {
         return scheme == null ? "jini" : scheme;
     }
 
@@ -363,6 +377,7 @@ public class LookupLocator implements Serializable {
      * the <code>host</code> field.
      *
      * @return a String representing the host value
+     * @since 1.0
      */
     public String getHost() {
 	return host;
@@ -374,6 +389,7 @@ public class LookupLocator implements Serializable {
      * <code>port</code> field.
      *
      * @return an int representing the port value
+     * @since 1.0
      */
     public int getPort() {
 	return port;
@@ -395,6 +411,7 @@ public class LookupLocator implements Serializable {
      * @throws IOException an error occurred during discovery
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
+     * @since 1.0
      */
     public ServiceRegistrar getRegistrar()
 	throws IOException, ClassNotFoundException
@@ -423,6 +440,7 @@ public class LookupLocator implements Serializable {
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
      * @throws IllegalArgumentException if <code>timeout</code> is negative
+     * @since 1.0
      */
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
@@ -451,6 +469,7 @@ public class LookupLocator implements Serializable {
      * processed
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
+     * @since 3.0
      */
     protected final ServiceRegistrar getRegistrar(InvocationConstraints constraints)
             throws IOException, ClassNotFoundException {
@@ -478,6 +497,7 @@ public class LookupLocator implements Serializable {
      * processed
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
+     * @since 3.1
      */
     protected final ServiceRegistrar getRegistrar(
 					    InvocationConstraints constraints,
@@ -500,7 +520,9 @@ public class LookupLocator implements Serializable {
     /**
      * Return the string form of this LookupLocator, as a URL of scheme
      * <code>"jini"</code> or <code>"https"</code>.
+     * @since 1.0
      */
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(scheme()).append("://").append(getHost0(host)).append(":").append(port).append("/");
@@ -508,30 +530,42 @@ public class LookupLocator implements Serializable {
     }
 
     /**
-     * Two locators are equal if they have the same <code>host</code> and
-     * <code>port</code> fields. The case of the <code>host</code> is ignored.
+     * Two locators are equal if they have the same <code>scheme</code>,
+     * <code>host</code> and <code>port</code> fields. The case of 
+     * <code>scheme</code> and <code>host</code> are ignored.
+     * <p>
      * Alternative forms of the same IPv6 addresses for the <code>host</code>
-     * value are treated as being unequal.
+     * component are normalized and treated as equal if they normalize to the same
+     * form when following the recommendations set out in RFC5952:
+     * <a href="https://www.ietf.org/rfc/rfc5952.txt">
+     * <i>A Recommendation for IPv6 Address Text Representation</i></a>
+     * @since 1.0
      */
+    @Override
     public boolean equals(Object o) {
 	if (o == this) {
 	    return true;
 	}
 	if (o instanceof LookupLocator) {
 	    LookupLocator oo = (LookupLocator) o;
-	    return port == oo.port && host.equalsIgnoreCase(oo.host);
+	    return port == oo.port && scheme().equalsIgnoreCase(oo.scheme()) 
+                    && host.equalsIgnoreCase(oo.host);
 	}
 	return false;
     }
 
     /**
-     * Returns a hash code value calculated from the <code>host</code> and
-     * <code>port</code> field values.
+     * Returns a hash code value calculated from the <code>scheme</code>,
+     * <code>host</code> and <code>port</code> field values.
+     * @since 1.0
      */
+    @Override
     public int hashCode() {
-	return host.toLowerCase().hashCode() ^ port;
+        int hash = host.toLowerCase().hashCode() ^ port;
+        hash = 17 * hash + (this.scheme().hashCode());
+        return hash;
     }
-    
+  
     // Checks if the host is an RFC 3513 IPv6 literal and converts it into
     // RFC 2732 form.
     private static String getHost0(String host) {
