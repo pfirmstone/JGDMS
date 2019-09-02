@@ -21,7 +21,7 @@
 <head>
 
 <title>Jini Extensible Remote Invocation (Jini ERI)
-       Multiplexing Protocol
+       Multiplexing Protocol version 1.1
 </title>
 
 <link rel="stylesheet" type="text/css"
@@ -31,7 +31,7 @@
 <body bgcolor="white">
 
 <h2 align="center">Jini Extensible Remote Invocation
-		   (Jini&nbsp;ERI) Multiplexing Protocol
+		   (Jini&nbsp;ERI) Multiplexing Protocol version 1.1
 </h2>
 
 This page defines the Jini extensible remote invocation (Jini ERI)
@@ -72,6 +72,21 @@ remote method invocations over TCP and similar connection-oriented
 transport protocols, as well as over layered application-level
 protocols that can provide a connection-oriented byte stream
 interface.
+
+<h3>Revisions</h3>
+<p>
+Note revisions to major versions break backward compatibility and are transmitted
+as the version number in the stream, minor
+version changes do not break backward compatibility and are not transmitted
+in the stream.
+</p><p>
+Changes made since version 1.0 of this protocol:
+</p>
+<ul>
+    <li>SessionID was changed from a 7-bit integer to an 8-bit unsigned integer.
+    This change allowed the numbers of sessions to be increased from 128 to 256
+    without breaking backward compatibility of the protocol. - 2nd September 2019</li>
+</ul>
 
 <h3>Requirements</h3>
 
@@ -268,8 +283,8 @@ does not match one of the above bit patterns.
 
 A request and its associated response are communicated over a
 <i>session</i>.  An <i>established</i> session has an associated
-<i>session identifier</i> that is an integer between 0 and 127
-(inclusive).  Thus, there can be at most 128 sessions concurrently
+<i>session identifier</i> that is an integer between 0 and 255
+(inclusive).  Thus, there can be at most 256 sessions concurrently
 established over one connection.  The session identifier is included
 in the header of every message related to the associated session.  In
 the structure of all message types, a session identifier is stored in
@@ -843,7 +858,7 @@ items:
 
 <blockquote>
     <b>shift</b>: 3-bit integer<br>
-    <b>sessionID</b>: 7-bit integer<br>
+    <b>sessionID</b>: 8-bit unsigned integer<br>
     <b>increment</b>: 16-bit integer<br>
 </blockquote>
 
@@ -908,7 +923,7 @@ cellspacing="0" cellpadding="2" border="1">
     <td>reserved
     <tr>
     <td align="center">1
-    <td align="center"><tt>-xxxxxxx<br></tt>
+    <td align="center"><tt>xxxxxxxx<br></tt>
     <td><b>sessionID</b>
     <tr>
     <td align="center">2 to 3
@@ -930,7 +945,7 @@ An <i>Abort</i> message contains the following variable items:
 
 <blockquote>
     <b>partial</b>: flag<br>
-    <b>sessionID</b>: 7-bit integer<br>
+    <b>sessionID</b>: 8-bit unsigned integer<br>
     <b>length</b>: 16-bit integer<br>
     <b>detail</b>: sequence of <b>length</b> bytes<br>
 </blockquote>
@@ -1000,7 +1015,7 @@ cellspacing="0" cellpadding="2" border="1">
     <td>reserved
     <tr>
     <td align="center">1
-    <td align="center"><tt>-xxxxxxx<br></tt>
+    <td align="center"><tt>xxxxxxxx<br></tt>
     <td><b>sessionID</b>
     <tr>
     <td align="center">2 to 3
@@ -1025,7 +1040,7 @@ cellspacing="0" cellpadding="2" border="1">
 A <i>Close</i> message contains the following variable items:
 
 <blockquote>
-    <b>sessionID</b>: 7-bit integer<br>
+    <b>sessionID</b>: 8-bit unsigned integer<br>
 </blockquote>
 
 The <i>Close</i> message is used to indicate that the server is done
@@ -1080,7 +1095,7 @@ cellspacing="0" cellpadding="2" border="1">
     <td>reserved
     <tr>
     <td align="center">1
-    <td align="center"><tt>-xxxxxxx<br></tt>
+    <td align="center"><tt>xxxxxxxx<br></tt>
     <td><b>sessionID</b>
     <tr>
     <td align="center">2 to 3
@@ -1102,7 +1117,7 @@ An <i>Acknowledgment</i> message contains the following variable
 items:
 
 <blockquote>
-    <b>sessionID</b>: 7-bit integer<br>
+    <b>sessionID</b>: 8-bit unsigned integer<br>
 </blockquote>
 
 The <i>Acknowledgment</i> message is used to indicate that the client
@@ -1138,7 +1153,7 @@ cellspacing="0" cellpadding="2" border="1">
     <td>reserved
     <tr>
     <td align="center">1
-    <td align="center"><tt>-xxxxxxx<br></tt>
+    <td align="center"><tt>xxxxxxxx<br></tt>
     <td><b>sessionID</b>
     <tr>
     <td align="center">2 to 3
@@ -1163,7 +1178,7 @@ A <i>Data</i> message contains the following variable items:
     <b>eof</b>: flag<br>
     <b>close</b>: flag<br>
     <b>ackRequired</b>: flag<br>
-    <b>sessionID</b>: 7-bit integer<br>
+    <b>sessionID</b>: 8-bit unsigned integer<br>
     <b>length</b>: 16-bit integer<br>
     <b>data</b>: sequence of <b>length</b> bytes<br>
 </blockquote>
@@ -1267,7 +1282,7 @@ cellspacing="0" cellpadding="2" border="1">
     <td>reserved
     <tr>
     <td align="center">1
-    <td align="center"><tt>-xxxxxxx<br></tt>
+    <td align="center"><tt>xxxxxxxx<br></tt>
     <td><b>sessionID</b>
     <tr>
     <td align="center">2 to 3
