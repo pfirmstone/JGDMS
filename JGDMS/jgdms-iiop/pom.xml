@@ -50,7 +50,15 @@
              <groupId>${project.groupId}</groupId>
              <artifactId>jgdms-resources</artifactId>
              <version>${project.version}</version>
-         </dependency>   
+        </dependency>
+        <!-- CORBA IIOP Has been removed in Java 11 and is to be supported using
+             Glass Fish, this has some other benefits, such as secure connections. 
+        -->
+        <dependency>
+            <groupId>org.glassfish.corba</groupId>
+            <artifactId>glassfish-corba-omgapi</artifactId>
+            <version>4.2.1</version>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
