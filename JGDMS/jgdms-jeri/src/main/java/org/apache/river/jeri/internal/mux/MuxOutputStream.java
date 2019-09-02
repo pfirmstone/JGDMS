@@ -216,9 +216,9 @@ class MuxOutputStream extends OutputStream {
                     && session.getInState() > Session.OPEN;
             boolean ackRequired = session.role == Session.SERVER 
                     && eof && session.ackListeners();
-            int op = Mux.Data | (open ? Mux.Data_open : 0) 
-                    | (eof ? Mux.Data_eof : 0) | (close ? Mux.Data_close : 0)
-                    | (ackRequired ? Mux.Data_ackRequired : 0);
+            int op = Mux.DATA | (open ? Mux.DATA_OPEN : 0) 
+                    | (eof ? Mux.DATA_EOF : 0) | (close ? Mux.DATA_CLOSE : 0)
+                    | (ackRequired ? Mux.DATA_ACK_REQUIRED : 0);
             /*
              * If we are the server-side, send even the final Data message
              * for this session synchronously with this method, so that the

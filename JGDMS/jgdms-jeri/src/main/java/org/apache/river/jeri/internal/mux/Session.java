@@ -256,8 +256,8 @@ final class Session {
 			 */
 			mux.asyncSendClose(sessionID);
 		    } else {
-			mux.asyncSendAbort(Mux.Abort | (role == SERVER ?
-							Mux.Abort_partial : 0),
+			mux.asyncSendAbort(Mux.ABORT | (role == SERVER ?
+							Mux.ABORT_PARTIAL : 0),
 					   sessionID, null);
 		    }
 		    setOutState(TERMINATED);
@@ -357,8 +357,8 @@ final class Session {
 	     * session has been removed.
 	     */
 	    if (getOutState() < TERMINATED) {
-		mux.asyncSendAbort(Mux.Abort | (role == SERVER ?
-						Mux.Abort_partial : 0),
+		mux.asyncSendAbort(Mux.ABORT | (role == SERVER ?
+						Mux.ABORT_PARTIAL : 0),
 				   sessionID, null);
 		setOutState(TERMINATED);
 	    }
@@ -399,7 +399,7 @@ final class Session {
 		 * shape (but not send any more data for it).
 		 */
                 out.handleClose();
-		mux.asyncSendAbort(Mux.Abort, sessionID, null);
+		mux.asyncSendAbort(Mux.ABORT, sessionID, null);
 		setOutState(TERMINATED);
 		/*
 		 * REMIND: This approach causes a premature negative

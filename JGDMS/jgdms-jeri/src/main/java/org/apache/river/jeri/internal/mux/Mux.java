@@ -49,30 +49,33 @@ abstract class Mux {
     static final int CLIENT = 0;
     static final int SERVER = 1;
 
-    static final int MAX_SESSION_ID = 0x7F;
+    // Increased from 0x7F to 0xFF in 3.1.1 to allow more connections.
+    // The session is now an unsigned byte, this is the maximum 
+    // number of sessions we can have without breaking the protocol.
+    static final int MAX_SESSION_ID = 0xFF;
     public static final int MAX_REQUESTS = MAX_SESSION_ID + 1;
 
-    static final int NoOperation	= 0x00;	// 00000000
-    static final int Shutdown		= 0x02; // 00000010
-    static final int Ping		= 0x04; // 00000100
-    static final int PingAck		= 0x06; // 00000110
-    static final int Error		= 0x08; // 00001000
-    static final int IncrementRation	= 0x10; // 0001***0
-    static final int Abort		= 0x20; // 001000*0
-    static final int Close		= 0x30; // 00110000
-    static final int Acknowledgment	= 0x40; // 00100000
-    static final int Data		= 0x80; // 100****0
+    static final int NO_OPERATION	= 0x00;	// 00000000
+    static final int SHUTDOWN		= 0x02; // 00000010
+    static final int PING		= 0x04; // 00000100
+    static final int PING_ACK		= 0x06; // 00000110
+    static final int ERROR		= 0x08; // 00001000
+    static final int INCREMENT_RATION	= 0x10; // 0001***0
+    static final int ABORT		= 0x20; // 001000*0
+    static final int CLOSE		= 0x30; // 00110000
+    static final int ACKNOWLEDGMENT	= 0x40; // 00100000
+    static final int DATA		= 0x80; // 100****0
 
-    static final int IncrementRation_shift	= 0x0E;
-    static final int Abort_partial		= 0x02;
-    static final int Data_open			= 0x10;
-    static final int Data_close			= 0x08;
-    static final int Data_eof			= 0x04;
-    static final int Data_ackRequired		= 0x02;
+    static final int INCREMENT_RATION_SHIFT	= 0x0E;
+    static final int ABORT_PARTIAL		= 0x02;
+    static final int DATA_OPEN			= 0x10;
+    static final int DATA_CLOSE			= 0x08;
+    static final int DATA_EOF			= 0x04;
+    static final int DATA_ACK_REQUIRED		= 0x02;
 
-    static final int ClientConnectionHeader_negotiate	= 0x01;
+    static final int CLIENT_CONNECTION_HEADER_NEGOTIATE	= 0x01;
 
-    private static final byte[] magic = {
+    private static final byte[] MAGIC = {
 	(byte) 'J', (byte) 'm', (byte) 'u', (byte) 'x'	// 0x4A6D7578
     };
 
@@ -82,12 +85,12 @@ abstract class Mux {
      * pool of threads for executing tasks in system thread group:
      * used for shutting down sessions when a connection goes down
      */
-    private static final Executor systemThreadPool =
+    private static final Executor SYSTEM_THREAD_POOL =
 	AccessController.doPrivileged(
 	    new GetThreadPoolAction(false));
 
     /** session shutdown tasks to be executed asynchronously */
-    private static final Deque<Runnable> sessionShutdownQueue = new LinkedList<Runnable>();
+    private static final Deque<Runnable> SESSION_SHUTDOWN_DEQUE = new LinkedList<Runnable>();
 
     private static class SessionShutdownTask implements Runnable {
 	private final Session[] sessions;
@@ -112,7 +115,7 @@ abstract class Mux {
     }
 
     /** mux logger */
-    private static final Logger logger =
+    private static final Logger LOGGER =
 	Logger.getLogger("net.jini.jeri.connection.mux");
 
     final int role;
@@ -180,24 +183,6 @@ abstract class Mux {
 	directBuffersUseful = true;
         startTimeout = handshakeTimeout;
     }
-    
-    /**
-     * Time in milliseconds for client-side connections to wait for the server
-     * to acknowledge an opening handshake. The default value is 15000
-     * milliseconds (15 seconds).
-     * 
-     * <p>
-     * This method is not thread-safe. It is expected to be called immediately
-     * after a constructor.
-     * 
-     * @param timeout
-     *            positive value in milliseconds
-     */
-//    public void setStartTimeout(long timeout) {
-//	if (timeout <= 0)
-//	    throw new IllegalArgumentException("start timeout must be a positive number of milliseconds");
-//	this.startTimeout  = timeout;
-//    }
 
     /**
      * Starts I/O processing.
@@ -312,17 +297,17 @@ abstract class Mux {
 	 * because individual session locks must never be acquired
 	 * while holding muxLock.
 	 */
-	synchronized (sessionShutdownQueue) {
-	    sessionShutdownQueue.add(sst);
+	synchronized (SESSION_SHUTDOWN_DEQUE) {
+	    SESSION_SHUTDOWN_DEQUE.add(sst);
 	}
 	try {
-	    systemThreadPool.execute(new Runnable() {
+	    SYSTEM_THREAD_POOL.execute(new Runnable() {
 		public void run() {
 		    while (true) {
 			Runnable task;
-			synchronized (sessionShutdownQueue) {
-			    if (sessionShutdownQueue.isEmpty()) break;
-			    task = sessionShutdownQueue.removeFirst();
+			synchronized (SESSION_SHUTDOWN_DEQUE) {
+			    if (SESSION_SHUTDOWN_DEQUE.isEmpty()) break;
+			    task = SESSION_SHUTDOWN_DEQUE.removeFirst();
 			}
 			task.run();
 		    }
@@ -330,7 +315,7 @@ abstract class Mux {
 	    }, "mux session shutdown");
 	} catch (OutOfMemoryError e) {	// assume out of threads
 	    try {
-		logger.log(Level.WARNING,
+		LOGGER.log(Level.WARNING,
 		    "could not create thread for session shutdown", e);
 	    } catch (Throwable t) {
 	    }
@@ -375,7 +360,7 @@ abstract class Mux {
 	assert role == CLIENT;
 
 	ByteBuffer header = ByteBuffer.allocate(8);
-	header.put(magic)
+	header.put(MAGIC)
 	      .put((byte) VERSION)
 	      .putShort((short) (initialInboundRation >> 8))
 	      .put((byte) 0)
@@ -390,7 +375,7 @@ abstract class Mux {
 	assert role == SERVER;
 
 	ByteBuffer header = ByteBuffer.allocate(8);
-	header.put(magic)
+	header.put(MAGIC)
 	      .put((byte) VERSION)
 	      .putShort((short) (initialInboundRation >> 8))
 	      .put((byte) 0)
@@ -415,7 +400,7 @@ abstract class Mux {
      */
     final void asyncSendNoOperation(ByteBuffer buffer) {
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) NoOperation)
+	header.put((byte) NO_OPERATION)
 	      .put((byte) 0);
 
 	if (buffer != null) {
@@ -440,7 +425,7 @@ abstract class Mux {
 			   getUTF8BufferFromString(message) : null);
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) Shutdown)
+	header.put((byte) SHUTDOWN)
 	      .put((byte) 0);
 
 	if (data != null) {
@@ -462,7 +447,7 @@ abstract class Mux {
 	assert cookie >= 0 && cookie <= 0xFFFF;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) Ping)
+	header.put((byte) PING)
               .put((byte) 0)
 	      .putShort((short) cookie)
 	      .flip();
@@ -476,7 +461,7 @@ abstract class Mux {
 	assert cookie >= 0 && cookie <= 0xFFFF;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) PingAck)
+	header.put((byte) PING_ACK)
 	      .put((byte) 0)
 	      .putShort((short) cookie)
 	      .flip();
@@ -493,7 +478,7 @@ abstract class Mux {
 			   getUTF8BufferFromString(message) : null);
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) Error)
+	header.put((byte) ERROR)
 	      .put((byte) 0);
 
 	if (data != null) {
@@ -517,7 +502,7 @@ abstract class Mux {
 	ByteBuffer data = getUTF8BufferFromString(message);
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) Error)
+	header.put((byte) ERROR)
 	      .put((byte) 0);
 
 	assert data.remaining() <= 0xFFFF;
@@ -533,7 +518,7 @@ abstract class Mux {
     final void asyncSendIncrementRation(/*****int op, *****/int sessionID,
 					int increment)
     {
-	final int op = IncrementRation;
+	final int op = INCREMENT_RATION;
 //	assert (op & 0xF1) == IncrementRation;	// validate operation code
 //	assert (op & 0xE0) == 0;		// NYI: support use of shift
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
@@ -561,7 +546,7 @@ abstract class Mux {
      * byte of the message, including any control flags if appropriate.
      */
     final void asyncSendAbort(int op, int sessionID, ByteBuffer data) {
-	assert (op & 0xFD) == Abort;		// validate operation code
+	assert (op & 0xFD) == ABORT;		// validate operation code
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
@@ -587,7 +572,7 @@ abstract class Mux {
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) Close)
+	header.put((byte) CLOSE)
 	      .put((byte) sessionID)
 	      .putShort((short) 0)
 	      .flip();
@@ -601,7 +586,7 @@ abstract class Mux {
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) Acknowledgment)
+	header.put((byte) ACKNOWLEDGMENT)
 	      .put((byte) sessionID)
 	      .putShort((short) 0)
 	      .flip();
@@ -627,9 +612,9 @@ abstract class Mux {
      * be mutated even after this method has returned.
      */
     final void asyncSendData(int op, int sessionID, ByteBuffer data) {
-	assert (op & 0xE1) == Data;	// validate operation code
-	assert (op & Data_eof) != 0 ||	// close and ackRequired require eof
-	    (op & Data_close & Data_ackRequired) == 0;
+	assert (op & 0xE1) == DATA;	// validate operation code
+	assert (op & DATA_EOF) != 0 ||	// close and ackRequired require eof
+	    (op & DATA_CLOSE & DATA_ACK_REQUIRED) == 0;
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
@@ -672,9 +657,9 @@ abstract class Mux {
      * position may be obtained by calling @link{IOFuture#getPosition()}.
      */
     final IOFuture futureSendData(int op, int sessionID, ByteBuffer data) {
-	assert (op & 0xE1) == Data;	// verify operation code
-	assert (op & Data_eof) != 0 ||	// close and ackRequired require eof
-	    (op & Data_close & Data_ackRequired) == 0;
+	assert (op & 0xE1) == DATA;	// verify operation code
+	assert (op & DATA_EOF) != 0 ||	// close and ackRequired require eof
+	    (op & DATA_CLOSE & DATA_ACK_REQUIRED) == 0;
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 	assert data.remaining() <= 0xFFFF;
 
@@ -752,7 +737,7 @@ abstract class Mux {
 	int version = (buffer.get() & 0xFF);
 	int ration = (buffer.getShort() & 0xFFFF) << 8;
 	int flags = (buffer.get() & 0xFF);
-	boolean negotiate = (flags & ClientConnectionHeader_negotiate) != 0;
+	boolean negotiate = (flags & CLIENT_CONNECTION_HEADER_NEGOTIATE) != 0;
 
 	synchronized (muxLock) {
 	    initialOutboundRation = ration;
@@ -818,12 +803,12 @@ abstract class Mux {
 	throws ProtocolException
     {
 	if (buffer.remaining() > 0) {
-	    byte[] temp = new byte[Math.min(buffer.remaining(), magic.length)];
+	    byte[] temp = new byte[Math.min(buffer.remaining(), MAGIC.length)];
 	    buffer.mark();
 	    buffer.get(temp);
 	    buffer.reset();
 	    for (int i = 0; i < temp.length; i++) {
-		if (temp[i] != magic[i]) {
+		if (temp[i] != MAGIC[i]) {
 		    setDown((role == CLIENT ? "server" : "client") +
 			" sent bad magic number: " + toHexString(temp), null);
 		    throw new ProtocolException("bad magic number: " +
@@ -841,14 +826,13 @@ abstract class Mux {
 	    return false;		// wait for complete header to arrive
 	}
 	int headerPosition = buffer.position();
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST,
-		       "message header: " +
-		       toHexString(buffer.getInt(headerPosition)));
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "message header: {0}",
+                    toHexString(buffer.getInt(headerPosition)));
 	}
 
 	int op = (buffer.get() & 0xFF);
-	if ((op & 0xE1) == Data) {
+	if ((op & 0xE1) == DATA) {
 	    int sessionID = (buffer.get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID) {
 		throw new ProtocolException("bad message header: " +
@@ -866,19 +850,19 @@ abstract class Mux {
 	    }
 	    return true;
 
-	} else if ((op & 0xF1) == IncrementRation) {
+	} else if ((op & 0xF1) == INCREMENT_RATION) {
 	    int sessionID = (buffer.get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID) {
 		throw new ProtocolException("bad message header: " +
 		    toHexString(buffer.getInt(headerPosition)));
 	    }
 	    int increment = (buffer.getShort() & 0xFFFF);
-	    int shift = op & IncrementRation_shift;
+	    int shift = op & INCREMENT_RATION_SHIFT;
 	    increment <<= shift;
 	    handleIncrementRation(sessionID, increment);
 	    return true;
 
-	} else if ((op & 0xFD) == Abort) {
+	} else if ((op & 0xFD) == ABORT) {
 	    int sessionID = (buffer.get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID) {
 		throw new ProtocolException("bad message header: " +
@@ -898,7 +882,7 @@ abstract class Mux {
 
 	}
 	switch (op) {
-	  case NoOperation: {
+	  case NO_OPERATION: {
 	    if (buffer.get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
 		    toHexString(buffer.getInt(headerPosition)));
@@ -914,7 +898,7 @@ abstract class Mux {
 	    return true;
 	  }
 
-	  case Shutdown: {
+	  case SHUTDOWN: {
 	    if (buffer.get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
 		    toHexString(buffer.getInt(headerPosition)));
@@ -931,7 +915,7 @@ abstract class Mux {
 	    return true;
 	  }
 
-	  case Ping: {
+	  case PING: {
 	    if (buffer.get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
 		    toHexString(buffer.getInt(headerPosition)));
@@ -941,7 +925,7 @@ abstract class Mux {
 	    return true;
 	  }
 
-	  case PingAck: {
+	  case PING_ACK: {
 	    if (buffer.get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
 		    toHexString(buffer.getInt(headerPosition)));
@@ -951,7 +935,7 @@ abstract class Mux {
 	    return true;
 	  }
 
-	  case Error: {
+	  case ERROR: {
 	    if (buffer.get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
 		    toHexString(buffer.getInt(headerPosition)));
@@ -968,7 +952,7 @@ abstract class Mux {
 	    return true;
 	  }
 
-	  case Close: {
+	  case CLOSE: {
 	    int sessionID = (buffer.get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID ||
 		buffer.getShort() != 0)		// ignore sign extension
@@ -980,7 +964,7 @@ abstract class Mux {
 	    return true;
 	  }
 
-	  case Acknowledgment: {
+	  case ACKNOWLEDGMENT: {
 	    int sessionID = (buffer.get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID ||
 		buffer.getShort() != 0)		// ignore sign extension
@@ -1040,18 +1024,18 @@ abstract class Mux {
 	assert currentDataBuffer == null || currentDataBuffer.hasRemaining();
 
 	int op = currentOp;
-	if ((op & 0xE1) == Data) {
-	    boolean open	= (op & Data_open) != 0;
-	    boolean close	= (op & Data_close) != 0;
-	    boolean eof		= (op & Data_eof) != 0;
-	    boolean ackRequired	= (op & Data_ackRequired) != 0;
+	if ((op & 0xE1) == DATA) {
+	    boolean open	= (op & DATA_OPEN) != 0;
+	    boolean close	= (op & DATA_CLOSE) != 0;
+	    boolean eof		= (op & DATA_EOF) != 0;
+	    boolean ackRequired	= (op & DATA_ACK_REQUIRED) != 0;
 	    handleData(currentSessionID, open, close, eof, ackRequired,
 		       (currentDataBuffer != null ?
 			currentDataBuffer : ByteBuffer.allocate(0)));
 	    return;
 
-	} else if ((op & 0xFD) == Abort) {
-	    boolean partial = (op & Abort_partial) != 0;
+	} else if ((op & 0xFD) == ABORT) {
+	    boolean partial = (op & ABORT_PARTIAL) != 0;
 	    handleAbort(currentSessionID, partial,
 			(currentDataBuffer != null ?
 			 getStringFromUTF8Buffer(currentDataBuffer) : ""));
@@ -1059,16 +1043,16 @@ abstract class Mux {
 
 	}
 	switch (op) {
-	  case NoOperation:
+	  case NO_OPERATION:
 	    handleNoOperation();
 	    return;
 
-	  case Shutdown:
+	  case SHUTDOWN:
 	    handleShutdown(currentDataBuffer != null ?
 			   getStringFromUTF8Buffer(currentDataBuffer) : "");
 	    return;
 
-	  case Error:
+	  case ERROR:
 	    handleError(currentDataBuffer != null ?
 			getStringFromUTF8Buffer(currentDataBuffer) : "");
 	    return;
@@ -1079,16 +1063,16 @@ abstract class Mux {
     }
 
     private void handleNoOperation() throws ProtocolException {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "NoOperation");
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "NoOperation");
 	}
 
 	// do nothing
     }
 
     private void handleShutdown(String message) throws ProtocolException {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "Shutdown");
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "Shutdown");
 	}
 
 	if (role != CLIENT) {
@@ -1099,16 +1083,16 @@ abstract class Mux {
     }
 
     private void handlePing(int cookie) throws ProtocolException {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "Ping: cookie=" + cookie);
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "Ping: cookie={0}", cookie);
 	}
 
 	asyncSendPingAck(cookie);
     }
 
     private void handlePingAck(int cookie) throws ProtocolException {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "PingAck: cookie=" + cookie);
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "PingAck: cookie={0}", cookie);
 	}
 
 	synchronized (muxLock) {
@@ -1123,22 +1107,24 @@ abstract class Mux {
     }
 
     private void handleError(String message) throws ProtocolException {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "Error");
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "Error");
 	}
-
-	setDown((role == CLIENT ? "server" : "client") +
-		" reported protocol error: " + message, null);
+        StringBuilder sb = new StringBuilder();
+        if (role == CLIENT) sb.append("server");
+        else sb.append("client");
+        sb.append(" reported protocol error: ").append(message);
+	setDown(sb.toString(), null);
 	throw new ProtocolException("received Error message");
     }
 
     private void handleIncrementRation(int sessionID, int increment)
 	throws ProtocolException
     {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST,
-		"IncrementRation: sessionID=" + sessionID +
-		",increment=" + increment);
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, 
+                    "IncrementRation: sessionID={0},increment={1}",
+                    new Object[]{sessionID, increment});
 	}
 
 	getSession(sessionID).handleIncrementRation(increment);
@@ -1147,42 +1133,46 @@ abstract class Mux {
     private void handleAbort(int sessionID, boolean partial, String message)
 	throws ProtocolException
     {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST,
-		"Abort: sessionID=" + sessionID +
-		",partial=" + partial);
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "Abort: sessionID={0},partial={1}",
+                    new Object[]{sessionID, partial});
 	}
 
 	getSession(sessionID).handleAbort(partial);
     }
 
     private void handleClose(int sessionID) throws ProtocolException {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "Close: sessionID=" + sessionID);
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "Close: sessionID={0}", sessionID);
 	}
 
 	getSession(sessionID).handleClose();
     }
 
     private void handleAcknowledgment(int sessionID) throws ProtocolException {
-	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "Acknowledgment: sessionID=" + sessionID);
+	if (LOGGER.isLoggable(Level.FINEST)) {
+	    LOGGER.log(Level.FINEST, "Acknowledgment: sessionID={0}", sessionID);
 	}
 
 	getSession(sessionID).handleAcknowledgment();
     }
 
-    private void handleData(int sessionID, boolean open, boolean close, boolean eof, boolean ackRequired, ByteBuffer data)
+    private void handleData(int sessionID,
+                            boolean open,
+                            boolean close,
+                            boolean eof,
+                            boolean ackRequired,
+                            ByteBuffer data)
 	throws ProtocolException
     {
-	if (logger.isLoggable(Level.FINEST)) {
+	if (LOGGER.isLoggable(Level.FINEST)) {
 	    int length = data.remaining();
 	    HexDumpEncoder encoder = new HexDumpEncoder();
 	    byte[] bytes = new byte[data.remaining()];
 	    data.mark();
 	    data.get(bytes);
 	    data.reset();
-	    logger.log(Level.FINEST,
+	    LOGGER.log(Level.FINEST,
                     "Data: sessionID={0}{1}{2}{3}{4},length={5}{6}",
                     new Object[]{sessionID,
                         open ? ",open" : "",
@@ -1194,9 +1184,10 @@ abstract class Mux {
 	}
 
 	if (!eof && (close || ackRequired)) {
-	    throw new ProtocolException("Data: eof=" + eof +
-					",close=" + close +
-					",ackRequired=" + ackRequired);
+            StringBuilder sb = new StringBuilder();
+            sb.append("Data: eof=").append(eof).append(",close=").append(close)
+                    .append(",ackRequired=").append(ackRequired);
+	    throw new ProtocolException( sb.toString() );
 	}
 
 	if (open) {
@@ -1230,7 +1221,10 @@ abstract class Mux {
 	try {
 	    return decoder.decode(buffer).toString();
 	} catch (CharacterCodingException e) {
-	    return "(error decoding UTF-8 message: " + e.toString() + ")";
+            StringBuilder sb = new StringBuilder();
+            sb.append("(error decoding UTF-8 message: ")
+                    .append(e.toString()).append(")");
+	    return  sb.toString() ;
 	}
     }
 

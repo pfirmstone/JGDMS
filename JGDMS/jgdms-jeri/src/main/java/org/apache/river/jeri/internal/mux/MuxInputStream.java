@@ -64,7 +64,7 @@ class MuxInputStream extends InputStream {
             while (inBufRemaining == 0 && sessionDown == null && session.getInState() <= Session.OPEN && !inClosed) {
                 if (session.getInState() == Session.IDLE) {
                     assert session.getOutState() == Session.IDLE;
-                    mux.asyncSendData(Mux.Data | Mux.Data_open, session.sessionID, null);
+                    mux.asyncSendData(Mux.DATA | Mux.DATA_OPEN, session.sessionID, null);
                     session.setOutState(Session.OPEN);
                     session.setInState(Session.OPEN);
                 }
@@ -147,7 +147,7 @@ class MuxInputStream extends InputStream {
             while (inBufRemaining == 0 && sessionDown == null && session.getInState() <= Session.OPEN && !inClosed) {
                 if (session.getInState() == Session.IDLE) {
                     assert session.getOutState() == Session.IDLE;
-                    mux.asyncSendData(Mux.Data | Mux.Data_open, session.sessionID, null);
+                    mux.asyncSendData(Mux.DATA | Mux.DATA_OPEN, session.sessionID, null);
                     session.setOutState(Session.OPEN);
                     session.setInState(Session.OPEN);
                 }
