@@ -98,7 +98,7 @@
     <property name="jskprivate.include" value="-in org.apache.river.action -in org.apache.river.collection -in org.apache.river.constants -in org.apache.river.system -in org.apache.river.logging -skip org.apache.river.logging.LogManager -skip org.apache.river.logging.Levels -in org.apache.river.outrigger"/>
     <!-- Common packages to exclude within ClassDep -->
     <property name="jskplatform.exclude" value="-out org.apache.river.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip org.apache.river.config.ConfigUtil -skip org.apache.river.config.KeyStores -skip org.apache.river.logging.LogManager"/>
-
+    <property name="river.version" value="3.1.1-SNAPSHOT"/>
     <property name="river.home" location="${root}"/>
     <property name="river.lib.dir" location="${river.home}/${dist}/${lib}"/>
     <property name="river.lib-dl.dir" location="${river.home}/${dist}/${lib-dl}"/>

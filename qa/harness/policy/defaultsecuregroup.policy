@@ -18,7 +18,7 @@ grant codebase "httpmd://${HOST}/*" {
 grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.net.SocketPermission "${HOST}", "resolve";
       permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
@@ -29,7 +29,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
 grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.net.SocketPermission "${HOST}", "resolve";
       permission java.lang.RuntimePermission, "modifyThread";
@@ -48,7 +48,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
       permission java.lang.RuntimePermission, "modifyThread";
@@ -58,7 +58,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
 grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.lang.RuntimePermission, "modifyThread";
 };
@@ -66,7 +66,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
 grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.lang.RuntimePermission, "modifyThread";
 };
@@ -74,7 +74,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
 grant principal javax.security.auth.x500.X500Principal "CN=Norm"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.lang.RuntimePermission, "modifyThread";
 };
@@ -82,7 +82,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Norm"
 grant principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar", "read";
+      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.lang.RuntimePermission, "modifyThread";
 };

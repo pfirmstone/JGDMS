@@ -68,17 +68,17 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/outrigger-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/fiddler-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/mercury-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/outrigger-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/fiddler-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mercury-dl-${river.version}.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-lookup-simulator-dl.jar", "GET:";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "modifyThreadGroup";
     permission javax.security.auth.AuthPermission "getSubject";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
-    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-${river.version}.jar", "GET:";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.test.services.lookupsimulator";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.test.spec.jeri.basicilfactory";
@@ -788,9 +788,9 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
@@ -809,9 +809,9 @@ grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}",
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jiniharness.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
@@ -836,9 +836,9 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.s
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission javax.security.auth.AuthPermission "getSubject";
@@ -916,7 +916,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.bouncycastle.j
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-3.1.1-SNAPSHOT.jar",
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-${river.version}.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.net.SocketPermission "localhost:9080", "listen,resolve";

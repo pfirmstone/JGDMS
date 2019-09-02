@@ -1,4 +1,4 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-platform-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-platform-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
@@ -43,39 +43,39 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}ld.jar" {
     permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}ld.jar", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-pref-class-loader-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-activation-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-activation-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-jeri-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-jeri-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-discovery-providers-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-discovery-providers-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-collections-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-collections-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}service-starter-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}service-starter-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-url-integrity-3.1.1-SNAPSHOT.jar" {
+grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-url-integrity-${river.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 

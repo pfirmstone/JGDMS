@@ -81,8 +81,8 @@ public class HTTPD {
 	String libDir =
 	    TestLibrary.getExtraProperty("jsk.home", TestLibrary.jskHome) ;
 //		+ File.separator + "lib";
-	String toolsJar = libDir + "/JGDMS/tools/classserver/target/classserver-3.1.1-SNAPSHOT.jar";
-	String jsklibJar = libDir + File.separator + "jgdms-lib-dl-3.1.1-SNAPSHOT.jar";
+	String toolsJar = libDir + "/JGDMS/tools/classserver/target/classserver-${river.version}.jar";
+	String jsklibJar = libDir + File.separator + "jgdms-lib-dl-${river.version}.jar";
 	System.err.println("HTTPD: using " + toolsJar +
 			   " on port " + port + " serving " + dir);
         

@@ -8,7 +8,7 @@ grant codebase "file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/q
     permission java.net.URLPermission "http://localhost:8083/valid.prop", "GET:";
 };
 
-grant codebase "file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib/jgdms-url-integrity-3.1.1-SNAPSHOT.jar",
+grant codebase "file:/C:/Users/peter/Documents/NetBeansProjects/river-internet/JGDMS/dist/target/JGDMS-${river.version}/lib/jgdms-url-integrity-${river.version}.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.net.URLPermission "http://localhost:8082/valid.prop", "GET:";

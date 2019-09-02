@@ -207,21 +207,21 @@
         <mkdir dir="${jtreg.dir}/JTlib-tmp" />
         <copy todir="${jtreg.dir}/JTlib-tmp">
             <filelist dir="${river.lib.dir}">
-                <file name="jgdms-collections-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-iiop-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-jeri-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-jrmp-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-lib-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-platform-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-url-integrity-3.1.1-SNAPSHOT.jar"/>
-                <file name="classdep-3.1.1-SNAPSHOT.jar"/>
-                <file name="classserver-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-collections-${river.version}.jar"/>
+                <file name="jgdms-iiop-${river.version}.jar"/>
+                <file name="jgdms-jeri-${river.version}.jar"/>
+                <file name="jgdms-jrmp-${river.version}.jar"/>
+                <file name="jgdms-lib-${river.version}.jar"/>
+                <file name="jgdms-platform-${river.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${river.version}.jar"/>
+                <file name="jgdms-url-integrity-${river.version}.jar"/>
+                <file name="classdep-${river.version}.jar"/>
+                <file name="classserver-${river.version}.jar"/>
                 <file name="asm-5.0.1.jar"/>
                 <file name="asm-commons-5.0.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
-                <file name="jgdms-activation-3.1.1-SNAPSHOT.jar"/>
-                <file name="checkconfigurationfile-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-activation-${river.version}.jar"/>
+                <file name="checkconfigurationfile-${river.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
@@ -231,8 +231,8 @@
                 <file name="high-scale-lib.jar"/>-->
             </filelist>
             <filelist dir="${river.lib-dl.dir}">
-                <file name="jgdms-lib-dl-3.1.1-SNAPSHOT.jar"/>
-                <file name="phoenix-dl-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-dl-${river.version}.jar"/>
+                <file name="phoenix-dl-${river.version}.jar"/>
             </filelist>
         </copy>
         <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
@@ -241,7 +241,7 @@
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk.home}">
             <!--<arg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
-            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-iiop-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jeri-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-platform-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classdep-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/classserver-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/asm-5.0.1.jar${path.separator}${jtlib.tmp}/asm-commons-5.0.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-3.1.1-SNAPSHOT.jar${path.separator}${jtlib.tmp}/phoenix-dl-3.1.1-SNAPSHOT.jar"/>
+            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-iiop-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${river.version}.jar${path.separator}${jtlib.tmp}/classdep-${river.version}.jar${path.separator}${jtlib.tmp}/classserver-${river.version}.jar${path.separator}${jtlib.tmp}/asm-5.0.1.jar${path.separator}${jtlib.tmp}/asm-commons-5.0.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${river.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${river.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${river.version}.jar"/>
             <arg value="-timeout:16"/>
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Djtreg.dir=${jtreg.dir}"/>
@@ -279,21 +279,21 @@
         </jtreg>
         <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-collections-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-iiop-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-jeri-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-jrmp-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-lib-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-platform-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-url-integrity-3.1.1-SNAPSHOT.jar"/>
-                <file name="classdep-3.1.1-SNAPSHOT.jar"/>
-                <file name="classserver-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-collections-${river.version}.jar"/>
+                <file name="jgdms-iiop-${river.version}.jar"/>
+                <file name="jgdms-jeri-${river.version}.jar"/>
+                <file name="jgdms-jrmp-${river.version}.jar"/>
+                <file name="jgdms-lib-${river.version}.jar"/>
+                <file name="jgdms-platform-${river.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${river.version}.jar"/>
+                <file name="jgdms-url-integrity-${river.version}.jar"/>
+                <file name="classdep-${river.version}.jar"/>
+                <file name="classserver-${river.version}.jar"/>
                 <file name="asm-5.0.1.jar"/>
                 <file name="asm-commons-5.0.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
-                <file name="jgdms-activation-3.1.1-SNAPSHOT.jar"/>
-                <file name="checkconfigurationfile-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-activation-${river.version}.jar"/>
+                <file name="checkconfigurationfile-${river.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
@@ -305,8 +305,8 @@
         </delete>
         <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-lib-dl-3.1.1-SNAPSHOT.jar"/>        
-                <file name="phoenix-dl-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-dl-${river.version}.jar"/>        
+                <file name="phoenix-dl-${river.version}.jar"/>
             </filelist>
         </delete>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
@@ -319,21 +319,21 @@
     <target name="jtreg-teardown" depends="" description="Move back JARs">
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-collections-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-iiop-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-jeri-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-jrmp-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-lib-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-platform-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"/>
-                <file name="jgdms-url-integrity-3.1.1-SNAPSHOT.jar"/>
-                <file name="classdep-3.1.1-SNAPSHOT.jar"/>
-                <file name="classserver-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-collections-${river.version}.jar"/>
+                <file name="jgdms-iiop-${river.version}.jar"/>
+                <file name="jgdms-jeri-${river.version}.jar"/>
+                <file name="jgdms-jrmp-${river.version}.jar"/>
+                <file name="jgdms-lib-${river.version}.jar"/>
+                <file name="jgdms-platform-${river.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${river.version}.jar"/>
+                <file name="jgdms-url-integrity-${river.version}.jar"/>
+                <file name="classdep-${river.version}.jar"/>
+                <file name="classserver-${river.version}.jar"/>
                 <file name="asm-5.0.1.jar"/>
                 <file name="asm-commons-5.0.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
-                <file name="jgdms-activation-3.1.1-SNAPSHOT.jar"/>
-                <file name="checkconfigurationfile-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-activation-${river.version}.jar"/>
+                <file name="checkconfigurationfile-${river.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
@@ -345,8 +345,8 @@
         </move>
         <move todir="${river.lib-dl.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-lib-dl-3.1.1-SNAPSHOT.jar"/>
-                <file name="phoenix-dl-3.1.1-SNAPSHOT.jar"/>
+                <file name="jgdms-lib-dl-${river.version}.jar"/>
+                <file name="phoenix-dl-${river.version}.jar"/>
             </filelist>
         </move>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
@@ -375,8 +375,9 @@
                 <!--<jvmarg value="-Djava.security.debug=access" />-->
                 <jvmarg value="-Djava.util.logging.config.file=${log.config.file}" />
                 <jvmarg value="-Djava.util.logging.manager=org.apache.river.logging.LogManager"/>
-                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT" />
+                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}/JGDMS/dist/target/JGDMS-${river.version}" />
                 <jvmarg value="-Dorg.apache.river.qa.home=${basedir}" />
+                <jvmarg value="-Driver.version=${river.version}" />
                 <!--We have a problem with path to properties and the src directory
                 it appears that the src directory was added later, however links
                 to property files aren't reflective of this and conflict with 
@@ -406,31 +407,31 @@
                     </fileset>
                     <fileset dir="${lib-ext.dir}">
                         <!--<include name="jsk-policy.jar"/>-->
-                        <include name="jgdms-platform-3.1.1-SNAPSHOT.jar"/>
+                        <include name="jgdms-platform-${river.version}.jar"/>
                     </fileset>
                     <fileset dir="${river.lib.dir}">
-                        <include name="jgdms-collections-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-iiop-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-jeri-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-jrmp-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-lib-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-lib-dl-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-platform-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar"/>
-                        <include name="jgdms-url-integrity-3.1.1-SNAPSHOT.jar"/>
-                        <include name="classdep-3.1.1-SNAPSHOT.jar"/>
-                        <include name="classserver-3.1.1-SNAPSHOT.jar"/>
-                        <include name="service-starter-3.1.1-SNAPSHOT.jar"/>
+                        <include name="jgdms-collections-${river.version}.jar"/>
+                        <include name="jgdms-iiop-${river.version}.jar"/>
+                        <include name="jgdms-jeri-${river.version}.jar"/>
+                        <include name="jgdms-jrmp-${river.version}.jar"/>
+                        <include name="jgdms-lib-${river.version}.jar"/>
+                        <include name="jgdms-lib-dl-${river.version}.jar"/>
+                        <include name="jgdms-platform-${river.version}.jar"/>
+                        <include name="jgdms-pref-class-loader-${river.version}.jar"/>
+                        <include name="jgdms-url-integrity-${river.version}.jar"/>
+                        <include name="classdep-${river.version}.jar"/>
+                        <include name="classserver-${river.version}.jar"/>
+                        <include name="service-starter-${river.version}.jar"/>
                         <include name="asm-5.0.1.jar"/>
                         <include name="asm-commons-5.0.1.jar"/>
                         <include name="high-scale-lib-1.0.6.jar"/>
                         <include name="bcprov-jdk15on-1.59.jar"/>
                         <include name="bctls-jdk15on-1.59.jar"/>
                         <!-- The next must be manually copied -->
-                        <include name="security-policy-debug-3.1.1-SNAPSHOT.jar"/>
+                        <include name="security-policy-debug-${river.version}.jar"/>
                     </fileset>
                     <fileset dir="${river.lib-dl.dir}">
-                        <include name="jgdms-lib-dl-3.1.1-SNAPSHOT.jar"/>
+                        <include name="jgdms-lib-dl-${river.version}.jar"/>
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>

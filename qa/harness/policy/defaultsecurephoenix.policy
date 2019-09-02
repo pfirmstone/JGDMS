@@ -13,8 +13,8 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
