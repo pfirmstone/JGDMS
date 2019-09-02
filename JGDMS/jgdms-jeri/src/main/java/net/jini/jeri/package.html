@@ -672,7 +672,9 @@ directly by clients.-->
 <h2>Distributed Garbage Collection</h2>
 
 <code>BasicJeriExporter</code> supports exporting remote objects that
-participate in distributed garbage collection (DGC).
+participate in distributed garbage collection (DGC). 
+<a href="https://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-116.pdf">
+    Distributed Garbage Collection for Network Objects</a>
 
 <p>DGC uses a two-stage reference counting algorithm to maintain
 referential integrity across virtual machines, for remote objects
@@ -734,7 +736,7 @@ net.jini.jeri.BasicJeriExporter} specifications for more information
 about client-side and server-side DGC processing.
 
 @since 2.0
-@version 3.0
+@version 3.1.1
 
 </body>
 </html>
