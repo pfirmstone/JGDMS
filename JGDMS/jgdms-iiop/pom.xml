@@ -50,7 +50,18 @@
              <groupId>${project.groupId}</groupId>
              <artifactId>jgdms-resources</artifactId>
              <version>${project.version}</version>
-         </dependency>   
+        </dependency>
+        <!-- CORBA IIOP Has been removed in Java 11 and is to be supported using
+             Glass Fish, this has some other benefits, such as secure connections. 
+             for now, one of GlassFish's dependencies 
+             jakarta.transaction:jakarta.transaction-api:1.3.2 
+             has known vulnerabilies CVE-2010-4647  CVE-2008-7271-->
+        <!-- https://mvnrepository.com/artifact/org.glassfish.corba/glassfish-corba-orb -->
+        <!--<dependency>
+            <groupId>org.glassfish.corba</groupId>
+            <artifactId>glassfish-corba-orb</artifactId>
+            <version>4.2.1</version>
+        </dependency>-->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
