@@ -176,6 +176,7 @@ extends SecurityManager implements CachingSecurityManager {
         checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 20000L);
         g = new SecurityPermission("getPolicy");
         action = new Action();
+        inTrustedCodeRecursiveCall = new ThreadLocal<Boolean>();
         // Make this a tunable property.
         double blocking_coefficient = 0.6; // 0 CPU intensive to 0.9 IO intensive
         int numberOfCores = Runtime.getRuntime().availableProcessors();
@@ -193,15 +194,19 @@ extends SecurityManager implements CachingSecurityManager {
                 new ThreadFactory(){
 
 		    public Thread newThread(Runnable r) {
-			Thread t = new Thread(r, "CombinerSecurityManager_thread");
-			t.setDaemon(true);
-			return t;
+                        inTrustedCodeRecursiveCall.set(Boolean.TRUE);
+                        try {
+                            Thread t = new Thread(r, "CombinerSecurityManager_thread");
+                            t.setDaemon(true);
+                            return t;
+                        } finally {
+                            inTrustedCodeRecursiveCall.set(Boolean.FALSE);
+                        }
 		    }
 		},
                 new ThreadPoolExecutor.CallerRunsPolicy());
         permCompare = RC.comparator(new PermissionComparator());
         threadContext = new ThreadLocal<SecurityContext>();
-        inTrustedCodeRecursiveCall = new ThreadLocal<Boolean>();
         // This is to avoid unnecessarily refreshing the policy.
 //        Permission createAccPerm = new SecurityPermission("createAccessControlContext");
 //	if (!policy.implies(context[0], createAccPerm)) policy.refresh();

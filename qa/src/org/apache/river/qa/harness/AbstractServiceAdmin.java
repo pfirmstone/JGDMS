@@ -35,7 +35,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.EmptyConfiguration;
-import net.jini.constraint.BasicMethodConstraints;
+import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
@@ -999,7 +999,7 @@ public abstract class AbstractServiceAdmin implements Admin {
 	if (options == null) {
 	    return null;
 	}
-	StringBuffer sb = new StringBuffer();
+	StringBuilder sb = new StringBuilder();
 	for (int i = 0; i < options.length; i++) {
 	    if (i > 0) {
 		sb.append(" ");
@@ -1085,7 +1085,7 @@ public abstract class AbstractServiceAdmin implements Admin {
 	    if (locatorList.size() > 0) {
 		Configuration c = getServiceConfiguration();
 		boolean configDefined = c != EmptyConfiguration.INSTANCE;
-		StringBuffer b = new StringBuffer();
+		StringBuilder b = new StringBuilder();
 		b.append(getServiceComponent());
 		b.append(".initialLookupLocators = new net.jini.core.discovery.LookupLocator[] {");
 		for (int i = 0; i < locatorList.size(); i++) {
@@ -1098,13 +1098,12 @@ public abstract class AbstractServiceAdmin implements Admin {
 		b.append("}");
 		list.add(b.toString());
 		// get the locator constraints
-		BasicMethodConstraints constraints = null;
+		MethodConstraints constraints = null;
 		if (configDefined) {
 		    try {
-			constraints = (BasicMethodConstraints) 
-			              c.getEntry(getServiceComponent(),
+			constraints = c.getEntry(getServiceComponent(),
 						 "locatorConstraints",
-						 BasicMethodConstraints.class);
+						 MethodConstraints.class);
 		    } catch (ConfigurationException e) {
 			logger.log(Level.INFO, "Missing locatorConstraints", e);
 		    }
@@ -1158,7 +1157,7 @@ public abstract class AbstractServiceAdmin implements Admin {
     private String locatorString(String locator, boolean constrainable) 
 	throws TestException
     {
-	StringBuffer b = new StringBuffer("new ");
+	StringBuilder b = new StringBuilder("new ");
 	if (constrainable) {
 	    b.append("net.jini.discovery.Constrainable");
 	} else {
@@ -1282,10 +1281,10 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the array equivalent to the corresponding override
      */
     private String[] getGroupArray(ArrayList groups) {
-	if (groups.size() == 0) {
+	if (groups.isEmpty()) {
 	    return new String[]{""};
 	}
-	StringBuffer gbuf = new StringBuffer();
+	StringBuilder gbuf = new StringBuilder();
 	String g = null;
 	for (int i = 0; i < groups.size(); i++) {
 	    g = (String) groups.get(i);

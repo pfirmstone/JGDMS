@@ -362,3 +362,9 @@
 /qa/mercury-results3.txt
 /qa/mercury-results1.txt
 /JGDMS/target/
+/qa/nbproject/private/
+/qa/manifest.mf
+/qa/nbbuild.xml
+/qa/nbproject/
+/JGDMS/jgdms-platform/nbproject/
+/JGDMS/jgdms-osgi-proxy-bundle-provider/target/

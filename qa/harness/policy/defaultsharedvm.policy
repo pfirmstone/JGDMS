@@ -14,6 +14,14 @@ grant {
       permission org.apache.river.phoenix.ExecPermission "/bin/javax";
 };
 
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-mercury-bogusimpl.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission 
+        "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission
+        "file:${org.apache.river.qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
 grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
 {
       permission org.apache.river.phoenix.InstantiatorPermission "*";
@@ -27,6 +35,10 @@ grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+};
+
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.home}${/}lib${/}jinitest.jar!/src/org/apache/river/test/share/simulator.policy"
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}" {
@@ -88,6 +100,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.s
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+};
+
+grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}src${/}org${/}apache${/}river${/}test${/}share${/}simulator.policy"
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}" {
@@ -298,8 +314,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Version_Number", "write";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
     permission java.net.SocketPermission "[fd16:f24f:50d9:0:dc7b:30e4:cd0f:ec0b]:4160", "accept,resolve";
@@ -358,8 +374,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "write";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
@@ -384,8 +400,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "write";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}"
@@ -406,8 +422,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
@@ -443,8 +459,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4436", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4441", "accept,resolve";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
@@ -480,8 +496,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4477", "accept,resolve";
 };
 
@@ -506,8 +522,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4509", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4514", "accept,resolve";
 };
@@ -529,8 +545,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4545", "accept,resolve";
 };
 
@@ -543,8 +559,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.s
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
 {
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
@@ -561,8 +577,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.s
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
 {
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
 };
 
 grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
@@ -589,8 +605,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4748", "accept,resolve";
 };
 
@@ -611,8 +627,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4783", "accept,resolve";
 };
 
@@ -639,8 +655,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4824", "accept,resolve";
 };
 
@@ -661,8 +677,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Version_Number", "write";
     permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.0-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\${net.jini.activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4859", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4862", "accept,resolve";
 };

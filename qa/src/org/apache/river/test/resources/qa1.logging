@@ -132,7 +132,8 @@ au.net.zeus.rmi.tls.init.level = SEVERE
 net.jini.jeri.level = SEVERE
 net.jini.jeri.BasicInvocationDispatcher.level = SEVERE
 net.jini.jeri.BasicInvocationHandler.level = SEVERE
-#net.jini.jeri.BasicJeriExporter.level = SEVERE
+net.jini.jeri.BasicJeriExporter.level = SEVERE
+net.jini.jeri.BasicJeriTrustVerifier.level = SEVERE
 net.jini.jeri.BasicObjectEndpoint.level = SEVERE
 
 org.apache.river.api.io.level=SEVERE

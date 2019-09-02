@@ -6,6 +6,6 @@ net.jini.event.EventMailbox.classpath=${net.jini.event.EventMailbox.classpath}$:
 net.jini.event.EventMailbox.policyfile=<url:org/apache/river/test/impl/mahalo/bogusMahaloImpl.policy>
 
 org.apache.river.qa.harness.verifier=${org.apache.river.qa.harness.verifier} org.apache.river.test.impl.mercury.ActivatableMercuryVerifier org.apache.river.qa.harness.SkipConfigTestVerifier
-org.apache.river.qa.harness.skipConfigs=general,http,https,jrmp,jsse,kerberos
+org.apache.river.qa.harness.skipConfigs=general,http,https,jeri,jsse,kerberos
 
 include0=mercury.properties

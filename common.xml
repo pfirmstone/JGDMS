@@ -38,7 +38,7 @@
     <property name="lib" value="lib"/>
     <property name="lib-dl" value="lib-dl"/>
     <property name="lib-ext" value="lib-ext"/>
-    <property name="dist" value="JGDMS/dist/target/JGDMS-3.0-SNAPSHOT/"/>
+    <property name="dist" value="JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/"/>
     <property name="doc.spec.api" value="${doc}/specs/api"/>
     <property name="doc.api" value="${doc}/api"/>
     <property name="build" value="build"/>
@@ -187,7 +187,7 @@
     </path>
    
     <path id="classdep.jar.classpath">
-        <pathelement location="${river.lib.dir}/classdep-3.0-SNAPSHOT.jar"/>
+        <pathelement location="${river.lib.dir}/classdep-3.1.1-SNAPSHOT.jar"/>
         <!--<path refid="asm.classpath" />-->
     </path>
 

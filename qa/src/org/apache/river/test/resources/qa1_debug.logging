@@ -120,6 +120,11 @@ net.jini.activation.ActivatableInvocationHandler.level = FINE
 # For JRMP
 net.jini.jrmp.JrmpExporter.level = INFO
 
+# For RMI TLS
+au.net.zeus.rmi.tls.client.level = FINE
+au.net.zeus.rmi.tls.server.level = FINE
+au.net.zeus.rmi.tls.init.level = FINE
+
 # For Jini ERI
 net.jini.jeri.level = INFO
 net.jini.jeri.BasicInvocationDispatcher.level = INFO
@@ -259,7 +264,8 @@ org.apache.river.outrigger.transactions.level = INFO
 org.apache.river.example.browser.level = INFO
 
 # For the test harness, tests, and infrastructure.
+org.apache.river.qa.harness.level = FINE
 org.apache.river.qa.harness.test.level = FINE
-org.apache.river.qa.harness.service.level = INFO
-org.apache.river.qa.harness.config.level = INFO
-org.apache.river.test.spec.jeri.mux.level = INFO
+org.apache.river.qa.harness.service.level = FINE
+org.apache.river.qa.harness.config.level = FINE
+org.apache.river.test.spec.jeri.mux.level = FINE

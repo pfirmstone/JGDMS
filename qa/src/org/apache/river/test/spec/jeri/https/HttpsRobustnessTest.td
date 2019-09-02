@@ -11,3 +11,5 @@ org.apache.river.qa.harness.runjiniserver=false
 #-Dnet.jini.security.policy.PolicyFileProvider.basePolicyClass=net.jini.security.policy.ConcurrentPolicyFile,\
 #-Djava.security.manager=org.apache.river.tool.ProfilingSecurityManager,\
 #${testjvmargs}
+org.apache.river.qa.harness.verifier=${org.apache.river.qa.harness.verifier} org.apache.river.qa.harness.SkipConfigTestVerifier
+org.apache.river.qa.harness.skipConfigs=none,jeri,jrmp,kerberos,http

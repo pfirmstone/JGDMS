@@ -31,3 +31,11 @@ This product includes the animal-sniffer library from codehaus.org.
 The original software is available from http://mojo.codehaus.org/animal-sniffer/
 Licensed under the MIT license.
 
+LookupLocator includes the following:
+
+IPv6 Regex by Dartware, LLC is licensed under a 
+Creative Commons Attribution-ShareAlike 3.0 Unported License.
+http://creativecommons.org/licenses/by-sa/3.0/
+
+IPv6 regular expression courtesy of Dartware, LLC (http://intermapper.com)
+For full details see http://intermapper.com/ipv6regex

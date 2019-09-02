@@ -2299,6 +2299,8 @@ public final class QAConfig implements Serializable {
 	try {
 	    InetAddress hostAddr = InetAddress.getByName(hostName);
 	    String fqHostName = hostAddr.getCanonicalHostName();
+            //IPv6 Addresses are often returned malformed without enclosing brackets []
+            // Need to normalise and add brackets.
             if (fqHostName.contains(NXDOMAIN)) return hostName;
             if (fqHostName.contains(nxdomain)) return hostName;
             return fqHostName;

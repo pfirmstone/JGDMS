@@ -55,6 +55,7 @@ public final class EventRegistration implements java.io.Serializable {
      * The event identifier.
      *
      * @serial
+     * @since 1.0
      */
     private final long eventID;
 
@@ -62,6 +63,7 @@ public final class EventRegistration implements java.io.Serializable {
      * The event source.
      *
      * @serial
+     * @since 1.0
      */
     private final Object source;
 
@@ -69,6 +71,7 @@ public final class EventRegistration implements java.io.Serializable {
      * The registration lease.
      *
      * @serial
+     * @since 1.0
      */
     private final Lease lease;
 
@@ -76,6 +79,7 @@ public final class EventRegistration implements java.io.Serializable {
      * The current sequence number.
      *
      * @serial
+     * @since 1.0
      */
     private final long seqNum;
 
@@ -98,6 +102,13 @@ public final class EventRegistration implements java.io.Serializable {
 	seqNum = arg.get("seqNum", 0L);
     }
     
+    /**
+     * Deserialization constructor.
+     * @param arg
+     * @throws IOException 
+     * @since 3.1
+     * @see AtomicSerial
+     */
     public EventRegistration(GetArg arg) throws IOException{
 	this(check(arg), arg);
     }
@@ -112,6 +123,7 @@ public final class EventRegistration implements java.io.Serializable {
      * @param lease    the registration <tt>Lease</tt> object
      * @param seqNum   a <tt>long</tt> representing the current
      *                 sequence number
+     * @since 1.0
      */
     public EventRegistration(long eventID, Object source,
 			     Lease lease, long seqNum) {
@@ -128,6 +140,7 @@ public final class EventRegistration implements java.io.Serializable {
      * @return a long used to identify all RemoteEvents that are generated
      *         for this interest registration.
      * @see RemoteEvent#getID
+     * @since 1.0
      */
     public long getID() {
 	return eventID;
@@ -140,6 +153,7 @@ public final class EventRegistration implements java.io.Serializable {
      * @return an Object that represents the source of all RemoteEvents 
      *         for this interest registration
      * @see java.util.EventObject#getSource
+     * @since 1.0
      */
     public Object getSource() {
 	return source;
@@ -149,6 +163,7 @@ public final class EventRegistration implements java.io.Serializable {
      * Returns the Lease object for this registration. 
      * 
      * @return the Lease object for this registration.
+     * @since 1.0
      */
     public Lease getLease() {
 	return lease;
@@ -163,11 +178,19 @@ public final class EventRegistration implements java.io.Serializable {
      *         event type that was current when the registration was 
      *         granted, allowing comparison with the sequence number in any 
      *         subsequent notifications.
+     * @since 1.0
      */
     public long getSequenceNumber() {
 	return seqNum;
     }
     
+    /**
+     * Default writeObject method.
+     * @serial
+     * @param out
+     * @throws IOException 
+     * @since 3.1
+     */
     private void writeObject(ObjectOutputStream out) throws IOException {
 	out.defaultWriteObject();
     }
@@ -178,6 +201,7 @@ public final class EventRegistration implements java.io.Serializable {
      * @param in ObjectInputStream
      * @throws ClassNotFoundException if class not found.
      * @throws IOException if a problem occurs during de-serialization.
+     * @since 3.0
      */
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException{
         in.defaultReadObject();

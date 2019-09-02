@@ -56,6 +56,7 @@ public class UnusableEntryException extends Exception {
      * will be <code>null</code>.
      *
      * @serial
+     * @since 1.0
      */
     public Entry partialEntry;
 
@@ -64,6 +65,7 @@ public class UnusableEntryException extends Exception {
       * unusable, <code>unusableFields</code> will be <code>null</code>.
       *
       * @serial
+      * @since 1.0
       * @deprecated this field will be made private, use {@link #getUnusableFields() }
       */
     public String[] unusableFields;
@@ -75,6 +77,7 @@ public class UnusableEntryException extends Exception {
      * the one exception that prevented its use.
      *
      * @serial
+     * @since 1.0
      * @deprecated this field will be made private, use {@link #getNestedExceptions() }
      */
     public Throwable[] nestedExceptions;
@@ -100,6 +103,7 @@ public class UnusableEntryException extends Exception {
      *     element of <code>badFields</code> is <code>null</code>, or
      *     if <code>exceptions</code> or any element of
      *     <code>exceptions</code> is <code>null</code>
+     * @since 1.0
      */
     public UnusableEntryException(Entry partial, String[] badFields,
 	Throwable[] exceptions)
@@ -147,6 +151,7 @@ public class UnusableEntryException extends Exception {
      *
      * @param e a Throwable representing the nested exception
      * @throws NullPointerException if <code>e</code> is <code>null</code>
+     * @since 1.0
      */
     public UnusableEntryException(Throwable e) {
 	if (e == null)
@@ -257,6 +262,7 @@ public class UnusableEntryException extends Exception {
     /**
      * Calls {@link #printStackTrace(PrintStream) printStackTrace(System.err)}.
      */
+    @Override
     public void printStackTrace() { 
         printStackTrace(System.err);
     }
@@ -267,6 +273,7 @@ public class UnusableEntryException extends Exception {
      * Throwable#printStackTrace(PrintStream) printStackTrace(s)} on
      * each exception in <code>nestedExceptions</code>.
      */
+    @Override
     public void printStackTrace(PrintStream s) {
         synchronized (s) {
 	    super.printStackTrace(s);
@@ -291,6 +298,7 @@ public class UnusableEntryException extends Exception {
      * Throwable#printStackTrace(PrintWriter) printStackTrace(s)} on
      * each exception in <code>nestedExceptions</code>.
      */
+    @Override
     public void printStackTrace(PrintWriter s) { 
         synchronized (s) {
 	    super.printStackTrace(s);

@@ -7,3 +7,5 @@ testLoggingProperties=<file: src/org/apache/river/test/resources/qa1.logging>
 #testjvmargs=-Xdebug,\
 #-Xrunjdwp:transport=dt_socket+,address=8000+,server=y+,suspend=y,\
 #${testjvmargs}
+org.apache.river.qa.harness.verifier=${org.apache.river.qa.harness.verifier} org.apache.river.qa.harness.SkipConfigTestVerifier
+org.apache.river.qa.harness.skipConfigs=jsse,kerberos,https

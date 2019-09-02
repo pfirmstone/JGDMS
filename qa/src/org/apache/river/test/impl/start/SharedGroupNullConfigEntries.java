@@ -87,7 +87,7 @@ public class SharedGroupNullConfigEntries extends QATestEnvironment implements T
 	    try {
                 group_proxy = (SharedGroup)getManager().startService(serviceName); 
 	        throw new TestException( 
-		    "Started service with invalid configuration");
+		    "Started service with invalid configuration: " + group_proxy);
 	    } catch (Exception e) {
 		//TODO - check for Configuration exception
 		logger.log(Level.INFO, "Caught expected exception");
@@ -95,7 +95,7 @@ public class SharedGroupNullConfigEntries extends QATestEnvironment implements T
 		if (!verifyConfigurationException(e)) {
 	            throw new TestException( 
 		        "Service failed due to non-configuration related"
-			+ "exception.");
+			+ "exception.", e);
 		}
 	    }
         }

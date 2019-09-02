@@ -126,7 +126,12 @@ class ServiceDestroyer {
 	throws RemoteException, ActivationException
     {
 	Object proxy = created.proxy;
-        int destroyCode = destroy(proxy);
+        int destroyCode;
+        try {
+            destroyCode = destroy(proxy);
+        } catch (IllegalStateException e){ // Norm does this when shutting down.
+            destroyCode = DESTROY_SUCCESS;
+        }
         if(destroyCode != DESTROY_SUCCESS) return destroyCode;
         /* Verify the service has actually been destroyed by waiting until
          * service's activation ID is no longer registered with the

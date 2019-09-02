@@ -18,6 +18,7 @@
 
 package net.jini.loader;
 
+import java.rmi.server.RMIClassLoaderSpi;
 import java.rmi.server.RMIClassLoader;
 import java.security.BasicPermission;
 import java.security.CodeSource;
@@ -25,23 +26,25 @@ import java.security.CodeSource;
 /**
  * Permission that must be granted to the {@link CodeSource} of a
  * downloaded class in order for the class to be defined using {@link
- * RMIClassLoader}.
+ * RMIClassLoaderSpi}.  Note this permission should have been named
+ * ClassDefinePermission or ClassLoadPermission, as it not used
+ * to prevent downloads.
  *
  * <p>A <code>DownloadPermission</code> contains a name (also referred
  * to as a "target name") but no action list; you either have the
  * named permission or you don't.  The only defined target name is
  * "permit", which allows a downloaded class with a
  * <code>CodeSource</code> that is granted the permission to be
- * defined by a class loader created by <code>RMIClassLoader</code>.
+ * defined by a class loader created by <code>RMIClassLoaderSpi</code>.
  *
  * <p>Selective granting of this permission can be used to restrict
  * the <code>CodeSource</code> values (codebase URLs and signers) from
  * which downloaded classes can be defined using
- * <code>RMIClassLoader</code>.
+ * <code>RMIClassLoaderSpi</code>.
  *
  * <p>Note that this permission is only enforced if the current {@link
- * RMIClassLoader} provider supports it; not all
- * <code>RMIClassLoader</code> providers support this permission.  In
+ * RMIClassLoaderSpi} provider supports it; not all
+ * <code>RMIClassLoaderSpi</code> providers support this permission.  In
  * particular, the default provider (see {@link
  * RMIClassLoader#getDefaultProviderInstance
  * RMIClassLoader.getDefaultProviderInstance}) does <i>not</i> support

@@ -80,8 +80,29 @@ import org.apache.river.api.io.Valid;
  * the transaction. This is true even if the event that triggered the
  * RemoteEvent object being sent occurs outside of the scope of the
  * transaction (but is visible within the transaction).
- *
- * Immutable since 3.0.0
+ * <p>
+ * In future it is planned for RemoteEvent to become immutable and all state
+ * made private, all fields will be made final and private.
+ * <p>
+ * This change breaks compatibility for subclasses that access these fields
+ * directly.  For other classes, all fields were accessible
+ * via public API getter methods.
+ * <p>
+ * To allow an upgrade path for subclasses that extend RemoteEvent and
+ * provide public setter methods for these fields, it is recommended to
+ * override all public methods and maintain state independently using 
+ * transient fields.  The subclass should also use RemoteEvent getter 
+ * methods to set these transient fields during de-serialization.
+ * <p>
+ * Subclasses will be responsible for synchronization of mutable state.
+ * <p>
+ * writeObject, instead of writing RemoteEvent fields, writes the 
+ * result of all getter methods to the ObjectOutputStream, during serialization,
+ * preserving serial form compatibility wither earlier versions, while 
+ * also allowing mutable subclasses to maintain full serial compatibility.
+ * <p>
+ * Mutable subclasses honoring this contract will be compatible with all 
+ * versions since Jini 1.0.
  * 
  * @author Sun Microsystems, Inc.
  *
@@ -103,29 +124,30 @@ public class RemoteEvent extends java.util.EventObject {
 
     /**
      * The event identifier.
-     *
+     * @since 1.0
      * @serial
      */
     protected long eventID;
 
     /**
      * The event sequence number.
-     *
+     * @since 1.0
      * @serial
      */
     protected long seqNum;
 
     /**
      * The handback object.
-     *
+     * @since 1.0
      * @serial
+     * @deprecated
      */
     @Deprecated
     protected MarshalledObject handback;
     
     /**
      * The registration handback object.
-     * 
+     * @since 3.1
      * @serial
      */
     protected MarshalledInstance miHandback;
@@ -142,6 +164,13 @@ public class RemoteEvent extends java.util.EventObject {
 	return source;
     }
     
+    /**
+     * Deserialization constructor.
+     * @param arg
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     * @see AtomicSerial
+     */
     public RemoteEvent(GetArg arg) throws IOException, ClassNotFoundException {
 	this (arg, check(arg));
     }
@@ -174,6 +203,7 @@ public class RemoteEvent extends java.util.EventObject {
      * @param seqNum    a <tt>long</tt> containing the event sequence number
      * @param handback  a <tt>MarshalledObject</tt> that was passed in 
      *                  as part of the original event registration.
+     * @since 1.0
      */
     @Deprecated
     public RemoteEvent(Object source, long eventID, long seqNum,
@@ -202,6 +232,7 @@ public class RemoteEvent extends java.util.EventObject {
      * @param seqNum    a <tt>long</tt> containing the event sequence number
      * @param miHandback  a <tt>MarshalledInstance</tt> that was passed in 
      *                  as part of the original event registration.
+     * @since 3.1
      */
     public RemoteEvent(Object source, long eventID, long seqNum,
 		       MarshalledInstance miHandback) {
@@ -219,6 +250,7 @@ public class RemoteEvent extends java.util.EventObject {
      * @return a long representing the event identifier relative to the 
      *         object in which the event occurred.
      * @see EventRegistration#getID
+     * @since 1.0
      */
     public long getID() {
 	return eventID;
@@ -228,6 +260,7 @@ public class RemoteEvent extends java.util.EventObject {
      * Returns the sequence number of this event. 
      *
      * @return a long representing the sequence number of this event.
+     * @since 1.0
      */
     public long getSequenceNumber() {
 	return seqNum;
@@ -240,6 +273,7 @@ public class RemoteEvent extends java.util.EventObject {
      * @return the MarshalledObject that was provided as a parameter to
      *         the event interest registration method, if any. 
      * @deprecated Use {@link #getRegistrationInstance() } instead.
+     * @since 1.0
      */
     @Deprecated
     public MarshalledObject getRegistrationObject() {
@@ -257,6 +291,7 @@ public class RemoteEvent extends java.util.EventObject {
      *         the event interest registration method, if any. 
      *	       Or the MarshalledObject that was provided, converted to a 
      *	       MarshalledInstance.
+     * @since 3.1
      */
     public MarshalledInstance getRegistrationInstance() {
 	if ( miHandback == null && handback != null) return new MarshalledInstance(handback);
@@ -268,6 +303,8 @@ public class RemoteEvent extends java.util.EventObject {
      * @param stream ObjectInputStream
      * @throws ClassNotFoundException if class not found.
      * @throws java.io.IOException if a problem occurs during de-serialization.
+     * @serial
+     * @since 1.0
      */
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException
@@ -283,29 +320,17 @@ public class RemoteEvent extends java.util.EventObject {
     }
        
     /**
-     * In River 3.0.0, RemoteEvent became immutable and all state made private,
-     * previously all fields were protected and non final.
-     * <p>
-     * This change breaks compatibility for subclasses that access these fields
-     * directly.  For other classes, all fields were accessible
-     * via public API getter methods.
-     * <p>
-     * To allow an upgrade path for subclasses that extend RemoteEvent and
-     * provide public setter methods for these fields, it is recommended to
-     * override all public methods and maintain state independently using 
-     * transient fields.  The subclass should also use RemoteEvent getter 
-     * methods to set these transient fields during de-serialization.
-     * <p>
-     * writeObject, instead of writing RemoteEvent fields, writes the 
-     * result of all getter methods to the ObjectOutputStream, during serialization,
-     * preserving serial form compatibility wither earlier versions, while 
-     * also allowing mutable subclasses to maintain full serial compatibility.
-     * <p>
-     * Mutable subclasses honoring this contract will be compatible with all 
-     * versions since Jini 1.0.
+     * Write object writes the return values of getter methods to the stream, 
+     * allowing subclasses to override values written to the stream without
+     * changing serial form.
+     * 
+     * Note that when the deprecated handback field is removed a null value will be sent
+     * in the stream, serial form will remain unchanged for compatiblity.
      * 
      * @param stream
      * @throws java.io.IOException 
+     * @serial
+     * @since 3.0
      */
     private void writeObject(java.io.ObjectOutputStream stream) throws java.io.IOException
     {

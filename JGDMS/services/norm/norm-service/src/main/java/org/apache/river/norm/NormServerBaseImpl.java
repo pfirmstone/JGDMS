@@ -1482,7 +1482,7 @@ abstract class NormServerBaseImpl
     // Inherit java doc from super type
     @Override
     public Object getAdmin() {
-	ready.check();
+//	ready.check(); // Let admin proxy throw IllegalStateException.
 	return adminProxy;
     }
 

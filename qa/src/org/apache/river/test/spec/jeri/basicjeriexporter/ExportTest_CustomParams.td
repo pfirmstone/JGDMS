@@ -10,3 +10,4 @@ testCategories=jeri,jeri_spec
 # jar isn't on the call stack, changing this would require changing the call
 # stack by way of modifying the methods and objects called during the test.
 # Originally jeri was included in the platform jar.
+org.apache.river.qa.harness.verifier=org.apache.river.qa.harness.SkipTestVerifier

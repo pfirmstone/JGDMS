@@ -235,3 +235,10 @@ ASM libraries (tools/asm-5.0.1.jar and tools/asm-commons-5.0.1.jar)
    CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
    THE POSSIBILITY OF SUCH DAMAGE.
+
+IPv6 Regex by Dartware, LLC is licensed under a 
+Creative Commons Attribution-ShareAlike 3.0 Unported License.
+http://creativecommons.org/licenses/by-sa/3.0/
+
+IPv6 regular expression courtesy of Dartware, LLC (http://intermapper.com)
+For full details see http://intermapper.com/ipv6regex
