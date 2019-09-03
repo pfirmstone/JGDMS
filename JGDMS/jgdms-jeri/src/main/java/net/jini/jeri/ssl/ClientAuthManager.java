@@ -29,7 +29,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -73,7 +75,7 @@ class ClientAuthManager extends AuthManager {
      * The exception that occurred within the last call to chooseClientAlias if
      * no credential could be supplied.
      */
-    private Exception clientCredentialException;
+    private final Map<String, Exception> exceptionMap = new LinkedHashMap<String, Exception>();
 
     /**
      * The latest time for which all client and server credentials remain
@@ -126,7 +128,17 @@ class ClientAuthManager extends AuthManager {
      * exception occurred.
      */
     synchronized Exception getClientCredentialException() {
-	return clientCredentialException;
+        Exception result = null;
+    	for (Map.Entry<String, Exception> entry : exceptionMap.entrySet()) {
+	    if (entry.getValue() == null) {
+		result = null;
+		break;
+	    } else {
+		result = entry.getValue();
+	    }
+	}
+
+	return result;
     }
 
     /**
@@ -277,6 +289,7 @@ class ClientAuthManager extends AuthManager {
 
     /* -- Implement X509KeyManager -- */
 
+    @Override
     public String[] getClientAliases(String keyType, Principal[] issuers) {
 	String[] result = getAliases(keyType, issuers);
 	if (logger.isLoggable(Level.FINE)) {
@@ -290,10 +303,12 @@ class ClientAuthManager extends AuthManager {
 	return result;
     }
     
+    @Override
     public String[] getServerAliases(String keyType, Principal[] issuers) {
 	return null;
     }
 
+    @Override
     public synchronized String chooseClientAlias(
 	String[] keyTypes, Principal[] issuers, Socket socket)
     {
@@ -301,49 +316,32 @@ class ClientAuthManager extends AuthManager {
 	 * Only choose new client credentials for the first handshake.
 	 * Otherwise, just use the previous client credentials.
 	 */
-	if (clientCredentialException != null) {
-	    return null;
-	} else if (clientCredential == null) {
-	    List exceptions = null;
-	    for (int i = 0; i < keyTypes.length; i++) {
-		Exception exception;
+	if (clientCredential == null) {
+	    for (String keyType : keyTypes) {
 		try {
-		    clientCredential = chooseCredential(keyTypes[i], issuers);
+		    if (exceptionMap.get(keyType) != null) {
+			// Prior exception found for keytype
+			return null;
+		    }
+
+		    clientCredential = chooseCredential(keyType, issuers);
 		    if (clientCredential != null) {
+                        // clientCredential found
+			exceptionMap.put(keyType, null);
 			break;
+                        
+		    } else {
+			exceptionMap.put(keyType,
+					 new GeneralSecurityException("Credentials not found"));
 		    }
-		    continue;
 		} catch (GeneralSecurityException e) {
-		    exception = e;
+		    exceptionMap.put(keyType, e);
 		} catch (SecurityException e) {
-		    exception = e;
+		    exceptionMap.put(keyType, e);
 		}
-		if (exceptions == null) {
-		    exceptions = new ArrayList();
-		}
-		exceptions.add(exception);
 	    }
+            
 	    if (clientCredential == null) {
-		if (exceptions == null) {
-		    clientCredentialException =
-			new GeneralSecurityException("Credentials not found");
-		} else if (exceptions.size() == 1) {
-		    clientCredentialException = (Exception) exceptions.get(0);
-		} else {
-		    for (int i = exceptions.size(); --i >= 0; ) {
-			Exception e = (Exception) exceptions.get(i);
-			if (!(e instanceof SecurityException)) {
-			    clientCredentialException =
-				new GeneralSecurityException(
-				    exceptions.toString());
-			    break;
-			}
-		    }
-		    if (clientCredentialException == null) {
-			clientCredentialException = 
-			    new SecurityException(exceptions.toString());
-		    }
-		}
 		return null;
 	    }
 	}
