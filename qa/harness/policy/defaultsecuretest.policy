@@ -8,6 +8,42 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
 grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
     permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
@@ -43,6 +79,9 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
 grant 
 {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.awt";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
 };
 
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar"
@@ -115,6 +154,13 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceAttributesAccessor.getServiceAttributes";
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceIDAccessor.serviceID";
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceProxyAccessor.getServiceProxy";
+    permission java.io.FilePermission "${org.apache.river.qa.home}${/}harness${/}trust${/}dynamic-policy.properties", "read";
+    permission java.io.FilePermission "${org.apache.river.qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
+    permission java.io.FilePermission "${org.apache.river.qa.home}${/}harness${/}trust${/}truststore", "read";
+    permission java.io.FilePermission "harness${/}trust${/}dynamic-policy.properties", "read";
+    permission java.io.FilePermission "src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission java.io.FilePermission "harness${/}trust${/}jsselogins", "read";
 };
 
 grant
