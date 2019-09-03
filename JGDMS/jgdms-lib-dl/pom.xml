@@ -40,7 +40,7 @@
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>
-            <version>3.1.1-SNAPSHOT</version>
+            <version>${project.version}</version>
             <type>jar</type>
         </dependency>
         <dependency>
@@ -77,7 +77,6 @@
              <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -90,10 +89,9 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
                 <configuration>
-                      <source>1.5</source>
-                        <target>1.5</target>
+                      <source>1.6</source>
+                        <target>1.6</target>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>

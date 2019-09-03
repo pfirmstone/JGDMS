@@ -127,7 +127,7 @@ public class ReferrerTimeTest {
         instance.putIfAbsent(ints[3], "Three");
         instance.putIfAbsent(ints[4], "Four");
         for (int i=0; i<6; i++){
-            Thread.sleep(300L);
+            Thread.sleep(350L);
             System.out.println(instance.get(ints[1]));
         }
         assertTrue(instance.containsKey(ints[1]));

@@ -89,25 +89,9 @@
                     </execution>
                 </executions>
             </plugin> 
-            <!--<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>2.2</version>
-                <configuration>
-                    <archive>                
-                        <manifestEntries>
-                            <Main-Class>org.apache.river.start.ServiceStarter</Main-Class>
-                            <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>jgdms-url-integrity.jar</Class-Path>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>--> 
-
              <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>

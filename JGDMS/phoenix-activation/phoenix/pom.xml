@@ -58,7 +58,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.6</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -67,10 +67,9 @@
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
                 <configuration>
-                        <source>1.5</source>
-                        <target>1.5</target>
+                        <source>1.6</source>
+                        <target>1.6</target>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>
@@ -101,29 +100,7 @@
                         <argument>org.apache.river.phoenix.AbstractRegistry</argument>
                     </arguments>
                 </configuration>
-                    <!--<exec executable="rmic">
-                        <arg value="-v1.1" />
-                        <arg value="-classpath" />
-                        <arg value="${build.classes.dir}" />
-                        <arg value="-d" />
-                        <arg value="${build.classes.dir}" />
-                        <arg value="au.net.zeus.jgdms.phoenix.AbstractRegistry" />
-                    </exec>-->
             </plugin>
-            <!--<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>2.2</version>
-                <configuration>
-                    <archive>                
-                        <manifestEntries>
-                            <Main-Class>org.apache.river.phoenix.Activation</Main-Class>
-                            <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>jgdms-url-integrity-${project.version}.jar, jgdms-lib-${project.version}.jar, phoenix-dl-${project.version}.jar</Class-Path>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>-->
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
@@ -149,7 +126,6 @@
              <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>

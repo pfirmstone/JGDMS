@@ -65,7 +65,18 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin> 
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                        <source>1.6</source>
+                        <target>1.6</target>
+                        <optimize>true</optimize>
+                        <encoding>UTF-8</encoding>
+                        <meminitial>128m</meminitial>
+                        <maxmem>1024m</maxmem>
+                    </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

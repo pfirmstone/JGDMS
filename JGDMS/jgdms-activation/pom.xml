@@ -65,7 +65,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.6</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -136,7 +136,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -149,33 +148,16 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
                 <configuration>
-                        <source>1.5</source>
+                        <source>1.6</source>
                         <profile>compact1</profile>
-                        <target>1.5</target>
+                        <target>1.6</target>
                         <debug>true</debug>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>
                         <maxmem>1024m</maxmem>
                     </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>retrotranslator-maven-plugin</artifactId>
-                <version>1.0-alpha-4</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>translate-project</goal>
-                        </goals>
-                        <configuration>
-                            <classifier>jdk14</classifier>
-                            <attach>true</attach>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

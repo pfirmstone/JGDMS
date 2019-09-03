@@ -49,7 +49,7 @@
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-jeri</artifactId>
-            <version>3.1.1-SNAPSHOT</version>
+            <version>${project.version}</version>
             <type>jar</type>
         </dependency>
         <dependency>
@@ -65,13 +65,13 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.6</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>biz.aQute.bnd</groupId>
             <artifactId>biz.aQute.bnd.annotation</artifactId>
-            <version>3.3.0</version>
+            <version>${bnd.annotation.version}</version>
             <scope>compile</scope>
         </dependency>
      </dependencies>
@@ -99,51 +99,10 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>        
-            <!--<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>2.2</version>
-                <configuration>
-                    <archive>                
-                        <manifestEntries>
-                                <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>jgdms-resources-${project.version}.jar high-scale-lib-${high.scale.lib.version}.jar</Class-Path>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>-->
-
-            <!--<plugin>
-               <groupId>org.codehaus.gmaven</groupId>
-               <artifactId>gmaven-plugin</artifactId>
-               <configuration>
-                    <providerSelection>${gmavenProviderSelection}</providerSelection>
-                    <source />
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>generateStubs</goal>
-                            <goal>compile</goal>
-                            <goal>generateTestStubs</goal>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.codehaus.groovy</groupId>
-                        <artifactId>groovy-all</artifactId>
-                        <version>${groovy.version}</version>
-                    </dependency>
-                </dependencies>
-            </plugin>-->						
-
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -156,33 +115,16 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
                 <configuration>
-                        <source>1.5</source>
+                        <source>1.6</source>
                         <profile>compact1</profile>
-                        <target>1.5</target>
+                        <target>1.6</target>
                         <debug>true</debug>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>
                         <maxmem>1024m</maxmem>
                     </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>retrotranslator-maven-plugin</artifactId>
-                <version>1.0-alpha-4</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>translate-project</goal>
-                        </goals>
-                        <configuration>
-                            <classifier>jdk14</classifier>
-                            <attach>true</attach>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

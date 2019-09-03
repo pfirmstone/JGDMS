@@ -69,20 +69,6 @@
 
     <build>
         <plugins>
-            <!--<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>2.2</version>
-                <configuration>
-                    <archive>                
-                        <manifestEntries>
-                            <Main-Class>org.apache.river.start.ServiceStarter</Main-Class>
-                            <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>jgdms-url-integrity.jar</Class-Path>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>--> 
             <plugin>
               <groupId>biz.aQute.bnd</groupId>
               <artifactId>bnd-maven-plugin</artifactId>
@@ -108,7 +94,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -118,6 +103,19 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                        <source>1.6</source>
+                        <profile>compact1</profile>
+                        <target>1.6</target>
+                        <debug>true</debug>
+                        <optimize>true</optimize>
+                        <encoding>UTF-8</encoding>
+                        <meminitial>128m</meminitial>
+                        <maxmem>1024m</maxmem>
+                    </configuration>
             </plugin>
         </plugins>
     </build>
