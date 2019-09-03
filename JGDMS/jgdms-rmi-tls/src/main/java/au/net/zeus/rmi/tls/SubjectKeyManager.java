@@ -27,7 +27,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import javax.net.ssl.X509KeyManager;
 import javax.security.auth.Subject;
@@ -72,7 +74,7 @@ abstract class SubjectKeyManager extends FilterX509TrustManager implements X509K
      * The exception that occurred within the last call to chooseClientAlias if
      * no credential could be supplied.
      */
-    protected Exception clientCredentialException;
+    protected final Map<String, Exception> exceptionMap = new LinkedHashMap<String, Exception>();
 
     /**
      * The latest time for which all client and server credentials remain

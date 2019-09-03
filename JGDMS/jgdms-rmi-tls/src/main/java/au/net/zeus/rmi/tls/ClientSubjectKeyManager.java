@@ -57,6 +57,7 @@ class ClientSubjectKeyManager extends SubjectKeyManager {
 	super(subject);
     }
 
+    @Override
     public String[] getClientAliases(String keyType, Principal[] issuers) {
 	List certPaths = getCertificateChains(getSubject());
 	if (certPaths == null) {
@@ -91,53 +92,43 @@ class ClientSubjectKeyManager extends SubjectKeyManager {
 	}
     }
 
+    @Override
     public synchronized String chooseClientAlias(String[] keyTypes, Principal[] issuers, Socket socket) {
 	/*
 	 * Only choose new client credentials for the first handshake.
 	 * Otherwise, just use the previous client credentials.
 	 */
-	if (clientCredentialException != null) {
-	    return null;
-	} else if (clientCredential == null) {
-	    List exceptions = null;
-	    for (int i = 0, l = keyTypes.length; i < l; i++) {
-		Exception exception;
+	if (clientCredential == null) {
+	    for (String keyType : keyTypes) {
 		try {
-		    clientCredential = chooseCredential(keyTypes[i], issuers);
+		    if (exceptionMap.get(keyType) != null) {
+			// Prior exception found for keytype
+			return null;
+		    }
+
+		    clientCredential = chooseCredential(keyType, issuers);
 		    if (clientCredential != null) {
+                        // clientCredential found
+			exceptionMap.put(keyType, null);
 			break;
+                        
+                    } else {
+			exceptionMap.put(keyType,
+                            new GeneralSecurityException("Credentials not found"));
 		    }
 		    continue;
+                    
 		} catch (GeneralSecurityException e) {
-		    exception = e;
+		    exceptionMap.put(keyType, e);
 		} catch (SecurityException e) {
-		    exception = e;
+		    exceptionMap.put(keyType, e);
 		}
-		if (exceptions == null) {
-		    exceptions = new ArrayList();
-		}
-		exceptions.add(exception);
 	    }
 	    if (clientCredential == null) {
-		if (exceptions == null) {
-		    clientCredentialException = new GeneralSecurityException("Credentials not found");
-		} else if (exceptions.size() == 1) {
-		    clientCredentialException = (Exception) exceptions.get(0);
-		} else {
-		    for (int i = exceptions.size(); --i >= 0;) {
-			Exception e = (Exception) exceptions.get(i);
-			if (!(e instanceof SecurityException)) {
-			    clientCredentialException = new GeneralSecurityException(exceptions.toString());
-			    break;
-			}
-		    }
-		    if (clientCredentialException == null) {
-			clientCredentialException = new SecurityException(exceptions.toString());
-		    }
-		}
 		return null;
 	    }
 	}
+        
 	X509Certificate cert = clientCredential.getCertificate();
 	clientPrincipal = cert.getSubjectX500Principal();
 	credentialsValidUntil = Math.min(credentialsValidUntil, certificatesValidUntil(getCertificateChain(getSubject(), cert)));
@@ -171,10 +162,12 @@ class ClientSubjectKeyManager extends SubjectKeyManager {
 	}
     }
 
+    @Override
     public String[] getServerAliases(String arg0, Principal[] arg1) {
 	return null;
     }
 
+    @Override
     public String chooseServerAlias(String arg0, Principal[] arg1, Socket arg2) {
 	return null;
     }
@@ -199,6 +192,7 @@ class ClientSubjectKeyManager extends SubjectKeyManager {
      * @throws SecurityException if the access control context does not have
      *	       the proper AuthenticationPermission
      */
+    @Override
     synchronized X500PrivateCredential getPrivateCredential(X509Certificate cert) {
 	return getPrivateCredential(cert, getAuthenticationPermission(cert));
     }
