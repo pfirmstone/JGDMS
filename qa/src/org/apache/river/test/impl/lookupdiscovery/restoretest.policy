@@ -10,6 +10,42 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
 grant codebase "file:${org.apache.river.qa.harness.testJar}" {
     permission java.util.PropertyPermission "*", "read,write";
     permission java.io.FilePermission "<<ALL FILES>>", "read,execute";
