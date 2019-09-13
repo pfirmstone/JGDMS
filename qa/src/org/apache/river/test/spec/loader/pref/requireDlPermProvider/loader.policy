@@ -12,6 +12,42 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
 
 /* end grants required for SecurityManager during startup. */
 
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
 /*
  * Test-specific policy:
  * 1. allow classes coming from qa1-loader-pref.jar (via http:// and file:/)
