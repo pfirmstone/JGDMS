@@ -174,30 +174,5 @@ class ActivationGroupIDSerializer implements Serializable {
 	}
     }
     
-    /**
-     * Had to place this here due to readResolve method of Serializer.
-     */
-    static final class ActivationGroupID implements Serializable {
-        private static final long serialVersionUID = -1648432278909740833L;
-
-         private static final ObjectStreamField[] serialPersistentFields = 
-            {
-                new ObjectStreamField("system", java.rmi.activation.ActivationSystem.class),
-                new ObjectStreamField("uid", java.rmi.server.UID.class)
-            };
-
-         java.rmi.activation.ActivationSystem system;
-
-         java.rmi.server.UID uid;
-
-         ActivationGroupID(){}
-
-         ActivationGroupID(java.rmi.activation.ActivationSystem system,
-                           java.rmi.server.UID uid )
-         {
-             this.system = system;
-             this.uid = uid;
-         }
-    }
     
 }

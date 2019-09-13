@@ -24,7 +24,6 @@ import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URL;
 import java.rmi.MarshalledObject;
