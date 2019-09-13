@@ -123,7 +123,7 @@ public class Resolve_VerifyCodebaseIntegrityTest extends QATestEnvironment imple
         // transferObject field values
         String string = "transfer string";
         Object fakeArg = ClassLoading.loadClass(codebase,
-            "org.apache.river.test.spec.io.util.FakeArgument", null, false, null).newInstance();
+            "org.apache.river.test.spec.io.util.FakeArgument", null, false, null).getDeclaredConstructor().newInstance();
         Object proxy = Proxy.newProxyInstance(
                     ClassLoading.getClassLoader(codebase),
                     new Class[] {ClassLoading.loadClass(
