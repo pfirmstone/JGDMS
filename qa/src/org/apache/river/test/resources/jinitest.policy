@@ -61,13 +61,13 @@ grant {
 //JDK9
 // Java 8 sun policy provider cannot read, as there is no jrt URLHandler
 // ConcurrentPolicyFile can handle these as it uses RFC3968 URI.
-//grant codebase "jrt:/jdk.security.auth" {
-//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore.password" "read";
-//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore" "read";
-//    permission javax.security.auth.AuthPermission "modifyPrincipals";
-//    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
-//    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
-//};
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore.password" "read";
+    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore" "read";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+};
 
 grant {
     permission org.apache.river.phoenix.ExecOptionPermission "*";
@@ -111,11 +111,6 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-ext${/}*" {
 // jdk1.6 compiler optimisations. See River-334
 grant codebase "file:${org.apache.river.test.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
-};
-
-// required for new PolicyFile provider.
-grant codeBase "file:${{java.ext.dirs}}/*" {
-        permission java.security.AllPermission;
 };
 
 grant codebase "file:${org.apache.river.qa.harness.testJar}" {
