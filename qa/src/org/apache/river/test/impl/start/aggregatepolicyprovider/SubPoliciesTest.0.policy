@@ -17,15 +17,46 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" 
     permission java.security.AllPermission "", "";
 };
 
-grant codeBase "file:${{java.ext.dirs}}/*" {
-        permission java.security.AllPermission;
-};
-
-
 // For SecurityManager used from command line
 grant codeBase "file:${org.apache.river.qa.home}${/}lib${/}qa1-start-tests.jar" {
     //permission java.io.FilePermission "-", "read";
     permission java.lang.RuntimePermission "getProtectionDomain";
+};
+
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
 };
 
 grant {
