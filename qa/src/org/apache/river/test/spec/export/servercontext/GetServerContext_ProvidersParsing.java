@@ -292,7 +292,7 @@ public class GetServerContext_ProvidersParsing extends QATestEnvironment impleme
                                 "The Server Context Provider does implement"
                                 + " net.jini.export.ServerContext.Spi");
                         ServerContext.Spi srvCnxtProvider = (ServerContext.Spi)
-                                cl.newInstance();
+                                cl.getDeclaredConstructor().newInstance();
 
                         /*
                          * Invoke this getServerContext() method and store

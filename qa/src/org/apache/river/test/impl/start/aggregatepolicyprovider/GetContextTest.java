@@ -88,19 +88,19 @@ public class GetContextTest extends QATestEnvironment implements Test {
 	    new URL("file", "", getContextJarFile) });
 	Runnable getContext = (Runnable) Class.forName(
                 "org.apache.river.test.impl.start.aggregatepolicyprovider"
-                + ".GetContext", true, ldr1).newInstance();
+                + ".GetContext", true, ldr1).getDeclaredConstructor().newInstance();
 
 	ClassLoader ldr2 = new URLClassLoader(new URL[]{
 	    new URL("file", "", restoreContextJarFile) });
 	Runnable restoreContext = (Runnable) Class.forName(
                 "org.apache.river.test.impl.start.aggregatepolicyprovider"
-                + ".RestoreContext", true, ldr2).newInstance();
+                + ".RestoreContext", true, ldr2).getDeclaredConstructor().newInstance();
 
 	ClassLoader ldr3 = new URLClassLoader(new URL[]{
 	    new URL("file", "", checkContextActionJarFile) });
 	checkContextAction = (PrivilegedAction) Class.forName(
                 "org.apache.river.test.impl.start.aggregatepolicyprovider"
-                + ".CheckContextAction", true, ldr3).newInstance();
+                + ".CheckContextAction", true, ldr3).getDeclaredConstructor().newInstance();
 
 	contextClassLoader = ldr3;
 	Thread.currentThread().setContextClassLoader(contextClassLoader);

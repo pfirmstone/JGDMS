@@ -46,7 +46,7 @@ public class KerberosWrapper extends AbstractEndpointTest {
         String wrappedTest = sysConfig
             .getStringConfigVal("jeri.transport.wrappedTest",null);
         Class c = Class.forName(wrappedTest);
-        final LegacyTest test = (LegacyTest) c.newInstance();
+        final LegacyTest test = (LegacyTest) c.getDeclaredConstructor().newInstance();
         test.construct(sysConfig);
         Subject.doAs(subject,
             new PrivilegedExceptionAction(){

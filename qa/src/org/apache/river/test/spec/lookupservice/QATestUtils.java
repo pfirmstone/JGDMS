@@ -409,7 +409,7 @@ public class QATestUtils {
     {
         Object o = null;
         if (constructorArgs == null) {
-	    o = classObj.newInstance();
+	    o = classObj.getDeclaredConstructor().newInstance();
         } else {
             Class[] constructorArgTypes = new Class[constructorArgs.length];
 	    for (int i=0;i<constructorArgs.length;i++) {
@@ -1147,7 +1147,7 @@ public class QATestUtils {
         superClass = obj.getClass().getSuperclass();
         while(true) {
             if( !(superClass.getSuperclass() == null) ) {
-		objSupers.addElement( superClass.newInstance() );
+		objSupers.addElement( superClass.getDeclaredConstructor().newInstance() );
                 superClass = superClass.getSuperclass();
 	    } else {
                 return objSupers;

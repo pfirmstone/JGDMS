@@ -1022,7 +1022,7 @@ public class Browser extends JFrame implements Startable {
 	public void actionPerformed(ActionEvent ev) {
 	    Entry ent;
 	    try {
-		ent = (Entry)type.newInstance();
+		ent = (Entry)type.getDeclaredConstructor().newInstance();
 	    } catch (Throwable t) {
 		logger.log(Level.INFO, "creating entry failed", t);
 		return;

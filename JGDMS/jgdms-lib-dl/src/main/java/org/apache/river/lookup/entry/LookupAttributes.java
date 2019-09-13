@@ -24,8 +24,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
 
 /**
@@ -337,7 +340,7 @@ public class LookupAttributes {
      */
     private static Entry update(Entry e, Entry mods) {
 	try {
-	    Entry ec = (Entry)e.getClass().newInstance();
+	    Entry ec = (Entry)e.getClass().getDeclaredConstructor().newInstance();
 	    Field[] mfields = getFields(mods);
 	    Field[] efields = getFields(e, mods, mfields);
 	    for (int i = efields.length; --i >= 0; ) {
@@ -355,7 +358,13 @@ public class LookupAttributes {
 	} catch (IllegalAccessException ex) {
 	    throw new IllegalArgumentException(
 				       "unexpected IllegalAccessException");
-	}
+	} catch (NoSuchMethodException ex) {
+            throw new IllegalArgumentException(
+				       "unexpected NoSuchMethodException");
+        } catch (InvocationTargetException ex) {
+            throw new IllegalArgumentException(
+				       "unexpected IllegalArgumentException");
+        } 
     }
 
     /** 

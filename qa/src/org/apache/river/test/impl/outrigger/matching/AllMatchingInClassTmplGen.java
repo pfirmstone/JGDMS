@@ -36,6 +36,7 @@ class AllMatchingInClassTmplGen extends ReflectionTmplGenBase
         limit = (0x1l << (matchFields.length));
     }
 
+    @Override
     synchronized public Entry next()
             throws InvocationTargetException, IllegalAccessException,
             InstantiationException {
@@ -44,7 +45,12 @@ class AllMatchingInClassTmplGen extends ReflectionTmplGenBase
         }
 
         // Not done
-        Entry rslt = (Entry) masterClass.newInstance();
+        Entry rslt;
+        try {
+            rslt = (Entry) masterClass.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException ex) {
+            throw new InvocationTargetException(ex);
+        } 
         long indicator = selector++;
 
         for (int i = 0; i < matchFields.length; i++) {

@@ -117,7 +117,7 @@ public class RestoreContextForTasks extends BaseQATest implements Test {
 	    {path.toURL()},
 	    this.getClass().getClassLoader(), null, false);
 	tp = (TestTaskProducer)
-	    Class.forName(CLASSNAME, true, cl).newInstance();
+	    Class.forName(CLASSNAME, true, cl).getDeclaredConstructor().newInstance();
 	uld = tp.setup(sysConfig.getConfiguration());
         return this;
     }

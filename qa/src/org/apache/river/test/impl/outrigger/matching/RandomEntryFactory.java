@@ -115,7 +115,7 @@ public class RandomEntryFactory {
         Entry e = null;
 
         try {
-            e = (Entry) c.newInstance();
+            e = (Entry) c.getDeclaredConstructor().newInstance();
             entryInit(e, false);
         } catch (Exception ex) {
             ex.printStackTrace();

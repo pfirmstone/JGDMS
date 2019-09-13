@@ -151,7 +151,7 @@ public class AggregatePolicyProvider
 	    cname = defaultMainPolicyClass;
 	}
 	try {
-	    mainPolicy = (Policy) Class.forName(cname).newInstance();
+	    mainPolicy = (Policy) Class.forName(cname).getDeclaredConstructor().newInstance();
 	} catch (SecurityException e) {
 	    throw e;
 	} catch (Exception e) {

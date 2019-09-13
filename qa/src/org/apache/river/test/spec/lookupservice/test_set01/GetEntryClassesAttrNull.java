@@ -154,9 +154,9 @@ public class GetEntryClassesAttrNull extends QATestRegistrar {
 	    /* load each attribute class */
 	    Class loadedAttrObj = Class.forName(ATTR_CLASSES[i]);
 	    /* create a "no-arg" instance of the class just loaded */
-	    srvcAttrs[i][0] = (Entry)loadedAttrObj.newInstance();
+	    srvcAttrs[i][0] = (Entry)loadedAttrObj.getDeclaredConstructor().newInstance();
 	    /* create another "no-arg" instance of the class just loaded */
-	    attrInstance[i] = (Entry)loadedAttrObj.newInstance();
+	    attrInstance[i] = (Entry)loadedAttrObj.getDeclaredConstructor().newInstance();
         }
 
         /* create the array-of-arrays of type Entry where each element is

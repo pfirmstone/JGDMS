@@ -536,7 +536,7 @@ class ServiceEditor extends JFrame {
       } else {
 	try {
 	  Class clazz = Class.forName(result);
-	  Object attr = clazz.newInstance();
+	  Object attr = clazz.getDeclaredConstructor().newInstance();
 
 	  if(! (attr instanceof Entry)){
 	    JOptionPane.showMessageDialog(AttributeTreePanel.this,
@@ -645,7 +645,7 @@ class ServiceEditor extends JFrame {
     private Entry cloneEntry(Entry attr) {
       try {
 	Class realClass = attr.getClass();
-	Entry template = (Entry) realClass.newInstance();
+	Entry template = (Entry) realClass.getDeclaredConstructor().newInstance();
 
 	Field[] f = realClass.getFields();
 	for(int i = 0; i < f.length; i++) {
@@ -677,7 +677,7 @@ class ServiceEditor extends JFrame {
     private Entry generateTemplate(Entry attr) {
       try {
 	Class realClass = attr.getClass();
-	Entry template = (Entry) realClass.newInstance();
+	Entry template = (Entry) realClass.getDeclaredConstructor().newInstance();
 
 	Field[] f = realClass.getFields();
 	for(int i = 0; i < f.length; i++)

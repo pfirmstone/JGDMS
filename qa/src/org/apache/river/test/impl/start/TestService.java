@@ -22,6 +22,7 @@ import java.rmi.RemoteException;
 import java.io.File;
 import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.lang.reflect.InvocationTargetException;
 
 import net.jini.id.Uuid;
 
@@ -49,7 +50,8 @@ public interface TestService extends Remote {
      */
     public Object loadClass(String className)
         throws RemoteException, ClassNotFoundException,
-            IllegalAccessException, InstantiationException;
+            IllegalAccessException, InstantiationException,
+            NoSuchMethodException, InvocationTargetException;
 
     /**
      * Set the value of a static variable 

@@ -757,7 +757,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
         Entry[] attrs = new Entry[ATTR_CLASSES.length];
         for (i=0;i<nAttrClasses;i++) {
 	        Class loadedAttrObj = Class.forName(ATTR_CLASSES[i]);
-                attrs[i] = (Entry)loadedAttrObj.newInstance();
+                attrs[i] = (Entry)loadedAttrObj.getDeclaredConstructor().newInstance();
         }
         return attrs;
     }

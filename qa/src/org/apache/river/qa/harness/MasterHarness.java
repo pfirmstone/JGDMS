@@ -1185,7 +1185,7 @@ class MasterHarness {
 					    true,
 					    config.getTestLoader());
 		    ConfigurationVerifier v = 
-			(ConfigurationVerifier) c.newInstance();
+			(ConfigurationVerifier) c.getDeclaredConstructor().newInstance();
 		    if (!v.canRun(td, config)) {
 			return false;
 		    }

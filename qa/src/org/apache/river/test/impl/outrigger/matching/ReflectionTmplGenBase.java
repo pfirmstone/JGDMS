@@ -88,7 +88,12 @@ class ReflectionTmplGenBase {
     protected Entry createAndInit(Class targetClass)
             throws InvocationTargetException, IllegalAccessException,
             InstantiationException {
-        final Entry target = (Entry) targetClass.newInstance();
+        final Entry target;
+        try {
+            target = (Entry) targetClass.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException ex) {
+            throw new InvocationTargetException(ex);
+        }
         final Field[] targetFields = targetClass.getFields();
 
         for (int i = 0; i < targetFields.length; i++) {

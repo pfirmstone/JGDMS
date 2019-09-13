@@ -165,7 +165,7 @@ public class GetEntryClassesAttrVals extends QATestRegistrar {
 	    /* load each attribute class */
 	    Class loadedAttrObj = Class.forName(ATTR_CLASSES[i]);
 	    /* create a "no-arg" instance of the class just loaded */
-	    srvcAttrs[i][0] = (Entry)loadedAttrObj.newInstance();
+	    srvcAttrs[i][0] = (Entry)loadedAttrObj.getDeclaredConstructor().newInstance();
 
 	    /* use reflection to retrieve the method setDefaults() -- if
                  * it exists -- from the attribute instance just created,
@@ -182,7 +182,7 @@ public class GetEntryClassesAttrVals extends QATestRegistrar {
 	    } catch (SecurityException e) {
 	    }
 	    /* create another "no-arg" instance of the class just loaded */
-	    attrInstance[i] = (Entry)loadedAttrObj.newInstance();
+	    attrInstance[i] = (Entry)loadedAttrObj.getDeclaredConstructor().newInstance();
 
 	    /* use reflection to retrieve the method setDefaults() -- if
                  * it exists -- from the attribute instance just created,

@@ -371,7 +371,7 @@ public class TestDescription implements Serializable {
 	if (className != null) {
 	    try {
 		Class testClass = Class.forName(className);
-		test = (TestEnvironment) testClass.newInstance();
+		test = (TestEnvironment) testClass.getDeclaredConstructor().newInstance();
 	    } catch (Throwable e) {
 		logger.log(Level.INFO, 
 			   "Failed to instantiate " + className,

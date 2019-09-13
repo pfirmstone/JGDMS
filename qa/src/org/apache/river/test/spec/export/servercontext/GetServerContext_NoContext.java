@@ -245,7 +245,7 @@ public class GetServerContext_NoContext extends QATestEnvironment implements Tes
                                 "The Server Context Provider does implement"
                                 + " net.jini.export.ServerContext.Spi");
                         ServerContext.Spi srvCnxtProvider = (ServerContext.Spi)
-                                cl.newInstance();
+                                cl.getDeclaredConstructor().newInstance();
 
                         /*
                          * Invoke this getServerContext() method and verify

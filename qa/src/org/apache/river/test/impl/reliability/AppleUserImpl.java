@@ -276,7 +276,7 @@ public class AppleUserImpl extends QATestEnvironment implements AppleUser, Test 
 	    } else {
 	        Class app = Class.forName(
 		    "org.apache.river.test.impl.reliability.ApplicationServer");
-	        server = new Thread((Runnable) app.newInstance());
+	        server = new Thread((Runnable) app.getDeclaredConstructor().newInstance());
 	        logger.log(Level.INFO, "Starting application server " +
                     "in same process");
 	        server.start();

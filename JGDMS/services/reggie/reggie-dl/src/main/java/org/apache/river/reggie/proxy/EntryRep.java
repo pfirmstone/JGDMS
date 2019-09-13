@@ -170,7 +170,7 @@ public final class EntryRep implements Serializable, Cloneable {
 	try {
 	    Class clazz = eclass.toClass(codebase);
 	    EntryField[] efields = ClassMapper.getFields(clazz);
-	    Entry entry = (Entry)clazz.newInstance();
+	    Entry entry = (Entry)clazz.getDeclaredConstructor().newInstance();
 	    for (int i = efields.length; --i >= 0; ) {
 		Object val = flds.get(i);
 		EntryField f = efields[i];

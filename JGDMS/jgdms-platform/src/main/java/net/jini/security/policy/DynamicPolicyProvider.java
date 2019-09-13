@@ -211,7 +211,7 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
             revoke = tRue;
         }
 	try {
-	    basePolicy = (Policy) Class.forName(cname).newInstance();
+	    basePolicy = (Policy) Class.forName(cname).getDeclaredConstructor().newInstance();
 	} catch (SecurityException e) {
 	    throw e;
 	} catch (Exception e) {

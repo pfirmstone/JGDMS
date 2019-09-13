@@ -44,6 +44,7 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.FileInputStream;
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.AccessControlContext;
@@ -164,12 +165,14 @@ public class TestServiceImpl implements TestService, ProxyAccessor, Startable {
 
     // inherit javadoc
     // used by CodebaseTest & ClasspathTest
+    @Override
     public Object loadClass(String className)
         throws RemoteException, ClassNotFoundException,
-            IllegalAccessException, InstantiationException
+            IllegalAccessException, InstantiationException,
+            NoSuchMethodException, InvocationTargetException
     {
         Class newClass = Class.forName(className);
-        return newClass.newInstance();
+        return newClass.getDeclaredConstructor().newInstance();
     }
 
     // inherit javadoc

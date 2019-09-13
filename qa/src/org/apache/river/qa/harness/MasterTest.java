@@ -136,7 +136,7 @@ class MasterTest {
 	    if (analyzerArray != null) {
 		for (int i = 0; i < analyzerArray.length; i++) {
 		    Class aClass = Class.forName(analyzerArray[i]);
-		    FailureAnalyzer f = (FailureAnalyzer) aClass.newInstance();
+		    FailureAnalyzer f = (FailureAnalyzer) aClass.getDeclaredConstructor().newInstance();
 		    config.addFailureAnalyzer(f);
 		}
 	    }

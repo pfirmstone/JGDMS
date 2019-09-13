@@ -2469,14 +2469,22 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		try {
 		    atomicOrDiscard = false;
 		    classDesc.deSerializationPermitted(EXTERNALIZABLE); // Permission check
-		    result = objectClass.newInstance();
+		    result = objectClass.getDeclaredConstructor().newInstance();
 		    registerObjectRead(Reference.CIRCULAR, newHandle, unshared);
 		    registeredResult = result;
 		} catch (InstantiationException ex) {
 		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
 		} catch (IllegalAccessException ex) {
 		    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
-		}
+		} catch (NoSuchMethodException ex) {
+                    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
+                } catch (SecurityException ex) {
+                    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
+                } catch (IllegalArgumentException ex) {
+                    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
+                } catch (InvocationTargetException ex) {
+                    Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, null, ex);
+                }
 	    } else if (discard){
 		registerObjectRead(Reference.DISCARDED, newHandle, unshared);
 		instantiateAtomicSerialOrDiscard(classDesc, discard);

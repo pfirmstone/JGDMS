@@ -119,7 +119,7 @@ public class PolicyFileProvider extends AbstractPolicy {
 	    cname = defaultBasePolicyClass;
 	}
 	try {
-	    basePolicy = (Policy) Class.forName(cname).newInstance();
+	    basePolicy = (Policy) Class.forName(cname).getDeclaredConstructor().newInstance();
 	} catch (SecurityException e) {
 	    throw e;
 	} catch (Exception e) {
@@ -193,7 +193,7 @@ public class PolicyFileProvider extends AbstractPolicy {
 		String oldp = System.getProperty(policyProperty);
                 System.setProperty(policyProperty, policyFile);
 		try {
-		    basePolicy = (Policy) cl.newInstance();
+		    basePolicy = (Policy) cl.getDeclaredConstructor().newInstance();
 		} finally {
 		    resetPolicyProperty(oldp);
 		}

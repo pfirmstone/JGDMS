@@ -65,7 +65,7 @@ class ReportHandler extends StreamHandler {
 	    val = manager.getProperty(cname +".filter");
 	    if (val != null) {
                 Class clz = ClassLoader.getSystemClassLoader().loadClass(val);
-                setFilter((Filter) clz.newInstance());
+                setFilter((Filter) clz.getDeclaredConstructor().newInstance());
 	    }
 	} catch (Exception ignore) {
 	}
@@ -74,7 +74,7 @@ class ReportHandler extends StreamHandler {
 	    val = manager.getProperty(cname +".formatter");
 	    if (val != null) {
                 Class clz = ClassLoader.getSystemClassLoader().loadClass(val);
-                setFormatter((Formatter) clz.newInstance());
+                setFormatter((Formatter) clz.getDeclaredConstructor().newInstance());
 	    }
 	} catch (Exception ignore) {
 	}

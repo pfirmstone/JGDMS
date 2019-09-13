@@ -489,7 +489,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
                     throw throwNewUnusableEntryException(
                         new IncompatibleClassChangeError(realClass + " changed"));
 
-                entryObj = (Entry) realClass.newInstance();
+                entryObj = (Entry) realClass.getDeclaredConstructor().newInstance();
 
                 Field[] fields = getFields(realClass);
 

@@ -50,7 +50,7 @@ public class SubVM {
 		System.exit(1);
 	    }
 	    Class subVMTaskClass = Class.forName(args[0]);
-	    SubVMTask task = (SubVMTask) subVMTaskClass.newInstance();
+	    SubVMTask task = (SubVMTask) subVMTaskClass.getDeclaredConstructor().newInstance();
 	    String[] newArgs = new String[args.length - 1];
 	    System.arraycopy(args, 1, newArgs, 0, newArgs.length);
 	    writeResponse(task.run(newArgs));

@@ -298,7 +298,7 @@ public final class Service {
                     );
 		    fail(service, "Provider " + cn + " is of incorrect type");
 		}
-		return c.newInstance();
+		return c.getDeclaredConstructor().newInstance();
 	    } catch (ClassNotFoundException x) {
 		fail(service,
 		     "Provider " + cn + " not found");

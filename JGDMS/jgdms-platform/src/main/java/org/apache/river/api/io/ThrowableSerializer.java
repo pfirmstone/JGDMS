@@ -288,7 +288,7 @@ class ThrowableSerializer implements Serializable {
                 }
                 return result;
             }
-            result = clas.newInstance(); /* None of the above constructors match */
+            result = clas.getDeclaredConstructor().newInstance(); /* None of the above constructors match */
             if (cause != null){
                 if (RemoteException.class.isAssignableFrom(clas)){
                     ((RemoteException) result).detail = cause;
@@ -318,7 +318,9 @@ class ThrowableSerializer implements Serializable {
 	    throw throIO(ex);
 	} catch (InvocationTargetException ex) {
 	    throw throIO(ex);
-	}
+	} catch (NoSuchMethodException ex) {
+            throw throIO(ex);
+        }
     }
     
     static Constructor getConstructor(Constructor [] cons, Class [] paramTypes){

@@ -62,11 +62,20 @@ class MismatchTmplGen extends ReflectionTmplGenBase
             }
 
             try {
-                target.newInstance();
+                target.getDeclaredConstructor().newInstance();
             } catch (InstantiationException e) {
                 throw new IllegalArgumentException("Not all of the Classes in "
                         + "the array are valid Entry implementations");
             } catch (IllegalAccessException e) {
+                throw new IllegalArgumentException("Not all of the Classes in "
+                        + "the array are valid Entry implementations");
+            } catch (NoSuchMethodException ex) {
+                throw new IllegalArgumentException("Not all of the Classes in "
+                        + "the array are valid Entry implementations");
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("Not all of the Classes in "
+                        + "the array are valid Entry implementations");
+            } catch (InvocationTargetException ex) {
                 throw new IllegalArgumentException("Not all of the Classes in "
                         + "the array are valid Entry implementations");
             }

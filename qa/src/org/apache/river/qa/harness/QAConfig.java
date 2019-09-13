@@ -2564,7 +2564,7 @@ public final class QAConfig implements Serializable {
 	    for (int i = 0; i < providers.length; i++) {
 		try {
 		    Class c = Class.forName(providers[i], true, testLoader);
-		    OverrideProvider op = (OverrideProvider) c.newInstance();
+		    OverrideProvider op = (OverrideProvider) c.getDeclaredConstructor().newInstance();
 		    overrideProviders.add(op);
 		} catch (Exception e) {
 		    throw new TestException("Bad OverrideProvider", e);

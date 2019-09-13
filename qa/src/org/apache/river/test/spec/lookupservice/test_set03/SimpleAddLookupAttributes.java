@@ -84,7 +84,7 @@ public class SimpleAddLookupAttributes extends QATestRegistrar {
          */
         for (int i=0;i<ATTR_CLASSES.length;i++) {
 	    Class loadedAttrObj = Class.forName(ATTR_CLASSES[i]);
-	    attrInstances[i] = (Entry)loadedAttrObj.newInstance();
+	    attrInstances[i] = (Entry)loadedAttrObj.getDeclaredConstructor().newInstance();
 	}
         return this;
     }
