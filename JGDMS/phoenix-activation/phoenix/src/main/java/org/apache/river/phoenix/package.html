@@ -207,20 +207,6 @@ new {@link net.jini.jeri.BasicJeriExporter}(
       Description: <td> {@link java.rmi.activation.ActivationMonitor} exporter
   </table>
 
-  <table summary="Describes the registryExporter configuration entry"
-         border="0" cellpadding="2">
-    <tr valign="top">
-      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
-      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
-      registryExporter</code></font>
-    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> <code>{@link net.jini.export.Exporter}</code>
-    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-        Default: <td> <code>null</code> Deprecated: <code> new {@link org.apache.river.phoenix.RegistrySunExporter}()</code>
-    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Description: <td> {@link java.rmi.registry.Registry} exporter
-  </table>
-
 <table summary="Describes the registryRmiServerSocketFactory configuration entry"
          border="0" cellpadding="2">
     <tr valign="top">
@@ -409,8 +395,8 @@ directory Phoenix uses to write its persistent database. If the named
 directory does not exist, Phoenix will create it. Only the directory itself
 will be created; the parent directory must already exist.
 <p>
-Phoenix exports four remote objects: activator, activation system, activation
-monitor, and registry. Each object is exported using an <code>Exporter</code>
+Phoenix exports three remote objects: activator, activation system and activation
+monitor. Each object is exported using an <code>Exporter</code>
 obtained from the configuration. Phoenix provides various classes to
 facilitate the configuration of these exporters, as described further below.
 None of the remote objects implement any access control directly; any desired
@@ -425,6 +411,17 @@ references, the exporters for the activator and the activation system must
 produce proxies that are reusable across restarts of Phoenix. For JRMP and
 Jini extensible remote invocation (Jini ERI), this means using fixed object
 identifiers and fixed ports.
+<p>
+Phoenix creates and exports a <code>Registry</code> instance on the local
+ host. Custom socket factories for communication may be specified in
+ configuration.  The registry that is created listens for incoming
+ requests on the given <code>port</code> using a
+ <code>ServerSocket</code> created from the configured
+ <code>RMIServerSocketFactory</code>.  Refer to the registryRmiServerSocketFactory,
+ registryRmiClientSocketFactory and registryPort configuration options above.
+ It is recommended to secure the
+ <code>Registry</code> by configuring Phoenix to use TLS Sockets.
+</p>
 <p>
 If the activator supports constraints (meaning the activator proxy implements
 {@link net.jini.core.constraint.RemoteMethodControl}), then the
@@ -555,12 +552,6 @@ levels:
 
 <h2>Exporter classes</h2>
 
-The following class is useful for exporting the registry:
-<ul>
-<li>{@link org.apache.river.phoenix.RegistrySunExporter}
-</ul>
-A custom exporter class will be needed for Java 2 Standard Edition
-implementations from vendors other than Sun Microsystems(TM), Inc.
 <p>
 The following classes are useful in conjunction with Jini ERI:
 <ul>
@@ -572,11 +563,9 @@ The following classes are useful in conjunction with Jini ERI:
 <p>
 The following classes are useful in conjunction with JRMP:
 <ul>
-<li>{@link org.apache.river.phoenix.ActivatorSunJrmpExporter}
 <li>{@link org.apache.river.phoenix.InstantiatorAccessExporter}
 <li>{@link org.apache.river.phoenix.MonitorAccessExporter}
 <li>{@link org.apache.river.phoenix.SystemAccessExporter}
-<li>{@link org.apache.river.phoenix.SunJrmpExporter}
 </ul>
 
 <h2>Activation group configuration</h2>
@@ -753,12 +742,8 @@ These permissions are checked by
 Activatable remote object implementations that work under <code>rmid</code>
 should work under Phoenix.
 
-<p>Activation group implementations that work under <code>rmid</code>
-should work under Phoenix, provided the Phoenix
-<code>ActivationSystem</code> is exported using a JRMP exporter. An
-unmodified JRMP-based group implementation will not work under Phoenix
-if the Phoenix <code>ActivationSystem</code> is exported using a Jini
-ERI exporter, because Jini ERI does not support stub replacement for
+An unmodified JRMP-based group implementation will not work under Phoenix
+, because Exporter implementations do not support stub replacement for
 JRMP implementation objects and the existing activation group design
 relies on such stub replacement. However, JRMP-based group
 implementations can be made compatible with activation systems based
@@ -888,9 +873,12 @@ import net.jini.jeri.*;
 import net.jini.jeri.ssl.SslServerEndpoint;
 import net.jini.security.*;
 import javax.security.auth.login.LoginContext;
+import au.net.zeus.rmi.tls.TlsRMIServerSocketFactory;
+import au.net.zeus.rmi.tls.TlsRMIClientSocketFactory;
 
 org.apache.river.phoenix {
-    registryExporter = new RegistrySunExporter();
+    registryRmiServerSocketFactory = new TlsRMIServerSocketFactory();
+    registryRmiClientSocketFactory = new TlsRMIClientSocketFactory();
     private sslPort = 2000; // pick one, cannot be 1098
     private daemonEndpoint = SslServerEndpoint.getInstance(sslPort);
     private integrity = new BasicMethodConstraints(
@@ -941,35 +929,6 @@ org.apache.river.phoenix {
 }
 </pre>
 <hr>
-<pre>
-// a JRMP configuration
-import org.apache.river.phoenix.*;
-
-org.apache.river.phoenix {
-    activatorExporter = new ActivatorSunJrmpExporter();
-    systemExporter = new SystemAccessExporter();
-    monitorExporter = new MonitorAccessExporter();
-    instantiatorExporter = new InstantiatorAccessExporter();
-    persistenceDirectory = "log";
-}
-</pre>
-<hr>
-<pre>
-// a JRMP configuration with no access control
-import org.apache.river.phoenix.*;
-import net.jini.jrmp.JrmpExporter;
-import java.rmi.activation.ActivationSystem;
-
-org.apache.river.phoenix {
-    registryPort = ActivationSystem.SYSTEM_PORT;
-    registryExporter = new RegistrySunExporter(registryPort);
-    activatorExporter = new ActivatorSunJrmpExporter(registryPort);
-    systemExporter = new SunJrmpExporter(4, registryPort);
-    monitorExporter = new JrmpExporter(registryPort);
-    instantiatorExporter = null;
-    persistenceDirectory = "log";
-}
-</pre>
 
 <h2>Example security policies</h2>
 

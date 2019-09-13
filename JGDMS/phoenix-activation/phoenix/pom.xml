@@ -77,31 +77,6 @@
                     </configuration>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.5.0</version>
-                <executions>
-                    <execution>
-                        <id>exec-rmic</id>
-                        <phase>process-classes</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <executable>rmic</executable>
-                    <arguments>
-                        <argument>-v1.1</argument>
-                        <argument>-classpath</argument>
-                        <classpath />
-                        <argument>-d</argument>
-                        <argument>${basedir}/target/classes</argument>
-                        <argument>org.apache.river.phoenix.AbstractRegistry</argument>
-                    </arguments>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
                 <executions>

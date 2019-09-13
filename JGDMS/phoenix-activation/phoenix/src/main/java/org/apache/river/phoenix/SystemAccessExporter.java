@@ -60,51 +60,6 @@ public class SystemAccessExporter implements Exporter {
     private Remote wrapped;
 
     /**
-     * Creates an exporter with an underlying {@link SunJrmpExporter} that
-     * exports using a well-known object identifier (4) on the standard
-     * activation port (1098), and a {@link DefaultGroupPolicy} instance.
-     */
-    public SystemAccessExporter() {
-	this(ActivationSystem.SYSTEM_PORT);
-    }
-
-    /**
-     * Creates an exporter with an underlying {@link SunJrmpExporter} that
-     * exports using a well-known object identifier (4) on the standard
-     * activation port (1098), and the specified group policy, if any.
-     *
-     * @param policy the group policy, or <code>null</code>
-     */
-    public SystemAccessExporter(GroupPolicy policy) {
-	this(ActivationSystem.SYSTEM_PORT, policy);
-    }
-
-    /**
-     * Creates an exporter with an underlying {@link SunJrmpExporter} that
-     * exports using a well-known object identifier (4) on the specified port,
-     * and a {@link DefaultGroupPolicy} instance.
-     *
-     * @param port the port on which to receive calls (if zero, an anonymous
-     * port will be chosen)
-     */
-    public SystemAccessExporter(int port) {
-	this(port, new DefaultGroupPolicy());
-    }
-
-    /**
-     * Creates an exporter with an underlying {@link SunJrmpExporter} that
-     * exports using a well-known object identifier (4) on the specified port,
-     * and the specified group policy, if any.
-     *
-     * @param port the port on which to receive calls (if zero, an anonymous
-     * port will be chosen)
-     * @param policy the group policy, or <code>null</code>
-     */
-    public SystemAccessExporter(int port, GroupPolicy policy) {
-	this(new SunJrmpExporter(4, port), policy);
-    }
-
-    /**
      * Creates an exporter with the specified underlying exporter and a
      * {@link DefaultGroupPolicy} instance.
      *
@@ -145,6 +100,7 @@ public class SystemAccessExporter implements Exporter {
      * @throws NullPointerException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public Remote export(Remote impl) throws ExportException {
 	if (!(impl instanceof ActivationSystem)) {
 	    throw new IllegalArgumentException("not an ActivationSystem");
@@ -152,9 +108,9 @@ public class SystemAccessExporter implements Exporter {
 	if (!(impl instanceof ActivationAdmin)) {
 	    throw new IllegalArgumentException("not an ActivationAdmin");
 	}
-	Remote wrapped = new SystemImpl((ActivationSystem) impl, policy);
-	Remote proxy = exporter.export(wrapped);
-	this.wrapped = wrapped;
+	Remote decorated = new SystemImpl((ActivationSystem) impl, policy);
+	Remote proxy = exporter.export(decorated);
+	this.wrapped = decorated;
 	return proxy;
     }
 

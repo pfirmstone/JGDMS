@@ -18,20 +18,20 @@
 
 package org.apache.river.api.io;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectOutputStream.PutField;
+import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.server.UID;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
@@ -55,86 +55,71 @@ class ActivationGroupIDSerializer implements Serializable {
 	    new ObjectStreamField("system", ActivationSystem.class),
 	    new ObjectStreamField("uid", UID.class)
 	};
-    
-    private static final Field uidField;
-    
-    static {
-	uidField = AccessController.doPrivileged(new PrivilegedAction<Field>(){
-
-	    @Override
-	    public Field run() {
-		try {
-		    Field uidField = java.rmi.activation.ActivationGroupID.class.getDeclaredField("uid");
-		    uidField.setAccessible(true);
-		    return uidField;
-		} catch (NoSuchFieldException ex) {
-		    Logger.getLogger(ActivationGroupIDSerializer.class.getName()).log(Level.SEVERE, null, ex);
-		} catch (SecurityException ex) {
-		    Logger.getLogger(ActivationGroupIDSerializer.class.getName()).log(Level.SEVERE, null, ex);
-		}
-		return null;
-	    }
-	    
-	});
-	
-    }
-    
-    private /*transient*/ final java.rmi.activation.ActivationGroupID resolve;
+   
     private final ActivationSystem system;
     private final UID uid;
     
     ActivationGroupIDSerializer(java.rmi.activation.ActivationGroupID resolve){
-	this.resolve = resolve;
 	system = resolve.getSystem();
-	// REMIND: shouldn't throw exception here
+        // Use serialization to get access to private uid field that will no longer
+        // be accessible using reflection in future version of Java.
+        ActivationGroupID mo = null;
 	try {
-	    uid = (UID) uidField.get(resolve);
-	} catch (IllegalArgumentException ex) {
-	    throw new IllegalArgumentException(ex);
-	} catch (IllegalAccessException ex) {
-	    throw new IllegalArgumentException(ex);
+	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(baos);
+	    oos.writeObject(resolve);
+	    oos.flush();
+	    byte[] bytes = baos.toByteArray();
+	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+	    ObjectInputStream ois = new ToShellActivationGroupID(bais);
+	    mo = (ActivationGroupID) ois.readObject();
+	} catch (IOException ioe) {
+	    throw new AssertionError(ioe);
+	} catch (ClassNotFoundException ioe){
+	    throw new AssertionError(ioe);
 	}
+        uid = mo.uid;
+    }
+    
+    ActivationGroupIDSerializer(ActivationSystem system, UID uid){
+        this.system = system;
+        this.uid = uid;
     }
     
     ActivationGroupIDSerializer(GetArg arg) throws IOException, ClassNotFoundException{
-	this(
-	    check(
-		Valid.notNull(
+	this(Valid.notNull(
 		    arg.get("system", null, ActivationSystem.class),
 		    "system cannot be null"
 		),
 	        Valid.notNull(
 		    arg.get("uid", null, UID.class), 
 		    "uid cannot be null"
-		),
-	        Valid.notNull(
-		    uidField, 
-		    "Permission is not granted to deserialize ActivationGroupID"
-		)
-	    )   
+		)   
 	);
     }
     
-    private static java.rmi.activation.ActivationGroupID check(
-			    ActivationSystem system, 
-			    UID uid, 
-			    Field field) throws InvalidObjectException
+    private static java.rmi.activation.ActivationGroupID convert(
+            ActivationSystem system, UID uid) throws InvalidObjectException
     {
-	java.rmi.activation.ActivationGroupID actGroupID =
-		new java.rmi.activation.ActivationGroupID(system);
-	try {
-	    field.set(actGroupID, uid);
-	} catch (IllegalArgumentException ex) {
-	    throw new InvalidObjectException(ex.toString());
-	} catch (IllegalAccessException ex) {
-	    throw new InvalidObjectException(ex.toString());
+        ActivationGroupID groupID = new ActivationGroupID(system, uid);
+        try {
+	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos = new ObjectOutputStream(baos);
+	    oos.writeObject(groupID);
+	    oos.flush();
+	    byte[] bytes = baos.toByteArray();
+	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+	    ObjectInputStream ois = new ToRmiActivationGroupID(bais);
+	    return (java.rmi.activation.ActivationGroupID) ois.readObject();
+	} catch (IOException ioe) {
+	    throw new AssertionError(ioe);
+	} catch (ClassNotFoundException ioe){
+	    throw new AssertionError(ioe);
 	}
-	return actGroupID;
     }
     
     Object readResolve() throws ObjectStreamException {
-	if (resolve != null) return resolve;
-	return check(system, uid, uidField);
+	return convert(system, uid);
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
@@ -142,6 +127,77 @@ class ActivationGroupIDSerializer implements Serializable {
 	pf.put("system", system);
 	pf.put("uid", uid);
 	out.writeFields();
+    }
+    
+    private static class ToRmiActivationGroupID extends ObjectInputStream {
+
+	ToRmiActivationGroupID(InputStream in) throws IOException {
+	    super(in);
+        }
+
+	/**
+	 * Overrides <code>ObjectInputStream.resolveClass</code> to change
+	 * an occurence of class <code>java.rmi.MarshalledObject</code> to
+	 * class <code>net.jini.io.MarshalledObject</code>.
+	 */
+        @Override
+	protected Class resolveClass(ObjectStreamClass desc)
+	    throws IOException, ClassNotFoundException
+	{
+	    if (desc.getName().equals("org.apache.river.api.io.ActivationGroupID")) {
+		return java.rmi.activation.ActivationGroupID.class;
+	    }
+	    return super.resolveClass(desc);
+	}
+    }
+
+    private static class ToShellActivationGroupID extends ObjectInputStream {
+
+	ToShellActivationGroupID(InputStream in) throws IOException {
+	    super(in);
+        }
+
+	/**
+	 * Overrides <code>ObjectInputStream.resolveClass</code>
+	 * to change an occurence of class
+	 * <code>net.jini.io.MarshalledObject</code>
+	 * to class <code>java.rmi.MarshalledObject</code>.
+	 */
+        @Override
+	protected Class resolveClass(ObjectStreamClass desc)
+	    throws IOException, ClassNotFoundException
+	{
+	    if (desc.getName().equals("java.rmi.activation.ActivationGroupID")) {
+		return ActivationGroupID.class;
+	    }
+	    return super.resolveClass(desc);
+	}
+    }
+    
+    /**
+     * Had to place this here due to readResolve method of Serializer.
+     */
+    static final class ActivationGroupID implements Serializable {
+        private static final long serialVersionUID = -1648432278909740833L;
+
+         private static final ObjectStreamField[] serialPersistentFields = 
+            {
+                new ObjectStreamField("system", java.rmi.activation.ActivationSystem.class),
+                new ObjectStreamField("uid", java.rmi.server.UID.class)
+            };
+
+         java.rmi.activation.ActivationSystem system;
+
+         java.rmi.server.UID uid;
+
+         ActivationGroupID(){}
+
+         ActivationGroupID(java.rmi.activation.ActivationSystem system,
+                           java.rmi.server.UID uid )
+         {
+             this.system = system;
+             this.uid = uid;
+         }
     }
     
 }

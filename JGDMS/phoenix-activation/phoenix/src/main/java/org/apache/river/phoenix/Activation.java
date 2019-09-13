@@ -24,8 +24,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URL;
-import java.rmi.AccessException;
-import java.rmi.AlreadyBoundException;
 import java.rmi.ConnectException;
 import java.rmi.ConnectIOException;
 import java.rmi.MarshalledObject;
@@ -35,7 +33,6 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
@@ -194,10 +191,6 @@ class Activation implements Serializable {
     private transient Exporter monitorExporter;
     /** stub for monitor */
     private transient ActivationMonitor monitorStub;
-    /** RegistryImpl instance */
-    private transient Registry registry;
-    /** exporter for registry */
-    private transient Exporter registryExporter;
     /** stub for registry */
     private transient Registry registryStub;
     /** MarshalledObject(ActivationGroupData) or null */
@@ -396,29 +389,21 @@ class Activation implements Serializable {
             monitorStub = (ActivationMonitor) monitorExporter.export(monitor);
             systemStub = (ActivationSystem) systemExporter.export(system);
             activatorStub = (Activator) activatorExporter.export(activator);
-            registryExporter = getExporter(config, "registryExporter", null);
-	    if (registryExporter != null){ // Only works on Sun JVM.
-		// REMIND: Read only registry, don't try to use bind.
-		registry = new RegistryImpl();
-		registryStub = (Registry) registryExporter.export(registry);
-	    } else {
-		registry = null;
-		RMIServerSocketFactory registryRmiServerSocketFactory = config.getEntry(
-			PHOENIX,
-			"registryRmiServerSocketFactory",
-			RMIServerSocketFactory.class, 
-			RMISocketFactory.getDefaultSocketFactory()
-		);
-		RMIClientSocketFactory registryRmiClientSocketFactory = config.getEntry(
-			PHOENIX,
-			"registryRmiClientSocketFactory",
-			RMIClientSocketFactory.class,
-			RMISocketFactory.getDefaultSocketFactory()
-		);
-		int port = getInt(config, "registryPort", ActivationSystem.SYSTEM_PORT);
-		registryStub = LocateRegistry.createRegistry(port, registryRmiClientSocketFactory, registryRmiServerSocketFactory);
-		registryStub.bind("java.rmi.activation.ActivationSystem", systemStub);
-	    }
+            RMIServerSocketFactory registryRmiServerSocketFactory = config.getEntry(
+                    PHOENIX,
+                    "registryRmiServerSocketFactory",
+                    RMIServerSocketFactory.class, 
+                    RMISocketFactory.getDefaultSocketFactory()
+            );
+            RMIClientSocketFactory registryRmiClientSocketFactory = config.getEntry(
+                    PHOENIX,
+                    "registryRmiClientSocketFactory",
+                    RMIClientSocketFactory.class,
+                    RMISocketFactory.getDefaultSocketFactory()
+            );
+            int port = getInt(config, "registryPort", ActivationSystem.SYSTEM_PORT);
+            registryStub = LocateRegistry.createRegistry(port, registryRmiClientSocketFactory, registryRmiServerSocketFactory);
+            registryStub.bind("java.rmi.activation.ActivationSystem", systemStub);
             exported.signalAll();
             logger.info(getTextResource("phoenix.daemon.started"));
             entries = new GroupEntry[gids.length];
@@ -844,58 +829,6 @@ class Activation implements Serializable {
     }
 
     /**
-     * A read-only registry containing a single entry for the system.
-     */
-    class RegistryImpl extends AbstractRegistry {
-	/** The name of the single entry */
-	private final String NAME = ActivationSystem.class.getName();
-
-	RegistryImpl() {
-	}
-
-	/**
-	 * Returns the single object if the specified name matches the single
-	 * name, otherwise throws NotBoundException.
-	 */
-        @Override
-	public Remote lookup(String name) throws NotBoundException {
-	    if (name.equals(NAME)) {
-                readLock.lock();
-                try {
-                    return systemStub;
-                } finally {
-                    readLock.unlock();
-                }
-	    }
-	    throw new NotBoundException(name);
-	}
-
-	/** Always throws SecurityException. */
-        @Override
-	public void bind(String name, Remote obj) {
-	    throw new SecurityException("read-only registry");
-	}
-
-	/** Always throws SecurityException. */
-        @Override
-	public void unbind(String name) {
-	    throw new SecurityException("read-only registry");
-	}
-
-	/** Always throws SecurityException. */
-        @Override
-	public void rebind(String name, Remote obj) {
-	    throw new SecurityException("read-only registry");
-	}
-
-	/** Returns a list containing the single name. */
-        @Override
-	public String[] list() {
-	    return new String[]{NAME};
-	}
-    }
-
-    /**
      * If shutting down, throw an ActivationException.
      */
     private void checkShutdown() throws ActivationException {
@@ -914,9 +847,6 @@ class Activation implements Serializable {
 	}
 	
 	boolean registryDown(boolean force){
-	    if (registryExporter != null){
-		return registryExporter.unexport(force);
-	    }
 	    try {
 		return UnicastRemoteObject.unexportObject(system, force);
 	    } catch (NoSuchObjectException ex) {
