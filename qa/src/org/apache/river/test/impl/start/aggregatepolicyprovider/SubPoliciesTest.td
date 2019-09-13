@@ -6,8 +6,7 @@ testClasspath=${altClasspath}$:<file:lib/qa1-start-tests.jar>
 testPolicyfile=SubPoliciesTest.0.policy
 
 #testjvmargs=\
-#-Xdebug,\
-#-Xrunjdwp:transport=dt_socket+,address=8000+,server=y+,suspend=y,\
+#-agentlib:jdwp=transport=dt_shmem+,address=shmem+,server=y+,suspend=y,\
 #${testjvmargs}
 
 #!!!! the next two lines are wrong

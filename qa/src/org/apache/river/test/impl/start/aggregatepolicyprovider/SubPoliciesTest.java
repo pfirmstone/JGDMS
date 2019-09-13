@@ -235,31 +235,31 @@ public class SubPoliciesTest extends QATestEnvironment implements Test {
 	for (int i = 0; i < fail.length; i++) {
 	    if (pc.implies(fail[i])) {
 		throw new TestException(fail[i] + " implied by " + cs);
-	    }
-	}
+            }
+        }
 
 	ProtectionDomain pd = new ProtectionDomain(cs, null, null, null);
 	pc = policy.getPermissions(pd);
 	for (int i = 0; i < pass.length; i++) {
 	    if (!pc.implies(pass[i])) {
 		throw new TestException(pass[i] + " not implied by " + cs);
-	    }
-	}
+            }
+        }
 	for (int i = 0; i < fail.length; i++) {
 	    if (pc.implies(fail[i])) {
 		throw new TestException(fail[i] + " implied by " + cs);
-	    }
-	}
+            }
+        }
 
 	for (int i = 0; i < pass.length; i++) {
 	    if (!policy.implies(pd, pass[i])) {
 		throw new TestException(pass[i] + " not implied by " + cs);
-	    }
-	}
+            }
+        }
 	for (int i = 0; i < fail.length; i++) {
 	    if (policy.implies(pd, fail[i])) {
 		throw new TestException(fail[i] + " implied by " + cs);
-	    }
-	}
+            }
+        }
     }
 }

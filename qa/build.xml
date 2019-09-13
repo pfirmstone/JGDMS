@@ -85,7 +85,7 @@
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
     <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
         default: none -->
-    <property name="harness.configs" value="jsse,jeri"/>
+    <property name="harness.configs" value="jsse"/>
     <!-- possible values: activatable,transient,persistent
         default: transient -->
     <property name="harness.servicemode" value="activatable"/>
@@ -494,7 +494,7 @@
         <zip basedir="${result.dir}" file="${result.zip}" />
     </target>
 
-    <target name="run" depends="harness-runtime">
+    <target name="run" depends="james-brown">
         <property name="run.categories"
                 value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
         <antcall target="run-categories"/>

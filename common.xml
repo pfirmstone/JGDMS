@@ -414,7 +414,7 @@
         <sequential>
             <genkey keypass="@{target}pw" keystore="@{dir}/@{target}.keystore"
                     sigalg="SHA256withRSA" keyalg="RSA" storetype="pkcs12"
-                    validity="1800" alias="@{target}" storepass="@{target}pw"
+                    validity="3600" alias="@{target}" storepass="@{target}pw"
                     dname="CN=@{dname}" />
             <exec executable="keytool" failonerror="true">
                 <!--
