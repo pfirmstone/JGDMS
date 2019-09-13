@@ -124,7 +124,6 @@
                 <configuration>
                         <source>6</source>
                         <target>6</target>
-                        <release>6</release>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>
