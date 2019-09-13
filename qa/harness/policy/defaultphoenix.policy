@@ -38,6 +38,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activatio
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
 grant codebase "file:${org.apache.river.qa.harness.harnessJar}
 {
       permission org.apache.river.phoenix.dl.SystemPermission

@@ -12,6 +12,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
 // Discovery providers that don't perform authentication don't grant
 // DeSerializationPermission, so it's granted here.
 grant codebase "http://${HOST}/${net.jini.lib.dl.jar}" {

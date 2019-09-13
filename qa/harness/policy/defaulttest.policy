@@ -34,8 +34,7 @@ grant codebase "file:${org.apache.river.test.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
 };
 
-// required for new PolicyFile provider.
-grant codebase "file:${{java.ext.dirs}}${/}-" {
+grant codebase "jrt:/jdk.localedata" {
     permission java.security.AllPermission "", "";
 };
 

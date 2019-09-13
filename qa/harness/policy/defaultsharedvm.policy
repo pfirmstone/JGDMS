@@ -8,6 +8,10 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
 grant {
       permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test

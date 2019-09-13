@@ -6,6 +6,9 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.rive
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
 
 grant { 
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
