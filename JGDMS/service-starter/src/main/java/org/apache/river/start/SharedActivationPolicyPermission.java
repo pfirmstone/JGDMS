@@ -27,7 +27,6 @@ import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.Permission;
@@ -35,8 +34,6 @@ import java.security.PermissionCollection;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
@@ -46,8 +43,12 @@ import org.apache.river.api.net.Uri;
  * {@link Permission} class used by the 
  * {@linkplain org.apache.river.start service starter} 
  * package. This class takes a policy string argument that follows the 
- * matching semantics defined by {@link FilePermission}. The 
- * {@link ActivateWrapper} class explicitly checks to see if the service's
+ * matching semantics defined by {@link FilePermission}. Note that after 
+ * <a link="http://mail.openjdk.java.net/pipermail/jdk9-dev/2016-October/005062.html">
+ * FilePermission changes in JDK9 140</a> the following property must be set
+ * for this Permission to function correctly. -Djdk.io.permissionsUseCanonicalPath=true
+ * <p>
+ * The {@link ActivateWrapper} class explicitly checks to see if the service's
  * import codebase has been granted access to service's associated policy
  * file in the shared VM's policy.
  *<P>
@@ -189,12 +190,12 @@ public final class SharedActivationPolicyPermission extends Permission
 	 * UNIX, but not under Windows since "\*" is the wildcard there.
 	 */
         if (policy == null) throw new NullPointerException("Null policy string not allowed");
-        String uncanonicalPath = null;
+        String uncanonicalPath;
         try {
             URL url = new URL(policy);
             uncanonicalPath = url.toExternalForm();
             if (policy.startsWith("file:") || policy.startsWith("FILE:")){
-                String path = null;
+                String path;
                 try {
                     uncanonicalPath = Uri.fixWindowsURI(uncanonicalPath);
 //                    uncanonicalPath = Uri.escapeIllegalCharacters(uncanonicalPath);
@@ -221,6 +222,7 @@ public final class SharedActivationPolicyPermission extends Permission
     }
 
     // javadoc inherited from superclass
+    @Override
     public boolean implies(Permission p) {
 
 	// Quick reject tests
@@ -245,6 +247,7 @@ public final class SharedActivationPolicyPermission extends Permission
     }
 
     /** Two instances are equal if they have the same name. */
+    @Override
     public boolean equals(Object obj) {
 	// Quick reject tests
         if (obj == null) 
@@ -268,16 +271,19 @@ public final class SharedActivationPolicyPermission extends Permission
     }
 
     // javadoc inherited from superclass
+    @Override
     public int hashCode() {
 	return getName().hashCode();
     }
 
     // javadoc inherited from superclass
+    @Override
     public String getActions() {
 	return "";
     }
 
     // javadoc inherited from superclass
+    @Override
     public PermissionCollection newPermissionCollection() {
 	/* bug 4158302 fix */
 	return new Collection();
@@ -295,6 +301,7 @@ public final class SharedActivationPolicyPermission extends Permission
 	private final ArrayList perms = new ArrayList(3);
 
         // javadoc inherited from superclass
+        @Override
 	public synchronized void add(Permission p) {
 	    if (isReadOnly())
 		throw new SecurityException("Collection cannot be modified.");
@@ -304,6 +311,7 @@ public final class SharedActivationPolicyPermission extends Permission
 	}
 
         // javadoc inherited from superclass
+        @Override
 	public synchronized boolean implies(Permission p) {
 	    for (int i = perms.size(); --i >= 0; ) {
 		if (((Permission)perms.get(i)).implies(p))
@@ -313,6 +321,7 @@ public final class SharedActivationPolicyPermission extends Permission
 	}
 
 	// javadoc inherited from superclass
+        @Override
 	public Enumeration elements() {
 	    return Collections.enumeration(perms);
 	}
