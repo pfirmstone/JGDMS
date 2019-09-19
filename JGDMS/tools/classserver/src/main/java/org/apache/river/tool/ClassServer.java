@@ -287,6 +287,7 @@ public class ClassServer extends Thread implements Startable {
 		      LifeCycle lifeCycle)
 	throws IOException
     {
+        super("HTTP ClassServer");
 	StringTokenizer st = new StringTokenizer(dirlist, File.pathSeparator);
 	dirs = new String[st.countTokens()];
 	perms = new FilePermission[dirs.length];
