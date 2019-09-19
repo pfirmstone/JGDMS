@@ -38,6 +38,8 @@ grant codebase "jrt:/jdk.localedata" {
     permission java.security.AllPermission "", "";
 };
 
+
+
 // Discovery providers that don't perform authentication don't grant
 // DeSerializationPermission, so it's granted here.
 grant codebase "http://${HOST}/${org.apache.river.reggie.dl.jar}" {
@@ -270,13 +272,41 @@ grant {
 };
 
 //JDK9
-//grant codebase "jrt:/jdk.security.auth" {
-//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore.password", "read";
-//    permission java.io.FilePermission "${org.apache.river.test.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}jeri${/}transport${/}resources${/}keystore", "read";
-//    permission javax.security.auth.AuthPermission "modifyPrincipals";
-//    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
-//    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
-//};
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
 
 // needed by some io tests
 
