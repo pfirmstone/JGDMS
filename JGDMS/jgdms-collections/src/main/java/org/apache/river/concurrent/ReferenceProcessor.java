@@ -311,7 +311,7 @@ class ReferenceProcessor<T> implements ReferenceQueuingFactory<T, Referrer<T>> {
             this.r = r;
         }
         public Thread run() {
-            Thread t = new Thread(g, r);
+            Thread t = new Thread(g, r, "Reference collection cleaner");
             try {
                 t.setContextClassLoader(null);
                 t.setPriority(Thread.MAX_PRIORITY);
