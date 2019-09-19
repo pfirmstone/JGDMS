@@ -278,7 +278,7 @@ org.apache.river.outrigger.transactions.level = SEVERE
 org.apache.river.example.browser.level = SEVERE
 
 # For the test harness, tests, and infrastructure.
-org.apache.river.qa.harness.level = FINE
+org.apache.river.qa.harness.level = CONFIG
 org.apache.river.qa.harness.test.level = SEVERE
 org.apache.river.qa.harness.service.level = SEVERE
 org.apache.river.qa.harness.config.level = SEVERE

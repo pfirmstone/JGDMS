@@ -91,7 +91,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      * no matter what the configured value was.  5000 was too short for
      * SSL Endpoints.
      */
-    public final long deltaTListener = 60000;
+    public volatile long deltaTListener = 5000;
 
     /** The set of possible interfaces implemented by the service classes that
      *  will be registered for testing
@@ -383,10 +383,10 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
 	 * no matter what the configured value was.  5000 was too short for
 	 * SSL Endpoints.
 	 * 
-	 * TODO: Work out why this isn't working.
+	 * Typically specified in lookupservice.properties
 	 */
-//	deltaTListener = QATestUtils.N_MS_PER_SEC*config.getIntConfigVal
-//	    ("org.apache.river.test.spec.lookupservice.deltaTListener", 20);
+	deltaTListener = QATestUtils.N_MS_PER_SEC*config.getIntConfigVal
+	    ("org.apache.river.test.spec.lookupservice.deltaTListener", 5);
 
         outputRoot = config.getStringConfigVal
 	    ("org.apache.river.test.spec.lookupservice.outputRoot", DEF_OUTPUT_ROOT);

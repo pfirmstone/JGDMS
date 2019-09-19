@@ -45,9 +45,9 @@ import java.rmi.RemoteException;
 public class MultipleEvntLeaseRenewals extends QATestRegistrar {
     /** the expected number of matches when testing lookup by ID */
     private static int EXPECTED_N_MATCHES = 1;
-    /* lease duration to 1 minute */
+    /* lease duration to 3 minutes */
     private final static long DEFAULT_LEASEDURATION
-                                                = (6*QATestUtils.N_MS_PER_MIN);
+                                                = (3*QATestUtils.N_MS_PER_MIN);
     private final static int DEFAULT_LOOP_COUNT = 5;
     private final static int  loopCount= DEFAULT_LOOP_COUNT;   
     private final static long leaseDuration = DEFAULT_LEASEDURATION;
@@ -176,17 +176,21 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      *               :           :          :            :            :
      *              P0          P1         P2           P3           P4
      */
-    public synchronized void run() throws Exception {
+    public void run() throws Exception {
 	logger.log(Level.FINE, "MultipleSrvcLeaseRenewals : in run() method.");
 	logger.log(Level.FINE, "# of trials = " + loopCount);
 
 	for(int i =0; i<loopCount; i++) {
 	    logger.log(Level.FINE, "\n**** Start trial #" + i + "****");
 	    logger.log(Level.FINE, "Waiting 3/4 of lease duration time.");
-	    numEvnt = 0;
+            synchronized (this){
+                numEvnt = 0;
+            }
 	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, this);
 	    logger.log(Level.FINE, "Renewing leases ...");
-	    leaseStartTime = QATestUtils.getCurTime();
+            synchronized (this){
+                leaseStartTime = QATestUtils.getCurTime();
+            }
 	    QATestUtils.doRenewLease(evntLeases, leaseDuration);
 	    logger.log(Level.FINE, "Verifying leases against minimum " +
 			      "expiration time.");
@@ -205,7 +209,9 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
 		transitionText = "TRANSITION_MATCH_NOMATCH";
 	    } else {
 		logger.log(Level.FINE, "Re-registering all services ...");
-		srvcRegs = registerAll();
+                synchronized (this){
+                    srvcRegs = registerAll();
+                }
 		transition = ServiceRegistrar.TRANSITION_NOMATCH_MATCH;
 		transitionText = "TRANSITION_NOMATCH_MATCH";
 	    }
@@ -271,7 +277,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      * service ID returned by the registration process; so as to enable 
      * reuse of the service IDs during the re-registration process.
      */
-    private void reuseServiceID() {
+    private synchronized void reuseServiceID() {
         for(int i=0; i< srvcItems.length; i++) {
 	    srvcItems[i].serviceID = srvcRegs[i].getServiceID();
 	}
@@ -283,7 +289,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      * event; and that the transition associated with the event equals
      * the expected transition.
      */
-    private void verifyNotification(int transition) throws TestException {
+    private synchronized void verifyNotification(int transition) throws TestException {
 	if(srvcItems.length != numEvnt )
             throw new TestException("# of Events Received ("+
 				    numEvnt+
