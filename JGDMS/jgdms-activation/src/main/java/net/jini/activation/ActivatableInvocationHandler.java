@@ -828,8 +828,7 @@ public final class ActivatableInvocationHandler
 		try {
 		    m = cl.getMethod(m.getName(), m.getParameterTypes());
 		} catch (NoSuchMethodException nsme) {
-		    throw new ActivateFailedException("bad proxy").
-			initCause(nsme);
+		    throw new ActivateFailedException("bad proxy", nsme);
 		}
 	    }
 	}
@@ -837,9 +836,9 @@ public final class ActivatableInvocationHandler
 	try {
 	    return m.invoke(proxy, args);
 	} catch (IllegalAccessException e) {
-	    throw new ActivateFailedException("bad proxy").initCause(e);
+	    throw new ActivateFailedException("bad proxy", e);
 	} catch (IllegalArgumentException e) {
-	    throw new ActivateFailedException("bad proxy").initCause(e);
+	    throw new ActivateFailedException("bad proxy", e);
 	} catch (InvocationTargetException e) {
 	    throw e.getTargetException();
 	}
