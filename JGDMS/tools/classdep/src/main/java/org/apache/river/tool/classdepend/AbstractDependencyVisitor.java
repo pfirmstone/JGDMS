@@ -49,7 +49,7 @@ import org.objectweb.asm.signature.SignatureVisitor;
 abstract class AbstractDependencyVisitor extends ClassVisitor {
 
     AbstractDependencyVisitor() {
-        super(Opcodes.ASM5);
+        super(Opcodes.ASM7);
     }
 
     abstract protected void addName(String name);
@@ -73,7 +73,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 	addDesc(desc);
 	AnnotationVisitor ann = super.visitAnnotation(desc, visible);
-        if (ann != null) return new AnnotationVisit(Opcodes.ASM5, ann);
+        if (ann != null) return new AnnotationVisit(Opcodes.ASM7, ann);
         return null;
     }
 
@@ -102,7 +102,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
             addSignature(signature);
         }
         addNames(exceptions);
-        return new MethodVisit(Opcodes.ASM5, super.visitMethod(api, desc, desc, desc, exceptions));
+        return new MethodVisit(Opcodes.ASM7, super.visitMethod(api, desc, desc, desc, exceptions));
     }
 
     @Override
@@ -159,11 +159,11 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
     }
 
     private void addSignature(String signature) {
-	new SignatureReader(signature).accept(new SignatureVisit(Opcodes.ASM5));
+	new SignatureReader(signature).accept(new SignatureVisit(Opcodes.ASM7));
     }
 
     private void addTypeSignature(String signature) {
-	new SignatureReader(signature).acceptType(new SignatureVisit(Opcodes.ASM5));
+	new SignatureReader(signature).acceptType(new SignatureVisit(Opcodes.ASM7));
     }
     
     /**
@@ -193,7 +193,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
         public AnnotationVisitor visitAnnotation(String name, String desc) {
             addDesc(desc);
             AnnotationVisitor ann = super.visitAnnotation(name, desc);
-            if (ann != null) return new AnnotationVisit( Opcodes.ASM5, ann);
+            if (ann != null) return new AnnotationVisit( Opcodes.ASM7, ann);
             return null;
         }
         
@@ -216,7 +216,7 @@ abstract class AbstractDependencyVisitor extends ClassVisitor {
         {
             addDesc(desc);
             AnnotationVisitor ann = super.visitParameterAnnotation(parameter, desc, visible);
-            if (ann != null) return new AnnotationVisit(Opcodes.ASM5, ann );
+            if (ann != null) return new AnnotationVisit(Opcodes.ASM7, ann );
             return null;
         }
         @Override
