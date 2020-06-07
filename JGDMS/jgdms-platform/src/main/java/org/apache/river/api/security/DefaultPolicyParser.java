@@ -618,22 +618,26 @@ public class DefaultPolicyParser implements PolicyParser {
 		    final Object[] parameters,
 		    final Throwable thrown)
     {
-//	logExec.shedule(
 	logExec.submit(
 	    new Runnable(){
 		public void run() {
+                    try {
 		    Logger logger = Logger.getLogger("net.jini.security.policy");
 		    if (logger.isLoggable(level)){
 			logger.log(
 			    level,
 			    Messages.getString(message, parameters),
 			    thrown);
-		    }
-		}
+                    }
+                    } catch (SecurityException e){
+                        // If there's a syntax error in the policy file that
+                        // grants permission to access the logger, there will
+                        // be no information for debugging.
+                        System.err.println(Messages.getString(message, parameters));
+                        if (thrown != null) thrown.printStackTrace(System.out);
+                    }
+                }
 	    }
-//		,
-//	    1,
-//	    TimeUnit.SECONDS
 	);
     }
     
