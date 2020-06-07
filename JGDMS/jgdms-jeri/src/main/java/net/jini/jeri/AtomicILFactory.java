@@ -16,10 +16,18 @@
 package net.jini.jeri;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.server.ExportException;
+import java.security.AccessController;
+import java.security.Guard;
+import java.security.PrivilegedAction;
 import java.util.Collection;
+import java.util.Iterator;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.export.CodebaseAccessor;
+import net.jini.loader.ProxyCodebaseSpi;
+import org.apache.river.resource.Service;
 
 /**
  * <p>
@@ -172,6 +180,13 @@ public class AtomicILFactory extends BasicILFactory {
      * which cannot be <code>null</code>, is used to obtain the ClassLoader
      * to be passed to the superclass constructor and is used by the 
      * {@link #createInstances createInstances} method.
+     * 
+     * This constructor is deprecated due to the problems that occur when attempting
+     * to resolve classes using codebase annotations appended to the stream.
+     * 
+     * {@link https://dl.acm.org/doi/pdf/10.5555/1698139}
+     * 
+     * Appending codebase annotations in the stream is strongly discouraged.
      *
      * @param	serverConstraints the server constraints, or <code>null</code>
      * @param	permissionClass the permission class, or <code>null</code>
@@ -201,6 +216,7 @@ public class AtomicILFactory extends BasicILFactory {
      *		"getClassLoader".
      * @throws NullPointerException if proxyorServiceImplClass is null.
      **/
+    @Deprecated
     public AtomicILFactory(MethodConstraints serverConstraints,
 			    Class permissionClass,
 			    Class proxyOrServiceImplClass,
@@ -239,7 +255,7 @@ public class AtomicILFactory extends BasicILFactory {
 	    throw new NullPointerException();
 	}
 	return new AtomicInvocationHandler(oe, getServerConstraints(), useAnnotations);
-    }
+        }
     
     /**
      * Returns an invocation dispatcher to receive incoming remote calls
@@ -285,5 +301,45 @@ public class AtomicILFactory extends BasicILFactory {
     public int hashCode() {
 	int hash = 5;
 	return hash ^ super.hashCode();
+    }
+    
+    @Override
+    public Instances createInstances(Remote impl,
+				     ObjectEndpoint oe,
+				     ServerCapabilities caps)
+    	throws ExportException 
+    {
+        Instances inst = super.createInstances(impl, oe, caps);
+        Remote proxy = inst.getProxy();
+        if (proxy instanceof CodebaseAccessor){
+            InvocationHandler handler = Proxy.getInvocationHandler(proxy);
+            ProxyCodebaseSpi provider = getProvider(getClassLoader());
+            if (provider != null){
+                provider.record((CodebaseAccessor) impl, handler, getClassLoader());
+            }
+        }
+        return inst;
+    }
+    
+    private static final Guard CLASSLOADER_GUARD = new RuntimePermission("getClassLoader");
+    
+    private static ProxyCodebaseSpi getProvider(final ClassLoader loader){
+	ProxyCodebaseSpi result =
+	    AccessController.doPrivileged(new PrivilegedAction<ProxyCodebaseSpi>(){
+		public ProxyCodebaseSpi run(){
+		    Iterator<ProxyCodebaseSpi> spit = 
+			    Service.providers(
+				ProxyCodebaseSpi.class, 
+				loader
+			    );
+		    CLASSLOADER_GUARD.checkGuard(null);
+		    while (spit.hasNext()){
+			return spit.next();
+		    }
+		    return null;
+		}
+	    }
+	);
+	return result;
     }
 }

@@ -540,6 +540,7 @@ public class BasicInvocationHandler
      *
      * @see	java.lang.reflect.UndeclaredThrowableException
      **/
+    @Override
     public Object invoke(Object proxy, Method method, Object[] args)
 	throws Throwable
     {
@@ -1563,6 +1564,7 @@ public class BasicInvocationHandler
 	BasicInvocationHandler other = (BasicInvocationHandler) obj;
 	return
 	    Util.sameClassAndEquals(oe, other.oe) &&
+                //TODO: Determine whether the next line can be uncommented.
 //	    Util.equals(clientConstraints, other.clientConstraints) &&
 	    Util.equals(serverConstraints, other.serverConstraints);
     }
