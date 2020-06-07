@@ -58,12 +58,19 @@ public class TestEndpointInternal extends TestUtilities {
 	} }.subject();
 
 	static Test[] localtests = {
+            /* 
+             * Previously when anon connections were allowed, this test passed
+             * with a null client principal.
+             * However now that we cannot have a null client principal, the
+             * non null client doesn't have AuthenticationPermission for the wrong
+             * server Principal.
+             */
 	    new TestGetCallContext(
 		"Wrong server principal",
-		null,
+		newClientRSA1Subject(),
 		requirements(ServerAuthentication.YES,
 			     serverPrincipals(x500("CN=Wrong"))),
-		OK),
+		FAIL),
 	    new TestGetCallContext(
 		"Notice removed principals",
 		newClientRSA1Subject(),
@@ -130,7 +137,7 @@ public class TestEndpointInternal extends TestUtilities {
 	    /* XXX: These tests require access to the connection objects
 	     * chosen, since the call context objects themselves are not
 	     * cached.
-
+            */
 	    new TestGetCallContext(
 		"Noticed adding principals, no filtering",
 		newClientRSA1Subject(),
@@ -145,6 +152,10 @@ public class TestEndpointInternal extends TestUtilities {
 		    }
 		}
 	    },
+            // This test was failing as it was making assumptions about
+            // caching of CallContext and identity.
+            // Implementing equals and hashcode methods on CallContext fixed
+            // the test failure.
 	    new TestGetCallContext(
 		"Don't notice adding principals, with filtering",
 		newClientRSA1Subject(),
@@ -160,7 +171,6 @@ public class TestEndpointInternal extends TestUtilities {
 		    }
 		}
 	    },
-	    */
 	    new TestGetCallContext(
 		"No authentication permission for client principal",
 		new WithSubject() { {
