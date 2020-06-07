@@ -634,7 +634,7 @@ public class DefaultPolicyParser implements PolicyParser {
                         // grants permission to access the logger, there will
                         // be no information for debugging.
                         System.err.println(Messages.getString(message, parameters));
-                        if (thrown != null) thrown.printStackTrace(System.out);
+                        if (thrown != null) thrown.printStackTrace(System.err);
                     }
                 }
 	    }
