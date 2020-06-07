@@ -1194,7 +1194,7 @@ class SslServerEndpointImpl extends Utilities {
                 sslSocket.setEnableSessionCreation(false);
                 cipherSuite = session.getCipherSuite();
                 if ("NULL".equals(getKeyExchangeAlgorithm(cipherSuite))) {
-                    throw new SecurityException("Handshake failed");
+                    throw new SecurityException("Handshake failed: " + cipherSuite);
                 }
                 clientSubject = getClientSubject(sslSocket);
                 clientPrincipal = clientSubject != null
@@ -1203,6 +1203,11 @@ class SslServerEndpointImpl extends Utilities {
                     : null;
                 X509Certificate serverCert =
                     listenHandle.listenEndpoint.getAuthManager().getServerCertificate(session);
+                if (serverCert == null){
+                    IOException e = new IOException("Server Certificate cannot be null");
+                    e.fillInStackTrace();
+                    throw e;
+                }
                 serverPrincipal = serverCert != null
                     ? serverCert.getSubjectX500Principal() : null;
                 if (serverPrincipal != null) {
