@@ -252,10 +252,9 @@ class SslConnection extends Utilities implements Connection {
      * @throws IOException if an I/O failure occurs
      */
     final void establishSuites() throws IOException {
-//	String [] supportedCiphers = sslSocket.getSupportedCipherSuites();
-//	String [] ciphers = removeUnsupportedCiphers(supportedCiphers, callContext.cipherSuites);
-//	sslSocket.setEnabledCipherSuites(ciphers);
-	sslSocket.setEnabledCipherSuites(callContext.cipherSuites);
+	String [] supportedCiphers = sslSocket.getSupportedCipherSuites();
+	String [] ciphers = removeUnsupportedCiphers(supportedCiphers, callContext.cipherSuites);
+	sslSocket.setEnabledCipherSuites(ciphers);
 	sslSocket.startHandshake();
 	session = sslSocket.getSession();
 	activeCipherSuite = session.getCipherSuite();
@@ -263,15 +262,15 @@ class SslConnection extends Utilities implements Connection {
 	releaseClientSSLContextInfo(callContext, sslContext, authManager);
     }
     
-//    private String[] removeUnsupportedCiphers(String[] supported, String[] requested){
-//	Set<String> supportedCiphers = new HashSet<String>(Arrays.asList(supported));
-//	int length = requested.length;
-//	List<String> result = new ArrayList(length);
-//	for (int i=0; i<length; i++){
-//	    if (supportedCiphers.contains(requested[i])) result.add(requested[i]);
-//	}
-//	return result.toArray(new String[result.size()]);
-//    }
+    private String[] removeUnsupportedCiphers(String[] supported, String[] requested){
+	Set<String> supportedCiphers = new HashSet<String>(Arrays.asList(supported));
+	int length = requested.length;
+	List<String> result = new ArrayList(length);
+	for (int i=0; i<length; i++){
+	    if (supportedCiphers.contains(requested[i])) result.add(requested[i]);
+	}
+	return result.toArray(new String[result.size()]);
+    }
 
     /**
      * Creates a plain socket to use for communication with the specified host
