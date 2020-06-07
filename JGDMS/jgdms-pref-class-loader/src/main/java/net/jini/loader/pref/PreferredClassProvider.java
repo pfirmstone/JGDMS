@@ -568,6 +568,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 			   ClassLoader defaultLoader)
 	throws MalformedURLException, ClassNotFoundException
     {
+        // TODO: Logger can cause deadlock, hand over to an executor thread or
+        // similar to perform logging task.
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE, //logging here can cause deadlock
 		       "name=\"{0}\", codebase={1}, defaultLoader={2}",
