@@ -53,7 +53,6 @@ import net.jini.core.constraint.ConstraintAlternatives;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
-import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
@@ -129,13 +128,14 @@ abstract class Utilities
      * provider.
      */
     private static final String[] SUPPORTED_KEY_EXCHANGE_ALGORITHMS = {
+        "", // TLSv1.3
 	"ECDHE_ECDSA",
 	"DHE_DSS",
 	"ECDHE_RSA",
 	"DHE_RSA",
 	"RSA",
-	"ECDH_anon",
-	"DH_anon",
+//	"ECDH_anon",
+//	"DH_anon",
 //	"ECDHE_PSK", // Pre Shared Key
 //	"DHE_PSK", // Pre Shared Key
 //	"SRP_SHA_RSA", //RFC 5054 Secure Remote Password
@@ -154,7 +154,10 @@ abstract class Utilities
     /** The names of cipher algorithms that do strong encryption */
     private static final String[] STRONG_ENCRYPTION_CIPHERS = {
 	"AES_256_GCM",
-	"AES_128_GCM"
+	"AES_128_GCM",
+        "CHACHA20_POLY1305",
+        "AES_128_CCM",
+        "AES_128_CCM_8",
     };
 
     /** The names of all cipher algorithms supported by this provider. */
@@ -163,6 +166,9 @@ abstract class Utilities
 	"AES_128_CBC",
 	"AES_256_GCM",
 	"AES_128_GCM",
+        "CHACHA20_POLY1305",
+        "AES_128_CCM",
+        "AES_128_CCM_8",
 	"RC4_128",
 	"3DES_EDE_CBC"
     };
@@ -937,18 +943,19 @@ abstract class Utilities
      * The key exchange algorithm is found following the first underscore and
      * up to the first occurrence of "_WITH_".
      * 
-     * If "_WITH_" is not found, returns and empty string, assuming TLSv1.3
+     * If "_WITH_" is not found, returns an empty string, assuming TLSv1.3
      */
     static String getKeyExchangeAlgorithm(String cipherSuite) {
-	int start = cipherSuite.indexOf('_') + 1;
-	if (start >= 1) {
-	    int end = cipherSuite.indexOf("_WITH_", start);
-	    if (end >= start) {
-		return cipherSuite.substring(start, end);
-	    }
+        int end = cipherSuite.indexOf("_WITH_");
+        if (end > -1) {
+            int start = cipherSuite.indexOf('_') + 1;
+            if (end > start){
+                return cipherSuite.substring(start, end);
+            }
+            return "NULL";
+        } else {
             return ""; //TLSv1.3
-	}
-	return "NULL";
+        }   
     }
 
     /**
@@ -1013,10 +1020,13 @@ abstract class Utilities
 	int start = cipherSuite.indexOf("_WITH_") + 6;
 	if (start >= 6) {
 	    int end = cipherSuite.lastIndexOf('_');
-	    if (end >= start) {
+	    if (end > start) {
 		return cipherSuite.substring(start, end);
-	    }
+	    } else {
+                return NO_ENCRYPTION_CIPHER_ALGORITHM;
+            }
 	}
+        // TLSv1.3:
         start = cipherSuite.indexOf("_") + 1;
         if (start >= 1) {
             int end = cipherSuite.lastIndexOf('_');
@@ -1024,7 +1034,7 @@ abstract class Utilities
 		return cipherSuite.substring(start, end);
 	    }
         }
-	return "NULL";
+	return NO_ENCRYPTION_CIPHER_ALGORITHM;
     }
 
     /**
