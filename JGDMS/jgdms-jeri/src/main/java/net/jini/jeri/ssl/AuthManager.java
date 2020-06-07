@@ -384,6 +384,7 @@ abstract class AuthManager extends FilterX509TrustManager
 
     /* -- Implement X509KeyManager -- */
 
+    @Override
     public X509Certificate[] getCertificateChain(String alias) {
 	CertPath chain = 
 	    SubjectCredentials.getCertificateChain(getSubject(), alias);
@@ -392,6 +393,7 @@ abstract class AuthManager extends FilterX509TrustManager
 	    new X509Certificate[certs.size()]);
     }
 
+    @Override
     public PrivateKey getPrivateKey(String alias) {
 	CertPath chain =
 	    SubjectCredentials.getCertificateChain(getSubject(), alias);

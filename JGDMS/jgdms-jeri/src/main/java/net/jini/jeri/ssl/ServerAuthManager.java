@@ -28,6 +28,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.cert.CertPath;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -55,9 +56,9 @@ class ServerAuthManager extends AuthManager {
     /* -- Fields -- */
 
     /** Server transport logger */
-    private static final Logger logger = Utilities.SERVER_LOGGER;
+    private static final Logger LOGGER = Utilities.SERVER_LOGGER;
 
-    /** The SSLSessionContext for all connections. */
+    /** The SSLSessionContext for all connections. Null if stateless TSL*/
     private final SSLSessionContext sslSessionContext;
 
     /** The subject's private credentials, if the subject is read-only. */
@@ -69,15 +70,6 @@ class ServerAuthManager extends AuthManager {
      * credentials.
      */
     private final Map credentialCache = new HashMap(2);
-
-    /** The SSL session for the last successful call to checkCredentials. */
-    private Reference sessionCache = new SoftReference(null);
-
-    /**
-     * The time when the credentials for the session in the session cache
-     * become invalid.
-     */
-    private long credentialsValidUntil = 0;
 
     /* -- Constructors -- */
 
@@ -111,21 +103,15 @@ class ServerAuthManager extends AuthManager {
      * server did not authenticate itself.
      */
     X509Certificate getServerCertificate(SSLSession session) {
-	synchronized (credentialCache) {
-	    if (sslSessionContext.getSession(session.getId()) != null) {
-		Object val = credentialCache.get(
-		    Utilities.getKeyAlgorithm(session.getCipherSuite()));
-		if (val instanceof X500PrivateCredential) {
-		    X500PrivateCredential cred = (X500PrivateCredential) val;
-		    if (!cred.isDestroyed()) {
-			return cred.getCertificate();
-		    }
-		}
-	    }
-	    return null;
-	}
+        if (session.isValid()){// Stateless
+            Certificate [] certs = session.getLocalCertificates();
+            if (certs[0] instanceof X509Certificate) {
+                return (X509Certificate) certs[0];
+            }
+        } 
+        return null;
     }
-
+        
     /**
      * Checks if the server subject still contains the proper credentials to
      * use the specified session.  Uses the credential cache to find the
@@ -144,35 +130,33 @@ class ServerAuthManager extends AuthManager {
     void checkCredentials(SSLSession session, Subject clientSubject)
 	throws GeneralSecurityException
     {
-	synchronized (credentialCache) {
-	    if (sslSessionContext.getSession(session.getId()) == null) {
+        if (!session.isValid()) {
 		throw new SecurityException("Session not valid");
-	    }
-	    Object val = credentialCache.get(
-		Utilities.getKeyAlgorithm(session.getCipherSuite()));
-	    if (val == null) {
-		throw new SecurityException(
-		    "No credential cached for key type");
-	    } else if (val instanceof String) {
-		throw new SecurityException((String) val);
-	    }
-	    X500PrivateCredential cred = (X500PrivateCredential) val;
-	    if (cred.isDestroyed()) {
-		throw new SecurityException(
-		    "Private credentials are destroyed");
-	    } else if (subjectIsReadOnly
-		       && session.equals(sessionCache.get())
-		       && System.currentTimeMillis() < credentialsValidUntil)
-	    {
-		return;
-	    } else {
-		credentialsValidUntil = checkCredentials(
-		    cred, clientSubject, "accept");
-		sessionCache = new SoftReference<SSLSession>(session);
-	    }
-	}
-    }
+        }
+        
+        Subject serverSubject = getSubject();
+        Principal pal = session.getLocalPrincipal();
 
+        if (pal instanceof X500Principal){
+            X500Principal x500pal = (X500Principal) pal;
+            if (x500pal.implies(serverSubject)) {
+                Certificate[] cert = session.getLocalCertificates();
+                if (cert[0] instanceof X509Certificate){
+                    X500PrivateCredential cred = 
+                            getPrivateCredential((X509Certificate) cert[0]);
+                    if (cred.isDestroyed()){
+                        throw new SecurityException(
+                            "Private credentials are destroyed");
+                    } else {
+                        if (System.currentTimeMillis() 
+                            < checkCredentials(cred, clientSubject, "accept")) {
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     /**
      * Checks that the principals and credentials associated with the specified
      * private credential are present and valid in the server subject, and that
@@ -220,7 +204,7 @@ class ServerAuthManager extends AuthManager {
 	}
 	return validUntil;
     }
-
+    
     /**
      * Returns the name of the principal for the peer subject, which should be
      * read-only if it is not null.
@@ -236,8 +220,9 @@ class ServerAuthManager extends AuthManager {
     }
 
     /** Returns the server logger */
+    @Override
     Logger getLogger() {
-	return logger;
+	return LOGGER;
     }
 
     /**
@@ -250,6 +235,7 @@ class ServerAuthManager extends AuthManager {
      * @throws SecurityException if the current access control context does not
      *	       have the proper AuthenticationPermission
      */
+    @Override
     X500PrivateCredential getPrivateCredential(X509Certificate cert) {
 	return getPrivateCredential(cert, (String) null, "listen");
     }
@@ -312,14 +298,16 @@ class ServerAuthManager extends AuthManager {
 
     /* -- Implement X509KeyManager -- */
 
+    @Override
     public String[] getClientAliases(String keyType, Principal[] issuers) {
 	return null;
     }
 
+    @Override
     public String[] getServerAliases(String keyType, Principal[] issuers) {
 	String[] result = getAliases(keyType, issuers);
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,
+	if (LOGGER.isLoggable(Level.FINE)) {
+	    LOGGER.log(Level.FINE,
 		       "get server aliases for key type {0}\n" +
 		       "and issuers {1}\nreturns {2}",
 		       new Object[] {
@@ -329,6 +317,7 @@ class ServerAuthManager extends AuthManager {
 	return result;
     }
 
+    @Override
     public String chooseClientAlias(
 	String[] keyTypes, Principal[] issuers, Socket socket)
     {
@@ -340,6 +329,7 @@ class ServerAuthManager extends AuthManager {
      * usable.  If not, then invalidate all sessions with the same key type and
      * attempt to find another key.
      */
+    @Override
     public String chooseServerAlias(
 	String keyType, Principal[] issuers, Socket socket)
     {
@@ -351,8 +341,8 @@ class ServerAuthManager extends AuthManager {
 		try {
                         checkCredentials(cred, null, "listen");
 		} catch (SecurityException e) {
-		    if (logger.isLoggable(Levels.HANDLED)) {
-			Utilities.logThrow(logger, Levels.HANDLED,
+		    if (LOGGER.isLoggable(Levels.HANDLED)) {
+			Utilities.logThrow(LOGGER, Levels.HANDLED,
 				 ServerAuthManager.class, "chooseServerAlias",
 				 "choose server alias for key type {0}\n" +
 				 "and issuers {1}\ncaught exception",
@@ -366,19 +356,21 @@ class ServerAuthManager extends AuthManager {
 		     */
 		    cred = null;
 		    credentialCache.remove(keyType);
-		    for (Enumeration en = sslSessionContext.getIds();
-			 en.hasMoreElements(); )
-		    {
-			SSLSession session =
-			    sslSessionContext.getSession(
-				(byte[]) en.nextElement());
-			if (session != null) {
-			    String suite = session.getCipherSuite();
-			    if (keyType.equals(Utilities.getKeyAlgorithm(suite))) {
-				session.invalidate();
-			    }
-			}
-		    }
+                    if (sslSessionContext != null){
+                        for (Enumeration en = sslSessionContext.getIds();
+                             en.hasMoreElements(); )
+                        {
+                            SSLSession session =
+                                sslSessionContext.getSession(
+                                    (byte[]) en.nextElement());
+                            if (session != null) {
+                                String suite = session.getCipherSuite();
+                                if (keyType.equals(Utilities.getKeyAlgorithm(suite))) {
+                                    session.invalidate();
+                                }
+                            }
+                        }
+                    }
 		}
 	    }
 	    if (cred == null) {
@@ -400,11 +392,10 @@ class ServerAuthManager extends AuthManager {
 		}
 	    }
 	}
-	String result = (cred == null)
-	    ? null
+	String result = (cred == null)? null
 	    : SubjectCredentials.getCertificateName(cred.getCertificate());
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,
+	if (LOGGER.isLoggable(Level.FINE)) {
+	    LOGGER.log(Level.FINE,
 		       "choose server alias for key type {0}\nissuers {1}\n" +
 		       "returns {2}",
 		       new Object[] { keyType, Utilities.toString(issuers), result });
