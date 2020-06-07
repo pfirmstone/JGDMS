@@ -15,6 +15,10 @@
  */
 package au.net.zeus.rmi.tls;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -25,6 +29,7 @@ import java.security.cert.X509Certificate;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import net.jini.security.Security;
@@ -151,7 +156,32 @@ abstract class FilterX509TrustManager extends Utilities implements X509TrustMana
 			/*
 			 * Calling init with null reads the default truststore
 			 */
-			factory.init((KeyStore) null);
+                        
+                        KeyStore keyStore =
+                        KeyStore.getInstance(
+                            System.getProperty(
+                                "javax.net.ssl.trustStoreType",
+                                KeyStore.getDefaultType()
+                            )
+                        );
+                        InputStream in;
+                        try {
+                            in = new FileInputStream(
+                                    System.getProperty("javax.net.ssl.trustStore"));
+                            String keyStorePassword = System.getProperty("javax.net.ssl.trustStorePassword");
+                            char[] password = keyStorePassword != null ? keyStorePassword.toCharArray() : new char[0];
+                            keyStore.load(in, password);
+                            in.close();
+                        } catch (FileNotFoundException ex) {
+                            Logger.getLogger(FilterX509TrustManager.class.getName()).log(Level.CONFIG, "Unable to find trustStore", ex);
+                        } catch (IOException ex) {
+                            Logger.getLogger(FilterX509TrustManager.class.getName()).log(Level.CONFIG, "Unable to load trustStore", ex);
+                        } catch (NoSuchAlgorithmException ex) {
+                            Logger.getLogger(FilterX509TrustManager.class.getName()).log(Level.CONFIG, "Unable to load trustStore", ex);
+                        } catch (CertificateException ex) {
+                            Logger.getLogger(FilterX509TrustManager.class.getName()).log(Level.CONFIG, "Unable to load trustStore", ex);
+                        }
+			factory.init(keyStore);
 		    } catch (KeyStoreException e) {
 			INIT_LOGGER.log(
 			    Level.WARNING,
