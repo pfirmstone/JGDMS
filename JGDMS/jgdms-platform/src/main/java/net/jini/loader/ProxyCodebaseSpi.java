@@ -16,6 +16,7 @@
 package net.jini.loader;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
 import java.rmi.server.ExportException;
 import java.util.Collection;
 import java.util.Iterator;
@@ -88,16 +89,18 @@ public interface ProxyCodebaseSpi {
      * is present in the cache in case of a boomerang proxy.
      * 
      * Implementations of this method are not idempotent, calling this method
-     * twice for a proxy will result in an ExportException.
+     * twice for a service will result in an ExportException.
      * 
      * Users generally needn't worry about this method.
      * 
-     * @param bootstrapProxy
+     * @param service local instance of CodebaseAccessor, note that the proxy
+     * will not be available via ServiceProxyAccessor as this method is called during export.
+     * @param handler to be used for ObjectEndpoint identity.
      * @param loader ClassLoader to use for resolving service implementation classes.
      * @throws java.rmi.server.ExportException if called more than once for a proxy instance.
      * @throws IllegalArgumentException of bootstrapProxy is not a Proxy instance.
      */
-    public default void record(CodebaseAccessor bootstrapProxy, ClassLoader loader)
+    public default void record(CodebaseAccessor service, InvocationHandler handler, ClassLoader loader)
             throws ExportException {}
     
     public static class Util {
