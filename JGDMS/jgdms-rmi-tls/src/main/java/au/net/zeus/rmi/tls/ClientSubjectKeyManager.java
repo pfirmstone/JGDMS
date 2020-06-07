@@ -16,13 +16,11 @@
 package au.net.zeus.rmi.tls;
 
 import java.net.Socket;
-import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Principal;
-import java.security.PrivilegedAction;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
