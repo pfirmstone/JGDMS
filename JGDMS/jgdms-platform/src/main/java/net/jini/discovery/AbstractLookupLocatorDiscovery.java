@@ -31,6 +31,9 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -406,10 +409,12 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
     private class Notifier extends Thread {
         // In case client code catches and resets interrupt.
         private volatile boolean interrupted = false;
+        private final AccessControlContext loginContext;
         
 	public Notifier() {
 	    super("event notifier");
 	    setDaemon(false);
+            loginContext = AccessController.getContext();
 	}//end constructor
         
         public void interrupt(){
@@ -462,11 +467,17 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                         }//end loop
                     }//endif(firstListener && isLoggable(Level.FINEST)
                     try {
-			if (task.discard) {
-			    l.discarded(e);
-			} else {
-			    l.discovered(e);
-                	}//endif
+                        AccessController.doPrivileged(new PrivilegedAction(){
+                            @Override
+                            public Object run() {
+                                if (task.discard) {
+                                    l.discarded(e);
+                                } else {
+                                    l.discovered(e);
+                                }//endif
+                                return Boolean.TRUE;
+                            }
+                        }, loginContext);
                     } catch (Throwable t) {
                 	logger.log(Levels.HANDLED, "a discovery listener failed to process a " +
                 		(task.discard ? "discard" : "discover") + " event", t);
