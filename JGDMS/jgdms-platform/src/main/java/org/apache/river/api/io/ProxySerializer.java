@@ -154,13 +154,12 @@ class ProxySerializer implements Serializable {
 	if (proxyClass == null ) LOGGER.log(Level.FINE, "Warning Proxy was null for {0}", svc.getClass());
 	if (proxy instanceof RemoteMethodControl //JERI
 	    && proxy instanceof CodebaseAccessor
-	    && Proxy.isProxyClass(proxyClass)
 	    && getProvider(streamLoader).substitute(proxyClass, streamLoader)
 	    ) 
 	{
 	    // REMIND: InvocationHandler must be available locally, for now
 	    // it must be an instance of BasicInvocationHandler.
-	    InvocationHandler h = Proxy.getInvocationHandler(proxy);
+	    InvocationHandler h = Proxy.getInvocationHandler(proxy); // throws IllegalArgumentException if not a proxy.
 	    return new ProxySerializer(
 		(CodebaseAccessor) Proxy.newProxyInstance(getProxyLoader(proxyClass),
 		    BOOTSTRAP_PROXY_INTERFACES,
@@ -194,9 +193,8 @@ class ProxySerializer implements Serializable {
 	serviceProxy = m;
 	this.context = context;
 	this.read = read;
-	
     }
-    
+
     private static CodebaseAccessor check(CodebaseAccessor c) throws InvalidObjectException{
 	if (Proxy.isProxyClass(c.getClass())) return c;
 	throw new InvalidObjectException(
