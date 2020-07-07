@@ -123,7 +123,6 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.JoinManager;
@@ -2518,7 +2517,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	/** Process a unicast discovery request */
 	public void run() {
 	    try {
-		reggie.respond(socket);
+                AccessController.doPrivileged(new PrivilegedExceptionAction(){
+                    @Override
+                    public Object run() throws Exception {
+                        reggie.respond(socket);
+                        return Boolean.TRUE;
+                    }
+                }, reggie.context);
 	    } catch (Exception e) {
 	        if (DISCOVERY_LOGGER.isLoggable(Levels.HANDLED)) {
 		    logThrow(DISCOVERY_LOGGER, Levels.HANDLED,
