@@ -74,6 +74,12 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.net.SocketPermission "localhost:9090", "listen,resolve";
     permission java.net.SocketPermission "localhost:9091", "listen,resolve";
     permission javax.security.auth.AuthPermission "getSubject";
+    permission java.io.FilePermission 
+        "${org.apache.river.qa.home}${/}harness${/}-",
+        "read";
+    permission java.io.FilePermission 
+        "harness${/}-",
+        "read";
 };
 
 grant 
@@ -93,6 +99,12 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar"
     permission java.net.SocketPermission "localhost:9090", "listen,resolve";
     permission java.net.SocketPermission "localhost:9091", "listen,resolve";
     permission javax.security.auth.AuthPermission "getSubject";
+    permission java.io.FilePermission 
+        "${org.apache.river.qa.home}${/}harness${/}-",
+        "read";
+    permission java.io.FilePermission 
+        "harness${/}-",
+        "read";
 };
 
 grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {

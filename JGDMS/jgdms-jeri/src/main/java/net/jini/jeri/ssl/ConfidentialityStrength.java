@@ -78,9 +78,13 @@ public final class ConfidentialityStrength
      * <ul>
      * <li> AES_128_GCM
      * <li> AES_256_GCM
+     * <li> CHACHA20_POLY1305
+     * <li> AES_128_CCM
+     * <li> AES_128_CCM_8
      * </ul>
      * 
-     * Key exchange is limited to the following ephemeral protocols with forward secrecy.
+     * Key exchange is limited to the following ephemeral protocols with forward
+     * secrecy for TLS v1.2 and earlier.
      * 
      * <ul>
      * <li> ECDHE_RSA

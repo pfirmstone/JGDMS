@@ -5230,13 +5230,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 ) 
             );
 	    this.codebase = Config.getNonNullEntry(config, COMPONENT,
-		    "Codebase_Annotation", String.class, "");
+		    "codebaseAnnotation", String.class, "");
 	    this.certFactoryType = Config.getNonNullEntry(config, COMPONENT,
-		    "Codebase_CertFactoryType", String.class, "X.509");
+		    "codebaseCertFactoryType", String.class, "X.509");
 	    this.certPathEncoding = Config.getNonNullEntry(config, COMPONENT,
-		    "Codebase_CertPathEncoding", String.class, "PkiPath");
+		    "codebaseCertPathEncoding", String.class, "PkiPath");
 	    this.encodedCerts = Config.getNonNullEntry(config, COMPONENT,
-		    "Codebase_Certs", byte[].class, new byte[0]);
+		    "codebaseCerts", byte[].class, new byte[0]);
             this.unexportTimeout = Config.getLongEntry(
                    config, COMPONENT, "unexportTimeout", 20000L,
                    0, Long.MAX_VALUE);

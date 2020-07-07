@@ -17,6 +17,11 @@
  */
 package org.apache.river.thread.wakeup;
 
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.constants.TimeConstants;
@@ -91,6 +96,7 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
     private final AtomicInteger attempt;	// the current attempt number
     private final WakeupManager wakeup;       // WakeupManager for retry scheduling
     private final List<FutureObserver<V>> listeners;
+    private final AccessControlContext context;
 
     /**
      * Default delay backoff times.  These are converted from
@@ -126,6 +132,7 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
         attempt = new AtomicInteger();
         listeners = new ArrayList<FutureObserver<V>>();
         startTime = System.currentTimeMillis();
+        context = AccessController.getContext();
     }
     
     /**
@@ -146,6 +153,7 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
         attempt = new AtomicInteger();
         listeners = new ArrayList<FutureObserver<V>>();
         startTime = System.currentTimeMillis();
+        context = AccessController.getContext();
     }
     
     public boolean addObserver(FutureObserver<V> listener){
@@ -163,6 +171,8 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
      * Make a single attempt.  Return <code>true</code> if the attempt
      * was successful.  If the attempt is not successful, the task
      * will be scheduled for a future retry.
+     * 
+     * @return <code>true</code> if the attempt was successful.
      */
     public abstract boolean tryOnce();
 
@@ -178,12 +188,17 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
      */
     public void run() {		// avoid retry if cancelled
         if (cancelled) return;			// do nothing
-	boolean success = false;
+        boolean success = false;
         try {
-            success = tryOnce();
-        } catch (Throwable t){
+            success = AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>(){
+                @Override
+                public Boolean run() throws Exception {
+                    return tryOnce();
+                }
+            }, context);
+        } catch (PrivilegedActionException e){
+            Exception t = e.getException();
             t.printStackTrace(System.err);
-            if (t instanceof Error) throw (Error) t;
             if (t instanceof RuntimeException) throw (RuntimeException) t;
         }
         if (!success) {		// if at first we don't succeed ...
@@ -192,7 +207,7 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
 
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST, "retry of {0} in {1} ms", 
-                    new Object[]{this, 
+            new Object[]{this, 
                         Long.valueOf(at - System.currentTimeMillis())});
             }
             RetryTime time = null;
@@ -210,7 +225,7 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
                 notifyAll();	
                 Iterator<FutureObserver<V>> it = listeners.iterator();
                 while (it.hasNext()){
-                it.next().futureCompleted(this);
+        it.next().futureCompleted(this);
                 }
             } // see waitFor()
         }

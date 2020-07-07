@@ -27,10 +27,8 @@ import java.security.Principal;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
@@ -204,6 +202,7 @@ class ClientAuthManager extends AuthManager {
      * @throws SecurityException if the access control context does not have
      *	       the proper AuthenticationPermission
      */
+    @Override
     synchronized X500PrivateCredential getPrivateCredential(
 	X509Certificate cert)
     {
@@ -237,6 +236,7 @@ class ClientAuthManager extends AuthManager {
     }
 
     /** Returns the client logger */
+    @Override
     Logger getLogger() {
 	return logger;
     }
@@ -365,6 +365,7 @@ class ClientAuthManager extends AuthManager {
 	return result;
     }
 
+    @Override
     public String chooseServerAlias(
 	String keyType, Principal[] issuers, Socket socket)
     {

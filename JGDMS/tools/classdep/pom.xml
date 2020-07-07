@@ -46,12 +46,12 @@
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
-            <version>5.0.1</version>
+            <version>7.3.1</version>
         </dependency>
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm-commons</artifactId>
-            <version>5.0.1</version>
+            <version>7.3.1</version>
         </dependency>
     </dependencies>
 
@@ -65,7 +65,7 @@
                         <manifestEntries>
                             <Main-Class>org.apache.river.tool.ClassDep</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>asm-5.0.1.jar asm-commons-5.0.1.jar</Class-Path>
+                            <Class-Path>asm-7.3.1.jar asm-commons-7.3.1.jar</Class-Path>
                         </manifestEntries>
                     </archive>
                 </configuration>
@@ -87,9 +87,9 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                        <source>1.6</source>
+                        <source>8</source>
                         <profile>compact1</profile>
-                        <target>1.6</target>
+                        <target>8</target>
                         <debug>true</debug>
                         <optimize>true</optimize>
                         <encoding>UTF-8</encoding>

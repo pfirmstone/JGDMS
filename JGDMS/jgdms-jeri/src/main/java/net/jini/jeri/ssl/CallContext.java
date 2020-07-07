@@ -19,7 +19,9 @@
 package net.jini.jeri.ssl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import javax.security.auth.Subject;
 import net.jini.core.constraint.AtomicInputValidation;
@@ -135,9 +137,47 @@ class CallContext extends Utilities implements OutboundRequestHandle {
 	this.atomicityPreferred = atomicityPreferred;
 	this.connectionTime = connectionTime;
     }
+    
+    @Override
+    public boolean equals(Object o){
+        if (this == o) return true;
+        if (!(o instanceof CallContext)) return false;
+        CallContext that = (CallContext) o;
+        if (!clientAuthRequired == that.clientAuthRequired) return false;
+        if (!integrityRequired == that.integrityRequired) return false;
+        if (!integrityPreferred == that.integrityPreferred) return false;
+        if (!atomicityRequired == that.atomicityRequired) return false;
+        if (!atomicityPreferred == that.atomicityPreferred) return false;
+        if (!(connectionTime == that.connectionTime)) return false;
+        if (!Objects.equals(endpoint, that.endpoint)) return false;
+        if (!Objects.equals(endpointImpl, that.endpointImpl)) return false;
+        if (!Objects.equals(clientSubject, that.clientSubject)) return false;
+        if (!Objects.equals(clientPrincipals, that.clientPrincipals)) return false;
+        if (!Objects.equals(serverPrincipals, that.serverPrincipals)) return false;
+        return Objects.deepEquals(cipherSuites, that.cipherSuites);
+    }
 
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 71 * hash + Objects.hashCode(this.endpoint);
+        hash = 71 * hash + Objects.hashCode(this.endpointImpl);
+        hash = 71 * hash + Objects.hashCode(this.clientSubject);
+        hash = 71 * hash + (this.clientAuthRequired ? 1 : 0);
+        hash = 71 * hash + Objects.hashCode(this.clientPrincipals);
+        hash = 71 * hash + Objects.hashCode(this.serverPrincipals);
+        hash = 71 * hash + Arrays.deepHashCode(this.cipherSuites);
+        hash = 71 * hash + (this.integrityRequired ? 1 : 0);
+        hash = 71 * hash + (this.integrityPreferred ? 1 : 0);
+        hash = 71 * hash + (this.atomicityRequired ? 1 : 0);
+        hash = 71 * hash + (this.atomicityPreferred ? 1 : 0);
+        hash = 71 * hash + (int) (this.connectionTime ^ (this.connectionTime >>> 32));
+        return hash;
+    }
+
+    @Override
     public String toString() {
-	StringBuffer buff = new StringBuffer("CallContext[");
+	StringBuilder buff = new StringBuilder("CallContext[");
 	buff.append("\n  ").append(endpoint);
 	buff.append("\n  clientSubject=");
 	if (clientSubject == null) {

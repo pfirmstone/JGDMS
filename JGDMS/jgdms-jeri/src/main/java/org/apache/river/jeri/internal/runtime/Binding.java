@@ -79,19 +79,13 @@ class Binding {
         if (activated) {
             return true;
         }
-        requestDispatcher = table.createRequestDispatcher(new Unreferenced() {
-
-            public void unreferenced() {
-                checkReferenced();
-            }
-        });
+        requestDispatcher = 
+                new DgcRequestDispatcher(() -> {checkReferenced();}, table);
         try {
-            listenHandle = (ListenHandle) Security.doPrivileged(new PrivilegedExceptionAction() {
-
-                public Object run() throws IOException {
-                    return listenEndpoint.listen(requestDispatcher);
-                }
-            });
+            listenHandle = Security.doPrivileged(
+                    (PrivilegedExceptionAction<ListenHandle>) () 
+                            -> listenEndpoint.listen(requestDispatcher)
+            );
         } catch (PrivilegedActionException e) {
             throw (IOException) e.getException();
         }

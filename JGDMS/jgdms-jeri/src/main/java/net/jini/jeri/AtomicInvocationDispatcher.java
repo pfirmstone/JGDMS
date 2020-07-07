@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
+import java.rmi.Remote;
 import java.rmi.server.ExportException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -188,6 +189,15 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 	}
 	
 	
+    }
+        
+    // So developers can see this class in stack traces.
+    @Override
+    public void dispatch(Remote impl,
+                     InboundRequest request,
+                     Collection context)
+    {
+        super.dispatch(impl,request,context);
     }
     
 }

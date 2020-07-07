@@ -53,7 +53,6 @@ import net.jini.core.constraint.ConstraintAlternatives;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
-import net.jini.core.constraint.ServerMaxPrincipal;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
@@ -95,6 +94,7 @@ abstract class Utilities
 	"DHE_RSA", //Only ephemeral DH safe from mitm attack.
         "DHE_DSS", //Only ephemeral DH safe from mitm attack.
         "ECDHE_ECDSA", //Only ephemeral DH safe from mitm attack.
+        "" // Separately negotiated by TLSv1.3
 //	"ECDHE_PSK", // Pre Shared Key
 //	"DHE_PSK" // Pre Shared Key
     };
@@ -113,9 +113,14 @@ abstract class Utilities
 //	"SRP_SHA_DSS" //RFC 5054 Secure Remote Password
     };
 
-    /** The names of JSSE key exchange algorithms that use DSA keys. */
+    /** The names of JSSE key exchange algorithms that use ECDSA keys. */
     private static final String[] ECDSA_KEY_EXCHANGE_ALGORITHMS = {
 	"ECDHE_ECDSA" //Only ephemeral DH safe from mitm attack.
+    };
+    
+    /** The names of JSSE key exchange algorithms that use EdDSA keys. */
+    private static final String[] SEPARATELY_NEGOTIATED_KEY_EXCHANGE_ALGORITHMS = {
+	"" //TLSv1.3.
     };
     
     /**
@@ -123,13 +128,14 @@ abstract class Utilities
      * provider.
      */
     private static final String[] SUPPORTED_KEY_EXCHANGE_ALGORITHMS = {
+        "", // TLSv1.3
 	"ECDHE_ECDSA",
 	"DHE_DSS",
 	"ECDHE_RSA",
 	"DHE_RSA",
 	"RSA",
-	"ECDH_anon",
-	"DH_anon",
+//	"ECDH_anon",
+//	"DH_anon",
 //	"ECDHE_PSK", // Pre Shared Key
 //	"DHE_PSK", // Pre Shared Key
 //	"SRP_SHA_RSA", //RFC 5054 Secure Remote Password
@@ -148,7 +154,10 @@ abstract class Utilities
     /** The names of cipher algorithms that do strong encryption */
     private static final String[] STRONG_ENCRYPTION_CIPHERS = {
 	"AES_256_GCM",
-	"AES_128_GCM"
+	"AES_128_GCM",
+        "CHACHA20_POLY1305",
+        "AES_128_CCM",
+        "AES_128_CCM_8",
     };
 
     /** The names of all cipher algorithms supported by this provider. */
@@ -157,6 +166,9 @@ abstract class Utilities
 	"AES_128_CBC",
 	"AES_256_GCM",
 	"AES_128_GCM",
+        "CHACHA20_POLY1305",
+        "AES_128_CCM",
+        "AES_128_CCM_8",
 	"RC4_128",
 	"3DES_EDE_CBC"
     };
@@ -196,6 +208,13 @@ abstract class Utilities
      * are permitted.
      */
     static final int ECDSA_KEY_ALGORITHM = 1 << 2;
+    
+    /**
+     *
+     * Or'ed into the value returned by getPermittedKeyAlgorithms when TLSv1.3 
+     * is used.
+     */
+     static final int SEPARATELY_NEGOTIATED_KEY_ALGORITHM = 1 << 3;
 
     /** Stores SSL contexts and auth managers. */
     private static final WeakSoftTable SSL_CONTEXT_MAP = new WeakSoftTable();
@@ -250,7 +269,7 @@ abstract class Utilities
 
     /** The secure socket protocol used with JSSE. */
     private static final String SSL_PROTOCOL = (String) Security.doPrivileged(
-	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.2"));
+	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.3"));
     
     /** The providers and algorithms to use */
     private static final String JCE_PROVIDER = (String) Security.doPrivileged(
@@ -923,16 +942,20 @@ abstract class Utilities
      *
      * The key exchange algorithm is found following the first underscore and
      * up to the first occurrence of "_WITH_".
+     * 
+     * If "_WITH_" is not found, returns an empty string, assuming TLSv1.3
      */
     static String getKeyExchangeAlgorithm(String cipherSuite) {
-	int start = cipherSuite.indexOf('_') + 1;
-	if (start >= 1) {
-	    int end = cipherSuite.indexOf("_WITH_", start);
-	    if (end >= start) {
-		return cipherSuite.substring(start, end);
-	    }
-	}
-	return "NULL";
+        int end = cipherSuite.indexOf("_WITH_");
+        if (end > -1) {
+            int start = cipherSuite.indexOf('_') + 1;
+            if (end > start){
+                return cipherSuite.substring(start, end);
+            }
+            return "NULL";
+        } else {
+            return ""; //TLSv1.3
+        }   
     }
 
     /**
@@ -950,6 +973,8 @@ abstract class Utilities
 	    return "DSA";
 	} else if (position(alg, ECDSA_KEY_EXCHANGE_ALGORITHMS) != -1){
 	    return "ECDSA";
+	} else if (position(alg, SEPARATELY_NEGOTIATED_KEY_EXCHANGE_ALGORITHMS) != -1){
+	    return ""; //EdDSA
 	} else if (position(alg, ANONYMOUS_KEY_EXCHANGE_ALGORITHMS) != -1) {
 	    return "NULL";
 	} else {
@@ -957,46 +982,6 @@ abstract class Utilities
 		"Unrecognized key exchange algorithm: " + alg);
 	}
     }    
-
-    /**
-     * Returns the algorithms permitted for keys used with this cipher suite.
-     * Note that the result can be different for client and server sides.
-     *
-     * @param cipherSuite the cipher suite
-     * @param client true to get results for the client side, false for the
-     *	      server side
-     * @return the permitted key algorithms, an OR of some set of the values
-     *	       DSA_KEY_ALGORITHM and RSA_KEY_ALGORITHM
-     * @throws IllegalArgumentException if the key exchange algorithm is not
-     *	       recognized
-     */
-    static int getPermittedKeyAlgorithms(String cipherSuite, boolean client) {
-	String keyAlgorithm = getKeyAlgorithm(cipherSuite);
-	if ("RSA".equals(keyAlgorithm))
-	    /*
-	    * For these suites, the server must use an RSA key, but the client
-	    * may use either an RSA or DSA key.
-	    */
-	    return (client)
-		    ? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM
-		    : RSA_KEY_ALGORITHM;
-	if ("DSA".equals(keyAlgorithm))
-	    /* Same here, but server must use a DSA key */
-	    return (client)
-		    ? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM
-		    : DSA_KEY_ALGORITHM;
-	if("ECDSA".equals(keyAlgorithm))
-	    /* For this suit the server must use a ECDSA key , but the client
-	    * may use either an RSA, DSA or ECDSA key. */
-	    return (client)
-		    ? DSA_KEY_ALGORITHM | RSA_KEY_ALGORITHM | ECDSA_KEY_ALGORITHM
-		    : ECDSA_KEY_ALGORITHM;
-	if("NULL".equals(keyAlgorithm))
-	    return 0;
-	// else
-	throw new AssertionError(
-		    "Unrecognized key algorithm: " + keyAlgorithm);
-    }
 
     /**
      * Returns true if the algorithm is one of the permitted algorithms,
@@ -1014,6 +999,8 @@ abstract class Utilities
 		return (permittedKeyAlgorithms & DSA_KEY_ALGORITHM) != 0;
 	    if ("ECDSA".equals(keyAlgorithm))
 		return (permittedKeyAlgorithms & ECDSA_KEY_ALGORITHM) != 0;
+            if ("".equals(keyAlgorithm))
+		return (permittedKeyAlgorithms & SEPARATELY_NEGOTIATED_KEY_ALGORITHM) != 0;
 	    if ("RSA".equals(keyAlgorithm))
 		return (permittedKeyAlgorithms & RSA_KEY_ALGORITHM) != 0;
         }
@@ -1025,16 +1012,29 @@ abstract class Utilities
      *
      * The cipher algorithm is found following the first occurrence of "_WITH_"
      * and up to the last underscore.
+     * 
+     * If "_WITH_" is not found returns entire string between first and last underscore, 
+     * assuming TLSv1.3
      */
     static String getCipherAlgorithm(String cipherSuite) {
 	int start = cipherSuite.indexOf("_WITH_") + 6;
 	if (start >= 6) {
 	    int end = cipherSuite.lastIndexOf('_');
-	    if (end >= start) {
+	    if (end > start) {
+		return cipherSuite.substring(start, end);
+	    } else {
+                return NO_ENCRYPTION_CIPHER_ALGORITHM;
+            }
+	}
+        // TLSv1.3:
+        start = cipherSuite.indexOf("_") + 1;
+        if (start >= 1) {
+            int end = cipherSuite.lastIndexOf('_');
+            if (end >= start) {
 		return cipherSuite.substring(start, end);
 	    }
-	}
-	return "NULL";
+        }
+	return NO_ENCRYPTION_CIPHER_ALGORITHM;
     }
 
     /**

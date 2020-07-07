@@ -73,7 +73,7 @@ class Utilities {
     
     /** The secure socket protocol used with JSSE. */
     protected static final String SSL_PROTOCOL = (String) Security.doPrivileged(
-	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.2"));
+	new GetPropertyAction("org.apache.river.jeri.ssl.sslProtocol", "TLSv1.3"));
 
     /** The JSSE Provider to use*/
     protected static final String JSSE_PROVIDER = (String) Security.doPrivileged(
@@ -85,7 +85,7 @@ class Utilities {
     /** The providers and algorithms to use */
     private static final String JCE_PROVIDER = (String) Security.doPrivileged(
 	new GetPropertyAction("org.apache.river.jeri.ssl.jceProvider", null));
-    
+        
     /**
      * The names of JSSE key exchange algorithms used for anonymous
      * communication.
@@ -105,15 +105,6 @@ class Utilities {
 	"DH_anon",
         "DH_anon_EXPORT"
     };
-    
-    private static final String[] EPHEMERAL_KEY_EXCHANGE_ALGORITHMS = {
-        "ECDHE_RSA", //Only ephemeral DH safe from mitm attack.
-	"DHE_RSA", //Only ephemeral DH safe from mitm attack.
-        "DHE_DSS", //Only ephemeral DH safe from mitm attack.
-        "ECDHE_ECDSA", //Only ephemeral DH safe from mitm attack.
-//	"ECDHE_PSK", // Pre Shared Key
-//	"DHE_PSK" // Pre Shared Key
-    };
 
     /** The names of JSSE key exchange algorithms that use RSA keys. */
     private static final String[] RSA_KEY_EXCHANGE_ALGORITHMS = {
@@ -132,26 +123,12 @@ class Utilities {
     /** The names of JSSE key exchange algorithms that use DSA keys. */
     private static final String[] ECDSA_KEY_EXCHANGE_ALGORITHMS = {
 	"ECDHE_ECDSA" //Only ephemeral DH safe from mitm attack.
+    }; 
+    
+     /** The names of JSSE key exchange algorithms that use EdDSA keys. */
+    private static final String[] SEPARATELY_NEGOTIATED_KEY_EXCHANGE_ALGORITHMS = {
+	"" //TLSv1.3.
     };
-    
-    /**
-     * The names of all the JSSE key exchange algorithms supported by this
-     * provider.
-     */
-    private static final String[] SUPPORTED_KEY_EXCHANGE_ALGORITHMS = {
-	"ECDHE_ECDSA",
-	"DHE_DSS",
-	"ECDHE_RSA",
-	"DHE_RSA",
-	"RSA",
-	"ECDH_anon",
-	"DH_anon",
-//	"ECDHE_PSK", // Pre Shared Key
-//	"DHE_PSK", // Pre Shared Key
-//	"SRP_SHA_RSA", //RFC 5054 Secure Remote Password
-//	"SRP_SHA_DSS" //RFC 5054 Secure Remote Password
-    };	
-    
     
     private static final ConcurrentMap<Subject,SSLContext> SERVER_TLS_CONTEXT_MAP = 
 	    RC.concurrentMap(
@@ -192,7 +169,7 @@ class Utilities {
 	}
 	return -1;
     }
-    
+
     /**
      * Returns the key exchange algorithm for the specified cipher suite. <p>
      *
@@ -206,6 +183,7 @@ class Utilities {
 	    if (end >= start) {
 		return cipherSuite.substring(start, end);
 	    }
+            return ""; //TLSv1.3
 	}
 	return "NULL";
     }
@@ -225,6 +203,8 @@ class Utilities {
 	    return "DSA";
 	} else if (position(alg, ECDSA_KEY_EXCHANGE_ALGORITHMS) != -1){
 	    return "ECDSA";
+	} else if (position(alg, SEPARATELY_NEGOTIATED_KEY_EXCHANGE_ALGORITHMS) != -1){
+	    return ""; //EdDSA
 	} else if (position(alg, ANONYMOUS_KEY_EXCHANGE_ALGORITHMS) != -1) {
 	    return "NULL";
 	} else {

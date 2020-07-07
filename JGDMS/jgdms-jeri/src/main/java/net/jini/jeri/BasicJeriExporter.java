@@ -584,6 +584,7 @@ public final class BasicJeriExporter implements Exporter {
      *		<code>checkPermissions</code> method on any of the listen
      *		endpoints throws a <code>SecurityException</code>
      **/
+    @Override
     public synchronized Remote export(Remote impl)
 	throws ExportException
     {

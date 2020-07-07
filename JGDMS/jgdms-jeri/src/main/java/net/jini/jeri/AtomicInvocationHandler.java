@@ -232,5 +232,13 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 	}	
 	return in;
     }
+    
+    // So developers can see this class in stack traces.
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args)
+	throws Throwable
+    {
+        return super.invoke(proxy, method, args);
+    }
 
 }

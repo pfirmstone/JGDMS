@@ -119,7 +119,7 @@ public class DgcRequestDispatcher implements RequestDispatcher {
         } catch (ExportException e) {
             throw new AssertionError();
         }
-        this.dgcServer = table.getDgcServer(this);
+        this.dgcServer = new ObjectTable.DgcServerImpl(this, table);
     }
 
     boolean forTable(ObjectTable table) {

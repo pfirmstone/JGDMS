@@ -88,8 +88,8 @@ final class ConnectionContext extends Utilities {
      */
     private final boolean clientSide;
 
-    /** Set to true if the principals and cipher suite conflict */
-    private boolean notSupported;
+    /** Set to true if the principals and cipher suite perform authentication */
+    private final boolean supported;
 
     /** Whether the requirements specify Integrity.YES */
     private boolean integrityRequired;
@@ -129,7 +129,7 @@ final class ConnectionContext extends Utilities {
 	ConnectionContext context = new ConnectionContext(
 	    cipherSuite, client, server, upperLayerConstraints, clientSide);
 	return context.supported(constraints) ? context : null;
-    }
+                        }
 
     /** Creates an instance of this class. */
     private ConnectionContext(String cipherSuite,
@@ -143,12 +143,8 @@ final class ConnectionContext extends Utilities {
 	this.server = server;
 	this.upperLayerConstraints = upperLayerConstraints;
 	this.clientSide = clientSide;
-	boolean serverAuth = doesServerAuthentication(cipherSuite);
-	if (serverAuth != (server != null)
-	    || (client != null && server == null))
-	{
-	    notSupported = true;
-	}
+        boolean serverAuth = doesServerAuthentication(cipherSuite);
+        supported = !(!serverAuth || server == null || client == null);
     }
 
     public String toString() {
@@ -221,7 +217,7 @@ final class ConnectionContext extends Utilities {
      * a side effect.
      */
     private boolean supported(InvocationConstraints constraints) {
-	if (notSupported) {
+	if (!supported) {
 	    return false;
 	}
 	for (Iterator i = constraints.requirements().iterator(); i.hasNext(); )
@@ -283,12 +279,13 @@ final class ConnectionContext extends Utilities {
 	    return ok(doesEncryption(cipherSuite) ==
 		      (constraint == Confidentiality.YES));
 	} else if (constraint instanceof ConfidentialityStrength) {
-	    return ok(!doesEncryption(cipherSuite) ||
-		      (hasStrongKeyCipherAlgorithms(cipherSuite)
-		       == (constraint == ConfidentialityStrength.STRONG)));
+            if (constraint == ConfidentialityStrength.WEAK && (doesEncryption(cipherSuite)))
+                return OK;
+            if (constraint == ConfidentialityStrength.STRONG && hasStrongKeyCipherAlgorithms(cipherSuite))
+                return OK;
+	    return NOT_SUPPORTED;
 	} else if (constraint instanceof ClientAuthentication) {
-	    return ok((client != null) ==
-		      (constraint == ClientAuthentication.YES));
+	    return ok((constraint == ClientAuthentication.YES));
 	} else if (constraint instanceof ClientMinPrincipalType) {
 	    return ok(constraint.equals(clientMinPrincipalType));
 	} else if (constraint instanceof ClientMaxPrincipalType) {
@@ -306,8 +303,7 @@ final class ConnectionContext extends Utilities {
 	} else if (constraint instanceof DelegationRelativeTime) {
 	    return ok(!clientSide);
 	} else if (constraint instanceof ServerAuthentication) {
-	    return ok((server != null) ==
-		      (constraint == ServerAuthentication.YES));
+	    return ok((constraint == ServerAuthentication.YES));
 	} else if (constraint instanceof ServerMinPrincipal) {
 	    Set elements = ((ServerMinPrincipal) constraint).elements();
 	    return ok(elements.size() == 1 && elements.contains(server));
@@ -374,7 +370,7 @@ final class ConnectionContext extends Utilities {
 	hash = 17 * hash + (this.server != null ? this.server.hashCode() : 0);
 	hash = 17 * hash + (this.upperLayerConstraints ? 1 : 0);
 	hash = 17 * hash + (this.clientSide ? 1 : 0);
-	hash = 17 * hash + (this.notSupported ? 1 : 0);
+	hash = 17 * hash + (this.supported ? 1 : 0);
 	hash = 17 * hash + (this.integrityRequired ? 1 : 0);
 	hash = 17 * hash + (this.integrityPreferred ? 1 : 0);
 	hash = 17 * hash + (this.atomicityRequired ? 1 : 0);
@@ -393,7 +389,7 @@ final class ConnectionContext extends Utilities {
 	if (this.clientSide != that.clientSide) return false;
 	if (this.integrityPreferred != that.integrityPreferred) return false;
 	if (this.integrityRequired != that.integrityRequired) return false;
-	if (this.notSupported != that.notSupported) return false;
+	if (this.supported != that.supported) return false;
 	if (this.upperLayerConstraints != that.upperLayerConstraints) return false;
 	if (this.connectionTime != that.connectionTime) return false;
 	if (this.preferences != that.preferences) return false;

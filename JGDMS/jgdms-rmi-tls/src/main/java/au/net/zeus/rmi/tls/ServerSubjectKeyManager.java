@@ -21,12 +21,10 @@ import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Principal;
-import java.security.PrivateKey;
 import java.security.PrivilegedAction;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -53,7 +51,7 @@ class ServerSubjectKeyManager extends SubjectKeyManager{
     /** Server transport logger */
     private static final Logger logger = SERVER_LOGGER;
 
-    /** The SSLSessionContext for all connections. */
+    /** The SSLSessionContext for all connections, null for stateless TLS. */
     private final SSLSessionContext sslSessionContext;
 
     /** The subject's private credentials, if the subject is read-only. */
@@ -67,6 +65,7 @@ class ServerSubjectKeyManager extends SubjectKeyManager{
     private final Map credentialCache = new HashMap(2);
     
     /** Returns the server logger */
+    @Override
     Logger getLogger() {
 	return logger;
     }
@@ -145,19 +144,21 @@ class ServerSubjectKeyManager extends SubjectKeyManager{
 		     */
 		    cred = null;
 		    credentialCache.remove(keyType);
-		    for (Enumeration en = sslSessionContext.getIds();
-			 en.hasMoreElements(); )
-		    {
-			SSLSession session =
-			    sslSessionContext.getSession(
-				(byte[]) en.nextElement());
-			if (session != null) {
-			    String suite = session.getCipherSuite();
-			    if (keyType.equals(getKeyAlgorithm(suite))) {
-				session.invalidate();
-			    }
-			}
-		    }
+                    if (sslSessionContext != null){
+                        for (Enumeration en = sslSessionContext.getIds();
+                             en.hasMoreElements(); )
+                        {
+                            SSLSession session =
+                                sslSessionContext.getSession(
+                                    (byte[]) en.nextElement());
+                            if (session != null) {
+                                String suite = session.getCipherSuite();
+                                if (keyType.equals(getKeyAlgorithm(suite))) {
+                                    session.invalidate();
+                                }
+                            }
+                        }
+                    }
 		}
 	    }
 	    if (cred == null) {

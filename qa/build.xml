@@ -217,8 +217,8 @@
                 <file name="jgdms-url-integrity-${river.version}.jar"/>
                 <file name="classdep-${river.version}.jar"/>
                 <file name="classserver-${river.version}.jar"/>
-                <file name="asm-5.0.1.jar"/>
-                <file name="asm-commons-5.0.1.jar"/>
+                <file name="asm-7.3.1.jar"/>
+                <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
                 <file name="jgdms-activation-${river.version}.jar"/>
                 <file name="checkconfigurationfile-${river.version}.jar"/>
@@ -241,7 +241,7 @@
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk.home}">
             <!--<arg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
-            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-iiop-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${river.version}.jar${path.separator}${jtlib.tmp}/classdep-${river.version}.jar${path.separator}${jtlib.tmp}/classserver-${river.version}.jar${path.separator}${jtlib.tmp}/asm-5.0.1.jar${path.separator}${jtlib.tmp}/asm-commons-5.0.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${river.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${river.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${river.version}.jar"/>
+            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-iiop-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${river.version}.jar${path.separator}${jtlib.tmp}/classdep-${river.version}.jar${path.separator}${jtlib.tmp}/classserver-${river.version}.jar${path.separator}${jtlib.tmp}/asm-7.3.1.jar${path.separator}${jtlib.tmp}/asm-commons-7.3.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${river.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${river.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${river.version}.jar"/>
             <arg value="-timeout:16"/>
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Djtreg.dir=${jtreg.dir}"/>
@@ -289,8 +289,8 @@
                 <file name="jgdms-url-integrity-${river.version}.jar"/>
                 <file name="classdep-${river.version}.jar"/>
                 <file name="classserver-${river.version}.jar"/>
-                <file name="asm-5.0.1.jar"/>
-                <file name="asm-commons-5.0.1.jar"/>
+                <file name="asm-7.3.1.jar"/>
+                <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
                 <file name="jgdms-activation-${river.version}.jar"/>
                 <file name="checkconfigurationfile-${river.version}.jar"/>
@@ -329,8 +329,8 @@
                 <file name="jgdms-url-integrity-${river.version}.jar"/>
                 <file name="classdep-${river.version}.jar"/>
                 <file name="classserver-${river.version}.jar"/>
-                <file name="asm-5.0.1.jar"/>
-                <file name="asm-commons-5.0.1.jar"/>
+                <file name="asm-7.3.1.jar"/>
+                <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
                 <file name="jgdms-activation-${river.version}.jar"/>
                 <file name="checkconfigurationfile-${river.version}.jar"/>
@@ -422,8 +422,8 @@
                         <include name="classdep-${river.version}.jar"/>
                         <include name="classserver-${river.version}.jar"/>
                         <include name="service-starter-${river.version}.jar"/>
-                        <include name="asm-5.0.1.jar"/>
-                        <include name="asm-commons-5.0.1.jar"/>
+                        <include name="asm-7.3.1.jar"/>
+                        <include name="asm-commons-7.3.1.jar"/>
                         <include name="high-scale-lib-1.0.6.jar"/>
                         <include name="bcprov-jdk15on-1.59.jar"/>
                         <include name="bctls-jdk15on-1.59.jar"/>

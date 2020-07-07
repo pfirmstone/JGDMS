@@ -57,7 +57,7 @@ The endpoint classes in this package support at least the following
 constraints, possibly limited by the available cipher suites: <p>
 
 <ul>
-<li> {@link net.jini.core.constraint.ClientAuthentication}
+<li> {@link net.jini.core.constraint.ClientAuthentication#YES}
 <li> {@link net.jini.core.constraint.ClientMaxPrincipal}, when it
      contains an {@link javax.security.auth.x500.X500Principal}
 <li> {@link net.jini.core.constraint.ClientMaxPrincipalType}, when it
@@ -77,13 +77,12 @@ constraints, possibly limited by the available cipher suites: <p>
      elements all have the same actual class and at least one element
      is supported
 <li> {@link net.jini.core.constraint.Delegation#NO}
-<li> {@link net.jini.core.constraint.Delegation#YES}
 <li> {@link net.jini.core.constraint.DelegationAbsoluteTime}, trivially,
      when delegation is not supported
 <li> {@link net.jini.core.constraint.DelegationRelativeTime}, trivially
      on the server side, when delegation is not supported
 <li> {@link net.jini.core.constraint.Integrity#YES}
-<li> {@link net.jini.core.constraint.ServerAuthentication}
+<li> {@link net.jini.core.constraint.ServerAuthentication#YES}
 <li> {@link net.jini.core.constraint.ServerMinPrincipal}, when it
      contains a single <code>X500Principal</code> only
 </ul> <p>

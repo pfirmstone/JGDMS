@@ -547,13 +547,19 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	for (int i = contexts.size(); --i >= 0; ) {
 	    ConnectionContext context = (ConnectionContext) contexts.get(i);
 	    if (context.client == null){ /* Anonymous client !OK */
-		logger.log(Levels.HANDLED, "client not logged in");
+                if (logger.isLoggable(Level.FINEST)){
+                    SecurityException e = new SecurityException("client not logged in");
+                    e.fillInStackTrace();
+                    logger.log(Level.FINEST, "client not logged in", e);
+                } else if (logger.isLoggable(Level.CONFIG)){
+                    logger.config("client not logged in");
+                }
 		contexts.remove(i);
 		continue;
 	    }
 	    Collection certs = (Collection) publicCreds.get(context.client);
 	    if (certs == null) {
-		logger.log(Levels.HANDLED,
+		logger.log(Level.CONFIG,
 			   "missing principal or public credentials: {0}",
 			   context.client);
 		contexts.remove(i);
@@ -624,6 +630,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	for (int i = contexts.size(); -- i >= 0; ) {
 	    ConnectionContext context = (ConnectionContext) contexts.get(i);
 	    if (context.client == null) {
+                /* TODO are we sure this is ok? */
 		/* Client anonymous -- OK */
 		continue;
 	    } else if (context.server == UNKNOWN_PRINCIPAL) {

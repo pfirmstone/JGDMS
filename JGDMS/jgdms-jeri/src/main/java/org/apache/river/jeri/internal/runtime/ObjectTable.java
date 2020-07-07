@@ -80,16 +80,8 @@ final class ObjectTable {
         runLock = new Object();
     }
 
-    RequestDispatcher createRequestDispatcher(Unreferenced unrefCallback) {
-	return new DgcRequestDispatcher(unrefCallback, this);
-    }
-
     boolean isReferenced(RequestDispatcher requestDispatcher) {
 	return getRD(requestDispatcher).isReferenced();
-    }
-    
-    DgcServer getDgcServer(DgcRequestDispatcher dgdRD){
-        return new DgcServerImpl(dgdRD);
     }
 
     Target export(Remote impl,
@@ -154,13 +146,16 @@ final class ObjectTable {
 
     
 
-    private class DgcServerImpl implements DgcServer {
+    static class DgcServerImpl implements DgcServer {
         private final DgcRequestDispatcher dgcRequestDispatcher;
+        private final ObjectTable objectTable;
         
-        DgcServerImpl(DgcRequestDispatcher dgcRequestDispatcher){
+        DgcServerImpl(DgcRequestDispatcher dgcRequestDispatcher, ObjectTable objectTable){
             this.dgcRequestDispatcher = dgcRequestDispatcher;
+            this.objectTable = objectTable;
         }
 
+        @Override
         public long dirty(Uuid clientID,
                           long sequenceNum,
                           Uuid[] ids)
@@ -175,10 +170,10 @@ final class ObjectTable {
 
             long duration = Jeri.leaseValue;
 
-            Lease lease = leaseTable.get(clientID);
+            Lease lease = objectTable.leaseTable.get(clientID);
             if (lease == null) {
                 lease = new Lease(clientID, duration);
-                Lease existed = leaseTable.putIfAbsent(clientID,lease);
+                Lease existed = objectTable.leaseTable.putIfAbsent(clientID,lease);
                 if (existed != null){
                     assert clientID.equals(existed.getClientID());
                     boolean renewed = existed.renew(duration);
@@ -208,9 +203,9 @@ final class ObjectTable {
                     // renewed by another thread, which would risk a renewed
                     // lease being removed from the table.  
                     // An expired lease must be replaced.
-                    leaseTable.remove(clientID, lease); // Another thread could remove it first.
+                    objectTable.leaseTable.remove(clientID, lease); // Another thread could remove it first.
                     lease = new Lease(clientID, duration);
-                    Lease existed = leaseTable.putIfAbsent(clientID, lease);
+                    Lease existed = objectTable.leaseTable.putIfAbsent(clientID, lease);
                     if (existed != null){
                         lease = existed;
                         assert clientID.equals(lease.getClientID());
@@ -294,19 +289,19 @@ final class ObjectTable {
              * second dirty call and exists, it is correctly recognised.
              */
             // This must be performed after changing the leaseTable
-            if (!running){ // double checked
-                synchronized (runLock){
-                    if (!running) {
-                        leaseChecker =
+            if (!objectTable.running){ // double checked
+                synchronized (objectTable.runLock){
+                    if (!objectTable.running) {
+                        objectTable.leaseChecker =
                             (Thread) AccessController.doPrivileged(
-                                new NewThreadAction(new LeaseChecker(),
+                                new NewThreadAction(new LeaseChecker(objectTable),
                                     "DGC Lease Checker", true));
-                        leaseChecker.start();
-                        running = true;
+                        objectTable.leaseChecker.start();
+                        objectTable.running = true;
                     }
                 }
             }
-            for (int i = 0; i < ids.length; i++) {
+            for (int i = 0, l = ids.length; i < l; i++) {
                 Target target = dgcRequestDispatcher.get(ids[i]);
                 if (target != null) {
                     target.referenced(clientID, sequenceNum);
@@ -315,6 +310,7 @@ final class ObjectTable {
             return duration;
         }
 
+        @Override
         public void clean(Uuid clientID,
                           long sequenceNum,
                           Uuid[] ids,
@@ -338,15 +334,22 @@ final class ObjectTable {
         }
     }
 
-    private class LeaseChecker implements Runnable {
+    private static class LeaseChecker implements Runnable {
 
+        private final ObjectTable table;
+        
+        LeaseChecker(ObjectTable table){
+            this.table = table;
+        }
+
+        @Override
 	public void run() {
 	    boolean done = false;
             try {
                 do {
                     Thread.sleep(Jeri.leaseCheckInterval);
                     long now = System.currentTimeMillis();		
-                    for (Iterator i = leaseTable.values().iterator();
+                    for (Iterator i = table.leaseTable.values().iterator();
                          i.hasNext();)
                     {
                         Lease lease = (Lease) i.next();
@@ -355,7 +358,7 @@ final class ObjectTable {
                             i.remove();
                         }
                     }
-                    if (leaseTable.isEmpty()) {
+                    if (table.leaseTable.isEmpty()) {
                         done = true;
                     }		
                 } while (!done);
@@ -367,9 +370,9 @@ final class ObjectTable {
                 // This is always executed and returns the lease checker
                 // to the non running state, such that if the application
                 // has not exited, another thread will be started eventually.
-                synchronized (runLock){
-                    leaseChecker = null;
-                    running = false;               
+                synchronized (table.runLock){
+                    table.leaseChecker = null;
+                    table.running = false;               
                 }
             }
 	}

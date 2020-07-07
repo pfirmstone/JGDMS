@@ -581,6 +581,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *
      * @throws	NullPointerException {@inheritDoc}
      **/
+    @Override
     public void dispatch(Remote impl,
 			 InboundRequest request,
 			 Collection context)
