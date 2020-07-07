@@ -20,6 +20,7 @@ package org.apache.river.jeri.internal.mux;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -32,7 +33,7 @@ class MuxInputStream extends InputStream {
     private final Object sessionLock;
     private final Session session;
     private final Mux mux;
-    private final Deque<ByteBuffer> inBufQueue;
+    private final Deque<Buffer> inBufQueue;
     private IOException sessionDown = null;
     private int inBufRemaining = 0;
     private int inBufPos = 0;
@@ -44,14 +45,14 @@ class MuxInputStream extends InputStream {
         this.mux = mux;
         this.session = session;
         this.sessionLock = sessionLock;
-        this.inBufQueue = new LinkedList<ByteBuffer>();
+        this.inBufQueue = new LinkedList<Buffer>();
     }
 
     void down(IOException e) {
         sessionDown = e;
     }
 
-    void appendToBufQueue(ByteBuffer data) {
+    void appendToBufQueue(Buffer data) {
         inBufQueue.addLast(data);
     }
 
@@ -98,9 +99,9 @@ class MuxInputStream extends InputStream {
             assert inBufQueue.size() > 0;
             int result = -1;
             while (result == -1) {
-                ByteBuffer buf = (ByteBuffer) inBufQueue.getFirst();
+                Buffer buf = inBufQueue.getFirst();
                 if (inBufPos < buf.limit()) {
-                    result = (buf.get() & 0xFF);
+                    result = (((ByteBuffer)buf).get() & 0xFF);
                     inBufPos++;
                     inBufRemaining--;
                 }
@@ -181,10 +182,10 @@ class MuxInputStream extends InputStream {
             assert inBufQueue.size() > 0;
             int remaining = len;
             while (remaining > 0 && inBufRemaining > 0) {
-                ByteBuffer buf = (ByteBuffer) inBufQueue.getFirst();
+                Buffer buf = inBufQueue.getFirst();
                 if (inBufPos < buf.limit()) {
                     int toCopy = Math.min(buf.limit() - inBufPos, remaining);
-                    buf.get(b, off, toCopy);
+                    ((ByteBuffer)buf).get(b, off, toCopy);
                     inBufPos += toCopy;
                     inBufRemaining -= toCopy;
                     off += toCopy;

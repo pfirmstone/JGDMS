@@ -20,6 +20,7 @@ package org.apache.river.jeri.internal.mux;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.logging.Level;
 
@@ -28,7 +29,7 @@ import java.util.logging.Level;
  * a session of a multiplexed connection.
  */
 class MuxOutputStream extends OutputStream {
-    private final ByteBuffer buffer;
+    private final Buffer buffer;
     private final Object sessionLock;
     private final Session session;
     private final Mux mux;
@@ -66,7 +67,7 @@ class MuxOutputStream extends OutputStream {
                 ensureOpen();
             }
         }
-        buffer.put((byte) b);
+        ((ByteBuffer)buffer).put((byte) b);
     }
 
     @Override
@@ -87,10 +88,10 @@ class MuxOutputStream extends OutputStream {
                 synchronized (sessionLock) {
                     ensureOpen();
                 }
-                buffer.put(b, off, len);
+                ((ByteBuffer)buffer).put(b, off, len);
                 return;
             }
-            buffer.put(b, off, avail);
+            ((ByteBuffer)buffer).put(b, off, avail);
             off += avail;
             len -= avail;
             writeBuffer(false);
@@ -194,7 +195,7 @@ class MuxOutputStream extends OutputStream {
                         && session.getInState() == Session.TERMINATED;
                 if (closeIfComplete) fakeOKtoWrite = false;
                 buffer.position(origLimit);
-                buffer.compact();
+                ((ByteBuffer)buffer).compact();
                 return closeIfComplete;
             }
             boolean complete;
@@ -231,9 +232,9 @@ class MuxOutputStream extends OutputStream {
              * after sending.
              */
             if (!eof || session.role == Session.SERVER) {
-                future = mux.futureSendData(op, session.sessionID, buffer.duplicate());
+                future = mux.futureSendData(op, session.sessionID, ((ByteBuffer)buffer).duplicate());
             } else {
-                mux.asyncSendData(op, session.sessionID, buffer.duplicate());
+                mux.asyncSendData(op, session.sessionID, ((ByteBuffer)buffer).duplicate());
             }
 
             if (session.getOutState() == Session.IDLE) {
@@ -259,7 +260,7 @@ class MuxOutputStream extends OutputStream {
             hasData = waitForIO(future);
             if (hasData) {
                 buffer.position(future.getPosition()).limit(origLimit);
-                buffer.compact();
+                ((ByteBuffer)buffer).compact();
             } else {
                 buffer.clear();
             }

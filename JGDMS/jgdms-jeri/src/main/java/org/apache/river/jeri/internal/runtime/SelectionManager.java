@@ -22,6 +22,7 @@ import org.apache.river.logging.Levels;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
@@ -462,7 +463,7 @@ public final class SelectionManager {
 	assert Thread.holdsLock(lock);
 	assert wakeupPending == false;
 
-	wakeupBuffer.clear().limit(1);
+	((Buffer)wakeupBuffer).clear().limit(1);
 	try {
 	    wakeupPipeSink.write(wakeupBuffer);
 	} catch (IOException e) {
@@ -476,7 +477,7 @@ public final class SelectionManager {
 	assert selectingThread != null;
 
 	do {
-	    wakeupBuffer.clear();
+	    ((Buffer)wakeupBuffer).clear();
 	    try {
 		wakeupPipeSource.read(wakeupBuffer);
 	    } catch (IOException e) {

@@ -24,6 +24,7 @@ import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
@@ -360,11 +361,11 @@ abstract class Mux {
 	assert role == CLIENT;
 
 	ByteBuffer header = ByteBuffer.allocate(8);
-	header.put(MAGIC)
+	((Buffer)header.put(MAGIC)
 	      .put((byte) VERSION)
 	      .putShort((short) (initialInboundRation >> 8))
 	      .put((byte) 0)
-	      .flip();
+              ).flip();
 	connectionIO.asyncSend(header);
     }
 
@@ -375,11 +376,11 @@ abstract class Mux {
 	assert role == SERVER;
 
 	ByteBuffer header = ByteBuffer.allocate(8);
-	header.put(MAGIC)
+	((Buffer)header.put(MAGIC)
 	      .put((byte) VERSION)
 	      .putShort((short) (initialInboundRation >> 8))
 	      .put((byte) 0)
-	      .flip();
+              ).flip();
 	connectionIO.asyncSend(header);
     }
 
@@ -398,19 +399,17 @@ abstract class Mux {
      * invocation of this method; therefore, the supplied buffer must not
      * be mutated even after this method has returned.
      */
-    final void asyncSendNoOperation(ByteBuffer buffer) {
+    final void asyncSendNoOperation(Buffer buffer) {
 	ByteBuffer header = ByteBuffer.allocate(4);
 	header.put((byte) NO_OPERATION)
-	      .put((byte) 0);
+                .put((byte) 0);
 
 	if (buffer != null) {
 	    assert buffer.remaining() <= 0xFFFF;
-	    header.putShort((short) buffer.remaining())
-		  .flip();
+	    ((Buffer)header.putShort((short) buffer.remaining())).flip();
 	    connectionIO.asyncSend(header, buffer);
 	} else {
-	    header.putShort((short) 0)
-		  .flip();
+	    ((Buffer)header.putShort((short) 0)).flip();
 	    connectionIO.asyncSend(header);
 	}
     }
@@ -430,12 +429,10 @@ abstract class Mux {
 
 	if (data != null) {
 	    assert data.remaining() <= 0xFFFF;
-	    header.putShort((short) data.remaining())
-		  .flip();
+	    ((Buffer)header.putShort((short) data.remaining())).flip();
 	    connectionIO.asyncSend(header, data);
 	} else {
-	    header.putShort((short) 0)
-		  .flip();
+	    ((Buffer)header.putShort((short) 0)).flip();
 	    connectionIO.asyncSend(header);
 	}
     }
@@ -447,10 +444,10 @@ abstract class Mux {
 	assert cookie >= 0 && cookie <= 0xFFFF;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) PING)
+	((Buffer)header.put((byte) PING)
               .put((byte) 0)
 	      .putShort((short) cookie)
-	      .flip();
+             ).flip();
 	connectionIO.asyncSend(header);
     }
 
@@ -461,10 +458,10 @@ abstract class Mux {
 	assert cookie >= 0 && cookie <= 0xFFFF;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) PING_ACK)
+	((Buffer)header.put((byte) PING_ACK)
 	      .put((byte) 0)
 	      .putShort((short) cookie)
-	      .flip();
+             ).flip();
 	connectionIO.asyncSend(header);
     }
 
@@ -483,12 +480,10 @@ abstract class Mux {
 
 	if (data != null) {
 	    assert data.remaining() <= 0xFFFF;
-	    header.putShort((short) data.remaining())
-		  .flip();
+	    ((Buffer)header.putShort((short) data.remaining())).flip();
 	    connectionIO.asyncSend(header, data);
 	} else {
-	    header.putShort((short) 0)
-		  .flip();
+	    ((Buffer)header.putShort((short) 0)).flip();
 	    connectionIO.asyncSend(header);
 	}
     }
@@ -506,8 +501,7 @@ abstract class Mux {
 	      .put((byte) 0);
 
 	assert data.remaining() <= 0xFFFF;
-	header.putShort((short) data.remaining())
-	      .flip();
+	((Buffer)header.putShort((short) data.remaining())).flip();
 	return connectionIO.futureSend(header, data);
     }
 
@@ -525,10 +519,10 @@ abstract class Mux {
 	assert increment >= 0 && increment <= 0xFFFF;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) op)
+	((Buffer)header.put((byte) op)
 	      .put((byte) sessionID)
 	      .putShort((short) increment)
-	      .flip();
+             ).flip();
 	connectionIO.asyncSend(header);
     }
 
@@ -545,7 +539,7 @@ abstract class Mux {
      * For efficiency, the caller is responsible for pre-computing the first
      * byte of the message, including any control flags if appropriate.
      */
-    final void asyncSendAbort(int op, int sessionID, ByteBuffer data) {
+    final void asyncSendAbort(int op, int sessionID, Buffer data) {
 	assert (op & 0xFD) == ABORT;		// validate operation code
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 
@@ -555,12 +549,10 @@ abstract class Mux {
 
 	if (data != null) {
 	    assert data.remaining() <= 0xFFFF;
-	    header.putShort((short) data.remaining())
-		  .flip();
+	    ((Buffer)header.putShort((short) data.remaining())).flip();
 	    connectionIO.asyncSend(header, data);
 	} else {
-	    header.putShort((short) 0)
-		  .flip();
+	    ((Buffer)header.putShort((short) 0)).flip();
 	    connectionIO.asyncSend(header);
 	}
     }
@@ -572,10 +564,10 @@ abstract class Mux {
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) CLOSE)
+	((Buffer)header.put((byte) CLOSE)
 	      .put((byte) sessionID)
 	      .putShort((short) 0)
-	      .flip();
+             ).flip();
 	connectionIO.asyncSend(header);
     }
 
@@ -586,10 +578,10 @@ abstract class Mux {
 	assert sessionID >= 0 && sessionID <= MAX_SESSION_ID;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) ACKNOWLEDGMENT)
+	((Buffer)header.put((byte) ACKNOWLEDGMENT)
 	      .put((byte) sessionID)
 	      .putShort((short) 0)
-	      .flip();
+             ).flip();
 	connectionIO.asyncSend(header);
     }
 
@@ -611,7 +603,7 @@ abstract class Mux {
      * invocation of this method; therefore, the supplied buffer must not
      * be mutated even after this method has returned.
      */
-    final void asyncSendData(int op, int sessionID, ByteBuffer data) {
+    final void asyncSendData(int op, int sessionID, Buffer data) {
 	assert (op & 0xE1) == DATA;	// validate operation code
 	assert (op & DATA_EOF) != 0 ||	// close and ackRequired require eof
 	    (op & DATA_CLOSE & DATA_ACK_REQUIRED) == 0;
@@ -623,12 +615,10 @@ abstract class Mux {
 
 	if (data != null) {
 	    assert data.remaining() <= 0xFFFF;
-	    header.putShort((short) data.remaining())
-		  .flip();
+	    ((Buffer)header.putShort((short) data.remaining())).flip();
 	    connectionIO.asyncSend(header, data);
 	} else {
-	    header.putShort((short) 0)
-		  .flip();
+	    ((Buffer)header.putShort((short) 0)).flip();
 	    connectionIO.asyncSend(header);
 	}
     }
@@ -656,7 +646,7 @@ abstract class Mux {
      * have been incremented to its limit (which will not have changed), the
      * position may be obtained by calling @link{IOFuture#getPosition()}.
      */
-    final IOFuture futureSendData(int op, int sessionID, ByteBuffer data) {
+    final IOFuture futureSendData(int op, int sessionID, Buffer data) {
 	assert (op & 0xE1) == DATA;	// verify operation code
 	assert (op & DATA_EOF) != 0 ||	// close and ackRequired require eof
 	    (op & DATA_CLOSE & DATA_ACK_REQUIRED) == 0;
@@ -664,10 +654,10 @@ abstract class Mux {
 	assert data.remaining() <= 0xFFFF;
 
 	ByteBuffer header = ByteBuffer.allocate(4);
-	header.put((byte) op)
+	((Buffer)header.put((byte) op)
 	      .put((byte) sessionID)
 	      .putShort((short) data.remaining())
-	      .flip();
+             ).flip();
 	return connectionIO.futureSend(header, data);
     }
 
@@ -687,9 +677,9 @@ abstract class Mux {
     private int currentOp;
     private int currentSessionID;
     private int currentLengthRemaining;
-    private ByteBuffer currentDataBuffer = null;
+    private Buffer currentDataBuffer = null;
 
-    void processIncomingData(ByteBuffer buffer) throws ProtocolException {
+    void processIncomingData(Buffer buffer) throws ProtocolException {
 	buffer.flip();	// process data that has been read into buffer
 	assert buffer.hasRemaining();
 
@@ -719,10 +709,10 @@ abstract class Mux {
 	    } while (buffer.hasRemaining());
 	}
 
-	buffer.compact();
+	((ByteBuffer)buffer).compact();
     }
 
-    private boolean readClientConnectionHeader(ByteBuffer buffer)
+    private boolean readClientConnectionHeader(Buffer buffer)
 	throws ProtocolException
     {
 	assert role == SERVER;
@@ -734,9 +724,9 @@ abstract class Mux {
 	}
 	int headerPosition = buffer.position();
 	buffer.position(headerPosition + 4);	// skip header already checked
-	int version = (buffer.get() & 0xFF);
-	int ration = (buffer.getShort() & 0xFFFF) << 8;
-	int flags = (buffer.get() & 0xFF);
+	int version = (((ByteBuffer)buffer).get() & 0xFF);
+	int ration = (((ByteBuffer)buffer).getShort() & 0xFFFF) << 8;
+	int flags = (((ByteBuffer)buffer).get() & 0xFF);
 	boolean negotiate = (flags & CLIENT_CONNECTION_HEADER_NEGOTIATE) != 0;
 
 	synchronized (muxLock) {
@@ -762,7 +752,7 @@ abstract class Mux {
 	return true;
     }
 
-    private boolean readServerConnectionHeader(ByteBuffer buffer)
+    private boolean readServerConnectionHeader(Buffer buffer)
 	throws ProtocolException
     {
 	assert role == CLIENT;
@@ -775,9 +765,9 @@ abstract class Mux {
 	}
 	int headerPosition = buffer.position();
 	buffer.position(headerPosition + 4);	// skip header already checked
-	int version = (buffer.get() & 0xFF);
-	int ration = (buffer.getShort() & 0xFFFF) << 8;
-	int flags = (buffer.get() & 0xFF);  //TODO: Determine flags intended use.
+	int version = (((ByteBuffer)buffer).get() & 0xFF);
+	int ration = (((ByteBuffer)buffer).getShort() & 0xFFFF) << 8;
+	int flags = (((ByteBuffer)buffer).get() & 0xFF);  //TODO: Determine flags intended use.
 
 	synchronized (muxLock) {
 	    initialOutboundRation = ration;
@@ -799,13 +789,13 @@ abstract class Mux {
 	return true;
     }
 
-    private void validatePartialMagicNumber(ByteBuffer buffer)
+    private void validatePartialMagicNumber(Buffer buffer)
 	throws ProtocolException
     {
 	if (buffer.remaining() > 0) {
 	    byte[] temp = new byte[Math.min(buffer.remaining(), MAGIC.length)];
 	    buffer.mark();
-	    buffer.get(temp);
+	    ((ByteBuffer)buffer).get(temp);
 	    buffer.reset();
 	    for (int i = 0; i < temp.length; i++) {
 		if (temp[i] != MAGIC[i]) {
@@ -818,7 +808,7 @@ abstract class Mux {
 	}
     }
 
-    private boolean readMessageHeader(ByteBuffer buffer)
+    private boolean readMessageHeader(Buffer buffer)
 	throws ProtocolException
     {
         assert Thread.holdsLock(readStateLock);
@@ -828,19 +818,19 @@ abstract class Mux {
 	int headerPosition = buffer.position();
 	if (LOGGER.isLoggable(Level.FINEST)) {
 	    LOGGER.log(Level.FINEST, "message header: {0}",
-                    toHexString(buffer.getInt(headerPosition)));
+                    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	}
 
-	int op = (buffer.get() & 0xFF);
+	int op = (((ByteBuffer)buffer).get() & 0xFF);
 	if ((op & 0xE1) == DATA) {
-	    int sessionID = (buffer.get() & 0xFF);
+	    int sessionID = (((ByteBuffer)buffer).get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID) {
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
 	    currentOp = op;
 	    currentSessionID = sessionID;
-	    currentLengthRemaining = (buffer.getShort() & 0xFFFF);
+	    currentLengthRemaining = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    if (currentLengthRemaining > 0) {
 		currentDataBuffer =
 		    ByteBuffer.allocate(currentLengthRemaining);
@@ -851,26 +841,26 @@ abstract class Mux {
 	    return true;
 
 	} else if ((op & 0xF1) == INCREMENT_RATION) {
-	    int sessionID = (buffer.get() & 0xFF);
+	    int sessionID = (((ByteBuffer)buffer).get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID) {
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
-	    int increment = (buffer.getShort() & 0xFFFF);
+	    int increment = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    int shift = op & INCREMENT_RATION_SHIFT;
 	    increment <<= shift;
 	    handleIncrementRation(sessionID, increment);
 	    return true;
 
 	} else if ((op & 0xFD) == ABORT) {
-	    int sessionID = (buffer.get() & 0xFF);
+	    int sessionID = (((ByteBuffer)buffer).get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID) {
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
 	    currentOp = op;
 	    currentSessionID = sessionID;
-	    currentLengthRemaining = (buffer.getShort() & 0xFFFF);
+	    currentLengthRemaining = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    if (currentLengthRemaining > 0) {
 		currentDataBuffer =
 		    ByteBuffer.allocate(currentLengthRemaining);
@@ -883,12 +873,12 @@ abstract class Mux {
 	}
 	switch (op) {
 	  case NO_OPERATION: {
-	    if (buffer.get() != 0) {	// ignore sign extension
+	    if (((ByteBuffer)buffer).get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
 	    currentOp = op;
-	    currentLengthRemaining = (buffer.getShort() & 0xFFFF);
+	    currentLengthRemaining = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    currentDataBuffer = null;	// ignore data for NoOperation
 	    if (currentLengthRemaining > 0) {
 		readState = READ_MESSAGE_BODY;
@@ -899,12 +889,12 @@ abstract class Mux {
 	  }
 
 	  case SHUTDOWN: {
-	    if (buffer.get() != 0) {	// ignore sign extension
+	    if (((ByteBuffer)buffer).get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
 	    currentOp = op;
-	    currentLengthRemaining = (buffer.getShort() & 0xFFFF);
+	    currentLengthRemaining = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    if (currentLengthRemaining > 0) {
 		currentDataBuffer =
 		    ByteBuffer.allocate(currentLengthRemaining);
@@ -916,32 +906,32 @@ abstract class Mux {
 	  }
 
 	  case PING: {
-	    if (buffer.get() != 0) {	// ignore sign extension
+	    if (((ByteBuffer)buffer).get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
-	    int cookie = (buffer.getShort() & 0xFFFF);
+	    int cookie = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    handlePing(cookie);
 	    return true;
 	  }
 
 	  case PING_ACK: {
-	    if (buffer.get() != 0) {	// ignore sign extension
+	    if (((ByteBuffer)buffer).get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
-	    int cookie = (buffer.getShort() & 0xFFFF);
+	    int cookie = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    handlePingAck(cookie);
 	    return true;
 	  }
 
 	  case ERROR: {
-	    if (buffer.get() != 0) {	// ignore sign extension
+	    if (((ByteBuffer)buffer).get() != 0) {	// ignore sign extension
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
 	    currentOp = op;
-	    currentLengthRemaining = (buffer.getShort() & 0xFFFF);
+	    currentLengthRemaining = (((ByteBuffer)buffer).getShort() & 0xFFFF);
 	    if (currentLengthRemaining > 0) {
 		currentDataBuffer =
 		    ByteBuffer.allocate(currentLengthRemaining);
@@ -953,24 +943,24 @@ abstract class Mux {
 	  }
 
 	  case CLOSE: {
-	    int sessionID = (buffer.get() & 0xFF);
+	    int sessionID = (((ByteBuffer)buffer).get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID ||
-		buffer.getShort() != 0)		// ignore sign extension
+		((ByteBuffer)buffer).getShort() != 0)		// ignore sign extension
 	    {
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
 	    handleClose(sessionID);
 	    return true;
 	  }
 
 	  case ACKNOWLEDGMENT: {
-	    int sessionID = (buffer.get() & 0xFF);
+	    int sessionID = (((ByteBuffer)buffer).get() & 0xFF);
 	    if (sessionID > MAX_SESSION_ID ||
-		buffer.getShort() != 0)		// ignore sign extension
+		((ByteBuffer)buffer).getShort() != 0)		// ignore sign extension
 	    {
 		throw new ProtocolException("bad message header: " +
-		    toHexString(buffer.getInt(headerPosition)));
+		    toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	    }
 	    handleAcknowledgment(sessionID);
 	    return true;
@@ -978,11 +968,11 @@ abstract class Mux {
 
 	  default:
 	    throw new ProtocolException("bad message header: " +
-		toHexString(buffer.getInt(headerPosition)));
+		toHexString(((ByteBuffer)buffer).getInt(headerPosition)));
 	}
     }
 
-    private boolean readMessageBody(ByteBuffer buffer)
+    private boolean readMessageBody(Buffer buffer)
 	throws ProtocolException
     {
         assert Thread.holdsLock(readStateLock);
@@ -993,8 +983,8 @@ abstract class Mux {
 	if (buffer.remaining() > currentLengthRemaining) {
 	    int origLimit = buffer.limit();
 	    buffer.limit(buffer.position() + currentLengthRemaining);
-	    if (currentDataBuffer != null) {
-		currentDataBuffer.put(buffer);
+	    if (currentDataBuffer instanceof ByteBuffer) {
+		((ByteBuffer)currentDataBuffer).put((ByteBuffer)buffer);
 	    } else {
 		buffer.position(buffer.position() + currentLengthRemaining);
 	    }
@@ -1002,8 +992,8 @@ abstract class Mux {
 	    buffer.limit(origLimit);
 	} else {
 	    currentLengthRemaining -= buffer.remaining();
-	    if (currentDataBuffer != null) {
-		currentDataBuffer.put(buffer);
+	    if (currentDataBuffer instanceof ByteBuffer) {
+		((ByteBuffer)currentDataBuffer).put((ByteBuffer)buffer);
 	    } else {
 		buffer.position(buffer.limit());
 	    }
@@ -1162,7 +1152,7 @@ abstract class Mux {
                             boolean close,
                             boolean eof,
                             boolean ackRequired,
-                            ByteBuffer data)
+                            Buffer data)
 	throws ProtocolException
     {
 	if (LOGGER.isLoggable(Level.FINEST)) {
@@ -1170,7 +1160,7 @@ abstract class Mux {
 	    HexDumpEncoder encoder = new HexDumpEncoder();
 	    byte[] bytes = new byte[data.remaining()];
 	    data.mark();
-	    data.get(bytes);
+	    ((ByteBuffer)data).get(bytes);
 	    data.reset();
 	    LOGGER.log(Level.FINEST,
                     "Data: sessionID={0}{1}{2}{3}{4},length={5}{6}",
@@ -1216,10 +1206,10 @@ abstract class Mux {
 	}
     }
 
-    private static String getStringFromUTF8Buffer(ByteBuffer buffer) {
+    private static String getStringFromUTF8Buffer(Buffer buffer) {
 	CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
 	try {
-	    return decoder.decode(buffer).toString();
+	    return decoder.decode((ByteBuffer)buffer).toString();
 	} catch (CharacterCodingException e) {
             StringBuilder sb = new StringBuilder();
             sb.append("(error decoding UTF-8 message: ")

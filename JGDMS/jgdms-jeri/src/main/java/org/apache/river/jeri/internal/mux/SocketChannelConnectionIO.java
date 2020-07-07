@@ -22,6 +22,7 @@ import org.apache.river.jeri.internal.runtime.SelectionManager;
 import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -93,12 +94,12 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     private final Deque notifyQueue = new LinkedList();
 
     /** buffer for reading incoming data from connection */
-    private final ByteBuffer inputBuffer =
+    private final Buffer inputBuffer =
 	ByteBuffer.allocateDirect(RECEIVE_BUFFER_SIZE);	// ready for reading
 
-    private final ByteBuffer[] bufferPair = new ByteBuffer[2];
+    private final Buffer[] bufferPair = new Buffer[2];
 
-    private final ByteBuffer[] preallocBufferArray = new ByteBuffer[IOV_MAX];
+    private final Buffer[] preallocBufferArray = new Buffer[IOV_MAX];
 
     /**
      * Creates a new SocketChannelConnectionIO for the connection represented
@@ -120,14 +121,14 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	key.renewInterestMask(SelectionKey.OP_READ);
     }
 
-    void asyncSend(ByteBuffer buffer) {
+    void asyncSend(Buffer buffer) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
 		return;
 	    }
 	    try {
 		if (sendQueue.isEmpty()) {
-		    channel.write(buffer);
+		    channel.write((ByteBuffer)buffer);
 		}
 		if (buffer.hasRemaining()) {
 		    sendQueue.addLast(buffer);
@@ -145,7 +146,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     }
 
     @Override
-    void asyncSend(ByteBuffer first, ByteBuffer second) {
+    void asyncSend(Buffer first, Buffer second) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
 		return;
@@ -155,7 +156,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		    bufferPair[0] = first;
 		    bufferPair[1] = second;
 		    try {
-			channel.write(bufferPair);
+			channel.write((ByteBuffer[])bufferPair);
 		    } catch (IOException e) {
 			// work around 4854354
 			String message = e.getMessage();
@@ -194,7 +195,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     }
 
     @Override
-    IOFuture futureSend(ByteBuffer first, ByteBuffer second) {
+    IOFuture futureSend(Buffer first, Buffer second) {
 	synchronized (mux.muxLock) {
 	    IOFuture future = new IOFuture();
 	    if (mux.muxDown) {
@@ -207,7 +208,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		    bufferPair[0] = first;
 		    bufferPair[1] = second;
 		    try {
-			channel.write(bufferPair);
+			channel.write((ByteBuffer[])bufferPair);
 		    } catch (IOException e) {
 			// work around 4854354
 			String message = e.getMessage();
@@ -291,7 +292,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		     * Copy up to the first IOV_MAX buffers of the send queue
 		     * into the preallocated ByteBuffer array.
 		     */
-		    ByteBuffer[] bufs = preallocBufferArray; // IOV_MAX length
+		    Buffer[] bufs = preallocBufferArray; // IOV_MAX length
 		    int len = sendQueue.size();
 		    if (len <= bufs.length) {			// optimization
 			bufs = (ByteBuffer[]) sendQueue.toArray(bufs);
@@ -303,7 +304,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 			}
 		    }
 		    try {
-			channel.write(bufs, 0, len);
+			channel.write((ByteBuffer [])bufs, 0, len);
 		    } catch (IOException e) {
 			// work around 4854354
 			String message = e.getMessage();
@@ -317,7 +318,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 			}
 		    }        
 		    for (int i = 0; i < len; i++) {
-			ByteBuffer bb = bufs[i];
+			Buffer bb = bufs[i];
 			assert bb == sendQueue.getFirst();
 			if (!bb.hasRemaining()) {
 			    sendQueue.removeFirst();
@@ -379,12 +380,12 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 
     private void handleReadReady() {
 	try {
-	    int n = channel.read(inputBuffer);
+	    int n = channel.read((ByteBuffer)inputBuffer);
 	    if (n == -1) {
 		throw new EOFException();
 	    }
 	    if (n > 0) {
-		mux.processIncomingData(inputBuffer);
+		mux.processIncomingData((ByteBuffer)inputBuffer);
 	    }
 	    assert inputBuffer.hasRemaining();
 	    key.renewInterestMask(SelectionKey.OP_READ);
