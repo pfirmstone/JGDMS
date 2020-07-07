@@ -29,6 +29,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
+import java.nio.Buffer;
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
@@ -153,7 +154,7 @@ public class Plaintext {
 	    utf.newEncoder().encode(CharBuffer.wrap(s), dup, true);
 	if (cr.isUnderflow()) {
 	    buf.putShort(intToUshort(dup.position() - start));
-	    buf.position(dup.position());
+	    ((Buffer)buf).position(dup.position());
 	} else if (cr.isOverflow()) {
 	    throw new BufferOverflowException();
 	} else {
@@ -174,10 +175,10 @@ public class Plaintext {
 	if (len > dup.remaining()) {
 	    throw new BufferUnderflowException();
 	}
-	dup.limit(dup.position() + len);
+	((Buffer)dup).limit(dup.position() + len);
 	try {
 	    String s = utf.newDecoder().decode(dup).toString();
-	    buf.position(dup.position());
+	    ((Buffer)buf).position(dup.position());
 	    return s;
 	} catch (CharacterCodingException e) {
 	    throw (UTFDataFormatException)
@@ -245,7 +246,7 @@ public class Plaintext {
 		// write additional lookup groups, as space allows
 		if (buf.remaining() > maxIdsLen && !groups.isEmpty()) {
 		    int slim = buf.limit();
-		    buf.limit(slim - maxIdsLen);
+		    ((Buffer)buf).limit(slim - maxIdsLen);
 		    try {
 			do {
 			    putUtf(buf, (String) groups.getFirst());
@@ -254,7 +255,7 @@ public class Plaintext {
 			} while (!groups.isEmpty() && ngroups < MAX_USHORT);
 		    } catch (BufferOverflowException e) {
 		    }
-		    buf.limit(slim);
+		    ((Buffer)buf).limit(slim);
 		}
 		buf.putShort(ngroupsPos, intToUshort(ngroups));
 
@@ -325,7 +326,7 @@ public class Plaintext {
 	    do {
 		ByteBuffer buf = bufs.newBuffer();
 		int slim = buf.limit();
-		buf.limit(slim - SERVICE_ID_LEN);
+		((Buffer)buf).limit(slim - SERVICE_ID_LEN);
 
 		// write sequence number
 		buf.putLong(announcement.getSequenceNumber());
@@ -355,7 +356,7 @@ public class Plaintext {
 
 		// write LUS service ID
 		ServiceID id = announcement.getServiceID();
-		buf.limit(slim);
+		((Buffer)buf).limit(slim);
 		buf.putLong(id.getMostSignificantBits());
 		buf.putLong(id.getLeastSignificantBits());
 
