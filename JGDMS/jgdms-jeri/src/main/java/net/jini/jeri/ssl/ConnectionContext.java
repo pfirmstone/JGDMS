@@ -279,11 +279,11 @@ final class ConnectionContext extends Utilities {
 	    return ok(doesEncryption(cipherSuite) ==
 		      (constraint == Confidentiality.YES));
 	} else if (constraint instanceof ConfidentialityStrength) {
-            if (constraint == ConfidentialityStrength.WEAK && (doesEncryption(cipherSuite)))
-                return OK;
-            if (constraint == ConfidentialityStrength.STRONG && hasStrongKeyCipherAlgorithms(cipherSuite))
-                return OK;
-	    return NOT_SUPPORTED;
+            return ok((constraint == ConfidentialityStrength.WEAK && 
+                        doesEncryption(cipherSuite) && 
+                        !hasStrongKeyCipherAlgorithms(cipherSuite))
+                    ||(constraint == ConfidentialityStrength.STRONG && 
+                        hasStrongKeyCipherAlgorithms(cipherSuite)));
 	} else if (constraint instanceof ClientAuthentication) {
 	    return ok((constraint == ClientAuthentication.YES));
 	} else if (constraint instanceof ClientMinPrincipalType) {
