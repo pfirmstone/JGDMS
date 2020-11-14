@@ -36,10 +36,15 @@ import java.util.List;
 /** Tests UnicodeEscapesDecodingReader. */
 public class TestUnicodeEscapesDecodingReader extends UnitTestUtilities {
 
-    static final String src =
-	System.getProperty("test.src", ".") + File.separator;
+    static final String src;
 
     static {
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("config");
+        sb.append(File.separator).append("TestAPI").append(File.separator);
+        src = sb.toString();
 	if (System.getProperty("java.security.policy") == null) {
 	    System.setProperty("java.security.policy", src + "policy");
 	}
