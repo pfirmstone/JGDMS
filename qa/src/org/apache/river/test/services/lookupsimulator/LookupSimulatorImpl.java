@@ -63,6 +63,7 @@ import org.apache.river.config.Config;
 import org.apache.river.api.util.Startable;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.config.Configuration;
@@ -85,6 +86,7 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 
 /**
@@ -376,7 +378,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
 	if (noneConfiguration) {
 	    serverExporter =
 		new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-				      new BasicILFactory());
+				      new AtomicILFactory(null, LookupSimulatorImpl.class));
 	    if (activationID != null) {
 		serverExporter = new ActivationExporter(activationID,
 							serverExporter);
@@ -475,10 +477,20 @@ public class LookupSimulatorImpl implements LookupSimulator,
                 /* must unregister before unexport */
                 if (activationID != null) {
                     try {
-                        activationSystem.unregisterObject(activationID);
-                    } catch (RemoteException e) {
-                        return;// give up until we can at least unregister
-                    } catch (ActivationException e) { }
+                        AccessController.doPrivileged(new PrivilegedExceptionAction(){
+                            @Override
+                            public Object run() throws ActivationException, RemoteException {
+                                activationSystem.unregisterObject(activationID);
+                                return Boolean.TRUE;
+                            }
+
+                        }, context);
+                    } catch (PrivilegedActionException e) {
+                        Exception ex = e.getException();
+                        if (ex instanceof RemoteException) return;
+                        if (ex instanceof RuntimeException) throw (RuntimeException) ex;
+                        if (ex instanceof ActivationException) {} //Ignore
+                    }
                 }//endif
                 while (!serverExporter.unexport(false)) {
                     try {
