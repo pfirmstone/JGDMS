@@ -39,6 +39,9 @@ import java.net.SocketOptions;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -2186,6 +2189,7 @@ public class LookupServices {
                                2*60*1000,
                                  60*1000, 30*1000, 20*1000, 10*1000, 5*1000 };
         private final int startIndx;
+        private final AccessControlContext context;
 
         /** Use this constructor if a number of lookup services (equal to the
          *  value of the given startIndx) have already been started; and this
@@ -2198,6 +2202,7 @@ public class LookupServices {
             super("StaggeredStartThread");
             setDaemon(true);
             this.startIndx = startIndx;
+            this.context = AccessController.getContext();
         }//end constructor
          
         private int size(){
@@ -2208,8 +2213,7 @@ public class LookupServices {
 
         public void run() {
             int n = waitTimes.length;
-            for(int i=startIndx;((!isInterrupted())&&(i<size()));
-                                                                          i++)
+            for(int i=startIndx;((!isInterrupted())&&(i<size())); i++)
             {
                 long waitMS = ( i < n ? waitTimes[i] : waitTimes[n-1] );
                 logger.log(Level.FINE,
@@ -2244,9 +2248,17 @@ public class LookupServices {
                     LookupLocator l = pair.getLocator();
                     int port = l.getPort();
                     if(portInUse(port)) port = 0;
+                    final int pt = port;
+                    final int index = i;
                     if( isInterrupted() )  break;//exit this thread
                     try {
-                        startLookup(i, port, l.getHost());
+                        AccessController.doPrivileged(new PrivilegedExceptionAction(){
+                            @Override
+                            public Object run() throws Exception {
+                                return startLookup(index, pt, l.getHost());
+                            }
+                            
+                        }, context);
                     } catch(Exception e) {
                         e.printStackTrace();
                     }
