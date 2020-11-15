@@ -27,6 +27,9 @@ import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -622,6 +625,7 @@ public abstract class TestBase extends QATestEnvironment {
             if (destroy) {
 		ExecutorService executor;
 		List<Future> leaseCancelTasks = new LinkedList<Future>();
+                AccessControlContext context = AccessController.getContext();
                 synchronized (leaseList) {
 		    executor = 
 			new ThreadPoolExecutor(0, 
@@ -636,8 +640,17 @@ public abstract class TestBase extends QATestEnvironment {
 
 			    @Override
 			    public Object call() throws Exception {
-				((LeaseRec) i.next()).cancel();
-				return Boolean.TRUE;
+                                return AccessController.doPrivileged(
+                                    new PrivilegedExceptionAction(){
+                                        @Override
+                                        public Object run() throws Exception {
+                                            ((LeaseRec) i.next()).cancel();
+                                            return Boolean.TRUE;
+                                        }
+
+                                    },
+                                    context
+                                );
 			    }
 			    
 			}));
