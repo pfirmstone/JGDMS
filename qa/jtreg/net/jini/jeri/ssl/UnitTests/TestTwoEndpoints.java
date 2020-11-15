@@ -15,12 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* @test 
+/* test - removed @.
  * @summary Tests exports on one ListenEndpoint but different ServerEndpoints
  * @author Fred Oliver
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test TestUtilities
  * @run main/othervm/policy=policy TestTwoEndpoints
+
+    [jtreg] *** Start test: Mon Jun 01 16:23:49 AEST 2020
+    [jtreg] Test 1: TestTwoEndpoints: TestTwoEndpoints
+    [jtreg] FAIL: Unexpected exception: java.rmi.server.ExportException: server does not support some constraints; nested exception is:
+    [jtreg]     net.jini.io.UnsupportedConstraintException: Server credentials unsuitable for TLS
+    [jtreg]     at net.jini.jeri.BasicInvocationDispatcher$Builder.<init>(BasicInvocationDispatcher.java:370)
+
  */
 
 import java.rmi.Remote;

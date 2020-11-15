@@ -10,6 +10,7 @@ grant codeBase "file:${jtlib.tmp}/*" {
 };
 
 grant {
+    permission java.util.PropertyPermission "test.root", "read";
     permission java.lang.RuntimePermission "A0";
     permission java.lang.RuntimePermission "accessClassInPackage.*";
     permission java.lang.RuntimePermission "setSecurityManager";

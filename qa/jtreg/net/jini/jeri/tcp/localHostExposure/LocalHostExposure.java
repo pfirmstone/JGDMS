@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* @test
+/* test removed @ until this test can be reimplemented.
  * TODO: The sun.net.spi.nameservice.NameService is
  * being removed from Java 9, we won't be able to test it this way.  
  * Consider if there's another way to implement this test.

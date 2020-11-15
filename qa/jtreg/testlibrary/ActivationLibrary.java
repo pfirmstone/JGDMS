@@ -43,6 +43,7 @@ import net.jini.activation.ActivationGroup;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.jrmp.JrmpExporter;
@@ -422,7 +423,7 @@ public class ActivationLibrary {
 		if (exportType.equals("basic")) {
 		    uexporter = new
 			BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-					  new BasicILFactory(),
+					  new AtomicILFactory(null, null, ActivationLibrary.class),
 					  true, true);
 		} else if (exportType.equals("jrmp")) {
 		    uexporter = new JrmpExporter();

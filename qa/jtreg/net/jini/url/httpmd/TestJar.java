@@ -31,10 +31,16 @@ import java.util.StringTokenizer;
 
 public class TestJar extends BasicTest {
 
-    static final String src =
-	System.getProperty("test.src", ".").replace(File.separatorChar, '/');
+    static final String src;
 
     static {
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("url");
+        sb.append(File.separator).append("httpmd").append(File.separator);
+        String dir = sb.toString();
+        src = dir.replace(File.separatorChar, '/');
 	System.setProperty("java.protocol.handler.pkgs",
 			   "net.jini.url");
     }

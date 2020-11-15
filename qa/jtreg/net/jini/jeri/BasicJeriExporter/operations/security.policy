@@ -32,6 +32,7 @@ grant {
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "getClassLoader";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.io.FilePermission "<<ALL FILES>>" , "read";
 };
 
 grant principal javax.security.auth.x500.X500Principal "CN=bob" {

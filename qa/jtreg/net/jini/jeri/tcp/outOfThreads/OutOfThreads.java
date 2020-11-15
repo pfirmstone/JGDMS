@@ -166,7 +166,7 @@ public class OutOfThreads {
 	 */
 	if (useNIO) {
 	    sf.lastSocket.getChannel().write(
-		(ByteBuffer) ByteBuffer.allocate(1).put((byte) 0x00).flip());
+		(ByteBuffer) ((Buffer) ByteBuffer.allocate(1).put((byte) 0x00)).flip());
 	} else {
 	    sf.lastSocket.getOutputStream().write(0x00);
 	}

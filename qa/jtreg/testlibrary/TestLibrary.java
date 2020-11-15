@@ -233,6 +233,14 @@ public class TestLibrary {
 	 * found in the "test.classes" directory.
 	 */
 	File srcDir = new File(getProperty("test.classes", "."));
+        if (!srcDir.exists()) {
+            mesg("Directory, doesn't existing creating: " + srcDir.toString());
+            if (srcDir.mkdir()){
+                mesg("Directory successfully created");
+            } else {
+                mesg("Directory couldn't be created");
+            }
+        }
 	File srcFile = new File(srcDir, classFileName);
 
 mesg(srcFile);

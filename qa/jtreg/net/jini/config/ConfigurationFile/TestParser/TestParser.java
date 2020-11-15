@@ -79,7 +79,15 @@ public class TestParser {
     public static void main(String[] args) {
 	/* Make sure properties used in the configuration file are set. */
 	Properties props = System.getProperties();
-	String src = props.getProperty("test.src");
+        // test.src no longer set by jtreg on Windows, jtreg issue.
+//	String src = props.getProperty("test.src");
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("config");
+        sb.append(File.separator).append("ConfigurationFile").append(File.separator);
+        sb.append("TestParser").append(File.separator);
+        String src = sb.toString();
 	if (src == null) {
 	    src = ".";
 	    props.setProperty("test.src", ".");

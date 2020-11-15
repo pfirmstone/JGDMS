@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* @test
+/* test - removed @, this test doesn't work on Java 9 or later as sun.misc.Launcher has been removed.
  * @bug 4881293
  *
  * @build Test4881293

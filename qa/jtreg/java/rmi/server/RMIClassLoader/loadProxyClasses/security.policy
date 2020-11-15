@@ -35,6 +35,7 @@ grant {
     // permissions needed to move classes into separate codebase directories
     permission java.io.FilePermission "${test.classes}${/}-", "read,write,delete";
     permission java.io.FilePermission ".${/}-", "read,write,delete";
+    permission java.io.FilePermission "${test.root}/JTwork/classes/java/rmi/server/RMIClassLoader/loadProxyClasses", "read";
 
     permission java.lang.RuntimePermission "createClassLoader";
     permission java.lang.RuntimePermission "setContextClassLoader";

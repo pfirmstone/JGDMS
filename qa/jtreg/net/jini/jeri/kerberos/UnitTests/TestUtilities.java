@@ -44,7 +44,14 @@ class TestUtilities extends UnitTestUtilities {
     static {
 	/* -- Make sure system properties and security manager are set -- */
 	Properties props = System.getProperties();
-	String src = props.getProperty("test.src", ".") + File.separator;
+	String src;
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("jeri");
+        sb.append(File.separator).append("kerberos").append(File.separator);
+        sb.append("UnitTests").append(File.separator);
+        src = sb.toString();
 	if (props.getProperty("java.security.policy") == null) {
 	    props.setProperty("java.security.policy", src + "policy");
 	}
