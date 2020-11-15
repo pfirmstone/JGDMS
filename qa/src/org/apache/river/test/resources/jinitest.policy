@@ -105,6 +105,10 @@ grant codebase "jrt:/jdk.security.jgss" {
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/org.openjsse" {
+    permission java.security.AllPermission "", "";
+};
+
 grant {
     permission org.apache.river.phoenix.ExecOptionPermission "*";
     // for a start test
@@ -113,6 +117,7 @@ grant {
     permission java.security.SecurityPermission "getPolicy";
     // for Outrigger's proxy
     permission java.util.PropertyPermission "org.apache.river.outrigger.maxServerQueryTimeout", "read";
+    permission javax.net.ssl.SSLPermission "getSSLSessionContext";
 };
 
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-tests.jar" {

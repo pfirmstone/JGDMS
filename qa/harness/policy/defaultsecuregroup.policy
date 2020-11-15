@@ -44,6 +44,10 @@ grant codebase "jrt:/jdk.security.jgss" {
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/org.openjsse" {
+    permission java.security.AllPermission "", "";
+};
+
 grant codebase "httpmd://${HOST}/*" {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
@@ -121,6 +125,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
       permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.lang.RuntimePermission, "modifyThread";
+      permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
 };
 
 //Kerberos Principals

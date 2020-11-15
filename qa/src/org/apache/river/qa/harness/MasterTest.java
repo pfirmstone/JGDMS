@@ -153,7 +153,7 @@ class MasterTest {
 						null);
 	    if (context != null) {
 		logger.log(Level.FINEST, "got a login context");
-	    }
+            }
 	} catch (Throwable e) {
 	    e.printStackTrace();
 	    exit(false, Test.ENV, "Problem getting login context: " + e);

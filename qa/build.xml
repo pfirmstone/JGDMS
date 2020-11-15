@@ -88,7 +88,7 @@
     <property name="harness.configs" value="jsse"/>
     <!-- possible values: activatable,transient,persistent
         default: transient -->
-    <property name="harness.servicemode" value="activatable"/>
+    <property name="harness.servicemode" value="transient"/>
     <!-- enable this property if you want the QA harness to generate
         HTML reports for each test in the qa/results directory -->
     <property name="harness.generateHtml" value="false"/>
@@ -246,7 +246,12 @@
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Djtreg.dir=${jtreg.dir}"/>
             <arg value="-Dtest.src=${jtreg.dir}"/>
+            <arg value="-Dsun.rmi.registry.registryFilter=*"/>
+            <arg value="-Dsun.rmi.transport.dgcFilter=*"/>
+            <arg value="-Djava.rmi.server.useCodebaseOnly=false"/>
+            <arg value="-Djava.rmi.server.RMIClassLoaderSpi=net.jini.loader.pref.PreferredClassProvider"/>
             <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>
+            <arg value="-Djava.util.logging.config.file=${river.home}qa/src/org/apache/river/test/resources/qa1.logging"/>
             <arg value="-ignore:quiet"/>
             <arg value="-xml:verify"/>           
             <!-- This argument only runs the tests that failed on the last test run -->
@@ -260,7 +265,7 @@
              * 20 - Print full test entry and pass/fail for every test.
              * 25 - Include passing results.
              * 30 - Include additional test debugging output, including time. -->
-            <arg value="-DtestLevel=30"/>
+            <arg value="-DtestLevel=5"/>
             <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
             <!--<arg value="-Djavax.net.debug=ssl"/>-->
             <!--<arg value="-J-Djavatest.maxOutputSize=300000"/>-->
@@ -268,6 +273,7 @@
             <!--<arg value="-Bug:6307813"/>-->
             <!--<arg value="-Bug:4408449"/>-->
             <!--<arg value="-Bug:6313626"/>-->
+            <!--<arg value="-Bug:4849581"/>-->
             <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
             <!--<arg value="net/jini/security/Security/implicitGrants/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
@@ -276,6 +282,16 @@
             <!--2 test failures in:--> 
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
             <!--<arg value="net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java"/>-->
+            <!--<arg value="net/jini/config/TestAPI/TestConstructor.java"/>-->
+            <!--<arg value="net/jini/io/MarshalInputStream/verifyWithEqualLoaders/VerifyWithEqualLoaders.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestConnectionContext.java"/>-->
+            <!--<arg value="net/jini/jeri/BasicJeriExporter/dgcServerExposure/DgcServerExposure.java"/>-->
+            <!--<arg value="net/jini/jeri/BasicJeriExporter/operations/Operations.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestServerEndpoint.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestUtilities.java"/>-->
+            <!--<arg value="net/jini/loader/pref/PreferredClassProvider/checkBoomerangs/CheckBoomerangs.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestConnectionContext.java"/>-->
         </jtreg>
         <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">

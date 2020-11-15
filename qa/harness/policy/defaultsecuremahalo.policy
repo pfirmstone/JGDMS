@@ -44,6 +44,10 @@ grant codebase "jrt:/jdk.security.jgss" {
     permission java.security.AllPermission "", "";
 };
 
+grant codebase "jrt:/org.openjsse" {
+    permission java.security.AllPermission "", "";
+};
+
 grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}"
 {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";

@@ -130,3 +130,11 @@ grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-lookup-simulator.jar" {
     permission java.security.AllPermission "", "";
 };
+
+grant codebase "jrt:/org.openjsse" {
+    permission java.security.AllPermission "", "";
+};
+
+grant {
+    permission javax.net.ssl.SSLPermission "getSSLSessionContext";
+};

@@ -60,12 +60,14 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.export.Exporter;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import net.jini.constraint.StringMethodConstraints;
 import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
 import org.apache.river.action.GetBooleanAction;
@@ -2996,7 +2998,7 @@ public final class QAConfig implements Serializable {
      */
     public static Exporter getDefaultExporter() {
 	return new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-				     new BasicILFactory());
+				     new AtomicILFactory(new StringMethodConstraints((InvocationConstraints)null), null ,QAConfig.class.getClassLoader()));
     }
 
     /**

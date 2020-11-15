@@ -36,6 +36,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 
 import java.io.File;
@@ -134,7 +135,7 @@ public class TestServiceImpl implements TestService, ProxyAccessor, Startable {
         exporter = (Exporter) Config.getNonNullEntry(
             config, TEST_SERVICE, "exporter", Exporter.class,
             new BasicJeriExporter(
-                TcpServerEndpoint.getInstance(0), new BasicILFactory(), false, true));
+                TcpServerEndpoint.getInstance(0), new AtomicILFactory(null, TestServiceImpl.class), false, true));
         System.out.println("service exporter is: "
             +  exporter);
         context = AccessController.getContext();
