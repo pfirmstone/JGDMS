@@ -575,7 +575,7 @@ public final class StringMethodConstraints
 			}
 		    } else {
 			if (pname.equals(dname)) {
-			    check(prev, desc);
+                                check(prev, desc);
 			}
 		    }
 		}
@@ -708,7 +708,7 @@ public final class StringMethodConstraints
     }
     
     /**
-     * Creates a new BasicMethodConstraints instance that contains all constraints
+     * Creates a new StringMethodConstraints instance that contains all constraints
      * in both this and the passed in constraints in an order that ensures
      * that preceeding method descriptors don't match all methods that later 
      * descriptors do;
@@ -741,7 +741,7 @@ public final class StringMethodConstraints
 	    }
 	    methodConstraints.put(key, newDescs[i].getConstraints());
 	}
-	int len = methodConstraints.size();
+        int len = methodConstraints.size();
 	StringMethodDesc[] combinedDescs = new StringMethodDesc[len];
 	Iterator<Map.Entry<MethodKey, InvocationConstraints>> ents 
 		= methodConstraints.entrySet().iterator();
@@ -850,96 +850,4 @@ public final class StringMethodConstraints
 	throw e;
     }
     
-    /**
-     * Order is based on natural ordering that ensures preceeding keys don't 
-     * match all methods of later orderings.
-     */
-    private static class MethodKey implements Comparable<MethodKey>{
-	private final String name;
-	private final String[] parameters;
-	private final int hashCode;
-	
-	MethodKey(String name, String[] parameters){
-	    this.name = name;
-	    this.parameters = parameters;
-	    int hash = 7;
-	    hash = 97 * hash + (this.name != null ? this.name.hashCode() : 0);
-	    hash = 97 * hash + Arrays.hashCode(this.parameters);
-	    this.hashCode = hash;
-	}
-	
-	@Override
-	public boolean equals(Object o){
-	    if (this == o) return true;
-	    if (!(o instanceof MethodKey)) return false;
-	    MethodKey that = (MethodKey) o;
-	    if (this.hashCode != that.hashCode) return false; // prevents NPE when name is null
-	    if (!this.name.equals(that.name)) return false;
-	    return Arrays.equals(this.parameters, that.parameters);
-	}
-
-	@Override
-	public int hashCode() {
-	    return hashCode;
-	}
-
-	public int compareTo(MethodKey o) {
-	    if (hashCode == o.hashCode) return 0;
-	    if (name == null && o.name == null) return 0; // can only be one default.
-	    // default is always last.
-	    if (name != null && o.name == null) return -1; 
-	    if (name == null && o.name != null) return 1;
-	    if (name.charAt(0) == '*') {
-		int dlen = name.length() + 1;
-		    if (o.name.charAt(0) == '*' &&
-			o.name.regionMatches(1, name, dlen - o.name.length(),
-					    o.name.length() - 1))
-		    {
-			if (o.parameters == null || 
-			    Arrays.equals(parameters, o.parameters)) return -1;
-			return 1;
-		    }
-		
-	    }
-	    if (name.charAt(name.length() - 1) == '*') {
-		int plen = o.name.length() - 1;
-		if (o.name.charAt(plen) == '*' &&
-		    o.name.regionMatches(0, name, 0, plen))
-		{
-		    if (o.parameters == null || 
-			Arrays.equals(parameters, o.parameters)) return -1;
-		    return 1;
-		}
-	    }
-	    int plen = o.name.length() - 1;
-	    if (o.name.charAt(0) == '*') {
-		if (name.regionMatches(name.length() - plen,
-					o.name, 1, plen))
-		{
-		    if (o.parameters == null || 
-			Arrays.equals(parameters, o.parameters)) return -1;
-		    return 1;
-		}
-	    } else if (o.name.charAt(plen) == '*') {
-		if (name.regionMatches(0, o.name, 0, plen)) {
-		    if (o.parameters == null || 
-			Arrays.equals(parameters, o.parameters)) return -1;
-		    return 1;
-		}
-	    } else {
-		if (o.name.equals(name)) {
-		    if (o.parameters == null && parameters != null) return -1;
-		    return 1;
-		}
-	    }
-	    int n = name.compareTo(o.name);
-	    if ( n != 0) return n;
-	    n = parameters.length - o.parameters.length;
-	    if (n < 0) return -1;
-	    if (n > 0) return 1;
-	    n = Arrays.hashCode(parameters) - Arrays.hashCode(o.parameters);
-	    if (n > 0) return 1;
-	    return -1; // arrays aren't equal.
-	}
-    }
 }
