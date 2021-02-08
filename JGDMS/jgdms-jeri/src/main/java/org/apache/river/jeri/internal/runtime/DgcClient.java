@@ -101,12 +101,20 @@ public final class DgcClient extends AbstractDgcClient {
 	return oei.getObjectIdentifier();
     }
     
-    public void setDGCContext(Endpoint endpoint,
-	    MethodConstraints clientConstraints,
-	    AccessControlContext context)
+    /**
+     * Set the calling context for DGC, if not yet set for this Endpoint.
+     * The context should only be set if it contains a Subject that can be
+     * used to authenticate this Endpoint, otherwise the context should be null. 
+     * MethodConstraints are combined, with existing constraints, constraints
+     * set by other ObjectEnpoint's are combined for this Endpoint.
+     * 
+     * @param endpoint Current Endpoint.
+     * @param clientConstraints MethodConstraints to be added to this Endpoint for DGC calls.
+     */
+    public void constraintsApplicableToDgcServer(Endpoint endpoint, MethodConstraints clientConstraints)
     {
 	EndpointEntry entry = super.getEndpointEntry(endpoint);
-	entry.setContext(clientConstraints, context);
+	entry.constraintsApplicableToDgcServer(clientConstraints);
     }
 
     private static class DgcProxyImpl implements DgcProxy, RemoteMethodControl {
