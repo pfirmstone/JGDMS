@@ -29,6 +29,8 @@ import java.rmi.server.ExportException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.logging.Logger;
 import java.util.Collection;
 
@@ -115,7 +117,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         super.checkAccess(impl,method,constraints,context);
     }
 
-    public synchronized ObjectInputStream createMarshalInputStream(Object impl,
+    public synchronized ObjectInput createMarshalInputStream(Object impl,
         InboundRequest request, boolean integrity, Collection context)
         throws IOException
     {
@@ -127,7 +129,7 @@ public class FakeBasicInvocationDispatcher extends BasicInvocationDispatcher {
         return super.createMarshalInputStream(impl,request,integrity,context);
     }
 
-    public synchronized ObjectOutputStream createMarshalOutputStream(Object impl,
+    public synchronized ObjectOutput createMarshalOutputStream(Object impl,
         Method method, InboundRequest request, Collection context)
         throws IOException
     {

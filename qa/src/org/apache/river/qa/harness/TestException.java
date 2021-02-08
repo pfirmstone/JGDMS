@@ -18,12 +18,19 @@
 
 package org.apache.river.qa.harness;
 
+import java.io.IOException;
+import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
+
 /** 
  * An exception which may be thrown at any time during test setup
  * and execution. May be used to wrap other unexpected exceptions
  * which occur.
  */
-public class TestException extends Exception {
+@AtomicSerial
+public class TestException extends AtomicException {
 
     /** 
      *Creates a <code>TestException</code>. 
@@ -50,6 +57,10 @@ public class TestException extends Exception {
      */
     public TestException(String s, Throwable e){
         super(s, e);
+    }
+    
+    public TestException(GetArg arg) throws IOException, ClassNotFoundException{
+        super(arg);
     }
 
     /** 

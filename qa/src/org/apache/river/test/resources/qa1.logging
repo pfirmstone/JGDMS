@@ -278,8 +278,8 @@ org.apache.river.outrigger.transactions.level = SEVERE
 org.apache.river.example.browser.level = SEVERE
 
 # For the test harness, tests, and infrastructure.
-org.apache.river.qa.harness.level = FINE
-org.apache.river.qa.harness.test.level = FINE
-org.apache.river.qa.harness.service.level = FINE
-org.apache.river.qa.harness.config.level = FINE
+org.apache.river.qa.harness.level = INFO
+org.apache.river.qa.harness.test.level = INFO
+org.apache.river.qa.harness.service.level = INFO
+org.apache.river.qa.harness.config.level = INFO
 org.apache.river.test.spec.jeri.mux.level = SEVERE
