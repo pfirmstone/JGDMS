@@ -22,7 +22,9 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidObjectException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -829,7 +831,7 @@ public class BasicInvocationHandler
 	    Util.populateContext(context, integrity, atomicValidation);
 
 
-	    ObjectOutputStream out =
+	    ObjectOutput out =
 		createMarshalOutputStream(proxy, method, request, context);
 
 	    wroteMethod = true;
@@ -878,7 +880,7 @@ public class BasicInvocationHandler
 			"marshalling protocol version mismatch");
 		}
 		
-		ObjectInputStream in =
+		ObjectInput in =
 		    createMarshalInputStream(proxy, method, request,
 					     integrity, context);
 		
@@ -1037,7 +1039,7 @@ public class BasicInvocationHandler
     }
 
     /**
-     * Returns a new {@link ObjectOutputStream} instance to use to write
+     * Returns a new {@link ObjectOutput} instance to use to write
      * objects to the request output stream obtained by invoking the {@link
      * OutboundRequest#getRequestOutputStream getRequestOutputStream} method
      * on the given <code>request</code>.
@@ -1055,12 +1057,12 @@ public class BasicInvocationHandler
      * @param	method the remote method invoked
      * @param	request the outbound request
      * @param	context the client context
-     * @return	a new {@link ObjectOutputStream} instance for marshalling
+     * @return	a new {@link ObjectOutput} instance for marshalling
      *		a call request
      * @throws	IOException if an I/O exception occurs
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
-    protected ObjectOutputStream
+    protected ObjectOutput
         createMarshalOutputStream(final Object proxy,
 				  Method method,
 				  OutboundRequest request,
@@ -1099,7 +1101,7 @@ public class BasicInvocationHandler
     }
 							  
     /**
-     * Returns a new {@link ObjectInputStream} instance to use to read
+     * Returns a new {@link ObjectInput} instance to use to read
      * objects from the response input stream obtained by invoking the {@link
      * OutboundRequest#getResponseInputStream getResponseInputStream} method
      * on the given <code>request</code>.
@@ -1129,12 +1131,12 @@ public class BasicInvocationHandler
      * @param	request the outbound request
      * @param	integrity whether or not to verify codebase integrity
      * @param	context the client context
-     * @return	a new {@link ObjectInputStream} instance for unmarshalling
+     * @return	a new {@link ObjectInput} instance for unmarshalling
      *		a call response
      * @throws	IOException if an I/O exception occurs
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
-    protected ObjectInputStream
+    protected ObjectInput
         createMarshalInputStream(Object proxy,
 				 Method method,
 				 final OutboundRequest request,
@@ -1204,7 +1206,7 @@ public class BasicInvocationHandler
      * <p><code>BasicInvocationHandler</code> implements this method
      * to write the JRMP method hash (defined in section 8.3 of the
      * Java RMI specification) for the given method to the output stream
-     * using the {@link ObjectOutputStream#writeLong writeLong}
+     * using the {@link ObjectOutput#writeLong writeLong}
      * method.
      *
      * <p>A subclass can override this method to control how the remote
@@ -1226,7 +1228,7 @@ public class BasicInvocationHandler
      **/
     protected void marshalMethod(Object proxy,
 				 Method method,
-				 ObjectOutputStream out,
+				 ObjectOutput out,
 				 Collection context)
 	throws IOException
     {
@@ -1280,7 +1282,7 @@ public class BasicInvocationHandler
     protected void marshalArguments(Object proxy,
 				    Method method,
 				    Object[] args,
-				    ObjectOutputStream out,
+				    ObjectOutput out,
 				    Collection context)
 	throws IOException
     {
@@ -1339,7 +1341,7 @@ public class BasicInvocationHandler
      **/
     protected Object unmarshalReturn(Object proxy,
 				     Method method,
-				     ObjectInputStream in,
+				     ObjectInput in,
 				     Collection context)
 	throws IOException, ClassNotFoundException
     {
@@ -1402,7 +1404,7 @@ public class BasicInvocationHandler
      **/
     protected Throwable unmarshalThrow(Object proxy,
 				       Method method,
-				       ObjectInputStream in,
+				       ObjectInput in,
 				       Collection context)
 	throws IOException, ClassNotFoundException
     {

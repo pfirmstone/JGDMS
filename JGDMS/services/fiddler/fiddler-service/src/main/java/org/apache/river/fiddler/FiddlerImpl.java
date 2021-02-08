@@ -97,6 +97,8 @@ import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
@@ -919,10 +921,10 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 	    RemoteEventListener listener;
 
 	    @Override
-	    public void read(ObjectInput stream) throws IOException, ClassNotFoundException { 
-		MarshalledObject mo = (MarshalledObject)stream.readObject();
+	    public void read(AtomicObjectInput stream) throws IOException, ClassNotFoundException { 
+		MarshalledObject mo = stream.readObject(MarshalledObject.class);
 		try {
-		    listener = (RemoteEventListener) new MarshalledInstance(mo).get(false);
+		    listener = new AtomicMarshalledInstance(mo).get(false, RemoteEventListener.class);
 		} catch (Throwable e) {
 		    problemLogger.log(Level.INFO, "problem recovering listener "
 				      +"for recovered registration", e);
@@ -933,6 +935,11 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 		    }//endif
 		}
 	    }
+
+            @Override
+            public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+                throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+            }
 	    
 	}
         

@@ -81,6 +81,7 @@ public class TimeoutExpiredException extends TransactionException {
      * @param arg atomic deserialization parameter 
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
+     * @throws java.lang.ClassNotFoundException
      */
     public TimeoutExpiredException(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));

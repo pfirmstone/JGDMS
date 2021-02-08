@@ -239,6 +239,8 @@ public class LookupUnmarshalException extends AtomicException {
      * @param arg atomic deserialization parameter 
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
+     * @throws java.lang.ClassNotFoundException if one of the classes in the
+     *         stream cannot be resolved.
      */
     public LookupUnmarshalException(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, 

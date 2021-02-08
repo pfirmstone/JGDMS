@@ -44,7 +44,7 @@ import org.apache.river.api.net.Uri;
  * {@linkplain org.apache.river.start service starter} 
  * package. This class takes a policy string argument that follows the 
  * matching semantics defined by {@link FilePermission}. Note that after 
- * <a link="http://mail.openjdk.java.net/pipermail/jdk9-dev/2016-October/005062.html">
+ * <a href="http://mail.openjdk.java.net/pipermail/jdk9-dev/2016-October/005062.html">
  * FilePermission changes in JDK9 140</a> the following property must be set
  * for this Permission to function correctly. -Djdk.io.permissionsUseCanonicalPath=true
  * <p>

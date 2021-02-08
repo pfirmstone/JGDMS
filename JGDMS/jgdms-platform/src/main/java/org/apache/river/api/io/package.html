@@ -23,9 +23,31 @@
     </head>
     <body>
         <p>Atomic serialization is designed to allow users to perform
-            de-serialization of untrusted data, serial form of {@literal @}AtomicSerial
-            objects is compatible with Java Serialization.
+            de-serialization of untrusted data, {@literal @}AtomicSerial
+            is a Public API designed to support any serialization
+            framework, that provides access to Object data for serialization
+            and the ability to re-create objects during de-serializtaion.
         </p>
+        <p>
+            The intent of {@literal @}AtomicSerial is to allow extensiblity of
+            serialization frameworks to support Services written in different
+            languages.
+        </p>
+        <p>
+            {@literal @}AtomicSerial is a public API, which means that methods
+            and classes are public.  There are two reasons for this:
+        </p>  
+        <ol>
+          <li>Constructors and methods need visibility to avoid breaking in modular environments.</li>
+          <li>Java Serialization makes internal Object state public.</li>
+        </ol>
+        <p>
+            
+        </p>
+    
+            
+            
+        
         <h1>Atomic Serialization example:</h1>
         
         <pre><code>

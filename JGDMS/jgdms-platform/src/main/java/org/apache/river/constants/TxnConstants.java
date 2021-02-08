@@ -37,6 +37,8 @@ public class TxnConstants implements TransactionConstants {
      * Returns a <code>String</code> which describes
      * the state of the <code>Transaction</code>.
      *
+     * @param state integer transaction constant
+     * @return String transaction constant
      * @see net.jini.core.transaction.server.TransactionConstants
      */
     public static String getName(int state) {

@@ -53,6 +53,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;

@@ -408,7 +408,7 @@ class ObjectStreamClassContainer {
 	readResolveMethod = getReadResolveMethod(c);
 	Class[] params = {ObjectInputStream.class};
 	readObjectMethod = getPrivateInstanceMethod(c, "readObject", params, Object.class);
-	readObjectNoDataMethod = getPrivateInstanceMethod(c, "readObjectNoData", null, Void.TYPE);
+//	readObjectNoDataMethod = getPrivateInstanceMethod(c, "readObjectNoData", null, Void.TYPE);
 	putInMap();
     }
 

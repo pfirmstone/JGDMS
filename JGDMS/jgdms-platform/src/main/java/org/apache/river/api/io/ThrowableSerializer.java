@@ -23,18 +23,15 @@ import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
 import java.io.Serializable;
+import java.io.WriteAbortedException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.rmi.RemoteException;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -72,28 +69,28 @@ class ThrowableSerializer implements Serializable {
      * change, however it is possible to have different fields than serial
      * form.
      */
-    private static final Field detailMessage;
-    
-    static {
-	detailMessage = AccessController.doPrivileged(new PrivilegedAction<Field>(){
-
-	    @Override
-	    public Field run() {
-		try {
-		    Field mes = Throwable.class.getDeclaredField("detailMessage");
-		    mes.setAccessible(true);
-		    return mes;
-		} catch (NoSuchFieldException ex) {
-		    logger.log(Level.FINE, "unable to access detailMessage field in Throwable", ex);
-		} catch (SecurityException ex) {
-		    logger.log(Level.FINE, "unable to access detailMessage field in Throwable", ex);
-		}
-		return null;
-	    }
-	    
-	});
-	
-    }
+//    private static final Field detailMessage;
+//    
+//    static {
+//	detailMessage = AccessController.doPrivileged(new PrivilegedAction<Field>(){
+//
+//	    @Override
+//	    public Field run() {
+//		try {
+//		    Field mes = Throwable.class.getDeclaredField("detailMessage");
+//		    mes.setAccessible(true);
+//		    return mes;
+//		} catch (NoSuchFieldException ex) {
+//		    logger.log(Level.FINE, "unable to access detailMessage field in Throwable", ex);
+//		} catch (SecurityException ex) {
+//		    logger.log(Level.FINE, "unable to access detailMessage field in Throwable", ex);
+//		}
+//		return null;
+//	    }
+//	    
+//	});
+//	
+//    }
     
     private final /*transient*/ Throwable throwable;
     private final Class<? extends Throwable> clazz;
@@ -128,26 +125,60 @@ class ThrowableSerializer implements Serializable {
             length = 0;
             eof = false;
         }
+        /*
+        * Numeous subclasses override Throwable.getMessage.  Unfortunately we
+        * can't rely on reflection in future, so in order to best retrieve the
+        * original message...
+        */
+        try {
+            Class clas = t.getClass().getMethod("getMessage").getDeclaringClass();
+            if (Throwable.class == clas){
+                message = t.getMessage();
+                return;
+            }
+        } catch (NoSuchMethodException ex) {
+            throw new IncompatibleClassChangeError("Throwable missing method getMessage: " + ex.toString());
+        }
+        if (t instanceof RemoteException && ((RemoteException)t).detail != null){
+            String mess = t.getMessage();
+            String remoteMess = "; nested exception is: \n\t";
+            int endMessage = mess.indexOf(remoteMess);
+            message = mess.substring(0, endMessage);
+        } else if (t instanceof URISyntaxException){
+            message = ((URISyntaxException)t).getReason();
+        } else if (t instanceof  InvalidClassException  && ((InvalidClassException)t).classname != null){
+            String classnme = ((InvalidClassException)t).classname + "; ";
+            String mess = t.getMessage();
+            message = mess.substring(classnme.length());
+        } else if (t instanceof WriteAbortedException && ((WriteAbortedException)t).detail != null){
+            String detail = "; " + ((WriteAbortedException)t).detail.toString();
+            String mess = t.getMessage();
+            int endMessage = mess.indexOf(detail);
+            message = mess.substring(0, endMessage);
+        } else {
+            message = t.getMessage();
+            logger.log(Level.FINE, "unable to access detailMessage field in Throwable, using overridden getMessage method result instead");
+        }
 	
-	if (detailMessage != null){
-	    String mess = null;
-	    try {
-		mess = (String) detailMessage.get(t);
-	    } catch (IllegalArgumentException ex) {
-		logger.log(Level.FINE, "unable to access detailMessage", ex);
-	    } catch (IllegalAccessException ex) {
-		logger.log(Level.FINE, "unable to access detailMessage", ex);
-	    }
-	    if (mess != null) {
-		message = mess;
-	    } else {
-		logger.log(Level.FINE, "Warning getMessage() may be overridden");
-		message = t.getMessage();
-	    }
-	} else {
-	    logger.log(Level.FINE,"Warning getMessage() may be overridden");
-	    message = t.getMessage();
-	}
+//	if (detailMessage != null){
+//	    String mess = null;
+//	    try {
+//		mess = (String) detailMessage.get(t);
+//	    } catch (IllegalArgumentException ex) {
+//		logger.log(Level.FINE, "unable to access detailMessage", ex);
+//	    } catch (IllegalAccessException ex) {
+//		logger.log(Level.FINE, "unable to access detailMessage", ex);
+//	    }
+//	    if (mess != null) {
+//		message = mess;
+//	    } else {
+//		logger.log(Level.FINE, "Warning getMessage() may be overridden");
+//		message = t.getMessage();
+//	    }
+//	} else {
+//	    logger.log(Level.FINE,"Warning getMessage() may be overridden");
+//	    message = t.getMessage();
+//	}
     }
     
     public ThrowableSerializer(GetArg arg) throws IOException, ClassNotFoundException{

@@ -57,6 +57,7 @@ import net.jini.io.context.ClientSubject;
 import net.jini.io.context.ContextPermission;
 import net.jini.io.context.IntegrityEnforcement;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicObjectInput;
 
 /**
  * Utility methods for implementing custom remote reference types.
@@ -222,6 +223,8 @@ public class Util {
 		    "Unrecognized primitive type: " + type);
 	    }
 	} else {
+            if (in instanceof AtomicObjectInput) 
+                return ((AtomicObjectInput)in).readObject(type);
 	    return in.readObject();
 	}
     }

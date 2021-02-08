@@ -131,7 +131,7 @@ import org.apache.river.impl.Messages;
  *</p>
  * @author peter
  */
-public class AtomicMarshalInputStream extends MarshalInputStream {
+public class AtomicMarshalInputStream extends MarshalInputStream implements AtomicObjectInput {
   
     private final InputStream emptyStream = new ByteArrayInputStream(
             new byte[0]);
@@ -2849,6 +2849,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      *             if an error occurs while reading from the source stream.
      * @see ObjectOutputStream#writeUnshared
      */
+    @Override
     public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
 	return (T) readObject(false, type);
     }

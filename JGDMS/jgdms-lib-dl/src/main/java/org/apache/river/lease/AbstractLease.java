@@ -27,7 +27,7 @@ import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
-import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
@@ -107,22 +107,26 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     }
 
 
-    /** Construct a relative-format lease. */
+    /** Construct a relative-format lease.
+     * @param expiration in absolute local time.*/
     protected AbstractLease(long expiration) {
 	this.expiration = expiration;
     }
 
     /** Return the lease expiration. */
+    @Override
     public long getExpiration() {
 	return expiration;
     }
 
     /** Return the serialization format for the expiration. */
+    @Override
     public int getSerialFormat() {
 	return serialFormat;
     }
 
     /** Set the serialization format for the expiration. */
+    @Override
     public void setSerialFormat(int format) {
 	if (format != Lease.DURATION && format != Lease.ABSOLUTE)
 	    throw new IllegalArgumentException("invalid serial format");
@@ -130,6 +134,7 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     }
 
     /** Renew the lease for a duration relative to now. */
+    @Override
     public void renew(long duration)
 	throws UnknownLeaseException, LeaseDeniedException, RemoteException
     {
@@ -143,6 +148,11 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     /**
      * Renew the lease for a duration relative to now, and return
      * the duration actually granted.
+     * @param duration in relative time.
+     * @return lease duration granted.
+     * @throws net.jini.core.lease.UnknownLeaseException
+     * @throws net.jini.core.lease.LeaseDeniedException
+     * @throws java.rmi.RemoteException
      */
     protected abstract long doRenew(long duration)
 	throws UnknownLeaseException, LeaseDeniedException, RemoteException;

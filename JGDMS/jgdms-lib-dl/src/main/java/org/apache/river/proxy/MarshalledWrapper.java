@@ -300,6 +300,7 @@ public class MarshalledWrapper implements Serializable {
      *
      * @return the hash code value for this <code>MarshalledWrapper</code>.
      */
+    @Override
     public int hashCode() {
 	return MarshalledWrapper.class.hashCode() ^ instance.hashCode();
     }
@@ -314,6 +315,7 @@ public class MarshalledWrapper implements Serializable {
      * @return <code>true</code> if <code>obj</code> is equivalent to
      * this object; <code>false</code> otherwise
      */
+    @Override
     public boolean equals(Object obj) {
 	return obj == this ||
 	       (obj != null &&

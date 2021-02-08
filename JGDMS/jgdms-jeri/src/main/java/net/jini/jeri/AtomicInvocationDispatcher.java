@@ -17,6 +17,7 @@ package net.jini.jeri;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -114,7 +115,7 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
     @Override
-    protected ObjectInputStream
+    protected ObjectInput
         createMarshalInputStream(Object impl,
 				 final InboundRequest request,
 				 final boolean integrity,

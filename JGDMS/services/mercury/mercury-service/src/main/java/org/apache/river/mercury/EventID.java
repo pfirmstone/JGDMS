@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
@@ -125,12 +126,14 @@ class EventID implements Serializable {
     }
 
     // inherit documentation from supertype
+    @Override
     public int hashCode() {
         // TODO - find a better hash algorithm?
         return (int)id; // just truncate for now
     }
 
     // inherit documentation from supertype
+    @Override
     public String toString() {
         return getClass().getName() + "[source=" + source + "]"
            + "[id=" + id + "]";
@@ -186,8 +189,8 @@ class EventID implements Serializable {
 	Object source;
 
 	@Override
-	public void read(ObjectInput stream) throws IOException, ClassNotFoundException {
-	    MarshalledObject mo = (MarshalledObject)stream.readObject();
+	public void read(AtomicObjectInput stream) throws IOException, ClassNotFoundException {
+	    MarshalledObject mo = (MarshalledObject)stream.readObject(MarshalledObject.class);
 	    try {
 		source = new MarshalledInstance(mo).get(false);
 	    } catch (Throwable e) {
@@ -199,6 +202,11 @@ class EventID implements Serializable {
 }
 	    }
 	}
+
+        @Override
+        public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+            throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+        }
 	
     }
 }

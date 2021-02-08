@@ -60,6 +60,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Random;
@@ -69,6 +70,7 @@ import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -134,6 +136,7 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
@@ -822,9 +825,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    RemoteEventListener listener;
 
 	    @Override
-	    public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+	    public void read(AtomicObjectInput input) throws IOException, ClassNotFoundException {
 		
-		MarshalledInstance mi = (MarshalledInstance) input.readObject();
+		MarshalledInstance mi = input.readObject(MarshalledInstance.class);
 		try {
 		    listener = (RemoteEventListener) mi.get(false);
 		} catch (Throwable e) {
@@ -838,6 +841,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			       "failed to recover event listener", e);
 		}
 	    }
+
+            @Override
+            public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+                throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+            }
 	    
 	}
 	
@@ -2280,6 +2288,30 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             if (this.seqNo > o.seqNo) return 1;
             return 0;
         }
+        
+        @Override
+        public boolean equals(Object o){
+            if (this == o) return true;
+            if (!(o instanceof EventTask)) return false;
+            EventTask that = (EventTask) o;
+            if (this.now != that.now) return false;
+            if (this.seqNo != that.seqNo) return false;
+            if (this.transition != that.transition) return false;
+            if (this.newNotify != that.newNotify) return false;
+            return (this.sid.equals(that.sid) && this.registrar.equals(that.registrar));
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 5;
+            hash = 67 * hash + (int) (this.seqNo ^ (this.seqNo >>> 32));
+            hash = 67 * hash + Objects.hashCode(this.sid);
+            hash = 67 * hash + this.transition;
+            hash = 67 * hash + Objects.hashCode(this.registrar);
+            hash = 67 * hash + (int) (this.now ^ (this.now >>> 32));
+            hash = 67 * hash + (this.newNotify ? 1 : 0);
+            return hash;
+        }
     }
 
     /** Task for decoding multicast request packets. */
@@ -2411,8 +2443,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    try {
 		try {
 		    addr = InetAddress.getAllByName(host);
-		    if (addr == null)
-			addr = new InetAddress[]{};
 		} catch (UnknownHostException e) {
 		    if (DISCOVERY_LOGGER.isLoggable(Level.INFO)) {
 			logThrow(DISCOVERY_LOGGER, Level.INFO,
@@ -5013,7 +5043,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 byte [] encodedCerts;
 	 private int httpsUnicastPort;
 	 boolean enableHttpsUnicast;
-	 Discovery httpsDiscovery;
 	 String codebase;
         
         

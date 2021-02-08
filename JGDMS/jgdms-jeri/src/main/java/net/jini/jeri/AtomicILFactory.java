@@ -205,12 +205,13 @@ public class AtomicILFactory extends BasicILFactory {
     
     /**
      * Creates a <code>AtomicILFactory</code> with the specified server
-     * constraints, permission class, and proxy or service implementation class.The server constraints, if not <code>null</code>, are used to enforce 
- minimum constraints for remote calls.
-     * The permission class, if not
- <code>null</code>, is used to perform server-side access control on
-     * incoming remote calls.  The proxy or service implementation class, 
-     * which cannot be <code>null</code>, is used to obtain the ClassLoader
+     * constraints, permission class, and proxy or service implementation class.
+     * The server constraints, if not <code>null</code>, are used to enforce 
+     * minimum constraints for remote calls.
+     * The permission class, if not <code>null</code>, is used to perform 
+     * server-side access control on incoming remote calls.  
+     * The proxy or service implementation class, which cannot be 
+     * <code>null</code>, is used to obtain the ClassLoader
      * to be passed to the superclass constructor and is used by the 
      * {@link #createInstances createInstances} method.
      *
@@ -251,7 +252,8 @@ public class AtomicILFactory extends BasicILFactory {
      * This constructor is deprecated due to the problems that occur when attempting
      * to resolve classes using codebase annotations appended to the stream.
      * 
-     * {@link https://dl.acm.org/doi/pdf/10.5555/1698139}
+     * <a href="https://dl.acm.org/doi/pdf/10.5555/1698139">
+     * Class Loading Issues in Java™ RMI and Jini™ Network Technology</a>
      * 
      * Appending codebase annotations in the stream is strongly discouraged.
      *
@@ -308,7 +310,8 @@ public class AtomicILFactory extends BasicILFactory {
      * This constructor is deprecated due to the problems that occur when attempting
      * to resolve classes using codebase annotations appended to the stream.
      * 
-     * {@link https://dl.acm.org/doi/pdf/10.5555/1698139}
+     * <a href="https://dl.acm.org/doi/pdf/10.5555/1698139">
+     * Class Loading Issues in Java™ RMI and Jini™ Network Technology</a>
      * 
      * Appending codebase annotations in the stream is strongly discouraged.
      *

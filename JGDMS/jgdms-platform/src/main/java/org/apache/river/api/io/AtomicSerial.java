@@ -22,6 +22,10 @@ import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
+import java.io.ObjectStreamClass;
 import java.io.SerializablePermission;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -32,18 +36,28 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.security.AccessController;
-import java.security.Guard;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import net.jini.io.ObjectStreamContext;
 
 /**
- * Traditional java de-serialization cannot be used over untrusted connections
+ * Java Serialization cannot be used over untrusted connections
  * for the following reasons:
  * <p>
  * The serial stream can be manipulated to allow the attacker to instantiate
  * any Serializable object available on the CLASSPATH or any object that
  * has a default constructor, such as ClassLoader.
+ * <p>
+ * AtomicSerial is a public API designed to for any Serialization framework to utilise
+ * for serialization and de-serialization of internal object state using any protocol in
+ * a manner that allows Object classes to defensively validate invariants
+ * atomically during de-serialization, prior to Object instance creation.
+ * <p>
+ * Developers implementing AtomicSerial will be able to utilise any serialization
+ * framework or serialization framework decorator written using the AtomicSerial API.
+ * <p>
+ * Where practical, existing interfaces and classes used for Java Serialization
+ * have been utilised.
  * <p>
  * Failure to validate invariants during construction, or as a result of 
  * an exception, objects can remain in an invalid state after construction. 
@@ -56,6 +70,8 @@ import net.jini.io.ObjectStreamContext;
  * the size first, so an attacker can easily cause an Error that brings
  * down the JVM. 
  * <p>
+ * A requirement of implementing this interface is to implement a public static method
+ * signature that accepts 
  * A requirement of implementing this interface is to implement a constructor
  * that accepts a single GetArg parameter.  This constructor may be
  * public or have default visibility, even in this case, the constructor
@@ -75,18 +91,46 @@ import net.jini.io.ObjectStreamContext;
  * Atomic stands for atomic failure, if invariants cannot be satisfied an 
  * instance cannot be created and hence a reference cannot be stolen.
  * <p>
- * The serial form of AtomicSerial is backward compatible with Serializable
- * classes that do not define a writeObject method.  It is also compatible 
- * with Serializable classes that define a writeObject method that calls
- * defaultWriteObject.  AtomicSerial provides backward compatibility with 
+ * AtomicSerial allows backward compatibility with Java Serializable classes, but
+ * defines a public API for accessing Object state for Serialization.  AtomicSerial
+ * is designed to be Serialization protocol agnostic and instead provides an
+ * API for AtomicSerial classes to implement that allows Serialization frameworks
+ * to access to Object state for serialization and construction during deserialization,
+ * without breaking Object encapsulation.
+ * <p> 
+ * AtomicSerial provides backward compatibility with 
  * Serializable classes that implement writeObject and write other Objects
  * or primitives to the stream when {@link ReadObject} and {@link ReadInput}
  * are implemented by the class.
+ * <p>
+ * An {@link ObjectStreamField} represents a serializable field of an AtomicSerial class.
+ * The serializable fields of a class can be retrieved from the {@link ObjectStreamClass}.
+ * <p>
+ * The special static serializable field, serialPersistentFields, is an array
+ * of ObjectStreamField components that defines serializable fields.   
+ * The serial form of an @AtomicSerial class, defined by serialPersistentFields
+ * is completely independent of any Object fields declared in the class.
+ * Serializable fields should be thought of as parameters passed to a constructor.
+ * <p>
+ * The order of serializable fields defined in serialPersistentFields is not important.
+ * If the developer wants to maintain flexibility in serializable fields, to
+ * be able to remove a field if no longer required, the developer must catch
+ * IllegalArgumentException when calling
+ * {@link GetArg#get(java.lang.String, java.lang.Object, java.lang.Class) }
+ * <p>
+ * Serializable fields, if used, must be explicitly written to and read from the stream,
+ * during serialization and de-serialization.  If a class has no serializable
+ * fields, then the special static field serialPersistentField should refer
+ * to an empty array.
+ * <p>
+ * AtomicSerial ObjectInput and ObjectOutput implementations may communicate
+ * using any serialization protocol.
  * 
- * @author peter
+ * @author Peter Firmstone.
  * @see ReadObject
  * @see ReadInput
  * @see GetArg
+ * @see PutArg
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
@@ -100,7 +144,33 @@ public @interface AtomicSerial {
      * @see  ReadInput
      */
     public interface ReadObject {
-	void read(ObjectInput input) throws IOException, ClassNotFoundException;
+
+        /**
+         * This method by default calls {@link ReadObject#read(java.io.ObjectInput)} ,
+         * it should be overridden, when the client needs to ensure the type
+         * correctness of objects read from the stream.  Serialization framework
+         * decorator implementations should only call this method.
+         * 
+         * @param input
+         * @throws IOException
+         * @throws ClassNotFoundException
+         */
+        default void read(AtomicObjectInput input) throws IOException, ClassNotFoundException{
+            read((ObjectInput) input);
+        }
+        
+        /**
+         * This method must be implemented by clients wishing to read in Objects
+         * or primitive data directly from the stream.
+         * 
+         * Serialization framework implementations should not call this method
+         * directly.
+         * 
+         * @param input
+         * @throws IOException
+         * @throws ClassNotFoundException
+         */
+        void read(ObjectInput input) throws IOException, ClassNotFoundException ;
     }
     
     /**
@@ -266,16 +336,6 @@ public @interface AtomicSerial {
     public static abstract class GetArg extends ObjectInputStream.GetField 
 					implements ObjectStreamContext {
 	
-	private static Guard enableSubclassImplementation 
-		= new SerializablePermission("enableSubclassImplementation");
-	
-	
-
-	private static boolean check() {
-	    enableSubclassImplementation.checkGuard(null);
-	    return true;
-	}
-	
 	/**
          * Not intended for general construction, however may be extended
          * by an ObjectInput implementation or for testing purposes.
@@ -283,7 +343,7 @@ public @interface AtomicSerial {
          * @throws SecurityException if caller doesn't have permission java.io.SerializablePermission "enableSubclassImplementation";
          */
 	protected GetArg() {
-	    this(check());
+	    this(Check.check());
 	}
 	
 	GetArg(boolean check){
@@ -302,11 +362,12 @@ public @interface AtomicSerial {
 	/**
 	 * If an AtomicSerial implementation annotates a static method that returns
 	 * a Reader instance, with {@link ReadInput}, then the stream will provide
-	 * the ReadObject access to the stream at a time that suits the stream.  
+	 * the ReadObject access to the stream at a time that suits the stream, 
+         * prior to Object instantiation.
 	 * This method provides a way for an object under construction to 
 	 * retrieve information from the stream.  This is provided to retain
-	 * compatibility with writeObject methods that write directly to the
-	 * stream.
+	 * compatibility with {@link PutArg#output() } when ObjectOutput is used 
+         * to write Objects directly to the stream.
 	 *
 	 * @return ReadObject instance provided by static class method after it has
 	 * read from the stream, or null.
@@ -350,6 +411,63 @@ public @interface AtomicSerial {
 							throws IOException;	  
 	
 	}
+    
+    /**
+     * Parameter argument received by an @AtomicSerial object in order to 
+     * serialize its internal object state.
+     */
+    public static abstract class PutArg extends ObjectOutputStream.PutField
+                                        implements ObjectStreamContext {
+        
+        /**
+         * This method is an example of the signature that an @AtomicSerial class
+         * implementation must use to serialize the internal state of an object
+         * instance of itself.
+         * <p>
+         * Unlike Java Serialization, which uses private object instance methods,
+         * a static method is used to allow each class in an Object's inheritance
+         * hierarchy to write it's state to the stream, without needing the 
+         * method to be private.
+         * 
+         * @param arg PutArg argument used to store object fields.
+         * @param o Object instance of the class to be serialized, it must be the 
+         *          same type as the class implementing this method.
+         * @throws IOException 
+         * @throws IllegalArgumentException if Object is not an instance of
+         *         the class implementing this method.
+         */
+        public static void serialize(PutArg arg, Object o) throws IOException {
+            
+        }
+	
+	/**
+         * To be implemented by a Serialization framework.
+         * 
+         * @throws SecurityException if caller doesn't have permission java.io.SerializablePermission "enableSubclassImplementation";
+         */
+	protected PutArg() {
+	    this(Check.check());
+	}
+        
+        PutArg(boolean check){
+	    super();
+	}
+        
+        /**
+         * Write buffered fields of the calling Object to the stream.
+         * 
+         * @throws IOException 
+         */
+        public abstract void writeFields() throws IOException;
+        
+        /**
+         * Provides access to underlying ObjectOutput for writing fields out in
+         * order.
+         * 
+         * @return 
+         */
+        public abstract ObjectOutput output();
+    }
     
 }
 
