@@ -40,6 +40,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.security.auth.Subject;
+import net.jini.constraint.BasicMethodConstraints;
+import net.jini.constraint.StringMethodConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
@@ -305,9 +308,28 @@ abstract class AbstractDgcClient {
             return removed;
         }
 	
-	synchronized void setContext(MethodConstraints clientConstraints, AccessControlContext context){
-	    this.clientConstraints = clientConstraints;
-	    this.context = context;
+	synchronized void constraintsApplicableToDgcServer(MethodConstraints clientConstraints){
+            /*
+             * MethodConstraints are cumulative as connections are created
+             * and more constraints are added.
+             */
+            if (this.clientConstraints == null){
+                if (clientConstraints instanceof StringMethodConstraints){
+                    this.clientConstraints = clientConstraints;
+                }
+            } else if (clientConstraints != null){
+                if (clientConstraints instanceof StringMethodConstraints){
+                    this.clientConstraints = 
+                        ((StringMethodConstraints)this.clientConstraints)
+                            .combine((StringMethodConstraints)clientConstraints);
+                } else if (clientConstraints instanceof BasicMethodConstraints){
+                    this.clientConstraints = 
+                        ((StringMethodConstraints)this.clientConstraints)
+                            .combine(new StringMethodConstraints((BasicMethodConstraints)clientConstraints));
+                } else {
+                    this.clientConstraints = clientConstraints;
+                }
+            }
 	}
 
 	/**
@@ -321,6 +343,10 @@ abstract class AbstractDgcClient {
 	 *
 	 * This method must NOT be invoked while synchronized on this
 	 * EndpointEntry.
+         * 
+         * The AccessControlContext of the calling Thread is captured
+         * after successful authentication, for successive calls to
+         * DgcServer methods.
 	 */
 	boolean registerRefs(Collection<ObjectEndpoint> refs) {
 	    assert !Thread.holdsLock(this);
@@ -359,10 +385,37 @@ abstract class AbstractDgcClient {
 		refsToDirty.addAll(invalidRefs);
 		invalidRefs.clear();
 
-		sequenceNum = getNextSequenceNum();
+		sequenceNum = getNextSequenceNum();       
 	    }
 
 	    makeDirtyCall(refsToDirty, sequenceNum);
+            /*
+             * This call was Authorised, capture the calling context
+             * Subject for Secure Endpoints for DGC Proxy remote method calls.
+             */
+            
+            AccessControlContext cont = AccessController.getContext();
+            Boolean hasSubject = AccessController.doPrivilegedWithCombiner(
+                new PrivilegedAction<Boolean>(){
+                    @Override
+                    public Boolean run() {
+                        Subject subject = Subject.getSubject(cont);
+                        if (subject != null){
+                            return Boolean.TRUE;
+                        }
+                        return Boolean.FALSE;
+                    }
+
+                });
+            /*
+             * Don't set context if it has no Subject.  DGC requires a 
+             * Subject to authenticate.
+             */
+            if (hasSubject){
+                synchronized (this){
+                     context = cont;
+                }
+            }
 	    return true;
 	}
 
@@ -417,23 +470,8 @@ abstract class AbstractDgcClient {
 	    long startTime = System.currentTimeMillis();
 	    final DgcProxy proxy;
 	    MethodConstraints constraints;
-	    AccessControlContext callContext;
 	    synchronized (this){
 		constraints = clientConstraints;
-		if (context == null ){
-		    context = AccessController.getContext();
-		} else if ( AccessController.doPrivileged(   
-			    new PrivilegedAction<Boolean>(){
-				public Boolean run() {
-				    return context.getDomainCombiner() == null;
-				}
-			    }
-			)
-		    )
-		{
-		    context = AccessController.getContext();
-		}
-		callContext = context;
 	    }
 	    
 	    if (constraints != null){
@@ -444,16 +482,7 @@ abstract class AbstractDgcClient {
 	    }
 	    
 	    try {
-		long duration = AccessController.doPrivileged(
-		    new PrivilegedExceptionAction<Long>()
-		    {
-
-			public Long run() throws RemoteException {
-			    return proxy.dirty(sequenceNum, ids, leaseValue);
-			}
-
-		    }, callContext
-		);
+                long duration = proxy.dirty(sequenceNum, ids, leaseValue);
 		synchronized (this) {
 		    dirtyFailures = 0;
 
@@ -468,9 +497,8 @@ abstract class AbstractDgcClient {
 			expirationTime = startTime + duration;
 		    }
 		}
-	    } catch (PrivilegedActionException ex){
-		Exception e = ex.getException();
-		if (e instanceof NoSuchObjectException) {
+            } catch (RemoteException ex){
+                if (ex instanceof NoSuchObjectException) {
 		    synchronized (this) {
 			setRenewTime(Long.MAX_VALUE);
 			invalidRefs.addAll(refTable.values());
@@ -642,7 +670,7 @@ abstract class AbstractDgcClient {
 			    refQueue.remove(timeToWait);
 		    } catch (InterruptedException e) {
 		    }
-
+                    AccessControlContext cont = null;
 		    synchronized (EndpointEntry.this) {
 			/*
 			 * Set flag indicating that it is NOT OK to interrupt
@@ -676,11 +704,23 @@ abstract class AbstractDgcClient {
 				invalidRefs.clear();
 			    }
 			    sequenceNum = getNextSequenceNum();
+                            cont = EndpointEntry.this.context;
 			}
 		    }
 
 		    if (needRenewal) {
-			makeDirtyCall(refsToDirty, sequenceNum);
+                        final Set dirtyRefs = refsToDirty;
+                        final long seqNum = sequenceNum;
+                        AccessController.doPrivileged(
+                            new PrivilegedAction(){
+                                @Override
+                                public Object run() {
+                                    makeDirtyCall(dirtyRefs, seqNum);
+                                    return Boolean.TRUE;
+                                }
+                                
+                            }, cont);
+			
 		    }
 
 		    if (pendingCleanCalls()) {
