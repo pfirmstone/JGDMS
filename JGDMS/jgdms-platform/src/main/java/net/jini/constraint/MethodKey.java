@@ -126,11 +126,17 @@ class MethodKey implements Comparable<MethodKey> {
         } else if (o.name.charAt(0) == '*' || o.name.charAt(o.name.length()-1) == '*'){ // We know that name is not a wild card.
             // Name is normal string, so it goes first.
             return -1;
-        } else { // No wild cards, compare method name strings, then parameters.
+        } else { // No wild cards, compare method name strings.
             return name.compareTo(o.name);
         }
     }
     
+    /**
+     * Parameters are compared if method names are equal, or have matching wild cards.
+     * @param key1
+     * @param key2
+     * @return 
+     */
     private int compareParameters(MethodKey key1, MethodKey key2){
         if (key1.parametersHashcode == key2.parametersHashcode) return 0;  // Hashcode is 0 for null.
         if (key2.parameters == null && key1.parameters != null) return -1;
