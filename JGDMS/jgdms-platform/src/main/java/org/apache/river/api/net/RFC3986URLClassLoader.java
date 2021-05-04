@@ -62,6 +62,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.io.Replace;
 
 import org.apache.river.impl.Messages;
 
@@ -766,7 +767,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * 
      * This class must not be serialized.
      */
-    private static class UriCodeSource extends CodeSource {
+    private static class UriCodeSource extends CodeSource implements Replace {
         private static final long serialVersionUID = 1L;
         private final Uri uri;
         private final int hashCode;
@@ -804,7 +805,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     Arrays.asList(that.getCertificates())));
         }
         
-        Object writeReplace() throws ObjectStreamException {
+        @Override
+        public Object writeReplace() throws ObjectStreamException {
             return new CodeSource(getLocation(), getCertificates());
         }
        
@@ -1076,7 +1078,29 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         this(searchUrls, parent, factory, AccessController.getContext());
     }
     
-    RFC3986URLClassLoader( URL[] searchUrls, 
+    /**
+     * Constructs a new {@code URLClassLoader} instance.The newly created
+     * instance will have the specified {@code ClassLoader} as its parent and
+     * use the specified factory to create stream handlers. URLs that end with
+     * "/" are assumed to be directories, otherwise they are assumed to be JAR
+     * files.
+     * 
+     * @param searchUrls
+     *            the list of URLs where a specific class or file could be
+     *            found.
+     * @param parent
+     *            the {@code ClassLoader} to assign as this loader's parent.
+     * @param factory
+     *            the factory that will be used to create protocol-specific
+     *            stream handlers.
+     * @param context the context used to find classes and resources, if null
+     *            the callers context will be used.
+     * @throws SecurityException
+     *             if a security manager exists and its {@code
+     *             checkCreateClassLoader()} method doesn't allow creation of
+     *             new {@code ClassLoader}s.
+     */
+    public RFC3986URLClassLoader( URL[] searchUrls, 
                             ClassLoader parent, 
                             URLStreamHandlerFactory factory, 
                             AccessControlContext context)
@@ -1084,7 +1108,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         super(searchUrls, parent, factory);  // ClassLoader protectes against finalizer attack.
         this.factory = factory;
         // capture the context of the thread that creates this URLClassLoader
-        creationContext = context;
+        creationContext = context != null ? context : AccessController.getContext();
         int nbUrls = searchUrls.length;
         List<URL> origUrls = new ArrayList<URL>(nbUrls);
         handlerList = new ArrayList<URLHandler>(nbUrls);
