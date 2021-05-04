@@ -1836,10 +1836,15 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
 		@Override
 		public ClassLoader run() {
-		    return new PreferredClassLoader(urls, parent, null,
-						    requireDlPerm);
+		    return new PreferredClassLoader(
+                        urls, 
+                        parent, 
+                        null,
+                        requireDlPerm,
+                        PreferredClassLoader.getLoaderAccessControlContext(urls)
+                    );
 		}
-	    }, PreferredClassLoader.getLoaderAccessControlContext(urls));
+	    });
     }
 
     /**
