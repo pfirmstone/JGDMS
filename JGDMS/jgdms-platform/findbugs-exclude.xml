@@ -155,4 +155,16 @@
         <Method name="getKeyStore"/>
         <Bug pattern="DE_MIGHT_IGNORE"/>
     </Match>
+    <Match>
+        <!-- Checked logic, NP is not possible -->
+        <Class name="net.jini.constraint.MethodKey"/>
+        <Method name="compareTo"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_MIGHT_BE_INFEASIBLE"/>
+    </Match>
+    <Match>
+        <!-- IOException is ignored in final block -->
+        <Class name="org.apache.river.api.net.RFC3986URLClassLoader$URLFileHandler"/>
+        <Method name="findClass"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
 </FindBugsFilter>
