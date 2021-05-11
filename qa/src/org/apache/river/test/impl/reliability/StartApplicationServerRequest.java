@@ -27,6 +27,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.qa.harness.SlaveRequest;
 import org.apache.river.qa.harness.SlaveTest;
 
@@ -35,6 +37,17 @@ import org.apache.river.qa.harness.SlaveTest;
  */
 @AtomicSerial
 class StartApplicationServerRequest implements SlaveRequest {
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("registryHost", String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, StartApplicationServerRequest s) throws IOException{
+        arg.put("registryHost", s.registryHost);
+        arg.writeArgs();
+    }
 
     private String registryHost;
     private transient Thread server;
@@ -64,6 +77,7 @@ class StartApplicationServerRequest implements SlaveRequest {
      * @return null
      * @throws Exception if an error occurs starting the service
      */
+    @Override
     public Object doSlaveRequest(SlaveTest slaveTest) throws Exception {
         server = new Thread(new ApplicationServer(registryHost));
         logger.log(Level.INFO, "Starting application server " +

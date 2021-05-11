@@ -36,6 +36,8 @@ import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.lease.*;
 import net.jini.core.event.*;
 import net.jini.lookup.SafeServiceRegistrar;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /** This class is used to test that service lease LeaseMap renewAll()
  *  works as expected for N (currently N = 5) successive lease
@@ -65,7 +67,9 @@ public class LeaseMapRenew extends QATestRegistrar {
     private EventRegistration[] evntRegs;
 
     /** Class which handles all events sent by the lookup service */
-    private class Listener extends BasicListener 
+    @AtomicSerial
+    @Stateless
+    public class Listener extends BasicListener 
                            implements RemoteEventListener, java.io.Serializable
     {
 	Listener() throws RemoteException {
