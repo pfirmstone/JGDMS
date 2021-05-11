@@ -75,4 +75,12 @@
         <Method name="readServerConnectionHeader"/>
         <Bug pattern="DLS_DEAD_LOCAL_STORE"/>
     </Match>
+    <Match>
+        <!-- Only access to the field reference is synchronized, the referent is published
+             to another class, however, the synchronization is not intended to
+             synchronize access to the referent, only for correct field visibility. -->
+        <Class name="org.apache.river.jeri.internal.runtime.Binding"/>
+        <Filed name="requestDispatcher"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
 </FindBugsFilter>
