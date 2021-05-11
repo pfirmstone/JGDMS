@@ -63,7 +63,7 @@ class MethodKey implements Comparable<MethodKey> {
         // default is always last.
         if (name != null && o.name == null) return -1;
         if (name == null && o.name != null) return 1;
-        if (name.equals(o.name)){
+        if (name.equals(o.name)){//NP not possible
             return compareParameters(this, o);
         } else if (name.charAt(0) == '*') {
             String nameSubstring = name.substring(1);
