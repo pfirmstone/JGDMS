@@ -1208,8 +1208,7 @@ class SslServerEndpointImpl extends Utilities {
                     e.fillInStackTrace();
                     throw e;
                 }
-                serverPrincipal = serverCert != null
-                    ? serverCert.getSubjectX500Principal() : null;
+                serverPrincipal = serverCert.getSubjectX500Principal();
                 if (serverPrincipal != null) {
                     authPermission = new AuthenticationPermission(
                         Collections.singleton(serverPrincipal),
