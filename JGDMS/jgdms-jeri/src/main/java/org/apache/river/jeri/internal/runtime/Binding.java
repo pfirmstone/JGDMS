@@ -19,7 +19,6 @@
 package org.apache.river.jeri.internal.runtime;
 
 import java.io.IOException;
-import java.rmi.server.Unreferenced;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.ConcurrentMap;
