@@ -74,10 +74,10 @@ class ObjectStreamClassInformation {
 	result.readFields(in);
 	return result;
     }
-   
-    private String fullyQualifiedClassName;
-    private long serialVer;
-    private boolean externalizable;
+    
+    String fullyQualifiedClassName;
+    long serialVer;
+    boolean externalizable;
     boolean serializable;
     boolean hasWriteObjectData;
     boolean hasBlockExternalData;
@@ -106,6 +106,8 @@ class ObjectStreamClassInformation {
      * Writes non-proxy class descriptor information to given DataOutputStream.
      */
     void write(ObjectOutput out) throws IOException {
+//        System.out.println(fullyQualifiedClassName);
+//        System.out.println(serialVer);
 	out.writeUTF(fullyQualifiedClassName);
 	out.writeLong(serialVer);
 	byte flags = 0;
@@ -113,18 +115,23 @@ class ObjectStreamClassInformation {
 	    flags |= ObjectStreamConstants.SC_EXTERNALIZABLE;
 	    flags |= ObjectStreamConstants.SC_BLOCK_DATA; // Stream protocol version 1 isn't supported.
 	} else if (serializable) {
+//            System.out.println("Serializable");
 	    flags |= ObjectStreamConstants.SC_SERIALIZABLE;
 	}
 	if (hasWriteObjectData) {
+//            System.out.println("hasWriteObjectData");
 	    flags |= ObjectStreamConstants.SC_WRITE_METHOD;
 	}
 	if (isEnum) {
+//            System.out.println("isEnum");
 	    flags |= ObjectStreamConstants.SC_ENUM;
 	}
 	out.writeByte(flags);
-	out.writeShort(fields.length);
-	for (int i = 0, l = fields.length; i < l; i++) {
+        int length = fields != null ? fields.length : 0;
+	out.writeShort(length);
+	for (int i = 0; i < length; i++) {
 	    ObjectStreamField f = fields[i];
+//            System.out.println(f);
 	    out.writeByte(f.getTypeCode());
 	    out.writeUTF(f.getName());
 	    if (!f.isPrimitive()) {
@@ -132,6 +139,9 @@ class ObjectStreamClassInformation {
 		if (typeString == null) {
 		    out.writeByte(ObjectStreamConstants.TC_NULL);
 		} else {
+                    if (out instanceof ObjOutputStream){
+                        ((ObjOutputStream)out).fieldTypeStringWritten(typeString);
+                    }
 		    out.writeByte(ObjectStreamConstants.TC_STRING);
 		    out.writeUTF(typeString);
 		}

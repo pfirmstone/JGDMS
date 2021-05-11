@@ -27,6 +27,8 @@ import java.util.Collection;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Combines two or more constraint alternatives into a single overall
@@ -58,10 +60,19 @@ public final class ConstraintAlternatives
      * @serialField constraints InvocationConstraint[]
      * The alternative constraints.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("constraints", InvocationConstraint[].class,
-			      true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields
+            = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("constraints", InvocationConstraint[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConstraintAlternatives c) throws IOException{
+        arg.put("constraints", c.constraints.clone());
+        arg.writeArgs();
+    }
 
     /**
      * The alternative constraints.

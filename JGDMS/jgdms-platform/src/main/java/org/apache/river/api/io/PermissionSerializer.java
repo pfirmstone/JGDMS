@@ -17,11 +17,11 @@
 
 package org.apache.river.api.io;
 
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.io.ObjectOutputStream;
-import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
@@ -52,21 +52,42 @@ import org.apache.river.impl.Messages;
  */
 @Serializer(replaceObType = Permission.class)
 @AtomicSerial
-final class PermissionSerializer implements Serializable {
+final class PermissionSerializer implements Serializable, Resolve {
     
     private static final long serialVersionUID = 1L;
+    
+    private static final String TARGET_TYPE = "targetType";
+    private static final String UNRESOLVED_TYPE = "unresolvedType";
+    private static final String TARGET_NAME = "targetName";
+    private static final String TARGET_ACTIONS = "targetActions";
     
     /**
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("targetType", Class.class),
-	    new ObjectStreamField("unresolvedType", String.class),
-	    new ObjectStreamField("targetName", String.class),
-	    new ObjectStreamField("targetActions", String.class)
-	};
+	serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm(TARGET_TYPE, Class.class),
+	    new SerialForm(UNRESOLVED_TYPE, String.class),
+	    new SerialForm(TARGET_NAME, String.class),
+	    new SerialForm(TARGET_ACTIONS, String.class)
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg args, PermissionSerializer obj) throws IOException {
+        putArgs(args, obj);
+        args.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, PermissionSerializer obj) {
+        pf.put("targetType", obj.targetType);
+	pf.put("unresolvedtype", obj.unresolvedType);
+	pf.put("targetName", obj.targetName);
+	pf.put("targetActions", obj.targetActions);
+    }
     
     // Empty set of arguments to default constructor of a Permission.
     private static final Class[] NO_ARGS = {};
@@ -258,7 +279,8 @@ final class PermissionSerializer implements Serializable {
 	return Objects.equals(targetActions, that.targetActions);
     }
 	
-    Object readResolve() throws ObjectStreamException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	return permission;
     }
     
@@ -268,11 +290,7 @@ final class PermissionSerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	PutField pf = out.putFields();
-	pf.put("targetType", targetType);
-	pf.put("unresolvedtype", unresolvedType);
-	pf.put("targetName", targetName);
-	pf.put("targetActions", targetActions);
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }
 }

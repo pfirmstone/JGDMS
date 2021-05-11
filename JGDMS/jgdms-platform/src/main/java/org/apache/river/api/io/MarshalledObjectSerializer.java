@@ -23,6 +23,8 @@ import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -32,6 +34,19 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 @AtomicSerial
 class MarshalledObjectSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
+    
+    private static final String INSTANCE = "instance";
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(INSTANCE, MarshalledInstance.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, MarshalledObjectSerializer mos) throws IOException {
+        arg.put(INSTANCE, mos.instance);
+        arg.writeArgs();
+    }
     
     private final MarshalledInstance instance;
     
@@ -44,7 +59,7 @@ class MarshalledObjectSerializer implements Serializable {
     }
     
     public MarshalledObjectSerializer(GetArg arg) throws IOException, ClassNotFoundException{
-	this(check(arg.get("instance", null, MarshalledInstance.class)));
+	this(check(arg.get(INSTANCE, null, MarshalledInstance.class)));
     }
     
     private static MarshalledInstance check(MarshalledInstance mi){

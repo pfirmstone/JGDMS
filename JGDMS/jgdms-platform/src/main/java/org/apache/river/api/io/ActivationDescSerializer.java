@@ -18,6 +18,7 @@
 
 package org.apache.river.api.io;
 
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -33,20 +34,49 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = ActivationDesc.class)
 @AtomicSerial
-class ActivationDescSerializer implements Serializable {
+class ActivationDescSerializer implements Serializable, Resolve {
     private static final long serialVersionUID = 1L;
     /**
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("groupID", java.rmi.activation.ActivationGroupID.class),
-	    new ObjectStreamField("className", String.class),
-	    new ObjectStreamField("location", String.class),
-	    new ObjectStreamField("data", MarshalledObject.class),
-	    new ObjectStreamField("restart", boolean.class)
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    
+    /**
+     * Names of serial arguments or serial persistent fields.
+     */
+    private static final String GROUP_ID = "groupID";
+    private static final String CLASS_NAME = "className";
+    private static final String LOCATION = "location";
+    private static final String DATA = "data";
+    private static final String RESTART = "restart";
+    
+    /**
+     * AtomicSerial declared serial arguments.
+     * @return 
+     */
+    public static final SerialForm [] serialForm(){
+        return new SerialForm [] {
+	    new SerialForm(GROUP_ID, java.rmi.activation.ActivationGroupID.class),
+	    new SerialForm(CLASS_NAME, String.class),
+	    new SerialForm(LOCATION, String.class),
+	    new SerialForm(DATA, MarshalledObject.class),
+	    new SerialForm(RESTART, boolean.class)
 	};
+    }
+    
+    public static void serialize(AtomicSerial.PutArg args, ActivationDescSerializer obj) throws IOException {
+        putArgs(args, obj);
+        args.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, ActivationDescSerializer obj) {
+        pf.put(GROUP_ID, obj.groupID);
+	pf.put(CLASS_NAME, obj.className);
+	pf.put(LOCATION, obj.location);
+	pf.put(DATA, obj.data);
+	pf.put(RESTART, obj.restart);
+    }
     
     private final java.rmi.activation.ActivationGroupID groupID;
     private final String className;
@@ -68,18 +98,19 @@ class ActivationDescSerializer implements Serializable {
 	this(
 	    new ActivationDesc(
 		Valid.notNull(
-		    arg.get("groupID", null, java.rmi.activation.ActivationGroupID.class),
+		    arg.get(GROUP_ID, null, java.rmi.activation.ActivationGroupID.class),
 		    "groupID cannot be null"
 		),
-		arg.get("className", null, String.class),
-		arg.get("location", null, String.class),
-		arg.get("data", null, MarshalledObject.class),
-		arg.get("restart", true)
+		arg.get(CLASS_NAME, null, String.class),
+		arg.get(LOCATION, null, String.class),
+		arg.get(DATA, null, MarshalledObject.class),
+		arg.get(RESTART, true)
 	    )
 	);
     }
     
-    Object readResolve() throws ObjectStreamException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	return actDesc;
     }
     
@@ -89,12 +120,7 @@ class ActivationDescSerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("groupID", groupID);
-	pf.put("className", className);
-	pf.put("location", location);
-	pf.put("data", data);
-	pf.put("restart", restart);
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }
     

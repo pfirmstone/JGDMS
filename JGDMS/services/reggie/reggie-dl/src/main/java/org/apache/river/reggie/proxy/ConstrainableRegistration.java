@@ -27,6 +27,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Registration subclass that supports constraints.
@@ -35,10 +37,23 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  */
 @AtomicSerial
-final class ConstrainableRegistration
+public final class ConstrainableRegistration
     extends Registration implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
+    
+    private static final String CONSTRAINTS = "constriants";
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(CONSTRAINTS, MethodConstraints.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConstrainableRegistration cr) throws IOException{
+        arg.put(CONSTRAINTS, cr.constraints);
+        arg.writeArgs();
+    }
 
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;

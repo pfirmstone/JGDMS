@@ -9,6 +9,7 @@ package org.apache.river.api.io;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
+import java.io.ObjectStreamField;
 
 /**
  *
@@ -27,10 +28,10 @@ class EmulatedFieldsForLoading extends ObjectInputStream.GetField {
      *            an ObjectStreamClass, defining the class for which to emulate
      *            fields.
      */
-    EmulatedFieldsForLoading(ObjectStreamClass streamClass) {
+    EmulatedFieldsForLoading(ObjectStreamClass streamClass, ObjectStreamField [] fields) {
 	super();
 	this.streamClass = streamClass;
-	emulatedFields = new EmulatedFields(streamClass.getFields()); // Get Fields copies, consider not copying for efficiency?
+	emulatedFields = new EmulatedFields(fields); // Get Fields copies, consider not copying for efficiency?
     }
 
     /**

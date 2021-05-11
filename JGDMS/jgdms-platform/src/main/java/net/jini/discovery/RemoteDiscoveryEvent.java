@@ -40,6 +40,8 @@ import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Whenever the lookup discovery service discovers or discards a lookup
@@ -110,6 +112,28 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public class RemoteDiscoveryEvent extends RemoteEvent {
 
     private static final long serialVersionUID = -9171289945014585248L;
+    
+    private static final String DISCARDED = "discarded";
+    private static final String MARSHALLED_REGS = "marshalledRegs";
+    private static final String REGS = "regs";
+    private static final String GROUPS = "groups";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(DISCARDED, Boolean.TYPE),
+            new SerialForm(MARSHALLED_REGS, List.class),
+            new SerialForm(REGS, ServiceRegistrar[].class),
+            new SerialForm(GROUPS, Map.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, RemoteDiscoveryEvent e) throws IOException{
+        arg.put(DISCARDED, e.discarded);
+        arg.put(MARSHALLED_REGS, Collections.unmodifiableList(e.marshalledRegs));
+        arg.put(REGS, e.regs.clone());
+        arg.put(GROUPS, Collections.unmodifiableMap(e.groups));
+        arg.writeArgs();
+    }
     
     /**
      * Returns the integrity protection setting of the given stream, determined

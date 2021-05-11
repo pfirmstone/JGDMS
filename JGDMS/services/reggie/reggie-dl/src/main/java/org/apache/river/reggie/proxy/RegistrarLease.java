@@ -31,8 +31,10 @@ import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.lease.AbstractLease;
 import org.apache.river.lease.ID;
 
@@ -43,9 +45,23 @@ import org.apache.river.lease.ID;
  *
  */
 @AtomicSerial
-abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
+public abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("server", Registrar.class),
+            new SerialForm("leaseID", Uuid.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, RegistrarLease rl) throws IOException{
+        arg.put("server", rl.server);
+        arg.put("leaseID", rl.leaseID);
+        arg.writeArgs();
+        rl.registrarID.writeBytes(arg.output());
+    }
 
     /**
      * The registrar.

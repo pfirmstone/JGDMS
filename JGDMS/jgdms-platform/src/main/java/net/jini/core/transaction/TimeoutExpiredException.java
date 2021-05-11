@@ -22,6 +22,8 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 
 /**
@@ -44,10 +46,20 @@ public class TimeoutExpiredException extends TransactionException {
      * only be sent once.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("committed", Boolean.TYPE)
-	}; 
+	serialForm(); 
 
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("committed", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, TimeoutExpiredException t) 
+            throws IOException{
+        arg.put("committed", t.committed);
+        arg.writeArgs();
+    }
+    
     /**
      * True if the transaction committed before the timeout.
      *

@@ -39,6 +39,8 @@ import net.jini.security.Security;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.logging.Levels;
 import org.apache.river.proxy.MarshalledWrapper;
@@ -61,20 +63,34 @@ public final class Item implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 2L;
     private static final ObjectStreamField[] serialPersistentFields = 
-    { 
-        /** @serialField ServiceItem.serviceID. */
-        new ObjectStreamField("serviceID", ServiceID.class),
-        /** @serialField The Class of ServiceItem.service converted to ServiceType. */
-        new ObjectStreamField("serviceType", ServiceType.class),
-	/** @serialField The codebase of the service object. */
-        new ObjectStreamField("codebase", String.class),
-	/** @serialField ServiceItem.service as a MarshalledWrapper. */
-        new ObjectStreamField("service", MarshalledWrapper.class),
-	/** @serialField ServiceItem.attributeSets converted to EntryReps. */
-        new ObjectStreamField("attributeSets", EntryRep[].class),
-	/** @serialField ServiceItem.attributeSets converted to EntryReps. */
-        new ObjectStreamField("bootstrapProxy", Proxy.class)   
-    };
+        serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            /** @serialField ServiceItem.serviceID. */
+            new SerialForm("serviceID", ServiceID.class),
+            /** @serialField The Class of ServiceItem.service converted to ServiceType. */
+            new SerialForm("serviceType", ServiceType.class),
+            /** @serialField The codebase of the service object. */
+            new SerialForm("codebase", String.class),
+            /** @serialField ServiceItem.service as a MarshalledWrapper. */
+            new SerialForm("service", MarshalledWrapper.class),
+            /** @serialField ServiceItem.attributeSets converted to EntryReps. */
+            new SerialForm("attributeSets", EntryRep[].class),
+            /** @serialField ServiceItem.attributeSets converted to EntryReps. */
+            new SerialForm("bootstrapProxy", Proxy.class)  
+        };  
+    }
+    
+    public static void serialize(PutArg arg, Item item) throws IOException{
+        arg.put("serviceID", item.serviceID);
+        arg.put("serviceType", item.serviceType);
+        arg.put("codebase", item.codebase);
+        arg.put("service", item.service);
+        arg.put("attributeSets", item.attributeSets);
+        arg.put("bootstrapProxy", item.bootstrapProxy);
+        arg.writeArgs();
+    }
 
     /** Logger for Reggie. */
     private static final Logger logger = 

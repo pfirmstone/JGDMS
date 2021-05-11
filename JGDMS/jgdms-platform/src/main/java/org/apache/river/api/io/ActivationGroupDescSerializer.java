@@ -18,6 +18,7 @@
 
 package org.apache.river.api.io;
 
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -40,7 +41,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = ActivationGroupDesc.class)
 @AtomicSerial
-class ActivationGroupDescSerializer implements Serializable {
+class ActivationGroupDescSerializer implements Serializable, Resolve {
     private static final long serialVersionUID = 1L;
     
     /**
@@ -48,14 +49,41 @@ class ActivationGroupDescSerializer implements Serializable {
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("className", String.class),
-	    new ObjectStreamField("location", String.class),
-	    new ObjectStreamField("data", MarshalledObject.class),
-	    new ObjectStreamField("properties", Properties.class),
-	    new ObjectStreamField("cmdEnv", CommandEnvironment.class)
-		
-	};
+	serialForm();
+    
+    private static final String CLASSNAME = "className";
+    private static final String LOCATION = "location";
+    private static final String DATA = "data";
+    private static final String PROP = "properties";
+    private static final String CMD_ENV = "cmdEnv";
+    
+    /**
+     * AtomicSerial declared serial arguments.
+     * @return 
+     */
+    public static final SerialForm [] serialForm(){
+        return new SerialForm [] {
+            new SerialForm(CLASSNAME, String.class),
+	    new SerialForm(LOCATION, String.class),
+	    new SerialForm(DATA, MarshalledObject.class),
+	    new SerialForm(PROP, Properties.class),
+	    new SerialForm(CMD_ENV, CommandEnvironment.class)
+            
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg args, ActivationGroupDescSerializer obj) throws IOException {
+        putArgs(args, obj);
+        args.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, ActivationGroupDescSerializer obj) {
+        pf.put(CLASSNAME, obj.className);
+	pf.put(LOCATION, obj.location);
+	pf.put(DATA, obj.data);
+	pf.put(PROP, obj.properties);
+	pf.put(CMD_ENV, obj.cmdEnv);
+    }
     
     final String className;
     final String location;
@@ -83,29 +111,20 @@ class ActivationGroupDescSerializer implements Serializable {
 	    new ActivationGroupDesc(
 	    // A null group class name indicates the system's default ActivationGroup implementation.
 	    // Is null safe?
-	    arg.get("className", null, String.class), 
-	    arg.get("location", null, String.class),
-	    arg.get("data", null, MarshalledObject.class),
-	    getProperties(arg), 
-	    arg.get("cmdEnv", null, CommandEnvironment.class))
+	    arg.get(CLASSNAME, null, String.class), 
+	    arg.get(LOCATION, null, String.class),
+	    arg.get(DATA, null, MarshalledObject.class), 
+            (Properties) Valid.copyMap(
+                    (Map) arg.get(PROP, null, Properties.class),
+                    (Map) new Properties(),
+                    String.class, // Key type check
+                    String.class), // Value type check
+	    arg.get(CMD_ENV, null, CommandEnvironment.class))
 	);
     }
     
-    private static Properties getProperties(GetArg arg) throws IOException, ClassNotFoundException{
-	Map properties = arg.get("properties", null, Properties.class);
-	Properties prop = new Properties();
-	Set<Map.Entry> set = properties.entrySet();
-	Iterator<Map.Entry> it = set.iterator();
-	while(it.hasNext()){
-	    Map.Entry e = it.next();
-	    String key = (String) e.getKey(); // throws ClassCastException
-	    String value = (String) e.getValue(); // throws ClassCastException
-	    prop.put(key, value);
-	}
-	return prop;
-    }
-    
-    Object readResolve() throws ObjectStreamException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	if (actGroupDesc != null) return actGroupDesc;
 	return new ActivationGroupDesc(className, location, data, properties, cmdEnv);
     }
@@ -116,12 +135,7 @@ class ActivationGroupDescSerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("className", className);
-	pf.put("location", location);
-	pf.put("data", data);
-	pf.put("properties", properties);
-	pf.put("cmdEnv", cmdEnv);
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }
     

@@ -26,6 +26,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedSet;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Immutable Set backed by an array.
@@ -49,6 +51,22 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 class SetSerializer<T> extends AbstractSet<T> implements SortedSet<T>, Serializable {
     
     private static final long serialVersionUID = 1L;
+    
+    private static final String CONTENT = "content";
+    private static final String COMPARATOR = "comparator";
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm(CONTENT, Object[].class),
+            new SerialForm(COMPARATOR, Comparator.class)
+        }; 
+    }
+    
+    public static void serialize(PutArg arg, SetSerializer set) throws IOException {
+        arg.put(CONTENT, set.content);
+        arg.put(COMPARATOR, set.comparator);
+        arg.writeArgs();
+    }
     
     private final T [] content;
     private final Comparator<? super T> comparator;
@@ -75,8 +93,8 @@ class SetSerializer<T> extends AbstractSet<T> implements SortedSet<T>, Serializa
      */
     SetSerializer(GetArg arg) throws IOException, ClassNotFoundException {
         this(
-            (T[]) arg.get("content", new Object[0], Object[].class),
-            arg.get("comparator", null, Comparator.class)
+            (T[]) arg.get(CONTENT, new Object[0], Object[].class),
+            arg.get(COMPARATOR, null, Comparator.class)
         );
     }
     

@@ -36,6 +36,8 @@ import net.jini.io.MarshalInstanceOutput;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.IntegrityEnforcement;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Implementation of MarshalledInstance that performs input validation 
@@ -54,6 +56,18 @@ import net.jini.io.context.IntegrityEnforcement;
 public final class AtomicMarshalledInstance extends MarshalledInstance {
     
     private static final long serialVersionUID = 1L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("useCodebaseAnnotations", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, AtomicMarshalledInstance ami) 
+            throws IOException{
+        arg.put("useCodebaseAnnotations", ami.useCodebaseAnnotations);
+        arg.writeArgs();
+    }
     
     /**
      * @serial

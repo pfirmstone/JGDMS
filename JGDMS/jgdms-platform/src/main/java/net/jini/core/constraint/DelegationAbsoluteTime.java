@@ -21,6 +21,7 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.lang.ref.SoftReference;
 import java.text.FieldPosition;
@@ -29,6 +30,8 @@ import java.util.Date;
 import java.util.Locale;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on delegation, such that if delegation is permitted,
@@ -67,33 +70,76 @@ public final class DelegationAbsoluteTime
 				implements InvocationConstraint, Serializable
 {
     private static final long serialVersionUID = -2807470616717350051L;
+    
+    /* Names of Serial Arguments */
+    private static final String MIN_START = "minStart";
+    private static final String MAX_START = "maxStart";
+    private static final String MIN_STOP = "minStop";
+    private static final String MAX_STOP = "maxStop";
+    
+    /**
+     * @serialField minStart long
+     * The minimum start time in milliseconds 
+     * from midnight, January 1, 1970 UTC.
+     * @serialField maxStart long
+     * The maximum start time in milliseconds
+     * from midnight, January 1, 1970 UTC.
+     * @serialField minStop long 
+     * The minimum stop time in milliseconds
+     * from midnight, January 1, 1970 UTC.
+     * @serialField maxStop long 
+     * The maximum stop time in milliseconds
+     * from midnight, January 1, 1970 UTC.
+     */
+    private static final ObjectStreamField [] serialPersistentFields 
+            = serialForm();
+    
+    /**
+     * Argument names and types for {@link AtomicSerial}
+     * @return Serial arguments
+     */
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm(MIN_START, Long.TYPE),
+            new SerialForm(MAX_START, Long.TYPE),
+            new SerialForm(MIN_STOP, Long.TYPE),
+            new SerialForm(MAX_STOP, Long.TYPE)
+        };
+    }
+    
+    /**
+     * Provides access to internal state for {@link AtomicSerial}
+     * @param arg
+     * @param d
+     * @throws IOException 
+     */
+    public static void serialize(PutArg arg, DelegationAbsoluteTime d) 
+            throws IOException {
+        arg.put(MIN_START, d.minStart);
+        arg.put(MAX_START, d.maxStart);
+        arg.put(MIN_STOP, d.minStop);
+        arg.put(MAX_STOP, d.maxStop);
+        arg.writeArgs();
+    }
 
     /**
      * The minimum start time in milliseconds from midnight, January 1, 1970
      * UTC.
-     *
-     * @serial
      */
     private final long minStart;
     /**
      * The maximum start time in milliseconds from midnight, January 1, 1970
      * UTC.
-     *
-     * @serial
      */
     private final long maxStart;
     /**
      * The minimum stop time in milliseconds from midnight, January 1, 1970
      * UTC.
-     *
-     * @serial
      */
     private final long minStop;
     /**
      * The maximum stop time in milliseconds from midnight, January 1, 1970
      * UTC.
-     *
-     * @serial
      */
     private final long maxStop;
 

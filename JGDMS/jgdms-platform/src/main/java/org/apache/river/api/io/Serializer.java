@@ -31,6 +31,6 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@interface Serializer {
+public @interface Serializer {
     Class replaceObType();
 }

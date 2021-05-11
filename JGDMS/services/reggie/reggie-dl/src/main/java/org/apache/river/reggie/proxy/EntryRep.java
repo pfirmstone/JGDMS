@@ -34,6 +34,8 @@ import java.util.List;
 import net.jini.core.entry.Entry;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -53,16 +55,29 @@ public final class EntryRep implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 2L;
     private static final ObjectStreamField[] serialPersistentFields = 
-    { 
-        /** @serialField The Class of the Entry converted to EntryClass. */
-        new ObjectStreamField("eclass", EntryClass.class),
-        /** @serialField The codebase of the entry class. */
-        new ObjectStreamField("codebase", String.class),
-	/** @serialField The public fields of the Entry, each converted as necessary to
-	 * a MarshalledWrapper (or left as is if of known java.lang immutable
-	 * type).  The fields are in super- to subclass order. */
-        new ObjectStreamField("fields", Object[].class)
-    };
+        serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            /** @serialField The Class of the Entry converted to EntryClass. */
+            new SerialForm("eclass", EntryClass.class),
+            /** @serialField The codebase of the entry class. */
+            new SerialForm("codebase", String.class),
+            /** @serialField The public fields of the Entry, each converted as necessary to
+             * a MarshalledWrapper (or left as is if of known java.lang immutable
+             * type).  The fields are in super- to subclass order. */
+            new SerialForm("fields", Object[].class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, EntryRep er) throws IOException{
+        arg.put("eclass", er.eclass);
+        arg.put("codebase", er.codebase);
+        synchronized (er.fields){
+            arg.put("fields", er.fields.clone());
+        }
+        arg.writeArgs();
+    }
 
     /**
      * The Class of the Entry converted to EntryClass.

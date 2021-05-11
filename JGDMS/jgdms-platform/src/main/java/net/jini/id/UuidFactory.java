@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.security.SecureRandom;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -240,6 +241,7 @@ public final class UuidFactory {
      * Extends <code>Uuid</code> trivially, in order to be a preferred
      * class and retain the original codebase annotation.
      **/
+    @Stateless
     @AtomicSerial
     private static class Impl extends Uuid {
 

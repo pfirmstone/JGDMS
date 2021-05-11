@@ -26,6 +26,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
+import java.io.ObjectStreamField;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.security.Guard;
@@ -37,6 +38,7 @@ import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.DeSerializationPermission;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /*
@@ -79,6 +81,31 @@ import org.apache.river.api.io.Valid;
 public class MarshalledInstance implements Serializable {
     
     private static final Guard UNMARSHAL = new DeSerializationPermission("MARSHALL");
+    
+    private static final String OBJ_BYTES = "objBytes";
+    private static final String LOC_BYTES = "locBytes";
+    private static final String HASH = "hash";
+    
+    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm [] {
+            new SerialForm(OBJ_BYTES, byte[].class),
+            new SerialForm(LOC_BYTES, byte[].class),
+            new SerialForm(HASH, Integer.TYPE)
+        };
+    }   
+    
+    public static void serialize(AtomicSerial.PutArg args, MarshalledInstance obj) throws IOException {
+        putArgs(args, obj);
+        args.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, MarshalledInstance obj) {
+        pf.put(OBJ_BYTES, obj.objBytes);
+        pf.put(LOC_BYTES, obj.locBytes);
+        pf.put(HASH, obj.hash);
+    }
 
     /**
      * @serial Bytes of serialized representation.  If <code>objBytes</code> is
@@ -682,7 +709,9 @@ public class MarshalledInstance implements Serializable {
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+//	out.defaultWriteObject();
+        putArgs(out.putFields(), this);
+        out.writeFields();
     }
 
     /**

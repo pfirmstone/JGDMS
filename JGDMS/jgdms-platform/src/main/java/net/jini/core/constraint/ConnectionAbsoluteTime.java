@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the absolute time by which a network connection
@@ -39,6 +41,31 @@ public final class ConnectionAbsoluteTime
 			implements InvocationConstraint, Serializable
 {
     private static final long serialVersionUID = 8039977689366799322L;
+    
+    /**
+     * Argument names and types for {@link AtomicSerial}
+     * @return Serial arguments
+     */
+    public static SerialForm[] serialForm(){
+        return new SerialForm []{
+            new SerialForm("time", Long.TYPE)
+        };
+    }
+    
+    /**
+     * Provides access to internal state for {@link AtomicSerial}
+     * @serialField time long
+     * Deadline for connection establishment in milliseconds from midnight,
+     * January 1, 1970 UTC.
+     * 
+     * @param arg arguments to populate with serial arguments
+     * @param c the object to serialize.
+     * @throws IOException 
+     */
+    public static void serialize (PutArg arg, ConnectionAbsoluteTime c) throws IOException{
+        arg.put("time", c.time);
+        arg.writeArgs();
+    }
 
     /**
      * Deadline for connection establishment in milliseconds from midnight,

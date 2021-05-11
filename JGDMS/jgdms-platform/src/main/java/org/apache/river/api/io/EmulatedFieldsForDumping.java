@@ -20,8 +20,10 @@ package org.apache.river.api.io;
 import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.io.ObjectOutputStream.PutField;
-import java.io.ObjectStreamClass;
+import java.io.ObjectStreamField;
+import java.util.Collection;
+import java.util.Collections;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 
 /**
  * An EmulatedFieldsForDumping is an object that represents a set of emulated
@@ -32,13 +34,14 @@ import java.io.ObjectStreamClass;
  * @see ObjectOutputStream.PutField
  * @see EmulatedFieldsForLoading
  */
-class EmulatedFieldsForDumping extends PutField {
+class EmulatedFieldsForDumping extends PutArg {
 
     // The actual representation, with a more powerful API (set&get)
     private final EmulatedFields emulatedFields;
 
     // Record the ObjectOutputStream that created this PutField for checking in the write method
-    private final ObjectOutputStream oos;
+    private final ObjOutputStream oos;
+    int fields;
 
     /**
      * Constructs a new instance of EmulatedFieldsForDumping.
@@ -47,17 +50,14 @@ class EmulatedFieldsForDumping extends PutField {
      *            a ObjectStreamClass, which describe the fields to be emulated
      *            (names, types, etc).
      */
-    EmulatedFieldsForDumping(ObjectOutputStream oos, ObjectStreamClass streamClass) {
+    EmulatedFieldsForDumping(ObjOutputStream oos, ObjectStreamField [] streamFields) {
         super();
-        emulatedFields = new EmulatedFields(streamClass.getFields());
+        emulatedFields = new EmulatedFields(streamFields);
         this.oos = oos;
+        fields = 0;
     }
-
-    EmulatedFieldsForDumping(ObjectStreamClass streamClass) {
-        super();
-        emulatedFields = new EmulatedFields(streamClass.getFields());
-        this.oos = null;
-    }
+    
+    
 
     /**
      * Return the actual EmulatedFields instance used by the receiver. We have
@@ -82,6 +82,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, byte value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -96,6 +97,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, char value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -110,6 +112,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, double value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -124,6 +127,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, float value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -138,6 +142,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, int value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -152,6 +157,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, long value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -166,6 +172,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, Object value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -180,6 +187,7 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, short value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     /**
@@ -194,11 +202,31 @@ class EmulatedFieldsForDumping extends PutField {
     @Override
     public void put(String name, boolean value) {
         emulatedFields.put(name, value);
+        fields ++;
     }
 
     @Override
     public void write(ObjectOutput out) throws IOException {
         throw new UnsupportedOperationException("Not supported.");
+    }
+
+    @Override
+    public void writeArgs() throws IOException {
+        oos.writeFields();
+        fields = 0;
+    }
+
+    @Override
+    public ObjectOutput output() {
+        return oos;
+    }
+
+    @Override
+    public Collection getObjectStreamContext() {
+        if (oos != null){
+            return oos.getObjectStreamContext();
+        }
+        return Collections.emptyList();
     }
 
    

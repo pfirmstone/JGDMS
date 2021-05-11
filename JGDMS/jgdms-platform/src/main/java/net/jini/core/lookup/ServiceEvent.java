@@ -20,6 +20,7 @@ package net.jini.core.lookup;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
 //import net.jini.core.entry.Entry;
 //import net.jini.lookup.ServiceAttributesAccessor;
 //import net.jini.lookup.ServiceIDAccessor;
@@ -28,6 +29,8 @@ import net.jini.io.MarshalledInstance;
 //import net.jini.security.ProxyPreparer;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * This class is used for remote events sent by the lookup service.  It
@@ -49,6 +52,26 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 
     private static final long serialVersionUID = 1304997274096842701L;
+    
+    private static final String SERVICE_ID = "serviceID";
+    private static final String TRANSITION = "transition";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(SERVICE_ID, ServiceID.class),
+            new SerialForm(TRANSITION, Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServiceEvent e) throws IOException{
+        putArgs(arg, e);
+        arg.writeArgs();
+    }
+    
+    private static void putArgs(PutField field, ServiceEvent e){
+        field.put(SERVICE_ID, e.serviceID);
+        field.put(TRANSITION, e.transition);
+    }
 
     /**
      * ServiceID of the item that triggered the event.
@@ -64,9 +87,9 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     protected final int transition;
 
     private static GetArg check(GetArg arg) throws IOException {
-	Object serviceID = arg.get("serviceID", null); // Type check
+	Object serviceID = arg.get(SERVICE_ID, null); // Type check
 	if ( serviceID != null && !(serviceID instanceof ServiceID)) throw new ClassCastException();
-	int transition = arg.get("transition", 0);
+	int transition = arg.get(TRANSITION, 0);
 	switch (transition){
 	    case ServiceRegistrar.TRANSITION_MATCH_MATCH:
 		return arg;
@@ -81,8 +104,8 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     
     public ServiceEvent(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
-	serviceID = (ServiceID) arg.get("serviceID", null);
-	transition = arg.get("transition", 0);
+	serviceID = (ServiceID) arg.get(SERVICE_ID, null);
+	transition = arg.get(TRANSITION, 0);
     }
 
     /**
@@ -227,7 +250,8 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+	putArgs(out.putFields(), this);
+        out.writeFields();
     }
     
     /**

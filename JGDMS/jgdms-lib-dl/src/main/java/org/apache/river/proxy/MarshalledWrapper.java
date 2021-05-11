@@ -31,8 +31,10 @@ import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Wrapper around {@link MarshalledInstance} that samples the integrity setting
@@ -63,6 +65,18 @@ public class MarshalledWrapper implements Serializable {
     }
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("instance", MarshalledInstance.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, MarshalledWrapper wrapper) 
+            throws IOException{
+        arg.put("instance", wrapper.instance);
+        arg.writeArgs();
+    }
 
     /** 
      * The wrapped MarshalledInstance.

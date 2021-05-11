@@ -26,6 +26,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -33,7 +35,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = Properties.class)
 @AtomicSerial
-class PropertiesSerializer implements Serializable {
+public class PropertiesSerializer implements Serializable, Resolve {
     private static final long serialVersionUID = 1L;
     
     /**
@@ -41,20 +43,28 @@ class PropertiesSerializer implements Serializable {
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("m", MapSerializer.class)
-	};
+            serialForm();
     
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("m", MapSerializer.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, PropertiesSerializer p) throws IOException{
+        arg.put("m", p.m);
+        arg.writeArgs();
+    }
     
     private final Properties p;
     private final MapSerializer m;
     
-    PropertiesSerializer(Properties p){
+    public PropertiesSerializer(Properties p){
 	this.p = p;
 	m = new MapSerializer(p);
     }
     
-    PropertiesSerializer(GetArg arg) throws IOException, ClassNotFoundException{
+    public PropertiesSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(getProperties(arg.get("m", null, MapSerializer.class)));
     }
     
@@ -70,7 +80,8 @@ class PropertiesSerializer implements Serializable {
 	return p;
     }
     
-    Object readResolve() throws ObjectStreamException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	return p;
     }
     

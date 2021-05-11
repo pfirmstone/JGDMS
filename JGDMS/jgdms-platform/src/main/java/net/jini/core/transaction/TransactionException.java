@@ -19,7 +19,9 @@ package net.jini.core.transaction;
 
 import java.io.IOException;
 import org.apache.river.api.io.AtomicException;
+import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 
 /**
@@ -29,6 +31,8 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * @since 1.0
  */
+@AtomicSerial
+@Stateless
 public class TransactionException extends AtomicException {
     static final long serialVersionUID = -5009935764793203986L;
 

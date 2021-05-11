@@ -16,10 +16,12 @@
 package org.apache.river.api.io;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -28,6 +30,32 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 @AtomicSerial
 public class ArrayClassNotFoundException extends ClassNotFoundException {
     private static final long serialVersionUID = 1L;
+    
+    private static final String MESSAGE = "message";
+    private static final String ARR = "arr";
+    private static final String EXCEPTION_INDEXES = "exceptionIndexes";
+    private static final String EXCEPTIONS = "exceptions";
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm(MESSAGE, String.class),
+            new SerialForm(ARR, Object[].class),
+            new SerialForm(EXCEPTION_INDEXES, int[].class),
+            new SerialForm(EXCEPTIONS, ClassNotFoundException[].class)
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg arg, ArrayClassNotFoundException e) throws IOException{
+        putArgs(arg, e);
+        arg.writeArgs();
+    }
+    
+    public static void putArgs(ObjectOutputStream.PutField pf, ArrayClassNotFoundException e){
+        pf.put(MESSAGE, e.message());
+	pf.put(ARR, e.arr);
+        pf.put(EXCEPTION_INDEXES, e.exceptionIndexes);
+        pf.put(EXCEPTIONS, e.exceptions);
+    }
     
     private final Object[] arr;
     private final int[] exceptionIndexes;
@@ -84,6 +112,10 @@ public class ArrayClassNotFoundException extends ClassNotFoundException {
     
     public ClassNotFoundException [] getExceptions(){
 	return exceptions.clone();
+    }
+    
+    private String message(){
+        return super.getMessage();
     }
     
     @Override

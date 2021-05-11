@@ -33,6 +33,8 @@ import java.io.Serializable;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.server.UID;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Serializer for java.rmi.activation.ActivationGroupID.
@@ -45,16 +47,32 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 class ActivationGroupIDSerializer implements Serializable {
     
     private static final long serialVersionUID = -1648432278909740833L;
+    private static final String SYSTEM = "system";
+    private static final String UID = "uid";
     
     /**
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("system", ActivationSystem.class),
-	    new ObjectStreamField("uid", UID.class)
-	};
+	serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm (SYSTEM, ActivationSystem.class),
+	    new SerialForm (UID, UID.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ActivationGroupIDSerializer e) throws IOException{
+        putArgs(arg, e);
+        arg.writeArgs();
+    }
+    
+    public static void putArgs(PutField pf, ActivationGroupIDSerializer e){
+        pf.put(SYSTEM, e.system);
+	pf.put(UID, e.uid);
+    }
    
     private final ActivationSystem system;
     private final UID uid;
@@ -88,11 +106,11 @@ class ActivationGroupIDSerializer implements Serializable {
     
     ActivationGroupIDSerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(Valid.notNull(
-		    arg.get("system", null, ActivationSystem.class),
+		    arg.get(SYSTEM, null, ActivationSystem.class),
 		    "system cannot be null"
 		),
 	        Valid.notNull(
-		    arg.get("uid", null, UID.class), 
+		    arg.get(UID, null, UID.class), 
 		    "uid cannot be null"
 		)   
 	);
@@ -123,9 +141,7 @@ class ActivationGroupIDSerializer implements Serializable {
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
-	PutField pf = out.putFields();
-	pf.put("system", system);
-	pf.put("uid", uid);
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }
     

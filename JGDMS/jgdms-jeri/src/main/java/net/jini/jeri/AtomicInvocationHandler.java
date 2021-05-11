@@ -36,6 +36,8 @@ import net.jini.io.MarshalOutputStream;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.runtime.Util;
 
 /**
@@ -45,6 +47,20 @@ import org.apache.river.jeri.internal.runtime.Util;
 @AtomicSerial
 public class AtomicInvocationHandler extends BasicInvocationHandler {
     private static final long serialVersionUID = 1L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("useCodebaseAnnotations", Boolean.TYPE),
+            new SerialForm("compression", Compression.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, AtomicInvocationHandler aih)
+            throws IOException{
+        arg.put("useCodebaseAnnotations", aih.useCodebaseAnnotations);
+        arg.put("compression", aih.compression);
+        arg.writeArgs();
+    }
     
     /**
      * @serial

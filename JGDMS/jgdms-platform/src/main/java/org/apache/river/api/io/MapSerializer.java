@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Immutable map backed by an array.
@@ -33,9 +35,22 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @author peter
  */
 @AtomicSerial
-class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Serializable {
+public class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Serializable {
     
     private static final long serialVersionUID = 1L;
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm("entrySet", Ent[].class),
+            new SerialForm("comparator", Comparator.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, MapSerializer m) throws IOException{
+        arg.put("entrySet", m.entrySet.clone());
+        arg.put("comparator", m.comparator);
+        arg.writeArgs();
+    }
     
     final Entry<K,V> [] entrySet;
     final Comparator<? super K> comparator;
@@ -52,7 +67,7 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
 	}
     }
     
-    MapSerializer(Map<K,V> map){
+    public MapSerializer(Map<K,V> map){
         this(
                 convert(map),
                 map instanceof SortedMap ?
@@ -61,7 +76,7 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
         );
     }
     
-    MapSerializer(GetArg arg) throws IOException, ClassNotFoundException{
+    public MapSerializer(GetArg arg) throws IOException, ClassNotFoundException{
         this(
             arg.get("entrySet", new Ent[0], Ent[].class),
             arg.get("comparator", null, Comparator.class)
@@ -117,6 +132,23 @@ class MapSerializer<K,V> extends AbstractMap<K,V> implements SortedMap<K,V>, Ser
     private static class Ent<K,V> implements Entry<K,V>, Serializable {
 	
 	private static final long serialVersionUID = 1L;
+        
+        public static SerialForm[] serialForm(){
+            return new SerialForm[]{
+                new SerialForm("key", Object.class),
+                new SerialForm("value", Object.class),
+                new SerialForm("keyClass", Class.class),
+                new SerialForm("valueClass", Class.class)
+            };
+        }
+        
+        public static void serializer(PutArg arg, Ent e) throws IOException{
+            arg.put("key", e.key);
+            arg.put("value", e.value);
+            arg.put("keyClass", e.keyClass);
+            arg.put("valueClass", e.valueClass);
+            arg.writeArgs();
+        }
 	
 	final K key;
 	final V value;

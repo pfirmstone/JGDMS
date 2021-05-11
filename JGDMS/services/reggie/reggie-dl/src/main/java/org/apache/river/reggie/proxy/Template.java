@@ -26,6 +26,8 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceTemplate;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A Template contains the fields of a ServiceTemplate packaged up for
@@ -43,6 +45,21 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public class Template implements Serializable {
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("serviceID", ServiceID.class),
+            new SerialForm("serviceTypes", ServiceType[].class),
+            new SerialForm("attributeSetTemplates", EntryRep[].class)
+        };
+    }   
+    
+    public static void serialize(PutArg arg, Template t) throws IOException{
+        arg.put("serviceID", t.serviceID);
+        arg.put("serviceTypes", t.serviceTypes);
+        arg.put("attributeSetTemplates", t.attributeSetTemplates);
+        arg.writeArgs();
+    }
 
     /**
      * ServiceTemplate.serviceID

@@ -60,9 +60,18 @@ public final class BasicMethodConstraints
     /**
      * @serialField descs MethodDesc[] The ordered method descriptors.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("descs", MethodDesc[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    
+    public static AtomicSerial.SerialForm[] serialForm(){
+        return new AtomicSerial.SerialForm[]{
+            new AtomicSerial.SerialForm("descs", MethodDesc[].class, true)
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg arg, BasicMethodConstraints smc) throws IOException{
+        arg.put("descs", smc.descs);
+        arg.writeArgs();
+    }
 
     /**
      * The ordered method descriptors.

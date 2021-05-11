@@ -18,6 +18,7 @@
 
 package org.apache.river.api.io;
 
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
@@ -43,24 +44,56 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = Throwable.class)
 @AtomicSerial
-class ThrowableSerializer implements Serializable {
+public class ThrowableSerializer implements Serializable, Resolve {
     private static final long serialVersionUID = 1L;
     
     /**
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("clazz", Throwable.class),
-	    new ObjectStreamField("message", String.class),
-	    new ObjectStreamField("cause", Throwable.class),
-	    new ObjectStreamField("stack", StackTraceElement[].class),
-	    new ObjectStreamField("suppressed", Throwable[].class),
-	    new ObjectStreamField("classname", String.class),
-            new ObjectStreamField("length", int.class),
-            new ObjectStreamField("eof", boolean.class),
-	};
+    private static final ObjectStreamField[] serialPersistentFields
+            = serialForm();
+    
+    /**
+     * Serial argument / field names
+     */
+    private static final String CLASS = "clazz";
+    private static final String MESSAGE = "message";
+    private static final String CAUSE = "cause";
+    private static final String STACK = "stack";
+    private static final String SUPPRESSED = "suppressed";
+    private static final String CLASSNAME = "classname";
+    private static final String LENGTH = "length";
+    private static final String EOF = "eof";
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm(CLASS, Class.class),
+	    new SerialForm(MESSAGE, String.class),
+	    new SerialForm(CAUSE, Throwable.class),
+	    new SerialForm(STACK, StackTraceElement[].class),
+	    new SerialForm(SUPPRESSED, Throwable[].class),
+	    new SerialForm(CLASSNAME, String.class),
+            new SerialForm(LENGTH, int.class),
+            new SerialForm(EOF, boolean.class),
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg args, ThrowableSerializer obj) throws IOException {
+        putArgs(args, obj);
+        args.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, ThrowableSerializer obj) {
+        pf.put(CLASS, obj.clazz);
+	pf.put(MESSAGE, obj.message);
+	pf.put(CAUSE, obj.cause);
+	pf.put(STACK, obj.stack);
+	pf.put(SUPPRESSED, obj.suppressed);
+        pf.put(CLASSNAME, obj.classname);
+        pf.put(LENGTH, obj.length);
+        pf.put(EOF, obj.eof);
+    }
     
     private static final Logger logger = Logger.getLogger("org.apache.river.api.io.ThrowableSerializer");
     
@@ -365,7 +398,8 @@ class ThrowableSerializer implements Serializable {
 	return new IOException(cause);
     }
     
-    Object readResolve() throws ObjectStreamException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	if (throwable != null) return throwable;
 	// The following is for standard java serialization, as throwable will be null.
 	Throwable result;
@@ -428,15 +462,7 @@ class ThrowableSerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("clazz", clazz);
-	pf.put("message", message);
-	pf.put("cause", cause);
-	pf.put("stack", stack);
-	pf.put("suppressed", suppressed);
-        pf.put("classname", classname);
-        pf.put("length", length);
-        pf.put("eof", eof);
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }
     

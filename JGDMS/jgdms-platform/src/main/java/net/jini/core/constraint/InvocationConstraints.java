@@ -27,6 +27,8 @@ import java.util.Collection;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * An immutable aggregation of constraints into a set of requirements and a
@@ -53,10 +55,20 @@ public final class InvocationConstraints implements Serializable {
      * @serialField reqs InvocationConstraint[] The requirements.
      * @serialField prefs InvocationConstraint[] The preferences.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("reqs", InvocationConstraint[].class, true),
-        new ObjectStreamField("prefs", InvocationConstraint[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("reqs", InvocationConstraint[].class, true),
+            new SerialForm("prefs", InvocationConstraint[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, InvocationConstraints ic) throws IOException{
+        arg.put("reqs", ic.reqs);
+        arg.put("prefs", ic.prefs);
+        arg.writeArgs();
+    }
 
     /** An empty array */
     private static final InvocationConstraint[] empty =

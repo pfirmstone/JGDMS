@@ -26,6 +26,8 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Class implementing the <code>NestableTransaction</code> interface, for use
@@ -45,6 +47,18 @@ public class NestableServerTransaction extends ServerTransaction
 				       implements NestableTransaction
 {
     static final long serialVersionUID = -3438419132543972925L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("parent", NestableServerTransaction.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, NestableServerTransaction n) 
+            throws IOException{
+        arg.put("parent", n.parent);
+        arg.writeArgs();
+    }
 
     /**
      * The parent transaction, if any.
@@ -79,6 +93,7 @@ public class NestableServerTransaction extends ServerTransaction
     }
 
     // inherit javadoc
+    @Override
     public NestableTransaction.Created create(NestableTransactionManager mgr,
 					      long leaseTime)
         throws UnknownTransactionException, CannotJoinException,
@@ -94,6 +109,7 @@ public class NestableServerTransaction extends ServerTransaction
     }
 
     // inherit javadoc
+    @Override
     public NestableTransaction.Created create(long leaseTime)
         throws UnknownTransactionException, CannotJoinException,
 	       LeaseDeniedException, RemoteException
@@ -163,11 +179,13 @@ public class NestableServerTransaction extends ServerTransaction
     }
 
     // inherit javadoc
+    @Override
     public boolean isNested() {
 	return parent != null;
     }
     
     // inherit javadoc
+    @Override
     public String toString() {
 	return this.getClass().getName() +
 	    " [manager=" + mgr +
@@ -181,6 +199,7 @@ public class NestableServerTransaction extends ServerTransaction
      * The assumption here is two transactions are still equal if they have the same transaction manager
      * and the same transaction id, regardless of whether one is or is not nested.
      */
+    @Override
     public int hashCode() {
         return super.hashCode();
     }
@@ -190,6 +209,7 @@ public class NestableServerTransaction extends ServerTransaction
      * The assumption here is two transactions are still equal if they have the same transaction manager
      * and the same transaction id, regardless of whether one is or is not nested.
      */
+    @Override
     public boolean equals(final Object other) {
         return super.equals(other);
     }

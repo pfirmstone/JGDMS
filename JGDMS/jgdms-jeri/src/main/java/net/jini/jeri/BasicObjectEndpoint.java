@@ -29,10 +29,6 @@ import java.io.Serializable;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.DomainCombiner;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,22 +39,19 @@ import java.util.NoSuchElementException;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
-import javax.security.auth.SubjectDomainCombiner;
-import net.jini.constraint.StringMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.AcknowledgmentSource;
-import net.jini.io.context.ClientSubject;
 import net.jini.security.proxytrust.TrustEquivalence;
-import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.jeri.internal.runtime.DgcClient;
 import org.apache.river.jeri.internal.runtime.Util;
@@ -217,6 +210,21 @@ public final class BasicObjectEndpoint
     implements ObjectEndpoint, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = 3235008605817758127L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("ep", Endpoint.class),
+            new SerialForm("id", Uuid.class),
+            new SerialForm("dgc", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, BasicObjectEndpoint ep) throws IOException{
+        arg.put("ep", ep.ep);
+        arg.put("id", ep.id);
+        arg.put("dgc", ep.dgc);
+        arg.writeArgs();
+    }
 
     /** local client-side DGC implementation */
     private static final DgcClient dgcClient = new DgcClient();

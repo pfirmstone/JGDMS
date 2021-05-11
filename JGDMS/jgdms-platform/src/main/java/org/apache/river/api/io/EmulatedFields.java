@@ -551,7 +551,19 @@ class EmulatedFields {
      * @return array of ObjectSlot the receiver represents.
      */
     public synchronized ObjectSlot[] slots() {
-	return slotsToSerialize;
+	return slotsToSerialize.clone();
+    }
+    
+    @Override
+    public synchronized String toString(){
+        StringBuilder build = new StringBuilder();
+        String cr = "\n";
+        String indent ="    ";
+        build.append("Serial Arguments:\n");
+        for (int i = 0, l = slotsToSerialize.length; i < l; i++){
+            build.append(indent).append(slotsToSerialize[i]).append(cr);
+        }
+        return build.toString();
     }
     
 }

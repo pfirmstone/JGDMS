@@ -35,6 +35,8 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A string only implementation of {@link MethodConstraints}, allowing limited
@@ -63,9 +65,18 @@ public final class StringMethodConstraints
     /**
      * @serialField descs MethodDesc[] The ordered method descriptors.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("descs", StringMethodDesc[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("descs", StringMethodDesc[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, StringMethodConstraints smc) throws IOException{
+        arg.put("descs", smc.descs);
+        arg.writeArgs();
+    }
 
     /**
      * The ordered method descriptors.
@@ -101,11 +112,24 @@ public final class StringMethodConstraints
 	 * The non-empty constraints for the specified method or methods, or
 	 * <code>null</code> if there are no constraints.
 	 */
-	private static final ObjectStreamField[] serialPersistentFields = {
-	    new ObjectStreamField("name", String.class),
-	    new ObjectStreamField("types", String[].class, true),
-	    new ObjectStreamField("constraints", InvocationConstraints.class)
-	};
+	private static final ObjectStreamField[] serialPersistentFields = 
+                serialForm();
+        
+        public static SerialForm [] serialForm(){
+            return new SerialForm[]{
+                new SerialForm("name", String.class),
+                new SerialForm("types", String[].class, true),
+                new SerialForm("constraints", InvocationConstraints.class)
+            };
+        }
+        
+        public static void serialize(PutArg arg, StringMethodDesc smd) 
+                throws IOException{
+            arg.put("name", smd.name);
+            arg.put("types", smd.types);
+            arg.put("constraints", smd.constraints);
+            arg.writeArgs();
+        }
 
 	/**
 	 * The name of the method, with prefix or suffix '*' permitted
@@ -352,6 +376,7 @@ public final class StringMethodConstraints
 	/**
 	 * Returns a hash code value for this object.
 	 */
+        @Override
 	public int hashCode() {
 	    int h = 0;
 	    if (name != null) {
@@ -370,6 +395,7 @@ public final class StringMethodConstraints
 	 * Two instances of this class are equal if they have the same
 	 * name, the same parameter types, and the same constraints.
 	 */
+        @Override
 	public boolean equals(Object obj) {
 	    if (this == obj) {
 		return true;
@@ -388,6 +414,7 @@ public final class StringMethodConstraints
 	/**
 	 * Returns a string representation of this object.
 	 */
+        @Override
 	public String toString() {
 	    StringBuffer buf = new StringBuffer("MethodDesc[");
 	    toString(buf, true);
@@ -492,6 +519,7 @@ public final class StringMethodConstraints
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      * @throws InvalidObjectException if object invariants aren't satisfied.
+     * @throws java.lang.ClassNotFoundException
      */
     public StringMethodConstraints(GetArg arg) throws IOException, ClassNotFoundException{
 	this(checkSerial(arg.get("descs", null, StringMethodDesc[].class)),
@@ -619,12 +647,13 @@ public final class StringMethodConstraints
      *
      * @throws NullPointerException {@inheritDoc}
      */
+    @Override
     public InvocationConstraints getConstraints(Method method) {
 	String name = method.getName();
 	Class[] types = null;
 	InvocationConstraints sc = null;
     outer:
-	for (int i = 0; i < descs.length; i++) {
+	for (int i = 0, l = descs.length; i < l; i++) {
 	    StringMethodDesc desc = descs[i];
 	    String dname = desc.name;
 	    if (dname == null) {
@@ -674,6 +703,7 @@ public final class StringMethodConstraints
     }
 
     /* inherit javadoc */
+    @Override
     public Iterator<InvocationConstraints> possibleConstraints() {
 	return new Iterator<InvocationConstraints>() {
 	    private int i = descs.length;
@@ -770,6 +800,7 @@ public final class StringMethodConstraints
     /**
      * Returns a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	return hash(descs);
     }
@@ -777,6 +808,7 @@ public final class StringMethodConstraints
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	StringBuffer buf = new StringBuffer("BasicMethodConstraints{");
 	for (int i = 0; i < descs.length; i++) {
@@ -793,6 +825,7 @@ public final class StringMethodConstraints
      * Two instances of this class are equal if they have the same descriptors
      * in the same order.
      */
+    @Override
     public boolean equals(Object obj) {
 	return (this == obj ||
 		(obj instanceof StringMethodConstraints &&

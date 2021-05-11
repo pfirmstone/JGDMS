@@ -27,6 +27,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -37,14 +39,25 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 class URLSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
     
+    private static final String URL_EXTERNAL_FORM = "urlExternalForm";
+    
     /**
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("urlExternalForm", String.class)
-	};
+	serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(URL_EXTERNAL_FORM, String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, URLSerializer u) throws IOException{
+        arg.put(URL_EXTERNAL_FORM, u.urlExternalForm);
+        arg.writeArgs();
+    }
     
     private final String urlExternalForm;
     private final /*transient*/ URL url;

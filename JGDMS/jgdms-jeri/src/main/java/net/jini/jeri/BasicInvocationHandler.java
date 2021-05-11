@@ -66,6 +66,8 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.runtime.Util;
 import org.apache.river.logging.Levels;
 
@@ -145,6 +147,22 @@ public class BasicInvocationHandler
     implements InvocationHandler, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -783920361025791412L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("oe", ObjectEndpoint.class),
+            new SerialForm("clientConstraints", MethodConstraints.class),
+            new SerialForm("serverConstraints", MethodConstraints.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, BasicInvocationHandler bih)
+            throws IOException{
+        arg.put("oe", bih.oe);
+        arg.put("clientConstraints", bih.clientConstraints);
+        arg.put("serverConstraints", bih.serverConstraints);
+        arg.writeArgs();
+    }
 
     // Allow to be deserialized by atomic streams, AtomicInputValidation
     // constraint can be used by to prevent use and preventing this from

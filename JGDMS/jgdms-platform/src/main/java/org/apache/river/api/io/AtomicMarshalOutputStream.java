@@ -260,6 +260,9 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	d.writeFields();
     }
     
+    /**
+     * This implementation will be changed to subclass ObjOuputStream
+     */
     private static final class DelegateObjectOutputStream extends ObjectOutputStream {
     
 	final Map<Class,Class> serializers;

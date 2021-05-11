@@ -23,6 +23,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Although most Throwable classes are serialized over AtomicMarshalOutputStream,
@@ -43,12 +45,30 @@ public abstract class AtomicRuntimeException extends RuntimeException {
      * only be sent once.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("message", String.class),
-	    new ObjectStreamField("cause", Throwable.class),
-	    new ObjectStreamField("stack", StackTraceElement[].class),
-	    new ObjectStreamField("suppressed", Throwable[].class)
-	}; 
+	serialForm(); 
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("message", String.class),
+	    new SerialForm("cause", Throwable.class),
+	    new SerialForm("stack", StackTraceElement[].class),
+	    new SerialForm("suppressed", Throwable[].class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, AtomicRuntimeException e) throws IOException{
+        putFields(arg, e);
+        arg.writeArgs();
+    }
+    
+    private static void putFields(ObjectOutputStream.PutField pf, AtomicRuntimeException e){
+        pf.put("message", e.getMessage());
+	Throwable cause = e.getCause();
+	if (cause == e) cause = null;
+	pf.put("cause", cause);
+	pf.put("stack", e.getStackTrace());
+	pf.put("suppressed", e.getSuppressed());
+    }
 
     protected AtomicRuntimeException(String message, Throwable cause,
                         boolean enableSuppression,
@@ -96,13 +116,7 @@ public abstract class AtomicRuntimeException extends RuntimeException {
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("message", super.getMessage());
-	Throwable cause = super.getCause();
-	if (cause == this) cause = null;
-	pf.put("cause", cause);
-	pf.put("stack", super.getStackTrace());
-	pf.put("suppressed", super.getSuppressed());
+	putFields(out.putFields(), this);
 	out.writeFields();
     }
     

@@ -52,7 +52,12 @@ public class AtomicMarshalInputStreamTest {
 	ByteArrayOutputStream baos = new ByteArrayOutputStream();
 	ObjectOutputStream oos = new AtomicMarshalOutputStream(baos, null);
 	UnmarshalException ue = new UnmarshalException("Synthetic");
-	oos.writeObject(ue);
+        try {
+            oos.writeObject(ue);
+        } catch (Exception e){
+            e.printStackTrace(System.out);
+            throw e;
+        }
 	oos.flush();
 	byte [] bits = baos.toByteArray();
 	ByteArrayInputStream bais = new ByteArrayInputStream(bits);
@@ -88,6 +93,9 @@ public class AtomicMarshalInputStreamTest {
 	    );
 	    MarshalledInstance result = (MarshalledInstance) ois.readObject();
 	    assertEquals(mi, result);
+        } catch (Exception e){
+            e.printStackTrace(System.out);
+            throw e;
 	} finally {
 	    try {
 		if (oos != null) oos.close();

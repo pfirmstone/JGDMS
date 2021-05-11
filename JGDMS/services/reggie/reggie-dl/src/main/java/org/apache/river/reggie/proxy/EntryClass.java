@@ -31,6 +31,8 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.proxy.MarshalledWrapper;
 
@@ -54,17 +56,36 @@ import org.apache.river.proxy.MarshalledWrapper;
 public class EntryClass implements Serializable {
 
     private static final long serialVersionUID = 2L;
+    
+    private static final String NAME = "name";
+    private static final String HASH = "hash";
+    private static final String SUPERCLASS = "superclass";
+    private static final String NUM_FIELDS = "numFields";
+    
     private static final ObjectStreamField[] serialPersistentFields = 
-    { 
-        /** @serialField Class name */
-        new ObjectStreamField("name", String.class),
-        /** @serialField Hash for the type */
-        new ObjectStreamField("hash", Long.TYPE),
-        /** @serialField Descriptor for the superclass */
-        new ObjectStreamField("superclass", EntryClass.class),
-	 /** @serialField Descriptor for the superclass */
-        new ObjectStreamField("numFields", Integer.TYPE)
-    };
+        serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            /** @serialField Class name */
+            new SerialForm(NAME, String.class),
+            /** @serialField Hash for the type */
+            new SerialForm(HASH, Long.TYPE),
+            /** @serialField Descriptor for the superclass */
+            new SerialForm(SUPERCLASS, EntryClass.class),
+             /** @serialField Descriptor for the superclass */
+            new SerialForm(NUM_FIELDS, Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, EntryClass ec) throws IOException{
+        arg.put(NAME, ec.name);
+        arg.put(HASH, ec.hash);
+        arg.put(SUPERCLASS, ec.superclass);
+        arg.put(NUM_FIELDS, ec.numFields);
+        arg.writeArgs();
+    }
+    
     /**
      * Class name
      *
@@ -109,15 +130,15 @@ public class EntryClass implements Serializable {
 	return true;
     }
     
-    public EntryClass(GetArg arg) throws IOException{
+    public EntryClass(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
     
-    private EntryClass(GetArg arg, boolean check) throws IOException {
-	name = (String) arg.get("name", null);
-	hash = arg.get("hash", 0L);
-	superclass = (EntryClass) arg.get("superclass", null);
-	numFields = arg.get("numFields", 0);
+    private EntryClass(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
+	name = arg.get(NAME, null, String.class);
+	hash = arg.get(HASH, 0L);
+	superclass = (EntryClass) arg.get(SUPERCLASS, null);
+	numFields = arg.get(NUM_FIELDS, 0);
 	integrity = MarshalledWrapper.integrityEnforced(arg);
     }
 
@@ -253,6 +274,7 @@ public class EntryClass implements Serializable {
      * @return true if this object equals the object passed in; false
      * otherwise.
      */
+    @Override
     public boolean equals(Object o) {
 	if (this == o) return true;
 	if (!(o instanceof EntryClass))
@@ -265,13 +287,18 @@ public class EntryClass implements Serializable {
      * Return a hashcode for this type.
      * @return int the hashcode for this type
      */
+    @Override
     public int hashCode() {
 	return (int) (hash ^ (hash >>> 32));
     }
 
     /* Inherit javadoc */
+    @Override
     public String toString() {
-	return getClass() + "[name=" + getName() + ", hash=" + hash + "]";
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass()).append("[name=").append(getName());
+        sb.append(", hash=").append(hash).append("]");
+        return sb.toString();
     }
     
     /**

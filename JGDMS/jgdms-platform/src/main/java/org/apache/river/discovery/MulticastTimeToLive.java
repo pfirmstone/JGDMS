@@ -25,6 +25,8 @@ import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the time to live (TTL) value set on outgoing
@@ -43,6 +45,17 @@ public final class MulticastTimeToLive
 
     /** The maximum permissible time to live value. */
     public static final int MAX_TIME_TO_LIVE = 0xFF;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("ttl", Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, MulticastTimeToLive mttl) throws IOException{
+        arg.put("ttl", mttl.ttl);
+        arg.writeArgs();
+    }
 
     /**
      * The time to live value.

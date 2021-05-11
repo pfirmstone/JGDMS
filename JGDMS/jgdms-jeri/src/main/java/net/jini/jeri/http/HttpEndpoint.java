@@ -54,6 +54,8 @@ import net.jini.jeri.OutboundRequestIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.http.ConnectionTimer;
 import org.apache.river.jeri.internal.http.HttpClientConnection;
 import org.apache.river.jeri.internal.http.HttpClientManager;
@@ -108,6 +110,21 @@ public final class HttpEndpoint
     implements Endpoint, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -7094180943307123931L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("host", String.class),
+            new SerialForm("port", Integer.TYPE),
+            new SerialForm("sf", SocketFactory.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, HttpEndpoint ep) throws IOException{
+        arg.put("host", ep.host);
+        arg.put("port", ep.port);
+        arg.put("sf", ep.sf);
+        arg.writeArgs();
+    }
     
     /** set of canonical instances */
     private static final Map internTable = new WeakHashMap();

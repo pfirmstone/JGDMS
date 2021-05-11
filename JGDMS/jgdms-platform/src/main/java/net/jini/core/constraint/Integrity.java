@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.Resolve;
 
 /**
  * Represents a constraint on the integrity of message contents, covering not
@@ -66,7 +69,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @since 2.0
  */
 @AtomicSerial
-public final class Integrity implements InvocationConstraint, Serializable {
+public final class Integrity implements InvocationConstraint, Serializable, Resolve {
     private static final long serialVersionUID = 418483423937969897L;
 
     /**
@@ -83,6 +86,17 @@ public final class Integrity implements InvocationConstraint, Serializable {
      * disabled.
      */
     public static final Integrity NO = new Integrity(false);
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm("val", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Integrity i) throws IOException{
+        arg.put("val", i.val);
+        arg.writeArgs();
+    }
 
     /**
      * <code>true</code> for <code>YES</code>, <code>false</code> for
@@ -109,6 +123,7 @@ public final class Integrity implements InvocationConstraint, Serializable {
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	return val ? "Integrity.YES" : "Integrity.NO";
     }
@@ -117,7 +132,8 @@ public final class Integrity implements InvocationConstraint, Serializable {
      * Canonicalize so that <code>==</code> can be used.
      * @return true for YES, false for NO.
      */
-    private Object readResolve() {
+    @Override
+    public Object readResolve() {
 	return val ? YES : NO;
     }
 }

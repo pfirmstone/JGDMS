@@ -25,6 +25,8 @@ import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.transaction.*;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * The interface used for managers of the two-phase commit protocol for
@@ -44,6 +46,19 @@ public interface TransactionManager extends Remote, TransactionConstants {
     @AtomicSerial
     public static class Created implements java.io.Serializable {
 	static final long serialVersionUID = -4233846033773471113L;
+        
+        public static SerialForm[] serialForm(){
+            return new SerialForm[]{
+                new SerialForm("id", Long.TYPE),
+                new SerialForm("lease", Lease.class)
+            };
+        }
+        
+        public static void serialize(PutArg arg, Created nt) throws IOException{
+            arg.put("id", nt.id);
+            arg.put("lease", nt.lease);
+            arg.writeArgs();
+        }
 
 	/**
 	 * The transaction ID.

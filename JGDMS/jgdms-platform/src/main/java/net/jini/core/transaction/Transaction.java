@@ -20,9 +20,10 @@ package net.jini.core.transaction;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseDeniedException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Interface for classes representing transactions returned by
@@ -88,6 +89,19 @@ public interface Transaction {
     @AtomicSerial
     public static class Created implements java.io.Serializable {
 	static final long serialVersionUID = -5199291723008952986L;
+        
+        public static SerialForm[] serialForm(){
+            return new SerialForm[]{
+                new SerialForm("transaction", Transaction.class),
+                new SerialForm("lease", Lease.class)
+            };
+        }
+        
+        public static void serialize(PutArg arg, Created t) throws IOException{
+            arg.put("transaction", t.transaction);
+            arg.put("lease", t.lease);
+            arg.writeArgs();
+        }
 
 	/**
 	 * The transaction.

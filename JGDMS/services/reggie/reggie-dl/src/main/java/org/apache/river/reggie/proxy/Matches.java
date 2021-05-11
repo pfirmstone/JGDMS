@@ -32,6 +32,8 @@ import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -50,6 +52,19 @@ import org.apache.river.api.io.Valid;
 public class Matches implements Serializable {
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("items", List.class),
+            new SerialForm("totalMatches", Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Matches m) throws IOException{
+        arg.put("items", m.items);
+        arg.put("totalMatches", m.totalMatches);
+        arg.writeArgs();
+    }
 
     /**
      * ServiceMatches.items as an ArrayList of Item

@@ -24,6 +24,8 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on delegation, such that if delegation is permitted,
@@ -67,6 +69,24 @@ public final class DelegationRelativeTime
 			implements RelativeTimeConstraint, Serializable
 {
     private static final long serialVersionUID = 7148935984332761810L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("minStart", Long.TYPE),
+            new SerialForm("maxStart", Long.TYPE),
+            new SerialForm("minStop", Long.TYPE),
+            new SerialForm("maxStop", Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, DelegationRelativeTime drt) 
+            throws IOException{
+        arg.put("minStart", drt.minStart);
+        arg.put("maxStart", drt.maxStart);
+        arg.put("minStop", drt.minStop);
+        arg.put("maxStop", drt.maxStop);
+        arg.writeArgs();
+    }
 
     /**
      * The minimum start duration in milliseconds.

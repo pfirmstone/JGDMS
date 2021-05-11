@@ -26,7 +26,6 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.ObjectStreamClass;
-import java.io.SerializablePermission;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -41,12 +40,20 @@ import java.security.PrivilegedExceptionAction;
 import net.jini.io.ObjectStreamContext;
 
 /**
+ * <h1>Atomic Serial - A public Serialization API</h1>
  * Java Serialization cannot be used over untrusted connections
  * for the following reasons:
  * <p>
- * The serial stream can be manipulated to allow the attacker to instantiate
- * any Serializable object available on the CLASSPATH or any object that
- * has a default constructor, such as ClassLoader.
+ * <ol>
+ * <li>The serial stream can be manipulated to allow the attacker to instantiate
+ * any Serializable object available on the CLASSPATH, any object that
+ * has a default constructor, such as ClassLoader.</li>
+ * <li>A serial stream can be manipulated to cause denial of service and throw
+ * an OOME.
+ * </li>
+ * <li>Filter mechanisms, don't address the underlying cause; the creation of
+ * objects prior to their validation.</li>
+ * </ol>
  * <p>
  * AtomicSerial is a public API designed to for any Serialization framework to utilise
  * for serialization and de-serialization of internal object state using any protocol in
@@ -59,34 +66,28 @@ import net.jini.io.ObjectStreamContext;
  * Where practical, existing interfaces and classes used for Java Serialization
  * have been utilised.
  * <p>
- * Failure to validate invariants during construction, or as a result of 
- * an exception, objects can remain in an invalid state after construction. 
- * During traditional de-serialization, an objects state is written after it's
- * creation, thus an attacker can steal a reference to the object without
- * any invariant check protection, by manipulating the stream.
+ * <h2>A requirement of implementing this interface is to implement a constructor
+ * that accepts a single GetArg parameter.</h2>  
  * <p>
- * In addition many java objects, including ObjectInputStream itself, read 
- * integer length values from the stream and instantiate arrays without checking 
- * the size first, so an attacker can easily cause an Error that brings
- * down the JVM. 
- * <p>
- * A requirement of implementing this interface is to implement a public static method
- * signature that accepts 
- * A requirement of implementing this interface is to implement a constructor
- * that accepts a single GetArg parameter.  This constructor may be
- * public or have default visibility, even in this case, the constructor
- * must be treated as a public constructor.
+ * This constructor must be
+ * public and the class given public visibility even if it has no other
+ * public constructors.
  * <p>
  * <code>
- * public AtomicSerialImpl(GetArg arg) throws InvalidObjectException{<br>
- *	super(check(arg)); // If super also implements @AtomicSerial<br>
- *	// Set fields here<br>
+ * public AtomicSerialImpl(GetArg args) throws InvalidObjectException{<br>
+ * <br>
+ * &emsp;	super(check(arg)); // If super also implements @AtomicSerial<br>
+ * &emsp;	// Set fields here<br>
+ * <br>
  * }<br>
  * </code>
- * In addition, before calling a superclass constructor, the class must
- * also implement a static invariant check method, for example:
+ * <h2>
+ * Before calling a superclass constructor, the class must
+ * first call a static invariant check method, for example:</h2>
  * <p>
- * static GetArg check(GetArg) throws InvalidObjectException;
+ * <code>
+ * static GetArg check(GetArg args) throws InvalidObjectException, ClassNotFoundException;
+ * </code>
  * <p>
  * Atomic stands for atomic failure, if invariants cannot be satisfied an 
  * instance cannot be created and hence a reference cannot be stolen.
@@ -104,15 +105,36 @@ import net.jini.io.ObjectStreamContext;
  * are implemented by the class.
  * <p>
  * An {@link ObjectStreamField} represents a serializable field of an AtomicSerial class.
- * The serializable fields of a class can be retrieved from the {@link ObjectStreamClass}.
+ * While serializable fields of a class can be retrieved from the {@link ObjectStreamClass},
+ * it presents a problem for future support, or for implementations that don't 
+ * need the added burden of supporting Serializable.
  * <p>
  * The special static serializable field, serialPersistentFields, is an array
- * of ObjectStreamField components that defines serializable fields.   
- * The serial form of an @AtomicSerial class, defined by serialPersistentFields
- * is completely independent of any Object fields declared in the class.
- * Serializable fields should be thought of as parameters passed to a constructor.
+ * of ObjectStreamField components that defines serializable fields in the Java
+ * Serialization Specification.
  * <p>
- * The order of serializable fields defined in serialPersistentFields is not important.
+ * <h2>The serial form of an @AtomicSerial class, is defined by a public static 
+ * serialPersistentFields method signature.</h2>
+ * <p>
+ * <code>
+ * public static {@link SerialForm} [] serialForm()
+ * </code>
+ * <p>
+ * <h3>Serial form is completely independent of any Object fields declared in the class.</h3>
+ * <p>
+ * For implementations also supporting Java Serialization, implements Serializable,
+ * the static field serialPersistentFields should also be defined:
+ * <p>
+ * <code>
+ * private static final {@link ObjectStreamField}[] serialPersistentFields = serialForm();
+ * </code>
+ * <p>
+ * This ensures that both @AtomicSerial and Serialzable implementations avoid
+ * duplication where possible.
+ * <p>
+ * The order of serializable fields defined in serialPersistentFields is preserved
+ * as different serialization protocols may depend on it.
+ * <p>
  * If the developer wants to maintain flexibility in serializable fields, to
  * be able to remove a field if no longer required, the developer must catch
  * IllegalArgumentException when calling
@@ -120,11 +142,26 @@ import net.jini.io.ObjectStreamContext;
  * <p>
  * Serializable fields, if used, must be explicitly written to and read from the stream,
  * during serialization and de-serialization.  If a class has no serializable
- * fields, then the special static field serialPersistentField should refer
- * to an empty array.
+ * fields, then the special static method serialPersistentField should return
+ * an empty array.
  * <p>
  * AtomicSerial ObjectInput and ObjectOutput implementations may communicate
  * using any serialization protocol.
+ * <p>
+ * The following method is an example of the signature that an @AtomicSerial class
+ * implementation must use to serialize the internal state of an object
+ * instance of itself.  Note the Object argument should be the type of the implementing
+ * class.
+ * <p>
+ * Unlike Java Serialization, which uses private object instance methods,
+ * a static method is used to allow each class in an Object's inheritance
+ * hierarchy to write it's state to the stream, without needing the 
+ * method to be private.
+ * <p>
+ *
+ * <code>
+ * public static void serialize(PutArg arg, T o) throws IOException
+ * </code>
  * 
  * @author Peter Firmstone.
  * @see ReadObject
@@ -136,7 +173,14 @@ import net.jini.io.ObjectStreamContext;
 @Target(ElementType.TYPE)
 public @interface AtomicSerial {
      
-    
+    /**
+     * Used to annotate a class to indicate that it has no arguments, Objects
+     * or data to write to the stream.  The class doesn't implement
+     * the serialize or serialPersistentFields methods.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    public @interface Stateless {}
     /**
      * ReadObject that can be used to read in data and Objects written
      * to the stream by writeObject() methods.
@@ -418,27 +462,6 @@ public @interface AtomicSerial {
      */
     public static abstract class PutArg extends ObjectOutputStream.PutField
                                         implements ObjectStreamContext {
-        
-        /**
-         * This method is an example of the signature that an @AtomicSerial class
-         * implementation must use to serialize the internal state of an object
-         * instance of itself.
-         * <p>
-         * Unlike Java Serialization, which uses private object instance methods,
-         * a static method is used to allow each class in an Object's inheritance
-         * hierarchy to write it's state to the stream, without needing the 
-         * method to be private.
-         * 
-         * @param arg PutArg argument used to store object fields.
-         * @param o Object instance of the class to be serialized, it must be the 
-         *          same type as the class implementing this method.
-         * @throws IOException 
-         * @throws IllegalArgumentException if Object is not an instance of
-         *         the class implementing this method.
-         */
-        public static void serialize(PutArg arg, Object o) throws IOException {
-            
-        }
 	
 	/**
          * To be implemented by a Serialization framework.
@@ -458,7 +481,7 @@ public @interface AtomicSerial {
          * 
          * @throws IOException 
          */
-        public abstract void writeFields() throws IOException;
+        public abstract void writeArgs() throws IOException; //REMIND: If we prevent direct access to the stream we don't need this method
         
         /**
          * Provides access to underlying ObjectOutput for writing fields out in
@@ -467,6 +490,40 @@ public @interface AtomicSerial {
          * @return 
          */
         public abstract ObjectOutput output();
+    }
+    
+    /**
+     * A serial argument used by an {@link AtomicSerial} implementation to
+     * define each serial argument populated into {@link PutArg} and {@link GetArg}
+     * by name and type.
+     * 
+     * <h2>The serial form of an @AtomicSerial class, is defined by a public static 
+     * serialPersistentFields method signature.</h2>
+     * <p>
+     * <code>
+     * public static {@link SerialForm} [] serialForm()
+     * </code>
+     * <p>
+     */
+    public static class SerialForm extends ObjectStreamField {
+   
+        private final Class type;
+
+        public SerialForm(String name, Class<?> type, boolean unshared) {
+            super(name, type, unshared);
+            this.type = type;
+        }
+
+        public SerialForm(String name, Class<?> type) {
+            super(name, type);
+            this.type = type;
+        }
+
+        @Override
+        public Class getType(){
+            return type;
+        }
+    
     }
     
 }

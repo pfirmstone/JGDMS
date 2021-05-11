@@ -27,6 +27,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -36,6 +37,10 @@ import org.apache.river.api.io.AtomicSerial;
 public class ConstrainableRegistrarEvent extends RegistrarEvent implements RemoteMethodControl {
     private static final long serialVersionUID = 1L;
     private static final ObjectStreamField[] serialPersistentFields = { };
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{};
+    }
     
     private final MethodConstraints constraints;
 

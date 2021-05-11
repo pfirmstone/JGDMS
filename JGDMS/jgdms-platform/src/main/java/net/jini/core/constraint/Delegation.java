@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on delegation from the client to the server.
@@ -50,6 +52,17 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 @AtomicSerial
 public final class Delegation implements InvocationConstraint, Serializable {
     private static final long serialVersionUID = -8636854709107393245L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("val", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Delegation d) throws IOException{
+        arg.put("val", d.val);
+        arg.writeArgs();
+    }
 
     /**
      * If the client authenticates to the server, then delegate from the

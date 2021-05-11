@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.proxy.CodebaseProvider;
 
 /**
@@ -33,6 +35,22 @@ import org.apache.river.proxy.CodebaseProvider;
 public class EntryClassBase implements Serializable {
 
     private static final long serialVersionUID = 2L;
+    
+    private static final String ECLASS = "eclass";
+    private static final String CODEBASE = "codebase";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(ECLASS, EntryClass.class),
+            new SerialForm(CODEBASE, String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, EntryClassBase ecb) throws IOException{
+        arg.put(ECLASS, ecb.eclass);
+        arg.put(CODEBASE, ecb.codebase);
+        arg.writeArgs();
+    }
 
     /**
      * The EntryClass.

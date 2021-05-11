@@ -41,8 +41,10 @@ import net.jini.id.UuidFactory;
 import net.jini.lookup.DiscoveryAdmin;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Proxy for administering a registrar, returned from the getAdmin method of
@@ -139,6 +141,20 @@ public class AdminProxy
 	Util.getMethod(DestroyAdmin.class, "destroy", new Class[0]),
 	Util.getMethod(DestroyAdmin.class, "destroy", new Class[0])
     };
+    
+    private static final String SERVER = "server";
+    
+    public static SerialForm [] serialForm () {
+        return new SerialForm[]{
+            new SerialForm(SERVER, Registrar.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, AdminProxy ap) throws IOException {
+        arg.put(SERVER, ap.server);
+        arg.writeArgs();
+        ap.registrarID.writeBytes(arg.output());
+    }
 
     /**
      * The registrar.
@@ -183,7 +199,7 @@ public class AdminProxy
     }
     
     private static boolean check(GetArg arg) throws IOException{
-	Registrar server = (Registrar) arg.get("server", null);
+	Registrar server = (Registrar) arg.get(SERVER, null);
 	if (server == null) throw new NullPointerException();
 	if (((RO) arg.getReader()).registrarID == null) throw new NullPointerException();
 	return true;
@@ -194,7 +210,7 @@ public class AdminProxy
     }
     
     private AdminProxy(GetArg arg, boolean check) throws IOException {
-	server = (Registrar) arg.get("server", null);
+	server = (Registrar) arg.get(SERVER, null);
 	registrarID = ((RO) arg.getReader()).registrarID;
     }
     

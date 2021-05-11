@@ -38,7 +38,9 @@ import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.resource.Service;
 
 /**
@@ -48,15 +50,29 @@ import org.apache.river.resource.Service;
 @AtomicSerial
 class ProxySerializer implements Serializable {
     private static final long serialVersionUID = 1L;
+    
+    private static final String BOOTSTRAP_PROXY = "bootstrapProxy";
+    private static final String SERVICE_PROXY = "serviceProxy";
+    
     /**
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("bootstrapProxy", CodebaseAccessor.class),
-	    new ObjectStreamField("serviceProxy", MarshalledInstance.class)
-	};
+	serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(BOOTSTRAP_PROXY, CodebaseAccessor.class),
+	    new SerialForm(SERVICE_PROXY, MarshalledInstance.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ProxySerializer ps) throws IOException{
+        arg.put(BOOTSTRAP_PROXY, ps.bootstrapProxy);
+        arg.put(SERVICE_PROXY, ps.serviceProxy);
+        arg.writeArgs();
+    }
     /**
      * The bootstrap proxy must be limited to the following interfaces, in case
      * additional interfaces implemented by the proxy aren't available remotely.
@@ -203,10 +219,10 @@ class ProxySerializer implements Serializable {
     
     ProxySerializer(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(Valid.notNull(
-		arg.get("bootstrapProxy", null, CodebaseAccessor.class),
+		arg.get(BOOTSTRAP_PROXY, null, CodebaseAccessor.class),
 		"bootstrapProxy cannot be null")),
 	    Valid.notNull(
-		    arg.get("serviceProxy", null, MarshalledInstance.class),
+		    arg.get(SERVICE_PROXY, null, MarshalledInstance.class),
 		    "serviceProxy cannot be null"),
 	    arg.getObjectStreamContext(),
 	    (RO) arg.getReader()

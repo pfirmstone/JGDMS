@@ -26,6 +26,8 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A universally unique identifier (UUID) for registered services.
@@ -64,6 +66,22 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public final class ServiceID implements Serializable {
 
     private static final long serialVersionUID = -7803375959559762239L;
+    
+    private static final String MOST_SIG = "mostSig";
+    private static final String LEAST_SIG = "leastSig";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(MOST_SIG, Long.TYPE),
+            new SerialForm(LEAST_SIG, Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServiceID id) throws IOException{
+        arg.put(MOST_SIG, id.mostSig);
+        arg.put(LEAST_SIG, id.leastSig);
+        arg.writeArgs();
+    }
 
     /**
      * The most significant 64 bits.
@@ -92,7 +110,7 @@ public final class ServiceID implements Serializable {
 	return leastSig;
     }
     
-    ServiceID(GetArg arg) throws IOException{
+    public ServiceID(GetArg arg) throws IOException{
 	this(mostSig(arg), leastSig(arg));
     }
 
@@ -147,6 +165,7 @@ public final class ServiceID implements Serializable {
 	out.writeLong(leastSig);
     }
 
+    @Override
     public int hashCode() {
 	return (int)((mostSig >> 32) ^ mostSig ^ (leastSig >> 32) ^ leastSig);
     }
@@ -154,6 +173,7 @@ public final class ServiceID implements Serializable {
     /**
      * Service IDs are equal if they represent the same 128-bit value.
      */
+    @Override
     public boolean equals(Object obj) {
 	if (!(obj instanceof ServiceID))
 	    return false;
@@ -169,6 +189,7 @@ public final class ServiceID implements Serializable {
      * treated as a single field, <code>variant</code> and
      * <code>clock_seq</code> treated as a single field, and <code>node</code>.
      */
+    @Override
     public String toString() {
 	return (digits(mostSig >> 32, 8) + "-" +
 		digits(mostSig >> 16, 4) + "-" +

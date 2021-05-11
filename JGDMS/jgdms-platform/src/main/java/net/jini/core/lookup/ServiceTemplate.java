@@ -23,6 +23,8 @@ import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Items in the lookup service are matched using instance of this class.
@@ -48,6 +50,21 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public class ServiceTemplate implements java.io.Serializable, Cloneable {
 
     private static final long serialVersionUID = 7854483807886483216L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("serviceID", ServiceID.class),
+            new SerialForm("serviceTypes", Class[].class),
+            new SerialForm("attributeSetTemplates", Entry[].class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServiceTemplate st) throws IOException{
+        arg.put("serviceID", st.serviceID);
+        arg.put("serviceTypes", st.serviceTypes);
+        arg.put("attributeSetTemplates", st.attributeSetTemplates);
+        arg.writeArgs();
+    }
 
     /**
      * Service ID to match, or <tt>null</tt>.

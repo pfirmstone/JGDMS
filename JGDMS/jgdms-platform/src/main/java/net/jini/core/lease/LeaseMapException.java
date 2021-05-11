@@ -31,6 +31,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -55,9 +57,18 @@ public class LeaseMapException extends LeaseException {
      * only be sent once.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("exceptionMap", Map.class)
-	}; 
+	serialForm(); 
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("exceptionMap", Map.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, LeaseMapException e) throws IOException{
+        arg.put("exceptionMap", e.exceptionMap);
+        arg.writeArgs();
+    }
 
     /**
      * A Map from Lease to Exception, containing each lease that failed to

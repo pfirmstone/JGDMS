@@ -27,6 +27,8 @@ import java.util.Collection;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the client, such that if the client
@@ -65,9 +67,18 @@ public final class ClientMinPrincipalType
     /**
      * @serialField classes Class[] The classes.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("classes", Class[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("classes", Class[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ClientMinPrincipalType cmpt) throws IOException{
+        arg.put("classes", cmpt.classes);
+        arg.writeArgs();
+    }
 
     /**
      * The classes.

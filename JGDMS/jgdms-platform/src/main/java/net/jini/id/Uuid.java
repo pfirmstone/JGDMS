@@ -27,6 +27,11 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.Replace;
+import org.apache.river.api.io.Resolve;
+import org.apache.river.api.io.Serializer;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -116,10 +121,24 @@ import org.apache.river.api.net.Uri;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
+@Serializer(replaceObType = Uuid.class)
 @AtomicSerial
-public class Uuid implements Serializable {
+public class Uuid implements Serializable, Replace, Resolve {
 
     private static final long serialVersionUID = -106268922535833151L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("bits0", Long.TYPE),
+            new SerialForm("bits1", Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Uuid u) throws IOException{
+        arg.put("bits0", u.bits0);
+        arg.put("bits1", u.bits1);
+        arg.writeArgs();
+    }
 
     /**
      * The most significant 64 bits of the 128-bit value.
@@ -201,6 +220,7 @@ public class Uuid implements Serializable {
      *
      * @return the hash code value for this <code>Uuid</code>
      **/
+    @Override
     public final int hashCode() {
 	return (int) ((bits0 >>> 32) ^ bits0 ^ (bits1 >>> 32) ^ bits1);
     }
@@ -218,6 +238,7 @@ public class Uuid implements Serializable {
      * @return <code>true</code> if the given object is equivalent to
      * this one, and <code>false</code> otherwise
      **/
+    @Override
     public final boolean equals(Object obj) {
 	if (obj instanceof Uuid) {
 	    Uuid other = (Uuid) obj;
@@ -270,6 +291,7 @@ public class Uuid implements Serializable {
      * 
      * @return a string representation of this <code>Uuid</code>
      **/
+    @Override
     public final String toString() {
 	return
 	    toHexString(bits0 >>> 32, 8) + "-" +
@@ -345,7 +367,8 @@ public class Uuid implements Serializable {
      *
      * @return this object
      **/
-    protected final Object writeReplace() {
+    @Override
+    public final Object writeReplace() {
 	return this;
     }
 
@@ -356,7 +379,8 @@ public class Uuid implements Serializable {
      *
      * @return this object
      **/
-    protected final Object readResolve() {
+    @Override
+    public final Object readResolve() {
 	return this;
     }
 

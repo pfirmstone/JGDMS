@@ -27,6 +27,8 @@ import java.rmi.MarshalledObject;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -97,7 +99,7 @@ import org.apache.river.api.io.Valid;
  * Subclasses will be responsible for synchronization of mutable state.
  * <p>
  * writeObject, instead of writing RemoteEvent fields, writes the 
- * result of all getter methods to the ObjectOutputStream, during serialization,
+     * result of all getter methods to the ObjectOutputStream, during serialization,
  * preserving serial form compatibility wither earlier versions, while 
  * also allowing mutable subclasses to maintain full serial compatibility.
  * <p>
@@ -114,13 +116,26 @@ public class RemoteEvent extends java.util.EventObject {
     private static final long serialVersionUID = 1777278867291906446L;
     
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("source", Object.class),
-	    new ObjectStreamField("eventID", long.class),
-	    new ObjectStreamField("seqNum", long.class),
-	    new ObjectStreamField("handback", MarshalledObject.class),
-	    new ObjectStreamField("miHandback", MarshalledInstance.class)
-	};
+	serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("source", Object.class),
+	    new SerialForm("eventID", long.class),
+	    new SerialForm("seqNum", long.class),
+	    new SerialForm("handback", MarshalledObject.class),
+	    new SerialForm("miHandback", MarshalledInstance.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, RemoteEvent r) throws IOException{
+        arg.put("source", r.source);
+        arg.put("eventID", r.eventID);
+        arg.put("seqNum", r.seqNum);
+        arg.put("handback", r.handback);
+        arg.put("miHandback", r.miHandback);
+        arg.writeArgs();
+    }
 
     /**
      * The event identifier.

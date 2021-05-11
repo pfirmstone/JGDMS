@@ -53,11 +53,12 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.security.proxytrust.TrustEquivalence;
-import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.proxy.MarshalledWrapper;
 
 /**
@@ -75,6 +76,18 @@ public class RegistrarProxy
 
     private static final Logger logger = 
 	Logger.getLogger("org.apache.river.reggie");
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("server", Registrar.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, RegistrarProxy rp) throws IOException{
+        arg.put("server", rp.server);
+        arg.writeArgs();
+        rp.registrarID.writeBytes(arg.output());
+    }
 
     /**
      * The registrar.

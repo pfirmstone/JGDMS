@@ -57,6 +57,8 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.runtime.Util;
 import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogUtil;
@@ -92,6 +94,21 @@ public final class TcpEndpoint
     implements Endpoint, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = -2840731722681368933L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("host", String.class),
+            new SerialForm("port", Integer.TYPE),
+            new SerialForm("sf", SocketFactory.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, TcpEndpoint ep) throws IOException{
+        arg.put("host", ep.host);
+        arg.put("port", ep.port);
+        arg.put("sf", ep.sf);
+        arg.writeArgs();
+    }
 
     /**
      * weak set of canonical instances; in order to use WeakHashMap,

@@ -28,6 +28,8 @@ import java.util.Collection;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the client, such that if the client
@@ -65,9 +67,19 @@ public final class ClientMinPrincipal
     /**
      * @serialField principals Principal[] The principals.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("principals", Principal[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields
+            = serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("principals", Principal[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ClientMinPrincipal p) throws IOException{
+        arg.put("principals", p.principals.clone());
+        arg.writeArgs();
+    }
 
     /**
      * The principals.
@@ -80,6 +92,7 @@ public final class ClientMinPrincipal
      * @param arg atomic deserialization parameter 
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
+     * @throws java.lang.ClassNotFoundException
      * @throws InvalidObjectException if object invariants aren't satisfied.
      */
     public ClientMinPrincipal(GetArg arg) throws IOException, ClassNotFoundException{
@@ -167,6 +180,7 @@ public final class ClientMinPrincipal
     /**
      * Returns a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	return (ClientMinPrincipal.class.hashCode() +
 		Constraint.hash(principals));
@@ -176,6 +190,7 @@ public final class ClientMinPrincipal
      * Two instances of this class are equal if they have the same principals
      * (ignoring order).
      */
+    @Override
     public boolean equals(Object obj) {
 	return (obj instanceof ClientMinPrincipal &&
 		Constraint.equal(principals,
@@ -185,6 +200,7 @@ public final class ClientMinPrincipal
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	return "ClientMinPrincipal" + Constraint.toString(principals);
     }
