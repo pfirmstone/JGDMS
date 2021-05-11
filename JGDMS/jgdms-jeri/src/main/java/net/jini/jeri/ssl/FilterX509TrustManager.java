@@ -191,14 +191,13 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
                                     KeyStore.getDefaultType()
                                 )
                             );
-                            InputStream in;
+                            InputStream in = null;
                             try {
                                 in = new FileInputStream(
                                         System.getProperty("javax.net.ssl.trustStore"));
                                 String keyStorePassword = System.getProperty("javax.net.ssl.trustStorePassword");
                                 char[] password = keyStorePassword != null ? keyStorePassword.toCharArray() : new char[0];
                                 keyStore.load(in, password);
-                                in.close();
                             } catch (FileNotFoundException ex) {
                                 Logger.getLogger(FilterX509TrustManager.class.getName()).log(Level.CONFIG, "Unable to find trustStore", ex);
                             } catch (IOException ex) {
@@ -207,6 +206,10 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
                                 Logger.getLogger(FilterX509TrustManager.class.getName()).log(Level.CONFIG, "Unable to load trustStore", ex);
                             } catch (CertificateException ex) {
                                 Logger.getLogger(FilterX509TrustManager.class.getName()).log(Level.CONFIG, "Unable to load trustStore", ex);
+                            } finally {
+                                try {
+                                    if (in != null) in.close();
+                                } catch (IOException e){}// Ignore
                             }
 			    factory.init(keyStore);
 			} catch (KeyStoreException e) {
