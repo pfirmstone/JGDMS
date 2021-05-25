@@ -25,6 +25,7 @@ import java.io.FilePermission;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectStreamException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -36,16 +37,20 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.Permission;
+import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.Policy;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -53,9 +58,12 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.PrivateCredentialPermission;
+import net.jini.security.policy.PolicyInitializationException;
 import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.io.Replace;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.CombinerSecurityManager;
+import org.apache.river.api.security.ConcurrentPolicyFile;
 import org.apache.river.api.security.PermissionComparator;
 
 /**
@@ -108,6 +116,41 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     
     private static Logger logger;
     private static final Object loggerLock = new Object();
+    private static final Policy POLICY;
+    private static final File policyFile;
+    
+    static {
+        String policy = System.getProperty("java.security.policy");
+//        Uuid timestamp = UuidFactory.generate();
+//        File policyFile = new File(policyDirectory + File.separator + timestamp + ".policy");
+	Uri polLocation;
+        try {
+            polLocation = new Uri(policy +".new");
+            
+        } catch (URISyntaxException ex) {
+            throw new RuntimeException("Unable to create URI", ex);
+        }
+        URI poliLoc = Uri.uriToURI(polLocation);
+	policyFile = new File(poliLoc);
+        if (policyFile.exists()){
+            try {
+                POLICY = new ConcurrentPolicyFile(new URL[]{polLocation.toURL()});
+            } catch (MalformedURLException ex) {
+                throw new RuntimeException("Unable to create URL", ex);
+            } catch (PolicyInitializationException ex) {
+                throw new RuntimeException("Unable to create Policy instance", ex);
+            }
+        } else {
+	    try {
+                POLICY = null;
+		policyFile.createNewFile();
+	    } catch (IOException ex) {
+		throw new RuntimeException("Unable to create a policy file: "+ policy +".new", ex);
+//	    } catch (PolicyInitializationException ex) {
+//                throw new RuntimeException("Unable to create Policy instance", ex);
+            }
+        }
+    }
 
     /**
      * @return the logger
@@ -161,19 +204,6 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     }
     
     private static File policyFile() throws URISyntaxException{
-        String policy = System.getProperty("java.security.policy");
-//        Uuid timestamp = UuidFactory.generate();
-//        File policyFile = new File(policyDirectory + File.separator + timestamp + ".policy");
-	Uri polLocation = new Uri(policy +".new");
-	URI poliLoc = Uri.uriToURI(polLocation);
-	File policyFile = new File(poliLoc);
-	if (!policyFile.exists()){
-	    try {
-		policyFile.createNewFile();
-	    } catch (IOException ex) {
-		throw new RuntimeException("Unable to create a policy file: "+ policy +".new", ex);
-	    }
-	}
         return policyFile;
     }
     
@@ -235,9 +265,22 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     
     @Override
     protected boolean checkPermission(ProtectionDomain pd, Permission p){
+        if (POLICY != null && POLICY.implies(pd, p)) return true;
+        pd = new ProtectionDomainKey(pd);
 	Collection<Permission> perms = domainPermissions.get(pd);
 	    if (perms == null) {
 		perms = new ConcurrentSkipListSet<Permission>(new PermissionComparator());
+                // The following code would include the static permissions from
+                // the ProtectionDomain.  This doesn't seem like a good idea,
+                // as these permissions may be granted by a ClassLoader at
+                // creation time, so commented out.
+//                PermissionCollection pc = pd.getPermissions();
+//                if (pc != null) {
+//                    Enumeration<Permission> e = pc.elements();
+//                    while (e.hasMoreElements()){
+//                        perms.add(e.nextElement());
+//                    }
+//                }
 		Collection<Permission> existed = domainPermissions.putIfAbsent(pd, perms);
 		if (existed != null) perms = existed;
 	    }
@@ -444,5 +487,125 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
             return null;
         }
         
+    }
+    
+    /**
+     * ProtectionDomainKey identity ignores the ClassLoader.
+     */
+    private static class ProtectionDomainKey extends ProtectionDomain{
+        
+        private static CodeSource getCodeSource(ProtectionDomain pd){
+            CodeSource cs = pd.getCodeSource();
+            if (cs != null) cs = new UriCodeSource(cs);
+            return cs;
+        }
+
+        private final CodeSource codeSource;
+        private final Principal[] princiPals;
+        private final int hashCode;
+
+        ProtectionDomainKey(ProtectionDomain pd){
+            this(getCodeSource(pd), pd.getPermissions(), pd.getPrincipals());
+        }
+        
+        ProtectionDomainKey(CodeSource cs, PermissionCollection perms, Principal [] p){
+            super(cs, perms, null, p);
+            this.codeSource = cs;
+            this.princiPals = p;
+            int hash = 7;
+            hash = 29 * hash + Objects.hashCode(this.codeSource);
+            hash = 29 * hash + Arrays.deepHashCode(this.princiPals);
+            this.hashCode = hash;
+        }
+        
+        
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final ProtectionDomainKey other = (ProtectionDomainKey) obj;
+            if (!Objects.equals(this.codeSource, other.codeSource)) {
+                return false;
+            }
+            if (!Arrays.deepEquals(this.princiPals, other.princiPals)) {
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+        
+    }
+    
+    /**
+     * To avoid CodeSource equals and hashCode methods.
+     * 
+     * Shamelessly stolen from RFC3986URLClassLoader
+     * 
+     * CodeSource uses DNS lookup calls to check location IP addresses are 
+     * equal.
+     * 
+     * This class must not be serialized.
+     */
+    private static class UriCodeSource extends CodeSource implements Replace {
+        private static final long serialVersionUID = 1L;
+        private final Uri uri;
+        private final int hashCode;
+        
+        UriCodeSource(CodeSource cs){
+            this(cs.getLocation(), cs.getCertificates());
+        }
+        
+        UriCodeSource(URL url, Certificate [] certs){
+            super(url, certs);
+            Uri uRi = null;
+            if (url != null){
+                try {
+                    uRi = Uri.urlToUri(url);
+                } catch (URISyntaxException ex) { }//Ignore
+            }
+            this.uri = uRi;
+            int hash = 7;
+            hash = 23 * hash + (this.uri != null ? this.uri.hashCode() : 0);
+            hash = 23 * hash + (certs != null ? Arrays.hashCode(certs) : 0);
+            hashCode = hash;
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+        
+        @Override
+        public boolean equals(Object o){
+            if (!(o instanceof UriCodeSource)) return false;
+            if (uri == null) return super.equals(o);
+            UriCodeSource that = (UriCodeSource) o;
+            if ( !uri.equals(that.uri)) return false;
+            Certificate [] mine = getCertificates();
+            Certificate [] theirs = that.getCertificates();
+            if ( mine == null && theirs == null) return true;
+            if ( mine == null && theirs != null) return false;
+            if ( mine != null && theirs == null) return false;
+            return (Arrays.asList(getCertificates()).equals(
+                    Arrays.asList(that.getCertificates())));
+        }
+        
+        @Override
+        public Object writeReplace() throws ObjectStreamException {
+            return new CodeSource(getLocation(), getCertificates());
+        }
+       
     }
 }
