@@ -55,6 +55,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+import org.apache.river.api.io.AtomicMarshalOutputStream;
 
 //Should there be an 'AbortTestRequest' ?
 
@@ -880,7 +881,7 @@ class MasterHarness {
 	    config.setTestTotal(testList.getTestTotal());
 	    config.setTestIndex(testList.getTestNumber());
 	    ObjectOutputStream os = 
-		new ObjectOutputStream(proc.getOutputStream());
+		new AtomicMarshalOutputStream(proc.getOutputStream(), null);
 	    os.writeObject(config);
 	    os.flush();
 //  	    bindInput(proc);

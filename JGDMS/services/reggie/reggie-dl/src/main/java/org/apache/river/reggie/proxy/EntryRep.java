@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import net.jini.core.entry.Entry;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -159,15 +160,7 @@ public final class EntryRep implements Serializable, Cloneable {
 	eclass = ecb.eclass;
 	codebase = needCodebase ? ecb.codebase : null;
 	try {
-	    EntryField[] efields = ClassMapper.getFields(entry.getClass());
-	    fields = new Object[efields.length];
-	    for (int i = efields.length; --i >= 0; ) {
-		EntryField f = efields[i];
-		Object val = f.field.get(entry);
-		if (f.marshal && val != null)
-		    val = new MarshalledWrapper(val);
-		fields[i] = val;
-	    }
+	    fields = fields(entry);
 	} catch (IOException e) {
 	    throw new MarshalException("error marshalling arguments", e);
 	} catch (IllegalAccessException e) {
@@ -175,11 +168,26 @@ public final class EntryRep implements Serializable, Cloneable {
 	}
 	flds = Collections.synchronizedList(Arrays.asList(fields != null ? fields : new Object[0]));
     }
+    
+    private static Object[] fields(Entry entry) 
+            throws IOException, IllegalArgumentException, IllegalAccessException {
+        EntryField[] efields = ClassMapper.getFields(entry.getClass());
+        Object[] fields = new Object[efields.length];
+        for (int i = efields.length; --i >= 0; ) {
+            EntryField f = efields[i];
+            Object val = f.field.get(entry);
+            if (f.marshal && val != null)
+                val = new MarshalledWrapper(new AtomicMarshalledInstance(val));
+            fields[i] = val;
+        }
+        return fields;
+    }
 
     /**
      * Convert back to an Entry.  If the Entry cannot be constructed,
      * null is returned.  If a field cannot be unmarshalled, it is set
      * to null.
+     * @return The Entry this EntryRep represents.
      */
     public Entry get() {
 	try {

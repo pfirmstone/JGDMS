@@ -108,6 +108,9 @@ sun.rmi.level = SEVERE
 net.jini.level = SEVERE
 org.apache.river.level = SEVERE
 
+# For Java Serialization
+java.io.serialization = SEVERE
+
 # For the LogManager
 org.apache.river.logging.LogManager.level = SEVERE
 

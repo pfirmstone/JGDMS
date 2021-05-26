@@ -85,8 +85,7 @@ public class Resolver implements Serializable {
      * @param config the configuration object provided by the test suite.
      */
     Resolver(QAConfig config) {
-	this.tokenMap = new HashMap<String, String>();
-        this.config = config;
+        this(config, new HashMap<String, String>());
     }
     
     Resolver(GetArg arg) throws IOException, ClassNotFoundException{
@@ -100,9 +99,13 @@ public class Resolver implements Serializable {
 	);
     }
     
-    private Resolver(QAConfig config, Map<String,String> tokenMap){
+    Resolver(QAConfig config, Map<String,String> tokenMap){
 	this.config = config;
 	this.tokenMap = tokenMap;
+    }
+    
+    Map<String, String> getTokenMap(){
+        return tokenMap;
     }
 
     void setToken(String token, String value) {

@@ -42,6 +42,7 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
 import net.jini.security.policy.PolicyFileProvider;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
@@ -726,7 +727,7 @@ public class NonActivatableServiceDescriptor
 	    // I don't think we need to for MarshalledInstance - TODO: check.
 //	    curThread.setContextClassLoader(oldClassLoader);
 //TODO - factor in code integrity for MO
-            proxy = (new MarshalledInstance(proxy)).get(oldClassLoader, false, null, null);
+            proxy = (new AtomicMarshalledInstance(proxy)).get(oldClassLoader, false, null, null);
 	} finally {
 	    curThread.setContextClassLoader(oldClassLoader);
 	}

@@ -37,6 +37,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.security.Security;
 import org.apache.river.action.GetBooleanAction;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -232,7 +233,7 @@ public final class Item implements Serializable, Cloneable {
 	serviceType = stb.type;
 	codebase = stb.codebase;
 	try {
-	    service = new MarshalledWrapper(svc);
+	    service = new MarshalledWrapper(new AtomicMarshalledInstance(svc));
 	} catch (IOException e) {
 	    throw new MarshalException("error marshalling arguments", e);
 	}

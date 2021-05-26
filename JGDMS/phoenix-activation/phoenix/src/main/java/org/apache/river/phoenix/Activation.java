@@ -98,6 +98,7 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
@@ -1251,7 +1252,7 @@ class Activation implements Serializable {
 	    throws UnknownObjectException
 	{
             getObjectEntry(uid).stub =
-                new MarshalledWrapper(new MarshalledInstance(mobj));
+                new MarshalledWrapper(new AtomicMarshalledInstance(mobj));
 	}
 
 	void inactiveObject(UID uid)
@@ -1691,7 +1692,7 @@ class Activation implements Serializable {
                 activation.readLock.unlock();
             }
 	    MarshalledInstance marshalledProxy =
-		new MarshalledInstance(inst.newInstance(id, descriptor));
+		new AtomicMarshalledInstance(inst.newInstance(id, descriptor));
             nstub = new MarshalledWrapper(marshalledProxy);
             activation.writeLock.lock();
             try {

@@ -29,6 +29,7 @@ import net.jini.io.MarshalledInstance;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.IntegrityEnforcement;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -155,7 +156,9 @@ public class MarshalledWrapper implements Serializable {
      *
      * @param obj object to create <code>MarshalledInstance</code> with
      * @throws IOException if <code>MarshalledInstance</code> creation fails
+     * @deprecated
      */
+    @Deprecated
     public MarshalledWrapper(Object obj) throws IOException {
 	instance = new MarshalledInstance(obj);
     }

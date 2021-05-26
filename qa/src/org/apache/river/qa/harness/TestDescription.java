@@ -18,6 +18,7 @@
 package org.apache.river.qa.harness;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
 import java.net.UnknownHostException;
@@ -32,6 +33,8 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import net.jini.loader.ClassLoading;
 import org.apache.river.config.LocalHostLookup;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
  * The <code>TestDescription</code> is an object which describes a test;
@@ -106,6 +109,7 @@ import org.apache.river.config.LocalHostLookup;
  *</table>
  * <p>
  */
+@AtomicSerial
 public class TestDescription implements Serializable {
 
     /** the logger */
@@ -116,7 +120,7 @@ public class TestDescription implements Serializable {
     private final String name;
 
     /** The config object */
-    private final QAConfig config;
+    private volatile transient QAConfig config;
 
     /** The properties stored by this test description */
     private final Properties properties;
@@ -147,6 +151,25 @@ public class TestDescription implements Serializable {
 	this.config = config;
 	this.properties = properties;
 	resolveIncludes();
+    }
+    
+    public TestDescription(GetArg arg) throws IOException, ClassNotFoundException {
+        this(arg.get("name", null, String.class),
+             new Properties(arg.get("properties", null, Properties.class)),
+             arg.get("nextConf", true),
+             arg.get("test", null, TestEnvironment.class)
+            );
+    }
+    
+    private TestDescription(String name, Properties properties, boolean nextConf, TestEnvironment test){
+        this.name = name;
+        this.properties = properties;
+        this.nextConf = nextConf;
+        this.test = test;
+    }
+    
+    void setConfig(QAConfig config){
+        this.config = config;
     }
 
     /**

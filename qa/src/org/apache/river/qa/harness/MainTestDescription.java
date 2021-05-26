@@ -105,7 +105,7 @@ import java.io.IOException;
 public class MainTestDescription extends TestDescription {
 
     /** the config object */
-    private QAConfig config;
+    private transient volatile QAConfig config;
 
     /** The scratch directory */
     private File scratchDir = null;
@@ -145,6 +145,11 @@ public class MainTestDescription extends TestDescription {
     {
 	super(name, p, config);
 	this.config = config;
+    }
+    
+    void setConfig(QAConfig config){
+        super.setConfig(config);
+        this.config = config;
     }
 
     /**

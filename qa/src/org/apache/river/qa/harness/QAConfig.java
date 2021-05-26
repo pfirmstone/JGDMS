@@ -29,6 +29,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
@@ -73,6 +76,8 @@ import net.jini.url.httpmd.HttpmdUtil;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.RFC3986URLClassLoader;
 import org.apache.river.config.LocalHostLookup;
@@ -253,7 +258,7 @@ public final class QAConfig implements Serializable {
     private List selectedIndexes;
 
     /** The resolver */
-    private Resolver resolver;
+    private transient Resolver resolver;
 
     /** the jar file containing the tests */
     private String testJar = null;
@@ -291,6 +296,48 @@ public final class QAConfig implements Serializable {
 
     private String resumeMessage;
     
+    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("uniqueString", String.class),
+            new SerialForm("overrideProviders", List.class),
+            new SerialForm("failureAnalyzers", List.class),
+            new SerialForm("configProps", Map.class),
+            new SerialForm("configSetProps", Map.class),
+            new SerialForm("defaultProps", Map.class),
+            new SerialForm("td", TestDescription.class),
+//            new SerialForm("tdName", String.class),
+//            new SerialForm("tdProp", Properties.class),
+//            new SerialForm("tdNextConf", Boolean.TYPE),
+//            new SerialForm("tdTest", TestEnvironment.class),
+            new SerialForm("dynamicProps", Map.class),
+            new SerialForm("propertyOverrides", Map.class),
+            new SerialForm("args", String[].class),
+            new SerialForm("configTags", String[].class),
+            new SerialForm("currentTag", String.class),
+            new SerialForm("trackKey", String.class),
+            new SerialForm("hostList", List.class),
+            new SerialForm("selectedIndexes", List.class),
+            new SerialForm("tokenMap", Map.class),
+            new SerialForm("testJar", String.class),
+            new SerialForm("harnessJar", String.class),
+            new SerialForm("searchList", String[].class),
+            new SerialForm("testSuspended", Boolean.TYPE),
+            new SerialForm("hostIndex", Integer.TYPE),
+            new SerialForm("passCount", Integer.TYPE),
+            new SerialForm("callAutot", Boolean.TYPE),
+            new SerialForm("testTotal", Integer.TYPE),
+            new SerialForm("testIndex", Integer.TYPE),
+            new SerialForm("resumeMessage", String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, QAConfig q) throws IOException {
+        putFields(arg, q);
+        arg.writeArgs();
+    }
+    
     public QAConfig(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("uniqueString", null, String.class),
 	    arg.get("overrideProviders", null, List.class),
@@ -299,6 +346,10 @@ public final class QAConfig implements Serializable {
 	    (Properties) Valid.copyMap(arg.get("configSetProps", null, Map.class),(Map) new Properties(), String.class, String.class, 1),
 	    (Properties) Valid.copyMap(arg.get("defaultProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    arg.get("td", null, TestDescription.class),
+//            arg.get("tdName", null, String.class),
+//            arg.get("tdProp", null, Properties.class),
+//            arg.get("tdNextConfg", true),
+//            arg.get("tdTest", TestEnvironment.class),
 	    (Properties) Valid.copyMap(arg.get("dynamicProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    (Properties) Valid.copyMap(arg.get("propertyOverrides", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    arg.get("args", null, String[].class),
@@ -307,7 +358,11 @@ public final class QAConfig implements Serializable {
 	    arg.get("trackKey", null, String.class),
 	    arg.get("hostList", null, List.class),
 	    arg.get("selectedIndexes", null, List.class),
-	    arg.get("resolver", null, Resolver.class),
+	    Valid.copyMap(
+		arg.get("tokenMap", null, Map.class),
+		new HashMap<String, String>(),
+		String.class,
+		String.class),
 	    arg.get("testJar", null, String.class),
 	    arg.get("harnessJar", null, String.class),
 	    arg.get("searchList", null, String[].class),
@@ -320,6 +375,42 @@ public final class QAConfig implements Serializable {
 	    arg.get("resumeMessage", null, String.class)
 	);
     }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException{
+        putFields(out.putFields(), this);
+        out.writeFields();
+    }
+    
+    private static void putFields(PutField pf, QAConfig q){
+        pf.put("uniqueString", q.uniqueString);
+        pf.put("overrideProviders", q.overrideProviders);
+        pf.put("failureAnalyzers", q.failureAnalyzers);
+        pf.put("configProps", q.configProps);
+        pf.put("configSetProps", q.configSetProps);
+        pf.put("defaultProps", q.defaultProps);
+        pf.put("td", q.td);
+        pf.put("dynamicProps", q.dynamicProps);
+        pf.put("propertyOverrides", q.propertyOverrides);
+        pf.put("args", q.args);
+        pf.put("configTags", q.configTags);
+        pf.put("currentTag", q.currentTag);
+        pf.put("trackKey", q.trackKey);
+        pf.put("hostList", q.hostList);
+        pf.put("selectedIndexes", q.selectedIndexes);
+        pf.put("tokenMap", q.resolver.getTokenMap());
+        pf.put("testJar", q.testJar);
+        pf.put("harnessJar", q.harnessJar);
+        pf.put("searchList", q.searchList);
+        pf.put("testSuspended", q.testSuspended);
+        pf.put("hostIndex", q.hostIndex);
+        pf.put("passCount", q.passCount);
+        pf.put("callAutot", q.callAutot);
+        pf.put("testTotal", q.testTotal);
+        pf.put("testIndex", q.testIndex);
+        pf.put("resumeMessage", q.resumeMessage);
+    }
+    
+    
     
     private QAConfig(
 	    String uniqueString,
@@ -337,7 +428,7 @@ public final class QAConfig implements Serializable {
 	    String trackKey,
 	    List hostList,
 	    List selectedIndexes,
-	    Resolver resolver,
+	    Map<String, String> resolverTokenMap,
 	    String testJar,
 	    String harnessJar,
 	    String[] searchList,
@@ -364,7 +455,7 @@ public final class QAConfig implements Serializable {
 	this.trackKey = trackKey;
 	this.hostList = hostList;
 	this.selectedIndexes = selectedIndexes;
-	this.resolver = resolver;
+	this.resolver = new Resolver(this, resolverTokenMap);
 	this.testJar = testJar;
 	this.harnessJar = harnessJar;
 	this.searchList = searchList;
@@ -375,6 +466,9 @@ public final class QAConfig implements Serializable {
 	this.testTotal = testTotal;
 	this.testIndex = testIndex;
 	this.resumeMessage = resumeMessage;
+        this.td.setConfig(this);
+        harnessConfig = this;
+	runLock = new Object();
     }
 
     /**

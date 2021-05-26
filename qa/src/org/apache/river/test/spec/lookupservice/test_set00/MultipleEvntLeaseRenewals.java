@@ -53,15 +53,15 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
     private final static long leaseDuration = DEFAULT_LEASEDURATION;
     private final static long leaseWaitTime  = DEFAULT_LEASEDURATION *3/4;
     private final static long halfDurationTime = DEFAULT_LEASEDURATION /2;
-    private ServiceItem[] srvcItems ;
-    private ServiceRegistration[] srvcRegs ;
+    private volatile ServiceItem[] srvcItems ;
+    private volatile ServiceRegistration[] srvcRegs ;
     private ServiceTemplate[] srvcIDTmpls;
     private ServiceRegistrar proxy;
     private int nInstances = 0;
-    private long leaseStartTime;
+    private volatile long leaseStartTime;
 
-    private ServiceEvent[] notificationEvnt;
-    private int numEvnt = 0;
+    private volatile ServiceEvent[] notificationEvnt;
+    private volatile int numEvnt = 0;
     private Lease[] evntLeases ;
     private EventRegistration[] evntRegs;
 
@@ -83,7 +83,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
     }
 
     /** The event handler for the services registered by this class */
-    private BasicListener listener;
+    private volatile BasicListener listener;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current QA test.
@@ -234,7 +234,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public synchronized void tearDown() {
+    public void tearDown() {
 	logger.log(Level.FINE, "in tearDown() method.");
 	try {
 	    unexportListener(listener, true);
@@ -289,7 +289,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      * event; and that the transition associated with the event equals
      * the expected transition.
      */
-    private synchronized void verifyNotification(int transition) throws TestException {
+    private void verifyNotification(int transition) throws TestException {
 	if(srvcItems.length != numEvnt )
             throw new TestException("# of Events Received ("+
 				    numEvnt+
