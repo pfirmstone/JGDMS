@@ -17,26 +17,39 @@
  */
 package org.apache.river.test.impl.start;
 
-import java.io.*;
-import java.rmi.*;
-import java.rmi.activation.*;
 
-import org.apache.river.start.*;
+import java.io.IOException;
+import net.jini.activation.ActivationExporter;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.MarshalledObject;
+import net.jini.io.MarshalledInstance;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+
+import org.apache.river.api.util.Startable;
 
 
-public class NoStubProbeImpl implements Probe {
+public class NoStubProbeImpl implements Probe, Startable {
     // Stub reference
-    private final Object ourStub;
+    private Object ourStub;
     
     public static Object activate(ActivationID activationID, 
-	MarshalledObject data) throws Exception
+	MarshalledInstance data) throws Exception
     {
         NoStubProbeImpl impl = new NoStubProbeImpl(activationID, data);
+        impl.start();
 	return impl.ourStub;
     }
+    private final ActivationExporter exporter;
 
     public void ping() {
 	System.out.println("NoStubProbeImpl::ping()");
+    }
+    
+    public void start() throws Exception {
+        ourStub = exporter.export(this);
+        throw new IOException("Not implemented yet.");
     }
 
     // Shared activation constructor
@@ -44,6 +57,9 @@ public class NoStubProbeImpl implements Probe {
 
 	throws IOException, ClassNotFoundException
     {
-	ourStub = Activatable.exportObject(this, activationID, 0);
+        this.exporter = new ActivationExporter(activationID,
+            new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+            new BasicILFactory(),
+            false, true));
     }
 }

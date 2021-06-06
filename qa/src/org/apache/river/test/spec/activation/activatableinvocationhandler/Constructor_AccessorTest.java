@@ -17,13 +17,18 @@
  */
 package org.apache.river.test.spec.activation.activatableinvocationhandler;
 
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import java.rmi.server.UID;
 import java.util.logging.Level;
 import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationID;
 import net.jini.activation.ActivatableInvocationHandler;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.UnknownObjectException;
 import org.apache.river.test.spec.activation.util.MethodSetProxy;
 
 
@@ -33,7 +38,7 @@ import org.apache.river.test.spec.activation.util.MethodSetProxy;
  *   This test verifies the behavior of the ActivatableInvocationHandler
  *   during normal and exceptional constructor call:
  *      ActivatableInvocationHandler(
- *              java.rmi.activation.ActivationID id,
+ *              net.jini.activation.arg.ActivationID id,
  *              java.rmi.Remote underlyingProxy)
  *   Chack that constructor throws NullPointerException if the id
  *   is null.
@@ -63,10 +68,29 @@ public class Constructor_AccessorTest extends QATestEnvironment implements Test 
      */
     public void run() throws Exception {
         ActivatableInvocationHandler handler;
-        ActivationID aid = new ActivationID(null);
+        ActivationID aid = new ActivationID(){
+            @Override
+            public Remote activate(boolean bln) throws ActivationException, UnknownObjectException, RemoteException {
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+            
+            @Override
+            public UID getUID(){
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+        };
         MethodSetProxy fp = new MethodSetProxy(logger);
         handler = new ActivatableInvocationHandler(aid, fp);
-        aid = new ActivationID(null);
+        aid = new ActivationID(){
+            @Override
+            public Remote activate(boolean bln) throws ActivationException, UnknownObjectException, RemoteException {
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+            @Override
+            public UID getUID(){
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+        };
         handler = new ActivatableInvocationHandler(aid, null);
         try {
             handler = new ActivatableInvocationHandler(null, null);

@@ -18,24 +18,18 @@
 package org.apache.river.test.impl.start;
 
 import java.rmi.RemoteException;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
-import java.rmi.MarshalledObject;
+import net.jini.activation.arg.ActivationID;
 
 import org.apache.river.config.Config;
 import org.apache.river.test.impl.start.TestService;
 import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.api.util.Startable;
 import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
-import net.jini.id.UuidFactory;
 import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 
@@ -46,13 +40,10 @@ import java.io.FileNotFoundException;
 import java.io.FileInputStream;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.security.SecureClassLoader;
 import java.util.*;
 
 import javax.security.auth.Subject;
@@ -78,7 +69,7 @@ public class TestServiceImpl implements TestService, ProxyAccessor, Startable {
     public synchronized Object getProxy() { return serverStub; }
 
     // Activation constructor
-    public TestServiceImpl(ActivationID activationID, MarshalledObject data)
+    public TestServiceImpl(ActivationID activationID, net.jini.activation.arg.MarshalledObject data)
         throws Exception
     {
 	init((String[])data.get());

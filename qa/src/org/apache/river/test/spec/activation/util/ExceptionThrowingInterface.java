@@ -17,7 +17,7 @@
  */
 package org.apache.river.test.spec.activation.util;
 import java.rmi.Remote;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationException;
 import java.rmi.RemoteException;
 import java.io.IOException;
 

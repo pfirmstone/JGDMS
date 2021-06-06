@@ -18,16 +18,16 @@
 package org.apache.river.test.spec.activation.util;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationInstantiator;
-import java.rmi.activation.ActivationMonitor;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.UnknownGroupException;
-import java.rmi.activation.UnknownObjectException;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationInstantiator;
+import net.jini.activation.arg.ActivationMonitor;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.UnknownGroupException;
+import net.jini.activation.arg.UnknownObjectException;
 import java.rmi.RemoteException;
 
 

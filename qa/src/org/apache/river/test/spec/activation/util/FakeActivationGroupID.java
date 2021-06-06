@@ -16,24 +16,27 @@
  * limitations under the License.
  */
 package org.apache.river.test.spec.activation.util;
+import java.rmi.server.UID;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.ActivationGroupIDImpl;
 
 /**
  * A fake implementation of the <code>ActivationGroupID</code>
  * class.
  */
-public class FakeActivationGroupID extends ActivationGroupID {
+public class FakeActivationGroupID implements ActivationGroupID {
     private Logger logger;
+    private ActivationGroupID groupID;
 
     /**
      * Stores logger and calls superclass constructor passing
      * ActivationSystem as paparameter
      */
     public FakeActivationGroupID(Logger logger, ActivationSystem system) {
-        super(system);
+        this.groupID = new ActivationGroupIDImpl(system);
         this.logger = logger;
     }
 
@@ -42,9 +45,14 @@ public class FakeActivationGroupID extends ActivationGroupID {
      * in log
      */
     public ActivationSystem getSystem() {
-        ActivationSystem system = super.getSystem();
+        ActivationSystem system = groupID.getSystem();
         logger.log(Level.FINEST, "system=" + system.toString());
 	return system;
+    }
+    
+    @Override
+    public UID getUID(){
+        return groupID.getUID();
     }
     
 }

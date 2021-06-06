@@ -20,8 +20,8 @@ package org.apache.river.qa.harness;
 import org.apache.river.admin.DestroyAdmin;
 
 import java.io.IOException;
-import java.rmi.activation.ActivationID;
-import java.rmi.MarshalledObject;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -43,7 +43,7 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
  * using a Jeri exporter. A <code>Configuration</code> is not used
  * by this service.
  */
-class KillerImpl 
+public class KillerImpl 
     implements VMKiller, ProxyAccessor, Administrable, DestroyAdmin  
 {
 

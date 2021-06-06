@@ -24,9 +24,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -445,15 +445,15 @@ public class ActivationSystemAdmin
 	ActivationSystem currSystem = null;
 	String actURL = null;
 	try {
-	    port = Integer.getInteger("java.rmi.activation.port",
+	    port = Integer.getInteger("net.jini.activation.port",
 				      ActivationSystem.SYSTEM_PORT).intValue();
 	    
 	    try{
 		Registry registry = LocateRegistry.getRegistry("", port, new TlsRMIClientSocketFactory());
-		currSystem = (ActivationSystem) registry.lookup("java.rmi.activation.ActivationSystem");
+		currSystem = (ActivationSystem) registry.lookup("net.jini.activation.arg.ActivationSystem");
 	    } catch (IOException e){
 		if (AccessController.doPrivileged(new GetBooleanAction("net.jini.security.allowInsecureConnections"))){
-		    actURL = "//:" + port + "/java.rmi.activation.ActivationSystem";
+		    actURL = "//:" + port + "/net.jini.activation.arg.ActivationSystem";
 		    currSystem = (ActivationSystem) Naming.lookup(actURL);
 		} else {
 		    throw e;

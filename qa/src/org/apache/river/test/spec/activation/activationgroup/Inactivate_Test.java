@@ -17,6 +17,9 @@
  */
 package org.apache.river.test.spec.activation.activationgroup;
 
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import java.rmi.server.UID;
 import java.util.logging.Level;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
@@ -28,14 +31,16 @@ import org.apache.river.test.spec.activation.util.FakeExporter;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupDesc.CommandEnvironment;
+import net.jini.activation.ActivationGroupDescImpl;
 import net.jini.export.Exporter;
 import java.util.Properties;
+import net.jini.activation.arg.UnknownObjectException;
 
 
 /**
@@ -88,7 +93,16 @@ public class Inactivate_Test extends QATestEnvironment implements Test {
         ActivationID aid;
         Exporter exporter;
         try {
-            aid = new ActivationID(null);
+            aid = new ActivationID(){
+                @Override
+                public Remote activate(boolean bln) throws ActivationException, UnknownObjectException, RemoteException {
+                    throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+                }
+                @Override
+                public UID getUID(){
+                    throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+                }
+            };
             ActivationGroup.inactive(aid, null);
             throw new TestException(
                     "ActivationException should be thrown"
@@ -98,13 +112,13 @@ public class Inactivate_Test extends QATestEnvironment implements Test {
                     "ActivationException in case if group is not active");
         }
         Properties props = new Properties();
-        ActivationGroupDesc gd = new ActivationGroupDesc(
+        ActivationGroupDesc gd = new ActivationGroupDescImpl(
             "org.apache.river.test.spec.activation.util.FakeActivationGroup",
             null,
             null,
             props,
             null);
-        java.rmi.activation.ActivationGroup ag =
+        net.jini.activation.ActivationGroup ag =
                 ActivationGroup.createGroup(agid, gd, 0);
         boolean [] cases = {true, false};
         for (int i = 0; i < cases.length; i++) {
@@ -122,7 +136,16 @@ public class Inactivate_Test extends QATestEnvironment implements Test {
                 if (cases[k]) {
                     aid = null;
                 } else {
-                    aid = new ActivationID(null);
+                    aid = new ActivationID(){
+                        @Override
+                        public Remote activate(boolean bln) throws ActivationException, UnknownObjectException, RemoteException {
+                            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+                        }
+                        @Override
+                        public UID getUID(){
+                            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+                        }
+                    };
                 }
                 logger.log(Level.FINEST, "ActivationID: " + aid);
 

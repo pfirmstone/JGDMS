@@ -35,7 +35,7 @@ import java.rmi.RemoteException;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
 import java.rmi.ConnectIOException;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationException;
 import java.lang.reflect.UndeclaredThrowableException;
 import org.apache.river.test.spec.activation.util.ExceptionThrowingInterface;
 import org.apache.river.test.spec.activation.util.ExceptionThrowingProxy;

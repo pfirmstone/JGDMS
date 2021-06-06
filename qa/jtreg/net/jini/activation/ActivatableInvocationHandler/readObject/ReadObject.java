@@ -28,7 +28,8 @@
 import java.io.*;
 import java.lang.reflect.Method;
 import java.rmi.Remote;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.util.HashSet;
 import java.util.Iterator;
 import net.jini.activation.ActivatableInvocationHandler;

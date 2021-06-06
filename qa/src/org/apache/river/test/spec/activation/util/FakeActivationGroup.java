@@ -20,14 +20,14 @@ import net.jini.activation.ActivationGroup;
 import net.jini.export.Exporter;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.UnknownObjectException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationDesc;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.UnknownObjectException;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.MarshalledObject;
 
 /**
  * A fake implementation of the <code>ActivationGroup</code>
@@ -83,6 +83,7 @@ public class FakeActivationGroup extends ActivationGroup {
                 "FakeActivationGroup.Constructor(" + agid + ", " + data + ")");
     }
 
+    @Override
     public boolean inactiveObject(ActivationID id, Exporter exporter)
 	throws ActivationException, RemoteException {
         inactiveObjectActivationID = id;
@@ -91,6 +92,7 @@ public class FakeActivationGroup extends ActivationGroup {
 	return inactiveObjectReturn;
     }
 
+    @Override
     public void activeObject(ActivationID id, Remote obj)
 	throws ActivationException, UnknownObjectException, RemoteException{
     }

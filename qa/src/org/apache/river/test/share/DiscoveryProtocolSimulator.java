@@ -19,11 +19,8 @@
 package org.apache.river.test.share;
 
 import org.apache.river.qa.harness.QAConfig;
-import org.apache.river.qa.harness.AdminManager;
 import org.apache.river.qa.harness.TestException;
 
-import org.apache.river.start.HTTPDStatus;
-import org.apache.river.start.ServiceStarter;
 
 import org.apache.river.thread.TaskManager;
 
@@ -37,21 +34,11 @@ import org.apache.river.discovery.MulticastRequest;
 import org.apache.river.discovery.UnicastResponse;
 
 import net.jini.discovery.Constants;
-import net.jini.discovery.IncomingMulticastRequest;
-import net.jini.discovery.IncomingUnicastRequest;
-import net.jini.discovery.OutgoingMulticastAnnouncement;
-import net.jini.discovery.OutgoingUnicastResponse;
 
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.discovery.LookupLocator;
-import net.jini.core.event.EventRegistration;
-import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lookup.ServiceID;
-import net.jini.core.lookup.ServiceItem;
-import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceRegistration;
-import net.jini.core.lookup.ServiceTemplate;
 
 import org.apache.river.test.services.lookupsimulator.LookupSimulatorProxyInterface;
 
@@ -60,7 +47,6 @@ import net.jini.io.UnsupportedConstraintException;
 import net.jini.config.Configuration;
 import net.jini.config.NoSuchEntryException;
 import net.jini.config.ConfigurationException;
-import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import org.apache.river.config.Config;
 import net.jini.security.Security;
@@ -70,7 +56,6 @@ import java.lang.reflect.Array;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
@@ -84,17 +69,7 @@ import java.io.InterruptedIOException;
 
 import java.nio.ByteBuffer;
 import java.nio.BufferUnderflowException;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationException;
-import java.rmi.MarshalledObject;
+import net.jini.activation.arg.ActivationException;
 import java.rmi.RemoteException;
 
 import java.security.Permission;
@@ -104,8 +79,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
-import java.util.Random;
 import java.util.StringTokenizer;
 
 import java.util.logging.Logger;

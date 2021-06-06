@@ -26,7 +26,8 @@
 import java.io.File;
 import java.io.Serializable;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.util.Properties;
 import net.jini.export.Exporter;
 import net.jini.activation.ActivationExporter;

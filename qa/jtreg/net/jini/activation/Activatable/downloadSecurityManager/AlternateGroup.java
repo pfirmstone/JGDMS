@@ -28,7 +28,8 @@
 
 import java.rmi.server.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.net.*;
 import java.lang.reflect.*;
 import net.jini.config.ConfigurationException;

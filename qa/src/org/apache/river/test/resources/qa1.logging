@@ -123,9 +123,6 @@ net.jini.activation.ActivatableInvocationHandler.level = SEVERE
 # For phoenix
 org.apache.river.phoenix.level=SEVERE
 
-# For JRMP
-net.jini.jrmp.JrmpExporter.level = SEVERE
-
 # For RMI TLS
 au.net.zeus.rmi.tls.client.level = SEVERE
 au.net.zeus.rmi.tls.server.level = SEVERE

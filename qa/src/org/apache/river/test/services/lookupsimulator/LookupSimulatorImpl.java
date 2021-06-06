@@ -40,12 +40,11 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
@@ -133,7 +132,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
     private AccessControlContext context;
 
     public LookupSimulatorImpl(ActivationID activationID, 
-			       MarshalledObject data)
+			       net.jini.activation.arg.MarshalledObject data)
 	throws Exception
     {
 	this((String[]) data.get(), activationID, null);
@@ -501,7 +500,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
                 }
                 if (activationID != null) {
                     try {
-                        while (!Activatable.inactive(activationID)) {
+                        while (!ActivationGroup.inactive(activationID, serverExporter)) {
                             try {
                                 LookupSimulatorImpl.this.wait(10);
                             } catch (InterruptedException ex) {

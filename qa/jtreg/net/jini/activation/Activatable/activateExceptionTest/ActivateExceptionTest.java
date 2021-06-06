@@ -31,7 +31,8 @@
 
 import java.rmi.*;
 import java.rmi.server.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.io.*;
 import java.util.Properties;
 

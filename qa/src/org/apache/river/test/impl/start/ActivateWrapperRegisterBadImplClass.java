@@ -20,7 +20,7 @@ package org.apache.river.test.impl.start;
 import java.util.logging.Level;
 
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
 
 import org.apache.river.start.*;
 import org.apache.river.start.ActivateWrapper.*;

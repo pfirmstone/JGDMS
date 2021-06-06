@@ -28,10 +28,10 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.Activatable;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
 import java.rmi.server.ExportException;
 import java.rmi.server.RMIClassLoader;
 import java.util.ArrayList;
@@ -139,7 +139,7 @@ public class ActivationLibrary {
 	    try {
 		Thread.sleep(500);
 		if (containsString(Naming.list("//:" + port ), 
-		    "java.rmi.activation.ActivationSystem")) 
+		    "net.jini.activation.arg.ActivationSystem")) 
                 {
 		    return true;
 		}

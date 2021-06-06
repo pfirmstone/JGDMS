@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.PrintWriter;
 import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationGroupID;
+import net.jini.activation.arg.ActivationGroupID;
 
 public class TestUtil {
 

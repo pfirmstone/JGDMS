@@ -34,7 +34,7 @@ import java.rmi.server.SocketSecurityException;
 import java.rmi.UnexpectedException;
 import java.rmi.ServerException;
 import java.rmi.ServerError;
-import java.rmi.activation.ActivateFailedException;
+import net.jini.activation.arg.ActivateFailedException;
 
 /**
  * <pre>

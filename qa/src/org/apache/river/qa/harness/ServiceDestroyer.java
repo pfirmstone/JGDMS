@@ -20,10 +20,10 @@ package org.apache.river.qa.harness;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.start.SharedActivatableServiceDescriptor.Created;
 
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.UnknownObjectException;
-import java.rmi.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.UnknownObjectException;
+import net.jini.activation.ActivationGroup;
 import java.rmi.RemoteException;
 
 import net.jini.admin.Administrable;
@@ -118,7 +118,7 @@ class ServiceDestroyer {
      *         there is a communication failure between the client and the
      *         service's backend. When this exception does occur, the
      *         service may or may not have been successfully destroyed.
-     * @throws java.rmi.activation.ActivationException typically, this
+     * @throws net.jini.activation.arg.ActivationException typically, this
      *         exception occurs when problems arise while attempting to
      *         interact with the activation system
      */

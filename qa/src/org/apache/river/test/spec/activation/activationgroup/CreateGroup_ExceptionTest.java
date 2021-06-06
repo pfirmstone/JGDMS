@@ -26,11 +26,13 @@ import org.apache.river.test.spec.activation.util.FakeActivationSystem;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupDesc.CommandEnvironment;
+import net.jini.activation.ActivationGroupDescImpl;
+import net.jini.activation.ActivationGroupDescImpl.CommandEnvironmentImpl;
 import java.util.Properties;
 
 
@@ -72,10 +74,10 @@ public class CreateGroup_ExceptionTest extends QATestEnvironment implements Test
         String program = "java";
         String[] options = {""};
         Properties props = new Properties();
-        CommandEnvironment cmd = new CommandEnvironment(program, options);
-        ActivationGroupDesc gd = new ActivationGroupDesc(props, cmd);
+        CommandEnvironment cmd = new CommandEnvironmentImpl(program, options);
+        ActivationGroupDesc gd = new ActivationGroupDescImpl(props, cmd);
         try {
-            java.rmi.activation.ActivationGroup ag =
+            net.jini.activation.ActivationGroup ag =
                     ActivationGroup.createGroup(agid, gd, 0);
         } catch (ActivationException ae) {
         }

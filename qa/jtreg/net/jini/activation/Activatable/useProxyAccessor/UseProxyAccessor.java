@@ -27,7 +27,8 @@
 import java.io.*;
 import java.lang.reflect.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.rmi.server.*;
 import java.util.Properties;
 import net.jini.export.ProxyAccessor;

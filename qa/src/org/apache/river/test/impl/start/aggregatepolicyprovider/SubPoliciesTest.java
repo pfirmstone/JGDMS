@@ -31,7 +31,6 @@ import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
-import org.apache.river.api.security.ConcurrentPolicyFile;
 
 public class SubPoliciesTest extends QATestEnvironment implements Test {
     private String policy0File;

@@ -19,49 +19,65 @@ package org.apache.river.test.impl.start;
 
 import java.io.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
+import net.jini.export.ProxyAccessor;
+import net.jini.io.MarshalledInstance;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
 
 import org.apache.river.start.*;
+import org.apache.river.api.util.Startable;
 
 
-public class ProbeImpl implements Probe {
+public class ProbeImpl implements Probe, Startable, ProxyAccessor {
 
     // TBD - use Debug class
     private final PrintWriter dbgInit = new PrintWriter(System.out, true);
 
     // Reference to server stub
-    private final Remote ourStub;
+    private Remote ourStub;
 
     // Reference to our activation id
     private final ActivationID activationID;
+    private final ActivationExporter exporter;
 
     public void ping () {
 	System.out.println("ProbeImpl::ping()");
     }
 
     public static Object activate(ActivationID activationID, 
-	MarshalledObject data) throws Exception 
+	net.jini.activation.arg.MarshalledObject data) throws Exception 
     {
 	ProbeImpl p = new ProbeImpl(activationID, data);
+        p.start();
 	return p.ourStub;
 	
     }
 
     // Activation constructor
-    public ProbeImpl(ActivationID activationID, MarshalledObject data) 
+    public ProbeImpl(ActivationID activationID, net.jini.activation.arg.MarshalledObject data) 
 	throws IOException, ClassNotFoundException
     {
 	this.activationID = activationID;
 	if (dbgInit != null) {
 	    dbgInit.println("ProbeImpl is being activated.");
 	}
-
-	try {
+        this.exporter = new ActivationExporter(activationID,
+            new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+            new BasicILFactory(),
+            false, true));
+	
+    }
+    
+    public void start() throws Exception {
+        try {
 	    try {
 	        if (dbgInit != null) {
 	            dbgInit.println("ProbeImpl is being exported");
 	        }
-		ourStub = Activatable.exportObject(this, activationID, 0);
+		ourStub = exporter.export(this);
 	    } catch (RemoteException e) {
 		 alertAndUnregister("Failure exporting object", e);
 		 throw e;
@@ -73,7 +89,8 @@ public class ProbeImpl implements Probe {
 	} catch (Error e) {
 	    alertAndUnregister("Unexpected exception during activation", e);
 	    throw e;
-	}	  
+	}
+        throw new IOException("Not implemented yet.");
     }
 
     /**
@@ -108,5 +125,10 @@ public class ProbeImpl implements Probe {
 	} else {
 	    System.err.println("Succeeded in unregistering");
 	}
+    }
+
+    @Override
+    public Object getProxy() {
+        return ourStub;
     }
 }

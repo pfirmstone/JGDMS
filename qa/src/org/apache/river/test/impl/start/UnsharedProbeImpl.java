@@ -18,7 +18,7 @@
 package org.apache.river.test.impl.start;
 
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
 
 /**
  * Class that only provides a normal activation constructor (i.e. unshared).

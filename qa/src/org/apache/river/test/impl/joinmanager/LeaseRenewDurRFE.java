@@ -40,9 +40,9 @@ import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -79,6 +79,7 @@ import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
@@ -1167,7 +1168,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         private boolean started = false;
 
         RemoteTestServiceImpl(ActivationID activationID,
-                              MarshalledObject data) throws Exception
+                              net.jini.activation.arg.MarshalledObject data) throws Exception
         {// All exceptions are thrown prior to this Object being created.
             this(init((String[])data.get(), activationID, net.jini.activation.ActivationGroup.getSystem()));
         }//end constructor

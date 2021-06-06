@@ -26,13 +26,14 @@ import org.apache.river.start.ActivateWrapper.ActivateDesc;
 import java.io.*;
 import java.net.*;
 import java.rmi.*;
-import java.rmi.activation.*;
-import java.rmi.activation.ActivationGroupDesc.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.ActivationGroupDesc.*;
 import java.util.*;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 public class ActivateWrapperTestUtil {
 
@@ -92,15 +93,15 @@ public class ActivateWrapperTestUtil {
 		+ servicePrefix + " properties.");
 	}
 
-        MarshalledInstance params = 
-	    new MarshalledInstance(new String[] {configFile.toString()});
+        net.jini.activation.arg.MarshalledObject params = 
+	    new AtomicMarshalledInstance(new String[] {configFile.toString()});
         ActivateWrapper.ActivateDesc adesc = 
 	    new ActivateWrapper.ActivateDesc(
 	        implClassName,
 	        cpURLs,
 	        cbURLs,
 	        policy,
-	        params.convertToMarshalledObject());
+	        params);
 
 	return adesc;
     }

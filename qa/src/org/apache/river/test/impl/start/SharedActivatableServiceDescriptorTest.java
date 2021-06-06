@@ -29,7 +29,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 
 import java.lang.reflect.Constructor;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationSystem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Properties;
@@ -483,7 +483,7 @@ public class SharedActivatableServiceDescriptorTest extends StarterBase implemen
    }
     static int getActivationSystemPort() {
 	return ((Integer)java.security.AccessController.doPrivileged(
-                    new GetIntegerAction("java.rmi.activation.port",
+                    new GetIntegerAction("net.jini.activation.port",
 			ActivationSystem.SYSTEM_PORT))).intValue();
     }
 

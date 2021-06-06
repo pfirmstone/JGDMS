@@ -27,7 +27,8 @@
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;

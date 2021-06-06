@@ -18,11 +18,9 @@
 package org.apache.river.qa.harness;
 
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -36,23 +34,20 @@ import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.Random;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.jar.JarFile;
@@ -73,14 +68,12 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.constraint.StringMethodConstraints;
 import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
-import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.RFC3986URLClassLoader;
-import org.apache.river.config.LocalHostLookup;
 import org.apache.river.start.ClassLoaderUtil;
 import org.apache.river.system.CommandLine.BadInvocationException;
 import org.apache.river.system.MultiCommandLine;
@@ -307,10 +300,6 @@ public final class QAConfig implements Serializable {
             new SerialForm("configSetProps", Map.class),
             new SerialForm("defaultProps", Map.class),
             new SerialForm("td", TestDescription.class),
-//            new SerialForm("tdName", String.class),
-//            new SerialForm("tdProp", Properties.class),
-//            new SerialForm("tdNextConf", Boolean.TYPE),
-//            new SerialForm("tdTest", TestEnvironment.class),
             new SerialForm("dynamicProps", Map.class),
             new SerialForm("propertyOverrides", Map.class),
             new SerialForm("args", String[].class),
@@ -340,24 +329,20 @@ public final class QAConfig implements Serializable {
     
     public QAConfig(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("uniqueString", null, String.class),
-	    arg.get("overrideProviders", null, List.class),
-	    arg.get("failureAnalyzers", null, List.class),
+	    Valid.copyCol(arg.get("overrideProviders", null, List.class), new ArrayList<OverrideProvider>(), OverrideProvider.class),
+	    Valid.copyCol(arg.get("failureAnalyzers", null, List.class), new ArrayList<FailureAnalyzer>(), FailureAnalyzer.class),
 	    (Properties) Valid.copyMap(arg.get("configProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    (Properties) Valid.copyMap(arg.get("configSetProps", null, Map.class),(Map) new Properties(), String.class, String.class, 1),
 	    (Properties) Valid.copyMap(arg.get("defaultProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    arg.get("td", null, TestDescription.class),
-//            arg.get("tdName", null, String.class),
-//            arg.get("tdProp", null, Properties.class),
-//            arg.get("tdNextConfg", true),
-//            arg.get("tdTest", TestEnvironment.class),
 	    (Properties) Valid.copyMap(arg.get("dynamicProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    (Properties) Valid.copyMap(arg.get("propertyOverrides", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    arg.get("args", null, String[].class),
 	    arg.get("configTags", null, String[].class),
 	    arg.get("currentTag", null, String.class),
 	    arg.get("trackKey", null, String.class),
-	    arg.get("hostList", null, List.class),
-	    arg.get("selectedIndexes", null, List.class),
+	    Valid.copyCol(arg.get("hostList", null, List.class), new ArrayList<String>(), String.class),
+	    Valid.copyCol(arg.get("selectedIndexes", null, List.class), new ArrayList<Integer>(), Integer.class),
 	    Valid.copyMap(
 		arg.get("tokenMap", null, Map.class),
 		new HashMap<String, String>(),
@@ -1706,7 +1691,7 @@ public final class QAConfig implements Serializable {
         try {
             net.jini.activation.ActivationGroup.getSystem();
             return true;
-        } catch (ActivationException e) { 
+        } catch (Exception e) { 
 	    lastException = e;
 	}
         /* Make a new attempt every second for n seconds */
@@ -1714,7 +1699,7 @@ public final class QAConfig implements Serializable {
             try {
                 net.jini.activation.ActivationGroup.getSystem();
                 return true;
-            } catch (ActivationException e) { 	  
+            } catch (Exception e) { 	  
 		lastException = e;
 	    }
             try {

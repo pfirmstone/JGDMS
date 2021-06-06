@@ -22,7 +22,7 @@ import java.util.logging.Level;
 import java.io.*;
 import java.net.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
 
 import org.apache.river.start.*;
 import org.apache.river.start.ActivateWrapper.*;

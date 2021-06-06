@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 package org.apache.river.test.spec.activation.util;
+
 import java.rmi.Remote;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.UnknownObjectException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.UnknownObjectException;
 import java.rmi.RemoteException;
 import java.lang.reflect.Proxy;
+import java.rmi.server.UID;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.security.proxytrust.TrustEquivalence;
@@ -31,7 +33,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * A fake implementation of the <code>ActivationID</code>
  * class. It doesn't make real activation, only emulate it.
  */
-public class FakeActivationID extends ActivationID implements TrustEquivalence {
+public class FakeActivationID implements TrustEquivalence, ActivationID {
     private Remote proxy;
     private Logger logger;
     private boolean fakeEquals;
@@ -42,7 +44,7 @@ public class FakeActivationID extends ActivationID implements TrustEquivalence {
      * and fakeEquals values. fakeTrustEquivalence is set to false.
      */
     public FakeActivationID(Logger logger, Remote proxy, boolean fakeEquals) {
-        super(null);
+        super();
         this.proxy = proxy;
         this.logger = logger;
         this.fakeEquals = fakeEquals;
@@ -102,5 +104,10 @@ public class FakeActivationID extends ActivationID implements TrustEquivalence {
             return true;
         }
         return (this == obj);
+    }
+    
+    @Override
+    public UID getUID(){
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

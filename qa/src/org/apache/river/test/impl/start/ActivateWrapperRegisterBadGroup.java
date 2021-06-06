@@ -22,7 +22,8 @@ import java.util.logging.Level;
 import java.io.*;
 import java.net.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.util.*;
 
 import org.apache.river.start.*;
@@ -48,7 +49,7 @@ public class ActivateWrapperRegisterBadGroup extends AbstractStartBaseTest {
 
         logger.log(Level.INFO, "Creating activation group");
 	ActivationGroupDesc actDesc = 
-		new ActivationGroupDesc(new Properties(), null);
+		new ActivationGroupDescImpl(new Properties(), null);
         logger.log(Level.INFO, "Received activation group ID");
 	ActivationGroupID actID =
 		net.jini.activation.ActivationGroup.getSystem().registerGroup(actDesc);

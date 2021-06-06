@@ -23,10 +23,11 @@ import org.apache.river.start.*;
 import org.apache.river.start.ActivateWrapper.*;
 import org.apache.river.start.ActivateWrapper.ActivateDesc;
 import org.apache.river.start.ServiceStarter.*;
-import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.util.logging.Level;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * This test verifies that the ActivateDesc stored by the Activation system
@@ -47,7 +48,7 @@ public class ActivateWrapperActivateDescTest2 extends AbstractStartBaseTest {
         logger.log(Level.INFO, "Probe ActivateDesc = " + adesc);
     
         logger.log(Level.INFO, "Marshalling ActivateDesc");
-        MarshalledObject mo = (new MarshalledInstance(adesc)).convertToMarshalledObject();
+        net.jini.activation.arg.MarshalledObject mo = new AtomicMarshalledInstance(adesc);
     
         logger.log(Level.INFO, "Obtaining shared group info");
         ActivationGroupID gid = TestUtil.loadSharedCreate(getManager().getSharedVMLog());

@@ -21,7 +21,7 @@ package org.apache.river.qa.harness;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

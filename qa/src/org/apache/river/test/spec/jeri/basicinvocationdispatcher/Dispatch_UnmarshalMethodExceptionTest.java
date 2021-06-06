@@ -30,7 +30,7 @@ import java.rmi.RemoteException;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
 import java.rmi.ConnectIOException;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationException;
 
 /**
  * <pre>

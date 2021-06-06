@@ -26,7 +26,7 @@ import org.apache.river.qa.harness.TestException;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
 import java.rmi.Remote;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationID;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.InvocationHandler;
 import java.util.Arrays;

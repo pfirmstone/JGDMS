@@ -83,12 +83,12 @@
     <property name="log.config.file" location="${log.config}" />
     <property name="security.policy" location="harness/policy/qa.policy" />
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
-    <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
+    <!--possible values: any combination of jeri,jsse,http,https,kerberos,none
         default: none -->
     <property name="harness.configs" value="jsse"/>
     <!-- possible values: activatable,transient,persistent
         default: transient -->
-    <property name="harness.servicemode" value="transient"/>
+    <property name="harness.servicemode" value="activatable"/>
     <!-- enable this property if you want the QA harness to generate
         HTML reports for each test in the qa/results directory -->
     <property name="harness.generateHtml" value="false"/>
@@ -210,7 +210,6 @@
                 <file name="jgdms-collections-${river.version}.jar"/>
                 <file name="jgdms-iiop-${river.version}.jar"/>
                 <file name="jgdms-jeri-${river.version}.jar"/>
-                <file name="jgdms-jrmp-${river.version}.jar"/>
                 <file name="jgdms-lib-${river.version}.jar"/>
                 <file name="jgdms-platform-${river.version}.jar"/>
                 <file name="jgdms-pref-class-loader-${river.version}.jar"/>
@@ -221,6 +220,7 @@
                 <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
                 <file name="jgdms-activation-${river.version}.jar"/>
+                <file name="jgdms-activation-parameters-${river.version}.jar"/>
                 <file name="checkconfigurationfile-${river.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
@@ -241,7 +241,7 @@
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk.home}">
             <!--<arg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
-            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-iiop-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${river.version}.jar${path.separator}${jtlib.tmp}/classdep-${river.version}.jar${path.separator}${jtlib.tmp}/classserver-${river.version}.jar${path.separator}${jtlib.tmp}/asm-7.3.1.jar${path.separator}${jtlib.tmp}/asm-commons-7.3.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${river.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${river.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${river.version}.jar"/>
+            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-iiop-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${river.version}.jar${path.separator}${jtlib.tmp}/classdep-${river.version}.jar${path.separator}${jtlib.tmp}/classserver-${river.version}.jar${path.separator}${jtlib.tmp}/asm-7.3.1.jar${path.separator}${jtlib.tmp}/asm-commons-7.3.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-activation-parameters-${river.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${river.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${river.version}.jar"/>
             <arg value="-timeout:16"/>
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Djtreg.dir=${jtreg.dir}"/>
@@ -298,7 +298,6 @@
                 <file name="jgdms-collections-${river.version}.jar"/>
                 <file name="jgdms-iiop-${river.version}.jar"/>
                 <file name="jgdms-jeri-${river.version}.jar"/>
-                <file name="jgdms-jrmp-${river.version}.jar"/>
                 <file name="jgdms-lib-${river.version}.jar"/>
                 <file name="jgdms-platform-${river.version}.jar"/>
                 <file name="jgdms-pref-class-loader-${river.version}.jar"/>
@@ -309,6 +308,7 @@
                 <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
                 <file name="jgdms-activation-${river.version}.jar"/>
+                <file name="jgdms-activation-parameters-${river.version}.jar"/>
                 <file name="checkconfigurationfile-${river.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
@@ -338,7 +338,6 @@
                 <file name="jgdms-collections-${river.version}.jar"/>
                 <file name="jgdms-iiop-${river.version}.jar"/>
                 <file name="jgdms-jeri-${river.version}.jar"/>
-                <file name="jgdms-jrmp-${river.version}.jar"/>
                 <file name="jgdms-lib-${river.version}.jar"/>
                 <file name="jgdms-platform-${river.version}.jar"/>
                 <file name="jgdms-pref-class-loader-${river.version}.jar"/>
@@ -349,6 +348,7 @@
                 <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
                 <file name="jgdms-activation-${river.version}.jar"/>
+                <file name="jgdms-activation-parameters-${river.version}.jar"/>
                 <file name="checkconfigurationfile-${river.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
@@ -429,7 +429,6 @@
                         <include name="jgdms-collections-${river.version}.jar"/>
                         <include name="jgdms-iiop-${river.version}.jar"/>
                         <include name="jgdms-jeri-${river.version}.jar"/>
-                        <include name="jgdms-jrmp-${river.version}.jar"/>
                         <include name="jgdms-lib-${river.version}.jar"/>
                         <include name="jgdms-lib-dl-${river.version}.jar"/>
                         <include name="jgdms-platform-${river.version}.jar"/>
@@ -479,7 +478,7 @@
         <!-- categories can be found under packages org.apache.river.test.impl and org.apache.river.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,lookupservice,
-        eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
+        eventmailbox,jeri,iiop,reliability,scalability,thread,renewalservice"/>-->
         <property name="run.categories" value="joinmanager"/>
         <testrun>
              <!-- Run one or more test categories -->
@@ -512,7 +511,7 @@
 
     <target name="run" depends="james-brown">
         <property name="run.categories"
-                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
         <antcall target="run-categories"/>
     </target>
     
@@ -689,7 +688,7 @@
         harness-killer-dl.jar,
         jiniharness.jar" />
 
-    <target name="stubs" depends="compile,iiop.stubs,jrmp.stubs" description="Compile stubs"/>
+    <target name="stubs" depends="compile,iiop.stubs" description="Compile stubs"/>
         <!--harness-killer.stubs,
         nonactivatablegroup.stubs,
         qa1-fiddler.stubs,
@@ -704,7 +703,6 @@
         qa1-javaspace.stubs,
         qa1-lookupservice.stubs,
         qa1-renewalservice.stubs,
-        jrmp.stubs,
         iiop.stubs"-->
         
     <target name="harness-killer.stubs" depends="compile">
@@ -1949,20 +1947,6 @@
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
             </fileset>-->
         </jar>
-    </target>
-
-    <target name="jrmp.stubs" depends="compile">
-        <!--<rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
-            <include name="org/apache/river/test/spec/jrmp/util/TestRemoteObject.class" />
-        </rmic>-->
-        <exec executable="rmic">
-            <arg value="-iiop"/>
-            <arg value="-classpath"/>
-            <arg value="${build.classes.dir}"/>
-            <arg value="-d"/>
-            <arg value="${build.classes.dir}"/>
-            <arg value="org.apache.river.test.spec.jrmp.util.TestRemoteObject"/>
-        </exec>
     </target>
 
     <target name="qa1-lookupservice.stubs" depends="compile">
