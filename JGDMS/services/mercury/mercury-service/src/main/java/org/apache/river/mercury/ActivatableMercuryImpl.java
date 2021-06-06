@@ -17,20 +17,20 @@
  */
 package org.apache.river.mercury;
 
-import java.rmi.activation.ActivationID;
-import java.rmi.MarshalledObject;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
  * Convenience class intended for use with the 
- * {@link org.apache.river.start.ServiceStarter} framework to start
+ * <code> org.apache.river.start.ServiceStarter </code> framework to start
  * an implementation of Mercury that is activatable, and which will
  * log its state information to persistent storage.
  *
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-class ActivatableMercuryImpl extends MailboxImpl  
+public class ActivatableMercuryImpl extends MailboxImpl  
 			     implements DynamicProxyCodebaseAccessor {
 
     /**
@@ -45,12 +45,12 @@ class ActivatableMercuryImpl extends MailboxImpl
      *                     system and assigned to the instance of the server
      *                     being activated
      * @param data         state data (represented as a 
-     *                     <code>MarshalledObject</code>) which is needed to
+     *                     <code>MarshalledInstance</code>) which is needed to
      *                     re-activate this server
      *
      * @throws Exception If there was a problem initializing the service.
      */
-    ActivatableMercuryImpl(ActivationID activationID, MarshalledObject data)
+    public ActivatableMercuryImpl(ActivationID activationID, MarshalledObject data)
         throws Exception
     {
         super(activationID, data);

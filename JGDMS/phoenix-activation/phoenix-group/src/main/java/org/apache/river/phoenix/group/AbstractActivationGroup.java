@@ -23,23 +23,20 @@ import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationInstantiator;
-import java.rmi.activation.ActivationMonitor;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.UnknownGroupException;
-import java.rmi.activation.UnknownObjectException;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationInstantiator;
+import net.jini.activation.arg.ActivationMonitor;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.UnknownGroupException;
+import net.jini.activation.arg.UnknownObjectException;
 import java.rmi.server.ExportException;
-import java.rmi.server.RemoteObject;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessController;
 import java.security.Permission;
@@ -54,6 +51,8 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.activation.ActivationGroup;
+import net.jini.activation.ActivationGroupIDImpl;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
@@ -71,13 +70,12 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
-import org.apache.river.phoenix.common.AccessAtomicILFactory;
+import org.apache.river.api.io.Replace;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.thread.Executor;
 import org.apache.river.thread.GetThreadPoolAction;
 import org.apache.river.phoenix.dl.MonitorPermission;
 import org.apache.river.phoenix.dl.InactiveGroupException;
-import org.apache.river.phoenix.common.AccessILFactory;
 import org.apache.river.phoenix.common.ActivationGroupData;
 
 /**
@@ -139,7 +137,7 @@ import org.apache.river.phoenix.common.ActivationGroupData;
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> retains existing JRMP export of instantiator
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationInstantiator}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationInstantiator}
  *		exporter
  *  </table>
  *
@@ -155,7 +153,7 @@ import org.apache.river.phoenix.common.ActivationGroupData;
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationMonitor}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationMonitor}
  *		proxy preparer 
  *  </table>
  *
@@ -171,7 +169,7 @@ import org.apache.river.phoenix.common.ActivationGroupData;
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationSystem}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationSystem}
  *		proxy preparer 
  *  </table>
  *
@@ -214,8 +212,9 @@ import org.apache.river.phoenix.common.ActivationGroupData;
  * 
  * @since 2.0
  **/
+@AtomicSerial
 abstract class AbstractActivationGroup extends ActivationGroup
-    implements ServerProxyTrust
+    implements ServerProxyTrust, Replace
 {
     private static final long serialVersionUID = 5758693559430427303L;
 
@@ -247,8 +246,6 @@ abstract class AbstractActivationGroup extends ActivationGroup
     /** server LoginContext or null */
     private static LoginContext login;
     private static Exporter exporter;
-    /** true if calls should be refused, false otherwise */
-    private static boolean refuseCalls = false;
     /** monitor proxy preparer */
     private static ProxyPreparer monPreparer;
     private static ActivationMonitor monitor;
@@ -266,18 +263,18 @@ abstract class AbstractActivationGroup extends ActivationGroup
     /** permission to check for monitor's activeObject call */
     private final static Permission activeObjectPermission =
         new MonitorPermission(
-	    "java.rmi.activation.ActivationMonitor.activeObject");
+	    "net.jini.activation.arg.ActivationMonitor.activeObject");
     
     /** permission to check for monitor's activeObject call */
     private static Permission inactiveObjectPermission =
         new MonitorPermission(
-	    "java.rmi.activation.ActivationMonitor.inactiveObject");
+	    "net.jini.activation.arg.ActivationMonitor.inactiveObject");
     
     /** proxy for this activation group */
     private ActivationInstantiator proxy;
 
     /**
-     * Creates an {@link java.rmi.activation.ActivationGroup} instance and
+     * Creates an {@link net.jini.activation.ActivationGroup} instance and
      * returns it. An {@link ActivationGroupData} instance is extracted from
      * the initialization data, and a {@link Configuration} is obtained by
      * calling
@@ -314,7 +311,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * exception occurs during group creation
      */
     public static synchronized
-	java.rmi.activation.ActivationGroup createGroup(
+	ActivationGroup createGroup(
 					      final ActivationGroupID id,
 					      final ActivationGroupDesc desc,
 					      final long incarnation)
@@ -336,7 +333,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		    PHOENIX, "inheritGroupSubject", boolean.class,
 		    Boolean.FALSE);
 	    
-	    return (java.rmi.activation.ActivationGroup) doAction(
+	    return (ActivationGroup) doAction(
 		new PrivilegedExceptionAction() {
 		    public Object run() throws Exception {
 			ProxyPreparer sysPreparer =
@@ -350,11 +347,6 @@ abstract class AbstractActivationGroup extends ActivationGroup
 			exporter = (Exporter) config.getEntry(
 				PHOENIX, "instantiatorExporter",
 				Exporter.class, defaultExporter);
-			if (exporter == null) {
-			    exporter = new AlreadyExportedExporter();
-			}
-			refuseCalls =
-			    !(exporter instanceof AlreadyExportedExporter);
 			unexportTimeout = getInt(config, "unexportTimeout",
 						 60000);
 			unexportWait = getInt(config, "unexportWait", 10);
@@ -389,11 +381,11 @@ abstract class AbstractActivationGroup extends ActivationGroup
     private static Configuration getConfiguration(MarshalledObject mobj)
 	throws ConfigurationException, IOException, ClassNotFoundException
     {
-        /* mobj must be MarshalledObject unmarshalled */
+        /* mobj must be MarshalledInstance unmarshalled */
 	ClassLoader ccl = Thread.currentThread().getContextClassLoader();
 	ClassLoader cl = AbstractActivationGroup.class.getClassLoader();
 	Thread.currentThread().setContextClassLoader(cl);
-	ActivationGroupData data = (ActivationGroupData) new MarshalledInstance(mobj).get(false);
+	ActivationGroupData data = (ActivationGroupData) mobj.get();
 	Thread.currentThread().setContextClassLoader(ccl);
 	if (!covers(cl, ccl)) {
 	    cl = ccl;
@@ -449,7 +441,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * proxy), that writeReplaces itself to the original.
      */
     @AtomicSerial
-    private static class WrappedGID extends ActivationGroupID {
+    private static class WrappedGID extends ActivationGroupIDImpl {
 	/** Original gid */
 	private final ActivationGroupID id;
 	/** Prepared system proxy */
@@ -466,7 +458,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		    arg.get("sys", null, ActivationSystem.class));
 	}
 
-	/* override */
+        @Override
 	public ActivationSystem getSystem() {
 	    return sys;
 	}
@@ -525,10 +517,6 @@ abstract class AbstractActivationGroup extends ActivationGroup
             if (state != CREATING) {
 		throw new ActivationException("not called from createGroup");
 	    }
-            if (refuseCalls) {
-                unexportObject(this, true);
-                refuseCalls = false;
-            }
             proxy = (ActivationInstantiator) exporter.export(this);
             try {
                 monitor = (ActivationMonitor) monPreparer.prepareProxy(
@@ -550,49 +538,14 @@ abstract class AbstractActivationGroup extends ActivationGroup
     }
     
     /**
-     * Exporter for an object that is already exported to JRMP.
-     */
-    private static class AlreadyExportedExporter implements Exporter {
-	/**
-	 * A strong reference to the impl is OK because ActivationGroup
-	 * also holds a strong reference.
-	 */
-	private Remote impl;
-
-	AlreadyExportedExporter() {
-	}
-
-	public synchronized Remote export(Remote impl) throws ExportException {
-	    this.impl = impl;
-	    try {
-		return RemoteObject.toStub(impl);
-	    } catch (NoSuchObjectException e) {
-		throw new ExportException("no stub found", e);
-	    }
-	}
-
-	public synchronized boolean unexport(boolean force) {
-	    try {
-		if (impl != null &&
-		    !UnicastRemoteObject.unexportObject(impl, force))
-		{
-		    return false;
-		}
-	    } catch (NoSuchObjectException e) {
-	    }
-	    impl = null;
-	    return true;
-	}
-    }
-
-    /**
      * Returns the proxy for this remote object. Group creation was designed
      * to rely on automatic stub replacement (as provided by the JRMP runtime),
      * which is not supported by all exporters.
      *
      * @return the proxy for this remote object
      */
-    protected Object writeReplace() {
+    @Override
+    public Object writeReplace() {
         synchronized (AbstractActivationGroup.class){
             return proxy;
         }
@@ -671,7 +624,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      *
      * <p>The new instance is constructed as follows. If the class defines
      * a constructor with two parameters of type {@link ActivationID} and
-     * {@link MarshalledObject}, that constructor is called with the
+     * {@link MarshalledInstance}, that constructor is called with the
      * specified activation identifier and the initialization data from the
      * specified activation descriptor. Otherwise, an
      * <code>ActivationException</code> is thrown.
@@ -693,12 +646,12 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * ProxyAccessor}, a proxy is obtained by invoking the {@link
      * ProxyAccessor#getProxy getProxy} method on that instance. If the
      * obtained proxy is not <code>null</code>, that proxy is returned in a
-     * <code>MarshalledObject</code>; otherwise, an
+     * <code>MarshalledInstance</code>; otherwise, an
      * <code>ActivationException</code> is thrown.
      *
      * <li>If the newly created instance does not implement
      * <code>ProxyAccessor</code>, the instance is returned in a
-     * <code>MarshalledObject</code>.  In this case, the instance must be
+     * <code>MarshalledInstance</code>.  In this case, the instance must be
      * serializable, and marshalling the instance must produce a suitable
      * proxy for the remote object (for example, the object implements
      * {@link java.io.Serializable} and defines a <code>writeReplace</code>
@@ -714,16 +667,11 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * loaded, if the loaded class does not define the appropriate
      * constructor, or any exception occurs activating the object
      **/
-    public MarshalledObject newInstance(final ActivationID id,
+    @Override
+    public MarshalledInstance newInstance(final ActivationID id,
 					final ActivationDesc desc)
 	throws ActivationException
     {
-	synchronized (AbstractActivationGroup.class) {
-	    if (refuseCalls) {
-		throw new SecurityException("call refused");
-	    }
-	}
-
 	acquireLock(id);
 	try {
 	    ActiveEntry entry;
@@ -823,85 +771,6 @@ abstract class AbstractActivationGroup extends ActivationGroup
 
     /**
      * Attempts to make the remote object that is associated with the
-     * specified activation identifier, and that was exported as a JRMP
-     * {@link java.rmi.activation.Activatable} object, inactive. This method
-     * calls <code>Activatable.unexportObject</code> with the active remote
-     * object and <code>false</code>, to unexport the object. If that call
-     * returns <code>false</code>, this method returns <code>false</code>.
-     * If that call returns <code>true</code>, the object is marked inactive
-     * in this virtual machine, the superclass <code>inactiveObject</code>
-     * method is called with the same activation identifier, with the
-     * <code>ActivationMonitor</code> constraints (if any) set as
-     * contextual client constraints, and with the group's subject (if any)
-     * set as the executing subject, and this method returns <code>true</code>.
-     *
-     * @param id the activation identifier
-     * @return <code>true</code> if the object was successfully made
-     * inactive; <code>false</code> otherwise
-     * @throws UnknownObjectException if the object is not known to be
-     * active (it may already be inactive)
-     * @throws ActivationException if an activation error occurs
-     * @throws InactiveGroupException if the group is inactive
-     * @throws RemoteException if the remote call to the activation
-     * monitor fails
-     *
-     * @throws SecurityException if a security manager exists and invoking
-     * its {@link SecurityManager#checkPermission checkPermission} method
-     * with the permission <code>{@link MonitorPermission}("java.rmi.activation.ActivationMonitor.inactiveObject")</code>
-     * throws a <code>SecurityException</code> 
-     **/
-    @Override
-    public boolean inactiveObject(final ActivationID id)
-	throws ActivationException, RemoteException
-    {
-	SecurityManager security = System.getSecurityManager();
-	if (security != null) {
-	    security.checkPermission(inactiveObjectPermission);
-	}
-	acquireLock(id);
-	try {
-	    ActiveEntry entry;
-	    synchronized (AbstractActivationGroup.class) {
-		if (state != ACTIVE) {
-		    throw new InactiveGroupException("group not active");
-		}
-		entry = (ActiveEntry) active.get(id);
-	    }
-	    if (entry == null) {
-		// REMIND: should this be silent?
-		throw new UnknownObjectException("object not active");
-	    }
-
-	    try {
-		if (!Activatable.unexportObject(entry.impl, false)) {
-		    return false;
-		}
-	    } catch (NoSuchObjectException allowUnexportedObjects) {
-	    }
-
-	    try {
-		doAction(new PrivilegedExceptionAction() {
-		    public Object run() throws Exception {
-			monitor.inactiveObject(id);
-			return null;
-		    }
-		});
-	    } catch (UnknownObjectException allowUnregisteredObjects) {
-	    }
-
-	    synchronized (AbstractActivationGroup.class) {
-		active.remove(id);
-	    }
-	} finally {
-	    releaseLock(id);
-	    checkInactiveGroup();
-	}
-
-	return true;
-    }
-
-    /**
-     * Attempts to make the remote object that is associated with the
      * specified activation identifier, and that was exported through the
      * specified exporter, inactive. The {@link Exporter#unexport unexport}
      * method of the specified exporter is called with <code>false</code>
@@ -929,6 +798,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * with the permission <code>{@link MonitorPermission}("java.rmi.activation.ActivationMonitor.inactiveObject")</code>
      * throws a <code>SecurityException</code> 
      **/
+    @Override
     public boolean inactiveObject(final ActivationID id, Exporter exporter)
 	throws ActivationException, RemoteException
     {
@@ -1072,7 +942,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * @throws InactiveGroupException if the group is inactive
      * @throws SecurityException if a security manager exists and invoking
      * its {@link SecurityManager#checkPermission checkPermission} method
-     * with the permission <code>{@link MonitorPermission}("java.rmi.activation.ActivationMonitor.activeObject")</code>
+     * with the permission <code>{@link MonitorPermission}("net.jini.activation.arg.ActivationMonitor.activeObject")</code>
      * throws a <code>SecurityException</code> 
      **/
     @Override
@@ -1154,7 +1024,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      */
     private static class ActiveEntry {
 	final Remote impl;
-	final MarshalledObject mobj;
+	final MarshalledInstance mobj;
 
 	ActiveEntry(Remote impl) throws ActivationException {
 	    this.impl = impl;
@@ -1170,7 +1040,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		    proxy = impl;
 		}
 		this.mobj = 
-                    new MarshalledInstance(proxy).convertToMarshalledObject();
+                    new MarshalledInstance(proxy);
 	    } catch (IOException e) {
 		throw new ActivationException(
 		    "failed to marshal remote object", e);

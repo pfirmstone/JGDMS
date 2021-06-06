@@ -22,7 +22,7 @@ import net.jini.security.AccessPermission;
 
 /**
  * Represents permissions that can be used to express the access control
- * policy for the {@link java.rmi.activation.ActivationInstantiator} remote
+ * policy for the {@link net.jini.activation.arg.ActivationInstantiator} remote
  * object exported with
  * {@link net.jini.jeri.BasicJeriExporter}. This
  * class can be passed to
@@ -44,8 +44,8 @@ import net.jini.security.AccessPermission;
  * <th>Risks of Allowing this Permission</th>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationInstantiator.newInstance</td>
- * <td>invoking {@link java.rmi.activation.ActivationInstantiator#newInstance
+ * <td>net.jini.activation.arg.ActivationInstantiator.newInstance</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationInstantiator#newInstance
  * ActivationInstantiator.newInstance}</td>
  * <td>The caller can inject a new object into the activation group if it
  * knows the activation group identifier.</td>

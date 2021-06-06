@@ -21,49 +21,28 @@
         <groupId>au.net.zeus</groupId>
         <artifactId>jgdms</artifactId>
         <version>3.1.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>au.net.zeus.jgdms</groupId>
-    <artifactId>jgdms-jrmp</artifactId>
+    <artifactId>jgdms-activation-parameters</artifactId>
     <packaging>jar</packaging>
 
-    <name>Module :: JGDMS JRMP</name>
-    <description>JGDMS JRMP Exporter
+    <name>Module :: JGDMS Activation Constructor Parameter Arguments</name>
+    <description>Apache JGDMS Activation Constructor Parameter Arguments
     </description>
 
-    <properties>
-        <high.scale.lib.version>1.0.3</high.scale.lib.version>
-    </properties>
-
     <dependencies>  
-		 
-         <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-platform</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jeri</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-         <dependency>
-             <groupId>${project.groupId}</groupId>
-             <artifactId>jgdms-resources</artifactId>
-             <version>${project.version}</version>
-         </dependency>     
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-        
-		
-    </dependencies>
+     </dependencies>
 
     <build>
-        <plugins>     
+        <plugins>   
             <plugin>
               <groupId>biz.aQute.bnd</groupId>
               <artifactId>bnd-maven-plugin</artifactId>
@@ -74,7 +53,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>     
+            </plugin>       
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
@@ -85,7 +64,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>  
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -102,7 +81,7 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                        <source>8</source>
+	                <source>8</source>
                         <profile>compact1</profile>
                         <target>8</target>
                         <debug>true</debug>
@@ -112,10 +91,6 @@
                         <maxmem>1024m</maxmem>
                     </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-            </plugin>
         </plugins>
     </build>
 
@@ -124,20 +99,25 @@
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <additionalDependencies>
+                    <!--<additionalDependencies>
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
                           <artifactId>jgdms-lib</artifactId>
                           <version>${project.version}</version>
                         </additionalDependency>
-<!--
                         <additionalDependency>
                           <groupId>au.net.zeus.jgdms</groupId>
                           <artifactId>jgdms-lib-dl</artifactId>
                           <version>${project.version}</version>
                         </additionalDependency>
--->
-                    </additionalDependencies>
+                    </additionalDependencies>-->
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <configuration>
+                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
                 </configuration>
             </plugin>
         </plugins>

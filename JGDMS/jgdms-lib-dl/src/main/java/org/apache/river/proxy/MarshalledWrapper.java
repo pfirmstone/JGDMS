@@ -25,6 +25,7 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.AtomicValidationEnforcement;
@@ -69,7 +70,7 @@ public class MarshalledWrapper implements Serializable {
     
     public static SerialForm[] serialForm(){
         return new SerialForm[]{
-            new SerialForm("instance", MarshalledInstance.class)
+            new SerialForm("instance", MarshalledObject.class)
         };
     }
     
@@ -84,7 +85,7 @@ public class MarshalledWrapper implements Serializable {
      *
      * @serial
      */
-    private final MarshalledInstance instance;
+    private final MarshalledObject instance;
     /** 
      * Flag set to true if this instance was unmarshalled from an
      * integrity-protected stream, or false otherwise
@@ -171,31 +172,31 @@ public class MarshalledWrapper implements Serializable {
      * @throws NullPointerException if <code>instance</code> is
      * <code>null</code>
      */
-    public MarshalledWrapper(MarshalledInstance instance) {
+    public MarshalledWrapper(MarshalledObject instance) {
 	this(check(instance), false);
     }
     
     public MarshalledWrapper(GetArg arg) throws IOException, ClassNotFoundException {
-	this(validate(arg.get("instance", null, MarshalledInstance.class)),
+	this(validate(arg.get("instance", null, MarshalledObject.class)),
 		((RO) arg.getReader()).integrity);
     }
     
-    private MarshalledWrapper(MarshalledInstance instance, boolean integrity){
+    private MarshalledWrapper(MarshalledObject instance, boolean integrity){
 	this.instance = instance;
 	this.integrity = integrity;
     }
     
-    private static MarshalledInstance check( MarshalledInstance instance){
-	if (instance == null) {
-	    throw new NullPointerException();
-	}
+    private static MarshalledObject check( MarshalledObject instance){
+        if (!(instance instanceof MarshalledInstance)) 
+            throw new IllegalArgumentException(
+                    "MarshalledObject must be instanceof MarshalledInstance");
 	return instance;
     }
     
-    private static MarshalledInstance validate(MarshalledInstance instance) throws InvalidObjectException{
-	if (instance == null) {
-	    throw new InvalidObjectException("null instance");
-	}
+    private static MarshalledObject validate(MarshalledObject instance) throws InvalidObjectException{
+        if (!(instance instanceof MarshalledInstance)) 
+            throw new InvalidObjectException(
+                    "MarshalledObject must be instanceof MarshalledInstance");
 	return instance;
     }
 
@@ -296,7 +297,7 @@ public class MarshalledWrapper implements Serializable {
      *
      * @return wrapped <code>MarshalledInstance</code>
      */
-    public MarshalledInstance getMarshalledInstance() {
+    public MarshalledObject getMarshalledInstance() {
 	return instance;
     }
 

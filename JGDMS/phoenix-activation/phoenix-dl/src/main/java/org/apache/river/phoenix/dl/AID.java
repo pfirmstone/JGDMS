@@ -23,15 +23,16 @@ import java.io.Serializable;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
 import java.rmi.server.UID;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import net.jini.activation.Resolve;
+import org.apache.river.api.io.Resolve;
 import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Replace;
 import org.apache.river.proxy.MarshalledWrapper;
 
 /**
@@ -39,7 +40,7 @@ import org.apache.river.proxy.MarshalledWrapper;
  * 
  * @since 2.0
  */
-public class AID extends ActivationID {
+public class AID implements Serializable, Replace, ActivationID {
     private static final long serialVersionUID = 681896091039721074L;
 
     protected final Activator activator;
@@ -72,7 +73,7 @@ public class AID extends ActivationID {
     }
 
     public AID(Activator activator, UID uid) {
-	super(null);
+	super();
 	this.activator = activator;
 	this.uid = uid;
     }
@@ -134,7 +135,8 @@ public class AID extends ActivationID {
 	return sb.toString();
     }
 
-    private Object writeReplace() {
+    @Override
+    public Object writeReplace() {
 	return new State(activator, uid);
     }
 }

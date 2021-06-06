@@ -19,10 +19,9 @@ package org.apache.river.outrigger;
 
 import java.util.Map;
 import java.io.IOException;
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationException;
 import javax.security.auth.login.LoginException;
 
 import net.jini.core.discovery.LookupLocator;

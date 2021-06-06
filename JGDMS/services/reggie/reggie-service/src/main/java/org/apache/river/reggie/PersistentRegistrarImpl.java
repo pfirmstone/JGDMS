@@ -19,9 +19,8 @@
 package org.apache.river.reggie;
 
 import org.apache.river.start.lifecycle.LifeCycle;
-import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationID;
-import net.jini.io.MarshalledInstance;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.MarshalledObject;
 
 /**
  * Class for starting activatable and non-activatable persistent lookup
@@ -50,6 +49,6 @@ class PersistentRegistrarImpl extends RegistrarImpl {
     protected PersistentRegistrarImpl(ActivationID activationID, MarshalledObject data)
 	throws Exception
     {
-	super((String[]) new MarshalledInstance(data).get(false), activationID, true, null);
+	super((String[]) data.get(), activationID, true, null);
     }
 }

@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix.group;
 
-import java.rmi.activation.ActivationInstantiator;
+import net.jini.activation.arg.ActivationInstantiator;
 
 /**
  * Abstract class for generating JRMP and IIOP stubs.

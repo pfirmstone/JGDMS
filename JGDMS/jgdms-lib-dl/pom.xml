@@ -48,6 +48,11 @@
             <artifactId>jgdms-jeri</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>au.net.zeus.jgdms</groupId>
+            <artifactId>jgdms-activation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

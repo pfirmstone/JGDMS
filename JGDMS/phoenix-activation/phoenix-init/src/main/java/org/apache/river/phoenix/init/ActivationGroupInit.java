@@ -19,9 +19,9 @@
 package org.apache.river.phoenix.init;
 
 import java.lang.reflect.Method;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupID;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupID;
 import java.util.Collections;
 import net.jini.loader.ClassLoading;
 import org.apache.river.api.io.AtomicMarshalInputStream;
@@ -39,7 +39,7 @@ import org.apache.river.api.security.CombinerSecurityManager;
  * <ul>
  * <li> the activation group's id, 
  * <li> the activation group's descriptor (an instance of the class
- *    java.rmi.activation.ActivationGroupDesc) for the group, and
+ *    net.jini.activation.arg.ActivationGroupDesc) for the group, and
  * <li> the group's incarnation number.
  * </ul><p>
  *

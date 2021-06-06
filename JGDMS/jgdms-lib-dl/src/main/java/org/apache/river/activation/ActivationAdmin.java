@@ -19,8 +19,8 @@ package org.apache.river.activation;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.UnknownGroupException;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.UnknownGroupException;
 import java.util.Map;
 
 /**

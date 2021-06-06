@@ -19,7 +19,7 @@
 package org.apache.river.start.group;
 
 import java.rmi.Remote;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationException;
 import java.rmi.RemoteException;
 
 /**

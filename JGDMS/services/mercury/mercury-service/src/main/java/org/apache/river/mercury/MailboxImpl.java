@@ -64,12 +64,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
@@ -487,10 +486,10 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * @param activationID activation ID passed in by the activation daemon.
      * @param data state data needed to re-activate a Mercury server
      */
-    MailboxImpl(ActivationID activationID, MarshalledObject data) 
+    MailboxImpl(ActivationID activationID, net.jini.activation.arg.MarshalledObject data) 
 	throws Exception
     {
-        this((String[]) new MarshalledInstance(data).get(false), activationID,
+        this((String[]) data.get(), activationID,
                 true, new Object[] {activationID, data} );
     }
     
@@ -3484,7 +3483,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
    		    /* inactive will set current group ID to null */
    		    ActivationGroupID gid = ActivationGroup.currentGroupID();
    		    try {
-   		        Activatable.inactive(activationID);
+   		        ActivationGroup.inactive(activationID, exporter);
    		    } catch (RemoteException e) { // ignore
    		    } catch (ActivationException e) { // ignore
    		    }

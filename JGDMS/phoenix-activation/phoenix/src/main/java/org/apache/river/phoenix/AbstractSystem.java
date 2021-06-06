@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix;
 
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationSystem;
 import org.apache.river.activation.ActivationAdmin;
 
 /**

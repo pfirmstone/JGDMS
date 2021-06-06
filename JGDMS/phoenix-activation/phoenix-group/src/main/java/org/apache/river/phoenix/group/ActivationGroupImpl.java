@@ -18,17 +18,18 @@
 
 package org.apache.river.phoenix.group;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationMonitor;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationMonitor;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.server.UnicastRemoteObject;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
@@ -93,7 +94,7 @@ import net.jini.security.ProxyPreparer;
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> retains existing JRMP export of instantiator
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationInstantiator}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationInstantiator}
  *		exporter
  *  </table>
  *
@@ -109,7 +110,7 @@ import net.jini.security.ProxyPreparer;
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationMonitor}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationMonitor}
  *		proxy preparer 
  *  </table>
  *
@@ -125,7 +126,7 @@ import net.jini.security.ProxyPreparer;
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationSystem}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationSystem}
  *		proxy preparer 
  *  </table>
  *
@@ -171,7 +172,7 @@ import net.jini.security.ProxyPreparer;
 public class ActivationGroupImpl extends AbstractActivationGroup {
    
     /**
-     * Creates an {@link java.rmi.activation.ActivationGroup} instance and
+     * Creates an {@link net.jini.activation.ActivationGroup} instance and
      * returns it. An {@link org.apache.river.phoenix.common.ActivationGroupData} instance is extracted from
      * the initialization data, and a {@link Configuration} is obtained by
      * calling
@@ -208,7 +209,7 @@ public class ActivationGroupImpl extends AbstractActivationGroup {
      * exception occurs during group creation
      */
     public static synchronized
-	java.rmi.activation.ActivationGroup createGroup(
+	ActivationGroup createGroup(
 					      final ActivationGroupID id,
 					      final ActivationGroupDesc desc,
 					      final long incarnation)
@@ -250,7 +251,7 @@ public class ActivationGroupImpl extends AbstractActivationGroup {
 	throws ActivationException, RemoteException
     {
 	super(id, data);
-        export();
+        export(); // This implementation is here to ensure safe publication of superclass.
     }
     
 }

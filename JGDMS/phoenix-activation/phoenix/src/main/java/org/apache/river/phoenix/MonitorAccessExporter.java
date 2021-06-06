@@ -18,18 +18,17 @@
 
 package org.apache.river.phoenix;
 
-import java.rmi.MarshalledObject;
+import net.jini.io.MarshalledInstance;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationMonitor;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.UnknownGroupException;
-import java.rmi.activation.UnknownObjectException;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationMonitor;
+import net.jini.activation.arg.UnknownGroupException;
+import net.jini.activation.arg.UnknownObjectException;
 import java.rmi.server.ExportException;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.Exporter;
-import net.jini.jrmp.JrmpExporter;
 import org.apache.river.phoenix.common.LocalAccess;
 
 /**
@@ -49,25 +48,6 @@ public class MonitorAccessExporter implements Exporter {
      * The wrapped impl.
      */
     private Remote wrapped;
-
-    /**
-     * Creates an exporter with an underlying {@link JrmpExporter} that
-     * exports on the standard activation port (1098).
-     */
-    public MonitorAccessExporter() {
-	this.exporter = new JrmpExporter(ActivationSystem.SYSTEM_PORT);
-    }
-
-    /**
-     * Creates an exporter with an underlying {@link JrmpExporter} that
-     * exports on the specified port.
-     *
-     * @param port the port on which to receive calls (if zero, an anonymous
-     * port will be chosen)
-     */
-    public MonitorAccessExporter(int port) {
-	this.exporter = new JrmpExporter(port);
-    }
 
     /**
      * Creates an exporter with the specified underlying exporter.
@@ -93,6 +73,7 @@ public class MonitorAccessExporter implements Exporter {
      * @throws NullPointerException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public Remote export(Remote impl) throws ExportException {
 	if (!(impl instanceof ActivationMonitor)) {
 	    throw new IllegalArgumentException("not an ActivationMonitor");
@@ -106,6 +87,7 @@ public class MonitorAccessExporter implements Exporter {
     /**
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public boolean unexport(boolean force) {
 	return exporter.unexport(force);
     }
@@ -117,6 +99,7 @@ public class MonitorAccessExporter implements Exporter {
 	    this.impl = impl;
 	}
 
+        @Override
 	public void inactiveObject(ActivationID id)
 	    throws UnknownObjectException, RemoteException
 	{
@@ -124,6 +107,7 @@ public class MonitorAccessExporter implements Exporter {
 	    impl.inactiveObject(id);
 	}
     
+        @Override
 	public void activeObject(ActivationID id, MarshalledObject mobj)
     	    throws UnknownObjectException, RemoteException
 	{
@@ -131,6 +115,7 @@ public class MonitorAccessExporter implements Exporter {
 	    impl.activeObject(id, mobj);
 	}
 	
+        @Override
 	public void inactiveGroup(ActivationGroupID id,
 				  long incarnation)
 	    throws UnknownGroupException, RemoteException

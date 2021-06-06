@@ -78,7 +78,7 @@ import org.apache.river.api.io.Valid;
  * @since 2.0
  */
 @AtomicSerial
-public class MarshalledInstance implements Serializable {
+public class MarshalledInstance implements Serializable, net.jini.activation.arg.MarshalledObject {
     
     private static final Guard UNMARSHAL = new DeSerializationPermission("MARSHALL");
     
@@ -407,6 +407,17 @@ public class MarshalledInstance implements Serializable {
      */
     protected MarshalFactory getMarshalFactory(){
 	return new MarshalFactoryInstance();
+    }
+    /**
+     * Returns a new copy of the contained object.
+     * @return a new Object instance of the marshalled bytes contained within.
+     * @throws java.io.IOException
+     * @throws java.lang.ClassNotFoundException
+     */
+    @Override
+    public Object get() throws IOException, ClassNotFoundException 
+    {
+        return this.get(false);
     }
 
     /**

@@ -55,6 +55,7 @@
   <modules>
     <module>jgdms-collections</module>
     <module>jgdms-pref-class-loader</module>
+    <module>jgdms-activation-parameters</module>
     <module>jgdms-activation</module>
     <module>jgdms-platform</module>
     <module>jgdms-jeri</module>
@@ -64,7 +65,6 @@
     <module>jgdms-destroy</module>
     <module>jgdms-resources</module>
     <module>jgdms-iiop</module>
-    <module>jgdms-jrmp</module>
     <module>jgdms-rmi-tls</module>
     <module>jgdms-lib</module>
     <module>jgdms-lib-dl</module>

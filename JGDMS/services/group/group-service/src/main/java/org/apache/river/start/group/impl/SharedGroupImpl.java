@@ -21,13 +21,12 @@ package org.apache.river.start.group.impl;
 import org.apache.river.api.util.Startable;
 import org.apache.river.start.group.SharedGroup;
 import java.io.IOException;
-import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -37,13 +36,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
-import net.jini.io.MarshalledInstance;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
@@ -82,7 +81,7 @@ import org.apache.river.proxy.BasicProxyTrustVerifier;
  *       ID. The value should not be <code>null</code>. 
  * 
  *       The service starter calls the  
- *       {@link java.rmi.activation.ActivationID#activate
+ *       {@link net.jini.activation.arg.ActivationID#activate
  *       activate} method to activate the service.
  *   </table>
  *
@@ -104,9 +103,9 @@ import org.apache.river.proxy.BasicProxyTrustVerifier;
  *       entry is obtained at service start and restart. 
  * 
  *       The service calls the {@link
- *       java.rmi.activation.ActivationSystem#unregisterGroup
+ *       net.jini.activation.arg.ActivationSystem#unregisterGroup
  *       unregisterGroup} method on the {@link
- *       java.rmi.activation.ActivationSystem} upon service destruction.
+ *       net.jini.activation.arg.ActivationSystem} upon service destruction.
  *   </table>
  *
  *   <table summary="Describes the exporter configuration entry"
@@ -218,7 +217,7 @@ public class SharedGroupImpl implements Remote,
     /**
      * Activation constructor. 
      */
-    SharedGroupImpl(ActivationID activationID, MarshalledObject data)
+    public SharedGroupImpl(ActivationID activationID, MarshalledObject data)
 	throws Exception
     {
 	this(getInit(activationID, data));
@@ -232,7 +231,7 @@ public class SharedGroupImpl implements Remote,
         try {
             logger.entering(SharedGroupImpl.class.getName(), "SharedGroupImpl", 
                 new Object[] { activationID, data}); 
-            String[] configArgs = (String[]) new MarshalledInstance(data).get(false);	
+            String[] configArgs = (String[]) data.get();	
             Configuration config = ConfigurationProvider.getInstance(configArgs);
             loginContext = (LoginContext) config.getEntry(
                 START_PACKAGE, "loginContext", LoginContext.class, null);

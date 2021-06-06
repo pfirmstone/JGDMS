@@ -126,6 +126,7 @@ public class LoaderSplitPolicyProvider
      * @param	domain protection domain for which to look up permissions
      * @return	set of permissions allowed for given protection domain
      */
+    @Override
     public PermissionCollection getPermissions(ProtectionDomain domain) {
 	if (domain == myDomain) {
 	    PermissionCollection pc = new Permissions();
@@ -223,6 +224,7 @@ public class LoaderSplitPolicyProvider
      * @throws	UnsupportedOperationException {@inheritDoc}
      * @throws	NullPointerException {@inheritDoc}
      */
+    @Override
     public Permission[] getGrants(Class cl, Principal[] principals) {
 	if (!grantSupported()) {
 	    throw new UnsupportedOperationException("grants not supported");

@@ -34,7 +34,6 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.NoSuchEntryException;
 import net.jini.export.Exporter;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lease.LeaseRenewalManager;

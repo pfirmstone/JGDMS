@@ -1,3 +1,3 @@
 -exportcontents: \
-    net.jini.jrmp
+    net.jini.activation.arg
 -sources: true

@@ -30,9 +30,9 @@ import java.net.InetAddress;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -472,13 +472,14 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      *                                array.
      */
     FiddlerImpl(ActivationID activationID,
-                MarshalledObject data) throws IOException,
+                net.jini.activation.arg.MarshalledObject data) 
+                                       throws IOException,
                                               ActivationException,
                                               ConfigurationException,
                                               LoginException,
                                               ClassNotFoundException
     {
-            this(init( (String[]) new MarshalledInstance(data).get(false), true /* persistent */, activationID ), null);
+            this(init( (String[]) data.get(), true /* persistent */, activationID ), null);
     }//end activatable constructor
 
     /**

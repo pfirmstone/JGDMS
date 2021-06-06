@@ -16,10 +16,10 @@
 package org.apache.river.outrigger;
 
 import java.io.IOException;
-import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
 import javax.security.auth.login.LoginException;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.ConfigurationException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
@@ -27,7 +27,7 @@ import net.jini.export.DynamicProxyCodebaseAccessor;
  *
  * @author peter
  */
-class ActivatableOutriggerImpl extends PersistentOutriggerImpl  
+public class ActivatableOutriggerImpl extends PersistentOutriggerImpl  
 			      implements DynamicProxyCodebaseAccessor {
 
     /**
@@ -52,7 +52,7 @@ class ActivatableOutriggerImpl extends PersistentOutriggerImpl
      * @throws ClassNotFoundException if the classes of the objects
      *         encapsulated inside <code>data</code> can not be found.
      */
-    ActivatableOutriggerImpl(ActivationID activationID, 
+    public ActivatableOutriggerImpl(ActivationID activationID, 
 				    MarshalledObject data) 
 	    throws IOException, ConfigurationException, LoginException,
 	    ActivationException, ClassNotFoundException 

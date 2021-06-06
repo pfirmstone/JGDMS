@@ -74,13 +74,12 @@ import net.jini.space.InternalSpaceException;
 import net.jini.space.JavaSpace;
 
 import java.io.IOException;
-import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
 import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;

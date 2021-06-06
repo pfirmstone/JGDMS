@@ -17,8 +17,8 @@ package org.apache.river.phoenix;
 
 import java.lang.reflect.Method;
 import java.rmi.Remote;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.server.ExportException;
 import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;

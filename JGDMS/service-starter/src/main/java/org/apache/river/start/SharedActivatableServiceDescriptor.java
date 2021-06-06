@@ -21,20 +21,20 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
-import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.lookup.ServiceProxyAccessor;
-import net.jini.io.MarshalledInstance;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.config.Config;
@@ -73,7 +73,7 @@ import org.apache.river.config.Config;
  * <DD><P>
  * The service's inner proxy is the 
  * {@link java.rmi.Remote} object returned from 
- * {@link java.rmi.activation.ActivationID#activate(boolean)} using
+ * {@link net.jini.activation.arg.ActivationID#activate(boolean)} using
  * {@link ActivateWrapper} to "wrap" and register the desired service
  * with the activation system. 
  * A "wrapped" service's inner proxy is returned as follows:
@@ -83,12 +83,12 @@ import org.apache.river.config.Config;
  * net.jini.export.ProxyAccessor}, a proxy is obtained by invoking the {@link
  * net.jini.export.ProxyAccessor#getProxy getProxy} method on that instance. If the
  * obtained proxy is not <code>null</code>, that proxy is returned in a
- * {@link java.rmi.MarshalledObject}; otherwise, an
+ * {@link net.jini.io.MarshalledInstance}; otherwise, an
  * {@link java.io.InvalidObjectException} is thrown.
  *
  * <LI>If the newly created instance does not implement
  * {@link net.jini.export.ProxyAccessor}, the instance is returned in a
- * {@link java.rmi.MarshalledObject}.  In this case, the instance must be
+ * {@link net.jini.io.MarshalledInstance}.  In this case, the instance must be
  * serializable, and marshalling the instance must produce a suitable
  * proxy for the remote object (for example, the object implements
  * {@link java.io.Serializable} and defines a <code>writeReplace</code>
@@ -143,9 +143,9 @@ import org.apache.river.config.Config;
  *       ID. The value should not be <code>null</code>. 
  * 
  *       This class calls the 
- *       {@link java.rmi.activation.ActivationID#activate
+ *       {@link net.jini.activation.arg.ActivationID#activate
  *       activate} method on instances of {@link
- *       java.rmi.activation.ActivationID} when they need to re/activate the
+ *       net.jini.activation.arg.ActivationID} when they need to re/activate the
  *       service.
  *   </table>
  *
@@ -166,9 +166,9 @@ import org.apache.river.config.Config;
  *       activation system. The value should not be <code>null</code>. 
  * 
  *       The service starter calls the {@link
- *       java.rmi.activation.ActivationSystem#unregisterObject
+ *       net.jini.activation.arg.ActivationSystem#unregisterObject
  *       unregisterObject} method on the {@link
- *       java.rmi.activation.ActivationSystem} when there is a problem
+ *       net.jini.activation.arg.ActivationSystem} when there is a problem
  *       creating a service.
  *   </table>
  * 
@@ -248,7 +248,7 @@ public class SharedActivatableServiceDescriptor
     /**
      * @serial <code>boolean</code> flag passed through as the 
      *     <code>restart</code> parameter to the  
-     *     {@linkplain java.rmi.activation.ActivationDesc#ActivationDesc(java.rmi.activation.ActivationGroupID, java.lang.String, java.lang.String, java.rmi.MarshalledObject, boolean)
+     *     {@linkplain net.jini.activation.ActivationDescImpl#ActivationDescImpl(net.jini.activation.arg.ActivationGroupID, java.lang.String, java.lang.String, net.jini.activation.arg.MarshalledObject, boolean)     
      *     ActivationDesc constructor} used to register the service with the 
      *     activation system.
      */
@@ -270,7 +270,7 @@ public class SharedActivatableServiceDescriptor
     /*
      * <code>ProxyPreparer</code> reference for preparing the service's proxy
      * returned from the call to 
-     * {@linkplain java.rmi.activation.ActivationID#activate(boolean) activate}.
+     * {@linkplain net.jini.activation.ActivationID#activate(boolean) activate}.
      * If this "inner" proxy implements
      * {@linkplain ServiceProxyAccessor ServiceProxyAccessor} it will then be used to invoke
      * {@linkplain ServiceProxyAccessor#getServiceProxy() getServiceProxy}.
@@ -339,7 +339,7 @@ public class SharedActivatableServiceDescriptor
      * the currently configured activation system port.
      * The activation system port defaults to  
      * {@link ActivationSystem#SYSTEM_PORT} unless it is overridden by the
-     * <code>java.rmi.activation.port</code> system property.
+     * <code>net.jini.activation.port</code> system property.
      * 
      */
     public SharedActivatableServiceDescriptor(
@@ -366,7 +366,7 @@ public class SharedActivatableServiceDescriptor
      * currently configured activation system port.
      * The activation system port defaults to  
      * {@link ActivationSystem#SYSTEM_PORT} unless it is overridden by the
-     * <code>java.rmi.activation.port</code> system property.
+     * <code>net.jini.activation.port</code> system property.
      * 
      */
     public SharedActivatableServiceDescriptor(
@@ -444,14 +444,14 @@ public class SharedActivatableServiceDescriptor
      *     {@link SharedActivatableServiceDescriptor#create(net.jini.config.Configuration)}.
      * @param restart boolean flag passed through as the 
      *     <code>restart</code> parameter to the  
-     *     {@linkplain java.rmi.activation.ActivationDesc#ActivationDesc(java.rmi.activation.ActivationGroupID, java.lang.String, java.lang.String, java.rmi.MarshalledObject, boolean)
+     *     {@linkplain net.jini.activation.ActivationDescImpl#ActivationDescImpl(net.jini.activation.arg.ActivationGroupID, java.lang.String, java.lang.String, net.jini.activation.arg.MarshalledObject, boolean) 
      *     ActivationDesc constructor} used to register the service with the 
      *     activation system.
      * @param host hostname of desired activation system. If <code>null</code>,
      *     defaults to the localhost.  
      * @param port port of desired activation system. If value is &lt;= 0, then
      *     defaults to  
-     *     {@link java.rmi.activation.ActivationSystem#SYSTEM_PORT 
+     *     {@link net.jini.activation.arg.ActivationSystem#SYSTEM_PORT
      *     ActivationSystem.SYSTEM_PORT}.
      */
     public SharedActivatableServiceDescriptor(
@@ -557,13 +557,15 @@ public class SharedActivatableServiceDescriptor
      *      the provided constructor parameter information for the 
      *      desired service
      * <LI> retrieves the 
-     *      {@linkplain java.rmi.activation.ActivationGroupID group identifier}
+     *      {@link net.jini.activation.arg.ActivationGroupID group identifier}
      *      associated with the provided shared group log.
      * <LI> invokes 
-     *      {@link ActivateWrapper#register(java.rmi.activation.ActivationGroupID, org.apache.river.start.ActivateWrapper.ActivateDesc, boolean, java.rmi.activation.ActivationSystem)
+     *      {@link ActivateWrapper#register(net.jini.activation.arg.ActivationGroupID,
+     * org.apache.river.start.ActivateWrapper.ActivateDesc,
+     * boolean, net.jini.activation.arg.ActivationSystem)
      *      ActivateWrapper.register()} with the provided information.
      * <LI> obtains an <A HREF="#innerProxy">inner proxy</A> by calling 
-     *      {@link java.rmi.activation.ActivationID#activate(boolean)
+     *      {@link net.jini.activation.arg.ActivationID#activate(boolean)
      *      activate(true)} on the object returned from 
      *      <code>ActivateWrapper.register()</code>, which also
      *      activates the service instance.
@@ -639,7 +641,7 @@ public class SharedActivatableServiceDescriptor
         try {
             /* Create the ActivateWrapper descriptor for the desired service */
             MarshalledObject params = 
-	        new MarshalledInstance(getServerConfigArgs()).convertToMarshalledObject();
+	        new AtomicMarshalledInstance(getServerConfigArgs());
             ActivateWrapper.ActivateDesc adesc =
                 new ActivateWrapper.ActivateDesc(
                     getImplClassName(),

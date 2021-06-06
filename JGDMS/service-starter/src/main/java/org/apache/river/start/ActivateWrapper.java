@@ -25,36 +25,40 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.rmi.MarshalException;
-import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
-import java.security.AllPermission;
 import java.security.CodeSource;
 import java.security.Permission;
+import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.activation.ActivationDescImpl;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
-import net.jini.io.MarshalledInstance;
 import net.jini.loader.LoadClass;
 import net.jini.loader.pref.PreferredClassLoader;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
 import net.jini.security.policy.PolicyFileProvider;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
@@ -99,7 +103,7 @@ import org.apache.river.api.util.Startable;
  *			importURLs,
  *			exportURLs,
  *			"http://myhost:8080/service.policy",
- *			new MarshalledObject(
+ *			new MarshalledInstance(
  *                          new String[] { "/tmp/service.config" })
  *              ),
  *		true,
@@ -109,7 +113,7 @@ import org.apache.river.api.util.Startable;
  * Clients of this wrapper service need to implement the following "activation
  * constructor":
  * <blockquote><pre>
- * &lt;impl&gt;(ActivationID activationID, MarshalledObject data)
+ * &lt;impl&gt;(ActivationID activationID, MarshalledInstance data)
  * </pre></blockquote>
  * where,
  * <UL>
@@ -170,8 +174,8 @@ import org.apache.river.api.util.Startable;
  *   </table>
  *
  * @see org.apache.river.start.SharedActivationPolicyPermission
- * @see java.rmi.activation.ActivationID
- * @see java.rmi.MarshalledObject
+ * @see net.jini.activation.arg.ActivationID
+ * @see net.jini.io.MarshalledInstance
  * @see java.rmi.Remote
  * @see java.security.CodeSource
  * @see net.jini.export.ProxyAccessor
@@ -232,7 +236,7 @@ public class ActivateWrapper implements Remote, Serializable {
 
     /**
      * Descriptor for registering a "wrapped" activatable object. This
-     * descriptor gets stored as the <code>MarshalledObject</code> 
+     * descriptor gets stored as the <code>MarshalledInstance</code> 
      * initialization data in the <code>ActivationDesc</code>.
      */
     @AtomicSerial
@@ -418,8 +422,7 @@ public class ActivateWrapper implements Remote, Serializable {
             logger.entering(ActivateWrapper.class.getName(), 
 	        "ActivateWrapper", new Object[] { id, data });
 
-	    ActivateDesc desc = (ActivateDesc)
-                    new MarshalledInstance(data).get(false);
+	    ActivateDesc desc = (ActivateDesc) data.get();
 	    logger.log(Level.FINEST, "ActivateDesc: {0}", desc);
 
 	    Thread t = Thread.currentThread();
@@ -432,6 +435,7 @@ public class ActivateWrapper implements Remote, Serializable {
 	        cl = new ExportClassLoader(desc.importLocation, 
 	                                   desc.exportLocation,
 					   ccl);
+//                                           ActivateWrapper.class.getClassLoader());
 	        logger.log(Level.FINEST, "Created ExportClassLoader: {0}", cl);
             } catch (Exception e) {
 	        logger.throwing(ActivateWrapper.class.getName(), 
@@ -455,6 +459,9 @@ public class ActivateWrapper implements Remote, Serializable {
 	            logger.log(Level.FINEST, 
 		        "Global policy set: {0}", globalPolicy);
 	        }
+                // Obtain my permissions for granting to the split policy
+                PermissionCollection myPerms =
+                initialGlobalPolicy.getPermissions(ActivateWrapper.class.getProtectionDomain());
 		Policy service_policy = 
 		    getServicePolicyProvider(
 		        new PolicyFileProvider(desc.policy));
@@ -469,10 +476,17 @@ public class ActivateWrapper implements Remote, Serializable {
 		* Note: Throws UnsupportedOperationException if dynamic grants
 		* aren't supported (because underlying policies don't support it).
 		*/
+                Permission [] myPermissions;
+                Collection<Permission> p = new ArrayList<Permission>(32);
+                Enumeration<Permission> e = myPerms.elements();
+                while(e.hasMoreElements()){
+                    p.add(e.nextElement());
+                }
+                myPermissions = p.toArray(new Permission[p.size()]);
 		split_service_policy.grant(
 	            this.getClass(), 
 	            null, /* Principal[] */
-	            new Permission[] { new AllPermission() } );	
+	            myPermissions );	
 	        globalPolicy.setPolicy(cl, split_service_policy);
 	        logger.log(Level.FINEST, 
 		    "Added policy to set: {0}", desc.policy);
@@ -487,12 +501,38 @@ public class ActivateWrapper implements Remote, Serializable {
 	    try {
  	        logger.log(Level.FINEST, 
 		    "Set new context class loader: {0}", cl);
-		Constructor constructor =
-		    ac.getDeclaredConstructor(actTypes);
+		Constructor constructor = null;
+//                    = ac.getConstructor(actTypes);
+                Constructor [] constructors = ac.getConstructors();
+                for(int i=0, l=constructors.length; i<l; i++){
+                    if (constructors[i].getParameterCount() == 2){
+                        Class[] params = constructors[i].getParameterTypes();
+                        if ("net.jini.activation.arg.ActivationID".equals(params[0].getCanonicalName())
+                        && "net.jini.activation.arg.MarshalledObject".equals(params[1].getCanonicalName())){
+                            constructor = constructors[i];
+                            if (!ActivationID.class.equals(params[0]) || 
+                                !MarshalledObject.class.equals(params[1]))
+                            {
+                                StringBuilder sb = new StringBuilder();
+                                sb.append("Check your PREFERRED.LIST in META-INF: ClassLoader class visibility incompatibilty, prevents type compatiblity of activation constructor parameters.\n");
+                                sb.append("net.jini.activation.arg.ActivationID ClassLoader should be: ")
+                                  .append(ActivationID.class.getClassLoader()).append("\n");
+                                sb.append("found: ").append(params[0].getClassLoader()).append("\n");
+                                sb.append("net.jini.activation.arg.MarshalledObject ClassLoader should be: ")
+                                  .append(MarshalledObject.class.getClassLoader()).append("\n");
+                                sb.append("found: ").append(params[1].getClassLoader()).append("\n");
+                                throw new ClassCastException(sb.toString());
+                            }
+                        break;
+                        }
+                    }
+                }
+                if (constructor == null){
+                    throw new NoSuchMethodException("No suitable public activation constructor signature found for class "+ ac);
+                }
  	        logger.log(Level.FINEST, 
 		    "Obtained implementation constructor: {0}", 
 		    constructor);
-		constructor.setAccessible(true);
 		impl =
 		    constructor.newInstance(new Object[]{id, desc.data});
                 if (impl instanceof Startable) {
@@ -548,9 +588,8 @@ public class ActivateWrapper implements Remote, Serializable {
     }
 
     /**
-     * Analog to 
-     * {@link java.rmi.activation.Activatable#register(java.rmi.activation.ActivationDesc)
-     * Activatable.register()} for activatable objects that want
+     * Register an object descriptor for an activatable remote object so that 
+     * is can be activated on demand.For activatable objects that want
      * to use this wrapper mechanism. 
      *
      * @return activation ID of the registered service
@@ -571,7 +610,7 @@ public class ActivateWrapper implements Remote, Serializable {
 
 	MarshalledObject data;
 	try {
-	    data = new MarshalledInstance(desc).convertToMarshalledObject();
+	    data = new AtomicMarshalledInstance(desc);
 	} catch (Exception e) {
             MarshalException me = 
 	        new MarshalException("marshalling ActivateDesc", e);
@@ -581,7 +620,7 @@ public class ActivateWrapper implements Remote, Serializable {
 	}
 	
 	ActivationDesc adesc =
-	    new ActivationDesc(gid,
+	    new ActivationDescImpl(gid,
 		ActivateWrapper.class.getName(),
 		null,
 		data,

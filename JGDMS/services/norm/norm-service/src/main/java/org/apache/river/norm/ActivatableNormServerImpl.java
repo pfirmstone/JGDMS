@@ -17,25 +17,22 @@
  */
 package org.apache.river.norm;
 
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.util.logging.Level;
 
 import org.apache.river.config.Config;
 import org.apache.river.logging.Levels;
 import org.apache.river.start.ServiceStarter;
 import net.jini.activation.ActivationExporter;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
-import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
@@ -47,7 +44,7 @@ import net.jini.security.ProxyPreparer;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-class ActivatableNormServerImpl extends NormServerBaseImpl 
+public class ActivatableNormServerImpl extends NormServerBaseImpl 
 				implements DynamicProxyCodebaseAccessor {
     /** Our activation ID */
     private final ActivationID activationID;
@@ -101,7 +98,7 @@ class ActivatableNormServerImpl extends NormServerBaseImpl
      * @param data state data needed to re-activate a Norm server
      * @throws Exception if there is a problem creating the server
      */
-    ActivatableNormServerImpl(ActivationID activationID, MarshalledObject data)
+    public ActivatableNormServerImpl(ActivationID activationID, MarshalledObject data)
 	throws Exception
     {
         /* Any Exception thrown happens prior to super being called, so this
@@ -121,7 +118,7 @@ class ActivatableNormServerImpl extends NormServerBaseImpl
 	    if (activationID == null) {
 		throw new NullPointerException("activationID is null");
 	    }
-	    return (String[]) new MarshalledInstance(data).get(false);
+	    return (String[]) data.get();
 	} catch (Throwable e) {
 	    initFailed(e);
 	}

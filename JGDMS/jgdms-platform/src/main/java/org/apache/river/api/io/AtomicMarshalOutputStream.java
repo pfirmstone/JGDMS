@@ -27,10 +27,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URL;
 import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
-import java.rmi.activation.ActivationGroupID;
 import java.rmi.server.UID;
 import java.security.Permission;
 import java.util.Collection;
@@ -45,7 +41,6 @@ import javax.security.auth.x500.X500Principal;
 import net.jini.export.ProxyAccessor;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.io.MarshalOutputStream;
-import org.apache.river.api.io.ActivationGroupDescSerializer.CmdEnv;
 
 /**
  * This AtomicMarshalOutputStream, replaces a number of Java Object's in the stream 
@@ -290,10 +285,6 @@ public class AtomicMarshalOutputStream extends MarshalOutputStream {
 	    serializers.put(UID.class, UIDSerializer.class);
 	    serializers.put(File.class, FileSerializer.class);
 	    serializers.put(MarshalledObject.class, MarshalledObjectSerializer.class);
-	    serializers.put(ActivationGroupDesc.class, ActivationGroupDescSerializer.class);
-	    serializers.put(ActivationGroupID.class, ActivationGroupIDSerializer.class);
-	    serializers.put(ActivationDesc.class, ActivationDescSerializer.class);
-	    serializers.put(CommandEnvironment.class, CmdEnv.class);
 	    serializers.put(StackTraceElement.class, StackTraceElementSerializer.class);
             serializers.put(X500Principal.class, X500PrincipalSerializer.class);
 	    serializers.put(Date.class, DateSerializer.class);

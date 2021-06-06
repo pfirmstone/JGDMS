@@ -18,13 +18,12 @@
 package org.apache.river.outrigger;
 
 import java.io.IOException;
-import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationException;
 import javax.security.auth.login.LoginException;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.ConfigurationException;
 import org.apache.river.start.lifecycle.LifeCycle;
-import net.jini.io.MarshalledInstance;
 
 /**
  * <code>OutriggerServerWrapper</code> subclass for
@@ -61,7 +60,7 @@ class PersistentOutriggerImpl extends OutriggerServerWrapper {
 	throws IOException, ConfigurationException, LoginException,
 	       ActivationException, ClassNotFoundException
     {
-	super(activationID, (String[]) new MarshalledInstance(data).get(false));
+	super(activationID, (String[]) data.get());
 	allowCalls();
     }
 

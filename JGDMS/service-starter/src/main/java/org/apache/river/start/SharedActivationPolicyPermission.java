@@ -246,7 +246,10 @@ public final class SharedActivationPolicyPermission extends Permission
 	return answer;
     }
 
-    /** Two instances are equal if they have the same name. */
+    /** Two instances are equal if they have the same name.
+     * The equality is dependent on the implementation of 
+     * FilePermission, which can behave unpredictably.
+     */
     @Override
     public boolean equals(Object obj) {
 	// Quick reject tests

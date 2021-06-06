@@ -17,20 +17,20 @@
  */
 package org.apache.river.mahalo;
 
-import java.rmi.activation.ActivationID;
-import java.rmi.MarshalledObject;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
  * Convenience class intended for use with the 
- * {@link org.apache.river.start.ServiceStarter} framework to start
+ * <code> org.apache.river.start.ServiceStarter </code> framework to start
  * an implementation of Mahalo that is activatable, and which will
  * log its state information to persistent storage.
  *
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-class ActivatableMahaloImpl extends TxnManagerImpl 
+public class ActivatableMahaloImpl extends TxnManagerImpl 
 			    implements DynamicProxyCodebaseAccessor {
 
     /**
@@ -50,7 +50,7 @@ class ActivatableMahaloImpl extends TxnManagerImpl
      *
      * @throws Exception If there was a problem initializing the service.
      */
-    ActivatableMahaloImpl(ActivationID activationID, MarshalledObject data)
+    public ActivatableMahaloImpl(ActivationID activationID, MarshalledObject data)
         throws Exception
     {
         super(activationID, data);

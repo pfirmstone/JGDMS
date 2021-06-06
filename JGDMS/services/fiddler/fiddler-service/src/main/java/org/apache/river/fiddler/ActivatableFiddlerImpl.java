@@ -21,10 +21,10 @@ import net.jini.config.ConfigurationException;
 
 import javax.security.auth.login.LoginException;
 
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.MarshalledObject;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
 import java.io.IOException;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
@@ -78,7 +78,7 @@ public class ActivatableFiddlerImpl extends FiddlerImpl implements DynamicProxyC
      *                                parameter is not a <code>String</code>
      *                                array.
      */
-    ActivatableFiddlerImpl(ActivationID activationID,
+    public ActivatableFiddlerImpl(ActivationID activationID,
                            MarshalledObject data)
                                                throws IOException,
                                                       ActivationException,

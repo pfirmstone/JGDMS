@@ -18,8 +18,8 @@
 package org.apache.river.phoenix;
 
 import java.io.InputStream;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationGroupDesc;
 
 /**
  * Defines the interface for handlers of the output of activation group
