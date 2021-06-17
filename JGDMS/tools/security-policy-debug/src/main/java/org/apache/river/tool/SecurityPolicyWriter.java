@@ -21,16 +21,20 @@ package org.apache.river.tool;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FilePermission;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectStreamException;
 import java.io.PrintWriter;
 import java.net.MalformedURLException;
+import java.net.SocketPermission;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLPermission;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.GeneralSecurityException;
@@ -46,11 +50,14 @@ import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -107,6 +114,12 @@ import org.apache.river.api.security.PermissionComparator;
  * is used when loading the keystore.</td>
  * </tr>
  * </table>
+ * <p>
+ * A property file may be specified to replace paths with properties to
+ * allow these to be customized for later policy file expansion in deployment for
+ * CodeSource url and FilePermission path's, by setting the following property:
+ * <code>-DSecurityPolicyWriter.path.properties=</code> Properties defined in this
+ * property file shouldn't reference other properties declared in this file.
  * 
  * @see KeyStore
  * @author Peter Firmstone
@@ -170,6 +183,8 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     private final ConcurrentMap<Certificate,String> aliases;
     private final Cert certFunc;
 //    private final Map properties;
+    private final Map<String,String> pathReplacements;
+    private final String hostname;
     
     private SecurityPolicyWriter(
 	    ConcurrentMap<ProtectionDomain,Collection<Permission>> map) 
@@ -178,24 +193,36 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         domainPermissions = map;
         aliases = new ConcurrentHashMap<Certificate,String>();
         certFunc = new Cert();
-//	Properties properties = System.getProperties();
-//	Map<String,String> props = new HashMap<String,String>();
-//	synchronized (properties){
-//	    Iterator<Entry<Object,Object>> it = properties.entrySet().iterator();
-//	    StringBuilder jini = new StringBuilder("net.jini");
-//	    StringBuilder river = new StringBuilder("org.apache.river");
-//	    while (it.hasNext()){
-//		Entry<Object,Object> ent = it.next();
-//		Object k = ent.getKey();
-//		Object v = ent.getValue();
-//		if (k instanceof String && v instanceof String 
-//			&& (((String)k).contains(jini) || ((String)k).contains(river)))
-//		{
-//		    props.put((String) k, (String) v);
-//		}
-//	    }
-//	}
-//	this.properties = props;
+        String securityPolicyWriterPropLocation = System.getProperty("SecurityPolicyWriter.path.properties");
+        hostname = System.getProperty("HOST");
+        Properties p = new Properties();
+        p.put("java.io.tmpdir", System.getProperty("java.io.tmpdir"));
+        p.put("java.home", System.getProperty("java.home"));
+        p.put("HOST", hostname);
+        p.put("jsk.home", System.getProperty("jsk.home"));
+        p.put("qa.home", System.getProperty("qa.home"));
+        if (securityPolicyWriterPropLocation != null){
+            try {
+                FileReader fr = new FileReader(securityPolicyWriterPropLocation);
+                p.load(fr);
+            } catch (FileNotFoundException ex) {
+                getLogger().log(Level.INFO, "Unable to read properties file", ex);
+            } catch (IOException ex) {
+                getLogger().log(Level.INFO, "Unable to read properties file", ex);
+            }
+        }
+        Map<String,String> paths = new HashMap<String,String>(p.size());
+        Set<Entry<Object,Object>> propSet = p.entrySet();
+        Iterator<Entry<Object,Object>> propIt = propSet.iterator();
+        while (propIt.hasNext()){
+            Entry<Object,Object> props = propIt.next();
+            Object key = props.getKey();
+            Object value = props.getValue();
+            if (key instanceof String && value instanceof String){
+                paths.put(((String) value).replace('\\', '/'), (String) key);
+            }
+        }
+        pathReplacements = paths;
     } 
     
     public SecurityPolicyWriter() {
@@ -435,9 +462,12 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 				/* Some complex permissions have quoted strings embedded or
 				literal carriage returns that must be escaped.  */
 				String name = p.getName();
-				if (p instanceof FilePermission && File.separatorChar == '\\'){
-				    name = name.replace("\\", "\\\\");
-				} else {
+				if (p instanceof FilePermission){
+                                    name = replaceValuesWithProperties(name);
+                                    name = name.replace("/", "${/}");
+				} else if (p instanceof SocketPermission || p instanceof URLPermission){
+                                    name = name.replace(hostname, "${HOST}");
+                                } else {
 				    name = name.replace("\\\"", "\\\\\"").replace("\"","\\\"").replace("\r","\\\r");
 				}
 				pw.print(name);
@@ -472,7 +502,22 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     }
     
     private String replaceValuesWithProperties(String s){
-	return System.getProperty(s,s);
+        s = s.replace('\\', '/');
+        Set<Entry<String,String>> pathSet = pathReplacements.entrySet();
+        Iterator<Entry<String,String>> pathIt = pathSet.iterator();
+        while (pathIt.hasNext()){
+            Entry<String,String> path = pathIt.next();
+            StringBuilder sb = new StringBuilder();
+            String value = path.getValue();
+            sb.append("${").append(value).append("}");
+            String key = path.getKey();
+            s = s.replace(key, sb.toString());
+            if ("java.io.tmpdir".equals(value) && key.endsWith("/") ){
+                getLogger().log(Level.FINE, "temp directory: {0}", s);
+                s = s.replace(key.substring(0, key.length()-1), sb.toString());
+            }
+        }
+        return s;
     }
     
     private class Cert implements Function<Certificate,String> {
