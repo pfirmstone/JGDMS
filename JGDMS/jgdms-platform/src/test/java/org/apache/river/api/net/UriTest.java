@@ -1734,6 +1734,9 @@ public class UriTest extends TestCase {
         boolean result = grant.implies(implied);
         System.out.println(result);
         Assert.assertTrue(result);
+        grant = Uri.parseAndCreate("httpmd://localhost:9082/qa1-share-dl.jar;-");
+        implied = Uri.parseAndCreate("httpmd://localhost:9082/qa1-share-dl.jar;sha-256=4635c71e4e5f701502e10d67f5ae6bb99c6407891a6b9be5edb70958b26b6ebc");
+        Assert.assertTrue(grant.implies(implied));
     }
     
     public void testCaseStringEquals() throws Exception {
