@@ -69,7 +69,7 @@ public class ComputeDigest {
 	    print("computedigest.usage", null);
 	    System.exit(1);
 	}
-	String algorithm = args.length > 1 ? args[1] : "SHA-1";
+	String algorithm = args.length > 1 ? args[1] : "SHA-256";
 	try {
 	    URL url = new URL(new URL("file:"), args[0]);
 	    System.out.println(HttpmdUtil.computeDigest(url, algorithm));
