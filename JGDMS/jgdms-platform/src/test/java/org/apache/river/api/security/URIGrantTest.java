@@ -32,6 +32,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import tests.support.MyPrincipal;
 
 /**
  *
@@ -39,7 +40,9 @@ import org.junit.Test;
  */
 public class URIGrantTest {
     URIGrant instance;
+    URIGrant instance1;
     ProtectionDomain pd;
+    ProtectionDomain pd1;
     public URIGrantTest() {
     }
 
@@ -58,6 +61,19 @@ public class URIGrantTest {
         u[1] = "file:/C:/FOO/*";
         instance = new URIGrant(u, new Certificate[0], new String[0], new Principal[0], new Permission[0]);
         pd = new ProtectionDomain( new CodeSource(new URL("file:/foo/bar"), (Certificate []) null), null);
+        instance1 = new URIGrant(
+                new String[]{"file:/home/lib/harness-killer.jar"},
+                new Certificate[0],
+                new String[0],
+                new Principal[]{new MyPrincipal("CN=Phoenix")},
+                new Permission[0]
+        );
+        pd1 = new ProtectionDomain(
+                new CodeSource(new URL("file:/home/lib/harness-killer.jar"), (Certificate[]) null),
+                null,
+                null,
+                new Principal[]{new MyPrincipal("CN=Phoenix")}
+        );
     }
     
     @After
@@ -68,5 +84,6 @@ public class URIGrantTest {
     public void testImpliesPD() throws URISyntaxException {
         System.out.println("Test implies ProtectionDomain");
         Assert.assertTrue(instance.implies(pd));
+        Assert.assertTrue(instance1.implies(pd1));
     }
 }
