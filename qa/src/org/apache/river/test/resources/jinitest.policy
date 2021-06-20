@@ -12,13 +12,13 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.net.URLPermission "http://${java.rmi.server.hostname}:9082/qa1-start-testservice1-dl.jar", "GET:";
     permission java.net.URLPermission "http://${java.rmi.server.hostname}:9082/qa1-start-testservice2-dl.jar", "GET:";
     permission java.net.URLPermission "http://${java.rmi.server.hostname}:9082/qa1-start-testservice-common-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9080/reggie-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${java.rmi.server.hostname}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.tool.classserver.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${classserver.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -136,7 +136,7 @@ grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-io-marshalinput
 // I think this has something to do with the new java 6 Policy implementation,
 // the visibility of our policy implementations on the boot classpath and
 // jdk1.6 compiler optimisations. See River-334
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-ext${/}*" {
+grant codebase "file:${jsk.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
     //permission java.security.SecurityPermission "getProperty.net.jini.security.policy.PolicyFileProvider.basePolicyClass";
     //permission java.util.PropertyPermission "java.security.policy", "read";
@@ -159,7 +159,7 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}" {
         "java.security.AllPermission \"\", \"\"";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.cliffc.high_scale_lib.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${high-scale-lib.jar}" {
     permission java.lang.RuntimePermission "accessDeclaredMembers";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
@@ -183,48 +183,48 @@ grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-lookup-simulato
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-probe.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
 };
 
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice1.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
 };
 
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice2.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
 };
 
 // XXX funny install dir, but taken from old harness impl
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}mercury_bogus.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}mercury_bogus.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsecuremercury.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmercury.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsecuremercury.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultsecuremercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmercury.policy";
 
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${mahalo.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.test.home}${/}src${/}com${/}sun${/}jini${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.testJar}!/org/apache/river/test/impl/mahalo/bogusMahaloImpl.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mahalo.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mahalo-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.test.home}${/}src${/}com${/}sun${/}jini${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.testJar}!/org/apache/river/test/impl/mahalo/bogusMahaloImpl.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${mercury.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.test.home}${/}src${/}com${/}sun${/}jini${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.testJar}!/org/apache/river/test/impl/mahalo/bogusMahaloImpl.policy";
 };

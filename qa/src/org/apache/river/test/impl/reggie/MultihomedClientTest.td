@@ -24,9 +24,9 @@ testPolicyfile=<url: harness/policy/policy.all>
 
 policy=<url: harness/policy/policy.all>
 nameservice=org.apache.river.qa.reggie,org.apache.river.qa.reggie
-lib-dl=${org.apache.river.jsk.home}/lib-dl/
-toolClassPath=${org.apache.river.jsk.home}/lib/classserver.jar
-reggieClasses=${org.apache.river.jsk.home}/lib/reggie.jar
+lib-dl=${jsk.home}/lib-dl/
+toolClassPath=${jsk.home}/lib/classserver.jar
+reggieClasses=${jsk.home}/lib/reggie.jar
 reggieConfig=<url:org/apache/river/test/impl/reggie/resources/reggie.config>
 startConfig=<url:org/apache/river/test/impl/reggie/resources/start.config>
 lookupConfig=<url:org/apache/river/test/impl/reggie/resources/lookupdiscovery.config>

@@ -1,8 +1,8 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.reggie.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -17,12 +17,12 @@ grant {
     permission java.net.SocketPermission "medusa", "resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+grant codebase "file:${jsk.home}${/}lib${/}*
 {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
 {
     permission java.security.AllPermission "", "";
 };

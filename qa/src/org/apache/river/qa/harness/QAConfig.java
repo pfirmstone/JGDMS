@@ -100,8 +100,8 @@ import org.apache.river.system.MultiCommandLine;
  * This set of data sources is collectively referred to as the
  * <code>test properties</code>. The overrides exist to 
  * allow the harness to temporarily redefine the values for installation
- * properties such as <code>org.apache.river.jsk.home</code> or
- * <code>org.apache.river.qa.home</code>. This is needed when generating the
+ * properties such as <code>jsk.home</code> or
+ * <code>qa.home</code>. This is needed when generating the
  * command line for the SlaveTest VM for local parameters that
  * must take precedence over the serialized <code>QAConfig</code>
  * instance provided by the master.
@@ -475,7 +475,7 @@ public final class QAConfig implements Serializable {
      * @return the path to the QA kit
      */
     public String getKitHomeDir() {
-	return getStringConfigVal("org.apache.river.qa.home", null);
+	return getStringConfigVal("qa.home", null);
     }
 
     /**
@@ -484,7 +484,7 @@ public final class QAConfig implements Serializable {
      * @return the path to the JSK
      */
     public String getJSKHomeDir() {
-	return getStringConfigVal("org.apache.river.jsk.home", null);
+	return getStringConfigVal("jsk.home", null);
     }
 
     /**
@@ -514,8 +514,8 @@ public final class QAConfig implements Serializable {
      * The command-line configuration file must define the
      * following properties:
      * <ul>
-     * <li>org.apache.river.jsk.home
-     * <li>org.apache.river.qa.home
+     * <li>jsk.home
+     * <li>qa.home
      * </ul>
      * and the values of these parameters must resolve to directories
      * which exist.
@@ -539,9 +539,9 @@ public final class QAConfig implements Serializable {
      * 
      * @throws TestException if the configuration file identified
      *                       by <code>args[0]</code> is empty or missing or
-     *                       if org.apache.river.jsk.home is undefined or if
+     *                       if jsk.home is undefined or if
      *                       the directory it names does not exist or
-     *                       if org.apache.river.qa.home is undefined or if
+     *                       if qa.home is undefined or if
      *                       the directory it names does not exist
      *
      */
@@ -560,25 +560,25 @@ public final class QAConfig implements Serializable {
 				  + " " + args[0] + " "
 				  + "is empty or missing");
 	}
-	String jskDir = getStringConfigVal("org.apache.river.jsk.home", null);
+	String jskDir = getStringConfigVal("jsk.home", null);
 	if (jskDir == null) {
-	    throw new TestException("org.apache.river.jsk.home is undefined");
+	    throw new TestException("jsk.home is undefined");
 	}
 	File jskFile = new File(jskDir);
 	if (!jskFile.exists()) {
 	    throw new TestException("The directory "
 		                   + jskFile.toString() + " identified by "
-		                   + "org.apache.river.jsk.home does not exist");
+		                   + "jsk.home does not exist");
 	}
-	String qaDir = getStringConfigVal("org.apache.river.qa.home", null);
+	String qaDir = getStringConfigVal("qa.home", null);
 	if (qaDir == null) {
-	    throw new TestException("org.apache.river.qa.home is undefined");
+	    throw new TestException("qa.home is undefined");
 	}
 	File qaFile = new File(qaDir);
 	if (!qaFile.exists()) {
 	    throw new TestException("The directory "
                                    + qaFile.toString() + " identified by "
-		                   + "org.apache.river.qa.home does not exist");
+		                   + "qa.home does not exist");
 	}
 	harnessJar = getHarnessJar();
 	if (harnessJar != null) {
@@ -670,7 +670,7 @@ public final class QAConfig implements Serializable {
 	    }
 	    list.add(path);
 	}
-	String qaDir = getStringConfigVal("org.apache.river.qa.home", null);
+	String qaDir = getStringConfigVal("qa.home", null);
 	if (!list.contains(qaDir)) {
 	    list.add(qaDir);
         }

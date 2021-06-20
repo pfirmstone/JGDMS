@@ -1,9 +1,9 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+grant codebase "file:${jsk.home}${/}lib${/}*
 {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
 {
     permission java.security.AllPermission "", "";
 };
@@ -53,8 +53,8 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
@@ -86,7 +86,7 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}
 };
 
 //not sure the following is necessary, but just in case
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
 {
       permission org.apache.river.phoenix.SystemPermission
                  "java.rmi.activation.ActivationSystem.*";

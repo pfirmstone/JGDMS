@@ -63,7 +63,7 @@ import org.apache.river.api.net.Uri;
 public class RestoreContextForTasks extends BaseQATest implements Test {
     private static final String CLASSNAME =
 	"org.apache.river.test.impl.lookupdiscovery.util.TestTaskProducerImpl";
-    private static final String QAHOMEPROP = "org.apache.river.qa.home";
+    private static final String QAHOMEPROP = "qa.home";
     private static final String JARLOCATION = "/lib/ld.jar";
 
     private TestTaskProducer tp;

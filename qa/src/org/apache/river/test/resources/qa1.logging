@@ -183,7 +183,7 @@ net.jini.loader.ClassLoading.level = SEVERE
 net.jini.security.level = SEVERE
 #net.jini.security.trust.level = SEVERE
 #net.jini.security.integrity.level = SEVERE
-net.jini.security.policy.level = SEVERE
+net.jini.security.policy.level = CONFIG
 org.apache.river.api.security.CombinerSecurityManager.level = SEVERE
 
 # For HTTPMD

@@ -211,7 +211,7 @@ public class Constructor_Test extends Template_Test {
         md.update(someValidConf.getBytes());
         String messageDigestString = digestString(md.digest());
         URL confHttpmdURL = new URL("httpmd", "localhost", port,
-                "/" + confFileName + ";" + "MD5=" + messageDigestString);
+                "/" + confFileName + ";" + "SHA-256=" + messageDigestString);
         logger.log(Level.INFO,
                 "Httpmd URL=" + confHttpmdURL.toString());
         String[] optionsWithHttpmdURL = { confHttpmdURL.toString() };
@@ -417,7 +417,7 @@ public class Constructor_Test extends Template_Test {
         portNoAccess = config.getIntConfigVal("HTTPServer2.port", -1);
         getManager().startService("HTTPServer");
         getManager().startService("HTTPServer2");
-        md = MessageDigest.getInstance("MD5");
+        md = MessageDigest.getInstance("SHA-256");
         createFile(confFile, someValidConf);
         createFile(brokenConfFile, someBrokenConf);
         createFile(noAccessFile, someValidConf);

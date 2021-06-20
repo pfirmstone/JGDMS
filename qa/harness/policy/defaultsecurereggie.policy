@@ -1,9 +1,9 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+grant codebase "file:${jsk.home}${/}lib${/}*
 {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
 {
     permission java.security.AllPermission "", "";
 };
@@ -48,7 +48,7 @@ grant codebase "jrt:/org.openjsse" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}"
+grant codebase "httpmd://${HOST}:9080/${phoenix-dl.jar}"
 {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission java.io.FilePermission "<<ALL FILES>>", "read";
@@ -87,7 +87,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=fiddler"
 grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar", "read";
+      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
       permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
       permission java.net.SocketPermission "${HOST}", "resolve";
 };

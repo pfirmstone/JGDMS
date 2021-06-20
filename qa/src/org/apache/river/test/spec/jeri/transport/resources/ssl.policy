@@ -33,19 +33,19 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}" {
     permission java.lang.RuntimePermission "setFactory";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib/${net.jini.platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib/${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.collections.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.pref.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk.pref.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}" {
     permission java.security.AllPermission "", "";
 };
 

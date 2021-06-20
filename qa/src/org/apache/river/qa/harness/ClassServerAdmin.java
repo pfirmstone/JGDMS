@@ -43,7 +43,7 @@ import org.apache.river.tool.ClassServer;
  * <tr><td> <code>dir</code>
  * <td>                 the document directory the server is to use. The default
  *                      is the value of the configuration property
- *                      <code>org.apache.river.jsk.home</code> appended with  "/lib"
+ *                      <code>jsk.home</code> appended with  "/lib"
  * <tr><td> <code>serverjvmopts</code>
  * <td>                 options which may be passed to the server. 
  *                      Supported values include <code>-trees</code> 

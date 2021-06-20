@@ -1,6 +1,6 @@
 /* Grants required for SecurityManager used a startup: */
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -75,10 +75,10 @@ grant {
     permission java.net.SocketPermission "*", "listen,resolve";
 
     permission java.io.FilePermission "${org.apache.river.qa.harness.propfile}",  "read"; 
-    permission java.io.FilePermission "${org.apache.river.jsk.home}",    "read"; 
-    permission java.io.FilePermission "${org.apache.river.qa.home}",     "read"; 
-    permission java.io.FilePermission "${org.apache.river.qa.home}/-",   "read"; 
-    permission java.io.FilePermission "${org.apache.river.qa.home}\\-",   "read"; 
+    permission java.io.FilePermission "${jsk.home}",    "read"; 
+    permission java.io.FilePermission "${qa.home}",     "read"; 
+    permission java.io.FilePermission "${qa.home}/-",   "read"; 
+    permission java.io.FilePermission "${qa.home}\\-",   "read"; 
 
     permission java.io.FilePermission "/tmp",        "read,write,delete"; 
     permission java.io.FilePermission "/tmp/-",      "write,delete"; 

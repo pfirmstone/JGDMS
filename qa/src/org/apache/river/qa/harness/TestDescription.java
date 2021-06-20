@@ -479,7 +479,7 @@ public class TestDescription implements Serializable {
      * (usually in the test descriptor) by the property name
      * <code>testPolicyfile</code>. The policy must be expressed as
      * an absolute path. It is expected that the path will be expressed
-     * in a config file in terms of <code>org.apache.river.qa.home</code>.
+     * in a config file in terms of <code>qa.home</code>.
      *
      * @return the policy file string 
      * @throws TestException if <code>testPolicyfile</code> is not defined

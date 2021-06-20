@@ -8,15 +8,15 @@
  * The following grants all permission to jsk-platform.jar and qa1-wrapper.jar.
  * These files were previously installed in the extensions directory.
  */
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-platform.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}qa${/}lib${/}qa1-wrapper.jar" {
+grant codebase "file:${jsk.home}${/}qa${/}lib${/}qa1-wrapper.jar" {
     permission java.security.AllPermission "", "";
 };
 

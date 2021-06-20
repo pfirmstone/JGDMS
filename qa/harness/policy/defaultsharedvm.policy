@@ -1,9 +1,9 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+grant codebase "file:${jsk.home}${/}lib${/}*
 {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
 {
     permission java.security.AllPermission "", "";
 };
@@ -26,9 +26,9 @@ grant {
 
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-mercury-bogusimpl.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission 
-        "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+        "file:${qa.home}${/}harness${/}policy${/}defaultmercury.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission
-        "file:${org.apache.river.qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
+        "file:${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 
@@ -42,134 +42,134 @@ grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
       permission org.apache.river.phoenix.InstantiatorPermission "*";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
+grant codebase "file:${qa.home}${/}lib${/}harness-killer.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.home}${/}lib${/}jinitest.jar!/src/org/apache/river/test/share/simulator.policy"
+grant codebase "file:${qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${qa.home}${/}lib${/}jinitest.jar!/src/org/apache/river/test/share/simulator.policy"
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultgroup.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.fiddler.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${fiddler.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultfiddler.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${mahalo.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmahalo.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${mercury.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmercury.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${norm.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultnorm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${outrigger.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultoutrigger.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultreggie.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${start.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsharedvm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.destroy.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${destroy.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsharedvm.policy";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+grant codebase "file:${qa.home}${/}lib${/}harness-killer.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}src${/}org${/}apache${/}river${/}test${/}share${/}simulator.policy"
+grant codebase "file:${qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}share${/}simulator.policy"
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-group.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultgroup.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}sec-jeri-group.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultgroup.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.fiddler.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${fiddler.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mahalo.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${mahalo.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.mercury.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${mercury.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmercury.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultnorm.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${norm.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultnorm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${outrigger.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultreggie.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultreggie.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${start.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.destroy.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
+grant codebase "file:${jsk.home}${/}lib${/}${destroy.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
 };
 
 // Not sure why this has changed, but required for JDK9 in following tests:
@@ -183,20 +183,20 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.s
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-probe.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
 };
 
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice1.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
 };
 
 grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice2.jar" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
 };
 
 grant codebase "http://*/phoenix-dl.jar" {
@@ -204,29 +204,21 @@ grant codebase "http://*/phoenix-dl.jar" {
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.start.group.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultgroup.policy";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.fiddler.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${fiddler-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultfiddler.policy";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mahalo.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mahalo-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmahalo.policy";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mercury.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mercury-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
@@ -234,84 +226,77 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.rive
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.norm.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${norm-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultnorm.policy";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.outrigger.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${outrigger-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultoutrigger.policy";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.reggie.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}" {
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
     permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultreggie.policy";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.start.group.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-group.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultgroup.policy";
+grant codebase "file:${jsk.home}${/}lib-dl${/}${fiddler-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.fiddler.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mahalo-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mahalo.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mercury-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmercury.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.mercury.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+grant codebase "file:${jsk.home}${/}lib-dl${/}${norm-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultnorm.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.norm.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultnorm.policy";
+grant codebase "file:${jsk.home}${/}lib-dl${/}${outrigger-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.outrigger.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
+grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultreggie.policy";
 };
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.reggie.dl.jar}" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}defaultreggie.policy";
-};
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.reggie.dl.jar}"
+grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}"
 {
     permission java.net.SocketPermission "medusa:9080", "connect,resolve";
     permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
 {
     permission javax.security.auth.AuthPermission "getSubject";
     permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
     permission java.net.SocketPermission "medusa:9080", "connect,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "getClassLoader";
@@ -324,8 +309,8 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Version_Number", "write";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
     permission java.net.SocketPermission "[fd16:f24f:50d9:0:dc7b:30e4:cd0f:ec0b]:4160", "accept,resolve";
@@ -344,7 +329,7 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
     permission java.lang.RuntimePermission "exitVM.0";
     permission java.lang.RuntimePermission "getClassLoader";
@@ -355,17 +340,17 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.s
     permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\";";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1359", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}"
+grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}"
 {
     permission java.lang.RuntimePermission "modifyThread";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.lang.RuntimePermission "modifyThread";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1356", "connect,resolve";
@@ -384,16 +369,16 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "write";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1502", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1499", "connect,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1502", "accept,resolve";
@@ -410,16 +395,16 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "write";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}"
+grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}"
 {
     permission java.net.SocketPermission "medusa:9082", "connect,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1760", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:2000", "connect,resolve";
@@ -431,30 +416,30 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1760", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:2000", "connect,resolve";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.bouncycastle.jsse.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${bouncy-jsse.jar}"
 {
     permission java.security.SecurityPermission "putProviderProperty.BCJSSE";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4436", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir", "read";
@@ -468,34 +453,34 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4436", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4441", "accept,resolve";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.bouncycastle.jce.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${bouncy-jce.jar}"
 {
     permission java.security.SecurityPermission "putProviderProperty.BC";
     permission java.util.PropertyPermission "org.bouncycastle.ec.disable_mqv", "read";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.provider";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
 {
     permission java.security.SecurityPermission "insertProvider";
     permission java.security.SecurityPermission "putProviderProperty.BCJSSE";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4477", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir", "write";
@@ -505,19 +490,19 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4477", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4509", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir", "read";
@@ -531,20 +516,20 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "delete";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4509", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4514", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4545", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir", "write";
@@ -554,57 +539,57 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4545", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4581", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
 {
     permission java.security.SecurityPermission "getProperty.java.home";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4666", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4748", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\file:null\lib\security\US_export_policy.jar", "read";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\file:null\lib\security\local_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\US_export_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\local_policy.jar", "read";
     permission java.util.PropertyPermission "user.dir", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir", "write";
@@ -614,19 +599,19 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4748", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4783", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir", "write";
@@ -636,25 +621,25 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4783", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\file:null\lib\security\US_export_policy.jar", "read";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\file:null\lib\security\local_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\US_export_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\local_policy.jar", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4824", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir", "write";
@@ -664,19 +649,19 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4824", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\file:null\lib\security\US_export_policy.jar", "read";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\file:null\lib\security\local_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\US_export_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\local_policy.jar", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.reggie.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
 {
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir", "write";
@@ -686,27 +671,27 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.r
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Snapshot.1", "write";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Version_Number", "read";
     permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Version_Number", "write";
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib-dl\${org.apache.river.reggie.dl.jar}", "read";
-    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${river.version}\lib\${net.jini.activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4859", "accept,resolve";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4862", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.group.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
 {
-    permission java.io.FilePermission "${org.apache.river.qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
     permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4862", "accept,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
 {
     permission java.io.FilePermission "file:null\lib\security\US_export_policy.jar", "read";
     permission java.io.FilePermission "file:null\lib\security\local_policy.jar", "read";
 };
 
 
-grant codebase "http://${HOST}/${org.apache.river.phoenix.dl.jar}" {
+grant codebase "http://${HOST}/${phoenix-dl.jar}" {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.io.FilePermission "<<ALL FILES>>", "read";

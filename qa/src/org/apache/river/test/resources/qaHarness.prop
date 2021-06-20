@@ -26,10 +26,10 @@
 ######################################################
 
 # location of the JSK installation
-# org.apache.river.jsk.home=${user.home}/river/jtsk/trunk
+# jsk.home=${user.home}/river/jtsk/trunk
 
 # Location of the harness installation
-# org.apache.river.qa.home=${user.home}/river/jtsk/trunk/qa
+# qa.home=${user.home}/river/jtsk/trunk/qa
 
 # Location of the tests installation
 # org.apache.river.test.home=${user.home}/river/jtsk/trunk/qa
@@ -49,7 +49,7 @@ org.apache.river.qa.harness.runjiniserver=true
 org.apache.river.jsk.port=9080
 
 # download directory for JSK JAR files
-org.apache.river.qa.harness.dldir.9080=${org.apache.river.jsk.home}$/lib-dl
+org.apache.river.qa.harness.dldir.9080=${jsk.home}$/lib-dl
 
 # enable the QA class server 
 org.apache.river.qa.harness.runkitserver=true
@@ -58,7 +58,7 @@ org.apache.river.qa.harness.runkitserver=true
 org.apache.river.qa.port=9081
 
 # download directory for QA JAR files
-org.apache.river.qa.harness.dldir.9081=${org.apache.river.qa.home}$/lib
+org.apache.river.qa.harness.dldir.9081=${qa.home}$/lib
 
 # class server and properties for the tests
 org.apache.river.test.port=9082
@@ -111,7 +111,7 @@ org.apache.river.qa.harness.kerberos.realm=DAVIS.JINI.SUN.COM
 org.apache.river.qa.harness.kerberos.kdc=jiniautot.east.sun.com
 org.apache.river.qa.harness.kerberos.clientPasswordFile=${org.apache.river.test.home}$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabClient
 org.apache.river.qa.harness.kerberos.serverPasswordFile=${org.apache.river.test.home}$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabServer
-org.apache.river.qa.harness.kerberos.aggregatePasswordFile=${org.apache.river.qa.home}$/harness/trust$/aggregateKeytab
+org.apache.river.qa.harness.kerberos.aggregatePasswordFile=${qa.home}$/harness/trust$/aggregateKeytab
 org.apache.river.qa.harness.kerberos.clientPrincipal=qa-e2e-client@DAVIS.JINI.SUN.COM
 org.apache.river.qa.harness.kerberos.serverPrincipal=qa-e2e-server@DAVIS.JINI.SUN.COM
 org.apache.river.qa.harness.kerberos.reggiePrincipal=qa-reggie@DAVIS.JINI.SUN.COM

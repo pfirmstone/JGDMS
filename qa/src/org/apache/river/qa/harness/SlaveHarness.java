@@ -63,8 +63,8 @@ import java.util.logging.Logger;
  * they construct an instance of QAConfig. The constructor of QAConfig
  * verifies the existance of the following system properties:
  * <ul>
- *    <li>org.apache.river.jsk.home
- *    <li>org.apache.river.qa.home
+ *    <li>jsk.home
+ *    <li>qa.home
  * </ul>
  * which are typically provided by the user config file. These values serve as
  * the default values to apply to the master/slave test VMs.  When the
@@ -108,7 +108,7 @@ class SlaveHarness {
     /** 
      * The config object used directly by this class. It's primary
      * purpose is to establish default values for installation
-     * properties such as org.apache.river.jsk.home. The config used
+     * properties such as jsk.home. The config used
      * by the request handler vm is provided by the master harness
      * and may provide overrides for the installation properties.
      */
@@ -305,8 +305,8 @@ class SlaveHarness {
 	}
 	// set these system properties so they will override any install
 	// properties included in a config sent by the master
-	System.setProperty("org.apache.river.qa.home", config.getKitHomeDir());
-	System.setProperty("org.apache.river.jsk.home", config.getJSKHomeDir());
+	System.setProperty("qa.home", config.getKitHomeDir());
+	System.setProperty("jsk.home", config.getJSKHomeDir());
 	System.setProperty("org.apache.river.jsk.port", 
 			   config.getStringConfigVal("org.apache.river.jsk.port", 
 						     null));
@@ -508,7 +508,7 @@ class SlaveHarness {
 	    /* 
 	     * The getSystemProps method returns a collection of properties
 	     * which override the default values. These properties will
-	     * typically be org.apache.river.jsk.home, etc. In many cases
+	     * typically be jsk.home, etc. In many cases
 	     * this collection will be empty.
 	     */
 	    Properties overrideProperties = new Properties();

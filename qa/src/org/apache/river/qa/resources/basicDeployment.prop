@@ -26,10 +26,10 @@
 ######################################################
 
 # location of the JSK installation
-org.apache.river.jsk.home=/vob/jive
+jsk.home=/vob/jive
 
 # Location of the QA installation
-org.apache.river.qa.home=/vob/qa
+qa.home=/vob/qa
 
 ######################################################
 #
@@ -46,7 +46,7 @@ org.apache.river.qa.harness.runjiniserver=true
 org.apache.river.jsk.port=8080
 
 # download directory for JSK JAR files
-org.apache.river.qa.harness.dldir.8080=${org.apache.river.jsk.home}$/lib-dl
+org.apache.river.qa.harness.dldir.8080=${jsk.home}$/lib-dl
 
 # enable the QA class server 
 org.apache.river.qa.harness.runkitserver=true
@@ -55,7 +55,7 @@ org.apache.river.qa.harness.runkitserver=true
 org.apache.river.qa.port=8081
 
 # download directory for QA JAR files
-org.apache.river.qa.harness.dldir.8081=${org.apache.river.qa.home}$/lib
+org.apache.river.qa.harness.dldir.8081=${qa.home}$/lib
 
 # automatically start/stop the activation system for each test
 org.apache.river.qa.harness.runactivation=true
@@ -86,9 +86,9 @@ org.apache.river.qa.harness.serviceMode=activatable
 #
 org.apache.river.qa.harness.kerberos.realm=DAVIS.JINI.SUN.COM
 org.apache.river.qa.harness.kerberos.kdc=jiniautot.east.sun.com
-org.apache.river.qa.harness.kerberos.clientPasswordFile=${org.apache.river.qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabClient
-org.apache.river.qa.harness.kerberos.serverPasswordFile=${org.apache.river.qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabServer
-org.apache.river.qa.harness.kerberos.aggregatePasswordFile=${org.apache.river.qa.home}$/trust$/aggregateKeytab
+org.apache.river.qa.harness.kerberos.clientPasswordFile=${qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabClient
+org.apache.river.qa.harness.kerberos.serverPasswordFile=${qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabServer
+org.apache.river.qa.harness.kerberos.aggregatePasswordFile=${qa.home}$/trust$/aggregateKeytab
 org.apache.river.qa.harness.kerberos.clientPrincipal=qa-e2e-client@DAVIS.JINI.SUN.COM
 org.apache.river.qa.harness.kerberos.serverPrincipal=qa-e2e-server@DAVIS.JINI.SUN.COM
 org.apache.river.qa.harness.kerberos.reggiePrincipal=qa-reggie@DAVIS.JINI.SUN.COM

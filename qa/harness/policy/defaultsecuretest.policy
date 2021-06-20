@@ -1,9 +1,9 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+grant codebase "file:${jsk.home}${/}lib${/}*
 {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
 {
     permission java.security.AllPermission "", "";
 };
@@ -79,7 +79,7 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.net.SocketPermission "localhost:9091", "listen,resolve";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.io.FilePermission 
-        "${org.apache.river.qa.home}${/}harness${/}-",
+        "${qa.home}${/}harness${/}-",
         "read";
     permission java.io.FilePermission 
         "harness${/}-",
@@ -94,7 +94,7 @@ grant
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar"
+grant codebase "file:${qa.home}${/}lib${/}jinitests.jar"
 {
     permission java.lang.RuntimePermission "modifyThread";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
@@ -104,14 +104,14 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar"
     permission java.net.SocketPermission "localhost:9091", "listen,resolve";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.io.FilePermission 
-        "${org.apache.river.qa.home}${/}harness${/}-",
+        "${qa.home}${/}harness${/}-",
         "read";
     permission java.io.FilePermission 
         "harness${/}-",
         "read";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission net.jini.security.GrantPermission
         "java.security.AllPermission \"\", \"\"";
 };
@@ -123,17 +123,17 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/outrigger-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/fiddler-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/mercury-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/outrigger-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/fiddler-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mercury-dl-${jgdms.version}.jar", "GET:";
     permission java.net.URLPermission "http://${HOST}:9082/qa1-lookup-simulator-dl.jar", "GET:";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "modifyThreadGroup";
     permission javax.security.auth.AuthPermission "getSubject";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
-    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-${jgdms.version}.jar", "GET:";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.test.services.lookupsimulator";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
     permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.test.spec.jeri.basicilfactory";
@@ -161,9 +161,9 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceAttributesAccessor.getServiceAttributes";
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceIDAccessor.serviceID";
     permission net.jini.security.AccessPermission "net.jini.lookup.ServiceProxyAccessor.getServiceProxy";
-    permission java.io.FilePermission "${org.apache.river.qa.home}${/}harness${/}trust${/}dynamic-policy.properties", "read";
-    permission java.io.FilePermission "${org.apache.river.qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
-    permission java.io.FilePermission "${org.apache.river.qa.home}${/}harness${/}trust${/}truststore", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}dynamic-policy.properties", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}truststore", "read";
     permission java.io.FilePermission "harness${/}trust${/}dynamic-policy.properties", "read";
     permission java.io.FilePermission "src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
     permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
@@ -272,7 +272,7 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}"
         "connect,accept";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
+grant codebase "file:${qa.home}${/}lib${/}harness.jar" {
     // Allow dynamic grants
     permission net.jini.security.GrantPermission
         "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\"\", \"connect\"";
@@ -287,7 +287,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
         "javax.security.auth.kerberos.KerberosPrincipal \"${test}\"", "connect,accept";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-start-tests.jar" {
+grant codebase "file:${qa.home}${/}lib${/}qa1-start-tests.jar" {
     permission java.net.SocketPermission "localhost:9080", "listen,resolve";
     permission java.net.SocketPermission "localhost:9081", "listen,resolve";
     permission java.net.SocketPermission "localhost:9082", "listen,resolve";
@@ -625,7 +625,7 @@ grant {
 
 // added to grant permissions to the jini dependencies jar files. Not sure which of these are required
 grant
-    codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
+    codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     // Allow dynamic grants
@@ -651,7 +651,7 @@ grant
 };
 
 grant
-    codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
+    codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
     principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
 {
     // Allow dynamic grants
@@ -676,7 +676,7 @@ grant
 
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.x500.X500Principal "CN=Reggie"
 {
     permission net.jini.security.AuthenticationPermission
@@ -689,7 +689,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
 	"net.jini.io.context.ClientSubject.getClientSubject";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
 {
     permission net.jini.security.AuthenticationPermission
@@ -699,7 +699,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
         "getProperty.net.jini.security.policy.*";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
     permission net.jini.security.AuthenticationPermission
@@ -707,7 +707,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
         "connect,accept";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
       principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
 {
     permission net.jini.security.AuthenticationPermission
@@ -716,7 +716,7 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar"
 };
 
 // shouldn't be needed - packaging problem with the lookup simulator?
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-share-dl.jar" {
+grant codebase "file:${qa.home}${/}lib${/}qa1-share-dl.jar" {
     // Allow dynamic grants
     permission net.jini.security.GrantPermission
         "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Tester\\\"\", \"connect\"";
@@ -839,19 +839,19 @@ grant codebase "httpmd://${HOST}:9080/*"
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
+grant codebase "file:${qa.home}${/}lib${/}jinitests.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${phoenix-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
@@ -861,17 +861,17 @@ grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}",
 };
 
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jiniharness.jar",
+grant codebase "file:${qa.home}${/}lib${/}jiniharness.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activation.jar}",
+grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
@@ -882,25 +882,25 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activatio
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activation.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}"
 {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}",
+grant codebase "file:${jsk.home}${/}lib${/}${start.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${river.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${river.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/norm-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission javax.security.auth.AuthPermission "getSubject";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "httpmd://${HOST}:${org.apache.river.reggie.dl.jar}"
+grant codebase "httpmd://${HOST}:${reggie-dl.jar}"
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
@@ -910,7 +910,7 @@ grant codebase "httpmd://${HOST}:${org.apache.river.reggie.dl.jar}"
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.loader.jar}",
+grant codebase "file:${jsk.home}${/}lib${/}${loader.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
@@ -919,59 +919,59 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.l
     permission javax.security.auth.AuthPermission "getSubject";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.reggie.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.reggie.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.reggie.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.reggie.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.reggie.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.reggie.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
+grant codebase "file:${qa.home}${/}lib${/}jinitests.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}"
 {
     permission java.security.SecurityPermission "insertProvider";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.bouncycastle.jce.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${bouncy-jce.jar}"
 {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-${river.version}.jar",
+grant codebase "file:${jsk.home}${/}lib${/}classserver-${jgdms.version}.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.net.SocketPermission "localhost:9080", "listen,resolve";
@@ -979,23 +979,23 @@ grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-${river.
     permission java.net.SocketPermission "localhost:9082", "listen,resolve";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}"
 {
     permission java.security.SecurityPermission "putProviderProperty.BCJSSE";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}"
 {
     permission java.security.SecurityPermission "getProperty.java.home";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}"
 {
     permission java.io.FilePermission "file:null\lib\security\US_export_policy.jar", "read";
     permission java.io.FilePermission "file:null\lib\security\local_policy.jar", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}"
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}"
 {
     permission java.io.FilePermission "file:null\lib\security\US_export_policy.jar", "read";
     permission java.io.FilePermission "file:null\lib\security\local_policy.jar", "read";
@@ -1007,32 +1007,32 @@ grant {
 
 // Discovery providers that don't perform authentication don't grant
 // DeSerializationPermission, so it's granted here.
-grant codebase "httpmd://${HOST}:${net.jini.lib.dl.jar}" {
+grant codebase "httpmd://${HOST}:${jsk-dl.jar}" {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
     permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission java.lang.RuntimePermission "getClassLoader";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.phoenix.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${phoenix-dl.jar}" {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}",
+grant codebase "file:${jsk.home}${/}lib${/}${start.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.net.www.protocol.c";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
+grant codebase "file:${qa.home}${/}lib${/}jinitests.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "modifyThread";
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
+grant codebase "file:${qa.home}${/}lib${/}jinitests.jar",
     principal javax.security.auth.x500.X500Principal "CN=Reggie"
 {
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
@@ -1041,13 +1041,13 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar",
     permission javax.net.ssl.SSLPermission "getSSLSessionContext";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jiniharness.jar",
+grant codebase "file:${qa.home}${/}lib${/}jiniharness.jar",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
-grant codebase "httpmd://${HOST}:9080/${org.apache.river.phoenix.dl.jar}",
+grant codebase "httpmd://${HOST}:9080/${phoenix-dl.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission java.lang.RuntimePermission "modifyThread";

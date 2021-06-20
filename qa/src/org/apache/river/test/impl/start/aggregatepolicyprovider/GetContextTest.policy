@@ -1,20 +1,20 @@
 /* @summary Verify basic functionality of AggregatPolicyProvider.getContext()
  */
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.collections.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
     permission java.lang.RuntimePermission "modifyThreadGroup";
     permission java.lang.RuntimePermission "modifyThread";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.start.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${start.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -22,11 +22,11 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
+grant codebase "file:${qa.home}${/}lib${/}harness.jar" {
     permission java.security.AllPermission "", "";
 };
 
@@ -35,17 +35,17 @@ grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
 //};
 
 // For SecurityManager used from command line
-grant codeBase "file:${org.apache.river.qa.home}${/}lib${/}qa1-start-tests.jar" {
+grant codeBase "file:${qa.home}${/}lib${/}qa1-start-tests.jar" {
     permission java.io.FilePermission 
-        "${org.apache.river.qa.home}${/}harness${/}trust${/}dynamic-policy.properties", 
+        "${qa.home}${/}harness${/}trust${/}dynamic-policy.properties", 
         "read";
     permission java.io.FilePermission 
-        "${org.apache.river.qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy",
+        "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy",
         "read";
     permission java.io.FilePermission 
-        "${org.apache.river.qa.home}${/}harness${/}trust${/}jsselogins",
+        "${qa.home}${/}harness${/}trust${/}jsselogins",
         "read";
-    permission java.io.FilePermission "${org.apache.river.qa.home}${/}harness${/}trust${/}truststore", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}truststore", "read";
     permission java.io.FilePermission "-", "read";
     permission java.lang.RuntimePermission "getProtectionDomain";
 };
@@ -87,7 +87,7 @@ grant codebase "jrt:/jdk.security.jgss" {
 };
 
 grant {
-    permission java.io.FilePermission "${org.apache.river.qa.home}${/}lib${/}*", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}*", "read";
     permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}*", "read";
     permission java.lang.RuntimePermission "accessClassInPackage.*";
     permission java.lang.RuntimePermission "createClassLoader";

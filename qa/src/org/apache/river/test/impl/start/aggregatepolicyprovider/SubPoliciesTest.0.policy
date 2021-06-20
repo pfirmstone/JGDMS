@@ -1,11 +1,11 @@
 /* @summary Verify basic functionality of AggregatPolicyProvider.getContext()
  */
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*" {
+grant codebase "file:${jsk.home}${/}lib${/}*" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}*" {
     permission java.security.AllPermission "", "";
 };
 
@@ -13,12 +13,12 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission java.security.AllPermission "", "";
 };
 
 // For SecurityManager used from command line
-grant codeBase "file:${org.apache.river.qa.home}${/}lib${/}qa1-start-tests.jar" {
+grant codeBase "file:${qa.home}${/}lib${/}qa1-start-tests.jar" {
     //permission java.io.FilePermission "-", "read";
     permission java.lang.RuntimePermission "getProtectionDomain";
 };
@@ -60,7 +60,7 @@ grant codebase "jrt:/jdk.security.jgss" {
 };
 
 grant {
-    permission java.io.FilePermission "${org.apache.river.qa.home}/-", "read";
+    permission java.io.FilePermission "${qa.home}/-", "read";
     permission java.io.FilePermission "${org.apache.river.test.home}/-", "read";
     permission net.jini.security.GrantPermission
         "delim=' java.lang.RuntimePermission 'foo'";
@@ -80,14 +80,14 @@ grant {
     permission java.net.SocketPermission "*", "listen,resolve";
 };
 
-grant codeBase "file:${org.apache.river.jsk.home}/foo/*" {
+grant codeBase "file:${jsk.home}/foo/*" {
     permission java.lang.RuntimePermission "B0";
 };
 
-grant codeBase "file:${org.apache.river.jsk.home}/foo/-" {
+grant codeBase "file:${jsk.home}/foo/-" {
     permission java.lang.RuntimePermission "C0";
 };
 
-grant codeBase "file:${org.apache.river.jsk.home}/bar.jar" {
+grant codeBase "file:${jsk.home}/bar.jar" {
     permission java.lang.RuntimePermission "D0";
 };

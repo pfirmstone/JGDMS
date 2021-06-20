@@ -35,7 +35,7 @@ import org.apache.river.qa.harness.TestException;
 public class SubPoliciesTest extends QATestEnvironment implements Test {
     private String policy0File;
     private String policy1File;
-    private static String jsk_home = System.getProperty("org.apache.river.jsk.home");
+    private static String jsk_home = System.getProperty("jsk.home");
 
     public Test construct(QAConfig sysConfig) throws Exception {
 	super.construct(sysConfig);
