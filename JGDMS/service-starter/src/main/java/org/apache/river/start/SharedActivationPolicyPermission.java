@@ -68,8 +68,9 @@ import org.apache.river.api.net.Uri;
  * pathname to the directory containing the policy file.
  *
  * @author Sun Microsystems, Inc.
- *
+ * @deprecated for removal.
  */
+@Deprecated
 @AtomicSerial
 public final class SharedActivationPolicyPermission extends Permission
                                                     implements Serializable
@@ -200,6 +201,10 @@ public final class SharedActivationPolicyPermission extends Permission
                     uncanonicalPath = Uri.fixWindowsURI(uncanonicalPath);
 //                    uncanonicalPath = Uri.escapeIllegalCharacters(uncanonicalPath);
                     path = Uri.uriToFile(Uri.escapeAndCreate(uncanonicalPath)).getPath();
+                    //strip leading file://
+                    if (path.startsWith("file://")){
+                        path = path.substring(7);
+                    }
 //                    path = new File(new URI(uncanonicalPath)).getPath();
                 } catch (URISyntaxException ex) {
                     path = uncanonicalPath.replace('/', File.separatorChar);

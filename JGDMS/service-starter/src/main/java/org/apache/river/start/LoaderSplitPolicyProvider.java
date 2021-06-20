@@ -31,8 +31,6 @@ import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.river.api.security.ScalableNestedPolicy;
-import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
@@ -53,7 +51,9 @@ import org.apache.river.concurrent.Referrer;
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
+ * @deprecated for removal
  */
+@Deprecated
 public class LoaderSplitPolicyProvider 
     extends Policy implements DynamicPolicy
 {

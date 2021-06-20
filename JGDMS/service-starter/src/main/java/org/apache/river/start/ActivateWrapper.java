@@ -36,16 +36,12 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
-import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.security.cert.Certificate;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.activation.ActivationDescImpl;
@@ -57,7 +53,6 @@ import net.jini.loader.LoadClass;
 import net.jini.loader.pref.PreferredClassLoader;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
-import net.jini.security.policy.PolicyFileProvider;
 import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -68,28 +63,15 @@ import org.apache.river.api.util.Startable;
  * A wrapper for activatable objects, providing separation of the import
  * codebase (where the server classes are loaded from by the activation
  * group) from the export codebase (where clients should load classes from
- * for stubs, etc.) as well as providing an independent security policy file 
- * for each activatable object. This functionality allows multiple 
+ * for stubs, etc.). This functionality allows multiple 
  * activatable objects to be placed in the same activation group, with each 
- * object maintaining a distinct codebase and policy.
+ * object maintaining a distinct codebase.
  * <p>
  * This wrapper class is assumed to be available directly in the activation
  * group VM; that is, it is assumed to be in the application classloader,
  * the extension classloader, or the boot classloader, rather than being
  * downloaded. Since this class also needs considerable permissions, the
  * easiest thing to do is to make it an installed extension.
- * <p>
- * This wrapper class performs a security check to control what 
- * policy files can be used with a given codebase. 
- * It does this by querying the VM's (global) policy for 
- * {@link org.apache.river.start.SharedActivationPolicyPermission} 
- * grants. The service's associated 
- * {@link org.apache.river.start.ActivateWrapper.ActivateDesc#importLocation
- * ActivateDesc.importLocation} is used as 
- * the {@link java.security.CodeSource}
- * for selecting the appropriate permission set to 
- * check against. If multiple codebases are used, then all the codebases must
- * have the necessary <code>SharedActivationPolicyPermission</code> grants.
  * <p>
  * An example of how to use this wrapper:
  * <pre>
@@ -169,11 +151,9 @@ import org.apache.river.api.util.Startable;
  *       </A><BR>
  *       <I>Note:</I>The custom policy implementation is assumed to be
  *       available from the system classloader of the virtual machine
- *       hosting the service. Its codebase should also be granted
- *       {@link java.security.AllPermission}.
+ *       hosting the service.
  *   </table>
  *
- * @see org.apache.river.start.SharedActivationPolicyPermission
  * @see net.jini.activation.arg.ActivationID
  * @see net.jini.io.MarshalledInstance
  * @see java.rmi.Remote
@@ -188,11 +168,6 @@ public class ActivateWrapper implements Remote, Serializable {
 
     /** Configure logger */
     static final Logger logger = Logger.getLogger("org.apache.river.start.wrapper");
-    /**
-     * The <code>Policy</code> object that aggregates the individual 
-     * service policy objects.
-     */
-    private static AggregatePolicyProvider globalPolicy;
 
     /**
      * The <code>Policy</code> object in effect at startup. 
@@ -390,10 +365,6 @@ public class ActivateWrapper implements Remote, Serializable {
      *     <code>ActivateDesc</code>, 
      * <LI>checks the import codebase(s) for the required 
      *     <code>SharedActivationPolicyPermission</code>
-     * <LI>associates the newly created <code>ExportClassLoader</code>
-     *     and the corresponding policy file obtained from the 
-     *     <code>ActivateDesc</code> with the 
-     *     <code>AggregatePolicyProvider</code>
      * <LI>loads the "wrapped" activatable object's class and
      *     calls its activation constructor with the context classloader
      *     set to the newly created <code>ExportClassLoader</code>.
@@ -402,7 +373,8 @@ public class ActivateWrapper implements Remote, Serializable {
      * </UL>
      * The first instance of this class will also replace the VM's 
      * existing <code>Policy</code> object, if any,  
-     * with a <code>AggregatePolicyProvider</code>. 
+     * with a <code>DynamicPolicyProvider</code> if it is not an instance of
+     * <Code>DynamicPolicy</code>. 
      *
      * @param id The <code>ActivationID</code> of this object
      * @param data The activation data for this object
@@ -410,9 +382,8 @@ public class ActivateWrapper implements Remote, Serializable {
      *
      * @see org.apache.river.start.ActivateWrapper.ExportClassLoader
      * @see org.apache.river.start.ActivateWrapper.ActivateDesc
-     * @see org.apache.river.start.AggregatePolicyProvider
-     * @see org.apache.river.start.SharedActivationPolicyPermission
      * @see java.security.Policy
+     * @see net.jini.secuirity.DynamicPolicy
      *
      */
     public ActivateWrapper(ActivationID id, MarshalledObject data)
@@ -435,7 +406,6 @@ public class ActivateWrapper implements Remote, Serializable {
 	        cl = new ExportClassLoader(desc.importLocation, 
 	                                   desc.exportLocation,
 					   ccl);
-//                                           ActivateWrapper.class.getClassLoader());
 	        logger.log(Level.FINEST, "Created ExportClassLoader: {0}", cl);
             } catch (Exception e) {
 	        logger.throwing(ActivateWrapper.class.getName(), 
@@ -443,53 +413,13 @@ public class ActivateWrapper implements Remote, Serializable {
 	        throw e;
 	    }
 	
-	    checkPolicyPermission(desc.policy, desc.importLocation);
-	
 	    synchronized (ActivateWrapper.class) {
-	        // supplant global policy 1st time through
-	        if (globalPolicy == null) { 
-		    initialGlobalPolicy = Policy.getPolicy();
-                    if (!(initialGlobalPolicy instanceof DynamicPolicy)) {
-                        initialGlobalPolicy = 
-                            new DynamicPolicyProvider(initialGlobalPolicy);
-                    }
-		    globalPolicy = 
-		        new AggregatePolicyProvider(initialGlobalPolicy);
-		    Policy.setPolicy(globalPolicy);
-	            logger.log(Level.FINEST, 
-		        "Global policy set: {0}", globalPolicy);
-	        }
-                // Obtain my permissions for granting to the split policy
-                PermissionCollection myPerms =
-                initialGlobalPolicy.getPermissions(ActivateWrapper.class.getProtectionDomain());
-		Policy service_policy = 
-		    getServicePolicyProvider(
-		        new PolicyFileProvider(desc.policy));
-		Policy backstop_policy = 
-		    getServicePolicyProvider(initialGlobalPolicy);
-                LoaderSplitPolicyProvider split_service_policy = 
-                    new LoaderSplitPolicyProvider(
-                        cl, service_policy, backstop_policy);
-		/* Grant "this" code enough permission to do its work
-		* under the service policy, which takes effect (below)
-		* after the context loader is (re)set.
-		* Note: Throws UnsupportedOperationException if dynamic grants
-		* aren't supported (because underlying policies don't support it).
-		*/
-                Permission [] myPermissions;
-                Collection<Permission> p = new ArrayList<Permission>(32);
-                Enumeration<Permission> e = myPerms.elements();
-                while(e.hasMoreElements()){
-                    p.add(e.nextElement());
+                initialGlobalPolicy = Policy.getPolicy();
+                if (!(initialGlobalPolicy instanceof DynamicPolicy)) {
+                    initialGlobalPolicy = 
+                        new DynamicPolicyProvider(initialGlobalPolicy);
+                    Policy.setPolicy(initialGlobalPolicy);
                 }
-                myPermissions = p.toArray(new Permission[p.size()]);
-		split_service_policy.grant(
-	            this.getClass(), 
-	            null, /* Principal[] */
-	            myPermissions );	
-	        globalPolicy.setPolicy(cl, split_service_policy);
-	        logger.log(Level.FINEST, 
-		    "Added policy to set: {0}", desc.policy);
 	    }
 	
 	    boolean initialize = false;
@@ -502,7 +432,6 @@ public class ActivateWrapper implements Remote, Serializable {
  	        logger.log(Level.FINEST, 
 		    "Set new context class loader: {0}", cl);
 		Constructor constructor = null;
-//                    = ac.getConstructor(actTypes);
                 Constructor [] constructors = ac.getConstructors();
                 for(int i=0, l=constructors.length; i<l; i++){
                     if (constructors[i].getParameterCount() == 2){
@@ -635,46 +564,6 @@ public class ActivateWrapper implements Remote, Serializable {
 	    "register", aid);
 	return aid;
     }
-
-    /**
-     * Checks that all the provided <code>URL</code>s have permission to
-     * use the given policy.
-     */
-    private static void checkPolicyPermission(String policy, URL[] urls) {
-        logger.entering(ActivateWrapper.class.getName(), 
-	    "checkPolicyPermission", new Object[] { policy, urlsToPath(urls) });
-        // Create desired permission object
-	Permission perm = new SharedActivationPolicyPermission(policy);
-        Certificate[] certs = null;
-        CodeSource cs;
-	 ProtectionDomain pd;
-	// Loop over all codebases
-        int l = urls.length;
-	for (int i=0; i < l; i++) {
-            // Create ProtectionDomain for given codesource
-	    cs = new CodeSource(urls[i], certs);
-	    pd = new ProtectionDomain(cs, null, null, null);
-	    AccessControlContext acc = 
-		    new AccessControlContext(new ProtectionDomain[]{pd});
-	    SecurityManager sm = System.getSecurityManager();
- 	    logger.log(Level.FINEST, 
-	        "Checking protection domain: {0}", pd);
-	    
-	    // Check if current domain allows desired permission
-	    try {
-		sm.checkPermission(perm, acc);
-	    } catch (SecurityException e){
-		SecurityException se =  new SecurityException(
-		    "ProtectionDomain " + pd
-		    + " does not have required permission: " + perm);
-                logger.throwing(ActivateWrapper.class.getName(), 
-	            "checkPolicyPermission", se);
-		throw se;
-	    }
-        }
-        logger.exiting(ActivateWrapper.class.getName(), 
-	    "checkPolicyPermission");
-    }
     
     /**
      * Utility method that converts a <code>URL[]</code> 
@@ -701,31 +590,4 @@ public class ActivateWrapper implements Remote, Serializable {
             return path.toString();
         }
     }
-    
-    static Policy getServicePolicyProvider(Policy service_policy) throws Exception {
-        Policy servicePolicyWrapper;
-        if (servicePolicyProvider != null) {
- 	    Class sp = Class.forName(servicePolicyProvider);
-	    logger.log(Level.FINEST, 
-	        "Obtained custom service policy implementation class: {0}", sp);
-	    Constructor constructor =
-	        sp.getConstructor(policyTypes);
-	    logger.log(Level.FINEST, 
-	        "Obtained custom service policy implementation constructor: {0}", 
-	        constructor);
-	    servicePolicyWrapper = (Policy)
-		constructor.newInstance(new Object[]{service_policy});
-	    logger.log(Level.FINEST, 
-		"Obtained custom service policy implementation instance: {0}", 
-		servicePolicyWrapper);
-	} else {
-	   servicePolicyWrapper = new DynamicPolicyProvider(service_policy);
-	   logger.log(Level.FINEST, 
-		"Using default service policy implementation instance: {0}", 
-		servicePolicyWrapper);
-	}
-	return servicePolicyWrapper;
-    }
-
-
 }
