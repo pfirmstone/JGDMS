@@ -55,9 +55,7 @@ import java.util.NavigableSet;
 import java.util.Properties;
 import java.util.TreeSet;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.jini.security.policy.PolicyInitializationException;
-import org.apache.river.impl.Messages;
 
 
 /**
