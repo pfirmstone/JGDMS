@@ -1096,6 +1096,9 @@ public final class Uri implements Comparable<Uri> {
      * <li>if this {@code Uri}'s path ends with {@code "/-"},
      * then {@code implied}'s path must start with {@code Uri}'s path
      * (exclusive the trailing '-')
+     * <li>if this {@code Uri}'s path ends with {@code ";-"},
+     * then {@code implied}'s path must start with {@code Uri}'s path
+     * (exclusive the trailing '-') this is a custom addition for httmd.
      * <li>if this {@code Uri}'s path ends with {@code "/*"},
      * then {@code implied}'s path must start with {@code Uri}'s path
      * (exclusive the trailing '*') and must not have any further '/'
@@ -1290,6 +1293,11 @@ public final class Uri implements Comparable<Uri> {
             }
             if (thatFile == null || thisFile == null) return false;
             if (thisFile.endsWith("/-")) { //javadoc:3.6."/-" //$NON-NLS-1$
+                if (!thatFile.startsWith(thisFile.substring(0, thisFile
+                        .length() - 2))) {
+                    return false;
+                }
+            } else if (thisFile.endsWith(";-")) { //httpmd
                 if (!thatFile.startsWith(thisFile.substring(0, thisFile
                         .length() - 2))) {
                     return false;
