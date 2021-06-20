@@ -114,7 +114,7 @@ grant codebase "jrt:/java.xml.crypto"
     permission java.security.SecurityPermission "putProviderProperty.XMLDSig";
 };
 
-grant codebase "httpmd://${HOST}:9082/qa1-lookup-simulator-dl.jar;sha-384=9f4890e04c5fe845762f45c7a45dab37c06f430c3c53c18882951cc3d96335f00f815d1a6e0a347975df41d9d0524dff"
+grant codebase "httpmd://${HOST}:9082/qa1-lookup-simulator-dl.jar;-"
 {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
@@ -329,7 +329,7 @@ grant codebase "file:/${qa.home}/lib/jinitests.jar",
     permission java.net.SocketPermission "localhost:9082", "listen,resolve";
 };
 
-grant codebase "httpmd://${HOST}:9082/qa1-lookup-simulator-dl.jar;sha-256=a27fc06ae3cf4adb26f7c029df5886ca53b033c82c5c19a40409bc1295492ca7",
+grant codebase "httpmd://${HOST}:9082/qa1-lookup-simulator-dl.jar;-",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
     permission javax.security.auth.AuthPermission "getSubject";
@@ -690,11 +690,6 @@ grant codebase "jrt:/jdk.crypto.mscapi"
     permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
     permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
     permission java.security.SecurityPermission "putProviderProperty.SunMSCAPI";
-};
-
-grant codebase "httpmd://${HOST}:9082/qa1-lookup-simulator-dl.jar;-"
-{
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
 };
 
 grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
@@ -1754,4 +1749,268 @@ grant codebase "file:/${jsk.home}/lib/${activation.jar}",
 };
 
 // org/apache/river/test/impl/mahalo/RandomStressTest.td
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost/nonexist", "GET:";
+    permission java.net.NetPermission "specifyStreamHandler";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost/nonexist", "GET:";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost/nonexist", "GET:";
+    permission java.net.NetPermission "specifyStreamHandler";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.net.SocketPermission "localhost", "resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost/nonexist", "GET:";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:80", "connect,resolve";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd.jar", "GET:";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd.jar", "GET:";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd.jar", "GET:";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd.jar", "GET:";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd.jar", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:8083/empty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonempty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonexist_file", "GET:";
+    permission java.net.SocketPermission "localhost:8083", "listen,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:8083/empty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonempty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonexist_file", "GET:";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd.jar", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:8083/empty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonempty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonexist_file", "GET:";
+    permission java.net.SocketPermission "localhost:8083", "listen,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:8083/empty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonempty_file", "GET:";
+    permission java.net.URLPermission "http://localhost:8083/nonexist_file", "GET:";
+    permission java.net.SocketPermission "localhost:8083", "listen,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.net.SocketPermission "localhost:8083", "listen,resolve";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-another.jar", "GET:";
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-same.jar", "GET:";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-another.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-same.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-another.jar", "GET:";
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-same.jar", "GET:";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-another.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-same.jar", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-another.jar", "GET:";
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-same.jar", "GET:";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-another.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-same.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-another.jar", "GET:";
+    permission java.net.URLPermission "http://localhost:9082/qa1-httpmd-same.jar", "GET:";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-another.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-same.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-another.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-httpmd-same.jar", "read";
+};
+
+// run.categories=url
+
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}reggie${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}reggie${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.lookup.ServiceProxyAccessor.getServiceProxy";
+};
+
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar};-",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+};
+
+grant codebase "httpmd://${HOST}:9080/${reggie-dl.jar};-",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set01${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set01${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set02${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set02${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set03${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${jsk-dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set03${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "httpmd://${HOST}:9080/${jsk-dl.jar};-"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set04${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set04${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jsse${/}default.config", "read";
+};
+
+// run.categories=lookupservice
 

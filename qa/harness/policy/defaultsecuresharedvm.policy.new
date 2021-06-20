@@ -1761,7 +1761,7 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}",
     permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Mercury";
 };
 
-grant codebase "httpmd://${HOST}:9080/${mercury-dl.jar};sha-384=041531e5e3de288c121e865af8a46f7af86172ee0127dc4aff4f551c73a0ad604f51cb1c53076140fd415f957c14e8dd",
+grant codebase "httpmd://${HOST}:9080/${mercury-dl.jar};-",
     principal javax.security.auth.x500.X500Principal "CN=Outrigger"
 {
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
@@ -2302,4 +2302,271 @@ grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}",
 
 
 // org/apache/river/test/impl/mahalo/RandomStressTest.td
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.lookUp";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.lookup";
+};
+
+// run.categories=lookupservice
+
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.renewServiceLease";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.addAttributes";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.modifyAttributes";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.getEntryClasses";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.getFieldValues";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.getServiceTypes";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.cancelEventLease";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.cancelLeases";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.renewLeases";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.setAttributes";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.addLookupAttributes";
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.getLookupAttributes";
+};
+
+grant codebase "file:/${jsk.home}/lib/${reggie.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.discovery.DiscoveryPermission "g00e00";
+    permission net.jini.discovery.DiscoveryPermission "g00e01";
+    permission net.jini.discovery.DiscoveryPermission "g00e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e00";
+    permission net.jini.discovery.DiscoveryPermission "g01e01";
+    permission net.jini.discovery.DiscoveryPermission "g01e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e00";
+    permission net.jini.discovery.DiscoveryPermission "g02e01";
+    permission net.jini.discovery.DiscoveryPermission "g02e02";
+    permission net.jini.discovery.DiscoveryPermission "g02e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e04";
+    permission net.jini.discovery.DiscoveryPermission "g03e00";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.discovery.DiscoveryPermission "g00e00";
+    permission net.jini.discovery.DiscoveryPermission "g00e01";
+    permission net.jini.discovery.DiscoveryPermission "g00e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e00";
+    permission net.jini.discovery.DiscoveryPermission "g01e01";
+    permission net.jini.discovery.DiscoveryPermission "g01e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e00";
+    permission net.jini.discovery.DiscoveryPermission "g02e01";
+    permission net.jini.discovery.DiscoveryPermission "g02e02";
+    permission net.jini.discovery.DiscoveryPermission "g02e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e04";
+    permission net.jini.discovery.DiscoveryPermission "g03e00";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.discovery.DiscoveryPermission "g00e00";
+    permission net.jini.discovery.DiscoveryPermission "g00e01";
+    permission net.jini.discovery.DiscoveryPermission "g00e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e00";
+    permission net.jini.discovery.DiscoveryPermission "g01e01";
+    permission net.jini.discovery.DiscoveryPermission "g01e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e00";
+    permission net.jini.discovery.DiscoveryPermission "g02e01";
+    permission net.jini.discovery.DiscoveryPermission "g02e02";
+    permission net.jini.discovery.DiscoveryPermission "g02e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e04";
+    permission net.jini.discovery.DiscoveryPermission "g03e00";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.discovery.DiscoveryPermission "g00e00";
+    permission net.jini.discovery.DiscoveryPermission "g00e01";
+    permission net.jini.discovery.DiscoveryPermission "g00e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e00";
+    permission net.jini.discovery.DiscoveryPermission "g01e01";
+    permission net.jini.discovery.DiscoveryPermission "g01e02";
+    permission net.jini.discovery.DiscoveryPermission "g01e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e00";
+    permission net.jini.discovery.DiscoveryPermission "g02e01";
+    permission net.jini.discovery.DiscoveryPermission "g02e02";
+    permission net.jini.discovery.DiscoveryPermission "g02e03";
+    permission net.jini.discovery.DiscoveryPermission "g02e04";
+    permission net.jini.discovery.DiscoveryPermission "g03e00";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.addLookupGroups";
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.getLookupGroups";
+};
+
+grant codebase "file:/${jsk.home}/lib/${reggie.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.addLookupLocators";
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.getLookupLocators";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.lookup.DiscoveryAdmin.addMemberGroups";
+    permission net.jini.security.AccessPermission "net.jini.lookup.DiscoveryAdmin.getMemberGroups";
+};
+
+grant codebase "file:/${jsk.home}/lib/${reggie.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "httpmd://${HOST}:9082/qa1-lookupservice-dl.jar;-"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.modifyLookupAttributes";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${jsk-dl.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.removeLookupGroups";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.removeLookupLocators";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.lookup.DiscoveryAdmin.removeMemberGroups";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.setLookupGroups";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.JoinAdmin.setLookupLocators";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.lookup.DiscoveryAdmin.setMemberGroups";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.net.SocketPermission "localhost:9998", "listen,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.net.SocketPermission "localhost:9998", "listen,resolve";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.lookup.DiscoveryAdmin.getUnicastPort";
+    permission net.jini.security.AccessPermission "net.jini.lookup.DiscoveryAdmin.setUnicastPort";
+};
+
+// run.categories=lookupservice
 
