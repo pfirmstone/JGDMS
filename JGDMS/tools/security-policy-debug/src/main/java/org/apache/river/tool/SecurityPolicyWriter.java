@@ -35,7 +35,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLPermission;
-import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -66,7 +65,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.PrivateCredentialPermission;
 import net.jini.security.policy.PolicyInitializationException;
-import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.Replace;
 import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.CombinerSecurityManager;
@@ -89,14 +87,16 @@ import org.apache.river.api.security.PermissionComparator;
  * Java platform jars.
  * <p>
  * 
- * The following properties should be set to obtain CodeSource signer Certificate Aliases.<br>
+ * The following properties should be set to obtain CodeSource signer 
+ * Certificate Aliases.<br>
  * <table><caption>System Properties</caption>
  * <tr>
  * <td>System Property</td>
  * <td>Explanation</td>
  * </tr><tr>
- * <td>org.apache.river.tool.SecurityPolicyWriter.Directory</td>
- * <td>Directory to create policy files in.</td>
+ * <td>java.security.policy</td>
+ * <td>The policy file location, note that your generated policy file will have
+ * a .new extension appended, so as not to overwrite existing policy files.</td>
  * </tr><tr>
  * <td>javax.net.ssl.trustStore</td>
  * <td>The location of the KeyStore,  if no location is specified, then the 
@@ -120,6 +120,23 @@ import org.apache.river.api.security.PermissionComparator;
  * CodeSource url and FilePermission path's, by setting the following property:
  * <code>-DSecurityPolicyWriter.path.properties=</code> Properties defined in this
  * property file shouldn't reference other properties declared in this file.
+ * <p>
+ * If a policy file that ends in .new already exists, only additional permission grants
+ * will be added during subsequent test runs.
+ * <p>
+ * Generated policy files should be edited after running each integration test
+ * when widening
+ * permission scope, such as SocketPermission which will typically specify a local
+ * IP address. Subsequent integration tests append missing permissions, so it
+ * is important to widen scope prior to adding more permission grants.
+ * <p>
+ * Note that the logger <code>net.jini.security.policy</code> should be set to
+ * <code>Level.CONFIG</code> to
+ * log any syntax errors in edited policy files.  If a policy file contains
+ * a syntax error, all permissions granted in the new policy file will be ignored, 
+ * this results in duplication of permissions in the new policy file as they will be 
+ * re-granted until the syntax error is addressed.  For this reason the log 
+ * output should be checked following each manual edit.
  * 
  * @see KeyStore
  * @author Peter Firmstone
@@ -129,41 +146,8 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     
     private static Logger logger;
     private static final Object loggerLock = new Object();
-    private static final Policy POLICY;
-    private static final File policyFile;
-    
-    static {
-        String policy = System.getProperty("java.security.policy");
-//        Uuid timestamp = UuidFactory.generate();
-//        File policyFile = new File(policyDirectory + File.separator + timestamp + ".policy");
-	Uri polLocation;
-        try {
-            polLocation = new Uri(policy +".new");
-            
-        } catch (URISyntaxException ex) {
-            throw new RuntimeException("Unable to create URI", ex);
-        }
-        URI poliLoc = Uri.uriToURI(polLocation);
-	policyFile = new File(poliLoc);
-        if (policyFile.exists()){
-            try {
-                POLICY = new ConcurrentPolicyFile(new URL[]{polLocation.toURL()});
-            } catch (MalformedURLException ex) {
-                throw new RuntimeException("Unable to create URL", ex);
-            } catch (PolicyInitializationException ex) {
-                throw new RuntimeException("Unable to create Policy instance", ex);
-            }
-        } else {
-	    try {
-                POLICY = null;
-		policyFile.createNewFile();
-	    } catch (IOException ex) {
-		throw new RuntimeException("Unable to create a policy file: "+ policy +".new", ex);
-//	    } catch (PolicyInitializationException ex) {
-//                throw new RuntimeException("Unable to create Policy instance", ex);
-            }
-        }
-    }
+    private final Policy POLICY;
+    private final File policyFile;
 
     /**
      * @return the logger
@@ -172,7 +156,7 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         synchronized (loggerLock){
             if (logger != null) return logger;
             logger = 
-            Logger.getLogger("org.apache.river.tool.SecurityPolicyWriter");
+            Logger.getLogger("net.jini.security.policy");
             return logger;
         }
     }
@@ -182,7 +166,6 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     private static final Object keyStoreLock = new Object();
     private final ConcurrentMap<Certificate,String> aliases;
     private final Cert certFunc;
-//    private final Map properties;
     private final Map<String,String> pathReplacements;
     private final String hostname;
     
@@ -190,27 +173,33 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 	    ConcurrentMap<ProtectionDomain,Collection<Permission>> map) 
     {
         super();
+        
         domainPermissions = map;
         aliases = new ConcurrentHashMap<Certificate,String>();
         certFunc = new Cert();
         String securityPolicyWriterPropLocation = System.getProperty("SecurityPolicyWriter.path.properties");
         hostname = System.getProperty("HOST");
         Properties p = new Properties();
-        p.put("java.io.tmpdir", System.getProperty("java.io.tmpdir"));
-        p.put("java.home", System.getProperty("java.home"));
-        p.put("HOST", hostname);
-        p.put("jsk.home", System.getProperty("jsk.home"));
-        p.put("qa.home", System.getProperty("qa.home"));
         if (securityPolicyWriterPropLocation != null){
             try {
                 FileReader fr = new FileReader(securityPolicyWriterPropLocation);
                 p.load(fr);
+                Iterator<Entry<Object,Object>> propsit = p.entrySet().iterator();
+                while (propsit.hasNext()){
+                    Entry<Object,Object> entry = propsit.next();
+                    System.setProperty((String) entry.getKey(), (String) entry.getValue());
+                }
             } catch (FileNotFoundException ex) {
                 getLogger().log(Level.INFO, "Unable to read properties file", ex);
             } catch (IOException ex) {
                 getLogger().log(Level.INFO, "Unable to read properties file", ex);
             }
         }
+        p.put("java.io.tmpdir", System.getProperty("java.io.tmpdir"));
+        p.put("java.home", System.getProperty("java.home"));
+        p.put("HOST", hostname);
+        p.put("jsk.home", System.getProperty("jsk.home"));
+        p.put("qa.home", System.getProperty("qa.home"));
         Map<String,String> paths = new HashMap<String,String>(p.size());
         Set<Entry<Object,Object>> propSet = p.entrySet();
         Iterator<Entry<Object,Object>> propIt = propSet.iterator();
@@ -223,6 +212,31 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
             }
         }
         pathReplacements = paths;
+        String policy = System.getProperty("java.security.policy");
+	Uri polLocation = null;
+        try {
+            polLocation = new Uri(policy +".new");
+        } catch (URISyntaxException ex) {
+            throw new RuntimeException("Unable to create URI", ex);
+        }
+        URI poliLoc = Uri.uriToURI(polLocation);
+        policyFile = new File(poliLoc);
+        if (!policyFile.exists()){
+	    try {
+		policyFile.createNewFile();
+	    } catch (IOException ex) {
+		throw new RuntimeException("Unable to create a policy file: "+ policy +".new", ex);
+            }
+        }
+        Policy polcy = null;
+        try {
+            polcy = new ConcurrentPolicyFile(new URL[]{policyFile.toURI().toURL()});
+        } catch (PolicyInitializationException ex) {
+            getLogger().log(Level.CONFIG,"Unable to create Policy instance", ex);
+        } catch (MalformedURLException ex) {
+            getLogger().log(Level.CONFIG, "Unable to create URL", ex);
+        }
+        POLICY = polcy;
     } 
     
     public SecurityPolicyWriter() {
@@ -230,7 +244,7 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         Runtime.getRuntime().addShutdownHook(shutdownHook());
     }
     
-    private static File policyFile() throws URISyntaxException{
+    private File policyFile() throws URISyntaxException{
         return policyFile;
     }
     
@@ -292,7 +306,6 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
     
     @Override
     protected boolean checkPermission(ProtectionDomain pd, Permission p){
-        if (POLICY != null && POLICY.implies(pd, p)) return true;
         pd = new ProtectionDomainKey(pd);
 	Collection<Permission> perms = domainPermissions.get(pd);
 	    if (perms == null) {
@@ -320,11 +333,8 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
             @Override
             public void run (){
                 PrintWriter pw = null;
-		boolean onlyAdditional = AccessController.doPrivileged(new GetBooleanAction("org.apache.river.tool.addPerms"));
-		Policy policy = Policy.getPolicy();
                 try {
 		    File policyFile = policyFile();
-//		    policy = new ConcurrentPolicyFile(new URL[]{policyFile.toURI().toURL()});
 		    pw = new PrintWriter(new BufferedWriter(new FileWriter(policyFile, true)));
                 } catch (IOException ex) {
                     getLogger().log(Level.SEVERE, "unable to write to policy file ", ex);
@@ -332,7 +342,7 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
                 } catch (URISyntaxException ex) {
 		    getLogger().log(Level.SEVERE, "unable to write to policy file ", ex);
 		    return;
-		} 
+                } 
 //		catch (PolicyInitializationException ex) {
 //		    getLogger().log(Level.SEVERE, "unable to parse to policy file ", ex);
 //		    return;
@@ -359,14 +369,16 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
                     Entry<ProtectionDomain,Collection<Permission>> entry = it.next();
                     ProtectionDomain pd = entry.getKey();
 		    Collection<Permission> perms = entry.getValue();
-		    if (onlyAdditional){
-			Iterator<Permission> pIt = perms.iterator();
-			while (pIt.hasNext()){
-			    Permission p = pIt.next();
-			    if (policy.implies(pd, p)) pIt.remove();
-			}
-		    }
-		    if (perms.isEmpty()) continue;
+                    Collection<Permission> permsToPrint = new ArrayList<Permission>();
+                    PermissionCollection pc = new Permissions();
+                    Iterator<Permission> pIt = perms.iterator();
+                    while (pIt.hasNext()){
+                        Permission p = pIt.next();
+                        if (POLICY != null && POLICY.implies(pd, p) || pc.implies(p)) continue;
+                        pc.add(p);
+                        permsToPrint.add(p);
+                    }
+		    if (permsToPrint.isEmpty()) continue;
                     CodeSource cs = null; 
                     Principal [] principals = null;
 		    try {
@@ -392,10 +404,10 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 			}
 		    }
                     if (cs != null || (principals != null && principals.length > 0)){
-                        URL codebase = cs.getLocation();
+                        URL codebase = cs != null ? cs.getLocation() : null;
                         pw.print("grant ");
                         if (keyStore != null){
-                            Certificate [] signers = cs.getCertificates();
+                            Certificate [] signers = cs != null ? cs.getCertificates() : null;
                             if (signers != null && signers.length > 0) {
                                 List<String> alia = new ArrayList<String>(signers.length);
                                 for (int i=0, l=signers.length; i<l; i++){
@@ -420,7 +432,8 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 			}
                         if (principals != null && principals.length > 0){
                             for (int i=0, l=principals.length; i<l; i++){
-                                pw.print("    principal ");
+                                if (i!=0 || codebase != null) pw.print("    ");
+                                pw.print("principal ");
                                 pw.print(principals[i].getClass().getCanonicalName());
                                 pw.print(" \"");
                                 pw.print(principals[i].getName());
@@ -432,12 +445,9 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
                         }
                         pw.print("{\n");
 
-                        Iterator<Permission> permIt = entry.getValue().iterator();
-                        Permissions permissions = new Permissions();
+                        Iterator<Permission> permIt = permsToPrint.iterator();
                         while (permIt.hasNext()){
                             Permission p = permIt.next();
-                            if (permissions.implies(p)) continue;
-                            permissions.add(p);
                             pw.print("    permission ");
                             pw.print(p.getClass().getCanonicalName());
                             pw.print(" \"");
@@ -539,10 +549,10 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
      */
     private static class ProtectionDomainKey extends ProtectionDomain{
         
-        private static CodeSource getCodeSource(ProtectionDomain pd){
+        private static UriCodeSource getCodeSource(ProtectionDomain pd){
             CodeSource cs = pd.getCodeSource();
-            if (cs != null) cs = new UriCodeSource(cs);
-            return cs;
+            if (cs != null) return new UriCodeSource(cs);
+            return null;
         }
 
         private final CodeSource codeSource;
@@ -553,37 +563,24 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
             this(getCodeSource(pd), pd.getPermissions(), pd.getPrincipals());
         }
         
-        ProtectionDomainKey(CodeSource cs, PermissionCollection perms, Principal [] p){
-            super(cs, perms, null, p);
-            this.codeSource = cs;
+        ProtectionDomainKey(UriCodeSource urics, PermissionCollection perms, Principal [] p){
+            super(urics, perms, null, p);
+            this.codeSource = urics;
             this.princiPals = p;
             int hash = 7;
             hash = 29 * hash + Objects.hashCode(this.codeSource);
             hash = 29 * hash + Arrays.deepHashCode(this.princiPals);
             this.hashCode = hash;
         }
-        
-        
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
+            if (this == obj) return true;
+            if (obj == null) return false;
+            if (getClass() != obj.getClass()) return false;
             final ProtectionDomainKey other = (ProtectionDomainKey) obj;
-            if (!Objects.equals(this.codeSource, other.codeSource)) {
-                return false;
-            }
-            if (!Arrays.deepEquals(this.princiPals, other.princiPals)) {
-                return false;
-            }
-            return true;
+            if (!Objects.equals(this.codeSource, other.codeSource)) return false;
+            return Arrays.deepEquals(this.princiPals, other.princiPals);
         }
 
         @Override
