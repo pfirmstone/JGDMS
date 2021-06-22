@@ -2570,3 +2570,572 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
 
 // run.categories=lookupservice
 
+grant codebase "file:/${jsk.home}/lib/${collections.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerAdmin.close";
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerAdmin.contents";
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerAdmin.delete";
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerAdmin.nextReps";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${jsk-dl.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${jsk-dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+
+grant codebase "httpmd://${HOST}:9082/qa1-share-dl.jar;-"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${outrigger.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${outrigger-snaplogstore.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${mahalo.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.net.SocketPermission "127.0.0.1:1024-", "accept,resolve";
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${jsk-dl.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk-lib.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.discovery.DiscoveryPermission "Ann";
+    permission net.jini.discovery.DiscoveryPermission "Bob";
+    permission net.jini.discovery.DiscoveryPermission "Floor polish";
+    permission net.jini.discovery.DiscoveryPermission "Jim";
+    permission net.jini.discovery.DiscoveryPermission "Ken";
+    permission net.jini.discovery.DiscoveryPermission "desert topping";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.discovery.DiscoveryPermission "Ann";
+    permission net.jini.discovery.DiscoveryPermission "Bob";
+    permission net.jini.discovery.DiscoveryPermission "Floor polish";
+    permission net.jini.discovery.DiscoveryPermission "Jim";
+    permission net.jini.discovery.DiscoveryPermission "Ken";
+    permission net.jini.discovery.DiscoveryPermission "desert topping";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "Ann";
+    permission net.jini.discovery.DiscoveryPermission "Bob";
+    permission net.jini.discovery.DiscoveryPermission "Floor polish";
+    permission net.jini.discovery.DiscoveryPermission "Jim";
+    permission net.jini.discovery.DiscoveryPermission "Ken";
+    permission net.jini.discovery.DiscoveryPermission "desert topping";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "Ann";
+    permission net.jini.discovery.DiscoveryPermission "Bob";
+    permission net.jini.discovery.DiscoveryPermission "Floor polish";
+    permission net.jini.discovery.DiscoveryPermission "Jim";
+    permission net.jini.discovery.DiscoveryPermission "Ken";
+    permission net.jini.discovery.DiscoveryPermission "desert topping";
+};
+
+grant codebase "file:/${jsk.home}/lib/${mahalo.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "Ann";
+    permission net.jini.discovery.DiscoveryPermission "Bob";
+    permission net.jini.discovery.DiscoveryPermission "Floor polish";
+    permission net.jini.discovery.DiscoveryPermission "Jim";
+    permission net.jini.discovery.DiscoveryPermission "Ken";
+    permission net.jini.discovery.DiscoveryPermission "*";
+    permission net.jini.discovery.DiscoveryPermission "desert topping";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.net.SocketPermission "10.1.1.90:64476", "accept,resolve";
+    permission java.net.SocketPermission "127.0.0.1:64476", "accept,resolve";
+    permission net.jini.discovery.DiscoveryPermission "Ann";
+    permission net.jini.discovery.DiscoveryPermission "Bob";
+    permission net.jini.discovery.DiscoveryPermission "Floor polish";
+    permission net.jini.discovery.DiscoveryPermission "Jim";
+    permission net.jini.discovery.DiscoveryPermission "Ken";
+    permission net.jini.discovery.DiscoveryPermission "*";
+    permission net.jini.discovery.DiscoveryPermission "desert topping";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Outrigger\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Outrigger\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.net.SocketPermission "elemendorf", "resolve";
+    permission java.net.SocketPermission "elemendorf:4160", "connect,resolve";
+    permission java.net.SocketPermission "oreo", "resolve";
+    permission java.net.SocketPermission "oreo:4160", "connect,resolve";
+    permission java.net.SocketPermission "photoplod", "resolve";
+    permission java.net.SocketPermission "photoplod:4160", "connect,resolve";
+    permission java.net.SocketPermission "recycle", "resolve";
+    permission java.net.SocketPermission "recycle:4160", "connect,resolve";
+    permission java.net.SocketPermission "recycle:5008", "connect,resolve";
+    permission java.net.SocketPermission "sugarloaf", "resolve";
+    permission java.net.SocketPermission "sugarloaf:4160", "connect,resolve";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Outrigger\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${outrigger.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Outrigger\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${outrigger-snaplogstore.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+};
+
+grant codebase "file:/${jsk.home}/lib/${collections.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+};
+
+grant codebase "file:/${jsk.home}/lib/${outrigger.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Mahalo\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Mahalo\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${mahalo.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Mahalo\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.net.SocketPermission "127.0.0.1:1024-", "accept,resolve";
+    permission java.net.SocketPermission "elemendorf", "resolve";
+    permission java.net.SocketPermission "elemendorf:4160", "connect,resolve";
+    permission java.net.SocketPermission "oreo", "resolve";
+    permission java.net.SocketPermission "oreo:4160", "connect,resolve";
+    permission java.net.SocketPermission "photoplod", "resolve";
+    permission java.net.SocketPermission "photoplod:4160", "connect,resolve";
+    permission java.net.SocketPermission "recycle", "resolve";
+    permission java.net.SocketPermission "recycle:4160", "connect,resolve";
+    permission java.net.SocketPermission "recycle:5008", "connect,resolve";
+    permission java.net.SocketPermission "sugarloaf", "resolve";
+    permission java.net.SocketPermission "sugarloaf:4160", "connect,resolve";
+    permission net.jini.security.GrantPermission "net.jini.security.AuthenticationPermission \"javax.security.auth.x500.X500Principal \\\"CN=Mahalo\\\" peer javax.security.auth.x500.X500Principal \\\"CN=Reggie\\\"\", \"connect\";";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerServer.takeIfExists";
+};
+
+grant codebase "file:/${jsk.home}/lib/${mahalo.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.discovery.DiscoveryPermission "*";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+};
+
+grant codebase "file:/${jsk.home}/lib/${collections.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.net.SocketPermission "127.0.0.1:1024-", "accept,resolve";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionManager.getState";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.abort";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/outrigger-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/outrigger-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
+};
+
+grant codebase "httpmd://${HOST}:9080/${mahalo-dl.jar};-"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+grant codebase "httpmd://${HOST}:9080/${outrigger-dl.jar};-"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
+};
+
+grant codebase "file:/${jsk.home}/lib/${mahalo.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.net.URLPermission "http://${HOST}:9080/mahalo-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/outrigger-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionManager.join";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
+};
+
+grant codebase "file:/${jsk.home}/lib/${outrigger.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.jeri.internal.runtime";
+};
+
+grant codebase "httpmd://${HOST}:9080/${mahalo-dl.jar};-",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "connect";
+};
+
+grant codebase "httpmd://${HOST}:9080/${outrigger-dl.jar};-",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "connect";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerServer.readIfExists";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionManager.getState";
+};
+
+grant codebase "httpmd://${HOST}:9080/${mahalo-dl.jar};-",
+    principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Outrigger\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "connect";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.prepareAndCommit";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.abort";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.commit";
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionParticipant.prepare";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}"
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-javaspace-dl.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}"
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-javaspace-dl.jar", "GET:";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerServer.contents";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-javaspace-dl.jar", "GET:";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "org.apache.river.outrigger.proxy.OutriggerServer.registerForAvailabilityEvent";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionManager.abort";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "connect";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "connect";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${mahalo-dl.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "connect";
+};
+
+grant codebase "file:/${jsk.home}/lib/${mahalo.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Mahalo\"", "accept";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${mahalo-dl.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+};
+
+// run.categories=javaspace
+

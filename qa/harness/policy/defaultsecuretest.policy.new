@@ -2014,3 +2014,189 @@ grant codebase "file:/${qa.home}/lib/jiniharness.jar"
 
 // run.categories=lookupservice
 
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}admin${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}admin${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}api${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}api${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}leasing${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}leasing${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.event.RemoteEventListener.notify";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"", "accept";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}matching${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}matching${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}matching${/}configs${/}jsse${/}BlockingTestReadShutdown.config", "read";
+    permission java.io.FilePermission "configs${/}jsse${/}BlockingTestReadShutdown.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}matching${/}configs${/}jsse${/}BlockingTestReadShutdown.config", "read";
+    permission java.io.FilePermission "configs${/}jsse${/}BlockingTestReadShutdown.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}matching${/}configs${/}jsse${/}BlockingTestShutdown.config", "read";
+    permission java.io.FilePermission "configs${/}jsse${/}BlockingTestShutdown.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}matching${/}configs${/}jsse${/}BlockingTestShutdown.config", "read";
+    permission java.io.FilePermission "configs${/}jsse${/}BlockingTestShutdown.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Outrigger";
+    permission javax.security.auth.AuthPermission "doAs";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Outrigger";
+    permission javax.security.auth.AuthPermission "doAs";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Outrigger";
+    permission javax.security.auth.AuthPermission "doAs";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "doAs";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}notify${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}notify${/}org${/}apache${/}river${/}test${/}impl${/}outrigger${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+    permission net.jini.security.AccessPermission "net.jini.core.transaction.server.TransactionManager.getState";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+    permission java.io.FilePermission "org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-javaspace-dl.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-javaspace-dl.jar", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-javaspace-dl.jar", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+    permission java.io.FilePermission "org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-javaspace-dl.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}snapshot${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}snapshot${/}org${/}apache${/}river${/}test${/}spec${/}javaspace${/}conformance${/}configs${/}jsse${/}default.config", "read";
+};
+
+
+// run.categories=javaspace
+

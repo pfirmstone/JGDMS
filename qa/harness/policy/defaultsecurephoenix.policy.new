@@ -152,9 +152,7 @@ grant codebase "file:/${jsk.home}/lib/${platform.jar}"
     permission java.net.NetPermission "getProxySelector";
     permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
     permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Phoenix\"", "listen";
-    permission java.io.FilePermission "${java.home}${/}bin${/}net.dll", "read";
-    permission java.io.FilePermission "${java.home}${/}bin${/}nio.dll", "read";
-    permission java.io.FilePermission "${java.home}${/}bin${/}sunmscapi.dll", "read";
+    permission java.io.FilePermission "${java.home}${/}bin${/}-", "read";
     permission java.io.FilePermission "${java.home}${/}conf${/}net.properties", "read";
     permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited", "read";
     permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited${/}default_US_export.policy", "read";
@@ -479,5 +477,23 @@ grant codebase "file:/${jsk.home}/lib/${phoenix.jar}",
 // org/apache/river/test/impl/mercury/InterOpTest.td
 
 // org/apache/river/test/impl/mahalo/RandomStressTest.td
+
+// run.categories=lookupservice
+
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${phoenix.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+};
+
+
+// run.categories=javaspace
 
 
