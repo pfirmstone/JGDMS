@@ -26,7 +26,6 @@ import java.util.Collections;
 import net.jini.loader.ClassLoading;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.security.CombinerSecurityManager;
-//import org.apache.river.tool.SecurityPolicyWriter;
 
 /**
  * This is the bootstrap code to start a virtual machine (VM) executing an
@@ -62,30 +61,28 @@ public class ActivationGroupInit {
 	try {
 	    if (System.getSecurityManager() == null) {
 		System.setSecurityManager(new CombinerSecurityManager());
-//		System.setSecurityManager(new SecurityPolicyWriter());
 	    }
 	    AtomicMarshalInputStream in =
 		new AtomicMarshalInputStream(
 				   System.in,
 				   ActivationGroupInit.class.getClassLoader(),
 				   false, null, Collections.EMPTY_LIST);
-//	    in.useCodebaseAnnotations();
 	    ActivationGroupID id  = in.readObject(ActivationGroupID.class);
 	    ActivationGroupDesc desc = in.readObject(ActivationGroupDesc.class);
 	    long incarnation = in.readLong();
 	    Class cl = ClassLoading.loadClass(desc.getLocation(),
 						desc.getClassName(), null, false, null);
-	    try {
-		Method create =
-		    cl.getMethod("createGroup",
-				 new Class[]{ActivationGroupID.class,
-					     ActivationGroupDesc.class,
-					     long.class});
+                try {
+                    Method create =
+                            cl.getMethod("createGroup",
+                                    new Class[]{ActivationGroupID.class,
+                                        ActivationGroupDesc.class,
+                                        long.class});
 		create.invoke(null, new Object[]{id, desc,
 						 Long.valueOf(incarnation)});
-	    } catch (NoSuchMethodException e) {
+                } catch (NoSuchMethodException e) {
 		ActivationGroup.createGroup(id, desc, incarnation);
-	    }
+                }
 	} catch (Exception e) {
 	    System.err.println("Exception in starting ActivationGroupInit:");
 	    e.printStackTrace();

@@ -40,6 +40,7 @@ import net.jini.activation.arg.UnknownGroupException;
 import net.jini.activation.arg.UnknownObjectException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.ExportException;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
 import java.rmi.server.RMISocketFactory;
@@ -88,7 +89,6 @@ import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
-import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.ServerEndpoint;
@@ -98,14 +98,12 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.CombinerSecurityManager;
 import org.apache.river.config.Config;
 import org.apache.river.phoenix.common.AccessAtomicILFactory;
-import org.apache.river.phoenix.common.ActivationGroupData;
 import org.apache.river.phoenix.dl.AID;
 import org.apache.river.phoenix.dl.Activator;
 import org.apache.river.phoenix.dl.ConstrainableAID;
@@ -194,8 +192,8 @@ class Activation implements Serializable {
     private transient ActivationMonitor monitorStub;
     /** stub for registry */
     private transient Registry registryStub;
-    /** MarshalledInstance(ActivationGroupData) or null */
-    private transient MarshalledInstance groupData;
+    /** ActivationGroupData configuration data or null */
+    private transient String[] groupData;
     /** Location of ActivationGroupImpl or null */
     private transient String groupLocation;
     /** preparer for ActivationInstantiators */
@@ -311,8 +309,9 @@ class Activation implements Serializable {
                         "groupConfig",
                         String[].class,
                         configOptions);
-	    ActivationGroupData agd = new ActivationGroupData(groupConf);
-            groupData = new AtomicMarshalledInstance(agd);
+//	    ActivationGroupData agd = new ActivationGroupData(groupConf);
+//            groupData = new AtomicMarshalledInstance(agd);
+            groupData = groupConf;
             outputHandler = (GroupOutputHandler) config.getEntry(
                     PHOENIX, "groupOutputHandler", GroupOutputHandler.class,
                     new GroupOutputHandler() {
@@ -403,7 +402,12 @@ class Activation implements Serializable {
                     RMISocketFactory.getDefaultSocketFactory()
             );
             int port = getInt(config, "registryPort", ActivationSystem.SYSTEM_PORT);
-            registryStub = LocateRegistry.createRegistry(port, registryRmiClientSocketFactory, registryRmiServerSocketFactory);
+            try {
+                registryStub = LocateRegistry.createRegistry(port, registryRmiClientSocketFactory, registryRmiServerSocketFactory);
+            } catch (ExportException e){
+                logger.log(Level.CONFIG, "Unable to create Registry, attempt to connect.", e);
+                registryStub = LocateRegistry.getRegistry(null, port, registryRmiClientSocketFactory);
+            }
             registryStub.bind("net.jini.activation.arg.ActivationSystem", systemStub);
             exported.signalAll();
             logger.info(getTextResource("phoenix.daemon.started"));
@@ -1455,7 +1459,7 @@ class Activation implements Serializable {
 		    out.writeObject(id);
 		    ActivationGroupDesc gd = desc;
 		    if (gd.getClassName() == null) {
-			MarshalledObject data = gd.getData();
+			String[] data = gd.getData();
 			if (data == null) {
 			    data = activation.groupData;
 			}

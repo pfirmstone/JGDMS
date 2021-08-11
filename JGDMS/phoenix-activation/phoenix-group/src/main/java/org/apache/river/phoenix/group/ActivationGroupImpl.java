@@ -18,7 +18,6 @@
 
 package org.apache.river.phoenix.group;
 
-import net.jini.io.MarshalledInstance;
 import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationException;
 import net.jini.activation.ActivationGroup;
@@ -26,10 +25,8 @@ import net.jini.activation.arg.ActivationGroupDesc;
 import net.jini.activation.arg.ActivationGroupID;
 import net.jini.activation.arg.ActivationMonitor;
 import net.jini.activation.arg.ActivationSystem;
-import java.rmi.server.UnicastRemoteObject;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
@@ -221,14 +218,7 @@ public class ActivationGroupImpl extends AbstractActivationGroup {
     /**
      * Creates an instance with the specified group identifier and
      * initialization data. This constructor must be called indirectly,
-     * via {@link #createGroup createGroup}. By default, this instance
-     * automatically exports itself as a {@link UnicastRemoteObject}. (This
-     * is a limitation of the existing activation system design.) If an
-     * {@link Exporter} was obtained by {@link #createGroup createGroup},
-     * then this instance is unexported from the JRMP runtime and re-exported
-     * using that exporter. (Any incoming remote calls received on the
-     * original JRMP export before this instance can be unexported will be
-     * refused with a security exception thrown.) The
+     * via {@link #createGroup createGroup}. The
      * {@link ActivationSystem#activeGroup activeGroup} method of the
      * activation system proxy (in the group identifier) is called to
      * make the group active. The returned {@link ActivationMonitor} proxy
@@ -247,7 +237,7 @@ public class ActivationGroupImpl extends AbstractActivationGroup {
      * @throws ActivationException if the constructor was not called
      * indirectly from <code>createGroup</code>
      */
-    public ActivationGroupImpl(ActivationGroupID id, MarshalledObject data)
+    public ActivationGroupImpl(ActivationGroupID id, String[] data)
 	throws ActivationException, RemoteException
     {
 	super(id, data);

@@ -33,10 +33,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetAddress;
 import java.net.URL;
-import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationID;
 import java.rmi.server.ServerNotActiveException;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
@@ -49,7 +47,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.WeakHashMap;
 import javax.security.auth.Subject;
-import net.jini.core.constraint.InvocationConstraint;
+import net.jini.activation.arg.ActivationID;
 import net.jini.export.ServerContext;
 import net.jini.io.context.AtomicValidationEnforcement;
 import net.jini.io.context.ClientHost;
@@ -76,7 +74,7 @@ public class Util {
 
     /** parameter types for activatable constructor or activate method */
     private static Class[] paramTypes = {
-	ActivationID.class, MarshalledObject.class
+	ActivationID.class, String[].class
     };
 
     /** name of the resource containing prohibited proxy interfaces */

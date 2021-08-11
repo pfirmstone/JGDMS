@@ -26,7 +26,7 @@ package net.jini.export;
  * interface so that its proxy can be obtained once the object is
  * activated.  If an activatable remote object does not implement this
  * interface, it must define a constructor that takes as arguments an
- * {@link java.rmi.activation.ActivationID} and a {@link
+ * {@link net.jini.activation.arg.ActivationID} and a {@link
  * java.rmi.MarshalledObject}, and it must be serializable and marshalling
  * the object produces a suitable proxy for the remote object.
  *

@@ -20,10 +20,10 @@ package net.jini.activation;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Arrays;
 import net.jini.activation.arg.ActivationDesc;
 import net.jini.activation.arg.ActivationException;
 import net.jini.activation.arg.ActivationGroupID;
-import net.jini.activation.arg.MarshalledObject;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -39,7 +39,7 @@ public final class ActivationDescImpl implements Serializable, ActivationDesc {
             new SerialForm("groupID", ActivationGroupID.class),
             new SerialForm("className", String.class),
             new SerialForm("location", String.class),
-            new SerialForm("data", MarshalledObject.class),
+            new SerialForm("data", String[].class),
             new SerialForm("restart", Boolean.TYPE)
         };
     }
@@ -69,26 +69,31 @@ public final class ActivationDescImpl implements Serializable, ActivationDesc {
     private final String location;
 
     /**
-     * @serial MarshalledInstance that contain object-specific initialization data used during each activation.
+     * @serial Object-specific initialization data used during each activation.
      */
-    private final MarshalledObject data;
+    private final String[] data;
 
     /**
      * @serial If the object requires restart service, restart should be true. If restart is false, the object is simply activated upon demand.
      */
     private final boolean restart;
     
+    /**
+     * hashcode, not serialized.
+     */
+    private final int hash;
+    
     public ActivationDescImpl(GetArg arg) throws IOException, ClassNotFoundException {
         this(
             arg.get("groupID", null, ActivationGroupIDImpl.class),
             arg.get("className", null, String.class),
             arg.get("location", null, String.class),
-            arg.get("data", null, MarshalledObject.class),
+            arg.get("data", null, String[].class),
             arg.get("restart", false)
         );
     }
 
-    public ActivationDescImpl(String className, String location, MarshalledObject data)
+    public ActivationDescImpl(String className, String location, String[] data)
             throws ActivationException {
         this(ActivationGroup.currentGroupID(),
             className,
@@ -99,7 +104,7 @@ public final class ActivationDescImpl implements Serializable, ActivationDesc {
         );
     }
 
-    public ActivationDescImpl(String className, String location, MarshalledObject data,
+    public ActivationDescImpl(String className, String location, String[] data,
             boolean restart) throws ActivationException {
         this(ActivationGroup.currentGroupID(),
             className,
@@ -111,23 +116,30 @@ public final class ActivationDescImpl implements Serializable, ActivationDesc {
     }
 
     public ActivationDescImpl(ActivationGroupID groupID, String className, String location,
-            MarshalledObject data) {
+            String[] data) {
         this(groupID, className, location, data, false, check(groupID));
     }
 
     public ActivationDescImpl(ActivationGroupID groupID, String className, String location,
-            MarshalledObject data, boolean restart) {
+            String[] data, boolean restart) {
         this(groupID, className, location, data, restart, check(groupID));
     }
     
     private ActivationDescImpl(ActivationGroupID groupID, String className, String location,
-            MarshalledObject data, boolean restart, boolean check) {
+            String[] data, boolean restart, boolean check) {
         
         this.groupID = groupID;
         this.className = className;
         this.location = location;
         this.data = data;
         this.restart = restart;
+        int groupID_Hash = (groupID == null) ? 0 : groupID.hashCode();
+        int className_Hash = (className == null) ? 0 : className.hashCode();
+        int location_Hash = (location == null) ? 0 : location.hashCode();
+        int data_Hash = (data == null) ? 0 : Arrays.hashCode(data);
+        int restart_Hash = (restart == false) ? 0 : 1;
+        int hashCode = groupID_Hash ^ className_Hash ^ location_Hash ^ data_Hash ^ restart_Hash;
+        this.hash = hashCode;
     }
     
     private static boolean check(ActivationGroupID groupID){
@@ -144,7 +156,7 @@ public final class ActivationDescImpl implements Serializable, ActivationDesc {
     }
 
     @Override
-    public MarshalledObject getData() {
+    public String[] getData() {
         return data;
     }
 
@@ -174,7 +186,7 @@ public final class ActivationDescImpl implements Serializable, ActivationDesc {
                     .equals(objCasted.className);
             p2 = (location == null) ? objCasted.location == null : location
                     .equals(objCasted.location);
-            p3 = (data == null) ? objCasted.data == null : data.equals(objCasted.data);
+            p3 = Arrays.equals(data, objCasted.data);
             p4 = (restart == objCasted.restart);
             return p0 && p1 && p2 && p3 && p4;
         }
@@ -183,12 +195,6 @@ public final class ActivationDescImpl implements Serializable, ActivationDesc {
 
     @Override
     public int hashCode() {
-        int groupID_Hash = (groupID == null) ? 0 : groupID.hashCode();
-        int className_Hash = (className == null) ? 0 : className.hashCode();
-        int location_Hash = (location == null) ? 0 : location.hashCode();
-        int data_Hash = (data == null) ? 0 : data.hashCode();
-        int restart_Hash = (restart == false) ? 0 : 1;
-        int hashCode = groupID_Hash ^ className_Hash ^ location_Hash ^ data_Hash ^ restart_Hash;
-        return hashCode;
+        return hash;
     }
 }

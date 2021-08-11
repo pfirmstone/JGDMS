@@ -19,7 +19,6 @@ import java.io.IOException;
 import net.jini.activation.arg.ActivationException;
 import net.jini.activation.arg.ActivationID;
 import javax.security.auth.login.LoginException;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.ConfigurationException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
@@ -34,8 +33,7 @@ public class ActivatableOutriggerImpl extends PersistentOutriggerImpl
      * Create a new incarnation of an activatable
      * <code>OutriggerServerImpl</code> server.
      * @param activationID of the server, may be <code>null</code>.
-     * @param data an array of <code>String</code>s (packaged in
-     *        a marshalled object) that will be used 
+     * @param data an array of <code>String</code>s that will be used 
      *        to obtain a <code>Configuration</code>.
      * @throws IOException if there is problem recovering data
      *         from disk, exporting the server, or unpacking
@@ -53,7 +51,7 @@ public class ActivatableOutriggerImpl extends PersistentOutriggerImpl
      *         encapsulated inside <code>data</code> can not be found.
      */
     public ActivatableOutriggerImpl(ActivationID activationID, 
-				    MarshalledObject data) 
+				    String[] data) 
 	    throws IOException, ConfigurationException, LoginException,
 	    ActivationException, ClassNotFoundException 
     {

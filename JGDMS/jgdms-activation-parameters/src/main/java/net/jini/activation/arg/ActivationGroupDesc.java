@@ -25,7 +25,7 @@ import java.util.Properties;
  *  <ul>
  *    <li>the group's class name,</li>
  *    <li>the group's code location (the location of the group's class), and</li>
- *    <li>a "marshalled" object that can contain group specific initialization data. </li>
+ *    <li>a <code>String[]</code> that can contain group specific initialization data. </li>
  *  </ul>
  * <p>
  * The group's class must be a concrete subclass of ActivationGroup.
@@ -53,12 +53,11 @@ public interface ActivationGroupDesc {
     public String getLocation();
 
     /**
-     * Returns the group's initialization data, in the form of a MarshalledObject
-     * containing a marshalled String[] array. 
+     * Returns the group's initialization data, in the form of a String[] array. 
      * 
      * @return the group's initialization data
      */
-    public MarshalledObject getData();
+    public String[] getData();
 
     /**
      * Returns the group's command-environment control object.

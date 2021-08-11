@@ -1249,7 +1249,7 @@ public final class ActivatableInvocationHandler
      */
     private static ClassLoader getProxyLoader(final Class proxyClass) {
 	return (ClassLoader)
-	    AccessController.doPrivileged(new PrivilegedAction() {
+	    AccessController.doPrivilegedWithCombiner(new PrivilegedAction() {
 		public Object run() {
 		    return proxyClass.getClassLoader();
 		}

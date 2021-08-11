@@ -72,8 +72,8 @@ public class HTTPDStatus {
      */
     public static void httpdWarning(String codebase) {
         if (codebase == null) {
-	    logger.log(Level.WARNING, "httpserver.warning",
-	        new Object[] {"Codebase is null"});
+	    logger.log(Level.CONFIG, "httpserver.config {0}",
+	        new Object[] {"Codebase is null, does your service proxy require a codebase?"});
 	    return;
 	}
         StringTokenizer st = new StringTokenizer(codebase," ");

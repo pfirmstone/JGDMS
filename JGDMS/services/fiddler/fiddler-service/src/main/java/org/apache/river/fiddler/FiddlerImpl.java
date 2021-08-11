@@ -472,14 +472,14 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      *                                array.
      */
     FiddlerImpl(ActivationID activationID,
-                net.jini.activation.arg.MarshalledObject data) 
+                String[] data) 
                                        throws IOException,
                                               ActivationException,
                                               ConfigurationException,
                                               LoginException,
                                               ClassNotFoundException
     {
-            this(init( (String[]) data.get(), true /* persistent */, activationID ), null);
+            this(init(data, true /* persistent */, activationID ), null);
     }//end activatable constructor
 
     /**

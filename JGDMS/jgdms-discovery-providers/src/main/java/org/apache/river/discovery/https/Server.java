@@ -61,7 +61,7 @@ class Server extends UnicastServer {
     private static final class ServerImpl extends EndpointBasedServer {
 	
 	private static final EndpointInternals epi =
-	    AccessController.doPrivileged(new PrivilegedAction<EndpointInternals>() {
+	    AccessController.doPrivilegedWithCombiner(new PrivilegedAction<EndpointInternals>() {
 		@Override
 		public EndpointInternals run() {
 		    return HttpsEndpointInternalsAccess.get();

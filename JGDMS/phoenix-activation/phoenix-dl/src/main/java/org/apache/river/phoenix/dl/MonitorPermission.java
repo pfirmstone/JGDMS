@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix.dl;
 
-import java.rmi.activation.ActivationMonitor;
+import net.jini.activation.arg.ActivationMonitor;
 import net.jini.security.AccessPermission;
 
 /**
@@ -29,9 +29,9 @@ import net.jini.security.AccessPermission;
  * security policy permission grants.
  *
  * <p>This permission class can also be used to grant permission to invoke
- * the method {@link java.rmi.activation.ActivationGroup#activeObject
+ * the method {@link net.jini.activation.arg.ActivationGroup#activeObject
  * ActivationGroup.activeObject}, {@link
- * java.rmi.activation.ActivationGroup#inactiveObject
+ * net.jini.activation.arg.ActivationGroup#inactiveObject
  * ActivationGroup.inactiveObject }, or {@link
  * net.jini.activation.ActivationGroup#inactive ActivationGroup.inactive}.
  * 

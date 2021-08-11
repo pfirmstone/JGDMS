@@ -18,7 +18,6 @@
 package org.apache.river.mercury;
 
 import net.jini.activation.arg.ActivationID;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
@@ -50,7 +49,7 @@ public class ActivatableMercuryImpl extends MailboxImpl
      *
      * @throws Exception If there was a problem initializing the service.
      */
-    public ActivatableMercuryImpl(ActivationID activationID, MarshalledObject data)
+    public ActivatableMercuryImpl(ActivationID activationID, String[] data)
         throws Exception
     {
         super(activationID, data);

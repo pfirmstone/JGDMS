@@ -23,8 +23,9 @@ import java.io.InvalidObjectException;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
-import java.rmi.MarshalException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationDesc;
@@ -32,20 +33,17 @@ import net.jini.activation.arg.ActivationException;
 import net.jini.activation.arg.ActivationGroupID;
 import net.jini.activation.arg.ActivationID;
 import net.jini.activation.arg.ActivationSystem;
-import java.security.AccessControlContext;
 import java.security.AccessController;
-import java.security.CodeSource;
-import java.security.Permission;
 import java.security.Policy;
 import java.security.PrivilegedAction;
-import java.security.ProtectionDomain;
 import java.security.Security;
-import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.activation.ActivationDescImpl;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -53,10 +51,10 @@ import net.jini.loader.LoadClass;
 import net.jini.loader.pref.PreferredClassLoader;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
+import org.apache.river.api.net.Uri;
 import org.apache.river.api.util.Startable;
 
 /**
@@ -184,7 +182,7 @@ public class ActivateWrapper implements Remote, Serializable {
      * The parameter types for the "activation constructor".
      */
     private static final Class[] actTypes = {
-	ActivationID.class, MarshalledObject.class
+	ActivationID.class, String[].class
     };
     
     /** 
@@ -211,67 +209,151 @@ public class ActivateWrapper implements Remote, Serializable {
 
     /**
      * Descriptor for registering a "wrapped" activatable object. This
-     * descriptor gets stored as the <code>MarshalledInstance</code> 
+     * descriptor gets stored as  
      * initialization data in the <code>ActivationDesc</code>.
      */
     @AtomicSerial
     public static class ActivateDesc implements Serializable {
 
-        private static final long serialVersionUID = 2L;
+        private static final long serialVersionUID = 3L;
 
 	/**
 	 * The activatable object's class name.
          * @serial
 	 */
-	public final String className;
+	private final String className;
 	/**
 	 * The codebase where the server classes are loaded from by the
 	 * activation group.
          * @serial
 	 */
-	public final URL[] importLocation;
+	private final String[] importLocation;
 	/**
 	 * The codebase where clients should load classes from for stubs, etc.
          * @serial
 	 */
-	public final URL[] exportLocation;
+	private final String[] exportLocation;
 	/**
 	 * The security policy filename or URL.
          * @serial
 	 */
-	public final String policy;
-	/**
+	private final String policy;
+        /**
 	 * The activatable object's initialization data.
          * @serial
 	 */
-	public final MarshalledObject data;
+        private String[] configurationArguments;
 	
 	public ActivateDesc(GetArg arg) throws IOException, ClassNotFoundException
 	{
 	    this(arg.get("className", null, String.class),
-		    Valid.nullElement(arg.get("importLocation", null, URL[].class),
+		    Valid.nullElement(arg.get("importLocation", null, String[].class),
 			    "importLocation cannot contain null elements"),
-		    Valid.nullElement(arg.get("exportLocation", null, URL[].class),
+		    Valid.nullElement(arg.get("exportLocation", null, String[].class),
 			    "exportLocation cannot contain null elements"),
 		    arg.get("policy", null, String.class),
-		    arg.get("data", null, MarshalledObject.class));
+		    arg.get("configurationArguments", null, String[].class));
 	}
-
-	/**
-	 * Trivial constructor.
-	 */
-	public ActivateDesc(String className,
-			    URL[] importLocation,
-			    URL[] exportLocation,
-			    String policy,
-			    MarshalledObject data)
-	{
-	    this.className = className;
+        
+        public static ActivateDesc parse(String[] args) throws URISyntaxException{
+            String delimiter = "|";
+            String className = null;
+            List<String> importLocation = new ArrayList<String>();
+            List<String> exportLocation = new ArrayList<String>();
+            String policy = null;
+            List<String> serverArgs = new ArrayList<String>();
+            int delimeterCount = 0;
+            for (int i = 0, l = args.length; i < l; i++){
+                if (delimiter.equals(args[i])){
+                    delimeterCount++;
+                    continue;
+                }
+                switch (delimeterCount){
+                    case 0: className = args[i];
+                            continue;
+                    case 1: importLocation.add(new Uri(args[i]).toString());
+                            continue;
+                    case 2: exportLocation.add(new Uri(args[i]).toString());
+                            continue;
+                    case 3: policy = args[i];
+                            continue;
+                    case 4: serverArgs.add(args[i]);
+                            continue;
+                    default : throw new IllegalArgumentException("Delimeter count too high: " + delimeterCount + " Parameters: " + Arrays.asList(args));
+                }
+            }
+            return new ActivateDesc(className,
+                                    importLocation.toArray(new String[importLocation.size()]),
+                                    exportLocation.toArray(new String[exportLocation.size()]),
+                                    policy,
+                                    serverArgs.toArray(new String[serverArgs.size()])
+            );
+        }
+        
+        /**
+         * 
+         * @param className
+         * @param importLocation
+         * @param exportLocation
+         * @param policy
+         * @param configurationArguments 
+         */
+        public ActivateDesc(String className,
+                            URL[] importLocation,
+                            URL[] exportLocation,
+                            String policy,
+                            String[] configurationArguments)
+        {
+            this.className = className;
+	    this.importLocation = asString(importLocation);
+	    this.exportLocation = asString(exportLocation);
+	    this.policy = policy;
+	    this.configurationArguments = configurationArguments;
+        }
+        
+        /**
+         * 
+         * @param className
+         * @param importLocation
+         * @param exportLocation
+         * @param policy
+         * @param configurationArguments 
+         */
+        public ActivateDesc(String className,
+                            String[] importLocation,
+                            String[] exportLocation,
+                            String policy,
+                            String[] configurationArguments)
+        {
+            this.className = className;
 	    this.importLocation = Valid.copy(importLocation);
 	    this.exportLocation = Valid.copy(exportLocation);
 	    this.policy = policy;
-	    this.data = data;
-	}
+	    this.configurationArguments = configurationArguments;
+        }
+        
+        @Override
+        public boolean equals(Object o){
+            if (this == o) return true;
+            if (!(o instanceof ActivateDesc)) return false;
+            ActivateDesc that = (ActivateDesc) o;
+            if (!Objects.equals(this.className, that.className)) return false;
+            if (!Objects.equals(this.policy, that.policy)) return false;
+            if (!Arrays.equals(this.importLocation, that.importLocation)) return false;
+            if (!Arrays.equals(this.exportLocation, that.exportLocation)) return false;
+            return Arrays.equals(this.configurationArguments, that.configurationArguments);
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 5;
+            hash = 89 * hash + Objects.hashCode(this.className);
+            hash = 89 * hash + Arrays.deepHashCode(this.importLocation);
+            hash = 89 * hash + Arrays.deepHashCode(this.exportLocation);
+            hash = 89 * hash + Objects.hashCode(this.policy);
+            hash = 89 * hash + Arrays.deepHashCode(this.configurationArguments);
+            return hash;
+        }
         // Javadoc inherited from supertype
         @Override
 	public String toString() {
@@ -286,8 +368,63 @@ public class ActivateWrapper implements Remote, Serializable {
                     ? null : Arrays.asList(exportLocation)) )
                 .append(",")                    
 	        .append("policy=").append(policy).append( ",")
-	        .append("data=").append(data).append("]").toString();
+	        .append("configurationArguments=").append( configurationArguments == null ? null 
+                        : Arrays.asList(configurationArguments)).append("]").toString();
 	}
+        
+        public String[] asArguments(){
+            String delimiter = "|";
+            List<String> result = new ArrayList<String>();
+            result.add(className);
+            result.add(delimiter);
+            if (importLocation != null) result.addAll(Arrays.asList(importLocation));
+            result.add(delimiter);
+            if (exportLocation != null ) result.addAll(Arrays.asList(exportLocation));
+            result.add(delimiter);
+            result.add(policy);
+            result.add(delimiter);
+            if (configurationArguments !=null ) 
+                result.addAll(Arrays.asList(configurationArguments));
+            return result.toArray(new String[result.size()]);
+        }
+        
+        public URL[] importLocation() throws MalformedURLException{
+            return asURL(importLocation);
+        }
+        
+        public URL[] exportLocation() throws MalformedURLException{
+            return asURL(exportLocation);
+        }
+        
+        public String className(){
+            return className;
+        }
+        
+        public String policy(){
+            return policy;
+        }
+        
+        public String [] configurationArguments(){
+            return configurationArguments != null ? configurationArguments.clone() : null;
+        }
+        
+        private static URL[] asURL(String[] url) throws MalformedURLException{
+            if (url == null) return null;
+            URL[] result = new URL[url.length];
+            for (int i = 0, l = url.length; i < l; i++){
+                result[i] = new URL(url[i]);
+            }
+            return result;
+        }
+        
+        private static String[] asString(URL[] url) {
+            if (url == null) return null;
+            String[] result = new String[url.length];
+            for (int i = 0, l = url.length; i < l; i++){
+                result[i] = url[i].toString();
+            }
+            return result;
+        }
     }
 
     /**
@@ -386,26 +523,22 @@ public class ActivateWrapper implements Remote, Serializable {
      * @see net.jini.secuirity.DynamicPolicy
      *
      */
-    public ActivateWrapper(ActivationID id, MarshalledObject data)
+    public ActivateWrapper(ActivationID id, String[] data)
 	throws Exception
     {
          try {
             logger.entering(ActivateWrapper.class.getName(), 
-	        "ActivateWrapper", new Object[] { id, data });
+	        "ActivateWrapper", new Object[] {
+                    id, data != null ? Arrays.asList(data): null });
 
-	    ActivateDesc desc = (ActivateDesc) data.get();
+	    ActivateDesc desc = ActivateDesc.parse(data);
 	    logger.log(Level.FINEST, "ActivateDesc: {0}", desc);
-
-	    Thread t = Thread.currentThread();
-	    ClassLoader ccl = t.getContextClassLoader();
- 	    logger.log(Level.FINEST, "Saved current context class loader: {0}",
-	       ccl);
 
 	    ExportClassLoader cl = null;
             try {
-	        cl = new ExportClassLoader(desc.importLocation, 
-	                                   desc.exportLocation,
-					   ccl);
+	        cl = new ExportClassLoader(desc.importLocation(), 
+	                                   desc.exportLocation(),
+                                           ClassLoader.getSystemClassLoader());
 	        logger.log(Level.FINEST, "Created ExportClassLoader: {0}", cl);
             } catch (Exception e) {
 	        logger.throwing(ActivateWrapper.class.getName(), 
@@ -426,68 +559,54 @@ public class ActivateWrapper implements Remote, Serializable {
 	    Class ac = LoadClass.forName(desc.className, initialize, cl);
  	    logger.log(Level.FINEST, "Obtained implementation class: {0}", ac);
 
-	    t.setContextClassLoader(cl);
-
-	    try {
- 	        logger.log(Level.FINEST, 
-		    "Set new context class loader: {0}", cl);
-		Constructor constructor = null;
-                Constructor [] constructors = ac.getConstructors();
-                for(int i=0, l=constructors.length; i<l; i++){
-                    if (constructors[i].getParameterCount() == 2){
-                        Class[] params = constructors[i].getParameterTypes();
-                        if ("net.jini.activation.arg.ActivationID".equals(params[0].getCanonicalName())
-                        && "net.jini.activation.arg.MarshalledObject".equals(params[1].getCanonicalName())){
-                            constructor = constructors[i];
-                            if (!ActivationID.class.equals(params[0]) || 
-                                !MarshalledObject.class.equals(params[1]))
-                            {
-                                StringBuilder sb = new StringBuilder();
-                                sb.append("Check your PREFERRED.LIST in META-INF: ClassLoader class visibility incompatibilty, prevents type compatiblity of activation constructor parameters.\n");
-                                sb.append("net.jini.activation.arg.ActivationID ClassLoader should be: ")
-                                  .append(ActivationID.class.getClassLoader()).append("\n");
-                                sb.append("found: ").append(params[0].getClassLoader()).append("\n");
-                                sb.append("net.jini.activation.arg.MarshalledObject ClassLoader should be: ")
-                                  .append(MarshalledObject.class.getClassLoader()).append("\n");
-                                sb.append("found: ").append(params[1].getClassLoader()).append("\n");
-                                throw new ClassCastException(sb.toString());
-                            }
-                        break;
+            Constructor constructor = null;
+            Constructor [] constructors = ac.getConstructors();
+            for(int i=0, l=constructors.length; i<l; i++){
+                if (constructors[i].getParameterCount() == 2){
+                    Class[] params = constructors[i].getParameterTypes();
+                    if ("net.jini.activation.arg.ActivationID".equals(params[0].getCanonicalName())
+                    && String[].class.equals(params[1])){
+                        constructor = constructors[i];
+                        if (!ActivationID.class.equals(params[0]))
+                        {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("Check your PREFERRED.LIST in META-INF: ClassLoader class visibility incompatibilty, prevents type compatiblity of activation constructor parameters.\n");
+                            sb.append("net.jini.activation.arg.ActivationID ClassLoader should be: ")
+                              .append(ActivationID.class.getClassLoader()).append("\n");
+                            sb.append("found: ").append(params[0].getClassLoader()).append("\n");
+                            throw new ClassCastException(sb.toString());
                         }
+                    break;
                     }
                 }
-                if (constructor == null){
-                    throw new NoSuchMethodException("No suitable public activation constructor signature found for class "+ ac);
-                }
- 	        logger.log(Level.FINEST, 
-		    "Obtained implementation constructor: {0}", 
-		    constructor);
-		impl =
-		    constructor.newInstance(new Object[]{id, desc.data});
-                if (impl instanceof Startable) {
-                    ((Startable) impl).start();
-                } else {
-                    logger.log( Level.FINE,
-                        "Service {0} doesn''t implement {1} {2} {3} {4} {5} {6}", 
-                        new Object []
-                            {
-                                impl.getClass().getCanonicalName(),
-                                Startable.class.getCanonicalName(),
-                                "this service is likely to suffer from race",
-                                "conditions caused by export performed during", 
-                                "construction, or threads started while ''this''",
-                                "has been allowed to escape during construction",
-                                "https://www.securecoding.cert.org/confluence/display/java/TSM01-J.+Do+not+let+the+this+reference+escape+during+object+construction"
-                            } 
-                    );
-                }
- 	        logger.log(Level.FINEST, 
-		    "Obtained implementation instance: {0}", impl);
-	    } finally {
-	        t.setContextClassLoader(ccl);
- 	        logger.log(Level.FINEST, "Context class loader reset to: {0}", 
-	            ccl);
-	    }
+            }
+            if (constructor == null){
+                throw new NoSuchMethodException("No suitable public activation constructor signature found for class "+ ac);
+            }
+            logger.log(Level.FINEST, 
+                "Obtained implementation constructor: {0}", 
+                constructor);
+            impl =
+                constructor.newInstance(new Object[]{id, desc.configurationArguments()});
+            if (impl instanceof Startable) {
+                ((Startable) impl).start();
+            } else {
+                logger.log( Level.FINE,
+                    "Service {0} doesn''t implement {1} {2} {3} {4} {5} {6}", 
+                    new Object []
+                        {
+                            impl.getClass().getCanonicalName(),
+                            Startable.class.getCanonicalName(),
+                            "this service is likely to suffer from race",
+                            "conditions caused by export performed during", 
+                            "construction, or threads started while ''this''",
+                            "has been allowed to escape during construction",
+                            "https://www.securecoding.cert.org/confluence/display/java/TSM01-J.+Do+not+let+the+this+reference+escape+during+object+construction"
+                        } 
+                );
+            }
+            logger.log(Level.FINEST, 
+                "Obtained implementation instance: {0}", impl);
         } catch (Exception e) {
 	    logger.throwing(ActivateWrapper.class.getName(), 
 	        "ActivateWrapper", e);
@@ -536,23 +655,12 @@ public class ActivateWrapper implements Remote, Serializable {
     {
         logger.entering(ActivateWrapper.class.getName(), 
 	    "register", new Object[] { gid, desc, Boolean.valueOf(restart), sys });
-
-	MarshalledObject data;
-	try {
-	    data = new AtomicMarshalledInstance(desc);
-	} catch (Exception e) {
-            MarshalException me = 
-	        new MarshalException("marshalling ActivateDesc", e);
-	    logger.throwing(ActivateWrapper.class.getName(), 
-	        "register", me);
-	    throw me;
-	}
 	
 	ActivationDesc adesc =
 	    new ActivationDescImpl(gid,
 		ActivateWrapper.class.getName(),
 		null,
-		data,
+		desc.asArguments(),
 		restart
 	);      
  	logger.log(Level.FINEST, 

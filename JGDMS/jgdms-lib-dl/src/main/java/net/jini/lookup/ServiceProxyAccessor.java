@@ -40,7 +40,7 @@ import java.rmi.RemoteException;
  * returns the result of <code>&lt;act_ref&gt;.getServiceProxy()</code>,
  * if supported, where <code>&lt;act_ref&gt;</code> is the service reference
  * returned by the call to
- * {@link java.rmi.activation.ActivationID#activate(boolean) ActivationID.activate()}.
+ * {@link net.jini.activation.arg.ActivationID#activate(boolean) ActivationID.activate()}.
  *
  * @author Sun Microsystems, Inc.
  *
@@ -48,7 +48,7 @@ import java.rmi.RemoteException;
  *
  * <br><code>see org.apache.river.start.NonActivatableServiceDescriptor</code>
  * <br><code>see org.apache.river.start.SharedActivatableServiceDescriptor</code>
- * @see java.rmi.activation.ActivationID
+ * @see net.jini.activation.arg.ActivationID
  *
  **/
 public interface ServiceProxyAccessor extends Remote {

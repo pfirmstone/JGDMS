@@ -447,6 +447,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      *         is <code>true</code> and the integrity of the
      *         contained object's codebase cannot be confirmed
      */
+    @Override
     public Object get(final boolean verifyCodebaseIntegrity) 
 	throws IOException, ClassNotFoundException 
     {
@@ -483,6 +484,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      *         is <code>true</code> and the integrity of the
      *         contained object's codebase cannot be confirmed
      */
+    @Override
     public <T> T get(final boolean verifyCodebaseIntegrity, Class<T> type) 
 	throws IOException, ClassNotFoundException 
     {
@@ -529,6 +531,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      *         is <code>true</code> and the integrity of the
      *         contained object's codebase cannot be confirmed
      */
+    @Override
     public Object get(final ClassLoader defaultLoader,
 		      final boolean verifyCodebaseIntegrity,
 		      final ClassLoader verifierLoader,
@@ -583,6 +586,7 @@ public class MarshalledInstance implements Serializable, net.jini.activation.arg
      *         is <code>true</code> and the integrity of the
      *         contained object's codebase cannot be confirmed
      */
+    @Override
     public <T> T get(final ClassLoader defaultLoader,
 		      final boolean verifyCodebaseIntegrity,
 		      final ClassLoader verifierLoader,

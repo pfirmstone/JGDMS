@@ -16,7 +16,6 @@
 package org.apache.river.reggie;
 
 import net.jini.activation.arg.ActivationID;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
@@ -31,7 +30,7 @@ public class ActivatableRegistrarImpl extends PersistentRegistrarImpl
      * the provided marshalled string array.
      */
     public ActivatableRegistrarImpl(ActivationID activationID, 
-				    MarshalledObject data) throws Exception
+				    String[] data) throws Exception
     {
 	super(activationID, data);
     }

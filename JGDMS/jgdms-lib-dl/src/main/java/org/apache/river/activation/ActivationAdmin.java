@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * An administrative interface for the activation system daemon. This
  * interface is implemented directly by the same proxy that implements
- * {@link java.rmi.activation.ActivationSystem}.
+ * {@link net.jini.activation.arg.ActivationSystem}.
  *
  * @author Sun Microsystems, Inc.
  * 
@@ -35,7 +35,7 @@ import java.util.Map;
 public interface ActivationAdmin extends Remote {
     /**
      * Returns a map from {@link ActivationGroupID} to
-     * {@link java.rmi.activation.ActivationGroupDesc} for all registered
+     * {@link net.jini.activation.arg.ActivationGroupDesc} for all registered
      * activation groups. The map contains a snapshot of the state at
      * the time of the call; subsequent state changes are not reflected
      * in the map, nor do changes in the map cause changes in the state
@@ -48,8 +48,8 @@ public interface ActivationAdmin extends Remote {
     Map getActivationGroups() throws RemoteException;
 
     /**
-     * Returns a map from {@link java.rmi.activation.ActivationID} to
-     * {@link java.rmi.activation.ActivationDesc} for all activatable objects
+     * Returns a map from {@link net.jini.activation.arg.ActivationID} to
+     * {@link net.jini.activation.arg.ActivationDesc} for all activatable objects
      * registered in the group registered under the specified activation
      * group identifier. The map contains a snapshot of the state at
      * the time of the call; subsequent state changes are not reflected

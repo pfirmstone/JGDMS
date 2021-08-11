@@ -23,7 +23,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Properties;
 import net.jini.activation.arg.ActivationGroupDesc;
-import net.jini.activation.arg.MarshalledObject;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
@@ -37,7 +36,7 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
         return new SerialForm[]{
             new SerialForm("className", String.class),
             new SerialForm("location", String.class),
-            new SerialForm("data", MarshalledObject.class),
+            new SerialForm("data", String[].class),
             new SerialForm("env", CommandEnvironmentImpl.class),
             new SerialForm("props", Properties.class)
         };
@@ -65,7 +64,7 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
     /**
      * The group's initialization data.
      */
-    private final MarshalledObject data;
+    private final String[] data;
 
     /**
      * The controlling options for executing the VM in another process.
@@ -82,7 +81,7 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
         this(
             arg.get("className", null, String.class),
             arg.get("lcoation", null, String.class),
-            arg.get("data", null, MarshalledObject.class),
+            arg.get("data", null, String[].class),
             arg.get("props", null, Properties.class),
             arg.get("env", null, CommandEnvironment.class)
         );
@@ -92,12 +91,12 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
         this(null, null, null, props, env);
     }
 
-    public ActivationGroupDescImpl(String className, String codebase, MarshalledObject data,
+    public ActivationGroupDescImpl(String className, String codebase, String[] data,
             Properties props, CommandEnvironment env) {
         super();
         this.className = className;
         this.location = codebase;
-        this.data = data;
+        this.data = data == null ? null : data.clone();
         this.props = props;
         this.env = env;
     }
@@ -113,8 +112,8 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
     }
 
     @Override
-    public MarshalledObject getData() {
-        return data;
+    public String[] getData() {
+        return data == null? null : data.clone();
     }
 
     @Override
@@ -132,7 +131,7 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
         final int prime = 31;
         int result = 1;
         result = prime * result + ((className == null) ? 0 : className.hashCode());
-        result = prime * result + ((data == null) ? 0 : data.hashCode());
+        result = prime * result + ((data == null) ? 0 : Arrays.hashCode(data));
         result = prime * result + ((env == null) ? 0 : env.hashCode());
         result = prime * result + ((location == null) ? 0 : location.hashCode());
         result = prime * result + ((props == null) ? 0 : props.hashCode());
@@ -154,7 +153,7 @@ public final class ActivationGroupDescImpl implements Serializable, ActivationGr
         if (!(className == null ? that.className == null : className.equals(that.className))) {
             return false;
         }
-        if (!(data == null ? that.data == null : data.equals(that.data))) {
+        if (!(data == null ? that.data == null : Arrays.equals(data, that.data))) {
             return false;
         }
         if (!(env == null ? that.env == null : env.equals(that.env))) {

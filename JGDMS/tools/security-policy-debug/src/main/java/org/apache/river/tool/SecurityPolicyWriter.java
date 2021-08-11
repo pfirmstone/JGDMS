@@ -95,8 +95,7 @@ import org.apache.river.api.security.PermissionComparator;
  * <td>Explanation</td>
  * </tr><tr>
  * <td>java.security.policy</td>
- * <td>The policy file location, note that your generated policy file will have
- * a .new extension appended, so as not to overwrite existing policy files.</td>
+ * <td>The policy file location.</td>
  * </tr><tr>
  * <td>javax.net.ssl.trustStore</td>
  * <td>The location of the KeyStore,  if no location is specified, then the 
@@ -121,7 +120,7 @@ import org.apache.river.api.security.PermissionComparator;
  * <code>-DSecurityPolicyWriter.path.properties=</code> Properties defined in this
  * property file shouldn't reference other properties declared in this file.
  * <p>
- * If a policy file that ends in .new already exists, only additional permission grants
+ * If a policy file already exists, only additional permission grants
  * will be added during subsequent test runs.
  * <p>
  * Generated policy files should be edited after running each integration test
@@ -215,7 +214,7 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
         String policy = System.getProperty("java.security.policy");
 	Uri polLocation = null;
         try {
-            polLocation = new Uri(policy +".new");
+            polLocation = new Uri(policy );
         } catch (URISyntaxException ex) {
             throw new RuntimeException("Unable to create URI", ex);
         }
@@ -225,7 +224,7 @@ public class SecurityPolicyWriter extends CombinerSecurityManager{
 	    try {
 		policyFile.createNewFile();
 	    } catch (IOException ex) {
-		throw new RuntimeException("Unable to create a policy file: "+ policy +".new", ex);
+		throw new RuntimeException("Unable to create a policy file: "+ policy, ex);
             }
         }
         Policy polcy = null;

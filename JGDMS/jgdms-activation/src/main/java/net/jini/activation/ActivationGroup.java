@@ -40,7 +40,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.activation.arg.ActivationException;
 import net.jini.activation.arg.ActivationID;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.activation.arg.UnknownObjectException;
 import net.jini.export.Exporter;
 import net.jini.io.MarshalledInstance;
@@ -166,7 +165,7 @@ public abstract class ActivationGroup implements ActivationInstantiator, Seriali
             // rmi.log.1A=ag class = {0}
             LOGGER.log(Level.FINER, Messages.getString("rmi.log.1A", cl)); //$NON-NLS-1$
             Class[] special_constructor_parameter_classes = { ActivationGroupID.class,
-                    MarshalledObject.class };
+                    String[].class };
             
             Constructor<?> constructor = cl.getConstructor(special_constructor_parameter_classes);
             Object[] constructor_parameters = { id, desc.getData() };
@@ -395,7 +394,7 @@ public abstract class ActivationGroup implements ActivationInstantiator, Seriali
         this.incarnation = incarnation;
     }
     
-    protected ActivationGroup(GetArg arg) throws IOException, ClassNotFoundException {
+    public ActivationGroup(GetArg arg) throws IOException, ClassNotFoundException {
         this(Valid.notNull(arg.get("groupID", null, ActivationGroupID.class), "groupID cannot be null"),
              Valid.notNull(arg.get("monitor", null, ActivationMonitor.class), "monitor cannot be null"),
              arg.get("incarnation", 0L)

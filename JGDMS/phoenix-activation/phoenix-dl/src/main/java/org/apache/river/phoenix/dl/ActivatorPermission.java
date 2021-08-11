@@ -30,7 +30,7 @@ import net.jini.security.AccessPermission;
  *
  * <p>This permission class can be used for server-side access control of
  * remote object activation initiated by the client-side {@link
- * java.rmi.activation.ActivationID#activate ActivationID.activate} method.
+ * net.jini.activation.arg.ActivationID#activate ActivationID.activate} method.
  * The server-side method name for this operation is <code>activate</code>.
  * 
  * <p>An instance contains a name (also referred to as a "target name") but no

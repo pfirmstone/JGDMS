@@ -22,12 +22,13 @@ package net.jini.activation.arg;
  *   <li>the object's fully-qualified class name,</li>
  *   <li>the object's code location (the location of the class), a codebase URL path,</li>
  *   <li>the object's restart "mode", and,</li>
- *   <li>a "marshalled" object that can contain object specific initialization data. </li>
+ *   <li>a <code>String[]</code> that can contain object specific initialization data,
+ *       typically used for configuration. </li>
  * </ul>
  * <p>
  * A descriptor registered with the activation system can be used to 
  * recreate/activate the object specified by the descriptor. 
- * The {@link MarshalledObject} in the object's descriptor is passed as the 
+ * The <code>String[]</code> in the object's descriptor is passed as the 
  * second argument to the remote object's constructor for object to 
  * use during reinitialization/activation.
  * </p>
@@ -44,12 +45,12 @@ public interface ActivationDesc {
      */
     public ActivationGroupID getGroupID();
     /**
-     * Returns a "marshalled object" containing intialization/activation
-     * data in the form of a marshalled String[] specified by this descriptor.
+     * Returns intialization/activation/configuration
+     * data in the form of a String[] specified by this descriptor.
      * 
-     * @return a MarshalledObject containing a String[]
+     * @return a String[]
      */
-    public MarshalledObject getData();
+    public String[] getData();
     /**
      * Returns the code location for the object specified by this descriptor.
      * @return the code location for the object specified by this descriptor.

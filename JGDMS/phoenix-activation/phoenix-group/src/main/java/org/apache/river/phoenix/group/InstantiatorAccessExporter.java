@@ -18,7 +18,6 @@
 
 package org.apache.river.phoenix.group;
 
-import net.jini.io.MarshalledInstance;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.activation.arg.ActivationDesc;

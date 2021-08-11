@@ -27,7 +27,6 @@ import org.apache.river.config.Config;
 import org.apache.river.logging.Levels;
 import org.apache.river.start.ServiceStarter;
 import net.jini.activation.ActivationExporter;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
@@ -95,10 +94,10 @@ public class ActivatableNormServerImpl extends NormServerBaseImpl
      * suitable for use with {@link ServiceStarter}.
      *
      * @param activationID activation ID passed in by the activation daemon
-     * @param data state data needed to re-activate a Norm server
+     * @param data Configuration state data needed to re-activate a Norm server
      * @throws Exception if there is a problem creating the server
      */
-    public ActivatableNormServerImpl(ActivationID activationID, MarshalledObject data)
+    public ActivatableNormServerImpl(ActivationID activationID, String[] data)
 	throws Exception
     {
         /* Any Exception thrown happens prior to super being called, so this
@@ -113,12 +112,12 @@ public class ActivatableNormServerImpl extends NormServerBaseImpl
         this.activationID = ((Init) init).activationID;
     }
     
-    private static String[] getConfigOptions(ActivationID activationID, MarshalledObject data) throws Exception{
+    private static String[] getConfigOptions(ActivationID activationID, String[] data) throws Exception{
         try {
 	    if (activationID == null) {
 		throw new NullPointerException("activationID is null");
 	    }
-	    return (String[]) data.get();
+	    return data;
 	} catch (Throwable e) {
 	    initFailed(e);
 	}

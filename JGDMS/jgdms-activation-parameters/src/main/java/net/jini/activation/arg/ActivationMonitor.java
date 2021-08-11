@@ -38,11 +38,11 @@ public interface ActivationMonitor extends Remote {
      * and "activated" itself).
      * 
      * @param id the active object's id
-     * @param data the marshalled form of the object's remote reference.
+     * @param reference the marshalled form of the object's remote reference.
      * @throws UnknownObjectException if object is unknown
      * @throws RemoteException if remote call fails
      */
-    void activeObject(ActivationID id, MarshalledObject data) throws UnknownObjectException,
+    void activeObject(ActivationID id, MarshalledObject reference) throws UnknownObjectException,
             RemoteException;
 
     /**

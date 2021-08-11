@@ -29,12 +29,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.config.Config;
@@ -632,7 +630,7 @@ public class SharedActivatableServiceDescriptor
             }
         }
         
-	/* Warn user of inaccessible codebase(s) */
+	/* Inform user of inaccessible codebase(s) */
         HTTPDStatus.httpdWarning(getExportCodebase());
 
         ActivationGroupID gid      = null;
@@ -640,15 +638,13 @@ public class SharedActivatableServiceDescriptor
         Object proxy               = null;
         try {
             /* Create the ActivateWrapper descriptor for the desired service */
-            MarshalledObject params = 
-	        new AtomicMarshalledInstance(getServerConfigArgs());
             ActivateWrapper.ActivateDesc adesc =
                 new ActivateWrapper.ActivateDesc(
                     getImplClassName(),
                     ClassLoaderUtil.getImportCodebaseURLs(getImportCodebase()),
                     ClassLoaderUtil.getCodebaseURLs(getExportCodebase()),
                     getPolicy(),
-                    params);
+                    getServerConfigArgs());
 	    logger.log(Level.FINEST, "ActivateDesc: {0}", adesc);
             // Get hosting activation group
             gid = SharedActivationGroupDescriptor.restoreGroupID(

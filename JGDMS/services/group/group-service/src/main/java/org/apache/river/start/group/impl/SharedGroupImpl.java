@@ -36,7 +36,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
@@ -217,21 +216,20 @@ public class SharedGroupImpl implements Remote,
     /**
      * Activation constructor. 
      */
-    public SharedGroupImpl(ActivationID activationID, MarshalledObject data)
+    public SharedGroupImpl(ActivationID activationID, String[] data)
 	throws Exception
     {
 	this(getInit(activationID, data));
     }
     
     private static SharedGroupImplInit getInit(ActivationID activationID, 
-                                                            MarshalledObject data)
+                                                            String[] configArgs)
             throws IOException, ClassNotFoundException, ConfigurationException, Exception
     {
         LoginContext loginContext = null;
         try {
             logger.entering(SharedGroupImpl.class.getName(), "SharedGroupImpl", 
-                new Object[] { activationID, data}); 
-            String[] configArgs = (String[]) data.get();	
+                new Object[] { activationID, configArgs}); 
             Configuration config = ConfigurationProvider.getInstance(configArgs);
             loginContext = (LoginContext) config.getEntry(
                 START_PACKAGE, "loginContext", LoginContext.class, null);

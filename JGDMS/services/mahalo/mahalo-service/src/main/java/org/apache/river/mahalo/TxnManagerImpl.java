@@ -66,7 +66,6 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.activation.ActivationGroup;
-import net.jini.activation.arg.MarshalledObject;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
@@ -240,13 +239,13 @@ class TxnManagerImpl /*extends RemoteServer*/
      *
      * @param data state data needed to re-activate a transaction manager.
      */
-    TxnManagerImpl(ActivationID activationID, MarshalledObject data)
+    TxnManagerImpl(ActivationID activationID, String[] data)
 	throws IOException, ClassNotFoundException
     {
         // data.get IOException and ClassNotFoundException are safe from 
         // finalizer attack, because it happens
         // before implicit call to super() Object.
-        this((String[]) data.get(), activationID, true, new Object[] {activationID, data} );
+        this(data, activationID, true, new Object[] {activationID, data} );
     }
     
 

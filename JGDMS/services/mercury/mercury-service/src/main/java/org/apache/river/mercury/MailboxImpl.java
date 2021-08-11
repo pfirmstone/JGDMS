@@ -484,12 +484,12 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * Activation constructor
      *
      * @param activationID activation ID passed in by the activation daemon.
-     * @param data state data needed to re-activate a Mercury server
+     * @param data Configuration state data needed to re-activate a Mercury server
      */
-    MailboxImpl(ActivationID activationID, net.jini.activation.arg.MarshalledObject data) 
+    MailboxImpl(ActivationID activationID, String[] data) 
 	throws Exception
     {
-        this((String[]) data.get(), activationID,
+        this(data, activationID,
                 true, new Object[] {activationID, data} );
     }
     
