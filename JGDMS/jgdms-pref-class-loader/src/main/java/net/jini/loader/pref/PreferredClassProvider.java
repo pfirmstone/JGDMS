@@ -65,6 +65,7 @@ import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogUtil;
 import aQute.bnd.annotation.headers.RequireCapability;
 import aQute.bnd.annotation.headers.ProvideCapability;
+import org.apache.river.logging.LogDispatch;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
@@ -289,8 +290,12 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     private final boolean requireDlPerm;
 
     /** provider logger */
-    private static final Logger logger =
-	Logger.getLogger("net.jini.loader.pref.PreferredClassProvider");
+    private static final LogDispatch logger = 
+            new LogDispatch(
+                Logger.getLogger(
+                    "net.jini.loader.pref.PreferredClassProvider"),
+                "net.jini.loader.pref.PreferredClassProvider"
+            );
 
     private static final Permission getClassLoaderPermission =
 	new RuntimePermission("getClassLoader");
@@ -570,6 +575,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     {
         // TODO: Logger can cause deadlock, hand over to an executor thread or
         // similar to perform logging task.
+        // 8th August 2021  P.G.F Added LogDispatch to fix.
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE, //logging here can cause deadlock
 		       "name=\"{0}\", codebase={1}, defaultLoader={2}",
@@ -631,7 +637,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	ClassLoader contextLoader = getRMIContextClassLoader();
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST,
-		       "(thread context class loader: {0})", contextLoader);
+		       "(thread context class loader: {0})", new Object[]{contextLoader});
 	}
 	ClassLoader codebaseLoader;
         codebaseLoader = lookupLoader(codebaseURIs, codebaseURLs, contextLoader);
@@ -1182,7 +1188,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	ClassLoader contextLoader = getRMIContextClassLoader();
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST,
-		       "(thread context class loader: {0})", contextLoader);
+		       "(thread context class loader: {0})", new Object[]{contextLoader});
 	}
 	ClassLoader codebaseLoader;
         codebaseLoader = lookupLoader(codebaseURIs, codebaseURLs, contextLoader);
@@ -1228,7 +1234,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		    if (logger.isLoggable(Level.FINEST)) {
 			logger.log(Level.FINEST,
 				   getProxySuccessLogMessage(sm, secEx),
-				   getClassLoader(c));
+				   new Object[]{getClassLoader(c)});
 		    }
 		    return c;
 		} catch (ClassNotFoundException e) {
@@ -1263,7 +1269,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    if (logger.isLoggable(Level.FINEST)) {
 		logger.log(Level.FINEST,
 			   getProxySuccessLogMessage(sm, secEx),
-			   getClassLoader(c));
+			   new Object[]{getClassLoader(c)});
 	    }
 	    return c;
 	} catch (ClassNotFoundException e) {
@@ -1444,8 +1450,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	try {
 	    return Arrays.equals(urls, getLoaderAnnotationURIs(loader));
 	} catch (MalformedURLException e) {
-	    return false;
-	}
+            logger.log(Level.FINEST, "MalformedURLException thrown by loader.", e);
+        }
+        return false;
     }
     
     /*
@@ -1685,7 +1692,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
             if (logger.isLoggable(Level.FINEST)){
                 logger.log(Level.FINEST, 
 			"uri string is null, returning parent ClassLoader: {0}", 
-			parent);
+			new Object[]{parent});
             }
 	    return parent;
 	}
@@ -1726,7 +1733,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
             urlString = sb.toString();
             logger.log(Level.FINEST, uriString);
             logger.log(Level.FINEST, urlString);
-            logger.log(Level.FINEST, "ClassLoader: {0}", parent);
+            logger.log(Level.FINEST, "ClassLoader: {0}", new Object[]{parent});
         }
         
         /* Each LoaderKey is unique to a ClassLoader, the LoaderKey contains
@@ -1771,7 +1778,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
             if (loader == null) {
                 loader = createClassLoader(urls, parent, requireDlPerm);
                 if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST, "ClassLoader was null creating new PreferredClassLoader{0}", loader);
+                    logger.log(Level.FINEST, "ClassLoader was null creating new PreferredClassLoader{0}", new Object[]{loader});
                 }
                 /* RIVER-265
                  * The next section of code has been moved inside this
@@ -1787,7 +1794,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
                 }
                 
             } else if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST, "ClassLoader: {0}", loader);
+                logger.log(Level.FINEST, "ClassLoader: {0}", new Object[]{loader});
             }
 
         } else if (logger.isLoggable(Level.FINEST)){
