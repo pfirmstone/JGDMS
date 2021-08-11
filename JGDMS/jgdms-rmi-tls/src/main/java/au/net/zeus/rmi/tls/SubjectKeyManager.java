@@ -89,7 +89,7 @@ abstract class SubjectKeyManager extends FilterX509TrustManager implements X509K
 	    throws NoSuchAlgorithmException, NoSuchProviderException
     {
 	subjectRef = new WeakReference<Subject>(subject);
-	subjectIsReadOnly = subject.isReadOnly();
+	subjectIsReadOnly = subject != null? subject.isReadOnly() : false;
     }
     
     /** Returns the logger to use for logging. */
