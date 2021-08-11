@@ -165,7 +165,7 @@ public class KillVMUtil {
         private final ActivationExporter exporter;
         private Remote proxy;
         public KillVMObjectImpl(ActivationID activationID,
-                                net.jini.activation.arg.MarshalledObject data) throws IOException
+                                String[] data) throws IOException
         {
             this.exporter = new ActivationExporter(activationID,
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),

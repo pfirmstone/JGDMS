@@ -50,14 +50,14 @@ public class ProbeImpl implements Probe, Startable, ProxyAccessor {
     public static Object activate(ActivationID activationID, 
 	net.jini.activation.arg.MarshalledObject data) throws Exception 
     {
-	ProbeImpl p = new ProbeImpl(activationID, data);
+	ProbeImpl p = new ProbeImpl(activationID, null);
         p.start();
 	return p.ourStub;
 	
     }
 
     // Activation constructor
-    public ProbeImpl(ActivationID activationID, net.jini.activation.arg.MarshalledObject data) 
+    public ProbeImpl(ActivationID activationID, String[] data) 
 	throws IOException, ClassNotFoundException
     {
 	this.activationID = activationID;

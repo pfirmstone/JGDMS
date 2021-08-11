@@ -93,8 +93,7 @@ public class ActivateWrapperTestUtil {
 		+ servicePrefix + " properties.");
 	}
 
-        net.jini.activation.arg.MarshalledObject params = 
-	    new AtomicMarshalledInstance(new String[] {configFile.toString()});
+        String [] params = new String[] {configFile.toString()};
         ActivateWrapper.ActivateDesc adesc = 
 	    new ActivateWrapper.ActivateDesc(
 	        implClassName,

@@ -21,7 +21,6 @@ import org.apache.river.admin.DestroyAdmin;
 
 import java.io.IOException;
 import net.jini.activation.arg.ActivationID;
-import net.jini.activation.arg.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -64,7 +63,7 @@ public class KillerImpl
      * @param activationID the activationID for this service instance
      * @param data the payload object for this service instance (unused)
      */
-    public KillerImpl(ActivationID activationID, MarshalledObject data)
+    public KillerImpl(ActivationID activationID, String[] data)
 	throws IOException, ClassNotFoundException
     {
 	this(getExporter(activationID));

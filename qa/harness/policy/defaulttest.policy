@@ -1,348 +1,1146 @@
-
-
-grant codebase "file:${jsk.home}${/}lib${/}*
+grant codebase "file:/${qa.home}/lib/jinitests.jar"
 {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}*
-{
-    permission java.security.AllPermission "", "";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
-{
-    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
-};
-
-grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
-{
-    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
-    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
-    permission java.lang.RuntimePermission "modifyThread";
-    permission java.lang.RuntimePermission "modifyThreadGroup";
-};
-
-// Grants required for jdk1.6 combined with source=5 and target=jsr14
-// I think this has something to do with the new java 6 Policy implementation,
-// the visibility of our policy implementations on the boot classpath and
-// jdk1.6 compiler optimisations. See River-334
-grant codebase "file:${org.apache.river.test.home}${/}lib-ext${/}*" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
-};
-
-
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${reggie-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${norm-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${mercury-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${mahalo-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${fiddler-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${outrigger-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${jsk-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-    permission java.lang.RuntimePermission "getClassLoader";
-};
-
-grant codebase "http://${HOST}/${phoenix-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}${phoenix-dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/qa1-lookup-simulator-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-
-grant codebase "http://${HOST}/qa1-mercury-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-
-grant codebase "http://${HOST}/qa1-discoveryservice-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-fiddler-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-io-util-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-lookupservice-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-norm-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-reggie-race-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-renewalservice-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-servicediscovery-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-share-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-cb1-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-cb2-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-cb3-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-probe-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-testservice-common-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-testservice1-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-testservice2-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-start-testservicenocons-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-grant codebase "http://${HOST}/qa1-share-dl.jar" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk.iiop.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${net.jini.jrmp.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk.url.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jsk.pref.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${start.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${jsk.home}${/}lib${/}${high-scale-lib.jar}" {
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-};
-
-grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.qa.harness.testJar}" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}jiniharness.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}qa1-start-tests.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}qa1-io-marshalledinstance-test.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${qa.home}${/}lib${/}qa1-io-marshalinputstream-test.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-// needed by various proxies
-
-grant {
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
-    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.ssl";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.action";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.lang.RuntimePermission "getClassLoader";
-    permission java.io.FilePermission "${jsk.home}${/}lib${/}-", "read";
-    permission java.io.FilePermission "${qa.home}${/}lib${/}-", "read";
-    permission java.util.PropertyPermission "*", "read";
-    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.reggie";
-    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.norm";
-    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.outrigger";
-    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.mercury";
-    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.fiddler";
-    permission java.net.NetPermission "getNetworkInformation";
-};
-
-//JDK9
-grant codebase "jrt:/jdk.security.auth" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.crypto.cryptoki" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/java.smartcardio" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/java.xml.crypto" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/java.security.jgss" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.crypto.ec" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.crypto.mscapi" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.security.jgss" {
-    permission java.security.AllPermission "", "";
-};
-
-// needed by some io tests
-
-grant {
-    permission java.lang.RuntimePermission "setIO";
-    permission java.lang.RuntimePermission "setFactory";
-    permission java.net.SocketPermission "*:1024-",    "connect,accept";
-    permission java.util.PropertyPermission "org.apache.river.test.spec.io.util.FakeIntegrityVerifier.throwException", "write";
-};
-
-// needed when using a SecurityManager from command line
-
-grant {
-    permission java.io.FilePermission "-", "read";
+    permission java.util.PropertyPermission "/", "read";
+    permission java.util.PropertyPermission "HOST", "read";
+    permission java.util.PropertyPermission "activation-param.jar", "read";
+    permission java.util.PropertyPermission "activation.jar", "read";
+    permission java.util.PropertyPermission "activationSystem.activatable.impl", "read";
+    permission java.util.PropertyPermission "activationSystem.adminName", "read";
+    permission java.util.PropertyPermission "activationSystem.classpath", "read";
+    permission java.util.PropertyPermission "activationSystem.classpath.0", "read";
+    permission java.util.PropertyPermission "activationSystem.codebase", "read";
+    permission java.util.PropertyPermission "activationSystem.codebase.0", "read";
+    permission java.util.PropertyPermission "activationSystem.integrityhash", "read";
+    permission java.util.PropertyPermission "activationSystem.integrityhash.0", "read";
+    permission java.util.PropertyPermission "activationSystem.log", "read";
+    permission java.util.PropertyPermission "activationSystem.log.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.classpath", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.classpath.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.codebase", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.codebase.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.integrityhash", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.integrityhash.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.log", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.log.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.policyfile", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.policyfile.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.preparername", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.preparername.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serverjvmargs", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "activationSystem.policyfile", "read";
+    permission java.util.PropertyPermission "activationSystem.policyfile.0", "read";
+    permission java.util.PropertyPermission "activationSystem.preparername", "read";
+    permission java.util.PropertyPermission "activationSystem.preparername.0", "read";
+    permission java.util.PropertyPermission "activationSystem.serverjvmargs", "read";
+    permission java.util.PropertyPermission "activationSystem.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "activationSystem.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "activationSystem.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "activationSystem.type", "read";
+    permission java.util.PropertyPermission "activationSystem.type.0", "read";
+    permission java.util.PropertyPermission "activationSystem.type.1", "read";
+    permission java.util.PropertyPermission "bouncy-jce.jar", "read";
+    permission java.util.PropertyPermission "bouncy-jsse.jar", "read";
+    permission java.util.PropertyPermission "classserver.jar", "read";
+    permission java.util.PropertyPermission "collections.jar", "read";
+    permission java.util.PropertyPermission "destroy.jar", "read";
+    permission java.util.PropertyPermission "disco.jar", "read";
+    permission java.util.PropertyPermission "fiddler-dl.jar", "read";
+    permission java.util.PropertyPermission "fiddler.jar", "read";
+    permission java.util.PropertyPermission "globalclasspath", "read";
+    permission java.util.PropertyPermission "group.jar", "read";
+    permission java.util.PropertyPermission "high-scale-lib.jar", "read";
+    permission java.util.PropertyPermission "java.class.path", "read";
+    permission java.util.PropertyPermission "java.home", "read";
+    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
+    permission java.util.PropertyPermission "java.util.logging.config.file", "read";
+    permission java.util.PropertyPermission "jeri.jar", "read";
+    permission java.util.PropertyPermission "jgdms-rmi-tls.jar", "read";
+    permission java.util.PropertyPermission "jgdms.version", "read";
+    permission java.util.PropertyPermission "jiniClassServer.activatable.impl", "read";
+    permission java.util.PropertyPermission "jiniClassServer.adminName", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.dir", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.dir.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.impl", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.impl.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.port", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.port.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.dir", "read";
+    permission java.util.PropertyPermission "jiniClassServer.dir.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.impl", "read";
+    permission java.util.PropertyPermission "jiniClassServer.impl.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.port", "read";
+    permission java.util.PropertyPermission "jiniClassServer.port.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "jiniClassServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.type", "read";
+    permission java.util.PropertyPermission "jiniClassServer.type.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.type.1", "read";
+    permission java.util.PropertyPermission "jsk-dl.jar", "read";
+    permission java.util.PropertyPermission "jsk-lib.jar", "read";
+    permission java.util.PropertyPermission "jsk.home", "read";
+    permission java.util.PropertyPermission "jsk.iiop.jar", "read";
+    permission java.util.PropertyPermission "jsk.pref.jar", "read";
+    permission java.util.PropertyPermission "jsk.url.jar", "read";
+    permission java.util.PropertyPermission "line.separator", "read";
+    permission java.util.PropertyPermission "loader.jar", "read";
+    permission java.util.PropertyPermission "mahalo-dl.jar", "read";
+    permission java.util.PropertyPermission "mahalo.jar", "read";
+    permission java.util.PropertyPermission "mercury-dl.jar", "read";
+    permission java.util.PropertyPermission "mercury.jar", "read";
+    permission java.util.PropertyPermission "net.jini.activation.port", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.classpath", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.classpath.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.codebase", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.codebase.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.component", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.component.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.impl", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.impl.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.integrityhash", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.integrityhash.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.log", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.log.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.membergroups", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.membergroups.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.policyfile", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.policyfile.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.port", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.port.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.running", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.running.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.running.1", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.tojoin", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.tojoin.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.adminName", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.classpath", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.classpath.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.codebase", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.codebase.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.component", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.component.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.impl", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.instances", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.integrityhash", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.integrityhash.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.log", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.log.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.membergroups", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.membergroups.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.policyfile", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.policyfile.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.port", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.port.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.running", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.running.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.running.1", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.tojoin", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.tojoin.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.type", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.type.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.type.1", "read";
+    permission java.util.PropertyPermission "net.jini.discovery.announce", "read";
+    permission java.util.PropertyPermission "norm-dl.jar", "read";
+    permission java.util.PropertyPermission "norm.jar", "read";
+    permission java.util.PropertyPermission "org.apache.river.jsk.port", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.globalvmargs", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.integrityhash", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.nSecsWaitDestroy", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.runactivation", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.runjiniserver", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.runkitserver", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.securityproperties", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.serviceMode", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.shared", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.startDelay", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.testClassServer", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.testhosts", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.port", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.home", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.port", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.actClasspath", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.actCodebase", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTEvntLeaseExp", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTEvntNotify", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTListener", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTSrvcLeaseExp", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.nInstancesPerClass", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.outputRoot", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.policy", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.rmiCodebase", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.selectMethod", "read";
+    permission java.util.PropertyPermission "outrigger-dl.jar", "read";
+    permission java.util.PropertyPermission "outrigger-snaplogstore.jar", "read";
+    permission java.util.PropertyPermission "outrigger.jar", "read";
+    permission java.util.PropertyPermission "phoenix-common.jar", "read";
+    permission java.util.PropertyPermission "phoenix-dl.jar", "read";
+    permission java.util.PropertyPermission "phoenix-group.jar", "read";
+    permission java.util.PropertyPermission "phoenix-init.jar", "read";
+    permission java.util.PropertyPermission "phoenix.jar", "read";
+    permission java.util.PropertyPermission "platform.jar", "read";
+    permission java.util.PropertyPermission "policy.writer.jar", "read";
+    permission java.util.PropertyPermission "qa.home", "read";
+    permission java.util.PropertyPermission "qaClassServer.activatable.impl", "read";
+    permission java.util.PropertyPermission "qaClassServer.adminName", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.dir", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.dir.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.impl", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.impl.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.port", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.port.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.dir", "read";
+    permission java.util.PropertyPermission "qaClassServer.dir.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.impl", "read";
+    permission java.util.PropertyPermission "qaClassServer.impl.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.port", "read";
+    permission java.util.PropertyPermission "qaClassServer.port.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "qaClassServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.type", "read";
+    permission java.util.PropertyPermission "qaClassServer.type.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.type.1", "read";
+    permission java.util.PropertyPermission "reggie-dl.jar", "read";
+    permission java.util.PropertyPermission "reggie.jar", "read";
+    permission java.util.PropertyPermission "sharedGroup.activatable.impl", "read";
+    permission java.util.PropertyPermission "sharedGroup.adminName", "read";
+    permission java.util.PropertyPermission "sharedGroup.type", "read";
+    permission java.util.PropertyPermission "sharedGroup.type.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.type.1", "read";
+    permission java.util.PropertyPermission "start.jar", "read";
+    permission java.util.PropertyPermission "testClassServer.activatable.impl", "read";
+    permission java.util.PropertyPermission "testClassServer.adminName", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.dir", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.dir.0", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.impl", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.impl.0", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.port", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.port.0", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "testClassServer.dir", "read";
+    permission java.util.PropertyPermission "testClassServer.dir.0", "read";
+    permission java.util.PropertyPermission "testClassServer.impl", "read";
+    permission java.util.PropertyPermission "testClassServer.impl.0", "read";
+    permission java.util.PropertyPermission "testClassServer.port", "read";
+    permission java.util.PropertyPermission "testClassServer.port.0", "read";
+    permission java.util.PropertyPermission "testClassServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "testClassServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "testClassServer.type", "read";
+    permission java.util.PropertyPermission "testClassServer.type.0", "read";
+    permission java.util.PropertyPermission "testClassServer.type.1", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission java.util.logging.LoggingPermission "control";
     permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}phoenix${/}phoenix.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}reggie${/}reggie.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultphoenix.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultreggie.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}dynamic-policy.properties", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "localhost:9080", "listen,resolve";
+    permission java.net.SocketPermission "localhost:9081", "listen,resolve";
+    permission java.net.SocketPermission "localhost:9082", "listen,resolve";
 };
 
-grant {
-      permission org.apache.river.phoenix.ExecOptionPermission "*";
-    // for a start test
-      permission org.apache.river.phoenix.ExecPermission "/bin/javax";
+grant codebase "file:/${jsk.home}/lib/${jgdms-rmi-tls.jar}"
+{
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission javax.security.auth.AuthPermission "getSubject";
 };
-grant codebase "file:${qa.home}${/}lib${/}classserver-${jgdms.version}.jar"
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.util.PropertyPermission "/", "read";
+    permission java.util.PropertyPermission "HOST", "read";
+    permission java.util.PropertyPermission "activation-param.jar", "read";
+    permission java.util.PropertyPermission "activation.jar", "read";
+    permission java.util.PropertyPermission "activationSystem.activatable.impl", "read";
+    permission java.util.PropertyPermission "activationSystem.adminName", "read";
+    permission java.util.PropertyPermission "activationSystem.classpath", "read";
+    permission java.util.PropertyPermission "activationSystem.classpath.0", "read";
+    permission java.util.PropertyPermission "activationSystem.codebase", "read";
+    permission java.util.PropertyPermission "activationSystem.codebase.0", "read";
+    permission java.util.PropertyPermission "activationSystem.integrityhash", "read";
+    permission java.util.PropertyPermission "activationSystem.integrityhash.0", "read";
+    permission java.util.PropertyPermission "activationSystem.log", "read";
+    permission java.util.PropertyPermission "activationSystem.log.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.classpath", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.classpath.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.codebase", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.codebase.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.integrityhash", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.integrityhash.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.log", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.log.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.policyfile", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.policyfile.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.preparername", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.preparername.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serverjvmargs", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "activationSystem.phoenix.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "activationSystem.policyfile", "read";
+    permission java.util.PropertyPermission "activationSystem.policyfile.0", "read";
+    permission java.util.PropertyPermission "activationSystem.preparername", "read";
+    permission java.util.PropertyPermission "activationSystem.preparername.0", "read";
+    permission java.util.PropertyPermission "activationSystem.serverjvmargs", "read";
+    permission java.util.PropertyPermission "activationSystem.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "activationSystem.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "activationSystem.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "activationSystem.type", "read";
+    permission java.util.PropertyPermission "activationSystem.type.0", "read";
+    permission java.util.PropertyPermission "activationSystem.type.1", "read";
+    permission java.util.PropertyPermission "bouncy-jce.jar", "read";
+    permission java.util.PropertyPermission "bouncy-jsse.jar", "read";
+    permission java.util.PropertyPermission "classserver.jar", "read";
+    permission java.util.PropertyPermission "collections.jar", "read";
+    permission java.util.PropertyPermission "destroy.jar", "read";
+    permission java.util.PropertyPermission "disco.jar", "read";
+    permission java.util.PropertyPermission "fiddler-dl.jar", "read";
+    permission java.util.PropertyPermission "fiddler.jar", "read";
+    permission java.util.PropertyPermission "globalclasspath", "read";
+    permission java.util.PropertyPermission "group.jar", "read";
+    permission java.util.PropertyPermission "high-scale-lib.jar", "read";
+    permission java.util.PropertyPermission "java.class.path", "read";
+    permission java.util.PropertyPermission "java.home", "read";
+    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
+    permission java.util.PropertyPermission "java.util.logging.config.file", "read";
+    permission java.util.PropertyPermission "jeri.jar", "read";
+    permission java.util.PropertyPermission "jgdms-rmi-tls.jar", "read";
+    permission java.util.PropertyPermission "jgdms.version", "read";
+    permission java.util.PropertyPermission "jiniClassServer.activatable.impl", "read";
+    permission java.util.PropertyPermission "jiniClassServer.adminName", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.dir", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.dir.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.impl", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.impl.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.port", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.port.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "jiniClassServer.classServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.dir", "read";
+    permission java.util.PropertyPermission "jiniClassServer.dir.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.impl", "read";
+    permission java.util.PropertyPermission "jiniClassServer.impl.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.port", "read";
+    permission java.util.PropertyPermission "jiniClassServer.port.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "jiniClassServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.type", "read";
+    permission java.util.PropertyPermission "jiniClassServer.type.0", "read";
+    permission java.util.PropertyPermission "jiniClassServer.type.1", "read";
+    permission java.util.PropertyPermission "jsk-dl.jar", "read";
+    permission java.util.PropertyPermission "jsk-lib.jar", "read";
+    permission java.util.PropertyPermission "jsk.home", "read";
+    permission java.util.PropertyPermission "jsk.iiop.jar", "read";
+    permission java.util.PropertyPermission "jsk.pref.jar", "read";
+    permission java.util.PropertyPermission "jsk.url.jar", "read";
+    permission java.util.PropertyPermission "line.separator", "read";
+    permission java.util.PropertyPermission "loader.jar", "read";
+    permission java.util.PropertyPermission "mahalo-dl.jar", "read";
+    permission java.util.PropertyPermission "mahalo.jar", "read";
+    permission java.util.PropertyPermission "mercury-dl.jar", "read";
+    permission java.util.PropertyPermission "mercury.jar", "read";
+    permission java.util.PropertyPermission "net.jini.activation.port", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.classpath", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.classpath.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.codebase", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.codebase.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.component", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.component.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.impl", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.impl.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.integrityhash", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.integrityhash.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.log", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.log.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.membergroups", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.membergroups.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.policyfile", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.policyfile.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.port", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.port.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.running", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.running.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.running.1", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.tojoin", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.tojoin.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.adminName", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.classpath", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.classpath.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.codebase", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.codebase.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.component", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.component.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.impl", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.instances", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.integrityhash", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.integrityhash.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.log", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.log.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.membergroups", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.membergroups.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.policyfile", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.policyfile.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.port", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.port.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.running", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.running.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.running.1", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.tojoin", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.tojoin.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.type", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.type.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.type.1", "read";
+    permission java.util.PropertyPermission "net.jini.discovery.announce", "read";
+    permission java.util.PropertyPermission "net.jini.security.allowInsecureConnections", "read";
+    permission java.util.PropertyPermission "norm-dl.jar", "read";
+    permission java.util.PropertyPermission "norm.jar", "read";
+    permission java.util.PropertyPermission "org.apache.river.jsk.port", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.callAutoT", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.defaultTestConfig", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.globalvmargs", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.integrityhash", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.nSecsWaitDestroy", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.runactivation", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.runjiniserver", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.runkitserver", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.securityproperties", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.serviceMode", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.shared", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.startDelay", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.testClassServer", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.testhosts", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.port", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.home", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.port", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.actClasspath", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.actCodebase", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTEvntLeaseExp", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTEvntNotify", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTListener", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.deltaTSrvcLeaseExp", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.nInstancesPerClass", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.outputRoot", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.policy", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.rmiCodebase", "read";
+    permission java.util.PropertyPermission "org.apache.river.test.spec.lookupservice.selectMethod", "read";
+    permission java.util.PropertyPermission "outrigger-dl.jar", "read";
+    permission java.util.PropertyPermission "outrigger-snaplogstore.jar", "read";
+    permission java.util.PropertyPermission "outrigger.jar", "read";
+    permission java.util.PropertyPermission "phoenix-common.jar", "read";
+    permission java.util.PropertyPermission "phoenix-dl.jar", "read";
+    permission java.util.PropertyPermission "phoenix-group.jar", "read";
+    permission java.util.PropertyPermission "phoenix-init.jar", "read";
+    permission java.util.PropertyPermission "phoenix.jar", "read";
+    permission java.util.PropertyPermission "platform.jar", "read";
+    permission java.util.PropertyPermission "policy.writer.jar", "read";
+    permission java.util.PropertyPermission "qa.home", "read";
+    permission java.util.PropertyPermission "qaClassServer.activatable.impl", "read";
+    permission java.util.PropertyPermission "qaClassServer.adminName", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.dir", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.dir.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.impl", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.impl.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.port", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.port.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "qaClassServer.classServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.dir", "read";
+    permission java.util.PropertyPermission "qaClassServer.dir.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.impl", "read";
+    permission java.util.PropertyPermission "qaClassServer.impl.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.port", "read";
+    permission java.util.PropertyPermission "qaClassServer.port.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "qaClassServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.type", "read";
+    permission java.util.PropertyPermission "qaClassServer.type.0", "read";
+    permission java.util.PropertyPermission "qaClassServer.type.1", "read";
+    permission java.util.PropertyPermission "reggie-dl.jar", "read";
+    permission java.util.PropertyPermission "reggie.jar", "read";
+    permission java.util.PropertyPermission "sharedGroup.activatable.impl", "read";
+    permission java.util.PropertyPermission "sharedGroup.adminName", "read";
+    permission java.util.PropertyPermission "sharedGroup.type", "read";
+    permission java.util.PropertyPermission "sharedGroup.type.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.type.1", "read";
+    permission java.util.PropertyPermission "start.jar", "read";
+    permission java.util.PropertyPermission "testClassServer.activatable.impl", "read";
+    permission java.util.PropertyPermission "testClassServer.adminName", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.dir", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.dir.0", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.impl", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.impl.0", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.port", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.port.0", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "testClassServer.classServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "testClassServer.dir", "read";
+    permission java.util.PropertyPermission "testClassServer.dir.0", "read";
+    permission java.util.PropertyPermission "testClassServer.impl", "read";
+    permission java.util.PropertyPermission "testClassServer.impl.0", "read";
+    permission java.util.PropertyPermission "testClassServer.port", "read";
+    permission java.util.PropertyPermission "testClassServer.port.0", "read";
+    permission java.util.PropertyPermission "testClassServer.serverjvmargs", "read";
+    permission java.util.PropertyPermission "testClassServer.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "testClassServer.type", "read";
+    permission java.util.PropertyPermission "testClassServer.type.0", "read";
+    permission java.util.PropertyPermission "testClassServer.type.1", "read";
+    permission java.util.PropertyPermission "testConfiguration", "read";
+    permission java.util.PropertyPermission "testFailureAnalyzers", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission java.util.logging.LoggingPermission "control";
+    permission java.lang.RuntimePermission "getenv.SOUL";
+    permission java.lang.RuntimePermission "setIO";
+    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}phoenix${/}phoenix.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}reggie${/}reggie.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}test.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultphoenix.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultreggie.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}dynamic-policy.properties", "read";
+    permission java.io.FilePermission "${qa.home}${/}soul${/}-", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set00${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission java.io.FilePermission "org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "localhost:9080", "listen,resolve";
+    permission java.net.SocketPermission "localhost:9081", "listen,resolve";
+    permission java.net.SocketPermission "localhost:9082", "listen,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}"
 {
     permission java.net.SocketPermission "localhost:9080", "listen,resolve";
     permission java.net.SocketPermission "localhost:9081", "listen,resolve";
     permission java.net.SocketPermission "localhost:9082", "listen,resolve";
 };
 
-grant codebase "file:${qa.home}${/}lib${/}${bouncy-jce.jar}"
+grant codebase "file:/${jsk.home}/lib/${activation.jar}"
 {
-    permission java.security.AllPermission "", "";
+    permission java.util.PropertyPermission "java.rmi.server.hostname", "read";
+    permission java.util.PropertyPermission "net.jini.activation.port", "read";
+    permission java.util.PropertyPermission "net.jini.security.allowInsecureConnections", "read";
+    permission java.net.SocketPermission "${HOST}", "resolve";
 };
 
-grant codebase "file:${qa.home}${/}lib${/}${bouncy-jsse.jar}"
+grant codebase "file:/${jsk.home}/lib/${loader.jar}"
 {
-    permission java.security.AllPermission "", "";
+    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
+    permission java.util.PropertyPermission "net.jini.loader.codebaseAnnotation", "read";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "getClassLoader";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.util.logging.LoggingPermission "control";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.resources";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "getenv.SOUL";
+    permission java.lang.RuntimePermission "localeServiceProvider";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "readFileDescriptor";
+    permission java.lang.RuntimePermission "reflectionFactoryAccess";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "setIO";
+    permission java.lang.RuntimePermission "sun.rmi.runtime.RuntimeUtil.getInstance";
+    permission java.lang.RuntimePermission "writeFileDescriptor";
+    permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+    permission java.io.FilePermission "${java.home}${/}bin${/}net.dll", "read";
+    permission java.io.FilePermission "${java.home}${/}bin${/}nio.dll", "read";
+    permission java.io.FilePermission "${java.home}${/}conf${/}net.properties", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${loader.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${sharedvm.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}phoenix${/}phoenix.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}reggie${/}reggie.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}test.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultphoenix.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultreggie.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}dynamic-policy.properties", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}jinitests.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}soul${/}soul.202108071805018286", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}resources${/}jinitest.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set00${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission java.io.FilePermission "org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.security.SecurityPermission "createAccessControlContext";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getDomainCombiner";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "getProperty.jdk.security.provider.preferred";
+    permission java.security.SecurityPermission "getProperty.jdk.serialFilter";
+    permission java.security.SecurityPermission "getProperty.securerandom.drbg.config";
+    permission java.security.SecurityPermission "getProperty.securerandom.source";
+    permission java.security.SecurityPermission "getProperty.security.provider.1";
+    permission java.security.SecurityPermission "getProperty.security.provider.10";
+    permission java.security.SecurityPermission "getProperty.security.provider.11";
+    permission java.security.SecurityPermission "getProperty.security.provider.12";
+    permission java.security.SecurityPermission "getProperty.security.provider.13";
+    permission java.security.SecurityPermission "getProperty.security.provider.14";
+    permission java.security.SecurityPermission "getProperty.security.provider.2";
+    permission java.security.SecurityPermission "getProperty.security.provider.3";
+    permission java.security.SecurityPermission "getProperty.security.provider.4";
+    permission java.security.SecurityPermission "getProperty.security.provider.5";
+    permission java.security.SecurityPermission "getProperty.security.provider.6";
+    permission java.security.SecurityPermission "getProperty.security.provider.7";
+    permission java.security.SecurityPermission "getProperty.security.provider.8";
+    permission java.security.SecurityPermission "getProperty.security.provider.9";
+    permission java.security.SecurityPermission "putProviderProperty.SUN";
+    permission java.security.SecurityPermission "setPolicy";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "localhost:9080", "listen,resolve";
+    permission java.net.SocketPermission "localhost:9081", "listen,resolve";
+    permission java.net.SocketPermission "localhost:9082", "listen,resolve";
+};
+
+grant codebase "jrt:/jdk.localedata"
+{
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.resources";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar"
+{
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.util.PropertyPermission "java.io.tmpdir", "read";
+    permission java.util.PropertyPermission "loader.requireDlPerm", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.actdeathdelay", "read";
+    permission java.util.PropertyPermission "sharedGroup.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroup.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.implPrefix", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.implPrefix.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvm", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvm.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvmargs", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.implPrefix", "read";
+    permission java.util.PropertyPermission "sharedGroup.implPrefix.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroup.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvm", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvm.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvmargs", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroup.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationhost", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationhost.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationport", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationport.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.codebase", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.codebase.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.component", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.component.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.impl", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.impl.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.log", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.log.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.membergroups", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.membergroups.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.port", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.port.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.preparername", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.preparername.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.restart", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.restart.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.tojoin", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.tojoin.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationhost", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationhost.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationport", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationport.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.codebase", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.codebase.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.component", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.component.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.impl", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.impl.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.log", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.log.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.membergroups", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.membergroups.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.port", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.port.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.preparername", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.preparername.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.restart", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.restart.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.tojoin", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.tojoin.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.type", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.type.0", "read";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.io.FilePermission "${java.io.tmpdir}JinitestDeletionList.txt", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}JinitestDeletionList.txt", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${jsk-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${phoenix-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}sharedgroup${/}sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}starter${/}starter.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultgroup.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultsharedvm.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-lookupservice-dl.jar", "read";
+    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
+    permission java.net.SocketPermission "*", "connect,accept,resolve";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.util.PropertyPermission "java.io.tmpdir", "read";
+    permission java.util.PropertyPermission "loader.requireDlPerm", "read";
+    permission java.util.PropertyPermission "org.apache.river.qa.harness.actdeathdelay", "read";
+    permission java.util.PropertyPermission "sharedGroup.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroup.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.implPrefix", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.implPrefix.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvm", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvm.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvmargs", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroup.group.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.implPrefix", "read";
+    permission java.util.PropertyPermission "sharedGroup.implPrefix.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroup.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvm", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvm.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvmargs", "read";
+    permission java.util.PropertyPermission "sharedGroup.serverjvmargs.0", "read";
+    permission java.util.PropertyPermission "sharedGroup.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroup.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationhost", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationhost.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationport", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.activationport.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.codebase", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.codebase.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.component", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.component.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.impl", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.impl.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.log", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.log.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.membergroups", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.membergroups.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.port", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.port.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.preparername", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.preparername.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.restart", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.restart.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.tojoin", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activatable.tojoin.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationhost", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationhost.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationport", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.activationport.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.classpath", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.classpath.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.codebase", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.codebase.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.component", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.component.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.impl", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.impl.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.log", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.log.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.membergroups", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.membergroups.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.policyfile", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.policyfile.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.port", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.port.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.preparername", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.preparername.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.restart", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.restart.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.serviceConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.serviceConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.starterConfiguration", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.tojoin", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.tojoin.0", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.type", "read";
+    permission java.util.PropertyPermission "sharedGroupImpl.type.0", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}JinitestDeletionList.txt", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}JinitestDeletionList.txt", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${jsk-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${phoenix-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}sharedgroup${/}sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}starter${/}starter.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultgroup.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultsharedvm.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-lookupservice-dl.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}soul${/}-", "read";
+    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
+    permission java.net.SocketPermission "*", "connect,accept,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.lang.RuntimePermission "loggerFinder";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission java.io.FilePermission "${java.io.tmpdir}JinitestDeletionList.txt", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}JinitestDeletionList.txt", "write";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${jsk-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${phoenix-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}sharedgroup${/}sharedgroup.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jeri${/}starter${/}starter.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultgroup.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}policy${/}defaultsharedvm.policy", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-lookupservice-dl.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}soul${/}-", "read";
+    permission java.net.NetPermission "getCookieHandler";
+    permission java.net.NetPermission "getProxySelector";
+    permission java.net.NetPermission "getResponseCache";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/phoenix-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.security.SecurityPermission "getProperty.jdk.includeInExceptions";
+    permission java.security.SecurityPermission "getProperty.org.apache.river.start.servicePolicyProvider";
+    permission java.net.SocketPermission "${HOST}", "connect,accept,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}"
+{
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${jsk-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${phoenix-dl.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-lookupservice-dl.jar", "read";
+    permission java.net.SocketPermission "*", "accept,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}"
+{
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/phoenix-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.SocketPermission "${HOST}", "connect,accept,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${collections.jar}"
+{
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
+{
+    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.client.initialInboundRation", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connectionTimeout", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.cleanInterval", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.leaseValue", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.minimumDuration", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.handshakeTimeout", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.tcp.useNIO", "read";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
+    permission java.net.SocketPermission "*", "connect,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${sharedvm.jar}"
+{
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; org.apache.river.api.io.DeSerializationPermission \"MARSHALL\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.util.PropertyPermission "net.jini.activation.port", "read";
+    permission java.util.PropertyPermission "net.jini.security.allowInsecureConnections", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${group.jar}", "read";
+    permission java.security.SecurityPermission "getProperty.org.apache.river.start.servicePolicyProvider";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
+    permission java.net.SocketPermission "*", "connect,resolve";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar"
+{
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationhost", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationhost.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationport", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationport.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.preparername", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.preparername.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.restart", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.restart.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.starterConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationhost", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationhost.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationport", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationport.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.preparername", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.preparername.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.restart", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.restart.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.starterConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.starterConfiguration.0", "read";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.SocketPermission "*", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationhost", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationhost.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationport", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.activationport.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.preparername", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.preparername.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.restart", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.restart.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.starterConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activatable.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationhost", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationhost.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationport", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.activationport.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.preparername", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.preparername.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.restart", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.restart.0", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.starterConfiguration", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.starterConfiguration.0", "read";
+    permission java.util.PropertyPermission "os.name", "read";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}soul${/}soul.202108091537022326", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.SocketPermission "*", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${activation.jar}"
+{
+    permission java.util.PropertyPermission "org.apache.river.activation.enableActivateGrant", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "${HOST}:9080", "connect,resolve";
+    permission java.net.SocketPermission "*", "connect,resolve";
+};
+
+grant codebase "http://${HOST}:9080/${phoenix-dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}soul${/}soul.202108091537022326", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:0]", "resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+};
+
+grant codebase "http://${HOST}:9080/${jsk-dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}"
+{
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${collections.jar}"
+{
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
+{
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.server.initialInboundRation", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.checkInterval", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.server.suppressStackTraces", "read";
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:0]", "resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+};
+
+grant codebase "http://${HOST}:9080/${reggie-dl.jar}"
+{
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+grant codebase "file:/${jsk.home}/lib/${sharedvm.jar}"
+{
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${qa.home}/lib/jinitests.jar"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+    permission java.util.PropertyPermission "sharedvm.jar", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/jiniharness.jar"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set02${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+    permission java.util.PropertyPermission "sharedvm.jar", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.io.FilePermission "${java.io.tmpdir}", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}test_set02${/}org${/}apache${/}river${/}test${/}spec${/}lookupservice${/}configs${/}jeri${/}default.config", "read";
+    permission java.security.SecurityPermission "getProperty.jdk.serialFilterFactory";
+};
+
+grant codebase "file:/${jsk.home}/lib/${classserver.jar}"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
 };
 

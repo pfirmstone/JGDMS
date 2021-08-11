@@ -38,8 +38,8 @@ public class ActivateWrapperActivateDescTest3 extends AbstractStartBaseTest {
         ActivateDesc adesc =  
 	    new ActivateDesc(
 		null,
-		null,
-		null,
+		(String[]) null,
+		(String[]) null,
 		null,
 		null);
         logger.log(Level.INFO, "ActivateDesc information: {0}" + adesc);

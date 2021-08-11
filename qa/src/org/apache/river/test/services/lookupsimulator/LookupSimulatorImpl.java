@@ -132,10 +132,10 @@ public class LookupSimulatorImpl implements LookupSimulator,
     private AccessControlContext context;
 
     public LookupSimulatorImpl(ActivationID activationID, 
-			       net.jini.activation.arg.MarshalledObject data)
+			       String[] data)
 	throws Exception
     {
-	this((String[]) data.get(), activationID, null);
+	this(data, activationID, null);
     }
 
     public LookupSimulatorImpl(String[] configArgs, LifeCycle lifeCycle)

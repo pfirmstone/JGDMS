@@ -69,10 +69,10 @@ public class TestServiceImpl implements TestService, ProxyAccessor, Startable {
     public synchronized Object getProxy() { return serverStub; }
 
     // Activation constructor
-    public TestServiceImpl(ActivationID activationID, net.jini.activation.arg.MarshalledObject data)
+    public TestServiceImpl(ActivationID activationID, String[] data)
         throws Exception
     {
-	init((String[])data.get());
+	init(data);
     }
 
     // 

@@ -84,8 +84,9 @@ public class ActivateWrapperActivateDescTest extends AbstractStartBaseTest {
 	}
 
 	logger.log(Level.INFO, "Generating activation wrapper descriptor");
-        net.jini.activation.arg.MarshalledObject params = null;
-	params = new AtomicMarshalledInstance(logDir);
+//        net.jini.activation.arg.MarshalledObject params = null;
+//	params = new AtomicMarshalledInstance(logDir);
+        String [] params = new String[]{logDir};
 
 	// Create ActivateDesc
         ActivateWrapper.ActivateDesc adesc = null;
@@ -98,11 +99,11 @@ public class ActivateWrapperActivateDescTest extends AbstractStartBaseTest {
 	logger.log(Level.INFO, "ActivateDesc = " + adesc);
 
 	// Verifying component fields
-        if (!implClassName.equals(adesc.className)  ||
-	    !Arrays.equals(classpath, adesc.importLocation) ||
-	    !Arrays.equals(codebase, adesc.exportLocation)  ||
-	    !policy.equals(adesc.policy)            ||
-	    !params.equals(adesc.data)                ) {
+        if (!implClassName.equals(adesc.className())  ||
+	    !Arrays.equals(classpath, adesc.importLocation()) ||
+	    !Arrays.equals(codebase, adesc.exportLocation())  ||
+	    !policy.equals(adesc.policy())            ||
+	    !params.equals(adesc.configurationArguments())                ) {
             throw new TestException("ActivateWrapper descriptor is invalid.");
 	}
     }

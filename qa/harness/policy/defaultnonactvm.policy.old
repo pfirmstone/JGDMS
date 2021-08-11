@@ -1,0 +1,87 @@
+grant codebase "file:${qa.home}${/}lib${/}nonactivatablegroup.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+// Discovery providers that don't perform authentication don't grant
+// DeSerializationPermission, so it's granted here.
+grant codebase "http://${HOST}/${jsk-dl.jar}" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "getClassLoader";
+};
+
+grant codebase "file:${qa.home}${/}lib${/}harness-killer.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!${/}harness/policy/policy.all";
+}; 
+
+grant codebase "file:${qa.home}${/}lib/harness-killer.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+}; 
+
+grant {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
+{
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "net.jini.admin.Administrable.getAdmin";
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.register";
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.notiFy";
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.renewEventLease";
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.cancelServiceLease";
+    permission net.jini.security.AccessPermission "org.apache.river.admin.DestroyAdmin.destroy";
+};

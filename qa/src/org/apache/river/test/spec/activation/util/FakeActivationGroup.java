@@ -74,7 +74,7 @@ public class FakeActivationGroup extends ActivationGroup {
                 "FakeActivationGroup.Constructor(" + agid + ")");
     }
     
-    public FakeActivationGroup(ActivationGroupID agid, MarshalledObject data)
+    public FakeActivationGroup(ActivationGroupID agid, String[] data)
 	throws ActivationException, RemoteException
     {
 	super(agid);

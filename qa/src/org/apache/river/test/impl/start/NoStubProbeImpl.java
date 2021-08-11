@@ -21,7 +21,6 @@ package org.apache.river.test.impl.start;
 import java.io.IOException;
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.arg.ActivationID;
-import net.jini.activation.arg.MarshalledObject;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
@@ -37,7 +36,7 @@ public class NoStubProbeImpl implements Probe, Startable {
     public static Object activate(ActivationID activationID, 
 	MarshalledInstance data) throws Exception
     {
-        NoStubProbeImpl impl = new NoStubProbeImpl(activationID, data);
+        NoStubProbeImpl impl = new NoStubProbeImpl(activationID, null);
         impl.start();
 	return impl.ourStub;
     }
@@ -53,7 +52,7 @@ public class NoStubProbeImpl implements Probe, Startable {
     }
 
     // Shared activation constructor
-    private NoStubProbeImpl(ActivationID activationID, MarshalledObject data)
+    private NoStubProbeImpl(ActivationID activationID, String[] data)
 
 	throws IOException, ClassNotFoundException
     {

@@ -1,0 +1,700 @@
+grant codebase "file:${jsk.home}${/}lib${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/org.openjsse" {
+    permission java.security.AllPermission "", "";
+};
+
+
+grant {
+      permission org.apache.river.phoenix.ExecOptionPermission "*";
+    // for a start test
+      permission org.apache.river.phoenix.ExecPermission "/bin/javax";
+      permission javax.net.ssl.SSLPermission "getSSLSessionContext";
+};
+
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-mercury-bogusimpl.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission 
+        "file:${qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission
+        "file:${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+      permission org.apache.river.phoenix.InstantiatorPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
+{
+      permission org.apache.river.phoenix.InstantiatorPermission "*";
+};
+
+grant codebase "file:${qa.home}${/}lib${/}harness-killer.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+};
+
+grant codebase "file:${qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${qa.home}${/}lib${/}jinitest.jar!/src/org/apache/river/test/share/simulator.policy"
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultgroup.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${fiddler.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultfiddler.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${mahalo.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmahalo.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${mercury.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmercury.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${norm.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultnorm.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${outrigger.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultoutrigger.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultreggie.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${start.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsharedvm.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${destroy.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultsharedvm.policy";
+};
+
+grant codebase "file:${qa.home}${/}lib${/}harness-killer.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+};
+
+grant codebase "file:${qa.home}${/}lib${/}qa1-lookup-simulator.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}share${/}simulator.policy"
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}sec-jeri-group.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultgroup.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${fiddler.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${mahalo.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${mercury.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${norm.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultnorm.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${outrigger.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultreggie.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${start.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${destroy.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultsharedvm.policy";
+};
+
+// Not sure why this has changed, but required for JDK9 in following tests:
+//org/apache/river/test/impl/start/ActivateWrapperRegisterUnsharedImpl.td
+//org/apache/river/test/impl/start/ClassLoaderTest.td
+//org/apache/river/test/impl/start/ClasspathTest.td
+//org/apache/river/test/impl/start/CodebaseTest.td
+
+// grants needed by the activatable and non activatable groups
+
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-probe.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+};
+
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice1.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+};
+
+grant codebase "file:${org.apache.river.test.home}${/}lib${/}qa1-start-testservice2.jar" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+};
+
+grant codebase "http://*/phoenix-dl.jar" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${fiddler-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultfiddler.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mahalo-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmahalo.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mercury-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultmercury.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${norm-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultnorm.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${outrigger-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultoutrigger.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!/harness/policy/defaultreggie.policy";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${fiddler-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultfiddler.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mahalo-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmahalo.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${mercury-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}sec-jeri-mercury.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultmercury.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${norm-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultnorm.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${outrigger-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultoutrigger.policy";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}" {
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}all.policy";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}policy.all";
+    permission org.apache.river.start.SharedActivationPolicyPermission "file:${qa.home}${/}harness${/}policy${/}defaultreggie.policy";
+};
+grant codebase "file:${jsk.home}${/}lib-dl${/}${reggie-dl.jar}"
+{
+    permission java.net.SocketPermission "medusa:9080", "connect,resolve";
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
+{
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
+    permission java.net.SocketPermission "medusa:9080", "connect,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6940332699742392020dir\Version_Number", "write";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
+    permission java.net.SocketPermission "[fd16:f24f:50d9:0:dc7b:30e4:cd0f:ec0b]:4160", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:0:100:7f:fffe%16]:4160", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:0:5efe:a01:161%17]:4160", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:11ff:8648:5421:a9a3%15]:4160", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1198", "connect,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1268", "connect,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1271", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:6cb3:e085:65e1:f04d%10]:4160", "accept,resolve";
+    permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+    permission java.net.SocketPermission "medusa:9080", "connect,resolve";
+    permission java.net.SocketPermission "medusa:9082", "connect,resolve";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse", "read";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.lang.RuntimePermission "exitVM.0";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]", "resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1198", "connect,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1271", "accept,resolve";
+    permission java.net.SocketPermission "medusa:9082", "connect,resolve";
+    permission net.jini.security.GrantPermission "org.apache.river.api.io.DeSerializationPermission \"ATOMIC\";";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1359", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}"
+{
+    permission java.lang.RuntimePermission "modifyThread";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1356", "connect,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1359", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1383", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4160", "connect,resolve";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Logfile.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Snapshot.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log2942475353807796053dir\Version_Number", "write";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1502", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1499", "connect,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1502", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1525", "accept,resolve";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Logfile.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Snapshot.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4824737998014982851dir\Version_Number", "write";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}"
+{
+    permission java.net.SocketPermission "medusa:9082", "connect,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1760", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:2000", "connect,resolve";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log4926945626185497444dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:1760", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:2000", "connect,resolve";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${bouncy-jsse.jar}"
+{
+    permission java.security.SecurityPermission "putProviderProperty.BCJSSE";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4436", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Logfile.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Snapshot.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log3454802228145219967dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4436", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4441", "accept,resolve";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${bouncy-jce.jar}"
+{
+    permission java.security.SecurityPermission "putProviderProperty.BC";
+    permission java.util.PropertyPermission "org.bouncycastle.ec.disable_mqv", "read";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.provider";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
+{
+    permission java.security.SecurityPermission "insertProvider";
+    permission java.security.SecurityPermission "putProviderProperty.BCJSSE";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4477", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6680192797016458764dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4477", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4509", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Logfile.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Snapshot.1", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "delete";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log1722883238426613074dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4509", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4514", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4545", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log6981200347210313082dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4545", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4581", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
+{
+    permission java.security.SecurityPermission "getProperty.java.home";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4666", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4748", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\US_export_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\local_policy.jar", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5271781837629586377dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4748", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4783", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log8315692837084761909dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4783", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\US_export_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\local_policy.jar", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4824", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log94294083245985130dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4824", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\US_export_policy.jar", "read";
+    permission java.io.FilePermission "${qa.home}\file:null\lib\security\local_policy.jar", "read";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${reggie.jar}"
+{
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Logfile.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Logfile.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Snapshot.1", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Snapshot.1", "write";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Version_Number", "read";
+    permission java.io.FilePermission "C:\Users\peter\AppData\Local\Temp\reggie_log5552786006927841748dir\Version_Number", "write";
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\reggie\reggie.config", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib-dl\${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "\C:\Users\peter\Documents\NetBeansProjects\river-internet\JGDMS\dist\target\JGDMS-${jgdms.version}\lib\${activation.jar}", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4859", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4862", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${group.jar}"
+{
+    permission java.io.FilePermission "${qa.home}\harness\configs\jeri\sharedgroup\sharedgroup.config", "read";
+    permission java.net.SocketPermission "[fe80:0:0:0:51ce:d94d:bec3:8246%11]:4862", "accept,resolve";
+};
+
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}"
+{
+    permission java.io.FilePermission "file:null\lib\security\US_export_policy.jar", "read";
+    permission java.io.FilePermission "file:null\lib\security\local_policy.jar", "read";
+};
+
+
+grant codebase "http://${HOST}/${phoenix-dl.jar}" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
+
