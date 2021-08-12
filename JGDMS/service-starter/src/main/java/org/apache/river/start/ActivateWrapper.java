@@ -520,7 +520,7 @@ public class ActivateWrapper implements Remote, Serializable {
      * @see org.apache.river.start.ActivateWrapper.ExportClassLoader
      * @see org.apache.river.start.ActivateWrapper.ActivateDesc
      * @see java.security.Policy
-     * @see net.jini.secuirity.DynamicPolicy
+     * @see DynamicPolicy
      *
      */
     public ActivateWrapper(ActivationID id, String[] data)

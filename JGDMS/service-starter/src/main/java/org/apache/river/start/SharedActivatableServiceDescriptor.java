@@ -246,7 +246,9 @@ public class SharedActivatableServiceDescriptor
     /**
      * @serial <code>boolean</code> flag passed through as the 
      *     <code>restart</code> parameter to the  
-     *     {@linkplain net.jini.activation.ActivationDescImpl#ActivationDescImpl(net.jini.activation.arg.ActivationGroupID, java.lang.String, java.lang.String, net.jini.activation.arg.MarshalledObject, boolean)     
+     *     {@linkplain net.jini.activation.ActivationDescImpl#ActivationDescImpl(
+     * net.jini.activation.arg.ActivationGroupID, java.lang.String, 
+     * java.lang.String, java.lang.String[], boolean) 
      *     ActivationDesc constructor} used to register the service with the 
      *     activation system.
      */
@@ -442,7 +444,7 @@ public class SharedActivatableServiceDescriptor
      *     {@link SharedActivatableServiceDescriptor#create(net.jini.config.Configuration)}.
      * @param restart boolean flag passed through as the 
      *     <code>restart</code> parameter to the  
-     *     {@linkplain net.jini.activation.ActivationDescImpl#ActivationDescImpl(net.jini.activation.arg.ActivationGroupID, java.lang.String, java.lang.String, net.jini.activation.arg.MarshalledObject, boolean) 
+     *     {@linkplain net.jini.activation.ActivationDescImpl#ActivationDescImpl(net.jini.activation.arg.ActivationGroupID, java.lang.String, java.lang.String, java.lang.String[], boolean) 
      *     ActivationDesc constructor} used to register the service with the 
      *     activation system.
      * @param host hostname of desired activation system. If <code>null</code>,

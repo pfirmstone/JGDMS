@@ -29,9 +29,9 @@ import net.jini.security.AccessPermission;
  * security policy permission grants.
  *
  * <p>This permission class can also be used to grant permission to invoke
- * the method {@link net.jini.activation.arg.ActivationGroup#activeObject
+ * the method {@link net.jini.activation.ActivationGroup#activeObject
  * ActivationGroup.activeObject}, {@link
- * net.jini.activation.arg.ActivationGroup#inactiveObject
+ * net.jini.activation.ActivationGroup#inactiveObject
  * ActivationGroup.inactiveObject }, or {@link
  * net.jini.activation.ActivationGroup#inactive ActivationGroup.inactive}.
  * 
