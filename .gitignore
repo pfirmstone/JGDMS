@@ -438,3 +438,5 @@
 /qa/.results.txt.swp
 /JGDMS/jgdms-activation-parameters/target/
 /JGDMS/service-starter/nbproject/
+qa/.activation-issues-class-cast-exception-in-tests.txt.un~
+*.un~
