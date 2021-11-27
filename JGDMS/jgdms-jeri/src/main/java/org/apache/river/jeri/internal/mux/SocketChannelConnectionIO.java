@@ -85,7 +85,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     /**
      * queue of buffers of data to be sent over connection
      */
-    private final Deque sendQueue = new LinkedList();
+    private final Deque<ByteBuffer> sendQueue = new LinkedList<ByteBuffer>();
 
     /**
      * queue of alternating buffers (that are in sendQueue) and IOFuture
@@ -97,9 +97,9 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     private final Buffer inputBuffer =
 	ByteBuffer.allocateDirect(RECEIVE_BUFFER_SIZE);	// ready for reading
 
-    private final Buffer[] bufferPair = new Buffer[2];
+    private final ByteBuffer[] bufferPair = new ByteBuffer[2];
 
-    private final Buffer[] preallocBufferArray = new Buffer[IOV_MAX];
+    private final ByteBuffer[] preallocBufferArray = new ByteBuffer[IOV_MAX];
 
     /**
      * Creates a new SocketChannelConnectionIO for the connection represented
@@ -117,10 +117,12 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     /**
      * Starts processing connection data.
      */
+    @Override
     void start() throws IOException {
 	key.renewInterestMask(SelectionKey.OP_READ);
     }
 
+    @Override
     void asyncSend(Buffer buffer) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
@@ -131,7 +133,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		    channel.write((ByteBuffer)buffer);
 		}
 		if (buffer.hasRemaining()) {
-		    sendQueue.addLast(buffer);
+		    sendQueue.addLast((ByteBuffer) buffer);
 		    key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
 		}
 	    } catch (IOException e) {
@@ -153,15 +155,15 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	    }
 	    try {
 		if (sendQueue.isEmpty()) {
-		    bufferPair[0] = first;
-		    bufferPair[1] = second;
+		    bufferPair[0] = (ByteBuffer) first;
+		    bufferPair[1] = (ByteBuffer) second;
 		    try {
-			channel.write((ByteBuffer[])bufferPair);
+			channel.write(bufferPair);
 		    } catch (IOException e) {
 			// work around 4854354
 			String message = e.getMessage();
 			if (message != null &&
-			    message.indexOf(detailMessage4854354) != -1)
+                                message.contains(detailMessage4854354))
 			{
 			    logger.log(Levels.HANDLED,
 				       "ignoring to work around 4854354", e);
@@ -172,12 +174,12 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		}
 		if (!first.hasRemaining()) {
 		    if (second.hasRemaining()) {
-			sendQueue.addLast(second);
+			sendQueue.addLast((ByteBuffer) second);
 			key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
 		    }
 		} else {
-		    sendQueue.addLast(first);
-		    sendQueue.addLast(second);
+		    sendQueue.addLast((ByteBuffer) first);
+		    sendQueue.addLast((ByteBuffer) second);
 		    key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
 		}
 	    } catch (IOException e) {
@@ -205,15 +207,15 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	    }
 	    try {
 		if (sendQueue.isEmpty()) {
-		    bufferPair[0] = first;
-		    bufferPair[1] = second;
+		    bufferPair[0] = (ByteBuffer) first;
+		    bufferPair[1] = (ByteBuffer) second;
 		    try {
-			channel.write((ByteBuffer[])bufferPair);
+			channel.write(bufferPair);
 		    } catch (IOException e) {
 			// work around 4854354
 			String message = e.getMessage();
 			if (message != null &&
-			    message.indexOf(detailMessage4854354) != -1)
+                                message.contains(detailMessage4854354))
 			{
 			    logger.log(Levels.HANDLED,
 				       "ignoring to work around 4854354", e);
@@ -224,7 +226,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		}
 		if (!first.hasRemaining()) {
 		    if (second.hasRemaining()) {
-			sendQueue.addLast(second);
+			sendQueue.addLast((ByteBuffer) second);
 			key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
 			notifyQueue.addLast(second);
 			notifyQueue.addLast(future);
@@ -232,8 +234,8 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 			future.done(second.position());
 		    }
 		} else {
-		    sendQueue.addLast(first);
-		    sendQueue.addLast(second);
+		    sendQueue.addLast((ByteBuffer) first);
+		    sendQueue.addLast((ByteBuffer) second);
 		    key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
 		    notifyQueue.addLast(second);
 		    notifyQueue.addLast(future);
@@ -247,8 +249,8 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		} catch (IOException ignore) {
 		}
 	    } finally {
-		bufferPair[0] = first;
-		bufferPair[1] = second;
+		bufferPair[0] = (ByteBuffer) first;
+		bufferPair[1] = (ByteBuffer) second;
 	    }
 	    return future;
 	}
@@ -261,27 +263,6 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     private void handleWriteReady() {
 	try {
 	    synchronized (mux.muxLock) {
-//		ByteBuffer[] buffers =
-//		    (ByteBuffer[]) sendQueue.toArray(preallocBufferArray);
-//		channel.write(buffers);
-//		while (!sendQueue.isEmpty()) {
-//		    ByteBuffer bb = (ByteBuffer) sendQueue.getFirst();
-//		    if (!bb.hasRemaining()) {
-//			sendQueue.removeFirst();
-//			if (!notifyQueue.isEmpty() &&
-//			    bb == notifyQueue.getFirst())
-//			{
-//			    notifyQueue.removeFirst();
-//			    IOFuture future =
-//				(IOFuture) notifyQueue.removeFirst();
-//			    future.done();
-//			}
-//		    } else {
-//			key.renewInterestMask(SelectionKey.OP_WRITE);	// ###
-//			break;
-//		    }
-//		}
-
 		/*
 		 * Work around 4481573: must manually break sequence of
 		 * buffers to write into chunks no larger than IOV_MAX.
@@ -292,24 +273,24 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 		     * Copy up to the first IOV_MAX buffers of the send queue
 		     * into the preallocated ByteBuffer array.
 		     */
-		    Buffer[] bufs = preallocBufferArray; // IOV_MAX length
+		    ByteBuffer[] bufs = preallocBufferArray; // IOV_MAX length
 		    int len = sendQueue.size();
 		    if (len <= bufs.length) {			// optimization
-			bufs = (ByteBuffer[]) sendQueue.toArray(bufs);
+			bufs = sendQueue.toArray(bufs);
 		    } else {
-			Iterator iter = sendQueue.iterator();	// sufficient
+			Iterator<ByteBuffer> iter = sendQueue.iterator();	// sufficient
 			len = 0;
 			while (iter.hasNext() && len < bufs.length) {
-			    bufs[len++] = (ByteBuffer) iter.next();
+			    bufs[len++] = iter.next();
 			}
 		    }
 		    try {
-			channel.write((ByteBuffer [])bufs, 0, len);
+			channel.write(bufs, 0, len);
 		    } catch (IOException e) {
 			// work around 4854354
 			String message = e.getMessage();
 			if (message != null &&
-			    message.indexOf(detailMessage4854354) != -1)
+                                message.contains(detailMessage4854354))
 			{
 			    logger.log(Levels.HANDLED,
 				       "ignoring to work around 4854354", e);
@@ -411,8 +392,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 				e.getMessage(), null);
 		} else {
 		    try {
-			logger.log(Level.FINEST,
-				   "mux read handler: " + e.getMessage());
+			logger.log(Level.FINEST, "mux read handler: {0}", e.getMessage());
 		    } catch (Throwable t) {
 		    }
 		}
