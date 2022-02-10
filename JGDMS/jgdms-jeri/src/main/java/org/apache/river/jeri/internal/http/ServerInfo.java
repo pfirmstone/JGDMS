@@ -229,7 +229,7 @@ class ServerInfo implements Cloneable {
     {
 	// REMIND: cache MessageDigest?
 	MessageDigest md = MessageDigest.getInstance(
-	    (authAlgorithm != null) ? authAlgorithm : "MD5");
+	    (authAlgorithm != null) ? authAlgorithm : "SHA-256");
 	String hashA1 = 
 	    encode(md, authUser + ":" + authRealm + ":" + authPassword);
 	String hashA2 = encode(md, method + ":" + uri);
