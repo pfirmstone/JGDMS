@@ -23,6 +23,7 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import javax.security.auth.x500.X500Principal;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -93,7 +94,7 @@ public class X500PrincipalSerializer implements Serializable, Resolve {
         if (!(obj instanceof X500PrincipalSerializer)) return false;
         if (obj == this) return true;
         X500PrincipalSerializer that = (X500PrincipalSerializer) obj;
-        return Arrays.equals(encoded, that.encoded);
+        return MessageDigest.isEqual(encoded, that.encoded);
     }
 
     @Override
