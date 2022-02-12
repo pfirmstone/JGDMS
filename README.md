@@ -30,7 +30,7 @@ The jtreg tests take about half an hour to complete, you'll need to manually ins
 * Lookup method that allows authentication of third parties, using a bootstrap proxy, prior granting DownloadPermission and DeSerialization permission for service utilisation.
 * Invocation and Method constraints.
 
-## Discussion forum:
+## Old Discussion forum (please use github Discussions):
 https://groups.google.com/forum/#!forum/river-secure-ipv6-discovery
 
 ## Notables:
