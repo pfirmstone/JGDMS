@@ -440,3 +440,7 @@
 /JGDMS/service-starter/nbproject/
 qa/.activation-issues-class-cast-exception-in-tests.txt.un~
 *.un~
+/JGDMS/services/reggie/reggie-dl-subsystem/target/reggie-dl-subsystem-3.1.1-SNAPSHOT.esa
+/JGDMS/services/reggie/reggie-dl-subsystem/target/
+/JGDMS/services/reggie/reggie-service-subsystem/target/
+/JGDMS/services/reggie/reggie-service-activatable-subsystem/target/
