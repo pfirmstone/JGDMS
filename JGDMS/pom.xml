@@ -306,6 +306,11 @@
             <artifactId>nexus-staging-maven-plugin</artifactId>
             <version>1.6.8</version>
         </plugin>
+        <plugin>
+            <groupId>org.apache.aries</groupId>
+            <artifactId>esa-maven-plugin</artifactId>
+            <version>1.0.0</version>
+      </plugin>
           <!-- release plugins : end -->
       </plugins>
     </pluginManagement>
@@ -339,7 +344,6 @@
           </execution>
         </executions>
       </plugin>
-
       <!-- for publishing maven site to gh-pages : begin -->
       <plugin>
         <artifactId>maven-site-plugin</artifactId>

@@ -67,6 +67,14 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>org.apache.aries</groupId>
+                <artifactId>esa-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                  <generateManifest>true</generateManifest>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
                 <executions>

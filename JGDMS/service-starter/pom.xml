@@ -70,11 +70,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-activation-parameters</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>5.3.1</version>

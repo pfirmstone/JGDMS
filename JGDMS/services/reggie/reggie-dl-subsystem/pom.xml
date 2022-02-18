@@ -19,25 +19,25 @@
 
     <parent>
         <groupId>au.net.zeus.jgdms</groupId>
-        <artifactId>group</artifactId>
+        <artifactId>reggie</artifactId>
         <version>3.1.1-SNAPSHOT</version>
     </parent>
 
-    <groupId>au.net.zeus.jgdms.group</groupId>
-    <artifactId>group-service</artifactId>
-    <packaging>jar</packaging>
+    <groupId>au.net.zeus.jgdms.reggie</groupId>
+    <artifactId>reggie-dl-subsystem</artifactId>
+    <packaging>esa</packaging>
 
-    <name>Module :: Group Service Implementation</name>
+    <name>Subsystem :: Reggie Service Download classes</name>
 
     <dependencies>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>service-starter</artifactId>
+            <artifactId>jgdms-lib-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-activation</artifactId>
+            <groupId>au.net.zeus.jgdms.reggie</groupId>
+            <artifactId>reggie-dl</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
@@ -45,27 +45,19 @@
     <build>
         <plugins>
             <plugin>
-              <groupId>biz.aQute.bnd</groupId>
-              <artifactId>bnd-maven-plugin</artifactId>
-              <executions>
-                    <execution>
-                        <goals>
-                            <goal>bnd-process</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin> 
+                <groupId>org.apache.aries</groupId>
+                <artifactId>esa-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <generateManifest>true</generateManifest>
+                    <instructions>
+                        <Require-Bundle>au.net.zeus.jgdms.jgdms-jeri;version=${project.version},
+ au.net.zeus.jgdms.jgdms-platform;version=${project.version},
+ au.net.zeus.jgdms.jgdms-lib-dl;version=${project.version}</Require-Bundle>
+                        <Subsystem-Type>osgi.subsystem.composite</Subsystem-Type>
+                    </instructions>
+                </configuration>
+          </plugin>   
         </plugins>
     </build>
 </project>

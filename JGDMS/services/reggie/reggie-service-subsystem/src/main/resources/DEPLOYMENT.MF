@@ -1,0 +1,19 @@
+Subsystem-Version: 3.1.1.SNAPSHOT
+Subsystem-Type: osgi.subsystem.composite
+Deployed-Content: jgdms-lib-dl;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ reggie-dl;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ reggie-service;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ jgdms-lib;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ jgdms-platform;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ jgdms-pref-class-loader;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ jgdms-url-integrity;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ jgdms-jeri;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ jgdms-collections;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ groovy-config;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ au.net.zeus.jgdms.resources;version="[3.1.1.SNAPSHOT,3.1.1.SNAPSHOT]",
+ jgdms-discovery-providers;version="[3.1.1.202202171002,3.1.1.202202171002]",
+ jgdms-osgi-proxy-bundle-provider;version="[3.1.1.202202171002,3.1.1.202202171002]"
+Require-Bundle: au.net.zeus.jgdms.jgdms-jeri;version=3.1.1-SNAPSHOT,
+ au.net.zeus.jgdms.jgdms-platform;version=3.1.1-SNAPSHOT,
+ au.net.zeus.jgdms.jgdms-lib-dl;version=3.1.1-SNAPSHOT
+
