@@ -37,7 +37,7 @@
     <developer>
       <id>peter_firmstone</id>
       <name>Peter Firmstone</name>
-      <email />
+      <email/>
       <roles>
         <role>Developer</role>
       </roles>
@@ -122,7 +122,7 @@
     <tychoExtrasVersion>1.2.0</tychoExtrasVersion>
     <tychoVersion>1.2.0</tychoVersion>
     <maven.Jarsigner.version>1.4</maven.Jarsigner.version>
-    <bnd.annotation.version>4.2.0</bnd.annotation.version>
+    <bnd.annotation.version>4.3.1</bnd.annotation.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
