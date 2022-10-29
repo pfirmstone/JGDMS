@@ -1968,6 +1968,23 @@ public final class Uri implements Comparable<Uri> {
             throw new IllegalArgumentException(Messages.getString("luni.91") + ": " //$NON-NLS-1$//$NON-NLS-2$
                     + toString());
         }
-        return new URL(toString());
+        if (opaque) return new URL(toString()); // Let the Handler parse it.
+        String hst = host;
+        StringBuilder sb = new StringBuilder();
+        //userinfo will be rare, utilise sb, then clear it.
+        if (userinfo != null){
+            sb.append(userinfo).append('@').append(hst);
+            hst = sb.toString();
+            sb.delete(0, sb.length()-1);
+        }
+        // now lets create the file section of the URL.
+        sb.append(path);
+        if (query != null) sb.append('?').append(query);
+        if (fragment != null) sb.append('#').append(fragment);
+        String file = sb.toString(); //for code readability
+        // deprecated to provide a warning against misuse, not for removal.
+        @SuppressWarnings("deprecation") 
+        URL url = new URL(scheme, hst, port, file, null);
+        return url;
     }
 }
