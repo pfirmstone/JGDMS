@@ -43,7 +43,7 @@ import org.apache.river.impl.Messages;
  * <p>
  * IPv6 and IPvFuture host addresses must be enclosed in square brackets as per 
  * RFC3986.  A zone delimiter %, if present, must be represented in escaped %25
- * form.
+ * form as per RFC6874.
  * <p>
  * In addition to RFC3896 normalization, IPv6 host addresses will be normalized
  * to comply with RFC 5952 A Recommendation for IPv6 Address Text Representation. 
