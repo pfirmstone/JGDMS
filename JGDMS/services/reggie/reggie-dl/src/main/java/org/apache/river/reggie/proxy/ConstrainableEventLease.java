@@ -33,6 +33,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * EventLease subclass that supports constraints.
@@ -41,7 +43,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  */
 @AtomicSerial
-final class ConstrainableEventLease
+public final class ConstrainableEventLease
     extends EventLease implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
@@ -56,6 +58,19 @@ final class ConstrainableEventLease
 	Util.getMethod(Registrar.class, "renewEventLease",
 		       new Class[]{ long.class, Uuid.class, long.class })
     };
+    
+    private static final String CONSTRAINTS = "constraints";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(CONSTRAINTS, MethodConstraints.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConstrainableEventLease cel) throws IOException{
+        arg.put(CONSTRAINTS, cel.constraints);
+        arg.writeArgs();
+    }
 
     /**
      * Verifies that the client constraints for this proxy are consistent with
@@ -85,7 +100,7 @@ final class ConstrainableEventLease
      * @throws IOException 
      */
     private static MethodConstraints check(GetArg arg) throws IOException{
-	MethodConstraints constraints = (MethodConstraints) arg.get("constraints", null);
+	MethodConstraints constraints = (MethodConstraints) arg.get(CONSTRAINTS, null);
 	EventLease el = new EventLease(arg);
 	MethodConstraints proxyCon = null;
 	if (el.server instanceof RemoteMethodControl && 

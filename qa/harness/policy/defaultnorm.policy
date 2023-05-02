@@ -1,24 +1,24 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.norm.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${norm.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.lib.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk-dl.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activation.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}" {
     permission java.security.AllPermission "", "";
 };
 

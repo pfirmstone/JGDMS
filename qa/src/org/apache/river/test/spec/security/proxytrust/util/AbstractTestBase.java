@@ -229,7 +229,7 @@ public abstract class AbstractTestBase extends QATestEnvironment implements Test
     public RemoteMethodControl newRMIMainProxy(Object impl) {
         String jarURL = 
 	    "file:" +
-	    (getConfig().getStringConfigVal("org.apache.river.qa.home", null) +
+	    (getConfig().getStringConfigVal("qa.home", null) +
 	     "/lib").replace(File.separatorChar, '/') +
 	    "/qa1.jar";
         InvocationHandler ih = new InvHandler(impl);

@@ -40,12 +40,10 @@ import org.apache.river.mahalo.proxy.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -67,6 +65,7 @@ import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import net.jini.activation.ActivationGroup;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
@@ -97,10 +96,8 @@ import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
-import net.jini.io.MarshalledInstance;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.ProxyPreparer;
-import net.jini.security.Security;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 import org.apache.river.proxy.CodebaseProvider;
@@ -242,13 +239,13 @@ class TxnManagerImpl /*extends RemoteServer*/
      *
      * @param data state data needed to re-activate a transaction manager.
      */
-    TxnManagerImpl(ActivationID activationID, MarshalledObject data)
+    TxnManagerImpl(ActivationID activationID, String[] data)
 	throws IOException, ClassNotFoundException
     {
         // data.get IOException and ClassNotFoundException are safe from 
         // finalizer attack, because it happens
         // before implicit call to super() Object.
-        this((String[]) new MarshalledInstance(data).get(false), activationID, true, new Object[] {activationID, data} );
+        this(data, activationID, true, new Object[] {activationID, data} );
     }
     
 
@@ -950,7 +947,7 @@ class TxnManagerImpl /*extends RemoteServer*/
      * @param id the ID
      *
      * @see net.jini.core.transaction.Transaction
-     * @see org.apache.river.mahalo.TxnManager
+     * @see org.apache.river.mahalo.proxy.TxnManager
      */
     public Transaction getTransaction(long id)
         throws UnknownTransactionException {
@@ -1469,7 +1466,8 @@ class TxnManagerImpl /*extends RemoteServer*/
 	            destroyLogger.log(Level.FINEST,"Calling Activatable.inactive.");
                 }
 	        try {
-                    Activatable.inactive(activationID);
+                    
+		    ActivationGroup.inactive(activationID, exporter);
                 } catch (RemoteException e) { // ignore
                     if(destroyLogger.isLoggable(Levels.HANDLED)) {
 	                destroyLogger.log(Levels.HANDLED, 

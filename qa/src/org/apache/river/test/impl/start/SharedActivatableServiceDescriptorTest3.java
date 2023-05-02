@@ -29,7 +29,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 
 import java.lang.reflect.Constructor;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationSystem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Properties;

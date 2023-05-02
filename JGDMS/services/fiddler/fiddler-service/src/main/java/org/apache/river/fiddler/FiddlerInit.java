@@ -19,10 +19,9 @@
 package org.apache.river.fiddler;
 
 import java.io.IOException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -43,7 +42,6 @@ import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
 import net.jini.jeri.ServerEndpoint;

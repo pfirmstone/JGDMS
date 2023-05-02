@@ -17,7 +17,8 @@
  */
 import java.io.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.rmi.server.*;
 import net.jini.activation.ActivationExporter;
 import net.jini.export.Exporter;

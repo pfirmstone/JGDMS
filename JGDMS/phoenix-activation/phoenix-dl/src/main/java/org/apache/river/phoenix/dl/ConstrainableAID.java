@@ -23,9 +23,9 @@ import java.io.InvalidObjectException;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationID;
 import java.rmi.server.UID;
-import net.jini.activation.Resolve;
+import org.apache.river.api.io.Resolve;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.ProxyAccessor;
@@ -35,6 +35,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Replace;
 import org.apache.river.proxy.ConstrainableProxyUtil;
 
 /**
@@ -51,7 +52,7 @@ import org.apache.river.proxy.ConstrainableProxyUtil;
  * @since 2.0
  **/
 public final class ConstrainableAID extends AID
-	implements RemoteMethodControl, TrustEquivalence
+	implements RemoteMethodControl, TrustEquivalence, Replace
 {
     private static final long serialVersionUID = 2625527831091986783L;
     private static final Method[] methodMapping = new Method[2];
@@ -296,7 +297,8 @@ public final class ConstrainableAID extends AID
 	return sb.toString();
     }
 
-    private Object writeReplace() {
+    @Override
+    public Object writeReplace() {
 	return new State(activator, uid, constraints);
     }
 

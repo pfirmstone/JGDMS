@@ -25,8 +25,6 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.net.URLClassLoader;
-import java.security.AllPermission;
-import java.security.Permission;
 import java.security.Policy;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,13 +33,12 @@ import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.export.ProxyAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
-import net.jini.io.MarshalledInstance;
 import net.jini.loader.LoadClass;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
-import net.jini.security.policy.PolicyFileProvider;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.Valid;
@@ -60,10 +57,10 @@ import org.apache.river.start.lifecycle.LifeCycle;
  * (where the service implementation classes are loaded from) 
  * from the export codebase 
  * (where service clients should load classes from, for example stubs). 
- * as well as providing an independent security policy file for each 
- * service object. This functionality allows multiple service objects 
+ * This functionality allows multiple service objects 
  * to be placed in the same VM, with each object maintaining distinct 
- * export codebase and security policy settings. 
+ * export codebase.  All services share the same security policy within
+ * a single JVM.  A policy may be defined by the property <code>java.security.policy</code>.
  * <P>
  * <a name="serviceConstructor"></a>
  * Services need to implement the following "non-activatable
@@ -200,7 +197,8 @@ public class NonActivatableServiceDescriptor
     private final String codebase;
 
     /**
-     * @serial <code>String</code> containing server policy filename or URL
+     * @serial <code>String</code> containing server policy filename or URL - this field is ignored.
+     * @deprecated
      */
     private final String policy;
 
@@ -249,7 +247,6 @@ public class NonActivatableServiceDescriptor
 	     public boolean unregister(Object impl) { return false; }
 	};
 
-    private static AggregatePolicyProvider globalPolicy = null;
     private static Policy initialGlobalPolicy = null;
     private static final Logger logger = ServiceStarter.logger;
 
@@ -287,7 +284,7 @@ public class NonActivatableServiceDescriptor
      *     service-related classes (for example, stubs, proxies, etc.).
      *     Codebase components must be separated by spaces in which 
      *     each component is in <code>URL</code> format. 
-     * @param policy server policy filename or URL
+     * @param policy server policy filename or URL - this field is ignored.
      * @param importCodebase location where server implementation
      *     classes can be found. 
      *     This <code>String</code> assumed (in order) to be either
@@ -325,10 +322,10 @@ public class NonActivatableServiceDescriptor
         ProxyPreparer preparer)
     {
 	this.descCreatedLock = new Lock();
-        if (policy == null ||
+        if (
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(
-		"export codebase, policy, import codebase, and"
+		"export codebase, import codebase, and"
 		+ " implementation cannot be null");
         this.codebase = exportCodebase;
 	this.policy = policy;
@@ -344,7 +341,7 @@ public class NonActivatableServiceDescriptor
     public NonActivatableServiceDescriptor(GetArg arg) 
 	    throws IOException, ClassNotFoundException{
 	this(arg.get("codebase", null, String.class),
-	    Valid.notNull(arg.get("policy", null, String.class), "policy cannot be null"),
+	    arg.get("policy", null, String.class),
 	    Valid.notNull(arg.get("classpath", null, String.class), "import codebase cannot be null"),
 	    Valid.notNull(arg.get("implClassName", null, String.class), "implementation cannot be null"),
 	    arg.get("serverConfigArgs", null, String[].class),
@@ -364,7 +361,7 @@ public class NonActivatableServiceDescriptor
         ProxyPreparer preparer)
     {
 	this.descCreatedLock = new Lock();
-        if (policy == null ||
+        if (
 	    importCodebase == null || implClassName == null)
 	    throw new NullPointerException(
 		"export codebase, policy, import codebase, and"
@@ -448,7 +445,9 @@ public class NonActivatableServiceDescriptor
      * Policy accessor method.
      *
      * @return the policy string associated with this service descriptor.
+     * @deprecated
      */
+    @Deprecated
     final public String getPolicy() { return policy; }
     
     /**
@@ -547,19 +546,12 @@ public class NonActivatableServiceDescriptor
      * <P>
      * This method:
      * <UL>
-     * <LI> installs an {@link  java.rmi.RMISecurityManager RMISecurityManager}
+     * <LI> installs an {@link  org.apache.river.api.security.CombinerSecurityManager CombinerSecurityManager}
      *      if no security manager is already in place
-     * <LI> installs an {@link AggregatePolicyProvider AggregatePolicyProvider}
-     *      as the VM-global policy object 
-     *      (upon the first invocation of this method)
      * <LI> creates an 
      *      <code>ActivateWrapper.ExportClassLoader</code> with
      *      the associated service's import codebase, export codebase and 
      *      the current thread's context class loader as its arguments
-     * <LI> associates the newly created 
-     *      <code>ExportClassLoader</code> and the associated service's 
-     *      policy file with the  
-     *      {@link AggregatePolicyProvider AggregatePolicyProvider}
      * <LI> sets the newly created <code>ExportClassLoader</code> as 
      *      the current thread's context class loader
      * <LI> loads the service object's class and calls a constructor 
@@ -583,6 +575,7 @@ public class NonActivatableServiceDescriptor
      * @throws java.lang.Exception Thrown if there was any problem 
      *     creating the object.
      */
+    @SuppressWarnings("deprecated")
     public Object create(Configuration config) throws Exception {
         ServiceStarter.ensureSecurityManager();
         logger.entering(NonActivatableServiceDescriptor.class.getName(),
@@ -629,39 +622,12 @@ public class NonActivatableServiceDescriptor
         } 
 	    
 	synchronized (NonActivatableServiceDescriptor.class) {
-	    // supplant global policy 1st time through
-	    if (globalPolicy == null) { 
-		initialGlobalPolicy = Policy.getPolicy();
-                if (!(initialGlobalPolicy instanceof DynamicPolicy)) {
-                    initialGlobalPolicy = 
-                        new DynamicPolicyProvider(initialGlobalPolicy);
-                }
-		globalPolicy = 
-		    new AggregatePolicyProvider(initialGlobalPolicy);
-		Policy.setPolicy(globalPolicy);
-		logger.log(Level.FINEST,
-		    "Global policy set: {0}", globalPolicy);
-	    }
-	    
-	    Policy service_policy =
-		ActivateWrapper.getServicePolicyProvider(
-		     new PolicyFileProvider(getPolicy()));
-	    Policy backstop_policy =
-		ActivateWrapper.getServicePolicyProvider(initialGlobalPolicy);
-	    LoaderSplitPolicyProvider split_service_policy =
-		new LoaderSplitPolicyProvider(
-		    newClassLoader, service_policy, backstop_policy);
-	    /* Grant "this" code enough permission to do its work
-	     * under the service policy, which takes effect (below)
-	     * after the context loader is (re)set.
-	     * Note: Throws UnsupportedOperationException if dynamic grants
-	     * aren't supported (because underlying policies don't support it).
-	     */
-	    split_service_policy.grant(
-		this.getClass(),
-		null, /* Principal[] */
-		new Permission[] { new AllPermission() } );
-	    globalPolicy.setPolicy(newClassLoader, split_service_policy);
+            initialGlobalPolicy = Policy.getPolicy();
+            if (!(initialGlobalPolicy instanceof DynamicPolicy)) {
+                initialGlobalPolicy = 
+                    new DynamicPolicyProvider(initialGlobalPolicy);
+                Policy.setPolicy(initialGlobalPolicy);
+            }
  	}
     
         logger.finest("Attempting to get implementation class");
@@ -726,7 +692,7 @@ public class NonActivatableServiceDescriptor
 	    // I don't think we need to for MarshalledInstance - TODO: check.
 //	    curThread.setContextClassLoader(oldClassLoader);
 //TODO - factor in code integrity for MO
-            proxy = (new MarshalledInstance(proxy)).get(oldClassLoader, false, null, null);
+            proxy = (new AtomicMarshalledInstance(proxy)).get(oldClassLoader, false, null, null);
 	} finally {
 	    curThread.setContextClassLoader(oldClassLoader);
 	}

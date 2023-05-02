@@ -40,9 +40,9 @@ import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -79,6 +79,7 @@ import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
@@ -237,16 +238,16 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                                                 "8080");
         qaPort = sysConfig.getStringConfigVal("org.apache.river.qa.port", "8081");
 
-        qaHome = sysConfig.getStringConfigVal("org.apache.river.qa.home",
+        qaHome = sysConfig.getStringConfigVal("qa.home",
                                               "/vob/qa");
 	group_dl_jar = AccessController.doPrivileged(new GetPropertyAction(
 		"org.apache.river.start.group.dl.jar"));
 	jsk_dl_jar = AccessController.doPrivileged(new GetPropertyAction(
-		"net.jini.lib.dl.jar"));
+		"jsk-dl.jar"));
 	jsk_lib_jar = AccessController.doPrivileged(new GetPropertyAction(
-		"org.apache.river.lib.jar"));
+		"jsk-lib.jar"));
 	jsk_platform_jar = AccessController.doPrivileged(new GetPropertyAction(
-		"net.jini.platform.jar"));
+		"platform.jar"));
 	        builder.append(qaHome).append(sep).append("lib");
         qaHarnessLib = builder.toString();
         builder.delete(0, builder.length());
@@ -273,7 +274,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         builder.delete(0, builder.length());
         logger.log(Levels.HANDLED,"policyFile = "+policyAll);
 
-        jiniHome = sysConfig.getStringConfigVal("org.apache.river.jsk.home",
+        jiniHome = sysConfig.getStringConfigVal("jsk.home",
                                                 "/vob/jive");
         builder.append(jiniHome).append(sep).append("lib");
         jiniLib   = builder.toString();
@@ -585,7 +586,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
     private String[] sharedVMProperties(QAConfig sysConfig) throws Exception {
         ArrayList propsList = new ArrayList(43);
         /* miscellaneous items used in all configs */
-        propsList.add("org.apache.river.qa.home");
+        propsList.add("qa.home");
         propsList.add(qaHome);
 
 	propsList.add("org.apache.river.qa.harness.harnessJar");
@@ -1167,9 +1168,9 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         private boolean started = false;
 
         RemoteTestServiceImpl(ActivationID activationID,
-                              MarshalledObject data) throws Exception
+                              String[] data) throws Exception
         {// All exceptions are thrown prior to this Object being created.
-            this(init((String[])data.get(), activationID, net.jini.activation.ActivationGroup.getSystem()));
+            this(init(data, activationID, net.jini.activation.ActivationGroup.getSystem()));
         }//end constructor
         
         private RemoteTestServiceImpl(Init init){

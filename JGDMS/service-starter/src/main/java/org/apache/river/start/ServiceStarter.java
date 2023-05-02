@@ -26,8 +26,8 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -345,11 +345,11 @@ public class ServiceStarter {
 	try {
 	    try{
 		Registry registry = LocateRegistry.getRegistry(h, p, new TlsRMIClientSocketFactory());
-		sys = (ActivationSystem) registry.lookup("java.rmi.activation.ActivationSystem");
+		sys = (ActivationSystem) registry.lookup("net.jini.activation.arg.ActivationSystem");
 	    } catch (IOException e){
 		if (AccessController.doPrivileged(new GetBooleanAction("net.jini.security.allowInsecureConnections"))){
 		    sys = (ActivationSystem) Naming.lookup("//" + h + ":" + p +
-				  "/java.rmi.activation.ActivationSystem");
+				  "/net.jini.activation.arg.ActivationSystem");
 		} else {
 		    throw e;
 		}
@@ -371,16 +371,16 @@ public class ServiceStarter {
      * Utility routine that returns a "default" activation system
      * port. The default port is determined by:
      *<UL>
-     *<LI> the value of the <code>java.rmi.activation.port</code>
+     *<LI> the value of the <code>net.jini.activation.port</code>
      *     system property, if set
      *<LI> the value of <code>ActivationSystem.SYSTEM_PORT</code>
      *</UL> 
      * @return The activation system port
-     * @see java.rmi.activation.ActivationSystem
+     * @see net.jini.activation.arg.ActivationSystem
      */
     static int getActivationSystemPort() {
         return ((Integer)java.security.AccessController.doPrivileged(
-                    new GetIntegerAction("java.rmi.activation.port",
+                    new GetIntegerAction("net.jini.activation.port",
                         ActivationSystem.SYSTEM_PORT))).intValue();
     }
     

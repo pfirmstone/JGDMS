@@ -23,9 +23,12 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import javax.security.auth.x500.X500Principal;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -33,7 +36,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = X500Principal.class)
 @AtomicSerial
-class X500PrincipalSerializer implements Serializable {
+public class X500PrincipalSerializer implements Serializable, Resolve {
     private static final long serialVersionUID = 1L;
     
     /**
@@ -41,9 +44,22 @@ class X500PrincipalSerializer implements Serializable {
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-    {
-        new ObjectStreamField("encoded", byte[].class)
-    };
+                                                    serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("encoded", byte[].class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, X500PrincipalSerializer s) throws IOException{
+        putArg(arg, s);
+        arg.writeArgs();
+    }
+    
+    private static void putArg(ObjectOutputStream.PutField pf, X500PrincipalSerializer s){
+	pf.put("encoded", s.encoded);  //Remind: clone?
+    }
     
     private final byte [] encoded;
     private final X500Principal principal;
@@ -57,7 +73,8 @@ class X500PrincipalSerializer implements Serializable {
         this(new X500Principal(arg.get("encoded", new byte[0], byte[].class)));
     }
     
-    Object readResolve() throws ObjectStreamException {
+    @Override
+    public Object readResolve() throws ObjectStreamException {
 	if (principal != null) return principal;
         return new X500Principal(encoded);
     }
@@ -68,8 +85,7 @@ class X500PrincipalSerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("encoded", encoded);
+	putArg(out.putFields(), this);
 	out.writeFields();
     }
     
@@ -78,7 +94,7 @@ class X500PrincipalSerializer implements Serializable {
         if (!(obj instanceof X500PrincipalSerializer)) return false;
         if (obj == this) return true;
         X500PrincipalSerializer that = (X500PrincipalSerializer) obj;
-        return Arrays.equals(encoded, that.encoded);
+        return MessageDigest.isEqual(encoded, that.encoded);
     }
 
     @Override

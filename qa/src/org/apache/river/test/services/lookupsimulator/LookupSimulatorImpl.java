@@ -40,12 +40,11 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
@@ -63,6 +62,7 @@ import org.apache.river.config.Config;
 import org.apache.river.api.util.Startable;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.config.Configuration;
@@ -85,6 +85,7 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 
 /**
@@ -131,10 +132,10 @@ public class LookupSimulatorImpl implements LookupSimulator,
     private AccessControlContext context;
 
     public LookupSimulatorImpl(ActivationID activationID, 
-			       MarshalledObject data)
+			       String[] data)
 	throws Exception
     {
-	this((String[]) data.get(), activationID, null);
+	this(data, activationID, null);
     }
 
     public LookupSimulatorImpl(String[] configArgs, LifeCycle lifeCycle)
@@ -376,7 +377,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
 	if (noneConfiguration) {
 	    serverExporter =
 		new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-				      new BasicILFactory());
+				      new AtomicILFactory(null, LookupSimulatorImpl.class));
 	    if (activationID != null) {
 		serverExporter = new ActivationExporter(activationID,
 							serverExporter);
@@ -475,10 +476,20 @@ public class LookupSimulatorImpl implements LookupSimulator,
                 /* must unregister before unexport */
                 if (activationID != null) {
                     try {
-                        activationSystem.unregisterObject(activationID);
-                    } catch (RemoteException e) {
-                        return;// give up until we can at least unregister
-                    } catch (ActivationException e) { }
+                        AccessController.doPrivileged(new PrivilegedExceptionAction(){
+                            @Override
+                            public Object run() throws ActivationException, RemoteException {
+                                activationSystem.unregisterObject(activationID);
+                                return Boolean.TRUE;
+                            }
+
+                        }, context);
+                    } catch (PrivilegedActionException e) {
+                        Exception ex = e.getException();
+                        if (ex instanceof RemoteException) return;
+                        if (ex instanceof RuntimeException) throw (RuntimeException) ex;
+                        if (ex instanceof ActivationException) {} //Ignore
+                    }
                 }//endif
                 while (!serverExporter.unexport(false)) {
                     try {
@@ -489,7 +500,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
                 }
                 if (activationID != null) {
                     try {
-                        while (!Activatable.inactive(activationID)) {
+                        while (!ActivationGroup.inactive(activationID, serverExporter)) {
                             try {
                                 LookupSimulatorImpl.this.wait(10);
                             } catch (InterruptedException ex) {

@@ -18,11 +18,14 @@
 
 package org.apache.river.api.io;
 
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
 import java.io.ObjectStreamField;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 
 /**
  * Although most Throwable classes are serialized over AtomicMarshalOutputStream,
@@ -36,18 +39,41 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public abstract class AtomicException extends Exception {
     private static final long serialVersionUID = 1L;
     
+    private static final String MESSAGE = "message";
+    private static final String CAUSE = "cause";
+    private static final String STACK = "stack";
+    private static final String SUPPRESSED = "suppressed";
+    
     /**
      * In earlier versions the extra fields will duplicate those of Throwable,
      * so only ref id's will be sent, so the objects these fields refer to will
      * only be sent once.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("message", String.class),
-	    new ObjectStreamField("cause", Throwable.class),
-	    new ObjectStreamField("stack", StackTraceElement[].class),
-	    new ObjectStreamField("suppressed", Throwable[].class)
-	}; 
+    private static final ObjectStreamField[] serialPersistentFields 
+            = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm(MESSAGE, String.class),
+	    new SerialForm(CAUSE, Throwable.class),
+	    new SerialForm(STACK, StackTraceElement[].class),
+	    new SerialForm(SUPPRESSED, Throwable[].class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, AtomicException e) throws IOException{
+        putArgs(arg, e);
+        arg.writeArgs();
+    }
+    
+    public static void putArgs(PutField pf, AtomicException e){
+        pf.put(MESSAGE, e.getMessage());
+	Throwable cause = e.getCause();
+	if (cause == e) cause = null;
+	pf.put(CAUSE, cause);
+	pf.put(STACK, e.getStackTrace());
+	pf.put(SUPPRESSED, e.getSuppressed());
+    }
 
     protected AtomicException(String message, Throwable cause,
                         boolean enableSuppression,
@@ -73,10 +99,10 @@ public abstract class AtomicException extends Exception {
     }
     
     protected AtomicException(GetArg arg) throws IOException, ClassNotFoundException{
-	this(arg.get("message", null, String.class),
-	     arg.get("cause", null, Throwable.class),
-	     arg.get("stack", null, StackTraceElement[].class),
-	     arg.get("suppressed", null, Throwable[].class)
+	this(arg.get(MESSAGE, null, String.class),
+	     arg.get(CAUSE, null, Throwable.class),
+	     arg.get(STACK, null, StackTraceElement[].class),
+	     arg.get(SUPPRESSED, null, Throwable[].class)
 	);
     }
     
@@ -95,13 +121,7 @@ public abstract class AtomicException extends Exception {
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("message", super.getMessage());
-	Throwable cause = super.getCause();
-	if (cause == this) cause = null;
-	pf.put("cause", cause);
-	pf.put("stack", super.getStackTrace());
-	pf.put("suppressed", super.getSuppressed());
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }
     

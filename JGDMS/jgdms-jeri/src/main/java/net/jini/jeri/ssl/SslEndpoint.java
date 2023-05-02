@@ -57,7 +57,6 @@ import net.jini.core.constraint.DelegationAbsoluteTime;
 import net.jini.core.constraint.DelegationRelativeTime;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraints;
-import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.ServerAuthentication;
 import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
@@ -71,6 +70,8 @@ import net.jini.security.AuthenticationPermission;
 import net.jini.security.Security;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.EndpointInternals;
 import org.apache.river.jeri.internal.SslEndpointInternalsAccess;
 import org.apache.river.jeri.internal.connection.ConnManagerFactory;
@@ -303,11 +304,23 @@ public final class SslEndpoint
      *		    The socket factory for creating sockets, or
      *		    <code>null</code> to use default sockets.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-	new ObjectStreamField("serverHost", String.class),
-	new ObjectStreamField("port", int.class),
-	new ObjectStreamField("socketFactory", SocketFactory.class)
-    };
+    private static final ObjectStreamField[] serialPersistentFields = 
+            serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("serverHost", String.class),
+            new SerialForm("port", int.class),
+            new SerialForm("socketFactory", SocketFactory.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, SslEndpoint sep) throws IOException{
+        arg.put("serverHost", sep.impl.serverHost);
+        arg.put("port", sep.impl.port);
+        arg.put("socketFactory", sep.impl.socketFactory);
+        arg.writeArgs();
+    }
 
     /* Register a back door interface for use by discovery providers. */
     static {

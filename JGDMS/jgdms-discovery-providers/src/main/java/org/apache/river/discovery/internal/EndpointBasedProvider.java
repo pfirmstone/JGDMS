@@ -18,6 +18,7 @@
 
 package org.apache.river.discovery.internal;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.util.Collection;
@@ -148,7 +149,7 @@ abstract class EndpointBasedProvider extends BaseProvider {
 	    md.update(buf.array(),
 		      buf.arrayOffset() + buf.position(),
 		      buf.remaining());
-	    buf.position(buf.limit());
+	    ((Buffer)buf).position(buf.limit());
 	} else {
 	    byte[] b = new byte[buf.remaining()];
 	    buf.get(b);

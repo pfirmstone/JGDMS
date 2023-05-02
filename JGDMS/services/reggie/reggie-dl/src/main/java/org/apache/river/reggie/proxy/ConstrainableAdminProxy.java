@@ -18,7 +18,6 @@
 package org.apache.river.reggie.proxy;
 
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import net.jini.core.constraint.MethodConstraints;
@@ -28,6 +27,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * AdminProxy subclass that supports constraints.
@@ -36,17 +37,30 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  */
 @AtomicSerial
-final class ConstrainableAdminProxy
+public final class ConstrainableAdminProxy
     extends AdminProxy implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
+    
+    private static final String CONSTRAINTS = "constraints";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(CONSTRAINTS, MethodConstraints.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConstrainableAdminProxy cap) throws IOException{
+        arg.put(CONSTRAINTS, cap.constraints);
+        arg.writeArgs();
+    }
 
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
 
     private static MethodConstraints checkConstraints(GetArg arg) 
 	    throws IOException, ClassNotFoundException{
-	MethodConstraints constraints = arg.get("constraints", null, MethodConstraints.class);
+	MethodConstraints constraints = arg.get(CONSTRAINTS, null, MethodConstraints.class);
 	AdminProxy sup = new AdminProxy(arg);
 	MethodConstraints proxyCon = null;
 	if (sup.server instanceof RemoteMethodControl && 
@@ -58,7 +72,7 @@ final class ConstrainableAdminProxy
 	return constraints;
     }
     
-    ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException{
+    public ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, checkConstraints(arg));
     }
     

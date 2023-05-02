@@ -22,7 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.config.Configuration;

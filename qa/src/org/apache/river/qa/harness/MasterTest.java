@@ -40,6 +40,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.security.CombinerSecurityManager;
+import org.apache.river.api.io.AtomicMarshalInputStream;
 //import org.apache.river.tool.SecurityPolicyWriter;
 //import org.bouncycastle.jce.provider.BouncyCastleProvider;
 //import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
@@ -113,7 +114,7 @@ class MasterTest {
 	}
   	String testName = args[0];
 	try {
-	    ObjectInputStream ois = new ObjectInputStream(System.in);
+	    ObjectInputStream ois = new AtomicMarshalInputStream(System.in, null, false, null, null);
 	    config = (QAConfig) ois.readObject();
 	} catch (Exception e) {
 	    e.printStackTrace();
@@ -153,7 +154,7 @@ class MasterTest {
 						null);
 	    if (context != null) {
 		logger.log(Level.FINEST, "got a login context");
-	    }
+            }
 	} catch (Throwable e) {
 	    e.printStackTrace();
 	    exit(false, Test.ENV, "Problem getting login context: " + e);

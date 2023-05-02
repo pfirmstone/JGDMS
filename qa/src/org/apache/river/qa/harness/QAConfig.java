@@ -18,38 +18,36 @@
 package org.apache.river.qa.harness;
 
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.MissingResourceException;
 import java.util.Properties;
 import java.util.Random;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.jar.JarFile;
@@ -60,20 +58,22 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
 import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.export.Exporter;
-import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import net.jini.constraint.StringMethodConstraints;
 import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
-import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.RFC3986URLClassLoader;
-import org.apache.river.config.LocalHostLookup;
 import org.apache.river.start.ClassLoaderUtil;
 import org.apache.river.system.CommandLine.BadInvocationException;
 import org.apache.river.system.MultiCommandLine;
@@ -100,8 +100,8 @@ import org.apache.river.system.MultiCommandLine;
  * This set of data sources is collectively referred to as the
  * <code>test properties</code>. The overrides exist to 
  * allow the harness to temporarily redefine the values for installation
- * properties such as <code>org.apache.river.jsk.home</code> or
- * <code>org.apache.river.qa.home</code>. This is needed when generating the
+ * properties such as <code>jsk.home</code> or
+ * <code>qa.home</code>. This is needed when generating the
  * command line for the SlaveTest VM for local parameters that
  * must take precedence over the serialized <code>QAConfig</code>
  * instance provided by the master.
@@ -251,7 +251,7 @@ public final class QAConfig implements Serializable {
     private List selectedIndexes;
 
     /** The resolver */
-    private Resolver resolver;
+    private transient Resolver resolver;
 
     /** the jar file containing the tests */
     private String testJar = null;
@@ -289,10 +289,48 @@ public final class QAConfig implements Serializable {
 
     private String resumeMessage;
     
+    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("uniqueString", String.class),
+            new SerialForm("overrideProviders", List.class),
+            new SerialForm("failureAnalyzers", List.class),
+            new SerialForm("configProps", Map.class),
+            new SerialForm("configSetProps", Map.class),
+            new SerialForm("defaultProps", Map.class),
+            new SerialForm("td", TestDescription.class),
+            new SerialForm("dynamicProps", Map.class),
+            new SerialForm("propertyOverrides", Map.class),
+            new SerialForm("args", String[].class),
+            new SerialForm("configTags", String[].class),
+            new SerialForm("currentTag", String.class),
+            new SerialForm("trackKey", String.class),
+            new SerialForm("hostList", List.class),
+            new SerialForm("selectedIndexes", List.class),
+            new SerialForm("tokenMap", Map.class),
+            new SerialForm("testJar", String.class),
+            new SerialForm("harnessJar", String.class),
+            new SerialForm("searchList", String[].class),
+            new SerialForm("testSuspended", Boolean.TYPE),
+            new SerialForm("hostIndex", Integer.TYPE),
+            new SerialForm("passCount", Integer.TYPE),
+            new SerialForm("callAutot", Boolean.TYPE),
+            new SerialForm("testTotal", Integer.TYPE),
+            new SerialForm("testIndex", Integer.TYPE),
+            new SerialForm("resumeMessage", String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, QAConfig q) throws IOException {
+        putFields(arg, q);
+        arg.writeArgs();
+    }
+    
     public QAConfig(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("uniqueString", null, String.class),
-	    arg.get("overrideProviders", null, List.class),
-	    arg.get("failureAnalyzers", null, List.class),
+	    Valid.copyCol(arg.get("overrideProviders", null, List.class), new ArrayList<OverrideProvider>(), OverrideProvider.class),
+	    Valid.copyCol(arg.get("failureAnalyzers", null, List.class), new ArrayList<FailureAnalyzer>(), FailureAnalyzer.class),
 	    (Properties) Valid.copyMap(arg.get("configProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
 	    (Properties) Valid.copyMap(arg.get("configSetProps", null, Map.class),(Map) new Properties(), String.class, String.class, 1),
 	    (Properties) Valid.copyMap(arg.get("defaultProps", null, Map.class), (Map) new Properties(), String.class, String.class, 1),
@@ -303,9 +341,13 @@ public final class QAConfig implements Serializable {
 	    arg.get("configTags", null, String[].class),
 	    arg.get("currentTag", null, String.class),
 	    arg.get("trackKey", null, String.class),
-	    arg.get("hostList", null, List.class),
-	    arg.get("selectedIndexes", null, List.class),
-	    arg.get("resolver", null, Resolver.class),
+	    Valid.copyCol(arg.get("hostList", null, List.class), new ArrayList<String>(), String.class),
+	    Valid.copyCol(arg.get("selectedIndexes", null, List.class), new ArrayList<Integer>(), Integer.class),
+	    Valid.copyMap(
+		arg.get("tokenMap", null, Map.class),
+		new HashMap<String, String>(),
+		String.class,
+		String.class),
 	    arg.get("testJar", null, String.class),
 	    arg.get("harnessJar", null, String.class),
 	    arg.get("searchList", null, String[].class),
@@ -318,6 +360,42 @@ public final class QAConfig implements Serializable {
 	    arg.get("resumeMessage", null, String.class)
 	);
     }
+    
+    private void writeObject(ObjectOutputStream out) throws IOException{
+        putFields(out.putFields(), this);
+        out.writeFields();
+    }
+    
+    private static void putFields(PutField pf, QAConfig q){
+        pf.put("uniqueString", q.uniqueString);
+        pf.put("overrideProviders", q.overrideProviders);
+        pf.put("failureAnalyzers", q.failureAnalyzers);
+        pf.put("configProps", q.configProps);
+        pf.put("configSetProps", q.configSetProps);
+        pf.put("defaultProps", q.defaultProps);
+        pf.put("td", q.td);
+        pf.put("dynamicProps", q.dynamicProps);
+        pf.put("propertyOverrides", q.propertyOverrides);
+        pf.put("args", q.args);
+        pf.put("configTags", q.configTags);
+        pf.put("currentTag", q.currentTag);
+        pf.put("trackKey", q.trackKey);
+        pf.put("hostList", q.hostList);
+        pf.put("selectedIndexes", q.selectedIndexes);
+        pf.put("tokenMap", q.resolver.getTokenMap());
+        pf.put("testJar", q.testJar);
+        pf.put("harnessJar", q.harnessJar);
+        pf.put("searchList", q.searchList);
+        pf.put("testSuspended", q.testSuspended);
+        pf.put("hostIndex", q.hostIndex);
+        pf.put("passCount", q.passCount);
+        pf.put("callAutot", q.callAutot);
+        pf.put("testTotal", q.testTotal);
+        pf.put("testIndex", q.testIndex);
+        pf.put("resumeMessage", q.resumeMessage);
+    }
+    
+    
     
     private QAConfig(
 	    String uniqueString,
@@ -335,7 +413,7 @@ public final class QAConfig implements Serializable {
 	    String trackKey,
 	    List hostList,
 	    List selectedIndexes,
-	    Resolver resolver,
+	    Map<String, String> resolverTokenMap,
 	    String testJar,
 	    String harnessJar,
 	    String[] searchList,
@@ -362,7 +440,7 @@ public final class QAConfig implements Serializable {
 	this.trackKey = trackKey;
 	this.hostList = hostList;
 	this.selectedIndexes = selectedIndexes;
-	this.resolver = resolver;
+	this.resolver = new Resolver(this, resolverTokenMap);
 	this.testJar = testJar;
 	this.harnessJar = harnessJar;
 	this.searchList = searchList;
@@ -373,6 +451,9 @@ public final class QAConfig implements Serializable {
 	this.testTotal = testTotal;
 	this.testIndex = testIndex;
 	this.resumeMessage = resumeMessage;
+        this.td.setConfig(this);
+        harnessConfig = this;
+	runLock = new Object();
     }
 
     /**
@@ -394,7 +475,7 @@ public final class QAConfig implements Serializable {
      * @return the path to the QA kit
      */
     public String getKitHomeDir() {
-	return getStringConfigVal("org.apache.river.qa.home", null);
+	return getStringConfigVal("qa.home", null);
     }
 
     /**
@@ -403,7 +484,7 @@ public final class QAConfig implements Serializable {
      * @return the path to the JSK
      */
     public String getJSKHomeDir() {
-	return getStringConfigVal("org.apache.river.jsk.home", null);
+	return getStringConfigVal("jsk.home", null);
     }
 
     /**
@@ -433,8 +514,8 @@ public final class QAConfig implements Serializable {
      * The command-line configuration file must define the
      * following properties:
      * <ul>
-     * <li>org.apache.river.jsk.home
-     * <li>org.apache.river.qa.home
+     * <li>jsk.home
+     * <li>qa.home
      * </ul>
      * and the values of these parameters must resolve to directories
      * which exist.
@@ -458,9 +539,9 @@ public final class QAConfig implements Serializable {
      * 
      * @throws TestException if the configuration file identified
      *                       by <code>args[0]</code> is empty or missing or
-     *                       if org.apache.river.jsk.home is undefined or if
+     *                       if jsk.home is undefined or if
      *                       the directory it names does not exist or
-     *                       if org.apache.river.qa.home is undefined or if
+     *                       if qa.home is undefined or if
      *                       the directory it names does not exist
      *
      */
@@ -479,25 +560,25 @@ public final class QAConfig implements Serializable {
 				  + " " + args[0] + " "
 				  + "is empty or missing");
 	}
-	String jskDir = getStringConfigVal("org.apache.river.jsk.home", null);
+	String jskDir = getStringConfigVal("jsk.home", null);
 	if (jskDir == null) {
-	    throw new TestException("org.apache.river.jsk.home is undefined");
+	    throw new TestException("jsk.home is undefined");
 	}
 	File jskFile = new File(jskDir);
 	if (!jskFile.exists()) {
 	    throw new TestException("The directory "
 		                   + jskFile.toString() + " identified by "
-		                   + "org.apache.river.jsk.home does not exist");
+		                   + "jsk.home does not exist");
 	}
-	String qaDir = getStringConfigVal("org.apache.river.qa.home", null);
+	String qaDir = getStringConfigVal("qa.home", null);
 	if (qaDir == null) {
-	    throw new TestException("org.apache.river.qa.home is undefined");
+	    throw new TestException("qa.home is undefined");
 	}
 	File qaFile = new File(qaDir);
 	if (!qaFile.exists()) {
 	    throw new TestException("The directory "
                                    + qaFile.toString() + " identified by "
-		                   + "org.apache.river.qa.home does not exist");
+		                   + "qa.home does not exist");
 	}
 	harnessJar = getHarnessJar();
 	if (harnessJar != null) {
@@ -589,7 +670,7 @@ public final class QAConfig implements Serializable {
 	    }
 	    list.add(path);
 	}
-	String qaDir = getStringConfigVal("org.apache.river.qa.home", null);
+	String qaDir = getStringConfigVal("qa.home", null);
 	if (!list.contains(qaDir)) {
 	    list.add(qaDir);
         }
@@ -1610,7 +1691,7 @@ public final class QAConfig implements Serializable {
         try {
             net.jini.activation.ActivationGroup.getSystem();
             return true;
-        } catch (ActivationException e) { 
+        } catch (Exception e) { 
 	    lastException = e;
 	}
         /* Make a new attempt every second for n seconds */
@@ -1618,7 +1699,7 @@ public final class QAConfig implements Serializable {
             try {
                 net.jini.activation.ActivationGroup.getSystem();
                 return true;
-            } catch (ActivationException e) { 	  
+            } catch (Exception e) { 	  
 		lastException = e;
 	    }
             try {
@@ -2996,7 +3077,7 @@ public final class QAConfig implements Serializable {
      */
     public static Exporter getDefaultExporter() {
 	return new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-				     new BasicILFactory());
+				     new AtomicILFactory(new StringMethodConstraints((InvocationConstraints)null), null ,QAConfig.class.getClassLoader()));
     }
 
     /**

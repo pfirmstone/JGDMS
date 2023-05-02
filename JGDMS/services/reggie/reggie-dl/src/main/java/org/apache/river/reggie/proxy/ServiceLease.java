@@ -30,8 +30,10 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A ServiceLease is a proxy for a service registration lease at a registrar.
@@ -46,6 +48,14 @@ public class ServiceLease extends RegistrarLease {
     private static final long serialVersionUID = 2L;
     /** The type of the lease used in toString() calls. */
     private static final String LEASE_TYPE = "service";   
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{};
+    }
+    
+    public static void serialize(PutArg arg, ServiceLease sl) throws IOException{
+        sl.serviceID.writeBytes(arg.output());
+    }
 
     /**
      * The service id assigned at registration.

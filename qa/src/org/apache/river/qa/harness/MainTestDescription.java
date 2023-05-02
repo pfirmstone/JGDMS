@@ -105,7 +105,7 @@ import java.io.IOException;
 public class MainTestDescription extends TestDescription {
 
     /** the config object */
-    private QAConfig config;
+    private transient volatile QAConfig config;
 
     /** The scratch directory */
     private File scratchDir = null;
@@ -145,6 +145,11 @@ public class MainTestDescription extends TestDescription {
     {
 	super(name, p, config);
 	this.config = config;
+    }
+    
+    void setConfig(QAConfig config){
+        super.setConfig(config);
+        this.config = config;
     }
 
     /**
@@ -248,7 +253,7 @@ public class MainTestDescription extends TestDescription {
 //	    l.add("-Dorg.apache.river.tool.DebugDynamicPolicyProvider.grantAll=true");
 //	    l.add("-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider");
 	}
-	l.add("-Dorg.apache.river.qa.home=" + config.getKitHomeDir());
+	l.add("-Dqa.home=" + config.getKitHomeDir());
 	return (String[]) l.toArray(new String[l.size()]);
     }
 
@@ -358,7 +363,7 @@ public class MainTestDescription extends TestDescription {
 		reader = new FileReader(origPolicy);
 		writer = new FileWriter(newPolicy);
 		writer.write("// grant added by harness" + sep);
-		writer.write("grant codebase \"file:${org.apache.river.qa.home}${/}lib${/}qa1-mainwrapper.jar\" {" + sep);
+		writer.write("grant codebase \"file:${qa.home}${/}lib${/}qa1-mainwrapper.jar\" {" + sep);
 		writer.write("         permission java.security.AllPermission;" + sep);
 		writer.write("};" + sep);
 		writer.write(sep);

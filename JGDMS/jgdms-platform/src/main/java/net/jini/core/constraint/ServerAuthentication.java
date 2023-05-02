@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Resolve;
 
 /**
  * Represents a constraint on authentication of the server to the client.
@@ -59,7 +60,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 public final class ServerAuthentication
-				implements InvocationConstraint, Serializable
+                        implements InvocationConstraint, Serializable, Resolve
 {
     private static final long serialVersionUID = 2837982503744131014L;
 
@@ -75,6 +76,17 @@ public final class ServerAuthentication
      */
     public static final ServerAuthentication NO =
 					new ServerAuthentication(false);
+    
+    public static AtomicSerial.SerialForm [] serialForm(){
+        return new AtomicSerial.SerialForm []{
+            new AtomicSerial.SerialForm("val", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg arg, ServerAuthentication s) throws IOException{
+        arg.put("val", s.val);
+        arg.writeArgs();
+    }
 
     /**
      * <code>true</code> for <code>YES</code>, <code>false</code> for
@@ -109,7 +121,8 @@ public final class ServerAuthentication
      * Canonicalize so that <code>==</code> can be used.
      * @return true for YES, false for NO.
      */
-    private Object readResolve() {
+    @Override
+    public Object readResolve() {
 	return val ? YES : NO;
     }
 }

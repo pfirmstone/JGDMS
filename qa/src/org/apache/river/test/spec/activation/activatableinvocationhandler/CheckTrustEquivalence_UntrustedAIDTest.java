@@ -21,7 +21,7 @@ import java.util.logging.Level;
 import net.jini.activation.ActivatableInvocationHandler;
 import org.apache.river.qa.harness.QATestEnvironment;
 import org.apache.river.qa.harness.Test;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationID;
 import org.apache.river.test.spec.activation.util.FakeActivationID;
 import org.apache.river.test.spec.activation.util.RMCProxy;
 

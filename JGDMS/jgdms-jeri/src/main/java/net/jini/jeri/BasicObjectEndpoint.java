@@ -29,9 +29,6 @@ import java.io.Serializable;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,20 +39,19 @@ import java.util.NoSuchElementException;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
-import net.jini.constraint.StringMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.ObjectStreamContext;
 import net.jini.io.context.AcknowledgmentSource;
-import net.jini.io.context.ClientSubject;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 import org.apache.river.jeri.internal.runtime.DgcClient;
 import org.apache.river.jeri.internal.runtime.Util;
@@ -214,6 +210,21 @@ public final class BasicObjectEndpoint
     implements ObjectEndpoint, TrustEquivalence, Serializable
 {
     private static final long serialVersionUID = 3235008605817758127L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("ep", Endpoint.class),
+            new SerialForm("id", Uuid.class),
+            new SerialForm("dgc", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, BasicObjectEndpoint ep) throws IOException{
+        arg.put("ep", ep.ep);
+        arg.put("id", ep.id);
+        arg.put("dgc", ep.dgc);
+        arg.writeArgs();
+    }
 
     /** local client-side DGC implementation */
     private static final DgcClient dgcClient = new DgcClient();
@@ -224,7 +235,7 @@ public final class BasicObjectEndpoint
      * does the lack of equals() security here create a risk?
      */
     private static final Map<ObjectInputStream,DgcBatchContext> streamBatches 
-            = new WeakHashMap<ObjectInputStream,DgcBatchContext>(11);
+            = new WeakHashMap<ObjectInputStream,DgcBatchContext>(64);
 
     /**
      * The endpoint to send remote call requests to.
@@ -326,31 +337,18 @@ public final class BasicObjectEndpoint
 	    Collection streamContext = arg.getObjectStreamContext();
 	    Iterator contextIter = streamContext.iterator();
 	    MethodConstraints clientConstraints = null;
-	    ClientSubject clientSubject = null;
-	    AccessControlContext context;
 	    while (contextIter.hasNext()){
 		Object next = contextIter.next();
 		if (next instanceof MethodConstraints && clientConstraints == null){
 		    clientConstraints = (MethodConstraints) next;
-		} else if (next instanceof ClientSubject){
-		    clientSubject = (ClientSubject) next;
-		}
-		
+		} 
 	    }
-	    if (clientSubject != null){
-		context = Subject.doAs(clientSubject.getClientSubject(),
-		    new PrivilegedAction<AccessControlContext>(){
-
-			public AccessControlContext run() {
-			    return AccessController.getContext();
-			}
-			    
-		    }
-		);
-	    } else {
-		context = AccessController.getContext();
-	    }
-	    dgcClient.setDGCContext(ep, clientConstraints, context);
+	    
+            /*
+             * Multiple BasicObjectEnpoint's will share underlying Endpoints
+             * Apply constraints and use this context, if any.
+             */
+	    dgcClient.constraintsApplicableToDgcServer(ep, clientConstraints);
 	}
     }
     
@@ -475,28 +473,6 @@ public final class BasicObjectEndpoint
      * @throws NullPointerException {@inheritDoc}
      **/
     public OutboundRequestIterator newCall(final InvocationConstraints constraints) {
-	// Set DGC context relative to the Endpoint, this would be the same
-	// as setting the context for every call through the Endpoint.
-	// It's usually the Endpoint that obtains the current Subject,
-	// so it makes sense for the constraints to also be applied as well
-	// because it's typically the Endpoint we're trying to constrain.
-//	if (dgc){ 
-//	    final AccessControlContext context = AccessController.getContext();
-//	    AccessController.doPrivileged(new PrivilegedAction(){
-//
-//		public Object run() {
-//		    if (context.getDomainCombiner() != null){
-//			dgcClient.setDGCContext(ep, 
-//			    new StringMethodConstraints(constraints),
-//			    context
-//			);
-//		    }
-//		    return null;
-//		}
-//		
-//	    });
-//	    
-//	}
 	final OutboundRequestIterator iter = ep.newRequest(constraints);
 	return new OutboundRequestIterator() {
 
@@ -826,14 +802,12 @@ public final class BasicObjectEndpoint
      * Collects live references to be registered with the local
      * client-side DGC implementation and registers them in
      * Endpoint-specific batches.
-     *
-     * REMIND: lack of thread safety OK?
      **/
     private static class DgcBatchContext implements ObjectInputValidation {
 
 	/* maps Endpoint to List<BasicObjectEndpoint> */
 	private final Map<Endpoint,Collection<ObjectEndpoint>> endpointTable 
-		= new HashMap<Endpoint,Collection<ObjectEndpoint>>(3);
+		= new HashMap<Endpoint,Collection<ObjectEndpoint>>();
 
 	DgcBatchContext() { }
 
@@ -853,10 +827,18 @@ public final class BasicObjectEndpoint
 	    }
 	}
 
+        @Override
 	public void validateObject() {	// doesn't throw InvalidObjectException
 	    /*
 	     * Perform a batch DGC registration for each list of
 	     * live references to the same endpoint.
+             * 
+             * The AccessControlContext of the calling thread will be captured
+             * by DgcClient, if its Subject successfully authenticates with the
+             * DgcServer.  The Subject will be updated each time a 
+             * BasicObjectEndpoint.DgcBatchContext is validated during 
+             * unmarshalling and DgcClient registration, after successfully
+             * authenticating.
 	     */
 	    synchronized (endpointTable){
 		Iterator<Map.Entry<Endpoint,Collection<ObjectEndpoint>>> iter

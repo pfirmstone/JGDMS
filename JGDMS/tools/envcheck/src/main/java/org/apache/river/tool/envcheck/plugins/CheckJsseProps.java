@@ -18,11 +18,9 @@
 package org.apache.river.tool.envcheck.plugins;
 
 import org.apache.river.start.SharedActivationGroupDescriptor;
-import org.apache.river.start.SharedActivatableServiceDescriptor;
 
 import org.apache.river.tool.envcheck.AbstractPlugin;
 import org.apache.river.tool.envcheck.EnvCheck;
-import org.apache.river.tool.envcheck.Plugin;
 import org.apache.river.tool.envcheck.Reporter;
 import org.apache.river.tool.envcheck.Reporter.Message;
 import org.apache.river.tool.envcheck.SubVMTask;
@@ -30,17 +28,13 @@ import org.apache.river.tool.envcheck.Util;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
 import java.security.Policy;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.ResourceBundle;
 
-import net.jini.config.ConfigurationException;
 import net.jini.security.policy.DynamicPolicyProvider;
 
 //explanations need tuning (warnings vs errors)

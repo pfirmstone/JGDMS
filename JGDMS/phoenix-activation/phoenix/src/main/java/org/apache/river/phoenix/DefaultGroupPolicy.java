@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix;
 
-import java.rmi.activation.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupDesc;
 import java.security.AccessControlException;
 import java.security.Permission;
 import java.util.Enumeration;
@@ -61,13 +61,14 @@ public class DefaultGroupPolicy implements GroupPolicy {
      * @throws AccessControlException if permission is not granted to create
      * the specified group
      */
+    @Override
     public void checkGroup(ActivationGroupDesc desc) {
 	String groupClassName = desc.getClassName();
 	if ((groupClassName != null &&
 	     !groupClassName.equals(
-			       "org.apache.river.phoenix.ActivationGroupImpl")) ||
-	    desc.getLocation() != null ||
-	    desc.getData() != null)
+			       "org.apache.river.phoenix.group.ActivationGroupImpl")) ||
+	    desc.getLocation() != null )
+//                || desc.getData() != null)  // Used to be MarshalledObject
 	{
 	    throw new AccessControlException(
 		"access denied (custom group implementation not allowed)");

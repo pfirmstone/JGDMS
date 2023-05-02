@@ -35,6 +35,8 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A string only implementation of {@link MethodConstraints}, allowing limited
@@ -63,9 +65,18 @@ public final class StringMethodConstraints
     /**
      * @serialField descs MethodDesc[] The ordered method descriptors.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("descs", StringMethodDesc[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("descs", StringMethodDesc[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, StringMethodConstraints smc) throws IOException{
+        arg.put("descs", smc.descs);
+        arg.writeArgs();
+    }
 
     /**
      * The ordered method descriptors.
@@ -101,11 +112,24 @@ public final class StringMethodConstraints
 	 * The non-empty constraints for the specified method or methods, or
 	 * <code>null</code> if there are no constraints.
 	 */
-	private static final ObjectStreamField[] serialPersistentFields = {
-	    new ObjectStreamField("name", String.class),
-	    new ObjectStreamField("types", String[].class, true),
-	    new ObjectStreamField("constraints", InvocationConstraints.class)
-	};
+	private static final ObjectStreamField[] serialPersistentFields = 
+                serialForm();
+        
+        public static SerialForm [] serialForm(){
+            return new SerialForm[]{
+                new SerialForm("name", String.class),
+                new SerialForm("types", String[].class, true),
+                new SerialForm("constraints", InvocationConstraints.class)
+            };
+        }
+        
+        public static void serialize(PutArg arg, StringMethodDesc smd) 
+                throws IOException{
+            arg.put("name", smd.name);
+            arg.put("types", smd.types);
+            arg.put("constraints", smd.constraints);
+            arg.writeArgs();
+        }
 
 	/**
 	 * The name of the method, with prefix or suffix '*' permitted
@@ -352,6 +376,7 @@ public final class StringMethodConstraints
 	/**
 	 * Returns a hash code value for this object.
 	 */
+        @Override
 	public int hashCode() {
 	    int h = 0;
 	    if (name != null) {
@@ -370,6 +395,7 @@ public final class StringMethodConstraints
 	 * Two instances of this class are equal if they have the same
 	 * name, the same parameter types, and the same constraints.
 	 */
+        @Override
 	public boolean equals(Object obj) {
 	    if (this == obj) {
 		return true;
@@ -388,6 +414,7 @@ public final class StringMethodConstraints
 	/**
 	 * Returns a string representation of this object.
 	 */
+        @Override
 	public String toString() {
 	    StringBuffer buf = new StringBuffer("MethodDesc[");
 	    toString(buf, true);
@@ -492,6 +519,7 @@ public final class StringMethodConstraints
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
      * @throws InvalidObjectException if object invariants aren't satisfied.
+     * @throws java.lang.ClassNotFoundException
      */
     public StringMethodConstraints(GetArg arg) throws IOException, ClassNotFoundException{
 	this(checkSerial(arg.get("descs", null, StringMethodDesc[].class)),
@@ -575,7 +603,7 @@ public final class StringMethodConstraints
 			}
 		    } else {
 			if (pname.equals(dname)) {
-			    check(prev, desc);
+                                check(prev, desc);
 			}
 		    }
 		}
@@ -619,12 +647,13 @@ public final class StringMethodConstraints
      *
      * @throws NullPointerException {@inheritDoc}
      */
+    @Override
     public InvocationConstraints getConstraints(Method method) {
 	String name = method.getName();
 	Class[] types = null;
 	InvocationConstraints sc = null;
     outer:
-	for (int i = 0; i < descs.length; i++) {
+	for (int i = 0, l = descs.length; i < l; i++) {
 	    StringMethodDesc desc = descs[i];
 	    String dname = desc.name;
 	    if (dname == null) {
@@ -674,6 +703,7 @@ public final class StringMethodConstraints
     }
 
     /* inherit javadoc */
+    @Override
     public Iterator<InvocationConstraints> possibleConstraints() {
 	return new Iterator<InvocationConstraints>() {
 	    private int i = descs.length;
@@ -708,7 +738,7 @@ public final class StringMethodConstraints
     }
     
     /**
-     * Creates a new BasicMethodConstraints instance that contains all constraints
+     * Creates a new StringMethodConstraints instance that contains all constraints
      * in both this and the passed in constraints in an order that ensures
      * that preceeding method descriptors don't match all methods that later 
      * descriptors do;
@@ -741,7 +771,7 @@ public final class StringMethodConstraints
 	    }
 	    methodConstraints.put(key, newDescs[i].getConstraints());
 	}
-	int len = methodConstraints.size();
+        int len = methodConstraints.size();
 	StringMethodDesc[] combinedDescs = new StringMethodDesc[len];
 	Iterator<Map.Entry<MethodKey, InvocationConstraints>> ents 
 		= methodConstraints.entrySet().iterator();
@@ -770,6 +800,7 @@ public final class StringMethodConstraints
     /**
      * Returns a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	return hash(descs);
     }
@@ -777,6 +808,7 @@ public final class StringMethodConstraints
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	StringBuffer buf = new StringBuffer("BasicMethodConstraints{");
 	for (int i = 0; i < descs.length; i++) {
@@ -793,6 +825,7 @@ public final class StringMethodConstraints
      * Two instances of this class are equal if they have the same descriptors
      * in the same order.
      */
+    @Override
     public boolean equals(Object obj) {
 	return (this == obj ||
 		(obj instanceof StringMethodConstraints &&
@@ -850,96 +883,4 @@ public final class StringMethodConstraints
 	throw e;
     }
     
-    /**
-     * Order is based on natural ordering that ensures preceeding keys don't 
-     * match all methods of later orderings.
-     */
-    private static class MethodKey implements Comparable<MethodKey>{
-	private final String name;
-	private final String[] parameters;
-	private final int hashCode;
-	
-	MethodKey(String name, String[] parameters){
-	    this.name = name;
-	    this.parameters = parameters;
-	    int hash = 7;
-	    hash = 97 * hash + (this.name != null ? this.name.hashCode() : 0);
-	    hash = 97 * hash + Arrays.hashCode(this.parameters);
-	    this.hashCode = hash;
-	}
-	
-	@Override
-	public boolean equals(Object o){
-	    if (this == o) return true;
-	    if (!(o instanceof MethodKey)) return false;
-	    MethodKey that = (MethodKey) o;
-	    if (this.hashCode != that.hashCode) return false; // prevents NPE when name is null
-	    if (!this.name.equals(that.name)) return false;
-	    return Arrays.equals(this.parameters, that.parameters);
-	}
-
-	@Override
-	public int hashCode() {
-	    return hashCode;
-	}
-
-	public int compareTo(MethodKey o) {
-	    if (hashCode == o.hashCode) return 0;
-	    if (name == null && o.name == null) return 0; // can only be one default.
-	    // default is always last.
-	    if (name != null && o.name == null) return -1; 
-	    if (name == null && o.name != null) return 1;
-	    if (name.charAt(0) == '*') {
-		int dlen = name.length() + 1;
-		    if (o.name.charAt(0) == '*' &&
-			o.name.regionMatches(1, name, dlen - o.name.length(),
-					    o.name.length() - 1))
-		    {
-			if (o.parameters == null || 
-			    Arrays.equals(parameters, o.parameters)) return -1;
-			return 1;
-		    }
-		
-	    }
-	    if (name.charAt(name.length() - 1) == '*') {
-		int plen = o.name.length() - 1;
-		if (o.name.charAt(plen) == '*' &&
-		    o.name.regionMatches(0, name, 0, plen))
-		{
-		    if (o.parameters == null || 
-			Arrays.equals(parameters, o.parameters)) return -1;
-		    return 1;
-		}
-	    }
-	    int plen = o.name.length() - 1;
-	    if (o.name.charAt(0) == '*') {
-		if (name.regionMatches(name.length() - plen,
-					o.name, 1, plen))
-		{
-		    if (o.parameters == null || 
-			Arrays.equals(parameters, o.parameters)) return -1;
-		    return 1;
-		}
-	    } else if (o.name.charAt(plen) == '*') {
-		if (name.regionMatches(0, o.name, 0, plen)) {
-		    if (o.parameters == null || 
-			Arrays.equals(parameters, o.parameters)) return -1;
-		    return 1;
-		}
-	    } else {
-		if (o.name.equals(name)) {
-		    if (o.parameters == null && parameters != null) return -1;
-		    return 1;
-		}
-	    }
-	    int n = name.compareTo(o.name);
-	    if ( n != 0) return n;
-	    n = parameters.length - o.parameters.length;
-	    if (n < 0) return -1;
-	    if (n > 0) return 1;
-	    n = Arrays.hashCode(parameters) - Arrays.hashCode(o.parameters);
-	    if (n > 0) return 1;
-	    return -1; // arrays aren't equal.
-	}
-    }
 }

@@ -32,7 +32,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.rmi.ServerException;
 import java.rmi.UnmarshalException;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.RemoteObject;

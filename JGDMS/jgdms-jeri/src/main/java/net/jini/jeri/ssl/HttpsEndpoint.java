@@ -86,6 +86,8 @@ import net.jini.security.Security;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.http.HttpClientConnection;
 import org.apache.river.jeri.internal.http.HttpClientManager;
 import org.apache.river.jeri.internal.http.HttpClientSocketFactory;
@@ -356,11 +358,22 @@ public final class HttpsEndpoint
      *		    The socket factory for creating sockets, or
      *		    <code>null</code> to use default sockets.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-	new ObjectStreamField("serverHost", String.class),
-	new ObjectStreamField("port", int.class),
-	new ObjectStreamField("socketFactory", SocketFactory.class)
-    };
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("serverHost", String.class),
+            new SerialForm("port", int.class),
+            new SerialForm("socketFactory", SocketFactory.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, HttpsEndpoint ep) throws IOException{
+        arg.put("serverHost", ep.impl.serverHost);
+        arg.put("port", ep.impl.port);
+        arg.put("socketFactory", ep.impl.socketFactory);
+        arg.writeArgs();
+    }
 
     /**
      * Maps HttpsEndpointImpls to EndpointInfo instances, each of which

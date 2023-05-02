@@ -57,7 +57,15 @@ public class MalformedAncestorURLs {
 	    System.setSecurityManager(new SecurityManager());
 	}
 
-	String testsrc = System.getProperty("test.src", ".");
+	String testsrc;
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("loader");
+        sb.append(File.separator).append("pref").append(File.separator);
+        sb.append("PreferredClassProvider").append(File.separator);
+        sb.append("malformedAncestorURLs").append(File.separator);
+        testsrc = sb.toString();
 	String testclasses = System.getProperty("test.classes", ".");
 
 	URL[] codebaseURLs = new URL[] {

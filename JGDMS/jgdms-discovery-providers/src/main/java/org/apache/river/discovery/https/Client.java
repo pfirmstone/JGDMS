@@ -59,7 +59,7 @@ class Client extends UnicastClient {
     private static final class ClientImpl extends EndpointBasedClient {
 
 	private static EndpointInternals epi = 
-	    AccessController.doPrivileged(new PrivilegedAction<EndpointInternals>() {
+	    AccessController.doPrivilegedWithCombiner(new PrivilegedAction<EndpointInternals>() {
 		public EndpointInternals run() {
 		    return HttpsEndpointInternalsAccess.get();
 		}

@@ -80,7 +80,9 @@ import org.apache.river.api.security.ScalableNestedPolicy;
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
+ * @deprecated for removal
  */
+@Deprecated
 public class AggregatePolicyProvider 
     extends AbstractPolicy implements DynamicPolicy, SecurityContextSource, ScalableNestedPolicy
 {

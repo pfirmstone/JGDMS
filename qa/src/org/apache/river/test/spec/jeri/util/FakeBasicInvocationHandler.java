@@ -27,6 +27,8 @@ import java.lang.reflect.InvocationHandler;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.logging.Logger;
 import java.util.Collection;
 
@@ -108,7 +110,7 @@ public class FakeBasicInvocationHandler extends BasicInvocationHandler {
      ***        is not an instance of an exception thrown by the method
      ***/
 
-    public ObjectInputStream createMarshalInputStream(Object proxy,
+    public ObjectInput createMarshalInputStream(Object proxy,
         Method method, OutboundRequest request, 
         boolean verifyCodebaseIntegrity, Collection context) throws IOException
     {
@@ -121,7 +123,7 @@ public class FakeBasicInvocationHandler extends BasicInvocationHandler {
             proxy,method,request,verifyCodebaseIntegrity,context);
     }
  
-    public ObjectOutputStream createMarshalOutputStream(Object proxy,
+    public ObjectOutput createMarshalOutputStream(Object proxy,
         Method method, OutboundRequest request, Collection context)
         throws IOException
     {

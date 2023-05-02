@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix.dl;
 
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationException;
 
 /**
  * Thrown if a local or remote call is made on a group implementation

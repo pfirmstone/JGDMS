@@ -28,6 +28,8 @@ import java.util.Collection;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the server, such that if the server
@@ -63,9 +65,19 @@ public final class ServerMaxPrincipal
     /**
      * @serialField principals Principal[] The principals.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("principals", Principal[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields
+            = serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("principals", Principal[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServerMaxPrincipal p) throws IOException{
+        arg.put("principals", p.principals.clone());
+        arg.writeArgs();
+    }
 
     /**
      * The principals.
@@ -166,6 +178,7 @@ public final class ServerMaxPrincipal
     /**
      * Returns a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	return (ServerMaxPrincipal.class.hashCode() +
 		Constraint.hash(principals));
@@ -175,6 +188,7 @@ public final class ServerMaxPrincipal
      * Two instances of this class are equal if they have the same principals
      * (ignoring order).
      */
+    @Override
     public boolean equals(Object obj) {
 	return (obj instanceof ServerMaxPrincipal &&
 		Constraint.equal(principals,
@@ -184,6 +198,7 @@ public final class ServerMaxPrincipal
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	return "ClientMaxPrincipal" + Constraint.toString(principals);
     }

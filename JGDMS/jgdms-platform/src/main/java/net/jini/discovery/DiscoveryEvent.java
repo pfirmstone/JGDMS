@@ -22,10 +22,15 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.util.EventObject;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -47,6 +52,28 @@ import org.apache.river.api.io.Valid;
 public class DiscoveryEvent extends EventObject {
     private static final long serialVersionUID = 5280303374696501479L;
 
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("regs", ServiceRegistrar[].class),
+            new SerialForm("groups", Map.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, DiscoveryEvent e) throws IOException{
+        arg.put("regs", e.regs.clone());
+        Map<ServiceRegistrar, String[]> groupCopy = new HashMap<ServiceRegistrar, String[]>(e.groups.size());
+        Set<Entry<ServiceRegistrar, String[]>> s = e.groups.entrySet();
+        Iterator<Entry<ServiceRegistrar, String[]>> i = s.iterator();
+        while(i.hasNext()){
+            Entry<ServiceRegistrar, String[]> entry = i.next();
+            String[] value = entry.getValue();
+            if (value != null) value = value.clone();
+            groupCopy.put(entry.getKey(), value);
+        }
+        arg.put("groups", groupCopy);
+        arg.writeArgs();
+    }
+    
     /**
      * The registrars with which this event is associated.
      *

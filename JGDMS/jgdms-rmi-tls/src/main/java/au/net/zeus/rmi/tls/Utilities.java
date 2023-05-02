@@ -396,7 +396,8 @@ class Utilities {
      */
     static SSLContext getServerSSLContextInfo(Subject serverSubject)
     {
-	SSLContext sslContext = SERVER_TLS_CONTEXT_MAP.get(serverSubject);
+	SSLContext sslContext = serverSubject == null ? null :
+                SERVER_TLS_CONTEXT_MAP.get(serverSubject);
 	if (sslContext != null) {
 	    if (SERVER_LOGGER.isLoggable(Level.FINEST)) {
 		SERVER_LOGGER.log(

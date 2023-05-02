@@ -27,7 +27,8 @@
  */
 import java.io.File;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.util.Properties;
 
 public class ActivateFailure implements Remote {

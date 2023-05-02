@@ -48,6 +48,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicInvocationHandler;
+import net.jini.jeri.AtomicInvocationHandler;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.BasicObjectEndpoint;
 import net.jini.jeri.Endpoint;
@@ -229,9 +230,17 @@ public class DgcServerExposure {
 	}
     }
 
+    /**
+     * JGDMS uses AtomicMarshalInputStream and AtomicMarshalOutputStream
+     * for all DGC endpoints, annotations are not written into the stream.
+     * @param e
+     * @return 
+     */
     private static DgcServer makeDgcProxy(Endpoint e) {
 	ObjectEndpoint oe = new BasicObjectEndpoint(e, DGC_ID, false);
-	InvocationHandler ih = new BasicInvocationHandler(oe, null);
+        // The appended test output shows what happens when BasicInvocationHandler
+        // is used.
+	InvocationHandler ih = new AtomicInvocationHandler(oe, null, false);
 	return (DgcServer)
 	    Proxy.newProxyInstance(DgcServer.class.getClassLoader(),
 				   new Class[] { DgcServer.class }, ih);
@@ -244,3 +253,109 @@ public class DgcServerExposure {
 	    throws RemoteException;
     }
 }
+
+/*
+Regression test for bug 5099956
+    [jtreg] 
+    [jtreg] TEST_LIBRARY: C:\Users\peter\Documents\NetBeansProjects\JGDMS\qa\jtreg\JTwork\classes\net\jini\jeri\BasicJeriExporter\dgcServerExposure\ForeignUuid.class
+    [jtreg] TEST_LIBRARY: C:\Users\peter\Documents\NetBeansProjects\JGDMS\qa\jtreg\JTwork\scratch\codebase\ForeignUuid.class
+    [jtreg] TEST_LIBRARY: Installed class "ForeignUuid" in codebase file:C:/Users/peter/Documents/NetBeansProjects/JGDMS/qa/jtreg/JTwork/scratch/codebase/
+    [jtreg] 	{A0}
+    [jtreg] DGC call to A throws NoSuchObjectException as expected
+    [jtreg] 	{A0}	{B1}
+    [jtreg] DGC call to A throws NoSuchObjectException as expected
+    [jtreg] DGC call to B succeeds as expected
+    [jtreg] DGC call to B with foreign UUID class WARNING: An illegal reflective access operation has occurred
+    [jtreg] WARNING: Illegal reflective access by org.apache.river.api.io.ThrowableSerializer$1 (file:/C:/Users/peter/Documents/NetBeansProjects/JGDMS/qa/jtreg/JTlib-tmp/jgdms-platform-3.1.1-SNAPSHOT.jar) to field java.lang.Throwable.detailMessage
+    [jtreg] WARNING: Please consider reporting this to the maintainers of org.apache.river.api.io.ThrowableSerializer$1
+    [jtreg] WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+    [jtreg] WARNING: All illegal access operations will be denied in a future release
+    [jtreg] java.lang.RuntimeException: TEST FAILED: unexpected failure
+    [jtreg] 	at DgcServerExposure.verifyFailureWithUuid(DgcServerExposure.java:228)
+    [jtreg] 	at DgcServerExposure.main(DgcServerExposure.java:139)
+    [jtreg] 	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    [jtreg] 	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+    [jtreg] 	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    [jtreg] 	at java.base/java.lang.reflect.Method.invoke(Method.java:567)
+    [jtreg] 	at com.sun.javatest.regtest.agent.MainWrapper$MainThread.run(MainWrapper.java:127)
+    [jtreg] 	at java.base/java.lang.Thread.run(Thread.java:830)
+    [jtreg] Caused by: java.rmi.UnmarshalException: exception unmarshalling response; nested exception is: 
+    [jtreg] 	java.io.OptionalDataException
+    [jtreg] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:908)
+    [jtreg] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethod(BasicInvocationHandler.java:707)
+    [jtreg] 	at net.jini.jeri.BasicInvocationHandler.invoke(BasicInvocationHandler.java:576)
+    [jtreg] 	at $Proxy0.dirty(Unknown Source)
+    [jtreg] 	at DgcServerExposure.verifyFailureWithUuid(DgcServerExposure.java:215)
+    [jtreg] 	... 7 more
+    [jtreg] Caused by: java.io.OptionalDataException
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readObject0(ObjectInputStream.java:1669)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readObject(ObjectInputStream.java:464)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readObject(ObjectInputStream.java:422)
+    [jtreg] 	at net.jini.io.MarshalInputStream.readAnnotation(MarshalInputStream.java:464)
+    [jtreg] 	at net.jini.io.MarshalInputStream.resolveClass(MarshalInputStream.java:349)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readNonProxyDesc(ObjectInputStream.java:1941)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readClassDesc(ObjectInputStream.java:1827)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readOrdinaryObject(ObjectInputStream.java:2115)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readObject0(ObjectInputStream.java:1646)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readObject(ObjectInputStream.java:464)
+    [jtreg] 	at java.base/java.io.ObjectInputStream.readObject(ObjectInputStream.java:422)
+    [jtreg] 	at net.jini.jeri.BasicInvocationHandler.unmarshalThrow(BasicInvocationHandler.java:1411)
+    [jtreg] 	at net.jini.jeri.BasicInvocationHandler.invokeRemoteMethodOnce(BasicInvocationHandler.java:893)
+    [jtreg] 	... 11 more
+*/
+
+/*
+
+The original MarshalInputStream did not utilise codebase annotations, however
+the implementation of MarshalInputStream still reads an annotation from the 
+stream, while AtomicMarshalInputStream does not unless codebase annotations are 
+enabled.   If we enabled annotations in AtomicMarshalInputStream, by passing
+true for useCodebaseAnnotation in the constructor, then it would be compatible,
+but not secure.
+
+If we want backward compatibility we could create additional constructors
+for AtomicMarshalInputStream and AtomicMarshalOutputStream with the desired
+behaviour.  But full compatibility would only be achived for basic TCP endpoints
+in any case.
+
+This means that JGDMS DGC is not fully backward compatible with River, however
+services will still be compatible when DGC is turned off.  In any case River / Jini
+JERI DGC should not be used as it is a security vulnerability.  Secure endpoints
+with DGC enabled would provide an entry point for an attacker to unmarshall
+a gadget attack as the original DGC implementation required anonymous
+clients, which is no longer supported for SSLEndpoint's for JGDMS, while for
+River / Jini it requres enabling insecure SSL TLS Ciphers.
+
+
+
+98  DgcRequestDispatcher(Unreferenced unrefCallback, ObjectTable table ) {
+99 	        this.unrefCallback = unrefCallback;
+100 	        this.table = table;
+101 	        try {
+102 	            dgcDispatcher =
+103 	                new BasicInvocationDispatcher(
+104 	                    dgcDispatcherMethods, dgcServerCapabilities,
+105 	                    null, null, this.getClass().getClassLoader())
+106 	                {
+107 	                    protected ObjectInputStream createMarshalInputStream(
+108 	                        Object impl,
+109 	                        InboundRequest request,
+110 	                        boolean integrity,
+111 	                        Collection context)
+112 	                        throws IOException
+113 	                    {
+114 	                        ClassLoader loader = getClassLoader();
+115 	                        return new MarshalInputStream(
+116 	                            request.getRequestInputStream(),
+117 	                            loader, integrity, loader,
+118 	                            Collections.unmodifiableCollection(context));
+119 	                        // useStreamCodebases() not invoked
+120 	                    }
+121 	                };
+122 	        } catch (ExportException e) {
+123 	            throw new AssertionError();
+124 	        }
+125 	        this.dgcServer = table.getDgcServer(this);
+126 	    }
+
+*/

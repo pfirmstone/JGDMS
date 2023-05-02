@@ -236,9 +236,11 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                         @Override
                         public ClassLoader run() {
                             return new PreferredClassLoader(
-                                    codebase, parent, null, false);
+                                codebase, parent, null, false,
+                                PreferredClassLoader.getLoaderAccessControlContext(codebase)
+                            );
                         }
-                    }, PreferredClassLoader.getLoaderAccessControlContext(codebase)
+                    }
             );
             ClassLoader existed = CACHE.putIfAbsent(loaderKey, loader);
             if (existed != null) loader = existed;

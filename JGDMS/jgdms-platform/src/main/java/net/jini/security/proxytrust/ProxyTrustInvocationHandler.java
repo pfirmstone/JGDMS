@@ -30,6 +30,8 @@ import java.lang.reflect.Proxy;
 import net.jini.core.constraint.RemoteMethodControl;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Invocation handler for remote objects, supporting proxy trust verification
@@ -56,6 +58,20 @@ public final class ProxyTrustInvocationHandler
     private static final long serialVersionUID = -3270029468290295063L;
     private static final Class[] consArgs =
 					new Class[]{InvocationHandler.class};
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("main", RemoteMethodControl.class),
+            new SerialForm("boot", ProxyTrust.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ProxyTrustInvocationHandler ih) 
+            throws IOException{
+        arg.put("main", ih.main);
+        arg.put("boot", ih.boot);
+        arg.writeArgs();
+    }
 
     /**
      * The main proxy.

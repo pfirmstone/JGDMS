@@ -18,11 +18,17 @@
 package net.jini.core.transaction.server;
 
 import java.io.IOException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import net.jini.core.transaction.*;
+import net.jini.core.transaction.CannotAbortException;
+import net.jini.core.transaction.CannotCommitException;
+import net.jini.core.transaction.CannotJoinException;
+import net.jini.core.transaction.TimeoutExpiredException;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.UnknownTransactionException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 
@@ -42,6 +48,19 @@ import org.apache.river.api.io.Valid;
 @AtomicSerial
 public class ServerTransaction implements Transaction, java.io.Serializable {
     static final long serialVersionUID = 4552277137549765374L;
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("mgr", TransactionManager.class),
+            new SerialForm("id", Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServerTransaction s) throws IOException{
+        arg.put("mgr", s.mgr);
+        arg.put("id", s.id);
+        arg.writeArgs();
+    }
 
     /**
      * The transaction manager.
@@ -74,6 +93,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
     }
 
     // inherit javadoc
+    @Override
     public int hashCode() {
         return (int) id ^ mgr.hashCode();
     }
@@ -82,6 +102,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
      * Two instances are equal if they have the same transaction manager
      * and the same transaction id.
      */
+    @Override
     public boolean equals(Object other) {
 	if (this == other)
 	   return true;
@@ -94,6 +115,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
     }
 
     // inherit javadoc
+    @Override
     public void commit()
 	throws UnknownTransactionException, CannotCommitException,
 	       RemoteException
@@ -102,6 +124,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
     }
 
     // inherit javadoc
+    @Override
     public void commit(long waitFor)
         throws UnknownTransactionException, CannotCommitException,
 	       TimeoutExpiredException, RemoteException
@@ -110,6 +133,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
     }
 
     // inherit javadoc
+    @Override
     public void abort()
 	throws UnknownTransactionException, CannotAbortException,
 	       RemoteException
@@ -118,6 +142,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
     }
 
     // inherit javadoc
+    @Override
     public void abort(long waitFor)
 	throws UnknownTransactionException, CannotAbortException,
 	       TimeoutExpiredException, RemoteException
@@ -187,6 +212,7 @@ public class ServerTransaction implements Transaction, java.io.Serializable {
     }
 
     // inherit javadoc
+    @Override
     public String toString() {
 	return this.getClass().getName() +
 	    " [manager=" + mgr +

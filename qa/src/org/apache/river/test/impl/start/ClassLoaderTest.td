@@ -1,6 +1,6 @@
 testClass=ClassLoaderTest
 testCategories=start,start_impl
-#testClasspath=${org.apache.river.qa.home}$/lib$/harness.jar$:${org.apache.river.qa.home}$/lib$/qa1-start-tests.jar$:${org.apache.river.qa.home}$/lib$/$qajinidep$:${org.apache.river.jsk.home}$/lib$/jsk-platform.jar
+#testClasspath=${qa.home}$/lib$/harness.jar$:${qa.home}$/lib$/qa1-start-tests.jar$:${qa.home}$/lib$/$qajinidep$:${jsk.home}$/lib$/jsk-platform.jar
 
 testClasspath=${altClasspath}$:<file:lib/qa1-start-tests.jar>
 
@@ -32,4 +32,4 @@ org.apache.river.test.impl.start.ClassLoaderTest2.starterConfiguration=${org.apa
 org.apache.river.test.impl.start.ClassLoaderTest2.host=master
 
 include0=start.properties
-sharedGroup.classpath=${org.apache.river.jsk.home}$/lib$/${org.apache.river.start.jar}$:${org.apache.river.jsk.home}$/lib$/${org.cliffc.high_scale_lib.jar}$:<file:lib/qa1-start-testservice-common.jar>$:${org.apache.river.jsk.home}$/lib$/${org.apache.river.phoenix.init.jar}$:${org.apache.river.jsk.home}$/lib$/${org.apache.river.phoenix.group.jar}$:${org.apache.river.jsk.home}$/lib-dl$/${org.apache.river.phoenix.dl.jar}$:${org.apache.river.jsk.home}$/lib$/${org.apache.river.phoenix.common.jar}$:${org.apache.river.jsk.home}$/lib$/${net.jini.platform.jar}$:${org.apache.river.jsk.home}$/lib$/${org.apache.river.collections.jar}$:${org.apache.river.jsk.home}$/lib$/${org.apache.river.lib.jar}$:${org.apache.river.jsk.home}$/lib-dl$/${net.jini.lib.dl.jar}$:${org.apache.river.jsk.home}$/lib$/${net.jini.jeri.jar}$:${org.apache.river.jsk.home}$/lib$/${net.jini.activation.jar}$:${org.apache.river.jsk.home}$/lib$/${net.jini.pref.jar}$:${org.apache.river.jsk.home}$/lib$/${jsk.url.jar}$:${org.apache.river.jsk.home}$/lib$/${jgdms-rmi-tls.jar}
+sharedGroup.classpath=${jsk.home}$/lib$/${start.jar}$:${jsk.home}$/lib$/${high-scale-lib.jar}$:<file:lib/qa1-start-testservice-common.jar>$:${jsk.home}$/lib$/${phoenix-init.jar}$:${jsk.home}$/lib$/${phoenix-group.jar}$:${jsk.home}$/lib-dl$/${phoenix-dl.jar}$:${jsk.home}$/lib$/${phoenix-common.jar}$:${jsk.home}$/lib$/${platform.jar}$:${jsk.home}$/lib$/${collections.jar}$:${jsk.home}$/lib$/${jsk-lib.jar}$:${jsk.home}$/lib-dl$/${jsk-dl.jar}$:${jsk.home}$/lib$/${jeri.jar}$:${jsk.home}$/lib$/${activation.jar}$:${jsk.home}$/lib$/${activation-param.jar}$:${jsk.home}$/lib$/${jsk.pref.jar}$:${jsk.home}$/lib$/${jsk.url.jar}$:${jsk.home}$/lib$/${jgdms-rmi-tls.jar}

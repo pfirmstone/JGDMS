@@ -47,6 +47,7 @@ import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.*;
 import net.jini.jeri.ssl.SslServerEndpoint;
+import net.jini.jeri.tcp.TcpServerEndpoint;
 
 public class Operations {
 
@@ -146,8 +147,10 @@ public class Operations {
 	    new Subject(true,
 			Collections.singleton(new X500Principal("CN=bob")),
 			Collections.EMPTY_SET, Collections.EMPTY_SET);
-	final SslServerEndpoint se =
-	    SslServerEndpoint.getInstance(s, null, null, 0);
+	final ServerEndpoint se =
+                // SslServerEndpoint requires keystore and trustore etc, null doesn't cut it anymore.
+//	    SslServerEndpoint.getInstance(s, null, null, 0);
+                TcpServerEndpoint.getInstance(null, 0);
 	final MethodConstraints nomc =
 	    new BasicMethodConstraints(InvocationConstraints.EMPTY);
 	final InvocationLayerFactory uilf =

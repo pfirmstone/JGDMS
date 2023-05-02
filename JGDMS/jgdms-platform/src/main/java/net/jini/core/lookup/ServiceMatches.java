@@ -20,6 +20,8 @@ package net.jini.core.lookup;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * An instance of this class is used for the return value when looking up
@@ -36,6 +38,19 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public class ServiceMatches implements java.io.Serializable {
 
     private static final long serialVersionUID = -5518280843537399398L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("items", ServiceItem[].class),
+            new SerialForm("totalMatches", Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServiceMatches s) throws IOException{
+        arg.put("items", s.items);
+        arg.put("totalMatches", s.totalMatches);
+        arg.writeArgs();
+    }
 
     /**
      * Matching items (up to maxMatches from lookup method).
@@ -84,6 +99,7 @@ public class ServiceMatches implements java.io.Serializable {
      * @return <code>String</code> representation of this 
      * <code>ServiceMatches</code>
      */
+    @Override
     public String toString() {
 	StringBuffer sBuffer = new StringBuffer();
 	sBuffer.append(

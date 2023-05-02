@@ -35,7 +35,8 @@
 import java.io.*;
 import java.lang.reflect.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.rmi.registry.*;
 import java.rmi.server.*;
 import net.jini.activation.ActivationGroup;

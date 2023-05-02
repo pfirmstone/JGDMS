@@ -1,12 +1,12 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${outrigger.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${org.apache.river.outrigger.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${outrigger-dl.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.outrigger.snaplogstore.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${outrigger-snaplogstore.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -20,26 +20,26 @@ grant {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${collections.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${jeri.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${disco.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${jsk-lib.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
     permission java.security.AllPermission "", "";
 };

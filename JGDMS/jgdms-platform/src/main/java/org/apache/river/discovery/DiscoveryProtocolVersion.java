@@ -25,6 +25,8 @@ import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the version of the discovery protocol used to
@@ -49,6 +51,18 @@ public final class DiscoveryProtocolVersion
     /** Use discovery protocol version 2. */
     public static final DiscoveryProtocolVersion TWO =
 	new DiscoveryProtocolVersion(Discovery.PROTOCOL_VERSION_2);
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("version", Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, DiscoveryProtocolVersion d) 
+            throws IOException{
+        arg.put("version", d.version);
+        arg.writeArgs();
+    }
 
     /**
      * The protocol version number.
@@ -99,15 +113,18 @@ public final class DiscoveryProtocolVersion
 	return version;
     }
 
+    @Override
     public int hashCode() {
 	return DiscoveryProtocolVersion.class.hashCode() + version;
     }
 
+    @Override
     public boolean equals(Object obj) {
 	return obj instanceof DiscoveryProtocolVersion &&
 	       version == ((DiscoveryProtocolVersion) obj).version;
     }
 
+    @Override
     public String toString() {
 	return "DiscoveryProtocolVersion[" + version + "]";
     }

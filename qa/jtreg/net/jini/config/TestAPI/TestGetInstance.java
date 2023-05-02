@@ -38,12 +38,20 @@ import net.jini.config.ConfigurationNotFoundException;
 
 public class TestGetInstance extends BasicTest {
 
-    static final String src =
-	System.getProperty("test.src", ".") + File.separator;
+    static final String src;  
     static final String classes =
 	System.getProperty("test.classes", "classes") + File.separator;
-
+    
     static {
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("config");
+        sb.append(File.separator).append("TestAPI").append(File.separator);
+        src = sb.toString();
+        System.out.println(src);
+        System.out.println(classes);
+
 	if (System.getProperty("java.security.policy") == null) {
 	    System.setProperty("java.security.policy", src + "policy");
 	}

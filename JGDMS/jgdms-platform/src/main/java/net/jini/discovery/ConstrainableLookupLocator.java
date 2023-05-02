@@ -33,6 +33,8 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * <code>LookupLocator</code> subclass which supports constraint operations
@@ -95,10 +97,19 @@ public final class ConstrainableLookupLocator
 {
     private static final long serialVersionUID = 7061417093114347317L;
     private static final ObjectStreamField[] serialPersistentFields = 
-    { 
-        /** @serialField client side MethodConstraints for Unicast discovery */
-        new ObjectStreamField("constraints", MethodConstraints.class)
-    };
+        serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            /** @serialField client side MethodConstraints for Unicast discovery */
+            new SerialForm("constraints", MethodConstraints.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConstrainableLookupLocator l) throws IOException{
+        arg.put("constraints", l.constraints);
+        arg.writeArgs();
+    }
 
     private static final Method getRegistrarMethod;
     private static final Method getRegistrarTimeoutMethod;

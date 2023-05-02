@@ -32,6 +32,18 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 class ListSerializer<T> extends AbstractList<T> implements Serializable {
     
     private static final long serialVersionUID = 1L;
+    private static final String ELEMENTS = "elements";
+    
+    public static AtomicSerial.SerialForm [] serialForm(){
+        return new AtomicSerial.SerialForm []{
+            new AtomicSerial.SerialForm(ELEMENTS, Object[].class)
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg arg, ListSerializer l) throws IOException{
+        arg.put(ELEMENTS, l.elements);
+        arg.writeArgs();
+    }
     
     /**
      * @serial 

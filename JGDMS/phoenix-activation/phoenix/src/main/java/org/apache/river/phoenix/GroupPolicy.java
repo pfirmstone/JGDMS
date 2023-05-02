@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix;
 
-import java.rmi.activation.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupDesc;
 
 /**
  * Interface for policy objects to control what {@link ActivationGroupDesc}

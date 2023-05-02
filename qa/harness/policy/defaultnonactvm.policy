@@ -1,75 +1,797 @@
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}nonactivatablegroup.jar" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+grant codebase "jrt:/jdk.crypto.cryptoki"
 {
-    permission java.security.AllPermission "", "";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+grant codebase "file:/${qa.home}/lib/qa1-mercury.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
 {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.security.auth" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.crypto.cryptoki" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/java.smartcardio" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/java.xml.crypto" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/java.security.jgss" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.crypto.ec" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.crypto.mscapi" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.localedata" {
-    permission java.security.AllPermission "", "";
-};
-
-grant codebase "jrt:/jdk.security.jgss" {
-    permission java.security.AllPermission "", "";
-};
-
-// Discovery providers that don't perform authentication don't grant
-// DeSerializationPermission, so it's granted here.
-grant codebase "http://${HOST}/${net.jini.lib.dl.jar}" {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Group\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
     permission java.lang.RuntimePermission "getClassLoader";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness-killer.jar" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "jar:file:${org.apache.river.qa.harness.harnessJar}!${/}harness/policy/policy.all";
-}; 
-
-grant codebase "file:${org.apache.river.qa.home}${/}lib/harness-killer.jar" {
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}all.policy";
-    permission org.apache.river.start.SharedActivationPolicyPermission "file:${org.apache.river.qa.home}${/}harness${/}policy${/}policy.all";
-}; 
-
-grant {
-    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
-    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+grant codebase "jrt:/java.smartcardio"
+{
+    permission java.security.SecurityPermission "putProviderProperty.SunPCSC";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
 };
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.export.ExportPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.export.ExportPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.export.ExportPermission "org.apache.river.test.impl.mercury.TestListener.getEventCount";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission java.security.SecurityPermission "createAccessControlContext";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getDomainCombiner";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "getProperty.auth.login.defaultCallbackHandler";
+    permission java.security.SecurityPermission "getProperty.crypto.policy";
+    permission java.security.SecurityPermission "getProperty.jdk.certpath.disabledAlgorithms";
+    permission java.security.SecurityPermission "getProperty.jdk.security.allowNonCaAnchor";
+    permission java.security.SecurityPermission "getProperty.jdk.security.caDistrustPolicies";
+    permission java.security.SecurityPermission "getProperty.jdk.security.provider.preferred";
+    permission java.security.SecurityPermission "getProperty.jdk.serialFilter";
+    permission java.security.SecurityPermission "getProperty.jdk.tls.alpnCharset";
+    permission java.security.SecurityPermission "getProperty.jdk.tls.disabledAlgorithms";
+    permission java.security.SecurityPermission "getProperty.jdk.tls.keyLimits";
+    permission java.security.SecurityPermission "getProperty.jdk.tls.legacyAlgorithms";
+    permission java.security.SecurityPermission "getProperty.jdk.tls.server.defaultDHEParameters";
+    permission java.security.SecurityPermission "getProperty.keystore.type";
+    permission java.security.SecurityPermission "getProperty.keystore.type.compat";
+    permission java.security.SecurityPermission "getProperty.login.config.url.1";
+    permission java.security.SecurityPermission "getProperty.login.configuration.provider";
+    permission java.security.SecurityPermission "getProperty.org.apache.river.start.servicePolicyProvider";
+    permission java.security.SecurityPermission "getProperty.policy.allowSystemProperty";
+    permission java.security.SecurityPermission "getProperty.policy.expandProperties";
+    permission java.security.SecurityPermission "getProperty.securerandom.drbg.config";
+    permission java.security.SecurityPermission "getProperty.securerandom.source";
+    permission java.security.SecurityPermission "getProperty.security.provider.1";
+    permission java.security.SecurityPermission "getProperty.security.provider.10";
+    permission java.security.SecurityPermission "getProperty.security.provider.11";
+    permission java.security.SecurityPermission "getProperty.security.provider.12";
+    permission java.security.SecurityPermission "getProperty.security.provider.13";
+    permission java.security.SecurityPermission "getProperty.security.provider.14";
+    permission java.security.SecurityPermission "getProperty.security.provider.2";
+    permission java.security.SecurityPermission "getProperty.security.provider.3";
+    permission java.security.SecurityPermission "getProperty.security.provider.4";
+    permission java.security.SecurityPermission "getProperty.security.provider.5";
+    permission java.security.SecurityPermission "getProperty.security.provider.6";
+    permission java.security.SecurityPermission "getProperty.security.provider.7";
+    permission java.security.SecurityPermission "getProperty.security.provider.8";
+    permission java.security.SecurityPermission "getProperty.security.provider.9";
+    permission java.security.SecurityPermission "getProperty.ssl.TrustManagerFactory.algorithm";
+    permission java.security.SecurityPermission "putProviderProperty.JdkLDAP";
+    permission java.security.SecurityPermission "putProviderProperty.JdkSASL";
+    permission java.security.SecurityPermission "putProviderProperty.SUN";
+    permission java.security.SecurityPermission "putProviderProperty.SunEC";
+    permission java.security.SecurityPermission "putProviderProperty.SunJCE";
+    permission java.security.SecurityPermission "putProviderProperty.SunJGSS";
+    permission java.security.SecurityPermission "putProviderProperty.SunJSSE";
+    permission java.security.SecurityPermission "putProviderProperty.SunMSCAPI";
+    permission java.security.SecurityPermission "putProviderProperty.SunPCSC";
+    permission java.security.SecurityPermission "putProviderProperty.SunRsaSign";
+    permission java.security.SecurityPermission "putProviderProperty.SunSASL";
+    permission java.security.SecurityPermission "putProviderProperty.XMLDSig";
+    permission java.security.SecurityPermission "setPolicy";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission java.io.FilePermission "${java.home}${/}bin${/}net.dll", "read";
+    permission java.io.FilePermission "${java.home}${/}bin${/}nio.dll", "read";
+    permission java.io.FilePermission "${java.home}${/}bin${/}sunmscapi.dll", "read";
+    permission java.io.FilePermission "${java.home}${/}conf${/}net.properties", "read";
+    permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited", "read";
+    permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited${/}default_US_export.policy", "read";
+    permission java.io.FilePermission "${java.home}${/}conf${/}security${/}policy${/}unlimited${/}default_local.policy", "read";
+    permission java.io.FilePermission "${java.home}${/}lib${/}security${/}blacklisted.certs", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "read";
+    permission java.io.FilePermission "${java.io.tmpdir}-", "write";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${loader.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${sharedvm.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}jsselogins", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}jiniharness.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}eventmailbox${/}configs${/}jsse${/}testlistener.config", "read";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Group\"", "read";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Tester\"", "read";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.qa.harness";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Group";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getLoginConfiguration";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission javax.security.auth.AuthPermission "getSubjectFromDomainCombiner";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission javax.security.auth.AuthPermission "setLoginConfiguration";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "${HOST}", "connect,accept,resolve";
+    permission java.net.SocketPermission "${HOST}.lan", "resolve";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:0]", "resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+    permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
+    permission java.util.logging.LoggingPermission "control";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.jca";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.krb5";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.pkcs";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.provider";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math.intpoly";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.resources";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "accessSystemModules";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
+    permission java.lang.RuntimePermission "localeServiceProvider";
+    permission java.lang.RuntimePermission "loggerFinder";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "reflectionFactoryAccess";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "setIO";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission net.jini.export.ExportPermission "exportRemoteInterface.org.apache.river.qa.harness.NonActivatableGroup";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+    permission java.net.NetPermission "getCookieHandler";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.net.NetPermission "getProxySelector";
+    permission java.net.NetPermission "getResponseCache";
+};
+
+grant codebase "file:/${qa.home}/lib/nonactivatablegroup.jar"
+{
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}eventmailbox${/}configs${/}jsse${/}testlistener.config", "read";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.qa.harness";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Group";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "setIO";
+    permission net.jini.export.ExportPermission "exportRemoteInterface.org.apache.river.qa.harness.NonActivatableGroup";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant codebase "jrt:/jdk.crypto.ec"
+{
+    permission java.security.SecurityPermission "putProviderProperty.SunEC";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.jca";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.pkcs";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util.math.intpoly";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+};
+
+grant codebase "file:/${qa.home}/lib/qa1-mercury.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}eventmailbox${/}configs${/}jsse${/}testlistener.config", "read";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}"
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Group\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.certificateType", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.cipherSuites", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxServerSessionDuration", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+};
+
+grant codebase "file:/${qa.home}/lib/nonactivatablegroup.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}eventmailbox${/}configs${/}jsse${/}testlistener.config", "read";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "*", "resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant codebase "jrt:/java.xml.crypto"
+{
+    permission java.security.SecurityPermission "putProviderProperty.XMLDSig";
+    permission java.util.PropertyPermission "java.specification.version", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission java.util.PropertyPermission "java.rmi.server.codebase", "read";
+    permission java.util.PropertyPermission "net.jini.loader.codebaseAnnotation", "read";
+    permission java.net.SocketPermission "${HOST}", "connect,accept,resolve";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant codebase "jrt:/jdk.security.jgss"
+{
+    permission java.security.SecurityPermission "putProviderProperty.JdkSASL";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+};
+
+grant codebase "file:/${jsk.home}/lib/${collections.jar}"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission java.net.SocketPermission "${HOST}.lan", "resolve";
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.lang.RuntimePermission "shutdownHooks";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
+{
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}eventmailbox${/}configs${/}jsse${/}testlistener.config", "read";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.thread.ThreadPoolPermission "getUserThreadPool";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Group\"", "read";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Tester\"", "read";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.org.apache.river.qa.harness";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Group";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.client.initialInboundRation", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connection.mux.server.initialInboundRation", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.connectionTimeout", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.checkInterval", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.cleanInterval", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.leaseValue", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.dgc.minimumDuration", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.handshakeTimeout", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.server.suppressStackTraces", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.tcp.useNIO", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission java.io.SerializablePermission "enableSubclassImplementation";
+    permission java.io.SerializablePermission "enableSubstitution";
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "${HOST}.lan", "resolve";
+    permission java.net.SocketPermission "[0:0:0:0:0:0:0:0]", "resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+    permission net.jini.io.context.ContextPermission "net.jini.io.context.ClientSubject.getClientSubject";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission net.jini.export.ExportPermission "exportRemoteInterface.org.apache.river.qa.harness.NonActivatableGroup";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission net.jini.export.ExportPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.export.ExportPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+};
+
+grant codebase "jrt:/java.security.jgss"
+{
+    permission java.security.SecurityPermission "putProviderProperty.SunJGSS";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+};
+
+grant codebase "file:/${jsk.home}/lib/${sharedvm.jar}"
+{
+    permission java.security.SecurityPermission "getProperty.org.apache.river.start.servicePolicyProvider";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi"
+{
+    permission java.security.SecurityPermission "putProviderProperty.SunMSCAPI";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "loadLibrary.sunmscapi";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Group\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Mercury\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.certificateType", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.cipherSuites", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxServerSessionDuration", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "*:1024-", "accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+};
+
+grant codebase "jrt:/jdk.security.auth"
+{
+    permission java.io.FilePermission "${qa.home}${/}lib${/}jiniharness.jar", "read";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.krb5";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+};
+
+grant codebase "jrt:/jdk.localedata"
+{
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.resources";
+};
+
+grant codebase "file:/${jsk.home}/lib/${sharedvm.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}eventmailbox${/}configs${/}jsse${/}testlistener.config", "read";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "*", "resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission java.io.FilePermission "${qa.home}${/}src${/}org${/}apache${/}river${/}test${/}spec${/}eventmailbox${/}configs${/}jsse${/}testlistener.config", "read";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Test";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxClientSessionDuration", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-mercury-dl.jar", "GET:";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+{
+    permission net.jini.export.ExportPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.export.ExportPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission java.io.FilePermission "${qa.home}${/}lib${/}qa1-mercury.jar", "read";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.net.SocketPermission "*", "resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+    permission java.lang.RuntimePermission "createClassLoader";
+};
+
+grant codebase "file:/${jsk.home}/lib/${collections.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission org.apache.river.thread.ThreadPoolPermission "getSystemThreadPool";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Group\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "connect";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxClientSessionDuration", "read";
+    permission java.net.SocketPermission "*", "resolve";
+    permission java.net.SocketPermission "*:1024-", "connect,resolve";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jsk.url.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${sharedvm.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission java.net.SocketPermission "[fe80:0:0:0:9ca0:dfeb:b9a7:96fd%16]:8271", "connect,resolve";
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.security.SecurityPermission "createPolicy.JiniPolicy";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}reggie${/}reggie.config", "read";
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${disco.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+};
+
+grant codebase "file:/${jsk.home}/lib/${reggie.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
+    permission java.net.SocketPermission "${HOST}", "resolve";
+    permission java.net.SocketPermission "${HOST}.lan", "resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:9ca0:dfeb:b9a7:96fd%16]:8272", "accept,resolve";
+    permission java.net.SocketPermission "[fe80:0:0:0:9ca0:dfeb:b9a7:96fd%16]:8273", "accept,resolve";
+    permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:0", "listen,resolve";
+    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.lang.RuntimePermission "shutdownHooks";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}tester.keystore", "read";
+    permission java.util.PropertyPermission "qa.home", "read";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AccessPermission "net.jini.admin.Administrable.getAdmin";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getClassAnnotation";
+    permission net.jini.security.AccessPermission "net.jini.export.CodebaseAccessor.getEncodedCerts";
+    permission net.jini.security.AccessPermission "org.apache.river.admin.DestroyAdmin.destroy";
+    permission net.jini.security.AccessPermission "org.apache.river.reggie.proxy.Registrar.lookup";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
+    permission java.security.SecurityPermission "getProperty.jdk.serialFilterFactory";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.lang.RuntimePermission "selectorProvider";
+    permission java.io.FilePermission "${java.home}${/}bin${/}zip.dll", "read";
+    permission java.io.FilePermission "${java.home}${/}lib${/}security${/}blocked.certs", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${disco.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jsk.url.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}reggie${/}reggie.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}starter${/}starter.config", "read";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Reggie\"", "read";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"", "accept";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStore", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStorePassword", "read";
+    permission java.util.PropertyPermission "javax.net.ssl.trustStoreType", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.certificateType", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.cipherSuites", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jceProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.jsseProvider", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxServerSessionDuration", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.secureRandomAlgorithm", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.sslProtocol", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.trustManagerFactoryAlgorithm", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+};
+
+grant codebase "file:/${qa.home}/lib/nonactivatablegroup.jar"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}reggie${/}reggie.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}starter${/}starter.config", "read";
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}reggie${/}reggie.config", "read";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${reggie-dl.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}"
+{
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${collections.jar}"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "listen";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${loader.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}reggie${/}reggie.config", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}starter${/}starter.config", "read";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Reggie\"", "read";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "set";
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.kerberos.KerberosEndpoint.maxCacheSize", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.kerberos.KerberosEndpoint.maxGssContextRetries", "read";
+    permission java.util.PropertyPermission "org.apache.river.jeri.kerberos.KerberosEndpoint.minGssContextLifetime", "read";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+
+grant codebase "file:/${jsk.home}/lib/${reggie.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}reggie${/}reggie.config", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${reggie.jar}"
+{
+    permission java.util.PropertyPermission "java.net.preferIPv6Addresses", "read";
+    permission java.util.PropertyPermission "net.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib-dl/${reggie-dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+};
+
+grant codebase "file:/${jsk.home}/lib/${loader.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.util.PropertyPermission "org.apache.river.jeri.ssl.maxClientSessionDuration", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${platform.jar}",
+    principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+    permission java.net.SocketPermission "224.0.1.84", "connect,accept,resolve";
+    permission java.net.SocketPermission "[ff05:0:0:0:0:0:0:156]", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:4160", "listen,resolve";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}reggie.keystore", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}trust${/}tester.keystore", "read";
+    permission java.io.FilePermission "harness${/}trust${/}truststore", "read";
+};
+
+grant codebase "file:/${jsk.home}/lib/${disco.jar}"
+{
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission javax.security.auth.PrivateCredentialPermission "javax.security.auth.x500.X500PrivateCredential javax.security.auth.x500.X500Principal \"CN=Reggie\"", "read";
+    permission org.apache.river.jeri.internal.EndpointInternalsPermission "get";
+};
+
+grant codebase "file:/${qa.home}/lib/nonactivatablegroup.jar",
+    principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+    permission javax.security.auth.AuthPermission "createLoginContext.org.apache.river.Reggie";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Tester\" peer javax.security.auth.x500.X500Principal \"CN=Reggie\"", "connect";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${reggie-dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${activation-param.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${reggie.jar}", "read";
+    permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}reggie${/}reggie.config", "read";
+    permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
+    permission net.jini.security.GrantPermission "java.util.PropertyPermission \"org.apache.river.reggie.enableImplToStubReplacement\", \"read\"; org.apache.river.api.io.DeSerializationPermission \"ATOMIC\"; java.lang.RuntimePermission \"accessClassInPackage.com.sun.proxy\", \"\";";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-3.1.1-SNAPSHOT.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-3.1.1-SNAPSHOT.jar", "GET:";
+};
+

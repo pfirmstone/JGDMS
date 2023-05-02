@@ -17,6 +17,7 @@
 
 package org.apache.river.api.io;
 
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.ByteArrayInputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -131,7 +132,7 @@ import org.apache.river.impl.Messages;
  *</p>
  * @author peter
  */
-public class AtomicMarshalInputStream extends MarshalInputStream {
+public class AtomicMarshalInputStream extends MarshalInputStream implements AtomicObjectInput {
   
     private final InputStream emptyStream = new ByteArrayInputStream(
             new byte[0]);
@@ -405,7 +406,19 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	this.readAnnotations = readAnnotations;
     }
     
-   
+    public String toString(){
+        String cr = "\n";
+        String obj = "Object at wire handle index: ";
+        String is = " is: ";
+        StringBuilder sb = new StringBuilder();
+        sb.append("AtomicMarshalInputStream object reference handles read from stream:\n");
+        for (int i = 0, l = objectsRead.length; i < l ; i++){
+            Object o = objectsRead[i];
+            if (o == null) break;
+            sb.append(obj).append(i + baseWireHandle).append(is).append(o).append(cr);
+        }
+        return sb.toString();
+    }
    
 
     /**
@@ -884,7 +897,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                 return readNewClassDesc(false);
             case TC_ARRAY:
 //		System.out.println("TC_ARRAY");
-                return readNewArray(false, null);
+                return readNewArray(false, discard, null);
             case TC_OBJECT:
 //		System.out.println("TC_OBJECT");
                 return readNewObject(false, discard, null);
@@ -929,7 +942,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      *             If the class corresponding to the object being read could not
      *             be found.
      */
-    private Object readNonPrimitiveContent(boolean unshared, Class type)
+    private Object readNonPrimitiveContent(boolean unshared, boolean discard, Class type)
             throws ClassNotFoundException, IOException {
 //	System.out.println("readNonPrimitiveContent");
         checkReadPrimitiveTypes();
@@ -948,10 +961,10 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
                     return readNewClassDesc(unshared);
                 case TC_ARRAY:
 //		    System.out.println("TC_ARRAY");
-                    return readNewArray(unshared, type);
+                    return readNewArray(unshared, discard, type);
                 case TC_OBJECT:
 //		    System.out.println("TC_OBJECT");
-                    return readNewObject(unshared, false, type);
+                    return readNewObject(unshared, discard, type);
                 case TC_STRING:
 		    if (type != null && !type.isAssignableFrom(String.class)){
 			throw new InvalidObjectException("Was expecting " + type + " but got a string");
@@ -1006,8 +1019,8 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     }
 
     /**
-     * Reads the tc item from the stream assuming it is a cyclic reference to
- an object previously read. Return the actual object previously read.
+     * Reads the tc item from the stream assuming it is a cyclic reference to 
+     * an object previously read. Return the actual object previously read.
      * 
      * @return the object previously read from the stream
      * 
@@ -1073,7 +1086,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         // WARNING - the grammar says it is a Throwable, but the
         // WriteAbortedException constructor takes an Exception. So, we read an
         // Exception from the stream
-        Exception exc = (Exception) readObject(false, Throwable.class);
+        Exception exc = (Exception) readObject(false, false, Throwable.class);
 
         // We reset the receiver's state (the grammar has "reset" in normal
         // font)
@@ -1107,17 +1120,83 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    throw new NotActiveException();
 	}
 //	System.out.println("readFields called");
+        Class cls = currentClass.forClass();
+        ObjectStreamClass deserializedClass = currentClass.getDeserializedClass();
 	EmulatedFieldsForLoading result 
-	    = new EmulatedFieldsForLoading(currentClass.getDeserializedClass());
+                 = new EmulatedFieldsForLoading(deserializedClass, fields(deserializedClass, cls));
 	readFieldValues(result);
 	return result;
     }
     
-    private GetField readFields(ObjectStreamClass deserializedClassDescriptor)
+    static class DiscardField extends ObjectStreamField {
+        
+        public DiscardField(ObjectStreamField field) {
+            super(field.getName(), field.getType());
+        }
+        
+    }
+    
+    private ObjectStreamField [] fields(ObjectStreamClass deserializedStreamClass, Class cls) throws IOException{
+        return deserializedStreamClass.getFields();
+//        ObjectStreamField [] declaredFields = fields(cls);
+//        ObjectStreamField [] deserializedFields = deserializedStreamClass.getFields();
+//        Set<ObjectStreamField> fields = new TreeSet<ObjectStreamField>();
+//        List<ObjectStreamField> declaredFieldList = Arrays.asList(declaredFields);
+//        List<ObjectStreamField> deserialziedFieldList = Arrays.asList(deserializedFields);
+//        fields.addAll(declaredFieldList);
+//        fields.addAll(deserialziedFieldList); // Only adds those missing
+//        fields.retainAll(deserialziedFieldList); // Removes fields that are not in stream.
+//        Set<ObjectStreamField> discardFields = new TreeSet<ObjectStreamField>();
+//        discardFields.addAll(deserialziedFieldList);
+//        discardFields.removeAll(declaredFieldList);
+//        if (!discardFields.isEmpty()){
+//            Iterator<ObjectStreamField> it = discardFields.iterator();
+//            while (it.hasNext()){
+//                fields.add(new DiscardField(it.next()));
+//            }
+//        }
+        /*
+         * Fields are compared by name, always use Object types declared by local class
+         * but in case a field has been removed from the local class definition,
+         * or has been added by stream modification, we want to discard it. 
+         * Primitive types are safe to deserialize.  This allows for less
+         * accidental breakage.   We cannot deserialize fields that have been
+         * added, but don't exist, so we want the intersection of local
+         * fields and deserialized field sets.
+         *
+         * How to discard?
+         * 
+         * Perhaps we shouldn't discard, in case another object has a reference
+         * to the same Object?  Although it does seem a slim chance.
+         *
+         * Maybe this should be configurable?
+         */
+//        return fields.toArray(new ObjectStreamField[fields.size()]);
+    }
+    
+    private ObjectStreamField [] fields(Class clz) throws IOException{
+        try {
+            Method m = clz.getMethod("serialForm", EMPTY_CONSTRUCTOR_PARAM_TYPES);
+            int modifiers = m.getModifiers();
+            if (Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && m.getReturnType() == SerialForm [].class){
+                ObjectStreamField [] fields = (ObjectStreamField[]) m.invoke(null, (Object []) null);
+                Arrays.sort(fields);
+                return fields;
+            }
+        } catch (NoSuchMethodException ex) {
+            //TODO enable logger
+//            Logger.getLogger(AtomicMarshalInputStream.class.getName()).log(Level.INFO, "@AtomicSerial class is missing public static method serialPersistent fields", ex);
+        } catch (Exception ex) {
+            throw new IOException("Unable to access serialForm method" , ex);
+        } 
+        return new ObjectStreamField[0];
+    }
+    
+    private GetField readFields(ObjectStreamClass deserializedClassDescriptor, Class cls)
 	    throws IOException, ClassNotFoundException 
     {
 	EmulatedFieldsForLoading result 
-		= new EmulatedFieldsForLoading(deserializedClassDescriptor);
+                = new EmulatedFieldsForLoading(deserializedClassDescriptor, fields(deserializedClassDescriptor, cls));
 	readFieldValues(result);
 	return result;
     }
@@ -1151,32 +1230,48 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
             Class<?> type = element.getField().getType();
             if (type == Integer.TYPE) {
 		element.setIntValue(input.readInt());
+//                System.out.println("Reading int field from stream: " + element.getIntValue());
             } else if (type == Byte.TYPE) {
                 element.setByteValue(input.readByte());
+//                System.out.println("Reading byte field from stream: " + element.getByteValue());
             } else if (type == Character.TYPE) {
                 element.setCharValue(input.readChar());
+//                System.out.println("Reading char field from stream: " + element.getCharValue());
             } else if (type == Short.TYPE) {
                 element.setShortValue(input.readShort());
+//                System.out.println("Reading short field from stream: " + element.getShortValue());
             } else if (type == Boolean.TYPE) {
                 element.setBooleanValue(input.readBoolean());
+//                System.out.println("Reading boolean field from stream: " + element.isBooleanValue());
             } else if (type == Long.TYPE) {
                 element.setLongValue(input.readLong());
+//                System.out.println("Reading long field from stream: " + element.getLongValue());
             } else if (type == Float.TYPE) {
                 element.setFloatValue(input.readFloat());
+//                System.out.println("Reading float field from stream: " + element.getFloatValue());
             } else if (type == Double.TYPE) {
                 element.setDoubleValue(input.readDouble());
+//                System.out.println("Reading double field from stream: " + element.getDoubleValue());
+            } else if (element.discard()){
+                try {
+                    discardData(true);
+                } catch (ClassNotFoundException cnf) {
+		    element.setFieldException(cnf);
+                }
             } else {
                 // Either array or Object
 		boolean capture = captureSupressedCNFE;
 //		ClassNotFoundException sup = supressed;
                 try {
+//                    System.out.println("Reading object of type from stream " + type);
 		    captureSupressedCNFE = true;
-		    Object value = readObject(false, type);
+		    Object value = readObject(false, false, type);
 //		    if (supressed != null){
 ////			throw supressed;
 //			element.setFieldException(supressed);
 //		    } else {
 			element.setFieldValue(value);
+//                        System.out.println("Read object from stream " + value);
 //		    }
                 } catch (ClassNotFoundException cnf) {
 		    element.setFieldException(cnf);
@@ -1334,9 +1429,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 				" doesn't exist in local class, it's type cannot be defensively checked"
 			    );
 			if (dfield.isUnshared()) {
-			    toSet = readObject(true, fieldType);
+			    toSet = readObject(true, false, fieldType);
 			} else {
-			    toSet = readObject(false, fieldType);
+			    toSet = readObject(false, false, fieldType);
 			}
 		    } catch (EOFException e){
 			StringBuilder b = new StringBuilder(200);
@@ -1803,7 +1898,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      * @throws OptionalDataException
      *             If optional data could not be found when reading the array.
      */
-    private Object readNewArray(boolean unshared, Class type) throws OptionalDataException,
+    private Object readNewArray(boolean unshared, boolean discard, Class type) throws OptionalDataException,
             ClassNotFoundException, IOException {
         ObjectStreamClassContainer classDesc = readClassDesc();
 //	System.out.println("readNewArray");
@@ -1893,7 +1988,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 		    //      without setting up the context (see readObject()) for 
 		    //      each element with public API
 		    try {
-			objectArray[i] = readObject(false, componentType);
+			objectArray[i] = readObject(false, discard, componentType);
 		    } catch (StreamCorruptedException e){
 			if (!exceptions.isEmpty()) break;
 			throw e;
@@ -2273,7 +2368,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      *             If an IO exception happened when reading the handle
      */
     int readNewHandle() throws IOException {
-        return input.readInt();
+        int handle = input.readInt();
+//        System.out.println("Reading reference handle: " + handle);
+        return handle;
     }
 
     private Class<?> resolveConstructorClass(Class<?> objectClass, boolean wasSerializable, boolean wasExternalizable)
@@ -2385,7 +2482,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	if (type != null){
 	    Class c = classDesc.forClass();
 	    if (!type.isAssignableFrom(c)){
-		if (classDesc.hasMethodReadResolve()) { 
+		if (c.isInstance(Resolve.class) || classDesc.hasMethodReadResolve()) { 
 		    if (c.isAnnotationPresent(Serializer.class)) { 
 			if (Throwable.class.isAssignableFrom(type)
 				&& Throwable.class.equals(((Serializer)c.getAnnotation(
@@ -2430,7 +2527,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
         // case that when reading classDesc we may need to read more stuff
         // depending on the values above
         Class<?> objectClass = classDesc.forClass();
-        Object result = null, registeredResult = null;
+        Object result = null, registeredResult;
         if (objectClass != null) {
 	    if (objectClass.isAnnotationPresent(AtomicSerial.class)){
 		classDesc.deSerializationPermitted(ATOMIC);
@@ -2571,8 +2668,12 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    }
 	}
 
-        if (objectClass != null && !(result instanceof Reference) && classDesc.hasMethodReadResolve()) {
-	    result = classDesc.invokeReadResolve(result);
+        if (objectClass != null && !(result instanceof Reference) ){
+            if (result instanceof Resolve) {
+                result = ((Resolve)result).readResolve();
+            } else if (classDesc.hasMethodReadResolve()) {
+                result = classDesc.invokeReadResolve(result);
+            } 
 	    if (checkProxySerializerResolveType 
 		    && result != null 
 		    && !type.isAssignableFrom(result.getClass())) // type is never null.
@@ -2638,11 +2739,11 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	    ObjectStreamClass cls = streamClass.getDeserializedClass() != null ? 
 		    streamClass.getDeserializedClass() : 
 		    streamClass.getLocalClass();
-	    GetField field = readFields(cls);
+            Class c = streamClass.forClass();
+	    GetField field = readFields(cls, c);
 	    // We don't support direct stream access
 	    // so we have to discard this data.
 	    if (streamClass.hasWriteObjectData()) discardData(false);
-	    Class c = streamClass.forClass();
 	    if (c != null) {
 		fields.put(c, field);
 	    } else {
@@ -2687,13 +2788,13 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 	Map<Class,GetField> fields = new HashMap<Class,GetField>(size);
 	Map<Class,ReadObject> readers = new HashMap<Class,ReadObject>(size);
 	for (ObjectStreamClassContainer streamClass : streamClassList) {
-	    GetField field = readFields(streamClass.getDeserializedClass());
+            Class c = streamClass.forClass();
+	    GetField field = readFields(streamClass.getDeserializedClass(), c);
 	    // AtomicSerial doesn't support direct stream access
 	    // so we have to discard this data.
 	    // Discarded data may be referenced elsewhere in the stream
 	    // so we do our best to retrieve it.
 	    
-	    Class c = streamClass.forClass();
 	    if (c != null) {
 		ReadObject reader = AtomicSerial.Factory.streamReader(c);
 		if (reader != null){
@@ -2822,7 +2923,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     @Override
     protected final Object readObjectOverride() throws OptionalDataException,
             ClassNotFoundException, IOException {
-	return readObject(false, null);
+	return readObject(false, false, null);
     }
     
     /**
@@ -2849,8 +2950,9 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      *             if an error occurs while reading from the source stream.
      * @see ObjectOutputStream#writeUnshared
      */
+    @Override
     public <T> T readObject(Class<T> type) throws IOException, ClassNotFoundException {
-	return (T) readObject(false, type);
+	return (T) readObject(false, false, type);
     }
 
     /**
@@ -2866,7 +2968,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      */
     @Override
     public Object readUnshared() throws IOException, ClassNotFoundException {
-	return readObject(true, null);
+	return readObject(true, false, null);
     }
     
     /**
@@ -2883,10 +2985,10 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
      * @see ObjectOutputStream#writeUnshared
      */
     public <T> T readUnshared(Class<T> type) throws IOException, ClassNotFoundException {
-	return (T) readObject(true, type);
+	return (T) readObject(true, false, type);
     }
 
-    private Object readObject(boolean unshared, Class type) throws OptionalDataException,
+    private Object readObject(boolean unshared, boolean discard, Class type) throws OptionalDataException,
             ClassNotFoundException, IOException {
         boolean restoreInput = (primitiveData == input);
         if (restoreInput) {
@@ -2921,7 +3023,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     //		);
             }
 
-            result = readNonPrimitiveContent(unshared, type);
+            result = readNonPrimitiveContent(unshared, false, type);
             if (restoreInput) {
                 primitiveData = input;
             }
@@ -3061,7 +3163,7 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
 				+ MAX_OBJECT_CACHE + " Objects");
 	    }
 	}
-//	System.out.println("Reference handle: " + handle + " Object: " + res);
+//	System.out.println("Reference handle registered: " + handle + " Object: " + res);
 //	if (res == null) {
 //	    System.out.println(objectsRead);
 //	    throw new StreamCorruptedException("Reference handle out of bounds");
@@ -3321,7 +3423,12 @@ public class AtomicMarshalInputStream extends MarshalInputStream {
     private static void checkedSetSuperClassDesc(ObjectStreamClassContainer desc,
             ObjectStreamClassContainer superDesc) throws StreamCorruptedException {
         if (desc.equals(superDesc)) {
-            throw new StreamCorruptedException();
+            StringBuilder sb = new StringBuilder();
+            sb.append("Recursively defined class definition ");
+            sb.append(desc.toString());
+            sb.append(" equals superclass definition ");
+            sb.append(superDesc.toString());
+            throw new StreamCorruptedException( sb.toString());
         }
         desc.setSuperclass(superDesc); // superclass set already
     }

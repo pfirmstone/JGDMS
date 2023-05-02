@@ -37,6 +37,8 @@ import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Implementation class for the ServiceRegistration interface.
@@ -49,6 +51,19 @@ public class Registration implements ServiceRegistration, ReferentUuid, Serializ
 {
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("server", Registrar.class),
+            new SerialForm("lease", ServiceLease.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Registration r) throws IOException{
+        arg.put("server", r.server);
+        arg.put("lease", r.lease);
+        arg.writeArgs();
+    }
 
     /** Mappings between ServiceRegistration and Registrar methods */
     static final Method[] methodMappings = {

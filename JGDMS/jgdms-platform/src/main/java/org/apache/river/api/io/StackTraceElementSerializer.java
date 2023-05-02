@@ -18,6 +18,7 @@
 
 package org.apache.river.api.io;
 
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
@@ -32,20 +33,41 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @Serializer(replaceObType = StackTraceElement.class)
 @AtomicSerial
-class StackTraceElementSerializer implements Serializable {
+public class StackTraceElementSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
     
     /**
      * By defining serial persistent fields, we don't need to use transient fields.
      * All fields can be final and this object becomes immutable.
      */
-    private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("declaringClass", String.class),
-	    new ObjectStreamField("methodName", String.class),
-	    new ObjectStreamField("fileName", String.class),
-	    new ObjectStreamField("lineNumber", Integer.TYPE)
-	};
+    private static final ObjectStreamField[] serialPersistentFields 
+            = serialForm();
+    
+    private static final String DECLARING_CLASS = "declaringClass";
+    private static final String METHOD_NAME = "methodName";
+    private static final String FILE_NAME = "fileName";
+    private static final String LINE_NUMBER = "lineNumber";
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(DECLARING_CLASS, String.class),
+	    new SerialForm(METHOD_NAME, String.class),
+	    new SerialForm(FILE_NAME, String.class),
+	    new SerialForm(LINE_NUMBER, Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(AtomicSerial.PutArg args, StackTraceElementSerializer obj) throws IOException {
+        putArgs(args, obj);
+        args.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, StackTraceElementSerializer obj) {
+        pf.put(DECLARING_CLASS, obj.declaringClass);
+	pf.put(METHOD_NAME, obj.methodName);
+	pf.put(FILE_NAME, obj.fileName);
+	pf.put(LINE_NUMBER, obj.lineNumber);
+    }
     
     private final /*transient*/ StackTraceElement stackTraceElement;
     private final String declaringClass;
@@ -76,12 +98,12 @@ class StackTraceElementSerializer implements Serializable {
      * @throws IOException 
      */
     public StackTraceElementSerializer(GetArg arg) throws IOException, ClassNotFoundException{
-	this(Valid.notNull(arg.get("declaringClass", null, String.class),
+	this(Valid.notNull(arg.get(DECLARING_CLASS, null, String.class),
 		"declaring class cannot be null"),
-	    Valid.notNull(arg.get("methodName", null, String.class),
+	    Valid.notNull(arg.get(METHOD_NAME, null, String.class),
 		    "method name cannot be null"),
-	    arg.get("fileName", null, String.class),
-	    arg.get("lineNumber", 0)
+	    arg.get(FILE_NAME, null, String.class),
+	    arg.get(LINE_NUMBER, 0)
 	);
     }
     
@@ -117,11 +139,7 @@ class StackTraceElementSerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("declaringClass", declaringClass);
-	pf.put("methodName", methodName);
-	pf.put("fileName", fileName);
-	pf.put("lineNumber", lineNumber);
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }
     

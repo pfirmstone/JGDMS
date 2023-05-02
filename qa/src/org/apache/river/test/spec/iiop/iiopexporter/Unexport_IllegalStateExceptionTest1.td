@@ -1,4 +1,4 @@
-testClasspath=${testClasspath}$:${org.apache.river.jsk.home}$/lib$/${jsk.iiop.jar}
+testClasspath=${testClasspath}$:${jsk.home}$/lib$/${jsk.iiop.jar}
 testClass=Unexport_IllegalStateExceptionTest
 testCategories=iiop,iiop_spec
 iiop.util.constructorType=1

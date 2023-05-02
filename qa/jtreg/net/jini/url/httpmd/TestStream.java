@@ -35,10 +35,16 @@ import net.jini.url.httpmd.WrongMessageDigestException;
 
 public class TestStream extends BasicTest {
 
-    static final String src =
-	System.getProperty("test.src", ".").replace(File.separatorChar, '/');
+    static final String src;
 
     static {
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("url");
+        sb.append(File.separator).append("httpmd").append(File.separator);
+        String srcfs = sb.toString();
+        src = srcfs.replace(File.separatorChar, '/');
 	System.setProperty("java.protocol.handler.pkgs",
 			   "net.jini.url");
     }

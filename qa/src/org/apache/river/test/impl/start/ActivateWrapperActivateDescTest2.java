@@ -17,16 +17,18 @@
  */
 package org.apache.river.test.impl.start;
 
+import java.util.Arrays;
 import org.apache.river.qa.harness.TestException;
 
 import org.apache.river.start.*;
 import org.apache.river.start.ActivateWrapper.*;
 import org.apache.river.start.ActivateWrapper.ActivateDesc;
 import org.apache.river.start.ServiceStarter.*;
-import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.util.logging.Level;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * This test verifies that the ActivateDesc stored by the Activation system
@@ -47,8 +49,9 @@ public class ActivateWrapperActivateDescTest2 extends AbstractStartBaseTest {
         logger.log(Level.INFO, "Probe ActivateDesc = " + adesc);
     
         logger.log(Level.INFO, "Marshalling ActivateDesc");
-        MarshalledObject mo = (new MarshalledInstance(adesc)).convertToMarshalledObject();
-    
+//        net.jini.activation.arg.MarshalledObject mo = new AtomicMarshalledInstance(adesc);
+        String[] data = adesc.asArguments();
+                
         logger.log(Level.INFO, "Obtaining shared group info");
         ActivationGroupID gid = TestUtil.loadSharedCreate(getManager().getSharedVMLog());
     
@@ -64,7 +67,7 @@ public class ActivateWrapperActivateDescTest2 extends AbstractStartBaseTest {
         logger.log(Level.INFO, "ActivationDesc: " + desc);
     
         logger.log(Level.INFO, "Comparing ActivationDesc vs ActivateDesc");
-        if (!mo.equals(desc.getData())) {
+        if (!Arrays.equals(data, desc.getData())) {
             throw new TestException( "ActivateWrapper descriptor "
     		+ "does not match version stored with activation.");
     	}

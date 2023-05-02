@@ -41,6 +41,8 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -76,14 +78,26 @@ import org.apache.river.api.net.Uri;
 public class LookupLocator implements Serializable {
     private static final long serialVersionUID = 1448769379829432795L;
     private static final ObjectStreamField[] serialPersistentFields = 
-    { 
-        /** @serialField The name of the host at which to perform discovery. */
-        new ObjectStreamField("host", String.class),
-	/** @serialField The port number on the host at which to perform discovery. */
-	new ObjectStreamField("port", Integer.TYPE),
-        /** @serialField the URL scheme used to perform discovery. */
-        new ObjectStreamField("scheme", String.class)
-    };
+            serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            /** @serialField The name of the host at which to perform discovery. */
+            new SerialForm("host", String.class),
+            /** @serialField The port number on the host at which to perform discovery. */
+            new SerialForm("port", Integer.TYPE),
+            /** @serialField the URL scheme used to perform discovery. */
+            new SerialForm("scheme", String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, LookupLocator l) throws IOException{
+        arg.put("host", l.host);
+        arg.put("port", l.port);
+        arg.put("scheme", l.scheme);
+        arg.writeArgs();
+    }
+    
     /**
      * The port for both unicast and multicast boot requests.
      */

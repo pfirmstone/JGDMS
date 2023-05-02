@@ -21,35 +21,19 @@ import org.apache.river.tool.envcheck.AbstractPlugin;
 import org.apache.river.tool.envcheck.EnvCheck;
 import org.apache.river.tool.envcheck.Reporter;
 import org.apache.river.tool.envcheck.Reporter.Message;
-import org.apache.river.tool.envcheck.Plugin;
 import org.apache.river.tool.envcheck.SubVMTask;
-import org.apache.river.tool.envcheck.Util;
-
-import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
-import java.net.InetAddress;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Properties;
-import java.util.Enumeration;
 import java.util.Set;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.NoSuchEntryException;
 
 import org.apache.river.start.NonActivatableServiceDescriptor;
-import org.apache.river.start.SharedActivatableServiceDescriptor;
-import org.apache.river.start.SharedActivationGroupDescriptor;
 import org.apache.river.start.ServiceDescriptor;
-import org.apache.river.start.ClassLoaderUtil;
 
 /**
  * Check the configuration files for services identified by service descriptors

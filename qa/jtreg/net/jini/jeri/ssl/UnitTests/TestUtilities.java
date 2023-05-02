@@ -55,13 +55,23 @@ public class TestUtilities extends UnitTestUtilities {
 
     static {
 	Properties props = System.getProperties();
-	String src = props.getProperty("test.src", ".") + File.separator;
+	String src;
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("jeri");
+        sb.append(File.separator).append("ssl").append(File.separator);
+        sb.append("UnitTests").append(File.separator);
+        src = sb.toString();
 	if (props.getProperty("keyStore") == null) {
 	    props.setProperty("keyStore", src + "keystore");
 	}
 	if (props.getProperty("javax.net.ssl.trustStore") == null) {
 	    props.setProperty("javax.net.ssl.trustStore", src + "truststore");
 	}
+        if (props.getProperty("javax.net.ssl.trustStorePassword") == null){
+            System.setProperty("javax.net.ssl.trustStorePassword", "keypass");
+        }
 	if (props.getProperty("java.security.policy") == null) {
 	    props.setProperty("java.security.policy", src + "policy");
 	}
@@ -1283,7 +1293,14 @@ public class TestUtilities extends UnitTestUtilities {
 	    new TestGetCipherAlgorithm("SSL_NULL_WITH_NULL_NULL", "NULL"),
 	    new TestGetCipherAlgorithm("", "NULL"),
 	    new TestGetCipherAlgorithm("foo bar baz", "NULL"),
-	    new TestGetCipherAlgorithm("_WITH_", "NULL"),	    
+	    new TestGetCipherAlgorithm("_WITH_", "NULL"),
+            new TestGetCipherAlgorithm("_WITH_", "NULL"),
+            new TestGetCipherAlgorithm("TLS_AES_128_GCM_SHA256", "AES_128_GCM"),
+            new TestGetCipherAlgorithm("TLS_AES_256_GCM_SHA384", "AES_256_GCM"),
+            new TestGetCipherAlgorithm("TLS_CHACHA20_POLY1305_SHA256", "CHACHA20_POLY1305"),
+            new TestGetCipherAlgorithm("TLS_AES_128_CCM_SHA256", "AES_128_CCM"),
+            new TestGetCipherAlgorithm("TLS_ECDHE_ECDSA_WITH_NULL_SHA", "NULL"),
+            new TestGetCipherAlgorithm("TLS_AES_128_CCM_8_SHA256", "AES_128_CCM_8")
 	};
 
 	TestGetCipherAlgorithm(String suite, String result) {
@@ -1322,9 +1339,14 @@ public class TestUtilities extends UnitTestUtilities {
 	    test("SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA", "DHE_RSA_EXPORT"),
 	    test("SSL_DHE_RSA_WITH_DES_CBC_SHA", "DHE_RSA"),
 	    test("SSL_NULL_WITH_NULL_NULL", "NULL"),
-	    test("", "NULL"),
-	    test("foo bar baz", "NULL"),
-	    test("_WITH_", "NULL")
+	    test("", ""),
+	    test("foo bar baz", ""),
+	    test("_WITH_", "NULL"),
+            test("TLS_AES_128_GCM_SHA256", ""),
+            test("TLS_AES_256_GCM_SHA384", ""),
+            test("TLS_CHACHA20_POLY1305_SHA256", ""),
+            test("TLS_AES_128_CCM_SHA256", ""),
+            test("TLS_AES_128_CCM_8_SHA256", "")
 	};
 
 	private static Test test(String suite, String result) {

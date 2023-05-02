@@ -18,9 +18,8 @@
 
 package org.apache.river.start.group.impl;
 
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.util.logging.Level;
@@ -30,7 +29,6 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.Exporter;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;

@@ -44,7 +44,7 @@ import org.apache.river.api.net.Uri;
  * {@linkplain org.apache.river.start service starter} 
  * package. This class takes a policy string argument that follows the 
  * matching semantics defined by {@link FilePermission}. Note that after 
- * <a link="http://mail.openjdk.java.net/pipermail/jdk9-dev/2016-October/005062.html">
+ * <a href="http://mail.openjdk.java.net/pipermail/jdk9-dev/2016-October/005062.html">
  * FilePermission changes in JDK9 140</a> the following property must be set
  * for this Permission to function correctly. -Djdk.io.permissionsUseCanonicalPath=true
  * <p>
@@ -68,8 +68,9 @@ import org.apache.river.api.net.Uri;
  * pathname to the directory containing the policy file.
  *
  * @author Sun Microsystems, Inc.
- *
+ * @deprecated for removal.
  */
+@Deprecated
 @AtomicSerial
 public final class SharedActivationPolicyPermission extends Permission
                                                     implements Serializable
@@ -200,6 +201,10 @@ public final class SharedActivationPolicyPermission extends Permission
                     uncanonicalPath = Uri.fixWindowsURI(uncanonicalPath);
 //                    uncanonicalPath = Uri.escapeIllegalCharacters(uncanonicalPath);
                     path = Uri.uriToFile(Uri.escapeAndCreate(uncanonicalPath)).getPath();
+                    //strip leading file://
+                    if (path.startsWith("file://")){
+                        path = path.substring(7);
+                    }
 //                    path = new File(new URI(uncanonicalPath)).getPath();
                 } catch (URISyntaxException ex) {
                     path = uncanonicalPath.replace('/', File.separatorChar);
@@ -246,7 +251,10 @@ public final class SharedActivationPolicyPermission extends Permission
 	return answer;
     }
 
-    /** Two instances are equal if they have the same name. */
+    /** Two instances are equal if they have the same name.
+     * The equality is dependent on the implementation of 
+     * FilePermission, which can behave unpredictably.
+     */
     @Override
     public boolean equals(Object obj) {
 	// Quick reject tests

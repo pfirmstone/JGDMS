@@ -384,7 +384,7 @@ public class ToString_Test extends QATestEnvironment implements Test {
         md.update(someValidConf.getBytes());
         String messageDigestString = digestString(md.digest());
         URL confHttpmdURL = new URL("httpmd", "localhost", port,
-                "/" + confFileName + ";" + "MD5=" + messageDigestString);
+                "/" + confFileName + ";" + "SHA-256=" + messageDigestString);
         logger.log(Level.INFO,
                 "Httpmd URL=" + confHttpmdURL.toString());
         String[] optionsWithHttpmdURL = { confHttpmdURL.toString() };
@@ -412,7 +412,7 @@ public class ToString_Test extends QATestEnvironment implements Test {
         super.construct(sysConfig);
         port = sysConfig.getIntConfigVal("HTTPServer.port", -1);
         getManager().startService("HTTPServer");
-        md = MessageDigest.getInstance("MD5");
+        md = MessageDigest.getInstance("SHA-256");
         createFile(confFile, someValidConf);
         fakeClassLoader = new FakeClassLoader();
         return this;

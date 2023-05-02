@@ -22,7 +22,7 @@ import org.apache.river.tool.envcheck.EnvCheck;
 import org.apache.river.tool.envcheck.Reporter;
 import org.apache.river.tool.envcheck.Reporter.Message;
 import org.apache.river.tool.envcheck.SubVMTask;
-import java.rmi.activation.ActivationGroup;
+import net.jini.activation.ActivationGroup;
 import java.security.AccessControlException;
 
 /**

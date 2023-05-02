@@ -28,6 +28,7 @@ import java.lang.ref.SoftReference;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.security.AccessController;
 import java.security.MessageDigest;
@@ -492,7 +493,7 @@ class DiscoveryV2 extends Discovery {
 	UnicastDiscoveryClient udc = (UnicastDiscoveryClient) udcMap.get(fid);
 	UnicastResponse resp = udc.doUnicastDiscovery(
 		socket, constraints, defaultLoader, verifierLoader, context,
-		(ByteBuffer) outBuf.flip(), (ByteBuffer) inBuf.flip());
+		(ByteBuffer) ((Buffer) outBuf).flip(), (ByteBuffer) ((Buffer) inBuf).flip());
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST, "received {0} using {1}, {2}",
 		       new Object[]{ resp, udc, constraints });
@@ -571,7 +572,7 @@ class DiscoveryV2 extends Discovery {
 	// hand off to format provider to send response data
 	uds.handleUnicastDiscovery(
 	    response, socket, constraints, checker, context,
-	    (ByteBuffer) inBuf.flip(), (ByteBuffer) outBuf.flip());
+	    (ByteBuffer) ((Buffer)inBuf).flip(), (ByteBuffer) ((Buffer)outBuf).flip());
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST, "sent {0} using {1}, {2}, {3}",
 		       new Object[]{ response, uds, constraints, checker });

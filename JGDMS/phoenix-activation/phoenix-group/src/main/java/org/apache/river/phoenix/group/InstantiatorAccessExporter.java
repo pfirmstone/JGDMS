@@ -18,16 +18,15 @@
 
 package org.apache.river.phoenix.group;
 
-import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationInstantiator;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationInstantiator;
 import java.rmi.server.ExportException;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.export.Exporter;
-import net.jini.jrmp.JrmpExporter;
 import org.apache.river.phoenix.common.LocalAccess;
 
 /**
@@ -47,14 +46,6 @@ public class InstantiatorAccessExporter implements Exporter {
      * The wrapped impl.
      */
     private Remote wrapped;
-
-    /**
-     * Creates an exporter with an underlying {@link JrmpExporter} that
-     * exports on an anonymous port.
-     */
-    public InstantiatorAccessExporter() {
-	this.exporter = new JrmpExporter();
-    }
 
     /**
      * Creates an exporter with the specified underlying exporter.
@@ -80,6 +71,7 @@ public class InstantiatorAccessExporter implements Exporter {
      * @throws NullPointerException {@inheritDoc}
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public Remote export(Remote impl) throws ExportException {
 	if (!(impl instanceof ActivationInstantiator)) {
 	    throw new IllegalArgumentException(
@@ -94,6 +86,7 @@ public class InstantiatorAccessExporter implements Exporter {
     /**
      * @throws IllegalStateException {@inheritDoc}
      */
+    @Override
     public boolean unexport(boolean force) {
 	return exporter.unexport(force);
     }
@@ -105,6 +98,7 @@ public class InstantiatorAccessExporter implements Exporter {
 	    this.impl = impl;
 	}
 
+        @Override
 	public MarshalledObject newInstance(ActivationID id,
 					    ActivationDesc desc)
 	    throws ActivationException, RemoteException

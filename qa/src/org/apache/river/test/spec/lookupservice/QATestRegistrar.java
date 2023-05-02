@@ -37,6 +37,7 @@ import net.jini.export.ProxyAccessor;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.Replace;
 import org.apache.river.proxy.BasicProxyTrustVerifier;
 import org.apache.river.qa.harness.QAConfig;
 import org.apache.river.qa.harness.QATestEnvironment;
@@ -1070,8 +1071,9 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
         }
     }
 
+    @AtomicSerial
     protected abstract class BasicListener 
-	implements RemoteEventListener, ServerProxyTrust, Serializable 
+	implements Replace, RemoteEventListener, ServerProxyTrust, Serializable 
     {
 	Object proxy;
 
@@ -1083,6 +1085,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
             proxy = exportListener(this);
         }
 
+        @Override
 	public synchronized Object writeReplace() throws ObjectStreamException {
 	    return proxy;
 	}

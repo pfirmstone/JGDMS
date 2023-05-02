@@ -22,3 +22,6 @@ Preferred: true
 
 Name: org/apache/river/start/*
 Preferred: false
+
+Name: net/jini/activation/arg/*
+Preferred: false

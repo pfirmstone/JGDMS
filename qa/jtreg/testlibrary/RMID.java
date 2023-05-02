@@ -23,7 +23,8 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Properties;
@@ -231,7 +232,7 @@ public class RMID extends JavaVM {
 		mesg("getting a reference to the activation system");
 		system = (ActivationSystem) Naming.lookup("rmi://localhost:" + 
 		    TestLibrary.RMID_PORT + 
-		    "/java.rmi.activation.ActivationSystem");
+		    "/net.jini.activation.arg.ActivationSystem");
 		mesg("obtained a reference to the activation system");
 	    } catch (java.net.MalformedURLException mue) {
 	    }

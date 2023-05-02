@@ -44,7 +44,15 @@ public class TestURLStreamHandlerFactory {
 	    System.setSecurityManager(new SecurityManager());
 	}
 
-	String testsrc = System.getProperty("test.src", ".");
+	String testsrc;
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("loader");
+        sb.append(File.separator).append("pref").append(File.separator);
+        sb.append("PreferredClassLoader").append(File.separator);
+        sb.append("urlStreamHandlerFactory").append(File.separator);
+        testsrc = sb.toString();
 	URL[] codebaseURLs = new URL[] {
 	    new URL((new File(testsrc)).toURI().toURL(), "foo.jar"),
 	};

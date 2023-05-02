@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the confidentiality of message contents.
@@ -37,6 +39,17 @@ public final class Confidentiality
 				implements InvocationConstraint, Serializable
 {
     private static final long serialVersionUID = 6173438948668674131L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("val", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Confidentiality c) throws IOException{
+        arg.put("val", c.val);
+        arg.writeArgs();
+    }
 
     /**
      * Transmit message contents so that they cannot easily be interpreted by

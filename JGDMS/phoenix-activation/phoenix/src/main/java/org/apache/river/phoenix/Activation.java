@@ -26,23 +26,21 @@ import java.io.Serializable;
 import java.net.URL;
 import java.rmi.ConnectException;
 import java.rmi.ConnectIOException;
-import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
-import java.rmi.NotBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationInstantiator;
-import java.rmi.activation.ActivationMonitor;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.UnknownGroupException;
-import java.rmi.activation.UnknownObjectException;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationInstantiator;
+import net.jini.activation.arg.ActivationMonitor;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.UnknownGroupException;
+import net.jini.activation.arg.UnknownObjectException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.ExportException;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
 import java.rmi.server.RMISocketFactory;
@@ -77,6 +75,9 @@ import java.util.regex.Pattern;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import net.jini.activation.ActivationGroupDescImpl;
+import net.jini.activation.ActivationGroupIDImpl;
+import net.jini.activation.arg.MarshalledObject;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationNotFoundException;
@@ -88,7 +89,6 @@ import net.jini.export.Exporter;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
-import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.ServerEndpoint;
@@ -104,7 +104,6 @@ import org.apache.river.api.io.Valid;
 import org.apache.river.api.security.CombinerSecurityManager;
 import org.apache.river.config.Config;
 import org.apache.river.phoenix.common.AccessAtomicILFactory;
-import org.apache.river.phoenix.common.ActivationGroupData;
 import org.apache.river.phoenix.dl.AID;
 import org.apache.river.phoenix.dl.Activator;
 import org.apache.river.phoenix.dl.ConstrainableAID;
@@ -193,8 +192,8 @@ class Activation implements Serializable {
     private transient ActivationMonitor monitorStub;
     /** stub for registry */
     private transient Registry registryStub;
-    /** MarshalledObject(ActivationGroupData) or null */
-    private transient MarshalledObject groupData;
+    /** ActivationGroupData configuration data or null */
+    private transient String[] groupData;
     /** Location of ActivationGroupImpl or null */
     private transient String groupLocation;
     /** preparer for ActivationInstantiators */
@@ -310,8 +309,9 @@ class Activation implements Serializable {
                         "groupConfig",
                         String[].class,
                         configOptions);
-	    ActivationGroupData agd = new ActivationGroupData(groupConf);
-            groupData = new MarshalledInstance(agd).convertToMarshalledObject();
+//	    ActivationGroupData agd = new ActivationGroupData(groupConf);
+//            groupData = new AtomicMarshalledInstance(agd);
+            groupData = groupConf;
             outputHandler = (GroupOutputHandler) config.getEntry(
                     PHOENIX, "groupOutputHandler", GroupOutputHandler.class,
                     new GroupOutputHandler() {
@@ -402,8 +402,13 @@ class Activation implements Serializable {
                     RMISocketFactory.getDefaultSocketFactory()
             );
             int port = getInt(config, "registryPort", ActivationSystem.SYSTEM_PORT);
-            registryStub = LocateRegistry.createRegistry(port, registryRmiClientSocketFactory, registryRmiServerSocketFactory);
-            registryStub.bind("java.rmi.activation.ActivationSystem", systemStub);
+            try {
+                registryStub = LocateRegistry.createRegistry(port, registryRmiClientSocketFactory, registryRmiServerSocketFactory);
+            } catch (ExportException e){
+                logger.log(Level.CONFIG, "Unable to create Registry, attempt to connect.", e);
+                registryStub = LocateRegistry.getRegistry(null, port, registryRmiClientSocketFactory);
+            }
+            registryStub.bind("net.jini.activation.arg.ActivationSystem", systemStub);
             exported.signalAll();
             logger.info(getTextResource("phoenix.daemon.started"));
             entries = new GroupEntry[gids.length];
@@ -596,6 +601,8 @@ class Activation implements Serializable {
             writeLock.lock();
             try {
                 getGroupEntry(uid).activeObject(uid, mobj);
+            } catch (IOException ex) {
+                throw new UnknownObjectException("Unable to get group entry", ex);
             } finally {
                 writeLock.unlock();
             }
@@ -662,7 +669,7 @@ class Activation implements Serializable {
 	public ActivationGroupID registerGroup(ActivationGroupDesc desc)
 	    throws ActivationException
 	{
-	    ActivationGroupID id = new ActivationGroupID(systemStub);
+	    ActivationGroupID id = new ActivationGroupIDImpl(systemStub);
             writeLock.lock();
             try {
 		addLogRecord(new LogRegisterGroup(id, desc));
@@ -970,10 +977,10 @@ class Activation implements Serializable {
     private GroupEntry getGroupEntry(ActivationGroupID id)
 	throws UnknownGroupException
     {
-	if (id.getClass() == ActivationGroupID.class) {
+//	if (id.getClass() == ActivationGroupID.class) {
             GroupEntry entry = groupTable.get(id);
             if (entry != null && !entry.removed) return entry;
-	}
+//	}
 	throw new UnknownGroupException("group unknown");
     }
 
@@ -1248,10 +1255,10 @@ class Activation implements Serializable {
 	}
 
 	void activeObject(UID uid, MarshalledObject mobj)
-	    throws UnknownObjectException
+	    throws UnknownObjectException, IOException
 	{
             getObjectEntry(uid).stub =
-                new MarshalledWrapper(new MarshalledInstance(mobj));
+                new MarshalledWrapper(mobj);
 	}
 
 	void inactiveObject(UID uid)
@@ -1383,6 +1390,10 @@ class Activation implements Serializable {
                     if (detail == null) {
                         detail = e;
                     }
+                } catch (IOException ex) {
+                    if (detail == null) {
+                        detail = ex;
+                    }
                 }
                 if (groupInactive) {
                     // group has failed; mark inactive
@@ -1448,7 +1459,7 @@ class Activation implements Serializable {
 		    out.writeObject(id);
 		    ActivationGroupDesc gd = desc;
 		    if (gd.getClassName() == null) {
-			MarshalledObject data = gd.getData();
+			String[] data = gd.getData();
 			if (data == null) {
 			    data = activation.groupData;
 			}
@@ -1456,7 +1467,7 @@ class Activation implements Serializable {
 			if (loc == null) {
 			    loc = activation.groupLocation;
 			}
-			gd = new ActivationGroupDesc(
+			gd = new ActivationGroupDescImpl(
 				"org.apache.river.phoenix.group.ActivationGroupImpl",
 				loc,
 				data,
@@ -1671,7 +1682,7 @@ class Activation implements Serializable {
 	MarshalledWrapper activate( UID uid,
 				    boolean force,
 				    ActivationInstantiator inst)
-    	    throws RemoteException, ActivationException
+    	    throws RemoteException, ActivationException, IOException
 	{
 	    /* stub could be set to null by a concurrent group reset */
             MarshalledWrapper nstub;
@@ -1690,8 +1701,8 @@ class Activation implements Serializable {
             } finally {
                 activation.readLock.unlock();
             }
-	    MarshalledInstance marshalledProxy =
-		new MarshalledInstance(inst.newInstance(id, descriptor));
+	    MarshalledObject marshalledProxy =
+		inst.newInstance(id, descriptor);
             nstub = new MarshalledWrapper(marshalledProxy);
             activation.writeLock.lock();
             try {

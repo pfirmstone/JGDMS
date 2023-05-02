@@ -1,9 +1,9 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}*
+grant codebase "file:${jsk.home}${/}lib${/}*
 {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}*
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
 {
     permission java.security.AllPermission "", "";
 };
@@ -22,38 +22,38 @@ grant {
 // possible to perform as a privileged action from the overriding class.
 grant {
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
-    permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}", "read";
-    permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}${jsk-lib.jar}", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib-dl${/}${jsk-dl.jar}", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.collections.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${collections.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.jeri.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jeri.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.discovery.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${disco.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.activation.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${activation.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jgdms-rmi-tls.jar}" {
     permission java.security.AllPermission "", "";
 };

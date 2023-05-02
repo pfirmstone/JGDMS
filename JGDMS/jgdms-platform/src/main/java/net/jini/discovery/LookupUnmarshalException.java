@@ -27,6 +27,8 @@ import net.jini.core.lookup.ServiceRegistrar;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /**
@@ -76,6 +78,21 @@ import org.apache.river.api.io.Valid;
 public class LookupUnmarshalException extends AtomicException {
 
     private static final long serialVersionUID = 2956893184719950537L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("registrars", ServiceRegistrar[].class),
+            new SerialForm("marshalledRegistrars", MarshalledObject[].class),
+            new SerialForm("exceptions", Throwable[].class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, LookupUnmarshalException e) throws IOException{
+        arg.put("registrars", e.registrars);
+        arg.put("marshalledRegistrars", e.marshalledRegistrars);
+        arg.put("exceptions", e.exceptions);
+        arg.writeArgs();
+    }
 
     /**
      * Array containing the set of instances of <code>ServiceRegistrar</code>
@@ -239,6 +256,8 @@ public class LookupUnmarshalException extends AtomicException {
      * @param arg atomic deserialization parameter 
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
+     * @throws java.lang.ClassNotFoundException if one of the classes in the
+     *         stream cannot be resolved.
      */
     public LookupUnmarshalException(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, 

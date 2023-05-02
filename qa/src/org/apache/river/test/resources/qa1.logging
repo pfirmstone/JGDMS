@@ -108,6 +108,9 @@ sun.rmi.level = SEVERE
 net.jini.level = SEVERE
 org.apache.river.level = SEVERE
 
+# For Java Serialization
+java.io.serialization = SEVERE
+
 # For the LogManager
 org.apache.river.logging.LogManager.level = SEVERE
 
@@ -119,9 +122,6 @@ net.jini.activation.ActivatableInvocationHandler.level = SEVERE
 
 # For phoenix
 org.apache.river.phoenix.level=SEVERE
-
-# For JRMP
-net.jini.jrmp.JrmpExporter.level = SEVERE
 
 # For RMI TLS
 au.net.zeus.rmi.tls.client.level = SEVERE
@@ -183,7 +183,7 @@ net.jini.loader.ClassLoading.level = SEVERE
 net.jini.security.level = SEVERE
 #net.jini.security.trust.level = SEVERE
 #net.jini.security.integrity.level = SEVERE
-net.jini.security.policy.level = SEVERE
+net.jini.security.policy.level = CONFIG
 org.apache.river.api.security.CombinerSecurityManager.level = SEVERE
 
 # For HTTPMD
@@ -278,8 +278,8 @@ org.apache.river.outrigger.transactions.level = SEVERE
 org.apache.river.example.browser.level = SEVERE
 
 # For the test harness, tests, and infrastructure.
-org.apache.river.qa.harness.level = CONFIG
-org.apache.river.qa.harness.test.level = SEVERE
-org.apache.river.qa.harness.service.level = SEVERE
-org.apache.river.qa.harness.config.level = SEVERE
+org.apache.river.qa.harness.level = INFO
+org.apache.river.qa.harness.test.level = INFO
+org.apache.river.qa.harness.service.level = INFO
+org.apache.river.qa.harness.config.level = INFO
 org.apache.river.test.spec.jeri.mux.level = SEVERE

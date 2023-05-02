@@ -20,7 +20,7 @@ package org.apache.river.mahalo;
 import org.apache.river.mahalo.log.ClientLog;
 import org.apache.river.thread.wakeup.WakeupManager;
 
-import java.rmi.activation.ActivateFailedException;
+import net.jini.activation.arg.ActivateFailedException;
 import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.MarshalException;

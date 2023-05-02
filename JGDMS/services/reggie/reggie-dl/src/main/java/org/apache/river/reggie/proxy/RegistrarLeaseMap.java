@@ -17,6 +17,7 @@
  */
 package org.apache.river.reggie.proxy;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -27,6 +28,8 @@ import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.lease.AbstractIDLeaseMap;
 
 /**
@@ -36,9 +39,22 @@ import org.apache.river.lease.AbstractIDLeaseMap;
  * @author Sun Microsystems, Inc.
  *
  */
-class RegistrarLeaseMap extends AbstractIDLeaseMap<RegistrarLease> {
+public class RegistrarLeaseMap extends AbstractIDLeaseMap<RegistrarLease> {
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("server", Registrar.class),
+            new SerialForm("registrarID", ServiceID.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, RegistrarLeaseMap rlm) throws IOException{
+        arg.put("server", rlm.server);
+        arg.put("registrarID", rlm.registrarID);
+        arg.writeArgs();
+    }
 
     /**
      * The registrar.

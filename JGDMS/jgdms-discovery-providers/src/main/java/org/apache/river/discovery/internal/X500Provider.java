@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.UTFDataFormatException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.Buffer;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.security.AccessControlContext;
@@ -462,7 +463,7 @@ class X500Provider extends BaseProvider {
     private static ByteBuffer ensureArrayBacking(ByteBuffer buf) {
 	return buf.hasArray() ?
 	    buf : (ByteBuffer)
-		    ByteBuffer.allocate(buf.remaining()).put(buf).flip();
+		    ((Buffer)ByteBuffer.allocate(buf.remaining()).put(buf)).flip();
     }
 
     /**
@@ -511,11 +512,11 @@ class X500Provider extends BaseProvider {
 		data = buf.duplicate();
 		int authBlockLen = principalName.length + maxSignatureLength;
 		if (data.remaining() >= INT_LEN + authBlockLen) {
-		    data.position(data.position() + INT_LEN);
-		    data.limit(data.limit() - authBlockLen);
+		    ((Buffer)data).position(data.position() + INT_LEN);
+		    ((Buffer)data).limit(data.limit() - authBlockLen);
 		    overflow = false;
 		} else {
-		    data.limit(data.position());
+		    ((Buffer)data).limit(data.position());
 		    overflow = true;
 		}
 	    }
@@ -529,11 +530,11 @@ class X500Provider extends BaseProvider {
 		    throw new BufferOverflowException();
 		}
 		buf.putInt(data.position() - (buf.position() + INT_LEN));
-		buf.position(data.position());
+		((Buffer)buf).position(data.position());
 		buf.put(principalName);
 
 		ByteBuffer b =
-		    ensureArrayBacking((ByteBuffer) data.duplicate().flip());
+		    ensureArrayBacking((ByteBuffer) ((Buffer) data.duplicate()).flip());
 		signature.update(
 		    b.array(), b.arrayOffset() + b.position(), b.remaining());
 		buf.put(signature.sign());

@@ -25,7 +25,9 @@ import org.apache.river.logging.Levels;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.lang.ref.ReferenceQueue;
@@ -652,7 +654,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean fromImpl = false;
 	Util.populateContext(context, integrity, atomicValidation);
 	context.add(serverConstraints);
-	ObjectInputStream in = null;
+	ObjectInput in = null;
 	
 	try {
 	    /*
@@ -734,7 +736,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	try {
 	    request.getResponseOutputStream().write(t == null ?
 						    RETURN : THROW);
-	    ObjectOutputStream out =
+	    ObjectOutput out =
 		createMarshalOutputStream(impl, method, request, context);
 	    if (t != null) {
 		if (logger.isLoggable(Levels.FAILED)) {
@@ -825,7 +827,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * @throws	IOException if an I/O exception occurs
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
-    protected ObjectInputStream
+    protected ObjectInput
         createMarshalInputStream(Object impl,
 				 final InboundRequest request,
 				 final boolean integrity,
@@ -909,7 +911,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *		<code>request</code>, or <code>context</code> is
      *		<code>null</code>
      **/
-    protected ObjectOutputStream
+    protected ObjectOutput
         createMarshalOutputStream(final Object impl,
 				  Method method,
 				  final InboundRequest request,
@@ -1133,7 +1135,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
     protected Method unmarshalMethod(Remote impl,
-				     ObjectInputStream in,
+				     ObjectInput in,
 				     Collection context)
         throws IOException, NoSuchMethodException, ClassNotFoundException
     {
@@ -1196,7 +1198,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      **/
     protected Object[] unmarshalArguments(Remote impl,
 					  Method method,
-					  ObjectInputStream in,
+					  ObjectInput in,
 					  Collection context)
 	throws IOException, ClassNotFoundException
     {
@@ -1329,7 +1331,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     protected void marshalReturn(Remote impl,
 				 Method method,
 				 Object returnValue,
-				 ObjectOutputStream out,
+				 ObjectOutput out,
 				 Collection context)
 	throws IOException
     {
@@ -1378,7 +1380,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     protected void marshalThrow(Remote impl,
 				Method method,
 				Throwable throwable,
-				ObjectOutputStream out,
+				ObjectOutput out,
 				Collection context)
 	throws IOException
     {

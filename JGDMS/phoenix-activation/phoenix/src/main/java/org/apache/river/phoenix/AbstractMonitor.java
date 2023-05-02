@@ -18,7 +18,7 @@
 
 package org.apache.river.phoenix;
 
-import java.rmi.activation.ActivationMonitor;
+import net.jini.activation.arg.ActivationMonitor;
 
 /**
  * Abstract class for generating JRMP and IIOP stubs.

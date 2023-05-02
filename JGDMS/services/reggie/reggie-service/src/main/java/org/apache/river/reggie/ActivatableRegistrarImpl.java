@@ -15,23 +15,22 @@
  */
 package org.apache.river.reggie;
 
-import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationID;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 
 /**
  *
  * @author peter
  */
-class ActivatableRegistrarImpl extends PersistentRegistrarImpl  
+public class ActivatableRegistrarImpl extends PersistentRegistrarImpl  
 				      implements DynamicProxyCodebaseAccessor {
      /**
      * Constructs an ActivatableRegistrarImpl assigned
      * the given activation ID, based on a configuration obtained using
      * the provided marshalled string array.
      */
-    ActivatableRegistrarImpl(ActivationID activationID, 
-				    MarshalledObject data) throws Exception
+    public ActivatableRegistrarImpl(ActivationID activationID, 
+				    String[] data) throws Exception
     {
 	super(activationID, data);
     }

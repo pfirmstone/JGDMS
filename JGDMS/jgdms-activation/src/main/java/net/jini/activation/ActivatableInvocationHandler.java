@@ -18,6 +18,7 @@
 
 package net.jini.activation;
 
+import net.jini.activation.arg.ActivateFailedException;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -27,7 +28,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.rmi.ConnectException;
 import java.rmi.ConnectIOException;
 import java.rmi.MarshalException;
@@ -37,16 +37,15 @@ import java.rmi.RemoteException;
 import java.rmi.ServerError;
 import java.rmi.ServerException;
 import java.rmi.UnknownHostException;
-import java.rmi.activation.ActivateFailedException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.UnknownObjectException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.UnknownObjectException;
 import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
@@ -58,6 +57,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.action.GetBooleanAction;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.Resolve;
 import org.apache.river.api.io.Valid;
 import org.apache.river.jeri.internal.runtime.Util;
 import org.apache.river.logging.Levels;
@@ -1249,7 +1249,7 @@ public final class ActivatableInvocationHandler
      */
     private static ClassLoader getProxyLoader(final Class proxyClass) {
 	return (ClassLoader)
-	    AccessController.doPrivileged(new PrivilegedAction() {
+	    AccessController.doPrivilegedWithCombiner(new PrivilegedAction() {
 		public Object run() {
 		    return proxyClass.getClassLoader();
 		}

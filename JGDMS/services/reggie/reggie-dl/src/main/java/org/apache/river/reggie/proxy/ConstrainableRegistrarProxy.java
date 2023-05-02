@@ -35,6 +35,8 @@ import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * RegistrarProxy subclass that supports constraints.
@@ -43,7 +45,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  */
 @AtomicSerial
-final class ConstrainableRegistrarProxy
+public final class ConstrainableRegistrarProxy
     extends RegistrarProxy implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
@@ -99,6 +101,19 @@ final class ConstrainableRegistrarProxy
 	Util.getMethod(Administrable.class, "getAdmin", new Class[0]),
 	Util.getMethod(Administrable.class, "getAdmin", new Class[0])
     };
+    
+    private static final String CONSTRAINTS = "constraints";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(CONSTRAINTS, MethodConstraints.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConstrainableRegistrarProxy crp) throws IOException{
+        arg.put(CONSTRAINTS, crp.constraints);
+        arg.writeArgs();
+    }
 
     /** Client constraints for this proxy, or null */
     private final MethodConstraints constraints;
@@ -106,7 +121,7 @@ final class ConstrainableRegistrarProxy
     private static MethodConstraints check(GetArg arg) 
 	    throws IOException, ClassNotFoundException{
 	RegistrarProxy sup = new RegistrarProxy(arg);
-	MethodConstraints constraints = arg.get("constraints", null, MethodConstraints.class);
+	MethodConstraints constraints = arg.get(CONSTRAINTS, null, MethodConstraints.class);
 	MethodConstraints proxyCon = null;
 	if (sup.server instanceof RemoteMethodControl && 
 	    (proxyCon = ((RemoteMethodControl)sup.server).getConstraints()) != null) {
@@ -119,7 +134,7 @@ final class ConstrainableRegistrarProxy
 	return constraints;
     }
     
-    ConstrainableRegistrarProxy(GetArg arg) 
+    public ConstrainableRegistrarProxy(GetArg arg) 
 	    throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }

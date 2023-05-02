@@ -21,7 +21,6 @@ package net.jini.core.constraint;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.security.Principal;
@@ -29,6 +28,8 @@ import java.util.Collection;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the client, such that if the client
@@ -66,9 +67,18 @@ public final class ClientMaxPrincipal
     /**
      * @serialField principals Principal[] The principals.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("principals", Principal[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields 
+            = serialForm();
+    
+    public static SerialForm [] serialForm (){
+        return new SerialForm[]{
+            new SerialForm("principals", Principal[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ClientMaxPrincipal p){
+        arg.put("principals", p.principals.clone());
+    }
 
     /**
      * The principals.

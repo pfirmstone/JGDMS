@@ -30,15 +30,17 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupDesc.CommandEnvironment;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationSystem;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.logging.Logger;
+import net.jini.activation.ActivationGroupDescImpl;
+import net.jini.activation.ActivationGroupDescImpl.CommandEnvironmentImpl;
 import net.jini.config.Configuration;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.io.AtomicSerial;
@@ -156,7 +158,7 @@ public class SharedActivationGroupDescriptor
      *     defaults to the localhost.  
      * @param port port of desired activation system. If value is &lt;= 0, then
      *     defaults to  
-     *     {@link java.rmi.activation.ActivationSystem#SYSTEM_PORT 
+     *     {@link net.jini.activation.arg.ActivationSystem#SYSTEM_PORT 
      *     ActivationSystem.SYSTEM_PORT}.
      */
     public SharedActivationGroupDescriptor(
@@ -315,17 +317,17 @@ public class SharedActivationGroupDescriptor
      * This method:
      * <UL>
      * <LI> creates a 
-     *      {@link java.rmi.activation.ActivationGroupDesc} with
+     *      {@link net.jini.activation.arg.ActivationGroupDesc} with
      *      the provided constructor parameter information
      * <LI> calls 
-     *      {@link java.rmi.activation.ActivationSystem#registerGroup(java.rmi.activation.ActivationGroupDesc)
+     *      {@link net.jini.activation.arg.ActivationSystem#registerGroup(net.jini.activation.ActivationGroupDesc)
      *      ActivationSystem.registerGroup()} with the constructed 
      *      <code>ActivationGroupDesc</code>
      * <LI> persists the returned
-     *      {@link java.rmi.activation.ActivationGroupID activation group identifier}
+     *      {@link net.jini.activation.arg.ActivationGroupID activation group identifier}
      *      to the shared group log.
      * <LI> calls 
-     *      {@link java.rmi.activation.ActivationSystem#unregisterGroup(java.rmi.activation.ActivationGroupID) 
+     *      {@link net.jini.activation.arg.ActivationSystem#unregisterGroup(net.jini.activation.ActivationGroupID) 
      *      ActivationSystem.unregisterGroup()}
      *      if an exception occurs while persisting the 
      *      <code>ActivationGroupID</code>.
@@ -339,7 +341,7 @@ public class SharedActivationGroupDescriptor
      *     policy setting to server properties.
      * </OL>
      * @return the 
-     *      {@link java.rmi.activation.ActivationGroupID} for the newly 
+     *      {@link net.jini.activation.arg.ActivationGroupID} for the newly 
      *      created activation system group instance.
      *
      */
@@ -364,12 +366,12 @@ public class SharedActivationGroupDescriptor
 		config);
 		
 	CommandEnvironment cmdToExecute
-	    = new CommandEnvironment(getServerCommand(), 
+	    = new CommandEnvironmentImpl(getServerCommand(), 
 	                             getServerOptions());
 	ActivationGroupID gid = null;
         try {
 	    gid = sys.registerGroup(
-                new ActivationGroupDesc(getServerProperties(), 
+                new ActivationGroupDescImpl(getServerProperties(), 
 		                        cmdToExecute));
  	    storeGroupID(getLog(), gid);
 	} catch (Exception e) {

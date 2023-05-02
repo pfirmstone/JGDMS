@@ -27,6 +27,8 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -34,7 +36,7 @@ import java.util.Objects;
  */
 @Serializer(replaceObType = URI.class)
 @AtomicSerial
-class URISerializer implements Serializable {
+public class URISerializer implements Serializable {
    private static final long serialVersionUID = 1L;
     
     /**
@@ -42,9 +44,22 @@ class URISerializer implements Serializable {
      * All fields can be final and this object becomes immutable.
      */
     private static final ObjectStreamField[] serialPersistentFields = 
-	{
-	    new ObjectStreamField("uriExternalForm", String.class)
-	};
+	serialForm();
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("uriExternalForm", String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, URISerializer u) throws IOException{
+        putArgs(arg, u);
+        arg.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, URISerializer u){
+        pf.put("uriExternalForm", u.uriExternalForm);
+    }
     
     private final String uriExternalForm;
     private final /*transient*/ URI uri;
@@ -104,8 +119,7 @@ class URISerializer implements Serializable {
      * @throws IOException 
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	ObjectOutputStream.PutField pf = out.putFields();
-	pf.put("uriExternalForm", uriExternalForm);
+	putArgs(out.putFields(), this);
 	out.writeFields();
     }  
 }

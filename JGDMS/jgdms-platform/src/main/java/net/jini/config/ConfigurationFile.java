@@ -61,6 +61,8 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.logging.Levels;
 
 /**
@@ -2811,6 +2813,26 @@ public class ConfigurationFile extends AbstractConfiguration {
     public static class ErrorDescriptor implements Serializable {
     
         private static final long serialVersionUID = 1L;
+        
+        public static SerialForm[] serialForm(){    
+            return new SerialForm[]{
+                new SerialForm("lineno", Integer.TYPE),
+                new SerialForm("override", Integer.TYPE),
+                new SerialForm("description", String.class),
+                new SerialForm("locationName", String.class),
+                new SerialForm("t", Throwable.class)
+            };
+        };
+        
+        public static void serialize(PutArg arg, ErrorDescriptor ed) throws IOException{
+            arg.put("lineno", ed.lineno);
+            arg.put("override", ed.override);
+            arg.put("description", ed.description);
+            arg.put("locationName", ed.locationName);
+            arg.put("t", ed.t);
+            arg.writeArgs();
+        }
+        
         /** 
 	 * line number where this syntax error occurred 
 	 * @serial

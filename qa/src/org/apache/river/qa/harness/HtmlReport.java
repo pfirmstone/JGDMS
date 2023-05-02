@@ -234,8 +234,8 @@ public class HtmlReport {
      * Prints information about the test environment.
      */
     private void printEnvironment() throws IOException {
-        String installDir = "org.apache.river.qa.home";//XXX note 'qa'
-        String jskHome = "org.apache.river.jsk.home";
+        String installDir = "qa.home";//XXX note 'qa'
+        String jskHome = "jsk.home";
         out.println();
         out.println("<TD>");
         out.println("<PRE>Installation directory of the JSK:");

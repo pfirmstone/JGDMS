@@ -20,8 +20,7 @@ package org.apache.river.qa.harness;
 import org.apache.river.admin.DestroyAdmin;
 
 import java.io.IOException;
-import java.rmi.activation.ActivationID;
-import java.rmi.MarshalledObject;
+import net.jini.activation.arg.ActivationID;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -34,7 +33,6 @@ import net.jini.admin.Administrable;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 
@@ -44,7 +42,7 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
  * using a Jeri exporter. A <code>Configuration</code> is not used
  * by this service.
  */
-class KillerImpl 
+public class KillerImpl 
     implements VMKiller, ProxyAccessor, Administrable, DestroyAdmin  
 {
 
@@ -65,7 +63,7 @@ class KillerImpl
      * @param activationID the activationID for this service instance
      * @param data the payload object for this service instance (unused)
      */
-    public KillerImpl(ActivationID activationID, MarshalledObject data)
+    public KillerImpl(ActivationID activationID, String[] data)
 	throws IOException, ClassNotFoundException
     {
 	this(getExporter(activationID));

@@ -35,7 +35,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 import javax.security.auth.PrivateCredentialPermission;
 
@@ -49,12 +48,19 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     protected static final CodeSource nullCS = new CodeSource((URL) null, (Certificate[]) null);
     protected final Set<Principal> pals;
     private final int hashCode;
+    private boolean hasUnresolved;
     @SuppressWarnings("unchecked")
     PrincipalGrant(Principal[] pals, Permission[] perm){
         super(perm);
         if ( pals != null ){
-	    Set<Principal> palCol = new HashSet<Principal>(pals.length);
-            palCol.addAll(Arrays.asList(pals));
+            int len = pals.length;
+            boolean unresolved = false;
+            Set<Principal> palCol = new HashSet<Principal>(len);
+            for (int i=0; i < len; i++){
+                palCol.add(pals[i]);
+                if (pals[i] instanceof UnresolvedPrincipal) unresolved = true;
+            }
+            this.hasUnresolved = unresolved;
 	    this.pals = Collections.unmodifiableSet(palCol);
         }else {
             this.pals = Collections.emptySet();
@@ -168,52 +174,55 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     boolean implies(Principal[] prs) {
         if ( pals.isEmpty()) return true;
         if ( prs == null || prs.length == 0 ) return false;
-        // PermissionGrant Principals match if equal or if they are Groups and
-        // the Principals being tested are their members.  Every Principal
+        // PermissionGrant Principals match if equal.  Every Principal
         // in this PermissionGrant must have a match.
-        List<Principal> princp = Arrays.asList(prs);
-        int matches = 0;
-        Iterator<Principal> principalItr = pals.iterator();
-        while (principalItr.hasNext()){
-            Principal entrypal = principalItr.next();
-//            Group g = null;
-//            if ( entrypal instanceof Group ){
-//                g = (Group) entrypal;
-//            }
-            Iterator<Principal> p = princp.iterator();
-            // The first match breaks out of internal loop.
-            while (p.hasNext()){
-                Principal implied = p.next();
-                if (entrypal.equals(implied)) {
-                    matches++;
-                    break;
+        if (hasUnresolved){
+            int matches = 0;
+            Iterator<Principal> requiredPrincipals = pals.iterator();
+            PRINCIPAL: while (requiredPrincipals.hasNext())
+            {
+                Principal requiredPrincipal = requiredPrincipals.next();
+                if (requiredPrincipal instanceof UnresolvedPrincipal){
+                    UnresolvedPrincipal unresolvedRequiredPrincipal = 
+                            (UnresolvedPrincipal) requiredPrincipal;
+                    for (int i=0, l=prs.length; i < l; i++){
+                        if (unresolvedRequiredPrincipal.implies(prs[i])){
+                            matches++;
+                            continue PRINCIPAL;
+                        }
+                    }
                 }
-                /* Having thought further about the following, I'm hesitant
-                 * to allow a positive match for a Principal belonging to a 
-                 * Group defined in PrincipalGrant, my reasoning is that
-                 * a PrincipalGrant is immutable and therefore shouldn't change.
-                 * Group represents a mutable component which can change the
-                 * result of implies.  A PrincipalGrant, should
-                 * have the same behaviour on all calls to implies, ie: be idempotent.
-                 * 
-                 * The reason for this choice at this time; there is
-                 * no way a Policy can be aware the PrincipalGrant
-                 * has changed its behaviour. Since PrincpalGrant doesn't
-                 * make the determination of a Permission implies, it only
-                 * stores the PermissionGrant, a permission may continue to be
-                 * implied after a Principal has been removed from a Group due
-                 * to caching of PermissionCollections within the Policy.
-                 * 
-                 * Use Subject instead to group Principal's to grant additional
-                 * Privileges to a user Principal.
-                 */ 
-//                if ( g != null && g.isMember(implied) ) {
-//                    matches++;
-//                    break;
-//                }
-            }  
+                for (int i=0, l=prs.length; i < l; i++){
+                    if (requiredPrincipal.equals(prs[i])){
+                        matches++;
+                        continue PRINCIPAL;
+                    }
+                }
+            }
+            
+            return matches == pals.size();
         }
-        return matches == pals.size();
+        Set<Principal> hasPrincipals = new HashSet<Principal>(Arrays.asList(prs));
+        return hasPrincipals.containsAll(pals);
+        /* I'm hesitant
+         * to allow a positive match for a Principal belonging to a
+         * Group defined in PrincipalGrant, my reasoning is that
+         * a PrincipalGrant is immutable and therefore shouldn't change.
+         * Group represents a mutable component which can change the
+         * result of implies.  A PrincipalGrant, should
+         * have the same behaviour on all calls to implies, ie: be idempotent.
+         *
+         * The reason for this choice at this time; there is
+         * no way a Policy can be aware the PrincipalGrant
+         * has changed its behaviour. Since PrincpalGrant doesn't
+         * make the determination of a Permission implies, it only
+         * stores the PermissionGrant, a permission may continue to be
+         * implied after a Principal has been removed from a Group due
+         * to caching of PermissionCollections within the Policy.
+         *
+         * Use Subject instead to group Principal's to grant additional
+         * Privileges to a user Principal.
+         */ 
     }
       
     /* Dynamic grant's and file policy grant's have different semantics,

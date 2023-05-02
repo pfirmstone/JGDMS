@@ -22,7 +22,7 @@ import org.apache.river.qa.harness.Test;
 import org.apache.river.qa.harness.TestException;
 import org.apache.river.start.SharedActivationGroupDescriptor;
 import java.lang.reflect.Constructor;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationSystem;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -153,7 +153,7 @@ public class SharedActivationGroupDescriptorTest2 extends StarterBase implements
        int desired = 
 	   (src <= 0) ? 
                (java.security.AccessController.doPrivileged(
-                       new GetIntegerAction("java.rmi.activation.port",
+                       new GetIntegerAction("net.jini.activation.port",
                                ActivationSystem.SYSTEM_PORT))).intValue()
                : src;	
         return (desired == dest);

@@ -39,7 +39,8 @@ import java.io.*;
 import java.lang.reflect.*;
 import java.net.*;
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.*;
 import java.rmi.registry.*;
 import java.rmi.server.*;
 import java.util.Properties;
@@ -151,7 +152,7 @@ public class DownloadSecurityManager
 		new ActivationGroupDesc("AlternateGroup", location,
 					new MarshalledObject(groupDesc1),
 					p, null);
-	    java.rmi.activation.ActivationGroupID groupID =
+	    net.jini.activation.arg.ActivationGroupID groupID =
 		ActivationGroup.getSystem().registerGroup(groupDesc);
 	    ActivationDesc desc =
 		new ActivationDesc(groupID, "DownloadSecurityManager", null,

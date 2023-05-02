@@ -28,7 +28,7 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.config.ConfigurationException;
 
 import java.io.File;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationSystem;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
@@ -78,9 +78,9 @@ import org.apache.river.system.FileSystem;
  *       used by the activatable implementation. <p>
  * 
  *       The service calls the {@link
- *       java.rmi.activation.ActivationSystem#unregisterObject
+ *       net.jini.activation.arg.ActivationSystem#unregisterObject
  *       unregisterObject} method on the {@link
- *       java.rmi.activation.ActivationSystem} when there is a problem
+ *       net.jini.activation.arg.ActivationSystem} when there is a problem
  *       creating a service.
  *   </table>
  *

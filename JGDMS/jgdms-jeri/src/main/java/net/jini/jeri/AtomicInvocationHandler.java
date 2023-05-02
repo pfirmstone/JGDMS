@@ -16,6 +16,7 @@
 package net.jini.jeri;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -26,12 +27,17 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
 import org.apache.river.api.io.AtomicMarshalInputStream;
 import org.apache.river.api.io.AtomicMarshalOutputStream;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.jeri.internal.runtime.Util;
 
 /**
@@ -42,27 +48,53 @@ import org.apache.river.jeri.internal.runtime.Util;
 public class AtomicInvocationHandler extends BasicInvocationHandler {
     private static final long serialVersionUID = 1L;
     
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("useCodebaseAnnotations", Boolean.TYPE),
+            new SerialForm("compression", Compression.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, AtomicInvocationHandler aih)
+            throws IOException{
+        arg.put("useCodebaseAnnotations", aih.useCodebaseAnnotations);
+        arg.put("compression", aih.compression);
+        arg.writeArgs();
+    }
+    
     /**
      * @serial
      */
     private final boolean useCodebaseAnnotations;
+    private final Compression compression;
 
     public AtomicInvocationHandler(AtomicInvocationHandler other, MethodConstraints clientConstraints) {
 	super(other, clientConstraints);
 	this.useCodebaseAnnotations = other.useCodebaseAnnotations;
+        this.compression = other.compression;
     }
 
-    public AtomicInvocationHandler(AtomicSerial.GetArg arg) throws IOException {
+    public AtomicInvocationHandler(AtomicSerial.GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
 	this.useCodebaseAnnotations = arg.get("useCodebaseAnnotations", false);
+        this.compression = arg.get("compression", Compression.NONE, Compression.class);
     }
 
     public AtomicInvocationHandler(ObjectEndpoint oe,
 				   MethodConstraints serverConstraints,
 				   boolean useCodebaseAnnotations) 
     {
+	this(oe, serverConstraints, useCodebaseAnnotations, Compression.NONE);
+    }
+    
+    public AtomicInvocationHandler(ObjectEndpoint oe,
+				   MethodConstraints serverConstraints,
+				   boolean useCodebaseAnnotations,
+                                   Compression compress) 
+    {
 	super(oe, serverConstraints);
 	this.useCodebaseAnnotations = useCodebaseAnnotations;
+        this.compression = compress;
     }
     
     /**
@@ -87,7 +119,8 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 	return
 		useCodebaseAnnotations == other.useCodebaseAnnotations &&
 	    Util.sameClassAndEquals(getObjectEndpoint(), other.getObjectEndpoint()) 
-	    && Util.equals(getServerConstraints(), other.getServerConstraints());
+	    && Util.equals(getServerConstraints(), other.getServerConstraints())
+                && compression.equals(other.compression);
     }
     
    @Override
@@ -95,6 +128,7 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 	int hash = 7;
 	ObjectEndpoint oe = getObjectEndpoint();
 	hash = 67 * hash + oe.hashCode();
+        hash = 67 * hash + compression.hashCode();
 	return hash;
     }
   
@@ -133,7 +167,30 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 	if (proxy == null || method == null) {
 	    throw new NullPointerException();
 	}
-	final OutputStream out = request.getRequestOutputStream();
+	final OutputStream out;
+        switch (compression){
+            case NONE: 
+                out = request.getRequestOutputStream();
+                break;
+            case DEFLATE:
+                out  = new DeflaterOutputStream(request.getRequestOutputStream());
+                break;
+            case DEFLATE_BEST_COMPRESSION:
+                out = new DeflaterOutputStream(
+                        request.getRequestOutputStream(),
+                        new Deflater(Deflater.BEST_COMPRESSION)
+                );
+                break;
+            case DEFLATE_BEST_SPEED:
+                out = new DeflaterOutputStream(
+                        request.getRequestOutputStream(),
+                        new Deflater(Deflater.BEST_SPEED)
+                );
+                break;
+            default:
+                out = request.getRequestOutputStream();
+            
+        }
 	final Collection unmodContext = Collections.unmodifiableCollection(context);
 	try {
 	    return AccessController.doPrivileged(new PrivilegedExceptionAction<MarshalOutputStream>(){
@@ -218,7 +275,24 @@ public class AtomicInvocationHandler extends BasicInvocationHandler {
 		
 		@Override
 		public ObjectInputStream run() throws Exception {
-		    return AtomicMarshalInputStream.create(request.getResponseInputStream(),
+                    InputStream in = request.getResponseInputStream();
+                    switch (compression){
+                        case NONE:
+                            break;
+                        case DEFLATE:
+                            in = new InflaterInputStream(in);
+                            break;
+                        case DEFLATE_BEST_COMPRESSION:
+                            in = new InflaterInputStream(in);
+                            break;
+                        case DEFLATE_BEST_SPEED:
+                            in = new InflaterInputStream(in);
+                            break;
+                        default:
+                            break;
+                            
+                    }
+		    return AtomicMarshalInputStream.create(in,
 				    proxyLoader, integrity, proxyLoader,
 				    unmodContext, useCodebaseAnnotations);
 		}

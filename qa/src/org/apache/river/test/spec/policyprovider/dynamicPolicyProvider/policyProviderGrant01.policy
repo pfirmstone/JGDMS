@@ -13,7 +13,7 @@
  * 5. allow accessClassInPackage for sun.security.provider
  */
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-ext${/}*" {
+grant codebase "file:${jsk.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
 };
 
@@ -23,19 +23,19 @@ grant codebase "file:${org.apache.river.qa.harness.harnessJar}" {
     //permission java.lang.RuntimePermission "modifyThreadGroup";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jiniharness.jar" {
+grant codebase "file:${qa.home}${/}lib${/}jiniharness.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}jinitests.jar" {
+grant codebase "file:${qa.home}${/}lib${/}jinitests.jar" {
 
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.pref.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk.pref.jar}" {
     permission java.security.AllPermission "", "";
 };
 

@@ -18,6 +18,7 @@
 package org.apache.river.api.io;
 
 import java.io.ObjectStreamField;
+import org.apache.river.api.io.AtomicMarshalInputStream.DiscardField;
 
 // A slot is a field plus its value
 
@@ -38,6 +39,14 @@ class ObjectSlot {
     // assigned (false)
     private boolean defaulted = true;
     private ClassNotFoundException exception = null;
+    
+    /**
+     * 
+     * @return true if field is to be discarded from stream.
+     */
+    public synchronized boolean discard(){
+        return field instanceof DiscardField && !field.isPrimitive();
+    }
 
     /**
      * @return the field
@@ -196,5 +205,10 @@ class ObjectSlot {
      */
     public synchronized void setDefaulted(boolean defaulted) {
 	this.defaulted = defaulted;
+    }
+    
+    @Override
+    public String toString(){
+        return getField().toString();
     }
 }

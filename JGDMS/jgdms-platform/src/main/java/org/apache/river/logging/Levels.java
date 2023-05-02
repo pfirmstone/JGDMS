@@ -25,11 +25,14 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
+import java.io.ObjectStreamField;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.logging.Level;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
 * Defines additional {@link Level} values.
@@ -81,6 +84,32 @@ public class Levels {
     @AtomicSerial
     private static final class LevelData implements Serializable {
         private static final long serialVersionUID = -8176160795706313070L;
+        
+        private static final String NAME = "name";
+        private static final String VALUE = "value";
+        private static final String RESOURCE_BUNDLE_NAME = "resourceBundleName";
+        private static final String LOCALIZED_LEVEL_NAME = "localizedLevelName";
+        
+        private static final ObjectStreamField [] serialPersistentFields
+                = serialForm();
+        
+        public static SerialForm [] serialForm(){
+            return new SerialForm []{
+                new SerialForm(NAME, String.class),
+                new SerialForm(VALUE, Integer.TYPE),
+                new SerialForm(RESOURCE_BUNDLE_NAME, String.class),
+                new SerialForm(LOCALIZED_LEVEL_NAME, String.class)
+            };
+        }
+        
+        public static void serialize(PutArg arg, LevelData l) throws IOException{
+            arg.put(NAME, l.name);
+            arg.put(VALUE, l.value);
+            arg.put(RESOURCE_BUNDLE_NAME, l.resourceBundleName);
+            arg.put(LOCALIZED_LEVEL_NAME, l.localizedLevelName);
+            arg.writeArgs();
+        }
+        
         private final String name;
         private final int value;
         private final String resourceBundleName;
@@ -105,10 +134,10 @@ public class Levels {
 	}
 	
 	public LevelData(GetArg arg) throws IOException, ClassNotFoundException{
-	    this(arg.get("name", null, String.class),
-		 arg.get("value", 0),
-		 arg.get("resourceBundleName", null, String.class),
-		 arg.get("localizedLevelName", null, String.class)
+	    this(arg.get(NAME, null, String.class),
+		 arg.get(VALUE, 0),
+		 arg.get(RESOURCE_BUNDLE_NAME, null, String.class),
+		 arg.get(LOCALIZED_LEVEL_NAME, null, String.class)
 	    );
 	}
     }

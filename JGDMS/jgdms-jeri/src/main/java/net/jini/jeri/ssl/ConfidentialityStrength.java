@@ -24,6 +24,8 @@ import net.jini.core.constraint.Confidentiality;
 import net.jini.core.constraint.InvocationConstraint;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint that, if confidentiality of message contents is
@@ -57,6 +59,18 @@ public final class ConfidentialityStrength
     /* -- Fields -- */
 
     private static final long serialVersionUID = -5413316999614306469L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("value", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConfidentialityStrength cs) 
+            throws IOException{
+        arg.put("value", cs.value);
+        arg.writeArgs();
+    }
 
     /**
      * RFC 7525 Current best practice, if confidentiality of message contents 

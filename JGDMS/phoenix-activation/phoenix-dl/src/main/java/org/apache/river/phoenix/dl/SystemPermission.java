@@ -22,7 +22,7 @@ import net.jini.security.AccessPermission;
 
 /**
  * Represents permissions that can be used to express the access control
- * policy for the {@link java.rmi.activation.ActivationSystem} remote
+ * policy for the {@link net.jini.activation.arg.ActivationSystem} remote
  * object exported with
  * {@link net.jini.jeri.BasicJeriExporter}. This
  * class can be passed to
@@ -44,70 +44,70 @@ import net.jini.security.AccessPermission;
  * <th>Risks of Allowing this Permission</th>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.activeGroup</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#activeGroup
+ * <td>net.jini.activation.arg.ActivationSystem.activeGroup</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#activeGroup
  * ActivationSystem.activeGroup}</td>
  * <td>The caller can inject itself as the instantiation of a group if the
  * group is currently being activated.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.getActivationDesc</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#getActivationDesc
+ * <td>net.jini.activation.arg.ActivationSystem.getActivationDesc</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#getActivationDesc
  * ActivationSystem.getActivationDesc}</td>
  * <td>The caller can obtain the descriptor for an existing activatable object
  * if it knows the activation identifier.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.getActivationGroupDesc</td>
+ * <td>net.jini.activation.arg.ActivationSystem.getActivationGroupDesc</td>
  * <td>invoking
- * {@link java.rmi.activation.ActivationSystem#getActivationGroupDesc
+ * {@link net.jini.activation.arg.ActivationSystem#getActivationGroupDesc
  * ActivationSystem.getActivationGroupDesc}</td>
  * <td>The caller can obtain the descriptor for an existing activation group
  * if it knows the activation group identifier.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.registerGroup</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#registerGroup
+ * <td>net.jini.activation.arg.ActivationSystem.registerGroup</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#registerGroup
  * ActivationSystem.registerGroup}</td>
  * <td>The caller can register new activation groups.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.registerObject</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#registerObject
+ * <td>net.jini.activation.arg.ActivationSystem.registerObject</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#registerObject
  * ActivationSystem.registerObject}</td>
  * <td>The caller can register new activatable objects.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.setActivationDesc</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#setActivationDesc
+ * <td>net.jini.activation.arg.ActivationSystem.setActivationDesc</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#setActivationDesc
  * ActivationSystem.setActivationDesc}</td>
  * <td>The caller can replace the descriptor for an existing activatable
  * object if it knows the activation identifier.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.setActivationGroupDesc</td>
+ * <td>net.jini.activation.arg.ActivationSystem.setActivationGroupDesc</td>
  * <td>invoking
- * {@link java.rmi.activation.ActivationSystem#setActivationGroupDesc
+ * {@link net.jini.activation.arg.ActivationSystem#setActivationGroupDesc
  * ActivationSystem.setActivationGroupDesc}</td>
  * <td>The caller can replace the descriptor for an existing activation group
  * if it knows the activation group identifier.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.shutdown</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#shutdown
+ * <td>net.jini.activation.arg.ActivationSystem.shutdown</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#shutdown
  * ActivationSystem.shutdown}</td>
  * <td>The caller can shut down the activation system.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.unregisterObject</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#unregisterObject
+ * <td>net.jini.activation.arg.ActivationSystem.unregisterObject</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#unregisterObject
  * ActivationSystem.unregisterObject}</td>
  * <td>The caller can unregister existing activatable objects if it knows
  * their activation identifiers.</td>
  * </tr>
  * <tr>
- * <td>java.rmi.activation.ActivationSystem.unregisterGroup</td>
- * <td>invoking {@link java.rmi.activation.ActivationSystem#unregisterGroup
+ * <td>net.jini.activation.arg.ActivationSystem.unregisterGroup</td>
+ * <td>invoking {@link net.jini.activation.arg.ActivationSystem#unregisterGroup
  * ActivationSystem.unregisterGroup}</td>
  * <td>The caller can unregister existing activation groups if it knows
  * their activation group identifiers.</td>

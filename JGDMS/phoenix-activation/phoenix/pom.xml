@@ -37,9 +37,9 @@
         </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-jrmp</artifactId>
+            <artifactId>jgdms-activation-parameters</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency> 
         <dependency>
             <groupId>au.net.zeus.jgdms.phoenix-activation</groupId>
             <artifactId>phoenix-common</artifactId>
@@ -113,4 +113,19 @@
             </plugin>
         </plugins>
     </build>
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <configuration>
+                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
+                </configuration>
+            </plugin>
+        </plugins>
+    </reporting>
 </project>

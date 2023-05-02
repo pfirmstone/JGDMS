@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalInputStream;
 
 /**
  * An <code>Admin</code> which manages a <code>NonActivatableGroup</code>.
@@ -175,7 +176,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 		// Some debugging and logging output occurs during jvm loading, 
 		// so we need to read past that to our proxy.
 		while (es.readShort() != token){} // Read in token at least once.
-		proxyStream = new ObjectInputStream(es);
+		proxyStream = new AtomicMarshalInputStream(es, null, false, null, null);
                 proxy = (NonActivatableGroup)
                         ((MarshalledInstance) proxyStream.readObject()).get(false);
             } catch (IOException e) {

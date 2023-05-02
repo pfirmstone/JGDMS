@@ -25,6 +25,8 @@ import java.io.Serializable;
 import java.net.URI;
 import java.util.Objects;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  *
@@ -34,6 +36,20 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 @AtomicSerial
 class FileSerializer implements Serializable{
     private static final long serialVersionUID = 1L;
+    
+    private static final String PATH = "path";
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm []{
+            new SerialForm(PATH, URI.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, FileSerializer fs) 
+            throws IOException {
+        arg.put(PATH, fs.path);
+        arg.writeArgs();
+    }
     
     URI path;
     transient File file;
@@ -48,7 +64,7 @@ class FileSerializer implements Serializable{
     }
     
     public FileSerializer(GetArg arg) throws IOException, ClassNotFoundException{
-	this(arg.get("path", null, URI.class));
+	this(arg.get(PATH, null, URI.class));
     }
     
     Object readResolve() throws ObjectStreamException {

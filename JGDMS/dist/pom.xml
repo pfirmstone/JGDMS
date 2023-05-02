@@ -108,6 +108,18 @@
             <version>${project.version}</version>
         </dependency>
         
+         <dependency>
+             <groupId>au.net.zeus.jgdms</groupId>
+             <artifactId>jgdms-activation-parameters</artifactId>
+             <version>${project.version}</version>
+         </dependency>
+         
+         <dependency>
+             <groupId>au.net.zeus.jgdms</groupId>
+             <artifactId>jgdms-activation</artifactId>
+             <version>${project.version}</version>
+         </dependency>
+        
         <dependency>
             <groupId>au.net.zeus.jgdms.phoenix-activation</groupId>
             <artifactId>phoenix</artifactId>

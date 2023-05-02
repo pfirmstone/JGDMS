@@ -90,6 +90,7 @@ public class ThrowableConstants {
      * for situations where the stakes are higher, like deciding when
      * to give up on a prepared transaction.
      *
+     * @param t the Throwable
      * @return <code>INDEFINITE</code>, <code>BAD_INVOCATION</code>,
      * or <code>BAD_OBJECT</code> if the exception is a
      * <code>RuntimeException</code>, <code>Error</code>, or

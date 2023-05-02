@@ -35,6 +35,8 @@ import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * ServiceLease subclass that supports constraints.
@@ -43,7 +45,7 @@ import org.apache.river.api.io.AtomicSerial;
  *
  */
 @AtomicSerial
-final class ConstrainableServiceLease
+public final class ConstrainableServiceLease
     extends ServiceLease implements RemoteMethodControl
 {
     private static final long serialVersionUID = 2L;
@@ -67,6 +69,19 @@ final class ConstrainableServiceLease
 	MethodConstraints constraints, Object proxy) throws InvalidObjectException {
 	ConstrainableProxyUtil.verifyConsistentConstraints(
 	    constraints, proxy, methodMappings);
+    }
+    
+    private static final String CONSTRAINTS = "constraints";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(CONSTRAINTS, MethodConstraints.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConstrainableServiceLease csl) throws IOException{
+        arg.put(CONSTRAINTS, csl.constraints);
+        arg.writeArgs();
     }
 
     /** Client constraints for this proxy, or null */

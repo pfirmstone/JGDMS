@@ -25,6 +25,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -86,7 +87,7 @@ final class StreamConnectionIO extends ConnectionIO {
 
 	outChannel = newChannel(out);
 	inChannel = newChannel(in);
-        sendQueue = new LinkedList();
+        sendQueue = new LinkedList<Buffer>();
     }
 
     /**
@@ -109,7 +110,7 @@ final class StreamConnectionIO extends ConnectionIO {
     }
 
     @Override
-    void asyncSend(ByteBuffer buffer) {
+    void asyncSend(Buffer buffer) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
 		return;
@@ -120,7 +121,7 @@ final class StreamConnectionIO extends ConnectionIO {
     }
 
     @Override
-    void asyncSend(ByteBuffer first, ByteBuffer second) {
+    void asyncSend(Buffer first, Buffer second) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
 		return;
@@ -132,7 +133,7 @@ final class StreamConnectionIO extends ConnectionIO {
     }
 
     @Override
-    IOFuture futureSend(ByteBuffer first, ByteBuffer second) {
+    IOFuture futureSend(Buffer first, Buffer second) {
 	synchronized (mux.muxLock) {
 	    IOFuture future = new IOFuture();
 	    if (mux.muxDown) {
@@ -186,13 +187,13 @@ final class StreamConnectionIO extends ConnectionIO {
 		    }
 
 		    boolean needToFlush = false;
-                    ByteBuffer last = null;
+                    Buffer last = null;
                     int lastIndex = Integer.MIN_VALUE;
 		    for  ( int i = 0; !localQueue.isEmpty(); i++) {
 			Object next = localQueue.getFirst();
 			if (next instanceof ByteBuffer) {
-                            ByteBuffer buffer = (ByteBuffer) next;
-			    outChannel.write((buffer));
+                            Buffer buffer = (Buffer) next;
+			    outChannel.write((ByteBuffer)buffer);
                             last = buffer;
                             lastIndex = i;
 			    needToFlush = true;
@@ -265,7 +266,7 @@ final class StreamConnectionIO extends ConnectionIO {
 
     private class Reader implements Runnable {
         /** buffer for reading incoming data from connection */
-        private final ByteBuffer inputBuffer =
+        private final Buffer inputBuffer =
             ByteBuffer.allocate(RECEIVE_BUFFER_SIZE);	// ready for reading
 
 	Reader() { }
@@ -273,7 +274,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	public void run() {
 	    try {
 		while (true) {
-		    int n = inChannel.read(inputBuffer);
+		    int n = inChannel.read((ByteBuffer)inputBuffer);
 		    if (n == -1) {
 			throw new EOFException();
 		    }
@@ -372,7 +373,7 @@ final class StreamConnectionIO extends ConnectionIO {
 		    if (bytesRead < 0) {
 			break;
 		    } else {
-			dst.position(pos + bytesRead);
+                        ((Buffer)dst).position(pos + bytesRead);
 			totalRead += bytesRead;
 		    }
 		}
@@ -410,7 +411,7 @@ final class StreamConnectionIO extends ConnectionIO {
                     if (len > 0) {
                         int pos = src.position();
                         out.write(src.array(), src.arrayOffset() + pos, len);
-                        src.position(pos + len);
+                        ((Buffer)src).position(pos + len);
                     }
                     return len;
                 }

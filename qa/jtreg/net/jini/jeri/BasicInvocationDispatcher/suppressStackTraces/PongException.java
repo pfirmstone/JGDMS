@@ -33,11 +33,11 @@ public class PongException extends AtomicException {
         super();
     }
     
-    PongException(GetArg arg) throws IOException{
+    PongException(GetArg arg) throws IOException, ClassNotFoundException{
         super(check(arg));
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
         AtomicException sup = new AtomicException(arg){};
         StackTraceElement [] trace = sup.getStackTrace();
         if (trace.length > 0) {

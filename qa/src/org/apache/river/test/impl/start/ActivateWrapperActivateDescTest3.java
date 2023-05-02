@@ -20,7 +20,7 @@ package org.apache.river.test.impl.start;
 import java.util.logging.Level;
 
 import java.rmi.*;
-import java.rmi.activation.*;
+import net.jini.activation.*;
 
 import org.apache.river.start.*;
 import org.apache.river.start.ActivateWrapper.*;
@@ -38,8 +38,8 @@ public class ActivateWrapperActivateDescTest3 extends AbstractStartBaseTest {
         ActivateDesc adesc =  
 	    new ActivateDesc(
 		null,
-		null,
-		null,
+		(String[]) null,
+		(String[]) null,
 		null,
 		null);
         logger.log(Level.INFO, "ActivateDesc information: {0}" + adesc);

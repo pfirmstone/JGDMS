@@ -22,11 +22,11 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.rmi.Remote;
-import java.rmi.activation.ActivationID;
 import java.rmi.server.ExportException;
 import java.security.Permission;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import net.jini.activation.arg.ActivationID;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.security.proxytrust.ProxyTrust;
@@ -154,6 +154,7 @@ public final class ActivationExporter implements Exporter
      *		is non-<code>public</code> and implements
      *		non-<code>public</code> interfaces
      **/
+    @Override
     public synchronized Remote export(Remote impl)
 	throws ExportException
     {

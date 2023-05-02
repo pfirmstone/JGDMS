@@ -32,10 +32,16 @@ public class Test {
 	if (System.getSecurityManager() == null) {
 	    System.setSecurityManager(new SecurityManager());
 	}
-	String policy0File =
-	    System.getProperty("test.src", ".") + File.separator + "policy.0";
-	String policy1File =
-	    System.getProperty("test.src", ".") + File.separator + "policy.1";
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("security");
+        sb.append(File.separator).append("policy").append(File.separator);
+        sb.append("PolicyFileProvider").append(File.separator).append("basicGrants");
+        sb.append(File.separator);
+        String testsrc = sb.toString();
+	String policy0File = testsrc + "policy.0";
+	String policy1File = testsrc + "policy.1";
 
 	Policy policy = new PolicyFileProvider();
 	checkPolicy0Permissions(policy);

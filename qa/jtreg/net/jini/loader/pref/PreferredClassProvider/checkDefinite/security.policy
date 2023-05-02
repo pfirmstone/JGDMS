@@ -55,5 +55,6 @@ grant {
   permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
   permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}-", "read";
   permission java.io.FilePermission "${jtreg.dir}${/}JTwork${/}classes${/}testlibrary${/}-", "read";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.util.locale.provider";
 };
 

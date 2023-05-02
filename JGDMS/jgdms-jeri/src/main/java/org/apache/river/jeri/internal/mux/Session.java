@@ -23,7 +23,7 @@ import org.apache.river.thread.GetThreadPoolAction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
+import java.nio.Buffer;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -465,7 +465,7 @@ final class Session {
     /**
      *
      */
-    void handleData(ByteBuffer data,
+    void handleData(Buffer data,
 		    boolean eof, boolean close, boolean ackRequired)
 	throws ProtocolException
     {

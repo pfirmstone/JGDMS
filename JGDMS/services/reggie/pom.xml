@@ -33,5 +33,7 @@
     <modules>
         <module>reggie-dl</module>
         <module>reggie-service</module>
+        <module>reggie-dl-subsystem</module>
+        <module>reggie-service-subsystem</module>
     </modules>
 </project>

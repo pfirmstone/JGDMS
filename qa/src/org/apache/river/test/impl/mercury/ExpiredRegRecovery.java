@@ -19,11 +19,12 @@ package org.apache.river.test.impl.mercury;
 
 import java.util.logging.Level;
 
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.ActivationDescImpl;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.rmi.RemoteException;
 
 import org.apache.river.constants.TimeConstants;
@@ -164,7 +165,7 @@ public class ExpiredRegRecovery extends MailboxTestBase
 	ActivationDesc adesc = sys.getActivationDesc(aid);
 	boolean restart = false;
 	ActivationDesc newDesc = 
-	    new ActivationDesc(
+	    new ActivationDescImpl(
 		adesc.getGroupID(),
 		adesc.getClassName(),
 		adesc.getLocation(),

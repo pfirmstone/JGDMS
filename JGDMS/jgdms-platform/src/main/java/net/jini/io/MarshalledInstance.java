@@ -26,6 +26,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.ObjectStreamException;
+import java.io.ObjectStreamField;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.security.Guard;
@@ -33,9 +34,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import net.jini.io.context.IntegrityEnforcement;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.DeSerializationPermission;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /*
@@ -75,9 +78,34 @@ import org.apache.river.api.io.Valid;
  * @since 2.0
  */
 @AtomicSerial
-public class MarshalledInstance implements Serializable {
+public class MarshalledInstance implements Serializable, net.jini.activation.arg.MarshalledObject {
     
     private static final Guard UNMARSHAL = new DeSerializationPermission("MARSHALL");
+    
+    private static final String OBJ_BYTES = "objBytes";
+    private static final String LOC_BYTES = "locBytes";
+    private static final String HASH = "hash";
+    
+    private static final ObjectStreamField [] serialPersistentFields = serialForm();
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm [] {
+            new SerialForm(OBJ_BYTES, byte[].class),
+            new SerialForm(LOC_BYTES, byte[].class),
+            new SerialForm(HASH, Integer.TYPE)
+        };
+    }   
+    
+    public static void serialize(AtomicSerial.PutArg args, MarshalledInstance obj) throws IOException {
+        putArgs(args, obj);
+        args.writeArgs();
+    }
+    
+    private static void putArgs(ObjectOutputStream.PutField pf, MarshalledInstance obj) {
+        pf.put(OBJ_BYTES, obj.objBytes);
+        pf.put(LOC_BYTES, obj.locBytes);
+        pf.put(HASH, obj.hash);
+    }
 
     /**
      * @serial Bytes of serialized representation.  If <code>objBytes</code> is
@@ -380,6 +408,17 @@ public class MarshalledInstance implements Serializable {
     protected MarshalFactory getMarshalFactory(){
 	return new MarshalFactoryInstance();
     }
+    /**
+     * Returns a new copy of the contained object.
+     * @return a new Object instance of the marshalled bytes contained within.
+     * @throws java.io.IOException
+     * @throws java.lang.ClassNotFoundException
+     */
+    @Override
+    public Object get() throws IOException, ClassNotFoundException 
+    {
+        return this.get(false);
+    }
 
     /**
      * Returns a new copy of the contained object. Deserialization is
@@ -408,10 +447,48 @@ public class MarshalledInstance implements Serializable {
      *         is <code>true</code> and the integrity of the
      *         contained object's codebase cannot be confirmed
      */
+    @Override
     public Object get(final boolean verifyCodebaseIntegrity) 
 	throws IOException, ClassNotFoundException 
     {
 	return get(null, verifyCodebaseIntegrity, null, null);
+    }
+    
+    /**
+     * Returns a new copy of the contained object.Deserialization is
+     * performed with the semantics defined by <code>MarshalInputStream</code>.
+     * The input stream used to unmarshal the object implements
+     * {@link ObjectStreamContext} and returns a collection from its
+     * {@link ObjectStreamContext#getObjectStreamContext getObjectStreamContext} 
+     * method which contains a single element of type 
+     * {@link IntegrityEnforcement};
+     * the {@link IntegrityEnforcement#integrityEnforced integrityEnforced}
+     * method of this element returns the specified 
+     * <code>verifyCodebaseIntegrity</code> value.
+     * <p><code>MarshalledInstance</code> implements this method by calling
+     * <code>{@link #get(ClassLoader, boolean, ClassLoader, Collection)
+     * get}(null, verifyCodebaseIntegrity, null, null)</code>.
+     *
+     * @param <T> Instance class type.
+     * @param verifyCodebaseIntegrity if <code>true</code> then
+     *        codebase integrity is verified, otherwise code base
+     *        integrity is not verified
+     * @param type - class of object to be read from bytes.
+     * @return a new copy of the contained object
+     * @throws IOException if an 
+     *         <code>IOException</code> occurs while deserializing the
+     *         object from its internal representation
+     * @throws ClassNotFoundException if any classes necessary
+     *         for reconstructing the contained object can not
+     *         be found or if <code>verifyCodebaseIntegrity</code>
+     *         is <code>true</code> and the integrity of the
+     *         contained object's codebase cannot be confirmed
+     */
+    @Override
+    public <T> T get(final boolean verifyCodebaseIntegrity, Class<T> type) 
+	throws IOException, ClassNotFoundException 
+    {
+	return get(null, verifyCodebaseIntegrity, null, null, type);
     }
 
     /**
@@ -454,10 +531,67 @@ public class MarshalledInstance implements Serializable {
      *         is <code>true</code> and the integrity of the
      *         contained object's codebase cannot be confirmed
      */
+    @Override
     public Object get(final ClassLoader defaultLoader,
 		      final boolean verifyCodebaseIntegrity,
 		      final ClassLoader verifierLoader,
 		      final Collection context)
+	throws IOException, ClassNotFoundException 
+    {
+	return get(defaultLoader,
+                verifyCodebaseIntegrity,
+                verifierLoader,
+                context,
+                Object.class);
+    }
+    
+    /**
+     * Returns a new copy of the contained object.Deserialization is
+     * performed with the semantics defined by <code>MarshalInputStream</code>.
+     * If <code>context</code> is not <code>null</code>
+     * the input stream used to unmarshal the object implements {@link
+     * ObjectStreamContext} and returns the given collection from its {@link
+     * ObjectStreamContext#getObjectStreamContext getObjectStreamContext}
+     * method.
+     * <p>If <code>context</code> is <code>null</code>
+     * the input stream used to unmarshal the object implements {@link
+     * ObjectStreamContext} and returns a collection from its {@link
+     * ObjectStreamContext#getObjectStreamContext getObjectStreamContext}
+     * method which contains a single element of type {@link
+     * IntegrityEnforcement}; the {@link IntegrityEnforcement#integrityEnforced
+     * integrityEnforced} method of this element returns the specified
+     * <code>verifyCodebaseIntegrity</code> value.
+     *
+     * @param defaultLoader the class loader value (possibly
+     *	      <code>null</code>) to pass as the <code>defaultLoader</code>
+     *        argument to <code>RMIClassLoader</code> methods
+     * @param verifyCodebaseIntegrity if <code>true</code> then
+     *        codebase integrity is verified, otherwise code base
+     *        integrity is not verified
+     * @param verifierLoader the class loader value (possibly
+     *        <code>null</code>) to pass to {@link
+     *        net.jini.security.Security#verifyCodebaseIntegrity
+     *        Security.verifyCodebaseIntegrity}, if
+     *        <code>verifyCodebaseIntegrity</code> is <code>true</code>
+     * @param context the collection of context information objects or
+     *        <code>null</code>
+     * @param type the class type of the object returned.
+     * @return a new copy of the contained object
+     * @throws IOException if an 
+     *         <code>IOException</code> occurs while deserializing the
+     *         object from its internal representation
+     * @throws ClassNotFoundException if any classes necessary
+     *         for reconstructing the contained object can not
+     *         be found or if <code>verifyCodebaseIntegrity</code>
+     *         is <code>true</code> and the integrity of the
+     *         contained object's codebase cannot be confirmed
+     */
+    @Override
+    public <T> T get(final ClassLoader defaultLoader,
+		      final boolean verifyCodebaseIntegrity,
+		      final ClassLoader verifierLoader,
+		      final Collection context,
+                      final Class<T> type)
 	throws IOException, ClassNotFoundException 
     {
 	if (objBytes == null)   // must have been a null object
@@ -479,7 +613,6 @@ public class MarshalledInstance implements Serializable {
 	// locBytes is null if no annotations
 	final ByteArrayInputStream lin =
 	    (locBytes == null ? null : new ByteArrayInputStream(locBytes));
-	Object obj;	    
 	
 	MarshalInstanceInput in = null;
 	try {
@@ -487,8 +620,18 @@ public class MarshalledInstance implements Serializable {
 		bin, lin, defaultLoader, verifyCodebaseIntegrity,
 		verifierLoader, ctext);
 	    in.useCodebaseAnnotations();
-	    obj = in.readObject();
-	    return obj;
+            if (in instanceof AtomicObjectInput){
+                return ((AtomicObjectInput) in).readObject(type);
+            } else {
+                Object obj = in.readObject();
+                if (type.isInstance(obj)) return (T) obj;
+                StringBuilder sb = new StringBuilder();
+                sb.append("Object not of type expected: ")
+                    .append(type.toString())
+                    .append("found instead: ")
+                    .append(obj.getClass().toString());
+                throw new ClassCastException(sb.toString());
+            }
 	} finally {
 	    try {
 		if (in != null) in.close();
@@ -581,7 +724,9 @@ public class MarshalledInstance implements Serializable {
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+//	out.defaultWriteObject();
+        putArgs(out.putFields(), this);
+        out.writeFields();
     }
 
     /**

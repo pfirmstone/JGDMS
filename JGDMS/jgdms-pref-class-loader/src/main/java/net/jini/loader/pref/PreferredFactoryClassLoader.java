@@ -19,6 +19,7 @@
 package net.jini.loader.pref;
 
 import java.net.URL;
+import java.security.AccessControlContext;
 
 /**
  * Class loader to wrap the preferred class loader so that loadClass
@@ -29,11 +30,13 @@ import java.net.URL;
  **/
 final class PreferredFactoryClassLoader extends PreferredClassLoader {
 
-    PreferredFactoryClassLoader(URL[] urls, ClassLoader parent,
-				String exportAnnotation,
-				boolean requireDownloadPerm)
+    PreferredFactoryClassLoader(URL[] urls,
+                                ClassLoader parent,
+                                String exportAnnotation,
+                                boolean requireDownloadPerm,
+                                AccessControlContext context)
     {
-	super(urls, parent, exportAnnotation, requireDownloadPerm);
+	super(urls, parent, exportAnnotation, requireDownloadPerm, context);
     }
 
     public final synchronized Class loadClass(String name, boolean resolve)

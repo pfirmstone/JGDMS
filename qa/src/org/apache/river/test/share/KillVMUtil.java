@@ -24,16 +24,25 @@ import java.io.IOException;
 
 import java.net.MalformedURLException;
 
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationID;
+//import net.jini.activation.Activatable;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationID;
 
-import java.rmi.MarshalledObject;
+import net.jini.activation.ActivationDescImpl;
+
 import java.rmi.Remote;
 
 import java.rmi.RemoteException;
+import net.jini.activation.ActivationExporter;
+import net.jini.activation.ActivationGroup;
+import net.jini.export.ProxyAccessor;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.apache.river.api.util.Startable;
 
 /**
  * This class contains a set of static classes and methods that provide 
@@ -69,10 +78,12 @@ public class KillVMUtil {
 //          String codeLocation = ClassLoaderUtil.URLsToString
 //                                (ClassLoaderUtil.getClasspathURLs
 //  	                             (System.getProperty("java.class.path")));
-        ActivationDesc desc = new ActivationDesc(gid,implClass,
+        ActivationDesc desc = new ActivationDescImpl(gid,implClass,
                                                  codeLocation,null,false);
-        KillVMObject serverStub = (KillVMObject)(Activatable.register(desc));
-        long delay = serverStub.killVM();        
+        ActivationSystem system = ActivationGroup.getSystem();
+        ActivationID id = system.registerObject(desc);
+        KillVMObject serverStub = (KillVMObject)(id.activate(true));
+        long delay = serverStub.killVM();  
         try {Thread.sleep(delay);} catch (InterruptedException e) { 
             Thread.currentThread().interrupt();
         }
@@ -149,16 +160,32 @@ public class KillVMUtil {
      *  to the outter class which is not registered with the activation
      *  system.
      */
-    public static class KillVMObjectImpl implements KillVMObject {
+    public static class KillVMObjectImpl implements KillVMObject, Startable, ProxyAccessor {
+
+        private final ActivationExporter exporter;
+        private Remote proxy;
         public KillVMObjectImpl(ActivationID activationID,
-                                MarshalledObject data) throws IOException
+                                String[] data) throws IOException
         {
-            Activatable.exportObject(this, activationID, 0);
+            this.exporter = new ActivationExporter(activationID,
+                new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+                new BasicILFactory(),
+                false, true));
         }//end constructor
         public long killVM() throws RemoteException {
             long delay = 20; // wait N milliseconds before exiting VM
             (new KillVMThread(delay)).start();
             return (delay*1000); //just an estimate
+        }
+
+        @Override
+        public void start() throws Exception {
+            this.proxy = exporter.export(this);
+        }
+
+        @Override
+        public Object getProxy() {
+            return proxy;
         }
         private class KillVMThread extends Thread {
             long delay;

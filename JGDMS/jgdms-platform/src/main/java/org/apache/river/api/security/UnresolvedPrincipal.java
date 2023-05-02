@@ -90,14 +90,13 @@ final class UnresolvedPrincipal implements Principal {
      * matching this definition, or if it is an UnresolvedPrincipal, 
      * which defines the same Principal; <code>false</code> otherwise.  
      */
+    @Override
     public boolean equals(Object that) {
+        if (that == this) return true;
         if (that instanceof UnresolvedPrincipal) {
             UnresolvedPrincipal up = (UnresolvedPrincipal) that;
             return klass.equals(up.klass)
                     && (name == null ? up.name == null : name.equals(up.name));
-        }
-        if (that instanceof Principal) {
-            return implies((Principal) that);
         }
         return false;
     }
@@ -123,6 +122,7 @@ final class UnresolvedPrincipal implements Principal {
     /** 
      * Returns the hash code value for this object. 
      */
+    @Override
     public int hashCode() {
         int hash = 0;
         if (name != null) {

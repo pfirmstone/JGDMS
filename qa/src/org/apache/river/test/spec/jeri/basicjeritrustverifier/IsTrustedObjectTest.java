@@ -119,7 +119,7 @@ public class IsTrustedObjectTest extends AbstractTrustVerifierTest {
         //Verify that using a classloader outside the object's classloader
         //hierearchy causes the object to not be trusted.
         String jarPath = sysConfig.getStringConfigVal(
-            "org.apache.river.qa.home",null);
+            "qa.home",null);
 	jarPath += "/lib";
         jarPath = jarPath.replace(File.separatorChar, '/');
         String jarURL = "file:" + jarPath + "/qa1.jar";

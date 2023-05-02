@@ -33,10 +33,16 @@ import java.security.KeyStoreException;
 
 public class TestGetKeyStore extends BasicTest {
 
-    static final String src =
-	System.getProperty("test.src", ".") + File.separator;
+    static final String src;
 
     static {
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("org").append(File.separator);
+        sb.append("apache").append(File.separator).append("river");
+        sb.append(File.separator).append("config").append(File.separator);
+        sb.append("KeyStores").append(File.separator);
+        src = sb.toString();
 	if (System.getProperty("java.security.policy") == null) {
 	    System.setProperty("java.security.policy", src + "policy");
 	}

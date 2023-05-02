@@ -55,6 +55,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+import org.apache.river.api.io.AtomicMarshalOutputStream;
 
 //Should there be an 'AbortTestRequest' ?
 
@@ -880,7 +881,7 @@ class MasterHarness {
 	    config.setTestTotal(testList.getTestTotal());
 	    config.setTestIndex(testList.getTestNumber());
 	    ObjectOutputStream os = 
-		new ObjectOutputStream(proc.getOutputStream());
+		new AtomicMarshalOutputStream(proc.getOutputStream(), null);
 	    os.writeObject(config);
 	    os.flush();
 //  	    bindInput(proc);
@@ -1201,7 +1202,7 @@ class MasterHarness {
 
     /**
      * Add categories of tests. Test full test/category list in
-     * <code>${org.apache.river.qa.home}/lib/testlist.txt</code> is
+     * <code>${qa.home}/lib/testlist.txt</code> is
      * read and filtered by the set of category names supplied on
      * the command line. The input file is assumed to be sorted
      * by category, then by test name. Duplicate test names which
@@ -1325,8 +1326,8 @@ class MasterHarness {
      * test run. This method is somewhat out-of-date.
      */
     private void displayConfigInfo() {
-        String installDir = "org.apache.river.qa.home";//XXX note 'qa'
-        String jskHome = "org.apache.river.jsk.home";
+        String installDir = "qa.home";//XXX note 'qa'
+        String jskHome = "jsk.home";
 
         String[] categories = getRequestedCategories();
         StringBuffer categoryString = new StringBuffer("No Categories");

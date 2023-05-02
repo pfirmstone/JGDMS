@@ -238,12 +238,25 @@ public class TestRMI extends TestUtilities {
 	public Object run() throws IOException {
 	    Impl server = new Impl();
 	    I stub = (I) server.exporter.export(server);
-	    stub.hello();
-	    try {
-		return new Boolean(stub.unexport(force));
-	    } catch (IOException e) {
-		return e;
+            Boolean result;
+            try {
+                Subject clientSubject = new Subject();
+                    addX500Principal("clientRSA1", clientSubject);
+		result = Subject.doAs(clientSubject,
+			     new PrivilegedExceptionAction<Boolean>(){
+                                 
+                                 @Override
+                                 public Boolean run() throws IOException{
+                                    stub.hello(); 
+                                    return Boolean.valueOf(stub.unexport(force));
+                                 }
+                             });
+	    } catch (Throwable e) {
+                Throwable ex = e.getCause();
+                if (ex instanceof IOException ) return ex;
+		return new IOException ("Unable to receive return value of remote call.", e);
 	    }
+            return result;
 	}
 
 	public void check(Object object) {
@@ -278,20 +291,38 @@ public class TestRMI extends TestUtilities {
 
 	public Object run() throws IOException {
 	    HelloImpl server = new HelloImpl(serverSubject);
-	    Hello stub = server.export();
-	    stub = (Hello) ((RemoteMethodControl) stub).setConstraints(
-		new BasicMethodConstraints(
-		    new InvocationConstraints(
-			Confidentiality.YES,
-			ConfidentialityStrength.STRONG)));
-	    stub.hello();
-	    stub = (Hello) ((RemoteMethodControl) stub).setConstraints(
-		new BasicMethodConstraints(
-		    new InvocationConstraints(
-			Confidentiality.YES,
-			ConfidentialityStrength.WEAK)));
-	    stub.hello();	    
-	    server.unexport();
+	    final Hello proxy = server.export();
+            try {
+                Subject clientSubject = new Subject();
+                    addX500Principal("clientRSA1", clientSubject);
+		Subject.doAs(clientSubject,
+                    new PrivilegedExceptionAction(){
+
+                        @Override
+                        public Object run() throws IOException{
+                            Hello stub = proxy;
+                            stub = (Hello) ((RemoteMethodControl) stub).setConstraints(
+                                new BasicMethodConstraints(
+                                    new InvocationConstraints(
+                                        Confidentiality.YES,
+                                        ConfidentialityStrength.STRONG)));
+                            stub.hello();
+                            stub = (Hello) ((RemoteMethodControl) stub).setConstraints(
+                                new BasicMethodConstraints(
+                                    new InvocationConstraints(
+                                        Confidentiality.YES,
+                                        ConfidentialityStrength.WEAK)));
+                            stub.hello();
+                            return null;
+                        }
+                    });
+	    } catch (Throwable e) {
+                Throwable ex = e.getCause();
+                if (ex instanceof IOException ) return ex;
+		return new IOException ("Unable to receive return value of remote call.", e);
+	    } finally {
+                server.unexport();
+            }
 	    return null;
 	}
 
@@ -680,7 +711,7 @@ public class TestRMI extends TestUtilities {
 	    new TestNotTrusted("Anonymous only",
 			       requirements(ServerAuthentication.NO),
 			       notTrustedServerSubject,
-			       null),
+			       ConnectIOException.class), //Anon no longer supported.
 	    new TestNotTrusted("Anonymous or authenticated",
 			       null,
 			       notTrustedServerSubject,
@@ -920,13 +951,31 @@ public class TestRMI extends TestUtilities {
 		    null),
 		false, false, null);
 	    HelloImpl server = new HelloImpl(serverSubject);
-	    Hello stub = (Hello) exporter.export(server);
-	    stub = (Hello) ((RemoteMethodControl) stub).setConstraints(
-		new BasicMethodConstraints(
-		    requirements(ServerAuthentication.YES,
-				 serverPrincipals(x500(serverDSA)))));
-	    stub.hello();
-	    exporter.unexport(true);
+            Hello proxy = (Hello) exporter.export(server);
+            try {
+                Subject clientSubject = new Subject();
+                    addX500Principal("clientRSA1", clientSubject);
+		Subject.doAs(clientSubject,
+                    new PrivilegedExceptionAction(){
+
+                        @Override
+                        public Object run() throws IOException{
+                            Hello stub = proxy;
+                            stub = (Hello) ((RemoteMethodControl) stub).setConstraints(
+                                new BasicMethodConstraints(
+                                    requirements(ServerAuthentication.YES,
+                                                 serverPrincipals(x500(serverDSA)))));
+                            stub.hello();
+                            return null;
+                        }
+                    });
+	    } catch (Throwable e) {
+                Throwable ex = e.getCause();
+                if (ex instanceof IOException ) return ex;
+		return new IOException ("Unable to receive return value of remote call.", e);
+	    } finally {
+                exporter.unexport(true);
+            }
 	    return null;
 	}
 

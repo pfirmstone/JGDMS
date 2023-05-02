@@ -21,8 +21,8 @@ import java.util.logging.Level;
 
 import java.net.URL;
 import java.rmi.*;
-import java.rmi.activation.*;
-import java.rmi.activation.ActivationGroupDesc.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.ActivationGroupDesc.*;
 import java.util.Arrays;
 
 import org.apache.river.start.*;

@@ -31,7 +31,7 @@ import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.TrustVerifier;
 
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationID;
 import java.rmi.MarshalledObject;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -41,6 +41,7 @@ import java.security.PrivilegedExceptionAction;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import net.jini.io.MarshalledInstance;
 
 
 
@@ -67,10 +68,10 @@ public class BadServiceProxyAccessorImpl
     }
     // Activatable constructor
     public BadServiceProxyAccessorImpl (
-        ActivationID activationID, MarshalledObject data)
+        ActivationID activationID, MarshalledInstance data)
         throws Exception
     {
-        this((String[]) data.get(), activationID, null);
+        this((String[]) data.get(false), activationID, null);
     }
 
     // Transient constructor

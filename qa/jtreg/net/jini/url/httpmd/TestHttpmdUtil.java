@@ -33,12 +33,18 @@ import net.jini.url.httpmd.HttpmdUtil;
 
 public class TestHttpmdUtil extends UnitTestUtilities {
 
-    static final String srcDir = System.getProperty("test.src", ".");
+    static final String srcDir;
 
-    static final String srcURL =
-	srcDir.replace(File.separatorChar, '/') + "/";
+    static final String srcURL;
 
     static {
+        String root = System.getProperty("test.root", ".");  
+        StringBuilder sb = new StringBuilder();
+        sb.append(root).append(File.separator).append("net").append(File.separator);
+        sb.append("jini").append(File.separator).append("url");
+        sb.append(File.separator).append("httpmd").append(File.separator);
+        srcDir = sb.toString();
+        srcURL = srcDir.replace(File.separatorChar, '/') + "/";
 	System.setProperty("java.protocol.handler.pkgs",
 			   "net.jini.url");
     }

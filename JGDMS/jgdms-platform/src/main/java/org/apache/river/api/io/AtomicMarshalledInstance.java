@@ -18,6 +18,7 @@
 
 package org.apache.river.api.io;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,6 +35,9 @@ import net.jini.io.MarshalInstanceInput;
 import net.jini.io.MarshalInstanceOutput;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.ObjectStreamContext;
+import net.jini.io.context.IntegrityEnforcement;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Implementation of MarshalledInstance that performs input validation 
@@ -52,6 +56,18 @@ import net.jini.io.ObjectStreamContext;
 public final class AtomicMarshalledInstance extends MarshalledInstance {
     
     private static final long serialVersionUID = 1L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("useCodebaseAnnotations", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, AtomicMarshalledInstance ami) 
+            throws IOException{
+        arg.put("useCodebaseAnnotations", ami.useCodebaseAnnotations);
+        arg.writeArgs();
+    }
     
     /**
      * @serial

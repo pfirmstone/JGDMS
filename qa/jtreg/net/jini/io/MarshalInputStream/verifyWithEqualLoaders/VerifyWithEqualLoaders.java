@@ -32,7 +32,7 @@
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.rmi.server.RMIClassLoader;
+import net.jini.loader.ClassLoading;
 import java.util.Collections;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
@@ -42,7 +42,7 @@ public class VerifyWithEqualLoaders {
     public static void main(String[] args) throws Exception {
 
 	TestLibrary.suggestSecurityManager(null);
-
+        System.setProperty("java.rmi.server.RMIClassLoaderSpi","net.jini.loader.pref.PreferredClassProvider");
 	String className = "Foo";
 	TestLibrary.installClassInCodebase(className, "codebase");
 	File codebaseDir =
@@ -51,8 +51,9 @@ public class VerifyWithEqualLoaders {
 	String codebase = "http://localhost:" + HTTPD.getDefaultPort() + "/";
 	ClassLoader defaultLoader = ClassLoader.getSystemClassLoader();
 
-	Class fooClass = RMIClassLoader.loadClass(codebase, className);
-	Object toWrite = fooClass.newInstance();
+        // Checks the class loads without verification.
+	Class fooClass = ClassLoading.loadClass(codebase, className, defaultLoader, false, defaultLoader);
+	Object toWrite = fooClass.getDeclaredConstructor().newInstance();
 
 	ByteArrayOutputStream bout = new ByteArrayOutputStream();
 	MarshalOutputStream mout =

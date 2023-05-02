@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on authentication of the client to the server.
@@ -72,6 +74,18 @@ public final class ClientAuthentication
 				implements InvocationConstraint, Serializable
 {
     private static final long serialVersionUID = -6326974440670504555L;
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("val", Boolean.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ClientAuthentication ca) 
+            throws IOException{
+        arg.put("val", ca.val);
+        arg.writeArgs();
+    }
 
     /**
      * Authenticate the client to the server. The mechanisms and credentials

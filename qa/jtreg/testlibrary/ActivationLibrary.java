@@ -28,10 +28,10 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationDesc;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.Activatable;
+import net.jini.activation.arg.ActivationDesc;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
 import java.rmi.server.ExportException;
 import java.rmi.server.RMIClassLoader;
 import java.util.ArrayList;
@@ -43,6 +43,7 @@ import net.jini.activation.ActivationGroup;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.jrmp.JrmpExporter;
@@ -138,7 +139,7 @@ public class ActivationLibrary {
 	    try {
 		Thread.sleep(500);
 		if (containsString(Naming.list("//:" + port ), 
-		    "java.rmi.activation.ActivationSystem")) 
+		    "net.jini.activation.arg.ActivationSystem")) 
                 {
 		    return true;
 		}
@@ -422,7 +423,7 @@ public class ActivationLibrary {
 		if (exportType.equals("basic")) {
 		    uexporter = new
 			BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-					  new BasicILFactory(),
+					  new AtomicILFactory(null, null, ActivationLibrary.class),
 					  true, true);
 		} else if (exportType.equals("jrmp")) {
 		    uexporter = new JrmpExporter();

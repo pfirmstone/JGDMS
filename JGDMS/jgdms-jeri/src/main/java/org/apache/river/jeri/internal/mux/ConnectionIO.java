@@ -19,7 +19,7 @@
 package org.apache.river.jeri.internal.mux;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.nio.Buffer;
 
 /**
  * ConnectionIO is an abstraction over a bi-directional byte stream
@@ -85,7 +85,7 @@ abstract class ConnectionIO {
      * invocation of this method; therefore, the supplied buffer must not
      * be mutated even after this method has returned.
      */
-    abstract void asyncSend(ByteBuffer buffer);
+    abstract void asyncSend(Buffer buffer);
 
     /**
      * Sends the sequence of bytes contained in the supplied buffers to the
@@ -100,7 +100,7 @@ abstract class ConnectionIO {
      * invocation of this method; therefore, the supplied buffers must not
      * be mutated even after this method has returned.
      */
-    abstract void asyncSend(ByteBuffer first, ByteBuffer second);
+    abstract void asyncSend(Buffer first, Buffer second);
 
     /**
      * Sends the sequence of bytes contained in the supplied buffers to the
@@ -121,5 +121,5 @@ abstract class ConnectionIO {
      * failure).  After the write has completed, each buffers' position will
      * have been incremented to its limit (which will not have changed).
      */
-    abstract IOFuture futureSend(ByteBuffer first, ByteBuffer second);
+    abstract IOFuture futureSend(Buffer first, Buffer second);
 }

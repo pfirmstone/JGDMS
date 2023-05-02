@@ -30,9 +30,9 @@ import java.net.InetAddress;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -97,6 +97,8 @@ import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
+import org.apache.river.api.io.AtomicMarshalledInstance;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
@@ -470,13 +472,14 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
      *                                array.
      */
     FiddlerImpl(ActivationID activationID,
-                MarshalledObject data) throws IOException,
+                String[] data) 
+                                       throws IOException,
                                               ActivationException,
                                               ConfigurationException,
                                               LoginException,
                                               ClassNotFoundException
     {
-            this(init( (String[]) new MarshalledInstance(data).get(false), true /* persistent */, activationID ), null);
+            this(init(data, true /* persistent */, activationID ), null);
     }//end activatable constructor
 
     /**
@@ -919,10 +922,10 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 	    RemoteEventListener listener;
 
 	    @Override
-	    public void read(ObjectInput stream) throws IOException, ClassNotFoundException { 
-		MarshalledObject mo = (MarshalledObject)stream.readObject();
+	    public void read(AtomicObjectInput stream) throws IOException, ClassNotFoundException { 
+		MarshalledObject mo = stream.readObject(MarshalledObject.class);
 		try {
-		    listener = (RemoteEventListener) new MarshalledInstance(mo).get(false);
+		    listener = new AtomicMarshalledInstance(mo).get(false, RemoteEventListener.class);
 		} catch (Throwable e) {
 		    problemLogger.log(Level.INFO, "problem recovering listener "
 				      +"for recovered registration", e);
@@ -933,6 +936,11 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 		    }//endif
 		}
 	    }
+
+            @Override
+            public void read(ObjectInput input) throws IOException, ClassNotFoundException {
+                throw new UnsupportedOperationException("Not supported."); //To change body of generated methods, choose Tools | Templates.
+            }
 	    
 	}
         

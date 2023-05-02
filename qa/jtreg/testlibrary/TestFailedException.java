@@ -17,45 +17,51 @@
  */
 /*  */
 
+import org.apache.river.api.io.AtomicRuntimeException;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+
 
 /**
  * Simple class to wrap test failure exceptions in a RuntimeException.
  * Provides a detail exception and a message.
  */
-public class TestFailedException extends java.lang.RuntimeException {
-    public final Throwable detail;
+@AtomicSerial
+public class TestFailedException extends AtomicRuntimeException {
 
     public TestFailedException() {
-        detail = null;
+        super();
     }
 
     public TestFailedException(String s) {
 	super(s);
-        detail = null;
     }
 
     public TestFailedException(String s, Throwable ex) {
 	super(s, ex);
-	detail = ex;
+    }
+    
+    public TestFailedException(GetArg arg){
+        super(arg);
     }
 
     public String getMessage() {
-	if (detail == null)
+	if (super.getCause() == null)
 	    return super.getMessage();
 	else
 	    return super.getMessage() +
 		"; nested exception is: \n\t" +
-		detail.toString();
+		super.getCause().toString();
     }
 
     public void printStackTrace(java.io.PrintStream ps)
     {
-	if (detail == null) {
+	if (super.getCause() == null) {
 	    super.printStackTrace(ps);
 	} else {
 	    synchronized(ps) {
 		ps.println(this);
-		detail.printStackTrace(ps);
+		super.getCause().printStackTrace(ps);
 	    }
 	}
     }
@@ -67,12 +73,12 @@ public class TestFailedException extends java.lang.RuntimeException {
 
     public void printStackTrace(java.io.PrintWriter pw)
     {
-	if (detail == null) {
+	if (super.getCause() == null) {
 	    super.printStackTrace(pw);
 	} else {
 	    synchronized(pw) {
 		pw.println(this);
-		detail.printStackTrace(pw);
+		super.getCause().printStackTrace(pw);
 	    }
 	}
     }

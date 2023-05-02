@@ -26,10 +26,24 @@ import net.jini.core.lookup.ServiceRegistration;
 import net.jini.export.ProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.qa.harness.QAConfig;
 
 @AtomicSerial
 public class Service00 implements Serializable, ProxyAccessor, ServiceRegInitializer {
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("i", Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Service00 s) throws IOException{
+        arg.put("i", s.i);
+        arg.writeArgs();
+    }
+    
     public int i;
     private transient BootStrapService service;
     

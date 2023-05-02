@@ -18,15 +18,13 @@
 
 package org.apache.river.phoenix.group;
 
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationMonitor;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.server.UnicastRemoteObject;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.ActivationGroup;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationMonitor;
+import net.jini.activation.arg.ActivationSystem;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import net.jini.config.Configuration;
@@ -93,7 +91,7 @@ import net.jini.security.ProxyPreparer;
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
  *      Default: <td> retains existing JRMP export of instantiator
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationInstantiator}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationInstantiator}
  *		exporter
  *  </table>
  *
@@ -109,7 +107,7 @@ import net.jini.security.ProxyPreparer;
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationMonitor}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationMonitor}
  *		proxy preparer 
  *  </table>
  *
@@ -125,7 +123,7 @@ import net.jini.security.ProxyPreparer;
  *      Default: <td> <code>new {@link
  *		net.jini.security.BasicProxyPreparer}()</code> 
  *    <tr valign="top"> <td> &nbsp; <th scope="row" align="right">
- *      Description: <td> {@link java.rmi.activation.ActivationSystem}
+ *      Description: <td> {@link net.jini.activation.arg.ActivationSystem}
  *		proxy preparer 
  *  </table>
  *
@@ -171,7 +169,7 @@ import net.jini.security.ProxyPreparer;
 public class ActivationGroupImpl extends AbstractActivationGroup {
    
     /**
-     * Creates an {@link java.rmi.activation.ActivationGroup} instance and
+     * Creates an {@link net.jini.activation.ActivationGroup} instance and
      * returns it. An {@link org.apache.river.phoenix.common.ActivationGroupData} instance is extracted from
      * the initialization data, and a {@link Configuration} is obtained by
      * calling
@@ -208,7 +206,7 @@ public class ActivationGroupImpl extends AbstractActivationGroup {
      * exception occurs during group creation
      */
     public static synchronized
-	java.rmi.activation.ActivationGroup createGroup(
+	ActivationGroup createGroup(
 					      final ActivationGroupID id,
 					      final ActivationGroupDesc desc,
 					      final long incarnation)
@@ -220,14 +218,7 @@ public class ActivationGroupImpl extends AbstractActivationGroup {
     /**
      * Creates an instance with the specified group identifier and
      * initialization data. This constructor must be called indirectly,
-     * via {@link #createGroup createGroup}. By default, this instance
-     * automatically exports itself as a {@link UnicastRemoteObject}. (This
-     * is a limitation of the existing activation system design.) If an
-     * {@link Exporter} was obtained by {@link #createGroup createGroup},
-     * then this instance is unexported from the JRMP runtime and re-exported
-     * using that exporter. (Any incoming remote calls received on the
-     * original JRMP export before this instance can be unexported will be
-     * refused with a security exception thrown.) The
+     * via {@link #createGroup createGroup}. The
      * {@link ActivationSystem#activeGroup activeGroup} method of the
      * activation system proxy (in the group identifier) is called to
      * make the group active. The returned {@link ActivationMonitor} proxy
@@ -246,11 +237,11 @@ public class ActivationGroupImpl extends AbstractActivationGroup {
      * @throws ActivationException if the constructor was not called
      * indirectly from <code>createGroup</code>
      */
-    public ActivationGroupImpl(ActivationGroupID id, MarshalledObject data)
+    public ActivationGroupImpl(ActivationGroupID id, String[] data)
 	throws ActivationException, RemoteException
     {
 	super(id, data);
-        export();
+        export(); // This implementation is here to ensure safe publication of superclass.
     }
     
 }

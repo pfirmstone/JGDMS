@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* @test
+/* test removed @ does not run on Java 9 or later due to removal of sun.net.spi.nameservice.NameService
  * @bug 5050069
  * @bug 5087833
  * @summary TcpEndpoint.newRequest.next must try connecting to all

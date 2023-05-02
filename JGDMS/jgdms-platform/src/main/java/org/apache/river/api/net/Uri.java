@@ -43,7 +43,7 @@ import org.apache.river.impl.Messages;
  * <p>
  * IPv6 and IPvFuture host addresses must be enclosed in square brackets as per 
  * RFC3986.  A zone delimiter %, if present, must be represented in escaped %25
- * form.
+ * form as per RFC6874.
  * <p>
  * In addition to RFC3896 normalization, IPv6 host addresses will be normalized
  * to comply with RFC 5952 A Recommendation for IPv6 Address Text Representation. 
@@ -1096,6 +1096,9 @@ public final class Uri implements Comparable<Uri> {
      * <li>if this {@code Uri}'s path ends with {@code "/-"},
      * then {@code implied}'s path must start with {@code Uri}'s path
      * (exclusive the trailing '-')
+     * <li>if this {@code Uri}'s path ends with {@code ";-"},
+     * then {@code implied}'s path must start with {@code Uri}'s path
+     * (exclusive the trailing '-') this is a custom addition for httmd.
      * <li>if this {@code Uri}'s path ends with {@code "/*"},
      * then {@code implied}'s path must start with {@code Uri}'s path
      * (exclusive the trailing '*') and must not have any further '/'
@@ -1290,6 +1293,11 @@ public final class Uri implements Comparable<Uri> {
             }
             if (thatFile == null || thisFile == null) return false;
             if (thisFile.endsWith("/-")) { //javadoc:3.6."/-" //$NON-NLS-1$
+                if (!thatFile.startsWith(thisFile.substring(0, thisFile
+                        .length() - 2))) {
+                    return false;
+                }
+            } else if (thisFile.endsWith(";-")) { //httpmd
                 if (!thatFile.startsWith(thisFile.substring(0, thisFile
                         .length() - 2))) {
                     return false;
@@ -1960,6 +1968,23 @@ public final class Uri implements Comparable<Uri> {
             throw new IllegalArgumentException(Messages.getString("luni.91") + ": " //$NON-NLS-1$//$NON-NLS-2$
                     + toString());
         }
-        return new URL(toString());
+        if (opaque) return new URL(toString()); // Let the Handler parse it.
+        String hst = host;
+        StringBuilder sb = new StringBuilder();
+        //userinfo will be rare, utilise sb, then clear it.
+        if (userinfo != null){
+            sb.append(userinfo).append('@').append(hst);
+            hst = sb.toString();
+            sb.delete(0, sb.length()-1);
+        }
+        // now lets create the file section of the URL.
+        sb.append(path);
+        if (query != null) sb.append('?').append(query);
+        if (fragment != null) sb.append('#').append(fragment);
+        String file = sb.toString(); //for code readability
+        // deprecated to provide a warning against misuse, not for removal.
+        @SuppressWarnings("deprecation") 
+        URL url = new URL(scheme, hst, port, file, null);
+        return url;
     }
 }

@@ -16,8 +16,11 @@
 package net.jini.jeri;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.rmi.Remote;
 import java.rmi.server.ExportException;
@@ -26,6 +29,9 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.MarshalOutputStream;
@@ -39,6 +45,7 @@ import org.apache.river.api.io.AtomicMarshalOutputStream;
 public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
     
     private final boolean useAnnotations;
+    private final Compression compression;
 
     public AtomicInvocationDispatcher(Collection methods,
 				      ServerCapabilities serverCapabilities,
@@ -47,8 +54,20 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 				      ClassLoader loader,
 				      boolean useAnnotations) throws ExportException 
     {
+	this(methods, serverCapabilities, serverConstraints, permissionClass, loader, useAnnotations, Compression.NONE);
+    }
+    
+    public AtomicInvocationDispatcher(Collection methods,
+				      ServerCapabilities serverCapabilities,
+				      MethodConstraints serverConstraints,
+				      Class permissionClass,
+				      ClassLoader loader,
+				      boolean useAnnotations,
+                                      Compression compress) throws ExportException 
+    {
 	super(methods, serverCapabilities, serverConstraints, permissionClass, loader);
 	this.useAnnotations = useAnnotations;
+        this.compression = compress;
     }
     
     /**
@@ -96,7 +115,7 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
      * @throws	NullPointerException if any argument is <code>null</code>
      **/
     @Override
-    protected ObjectInputStream
+    protected ObjectInput
         createMarshalInputStream(Object impl,
 				 final InboundRequest request,
 				 final boolean integrity,
@@ -111,7 +130,23 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 		
 		@Override
 		public ObjectInputStream run() throws Exception {
-		    return AtomicMarshalInputStream.create(request.getRequestInputStream(),
+                    InputStream in = request.getRequestInputStream();
+                    switch (compression){
+                        case NONE:
+                            break;
+                        case DEFLATE:
+                            in = new InflaterInputStream(in);
+                            break;
+                        case DEFLATE_BEST_COMPRESSION:
+                            in = new InflaterInputStream(in);
+                            break;
+                        case DEFLATE_BEST_SPEED:
+                            in = new InflaterInputStream(in);
+                            break;
+                        default:
+                            break;
+                    }
+		    return AtomicMarshalInputStream.create(in,
 			    streamLoader, integrity,
 			    streamLoader, unmodContext, useAnnotations);
 		}
@@ -172,8 +207,24 @@ public class AtomicInvocationDispatcher extends BasicInvocationDispatcher {
 		
 		@Override
 		public ObjectOutputStream run() throws IOException {
+                    OutputStream out = request.getResponseOutputStream();
+                    switch (compression){
+                        case NONE:
+                            break;
+                        case DEFLATE:
+                            out = new DeflaterOutputStream(out);
+                            break;
+                        case DEFLATE_BEST_COMPRESSION:
+                            out = new DeflaterOutputStream(out, new Deflater(Deflater.BEST_COMPRESSION));
+                            break;
+                        case DEFLATE_BEST_SPEED:
+                            out = new DeflaterOutputStream(out, new Deflater(Deflater.BEST_SPEED));
+                            break;
+                        default:
+                            break;
+                    }
 		    return new AtomicMarshalOutputStream(
-			    request.getResponseOutputStream(), 
+			    out, 
 			    getStreamLoader(impl), 
 			    Collections.unmodifiableCollection(context), 
 			    useAnnotations

@@ -26,28 +26,31 @@ public class CustomRMISecurityManager extends SecurityManager {
      */
     public CustomRMISecurityManager() {
     }
+    
+    // P.F. 2020-05-27 inClassLoader() has been removed and details for
+    // bug ID 4116138 are not available.
 
     /**
      * Checks access to threads.
      */
-    public synchronized void checkAccess(Thread t) {
-	// added back check for inClasLoader() until 
-	// we work out the details for 4116138
-	if (inClassLoader()) {
-	    super.checkAccess(t);
-	}
-    }
+//    public synchronized void checkAccess(Thread t) {
+//	// added back check for inClasLoader() until 
+//	// we work out the details for 4116138
+//	if (inClassLoader()) {
+//	    super.checkAccess(t);
+//	}
+//    }
 
     /**
      * Checks access to threads.
      */
-    public synchronized void checkAccess(ThreadGroup g) {
-	// added back check for inClasLoader() until 
-	// we work out the details for 4116138
-	if (inClassLoader()) {
-	    super.checkAccess(g);
-	}
-    }
+//    public synchronized void checkAccess(ThreadGroup g) {
+//	// added back check for inClasLoader() until 
+//	// we work out the details for 4116138
+//	if (inClassLoader()) {
+//	    super.checkAccess(g);
+//	}
+//    }
 
     /**
      * Checks access to classes of a given package.

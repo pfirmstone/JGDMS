@@ -25,6 +25,8 @@ import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the size (in bytes) of multicast packets used in
@@ -46,6 +48,18 @@ public final class MulticastMaxPacketSize
 
     /** The minimum allowable multicast packet size limit. */
     public static final int MIN_MAX_PACKET_SIZE = 512;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("size", Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, MulticastMaxPacketSize m) 
+            throws IOException{
+        arg.put("size", m.size);
+        arg.writeArgs();
+    }
 
     /**
      * The multicast packet size limit.

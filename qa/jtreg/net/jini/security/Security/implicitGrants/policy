@@ -47,6 +47,7 @@ grant {
     permission java.security.SecurityPermission "createPolicy.JiniPolicy";
     permission java.util.PropertyPermission "*", "read";
     permission javax.security.auth.AuthPermission "doAs";
+    permission java.io.FilePermission "${jsk.home}/qa/jtreg/JTwork/scratch/cb1", "read";
 };
 
 grant codeBase "file:${scratch.dir}${/}cb3${/}*" {

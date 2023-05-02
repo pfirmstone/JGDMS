@@ -27,16 +27,16 @@
     <!--
     Override this to build/run QA tests against an external River installation
     
-    This parameter is a problem when running the jtreg tests on windows.  river.home
+    This parameter is a problem when running the jtreg tests on windows.  jsk.home
     becomes the basis for jsk.home which is used in qa/jtreg/net/testlibrary/HTTPD
     (and maybe other places as well).  If this value is left as the default value
     of root ("..") then the property value becomes something like "C:\path\to\river"
     When this values eventually finds its way into HTTPD it becomes "Cpathtoriver"
     which obviously fails to resolve.
-    The way around this is therefore to specific river.home in ../build.properties
+    The way around this is therefore to specific jsk.home in ../build.properties
     with the value "C:/path/to/river"
     -->
-    <!-- <property name="river.home" location="${root}"/> -->    
+    <!-- <property name="jsk.home" location="${root}"/> -->    
 
     <!-- Import common settings and macros -->
     <import file="${root}/common.xml"/>
@@ -52,7 +52,7 @@
     <!-- jtreg environment setup -->
     <property environment="env"/>
     <!-- location of the River jtreg tests -->
-    <property name="jtreg.dir" location="${river.home}/qa/jtreg" />
+    <property name="jtreg.dir" location="${jsk.home}/qa/jtreg" />
     <!-- location of the jtreg distribution, override in <river root>/build.properties -->
     <!-- or override in <river root>/qa/build.properties -->
     <property name="jtreg.home" location="${env.JT_HOME}" />
@@ -83,7 +83,7 @@
     <property name="log.config.file" location="${log.config}" />
     <property name="security.policy" location="harness/policy/qa.policy" />
     <property name="harness.props" location="${src.dir}/org/apache/river/test/resources/qaHarness.prop"/>
-    <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
+    <!--possible values: any combination of jeri,jsse,http,https,kerberos,none
         default: none -->
     <property name="harness.configs" value="jsse"/>
     <!-- possible values: activatable,transient,persistent
@@ -196,8 +196,8 @@
                 classpath="${jtreg.home}/jtreg.jar" />
         <!--test.props, please note: file paths cannot contain backslashes in 
             test properties file.-->
-        <echo file="${jtreg.dir}/test.props" message="jsk.home=${river.home}"/>
-        <echo message="MS Windows platforms require river.home to be defined in 
+        <echo file="${jtreg.dir}/test.props" message="jsk.home=${jsk.home}"/>
+        <echo message="MS Windows platforms require jsk.home to be defined in 
             your build.properties file, otherwise test failures will occur"/>
         <!--<echo file="${jtreg.dir}/test.props" message="sun.security.krb5.debug=true" append="true-->
         <!--Change the httpd port number here-->
@@ -207,21 +207,21 @@
         <mkdir dir="${jtreg.dir}/JTlib-tmp" />
         <copy todir="${jtreg.dir}/JTlib-tmp">
             <filelist dir="${river.lib.dir}">
-                <file name="jgdms-collections-${river.version}.jar"/>
-                <file name="jgdms-iiop-${river.version}.jar"/>
-                <file name="jgdms-jeri-${river.version}.jar"/>
-                <file name="jgdms-jrmp-${river.version}.jar"/>
-                <file name="jgdms-lib-${river.version}.jar"/>
-                <file name="jgdms-platform-${river.version}.jar"/>
-                <file name="jgdms-pref-class-loader-${river.version}.jar"/>
-                <file name="jgdms-url-integrity-${river.version}.jar"/>
-                <file name="classdep-${river.version}.jar"/>
-                <file name="classserver-${river.version}.jar"/>
+                <file name="jgdms-collections-${jgdms.version}.jar"/>
+                <file name="jgdms-iiop-${jgdms.version}.jar"/>
+                <file name="jgdms-jeri-${jgdms.version}.jar"/>
+                <file name="jgdms-lib-${jgdms.version}.jar"/>
+                <file name="jgdms-platform-${jgdms.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                <file name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                <file name="classdep-${jgdms.version}.jar"/>
+                <file name="classserver-${jgdms.version}.jar"/>
                 <file name="asm-7.3.1.jar"/>
                 <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
-                <file name="jgdms-activation-${river.version}.jar"/>
-                <file name="checkconfigurationfile-${river.version}.jar"/>
+                <file name="jgdms-activation-${jgdms.version}.jar"/>
+                <file name="jgdms-activation-parameters-${jgdms.version}.jar"/>
+                <file name="checkconfigurationfile-${jgdms.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
@@ -231,8 +231,8 @@
                 <file name="high-scale-lib.jar"/>-->
             </filelist>
             <filelist dir="${river.lib-dl.dir}">
-                <file name="jgdms-lib-dl-${river.version}.jar"/>
-                <file name="phoenix-dl-${river.version}.jar"/>
+                <file name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                <file name="phoenix-dl-${jgdms.version}.jar"/>
             </filelist>
         </copy>
         <!--<move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
@@ -241,12 +241,17 @@
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk.home}">
             <!--<arg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
-            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-iiop-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-jrmp-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${river.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${river.version}.jar${path.separator}${jtlib.tmp}/classdep-${river.version}.jar${path.separator}${jtlib.tmp}/classserver-${river.version}.jar${path.separator}${jtlib.tmp}/asm-7.3.1.jar${path.separator}${jtlib.tmp}/asm-commons-7.3.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${river.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${river.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${river.version}.jar"/>
+            <arg value="-cpa:${jtlib.tmp}/jgdms-collections-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-iiop-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-jeri-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-lib-dl-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-platform-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-pref-class-loader-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-url-integrity-${jgdms.version}.jar${path.separator}${jtlib.tmp}/classdep-${jgdms.version}.jar${path.separator}${jtlib.tmp}/classserver-${jgdms.version}.jar${path.separator}${jtlib.tmp}/asm-7.3.1.jar${path.separator}${jtlib.tmp}/asm-commons-7.3.1.jar${path.separator}${jtlib.tmp}/high-scale-lib-1.0.6.jar${path.separator}${jtlib.tmp}/jgdms-activation-${jgdms.version}.jar${path.separator}${jtlib.tmp}/jgdms-activation-parameters-${jgdms.version}.jar${path.separator}${jtlib.tmp}/checkconfigurationfile-${jgdms.version}.jar${path.separator}${jtlib.tmp}/phoenix-dl-${jgdms.version}.jar"/>
             <arg value="-timeout:16"/>
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Djtreg.dir=${jtreg.dir}"/>
             <arg value="-Dtest.src=${jtreg.dir}"/>
+            <arg value="-Dsun.rmi.registry.registryFilter=*"/>
+            <arg value="-Dsun.rmi.transport.dgcFilter=*"/>
+            <arg value="-Djava.rmi.server.useCodebaseOnly=false"/>
+            <arg value="-Djava.rmi.server.RMIClassLoaderSpi=net.jini.loader.pref.PreferredClassProvider"/>
             <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>
+            <arg value="-Djava.util.logging.config.file=${jsk.home}qa/src/org/apache/river/test/resources/qa1.logging"/>
             <arg value="-ignore:quiet"/>
             <arg value="-xml:verify"/>           
             <!-- This argument only runs the tests that failed on the last test run -->
@@ -260,7 +265,7 @@
              * 20 - Print full test entry and pass/fail for every test.
              * 25 - Include passing results.
              * 30 - Include additional test debugging output, including time. -->
-            <arg value="-DtestLevel=30"/>
+            <arg value="-DtestLevel=5"/>
             <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
             <!--<arg value="-Djavax.net.debug=ssl"/>-->
             <!--<arg value="-J-Djavatest.maxOutputSize=300000"/>-->
@@ -268,6 +273,7 @@
             <!--<arg value="-Bug:6307813"/>-->
             <!--<arg value="-Bug:4408449"/>-->
             <!--<arg value="-Bug:6313626"/>-->
+            <!--<arg value="-Bug:4849581"/>-->
             <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
             <!--<arg value="net/jini/security/Security/implicitGrants/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
@@ -276,24 +282,34 @@
             <!--2 test failures in:--> 
             <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
             <!--<arg value="net/jini/loader/pref/PreferredResources/correctInterpretation/CorrectInterpretation.java"/>-->
+            <!--<arg value="net/jini/config/TestAPI/TestConstructor.java"/>-->
+            <!--<arg value="net/jini/io/MarshalInputStream/verifyWithEqualLoaders/VerifyWithEqualLoaders.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestConnectionContext.java"/>-->
+            <!--<arg value="net/jini/jeri/BasicJeriExporter/dgcServerExposure/DgcServerExposure.java"/>-->
+            <!--<arg value="net/jini/jeri/BasicJeriExporter/operations/Operations.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestServerEndpoint.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestUtilities.java"/>-->
+            <!--<arg value="net/jini/loader/pref/PreferredClassProvider/checkBoomerangs/CheckBoomerangs.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestConnectionContext.java"/>-->
         </jtreg>
         <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-collections-${river.version}.jar"/>
-                <file name="jgdms-iiop-${river.version}.jar"/>
-                <file name="jgdms-jeri-${river.version}.jar"/>
-                <file name="jgdms-jrmp-${river.version}.jar"/>
-                <file name="jgdms-lib-${river.version}.jar"/>
-                <file name="jgdms-platform-${river.version}.jar"/>
-                <file name="jgdms-pref-class-loader-${river.version}.jar"/>
-                <file name="jgdms-url-integrity-${river.version}.jar"/>
-                <file name="classdep-${river.version}.jar"/>
-                <file name="classserver-${river.version}.jar"/>
+                <file name="jgdms-collections-${jgdms.version}.jar"/>
+                <file name="jgdms-iiop-${jgdms.version}.jar"/>
+                <file name="jgdms-jeri-${jgdms.version}.jar"/>
+                <file name="jgdms-lib-${jgdms.version}.jar"/>
+                <file name="jgdms-platform-${jgdms.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                <file name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                <file name="classdep-${jgdms.version}.jar"/>
+                <file name="classserver-${jgdms.version}.jar"/>
                 <file name="asm-7.3.1.jar"/>
                 <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
-                <file name="jgdms-activation-${river.version}.jar"/>
-                <file name="checkconfigurationfile-${river.version}.jar"/>
+                <file name="jgdms-activation-${jgdms.version}.jar"/>
+                <file name="jgdms-activation-parameters-${jgdms.version}.jar"/>
+                <file name="checkconfigurationfile-${jgdms.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
@@ -305,8 +321,8 @@
         </delete>
         <delete>
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-lib-dl-${river.version}.jar"/>        
-                <file name="phoenix-dl-${river.version}.jar"/>
+                <file name="jgdms-lib-dl-${jgdms.version}.jar"/>        
+                <file name="phoenix-dl-${jgdms.version}.jar"/>
             </filelist>
         </delete>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
@@ -319,21 +335,21 @@
     <target name="jtreg-teardown" depends="" description="Move back JARs">
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-collections-${river.version}.jar"/>
-                <file name="jgdms-iiop-${river.version}.jar"/>
-                <file name="jgdms-jeri-${river.version}.jar"/>
-                <file name="jgdms-jrmp-${river.version}.jar"/>
-                <file name="jgdms-lib-${river.version}.jar"/>
-                <file name="jgdms-platform-${river.version}.jar"/>
-                <file name="jgdms-pref-class-loader-${river.version}.jar"/>
-                <file name="jgdms-url-integrity-${river.version}.jar"/>
-                <file name="classdep-${river.version}.jar"/>
-                <file name="classserver-${river.version}.jar"/>
+                <file name="jgdms-collections-${jgdms.version}.jar"/>
+                <file name="jgdms-iiop-${jgdms.version}.jar"/>
+                <file name="jgdms-jeri-${jgdms.version}.jar"/>
+                <file name="jgdms-lib-${jgdms.version}.jar"/>
+                <file name="jgdms-platform-${jgdms.version}.jar"/>
+                <file name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                <file name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                <file name="classdep-${jgdms.version}.jar"/>
+                <file name="classserver-${jgdms.version}.jar"/>
                 <file name="asm-7.3.1.jar"/>
                 <file name="asm-commons-7.3.1.jar"/>
                 <file name="high-scale-lib-1.0.6.jar"/>
-                <file name="jgdms-activation-${river.version}.jar"/>
-                <file name="checkconfigurationfile-${river.version}.jar"/>
+                <file name="jgdms-activation-${jgdms.version}.jar"/>
+                <file name="jgdms-activation-parameters-${jgdms.version}.jar"/>
+                <file name="checkconfigurationfile-${jgdms.version}.jar"/>
                 <!--<file name="jsk-lib.jar"/>
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
@@ -345,8 +361,8 @@
         </move>
         <move todir="${river.lib-dl.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jgdms-lib-dl-${river.version}.jar"/>
-                <file name="phoenix-dl-${river.version}.jar"/>
+                <file name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                <file name="phoenix-dl-${jgdms.version}.jar"/>
             </filelist>
         </move>
         <!--<move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>-->
@@ -375,9 +391,9 @@
                 <!--<jvmarg value="-Djava.security.debug=access" />-->
                 <jvmarg value="-Djava.util.logging.config.file=${log.config.file}" />
                 <jvmarg value="-Djava.util.logging.manager=org.apache.river.logging.LogManager"/>
-                <jvmarg value="-Dorg.apache.river.jsk.home=${river.home}/JGDMS/dist/target/JGDMS-${river.version}" />
-                <jvmarg value="-Dorg.apache.river.qa.home=${basedir}" />
-                <jvmarg value="-Driver.version=${river.version}" />
+                <jvmarg value="-Djsk.home=${jsk.home}/JGDMS/dist/target/JGDMS-${jgdms.version}" />
+                <jvmarg value="-Dqa.home=${basedir}" />
+                <jvmarg value="-Djgdms.version=${jgdms.version}" />
                 <!--We have a problem with path to properties and the src directory
                 it appears that the src directory was added later, however links
                 to property files aren't reflective of this and conflict with 
@@ -388,7 +404,7 @@
                 <jvmarg value="-Dorg.apache.river.qa.harness.configs=${harness.configs}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml=${harness.generateHtml}" />
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
-                <!--<jvmarg value="-Dorg.apache.river.tool.SecurityPolicyWriter.Directory=${river.home}/qa/build/policy"/>-->
+                <!--<jvmarg value="-Dorg.apache.river.tool.SecurityPolicyWriter.Directory=${jsk.home}/qa/build/policy"/>-->
                 <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />                
                 <!-- VM args for each test run: include our JDK extension directories
                 $${org.apache.river.qa.harness.globalvmargs},-Dorg.apache.river.test.home=$${org.apache.river.test.home},-Dorg.apache.river.test.port=$${org.apache.river.test.port},-Dorg.apache.river.qa.harness.policies=&lt;url: org/apache/river/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
@@ -407,31 +423,30 @@
                     </fileset>
                     <fileset dir="${lib-ext.dir}">
                         <!--<include name="jsk-policy.jar"/>-->
-                        <include name="jgdms-platform-${river.version}.jar"/>
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
                     </fileset>
                     <fileset dir="${river.lib.dir}">
-                        <include name="jgdms-collections-${river.version}.jar"/>
-                        <include name="jgdms-iiop-${river.version}.jar"/>
-                        <include name="jgdms-jeri-${river.version}.jar"/>
-                        <include name="jgdms-jrmp-${river.version}.jar"/>
-                        <include name="jgdms-lib-${river.version}.jar"/>
-                        <include name="jgdms-lib-dl-${river.version}.jar"/>
-                        <include name="jgdms-platform-${river.version}.jar"/>
-                        <include name="jgdms-pref-class-loader-${river.version}.jar"/>
-                        <include name="jgdms-url-integrity-${river.version}.jar"/>
-                        <include name="classdep-${river.version}.jar"/>
-                        <include name="classserver-${river.version}.jar"/>
-                        <include name="service-starter-${river.version}.jar"/>
+                        <include name="jgdms-collections-${jgdms.version}.jar"/>
+                        <include name="jgdms-iiop-${jgdms.version}.jar"/>
+                        <include name="jgdms-jeri-${jgdms.version}.jar"/>
+                        <include name="jgdms-lib-${jgdms.version}.jar"/>
+                        <include name="jgdms-lib-dl-${jgdms.version}.jar"/>
+                        <include name="jgdms-platform-${jgdms.version}.jar"/>
+                        <include name="jgdms-pref-class-loader-${jgdms.version}.jar"/>
+                        <include name="jgdms-url-integrity-${jgdms.version}.jar"/>
+                        <include name="classdep-${jgdms.version}.jar"/>
+                        <include name="classserver-${jgdms.version}.jar"/>
+                        <include name="service-starter-${jgdms.version}.jar"/>
                         <include name="asm-7.3.1.jar"/>
                         <include name="asm-commons-7.3.1.jar"/>
                         <include name="high-scale-lib-1.0.6.jar"/>
                         <include name="bcprov-jdk15on-1.59.jar"/>
                         <include name="bctls-jdk15on-1.59.jar"/>
                         <!-- The next must be manually copied -->
-                        <include name="security-policy-debug-${river.version}.jar"/>
+                        <include name="security-policy-debug-${jgdms.version}.jar"/>
                     </fileset>
                     <fileset dir="${river.lib-dl.dir}">
-                        <include name="jgdms-lib-dl-${river.version}.jar"/>
+                        <include name="jgdms-lib-dl-${jgdms.version}.jar"/>
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>
@@ -463,7 +478,7 @@
         <!-- categories can be found under packages org.apache.river.test.impl and org.apache.river.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,lookupservice,
-        eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
+        eventmailbox,jeri,iiop,reliability,scalability,thread,renewalservice"/>-->
         <property name="run.categories" value="joinmanager"/>
         <testrun>
              <!-- Run one or more test categories -->
@@ -496,7 +511,7 @@
 
     <target name="run" depends="james-brown">
         <property name="run.categories"
-                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager,stress"/>
         <antcall target="run-categories"/>
     </target>
     
@@ -673,7 +688,7 @@
         harness-killer-dl.jar,
         jiniharness.jar" />
 
-    <target name="stubs" depends="compile,iiop.stubs,jrmp.stubs" description="Compile stubs"/>
+    <target name="stubs" depends="compile,iiop.stubs" description="Compile stubs"/>
         <!--harness-killer.stubs,
         nonactivatablegroup.stubs,
         qa1-fiddler.stubs,
@@ -688,7 +703,6 @@
         qa1-javaspace.stubs,
         qa1-lookupservice.stubs,
         qa1-renewalservice.stubs,
-        jrmp.stubs,
         iiop.stubs"-->
         
     <target name="harness-killer.stubs" depends="compile">
@@ -1933,20 +1947,6 @@
                 <include name="org/apache/river/proxy/BasicProxyTrustVerifier.class"/>
             </fileset>-->
         </jar>
-    </target>
-
-    <target name="jrmp.stubs" depends="compile">
-        <!--<rmic base="${build.classes.dir}" iiop="true" classpathref="river.jars">
-            <include name="org/apache/river/test/spec/jrmp/util/TestRemoteObject.class" />
-        </rmic>-->
-        <exec executable="rmic">
-            <arg value="-iiop"/>
-            <arg value="-classpath"/>
-            <arg value="${build.classes.dir}"/>
-            <arg value="-d"/>
-            <arg value="${build.classes.dir}"/>
-            <arg value="org.apache.river.test.spec.jrmp.util.TestRemoteObject"/>
-        </exec>
     </target>
 
     <target name="qa1-lookupservice.stubs" depends="compile">

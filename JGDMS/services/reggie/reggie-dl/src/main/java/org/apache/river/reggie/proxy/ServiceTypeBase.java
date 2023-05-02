@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.proxy.CodebaseProvider;
 
 /**
@@ -33,6 +35,19 @@ import org.apache.river.proxy.CodebaseProvider;
 public class ServiceTypeBase implements Serializable {
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("type", ServiceType.class),
+            new SerialForm("codebase", String.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServiceTypeBase stb) throws IOException{
+        arg.put("type", stb.type);
+        arg.put("codebase", stb.codebase);
+        arg.writeArgs();
+    }
 
     /**
      * The ServiceType.

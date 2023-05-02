@@ -1,0 +1,243 @@
+grant codebase "file:${jsk.home}${/}lib${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/org.openjsse" {
+    permission java.security.AllPermission "", "";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester" 
+{
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice1-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice2-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9082/qa1-start-testservice-common-dl.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/reggie-dl-${jgdms.version}.jar", "GET:";
+    permission java.net.URLPermission "http://${HOST}:9080/jgdms-lib-dl-${jgdms.version}.jar", "GET:";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+      permission java.net.SocketPermission "${HOST}:9082", "connect,resolve";
+};
+
+grant
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission java.net.SocketPermission "medusa:9082", "connect,resolve";
+};
+
+grant codebase "file:${org.apache.river.qa.harness.harnessJar}
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+
+};
+
+grant codebase "file:${org.apache.river.qa.harness.testJar}
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+
+};
+
+//not sure the following is necessary, but just in case
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Norm"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+      permission org.apache.river.phoenix.ExecOptionPermission "*";
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+        // for a start test
+      permission org.apache.river.phoenix.ExecPermission "/bin/javax";
+
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+     permission org.apache.river.phoenix.dl.MonitorPermission
+                "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+     permission org.apache.river.phoenix.dl.MonitorPermission
+                "java.rmi.activation.ActivationMonitor.*";
+
+
+};
+
+
+//Kerberos Principals
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
+{
+      permission org.apache.river.phoenix.ExecOptionPermission "*";
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+        // for a start test
+      permission org.apache.river.phoenix.ExecPermission "/bin/javax";
+
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
+{
+      permission org.apache.river.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission org.apache.river.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+     permission org.apache.river.phoenix.dl.MonitorPermission
+                "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+     permission org.apache.river.phoenix.dl.MonitorPermission
+                "java.rmi.activation.ActivationMonitor.*";
+
+};

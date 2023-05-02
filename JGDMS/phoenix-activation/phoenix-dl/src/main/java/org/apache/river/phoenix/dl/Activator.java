@@ -21,9 +21,9 @@ package org.apache.river.phoenix.dl;
 import org.apache.river.proxy.MarshalledWrapper;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.UnknownObjectException;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.UnknownObjectException;
 import net.jini.io.MarshalledInstance;
 
 /**

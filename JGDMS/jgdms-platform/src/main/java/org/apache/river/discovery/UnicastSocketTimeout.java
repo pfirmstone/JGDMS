@@ -25,6 +25,8 @@ import java.io.Serializable;
 import net.jini.core.constraint.InvocationConstraint;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the timeout set on sockets used for unicast
@@ -40,6 +42,17 @@ public final class UnicastSocketTimeout
     implements InvocationConstraint, Serializable
 {
     private static final long serialVersionUID = 6500477426762925657L;
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("timeout", Integer.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, UnicastSocketTimeout u) throws IOException{
+        arg.put("timeout", u.timeout);
+        arg.writeArgs();
+    }
 
     /**
      * The socket timeout.
@@ -83,15 +96,18 @@ public final class UnicastSocketTimeout
 	return timeout;
     }
 
+    @Override
     public int hashCode() {
 	return UnicastSocketTimeout.class.hashCode() + timeout;
     }
 
+    @Override
     public boolean equals(Object obj) {
 	return obj instanceof UnicastSocketTimeout &&
 	       timeout == ((UnicastSocketTimeout) obj).timeout;
     }
 
+    @Override
     public String toString() {
 	return "UnicastSocketTimeout[" + timeout + "]";
     }

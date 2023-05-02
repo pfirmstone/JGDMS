@@ -25,6 +25,8 @@ import net.jini.core.entry.CloneableEntry;
 import net.jini.core.entry.Entry;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Items are stored in and retrieved from the lookup service using
@@ -38,16 +40,31 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public class ServiceItem implements java.io.Serializable, Cloneable {
 
     private static final long serialVersionUID = 717395451032330758L;
+    private static final String SERVICE_ID = "serviceID";
+    private static final String SERVICE = "service";
+    private static final String ATTRIBUTE_SETS = "attributeSets";
+    
     private static final ObjectStreamField[] serialPersistentFields = 
-    { 
-        /** @serialField serviceID ServiceID Universally unique identifier for services */
-        new ObjectStreamField("serviceID", ServiceID.class),
-        /** @serialField service Object A service proxy */
-        new ObjectStreamField("service", Object.class),
-        /** @serialField attributeSets Entry[] Attribute sets */
-        new ObjectStreamField("attributeSets", Entry[].class)
-    };
+            serialForm();
 
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            /** @serialField serviceID ServiceID Universally unique identifier for services */
+            new SerialForm(SERVICE_ID, ServiceID.class),
+            /** @serialField service Object A service proxy */
+            new SerialForm(SERVICE, Object.class),
+            /** @serialField attributeSets Entry[] Attribute sets */
+            new SerialForm(ATTRIBUTE_SETS, Entry[].class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServiceItem s) throws IOException{
+        arg.put(SERVICE_ID, s.serviceID);
+        arg.put(SERVICE, s.service);
+        arg.put(ATTRIBUTE_SETS, s.attributeSets.clone());
+        arg.writeArgs();
+    }
+    
     /** A service ID, or null if registering for the first time. */
     public ServiceID serviceID;
     /** A service object. */
@@ -62,11 +79,12 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
      * @param arg atomic deserialization parameter 
      * @throws IOException if there are I/O errors while reading from GetArg's
      *         underlying <code>InputStream</code>
+     * @throws java.lang.ClassNotFoundException
      */
     public ServiceItem(GetArg arg) throws IOException, ClassNotFoundException {
-	this( arg == null ? null: arg.get("serviceID", null, ServiceID.class),
-	      arg == null ? null: arg.get("service", null),
-	      arg == null ? null: arg.get("attributeSets", null, Entry[].class));
+	this( arg == null ? null: arg.get(SERVICE_ID, null, ServiceID.class),
+	      arg == null ? null: arg.get(SERVICE, null),
+	      arg == null ? null: arg.get(ATTRIBUTE_SETS, null, Entry[].class));
     }
     
     /**
@@ -89,6 +107,7 @@ public class ServiceItem implements java.io.Serializable, Cloneable {
      * @return <code>String</code> representation of this 
      * <code>ServiceItem</code>
      */
+    @Override
     public String toString() 
     {
 	StringBuilder sBuffer = new StringBuilder(256);

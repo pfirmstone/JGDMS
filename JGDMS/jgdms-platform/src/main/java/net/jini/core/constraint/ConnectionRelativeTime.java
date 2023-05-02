@@ -24,6 +24,8 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the maximum amount of time to wait for a
@@ -44,6 +46,17 @@ public final class ConnectionRelativeTime
 			implements RelativeTimeConstraint, Serializable
 {
     private static final long serialVersionUID = 6854732178792183150L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("time", Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ConnectionRelativeTime c) throws IOException{
+        arg.put("time", c.time);
+        arg.writeArgs();
+    }
 
     /**
      * The maximum connection duration in milliseconds.
@@ -122,6 +135,7 @@ public final class ConnectionRelativeTime
     /**
      * Returns a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	return (int)(ConnectionRelativeTime.class.hashCode() + time);
     }
@@ -129,6 +143,7 @@ public final class ConnectionRelativeTime
     /**
      * Two instances of this class are equal if both have the same duration.
      */
+    @Override
     public boolean equals(Object obj) {
 	if (!(obj instanceof ConnectionRelativeTime)) {
 	    return false;
@@ -140,6 +155,7 @@ public final class ConnectionRelativeTime
     /**
      * Returns a string representation of this object.
      */
+    @Override
     public String toString() {
 	return "ConnectionRelativeTime[" + time + "]";
     }

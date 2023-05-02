@@ -7,3 +7,6 @@ Preferred: false
 
 Name: org/apache/river/start/*
 Preferred: false
+
+Name: net/jini/activation/arg/*
+Preferred: false

@@ -21,6 +21,7 @@ package net.jini.core.lease;
 import java.io.IOException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /**
  * An exception used to indicate that a lease is not known to the grantor
@@ -31,6 +32,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @since 1.0
  */
 @AtomicSerial
+@Stateless
 public class UnknownLeaseException extends LeaseException {
 
     private static final long serialVersionUID = -2921099330511429288L;

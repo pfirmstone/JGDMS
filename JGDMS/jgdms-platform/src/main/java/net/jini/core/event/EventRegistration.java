@@ -22,9 +22,12 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectOutputStream.PutField;
 import net.jini.core.lease.Lease;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * A utility class for use as a return value for event-interest registration
@@ -50,6 +53,32 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
 public final class EventRegistration implements java.io.Serializable {
 
     private static final long serialVersionUID = 4055207527458053347L;
+    
+    private final static String EVENT_ID = "eventID";
+    private final static String SOURCE = "source";
+    private final static String LEASE = "lease";
+    private final static String SEQ_NUM = "seqNum";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm(EVENT_ID, Long.TYPE),
+            new SerialForm(SOURCE, Object.class),
+            new SerialForm(LEASE, Lease.class),
+            new SerialForm(SEQ_NUM, Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, EventRegistration e) throws IOException{
+        putArgs(arg, e);
+        arg.writeArgs();
+    }
+    
+    private static void putArgs(PutField fields, EventRegistration e){
+        fields.put(EVENT_ID, e.eventID);
+        fields.put(SOURCE, e.source);
+        fields.put(LEASE, e.lease);
+        fields.put(SEQ_NUM, e.seqNum);
+    }
 
     /**
      * The event identifier.
@@ -192,7 +221,8 @@ public final class EventRegistration implements java.io.Serializable {
      * @since 3.1
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
-	out.defaultWriteObject();
+	putArgs(out.putFields(), this);
+        out.writeFields();
     }
     
     /**

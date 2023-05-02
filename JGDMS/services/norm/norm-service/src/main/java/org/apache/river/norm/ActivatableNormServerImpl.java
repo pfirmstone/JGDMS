@@ -17,12 +17,10 @@
  */
 package org.apache.river.norm;
 
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationSystem;
 import java.util.logging.Level;
 
 import org.apache.river.config.Config;
@@ -33,9 +31,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
 import net.jini.export.Exporter;
-import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
-import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
@@ -47,7 +43,7 @@ import net.jini.security.ProxyPreparer;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-class ActivatableNormServerImpl extends NormServerBaseImpl 
+public class ActivatableNormServerImpl extends NormServerBaseImpl 
 				implements DynamicProxyCodebaseAccessor {
     /** Our activation ID */
     private final ActivationID activationID;
@@ -98,10 +94,10 @@ class ActivatableNormServerImpl extends NormServerBaseImpl
      * suitable for use with {@link ServiceStarter}.
      *
      * @param activationID activation ID passed in by the activation daemon
-     * @param data state data needed to re-activate a Norm server
+     * @param data Configuration state data needed to re-activate a Norm server
      * @throws Exception if there is a problem creating the server
      */
-    ActivatableNormServerImpl(ActivationID activationID, MarshalledObject data)
+    public ActivatableNormServerImpl(ActivationID activationID, String[] data)
 	throws Exception
     {
         /* Any Exception thrown happens prior to super being called, so this
@@ -116,12 +112,12 @@ class ActivatableNormServerImpl extends NormServerBaseImpl
         this.activationID = ((Init) init).activationID;
     }
     
-    private static String[] getConfigOptions(ActivationID activationID, MarshalledObject data) throws Exception{
+    private static String[] getConfigOptions(ActivationID activationID, String[] data) throws Exception{
         try {
 	    if (activationID == null) {
 		throw new NullPointerException("activationID is null");
 	    }
-	    return (String[]) new MarshalledInstance(data).get(false);
+	    return data;
 	} catch (Throwable e) {
 	    initFailed(e);
 	}

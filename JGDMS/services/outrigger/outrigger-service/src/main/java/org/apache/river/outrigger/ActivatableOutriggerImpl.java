@@ -16,9 +16,8 @@
 package org.apache.river.outrigger;
 
 import java.io.IOException;
-import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationID;
 import javax.security.auth.login.LoginException;
 import net.jini.config.ConfigurationException;
 import net.jini.export.DynamicProxyCodebaseAccessor;
@@ -27,15 +26,14 @@ import net.jini.export.DynamicProxyCodebaseAccessor;
  *
  * @author peter
  */
-class ActivatableOutriggerImpl extends PersistentOutriggerImpl  
+public class ActivatableOutriggerImpl extends PersistentOutriggerImpl  
 			      implements DynamicProxyCodebaseAccessor {
 
     /**
      * Create a new incarnation of an activatable
      * <code>OutriggerServerImpl</code> server.
      * @param activationID of the server, may be <code>null</code>.
-     * @param data an array of <code>String</code>s (packaged in
-     *        a marshalled object) that will be used 
+     * @param data an array of <code>String</code>s that will be used 
      *        to obtain a <code>Configuration</code>.
      * @throws IOException if there is problem recovering data
      *         from disk, exporting the server, or unpacking
@@ -52,8 +50,8 @@ class ActivatableOutriggerImpl extends PersistentOutriggerImpl
      * @throws ClassNotFoundException if the classes of the objects
      *         encapsulated inside <code>data</code> can not be found.
      */
-    ActivatableOutriggerImpl(ActivationID activationID, 
-				    MarshalledObject data) 
+    public ActivatableOutriggerImpl(ActivationID activationID, 
+				    String[] data) 
 	    throws IOException, ConfigurationException, LoginException,
 	    ActivationException, ClassNotFoundException 
     {

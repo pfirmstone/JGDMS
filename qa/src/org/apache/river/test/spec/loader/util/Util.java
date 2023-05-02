@@ -195,7 +195,7 @@ public class Util {
         String kitJarsDir = getJarsDir(config);
 
         if (kitJarsDir == null) {
-            throw new TestException("org.apache.river.qa.home not defined");
+            throw new TestException("qa.home not defined");
         }
         boolean trees = true;
         boolean verbose = false;

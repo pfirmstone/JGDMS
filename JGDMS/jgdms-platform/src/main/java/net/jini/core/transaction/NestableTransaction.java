@@ -24,6 +24,8 @@ import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.transaction.server.NestableTransactionManager;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Interface for classes representing nestable transactions returned by
@@ -44,6 +46,19 @@ public interface NestableTransaction extends Transaction {
     @AtomicSerial
     public static class Created implements java.io.Serializable {
 	static final long serialVersionUID = -2979247545926318953L;
+        
+        public static SerialForm[] serialForm(){
+            return new SerialForm[]{
+                new SerialForm("transaction", NestableTransaction.class),
+                new SerialForm("lease", Lease.class)
+            };
+        }
+        
+        public static void serialize(PutArg arg, Created nt) throws IOException{
+            arg.put("transaction", nt.transaction);
+            arg.put("lease", nt.lease);
+            arg.writeArgs();
+        }
 
 	/**
 	 * The transaction.

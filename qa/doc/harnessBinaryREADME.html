@@ -57,11 +57,11 @@ and user-supplied properties that control harness execution are
 provided in a <code>deployment properties file</code>
  which is named on the command line used to run the
 harness. The directory containing the starter kit is identified in this file by
-the property <code>org.apache.river.jsk.home</code>. The directory containing the
+the property <code>jsk.home</code>. The directory containing the
 test harness kit is identified in this file by the property
-<code>org.apache.river.qa.home</code>. In property files, and frequently in this
+<code>qa.home</code>. In property files, and frequently in this
 document, these directories will be referred to symbolically as
-<code>${org.apache.river.jsk.home}</code> and <code>${org.apache.river.qa.home}</code>.
+<code>${jsk.home}</code> and <code>${qa.home}</code>.
 The test suite to be executed by the harness is installed separately and
 may require additional properties to define the installation environment
 of the test suite.
@@ -190,7 +190,7 @@ Otherwise, a <code>TestException</code> is thrown.
 When the harness processes the &lt;url:filename&gt; or &lt;file:filename&gt; tokens, it searches 
 for <code>filename</code> along a search path defined by the <code>searchPath</code>
 test property. Regardless of the value of this property, the search path will
-always include ${org.apache.river.qa.home}. In general, <code>searchPath</code> should
+always include ${qa.home}. In general, <code>searchPath</code> should
 be defined self-referentially. For instance, it can be convenient for 
 debugging purposes to modify the search path on the command line as follows:
 <pre>
@@ -492,7 +492,7 @@ configurations.
 When the harness is invoked from the command line, the name of a deployment
 properties file must be provided. The example prototype for this file is located
 in
-<code>${org.apache.river.qa.home}/src/org/apache/river/resources/basicDeployment.prop.</code>
+<code>${qa.home}/src/org/apache/river/resources/basicDeployment.prop.</code>
 in the source distribution kit.
 
 Typically, a test suite would define additional properties which must be
@@ -571,7 +571,7 @@ but is considered adequate for testing purposes. For example, if policy file A
 granted read access to foo and policy file B granted write access to foo, then
 an access check for read,write access  to foo would still fail.
 <p>
-The policy provider is <code>${org.apache.river.qa.home}/lib/mergedpolicyprovider.jar</code>
+The policy provider is <code>${qa.home}/lib/mergedpolicyprovider.jar</code>
 (in both the source and binary distributions) and must be installed in the extensions 
 directory of the JDK used to run the test harness. On startup, the harness will
 verify that the provider is loaded by the extension class loader and will exit
@@ -594,7 +594,7 @@ These resources include JAAS login
 configuration files, keystores, truststores, etc. Because the value of the
 <code>javax.net.ssl.trustStore</code> property must refer to a file, the
 trust store supplied by the harness is packaged as a separate file in
-<code>${org.apache.river.qa.home}/harness/trust/truststore</code> in both the
+<code>${qa.home}/harness/trust/truststore</code> in both the
 source and binary distributions.
 
 <h2>Starting Jini Services</h2>
@@ -686,13 +686,13 @@ to:
 
 The properties that control these auxiliary services are defined in the example
 deployment properties file,
-<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop.</code>
+<code>${qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop.</code>
 supplied in the harness source distribution.
 
 <h3>The Starter Kit Class Server</h3>
 
 By default, the harness will automatically start a class server on port 8080 to
-serve JAR files from <code>${org.apache.river.jsk.home}/lib-dl.</code> This can be inhibited by
+serve JAR files from <code>${jsk.home}/lib-dl.</code> This can be inhibited by
 defining
 
 <pre>
@@ -711,7 +711,7 @@ The second line is needed to support generating httpmd URLs.
 <h3>The QA Class Server</h3>
 
 By default, the harness will automatically start a class server on port 8081 to
-serve JAR files from <code>${org.apache.river.qa.home}/lib.</code> This can be inhibited by
+serve JAR files from <code>${qa.home}/lib.</code> This can be inhibited by
 defining
 
 <pre>
@@ -1044,13 +1044,13 @@ result from correct behavior of the item under test.
 To run the harness, at least two JAR files must be included in the classpath:
 
 <pre>
-        ${org.apache.river.qa.home}/lib/jiniharness.jar
+        ${qa.home}/lib/jiniharness.jar
 </pre>
 
 is the JAR file containing the harness code and resources, and
 
 <pre>
-        ${org.apache.river.jsk.home}/lib/jsk-platform.jar
+        ${jsk.home}/lib/jsk-platform.jar
 </pre>
 
 is the starter kit platform that is typically included in the classpath of 
@@ -1060,8 +1060,8 @@ Jini clients and services.
 
 The user must also specify the name of a deployment properties file on the command line
 that defines installation values, such as the value of
-<code>${org.apache.river.qa.home}.</code> A prototype of this file is available at
-<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop</code> 
+<code>${qa.home}.</code> A prototype of this file is available at
+<code>${qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop</code> 
 in the source distribution. 
 The user must also specify the name of the primary test suite JAR file via the
 command-line option <code>-testJar foo.jar</code>. In this example, <code>foo.jar</code> contains the
@@ -1620,7 +1620,7 @@ appending the type value. For instance, for the hypothetical Jini service
    net.jini.FooInterface.impl.activatable=org.apache.river.foo.FooActImpl
    net.jini.FooInterface.impl.transient=org.apache.river.foo.FooNonActImpl
    net.jini.FooInterface.impl.persistent=org.apache.river.foo.FooNonActImpl
-   net.jini.FooInterface.codebase=${org.apache.river.jsk.home}/lib-dl/foo-dl.jar
+   net.jini.FooInterface.codebase=${jsk.home}/lib-dl/foo-dl.jar
 </pre>
 
 If the value of <code>net.jini.FooInterface.type</code> is "activatable" then
@@ -1629,11 +1629,11 @@ will first search for the ".activatable" variant. If not found, then the
 unqualified variant will be searched for. For the example above, the search for
 <code>impl</code> would return <code>org.apache.river.foo.FooActImpl</code>, and the
 search for <code>codebase</code> would return
-<code>${org.apache.river.jsk.home}/lib-dl/foo-dl.jar</code>. However, if
+<code>${jsk.home}/lib-dl/foo-dl.jar</code>. However, if
 <code>net.jini.FooInterface.type</code> is "persistent", then the search for
 <code>impl</code> would return <code>org.apache.river.foo.FooNonActImpl</code>, and
 the search for <code>codebase</code> would return
-<code>${org.apache.river.jsk.home}/lib-dl/foo-dl.jar</code>. When overriding the
+<code>${jsk.home}/lib-dl/foo-dl.jar</code>. When overriding the
 definition of a service property, it is therefore important to override all
 variants for that property. Overriding only the unqualified definition will
 result in incorrect behavior if any variants are defined elsewhere.
@@ -1789,19 +1789,19 @@ The user must specify a deployment properties file on the command line used to r
 harness. This file defines installation specific values and a small number of
 configurable parameters, such as timeouts. The prototype for this file is
 included with the harness at
-<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop.</code>
+<code>${qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop.</code>
 Properties defined in this file include:
 
 <table summary="mandatory and optional user supplied properties">
 <tr valign=top>
-  <td><code>org.apache.river.jsk.home</code> 
+  <td><code>jsk.home</code> 
   <td>
 
       the installation directory of the starter kit. This value is
       mandatory, and must be specified as an absolute path.
 
 <tr valign=top>
-  <td><code>org.apache.river.qa.home</code> 
+  <td><code>qa.home</code> 
   <td>
 
       the installation directory of the QA 'kit'. This value is
@@ -1933,7 +1933,7 @@ password files for your KDC.
 
 4. Edit the following section in the test suite deployment properties file which
 was derived from
-<code>${org.apache.river.qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop</code>
+<code>${qa.home}/src/org/apache/river/qa/resources/basicDeployment.prop</code>
 supplied in the harness source distribution:
 
 <pre>

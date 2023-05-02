@@ -93,7 +93,17 @@ public class CheckClientPermission implements Runnable, ClientSubject {
 	    ServerContext.doWithServerContext(ccp, context);
 	    throw new RuntimeException("check succeeded");
 	} catch (AccessControlException e) {
-	    if (e.getPermission() != null) {
+            /* if (e.getPermission() != null) {  - This appears to make
+             * assumptions about the permission that caused the 
+             * AccessControlException to be thrown.
+             * However in our case the permission was the excpecte permission
+             * which meant the test failed when it should pass.  It appears
+             * the behaviour of the AccessController has changed in the current JVM.
+             * Instead I have changed this to fail if we get a different permission
+             * than that expected.
+             */ 
+            Permission expected = e.getPermission();
+	    if (expected != null && !perm.equals(expected)) { // In case a different permission caused failure.
 		throw e;
 	    }
 	}

@@ -254,9 +254,6 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
     /** permissions required to access loader through public API */
     private final Collection<Permission> permissions;
 
-    /** security context for loading classes and resources */
-    private final AccessControlContext acc;
-
     /** permission required to download code? */
     private final boolean requireDlPerm;
 
@@ -268,7 +265,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
     
     private final IOException exceptionWhileLoadingPreferred;
 
-    private static final Permission downloadPermission =
+    private static final Permission DOWNLOAD_PERMISSION =
 	new DownloadPermission();
     private final Permission[] advisoryPermissions;
 
@@ -307,15 +304,17 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * @throws SecurityException if there is a security manager and an
      * invocation of its {@link SecurityManager#checkCreateClassLoader
      * checkCreateClassLoader} method fails
+     * 
+     * @since 2.0
      **/
     public PreferredClassLoader(URL[] urls,
 				ClassLoader parent,
 				String exportAnnotation,
 				boolean requireDlPerm)
     {
-	this(urls, parent, exportAnnotation, requireDlPerm, null);
+	this(urls, parent, exportAnnotation, requireDlPerm, AccessController.getContext());
     }
-
+    
     /**
      * Creates a new <code>PreferredClassLoader</code> that loads
      * classes and resources from the specified path of URLs,
@@ -367,7 +366,110 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 				boolean requireDlPerm,
 				URLStreamHandlerFactory factory)
     {
-	super(urls, parent, factory);
+        this(urls, parent, exportAnnotation, requireDlPerm, factory, AccessController.getContext());
+    }
+    
+    /**
+     * Creates a new <code>PreferredClassLoader</code> that loads
+     * classes and resources from the specified path of URLs and
+     * delegates to the specified parent class loader.
+     *
+     * <p>If <code>exportAnnotation</code> is not <code>null</code>,
+     * then it will be used as the return value of the loader's {@link
+     * #getClassAnnotation getClassAnnotation} method.  If
+     * <code>exportAnnotation</code> is <code>null</code>, the
+     * loader's <code>getClassAnnotation</code> method will return a
+     * space-separated list of the URLs in the specified path.  The
+     * <code>exportAnnotation</code> parameter can be used to specify
+     * so-called "export" URLs, from which other parties should load
+     * classes defined by the loader and which are different from the
+     * "import" URLs that the classes are actually loaded from.
+     *
+     * <p>If <code>requireDlPerm</code> is <code>true</code>, the
+     * loader's {@link #getPermissions getPermissions} method will
+     * require that the {@link CodeSource} of any class defined by the
+     * loader is granted {@link DownloadPermission}.
+     *
+     * @param urls the path of URLs to load classes and resources from
+     *
+     * @param parent the parent class loader for delegation
+     *
+     * @param exportAnnotation the export class annotation string to
+     * use for classes defined by this loader, or <code>null</code>
+     *
+     * @param requireDlPerm if <code>true</code>, the loader will only
+     * define classes with a {@link CodeSource} that is granted {@link
+     * DownloadPermission}
+     * @param context
+     *
+     * @throws SecurityException if there is a security manager and an
+     * invocation of its {@link SecurityManager#checkCreateClassLoader
+     * checkCreateClassLoader} method fails
+     * 
+     * @since 3.1
+     **/
+    public PreferredClassLoader(URL[] urls,
+				ClassLoader parent,
+				String exportAnnotation,
+				boolean requireDlPerm,
+                                AccessControlContext context)
+    {
+	this(urls, parent, exportAnnotation, requireDlPerm, null, context);
+    }
+    
+
+    /**
+     * Creates a new <code>PreferredClassLoader</code> that loads
+     * classes and resources from the specified path of URLs,
+     * delegates to the specified parent class loader, and uses the
+     * specified {@link URLStreamHandlerFactory} when creating new URL
+     * objects.This constructor passes <code>factory</code> to the
+     * superclass constructor that has a <code>URLStreamHandlerFactory</code> 
+     * parameter.<p>If <code>exportAnnotation</code> is not <code>null</code>,
+     * then it will be used as the return value of the loader's {@link
+     * #getClassAnnotation getClassAnnotation} method.  If
+     * <code>exportAnnotation</code> is <code>null</code>, the
+     * loader's <code>getClassAnnotation</code> method will return a
+     * space-separated list of the URLs in the specified path.  The
+     * <code>exportAnnotation</code> parameter can be used to specify
+     * so-called "export" URLs, from which other parties should load
+     * classes defined by the loader and which are different from the
+     * "import" URLs that the classes are actually loaded from.
+     *
+     * <p>If <code>requireDlPerm</code> is <code>true</code>, the
+     * loader's {@link #getPermissions getPermissions} method will
+     * require that the {@link CodeSource} of any class defined by the
+     * loader is granted {@link DownloadPermission}.
+     *
+     * @param urls the path of URLs to load classes and resources from
+     *
+     * @param parent the parent class loader for delegation
+     *
+     * @param exportAnnotation the export class annotation string to
+     * use for classes defined by this loader, or <code>null</code>
+     *
+     * @param requireDlPerm if <code>true</code>, the loader will only
+     * define classes with a {@link CodeSource} that is granted {@link
+     * DownloadPermission}
+     *
+     * @param factory the <code>URLStreamHandlerFactory</code> to use
+     * when creating new URL objects, or <code>null</code>
+     * @param context
+     *
+     * @throws SecurityException if there is a security manager and an
+     * invocation of its {@link SecurityManager#checkCreateClassLoader
+     * checkCreateClassLoader} method fails
+     *
+     * @since 3.1
+     **/
+    public PreferredClassLoader(URL[] urls,
+				ClassLoader parent,
+				String exportAnnotation,
+				boolean requireDlPerm,
+				URLStreamHandlerFactory factory,
+                                AccessControlContext context)
+    {
+	super(urls, parent, factory, context);
 	firstURL = (urls.length > 0 ? urls[0] : null);
 	if (exportAnnotation != null) {
 	    this.exportAnnotation = exportAnnotation;
@@ -385,8 +487,6 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	} else {
 	    jarHandler = null;
 	}
-
-	acc = AccessController.getContext();
 	    
 	/*
 	 * Precompute the permissions required to access the loader.
@@ -523,9 +623,9 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 		@Override
 		public PreferredClassLoader run() {
 		    return new PreferredFactoryClassLoader(urls, parent,
-			exportAnnotation, requireDlPerm);
+			exportAnnotation, requireDlPerm, acc);
 		}
-	    }, acc);
+	    });
     }
 
     
@@ -1199,7 +1299,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 		ProtectionDomain pd =
 		    new ProtectionDomain(codeSource, null, this, null);
 
-		if (!pd.implies(downloadPermission)) {
+		if (!pd.implies(DOWNLOAD_PERMISSION)) {
 		    throw new SecurityException(
 			"CodeSource not permitted to define class: " +
 			codeSource);

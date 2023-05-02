@@ -1306,6 +1306,7 @@ public final class Security {
 	    this.context = context;
 	}
 
+        @Override
 	public boolean isTrustedObject(Object obj)
 	    throws RemoteException
 	{
@@ -1359,10 +1360,12 @@ public final class Security {
 	    return false;
 	}
 
+        @Override
 	public ClassLoader getClassLoader() {
 	    return cl;
 	}
 
+        @Override
 	public Collection getCallerContext() {
 	    return context;
 	}
@@ -1425,9 +1428,12 @@ public final class Security {
     }
     
     /**
-     * Extends and overrides SubjectDomainCombiner, to allow untrusted code
+     * Extends and overrides SubjectDomainCombiner, to allow less privileged code
      * to run as a Subject, without injecting Principals into the ProtectionDomain
-     * of untrusted code.
+     * of less privileged code, this allows proxy ProtectionDomain's to 
+     * represent their services domain, without attaining the privileges
+     * of local Principals.
+     * 
      * @since 3.0.0
      */
     private static class DistributedSubjectCombiner extends SubjectDomainCombiner {
@@ -1462,6 +1468,7 @@ public final class Security {
          * @return  a new array containing current and assigned domains with
          * a new SubjectDomain prepended.
          */
+        @Override
         public ProtectionDomain[] combine(ProtectionDomain[] currentDomains,
 				ProtectionDomain[] assignedDomains) {
             Set<ProtectionDomain> result = 
@@ -1483,7 +1490,7 @@ public final class Security {
     
     /**
      * A ProtectionDomain containing a Subject and CodeSource with a null URL,
-     * with a supportive policy provider installed, a Subject's Principals will 
+     * with a supporting policy provider installed, a Subject's Principals will 
      * always be up to date.
      */
     private static class SubjectProtectionDomain extends ProtectionDomain
@@ -1505,6 +1512,7 @@ public final class Security {
 	    return pals.toArray(new Principal[pals.size()]);
 	}
 
+        @Override
         public int hashCode() {
             int hash = 5;
             hash = 67 * hash + (this.subject != null ? this.subject.hashCode() : 0);
@@ -1515,6 +1523,7 @@ public final class Security {
          * Implement equals to allow efficient caching of AccessControlContext.
          * 
          */
+        @Override
         public boolean equals(Object o){
             if (!(o instanceof SubjectProtectionDomain)) return false;
             if (this == o) return true;
@@ -1523,6 +1532,7 @@ public final class Security {
             return (subject == other.subject);
         }
         
+        @Override
         public Subject getSubject(){
             return subject;
         }

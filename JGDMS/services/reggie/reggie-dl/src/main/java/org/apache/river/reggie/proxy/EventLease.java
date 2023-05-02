@@ -28,6 +28,8 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * When a registrar (lookup service) grants a lease on an event registration
@@ -44,6 +46,17 @@ public class EventLease extends RegistrarLease {
     private static final long serialVersionUID = 2L;
     /** The type of the lease used in toString() calls. */
     private static final String LEASE_TYPE = "event";
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("eventID", Long.TYPE)
+        };
+    }
+    
+    public static void serialize(PutArg arg, EventLease el) throws IOException{
+        arg.put("eventID", el.eventID);
+        arg.writeArgs();
+    }
 
     /**
      * The eventID returned in the EventRegistration.

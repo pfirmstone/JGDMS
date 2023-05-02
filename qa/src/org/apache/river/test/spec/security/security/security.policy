@@ -1,16 +1,16 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${net.jini.platform.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${platform.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.lib.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${jsk-lib.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib-dl${/}${net.jini.lib.dl.jar}" {
+grant codebase "file:${jsk.home}${/}lib-dl${/}${jsk-dl.jar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}${org.apache.river.tool.classserver.jar}" {
+grant codebase "file:${jsk.home}${/}lib${/}${classserver.jar}" {
     permission java.security.AllPermission "", "";
 };
 
@@ -22,11 +22,11 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
+grant codebase "file:${qa.home}${/}lib${/}harness.jar" {
     permission java.security.AllPermission "", "";
 };
 

@@ -26,6 +26,7 @@ import org.apache.river.discovery.MulticastRequest;
 import org.apache.river.discovery.MulticastRequestEncoder;
 import org.apache.river.discovery.Plaintext;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.security.cert.Certificate;
@@ -141,11 +142,11 @@ public class X500Client
 	try {
 	    int len = buf.getInt();
 	    ByteBuffer data = buf.duplicate();
-	    data.limit(data.position() + len);
-	    buf.position(data.limit());
+	    ((Buffer)data).limit(data.position() + len);
+	    ((Buffer)buf).position(data.limit());
 
 	    X500Principal p = new X500Principal(Plaintext.getUtf(buf));
-	    ByteBuffer signed = (ByteBuffer) data.duplicate().position(0);
+	    ByteBuffer signed = (ByteBuffer) ((Buffer)data.duplicate()).position(0);
 	    MulticastAnnouncement ma =
 		Plaintext.decodeMulticastAnnouncement(data);
 

@@ -27,11 +27,12 @@ import org.apache.river.test.spec.activation.util.FakeActivationSystem;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationGroupDesc;
-import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
+import net.jini.activation.arg.ActivationException;
+import net.jini.activation.arg.ActivationSystem;
+import net.jini.activation.arg.ActivationGroupID;
+import net.jini.activation.arg.ActivationGroupDesc;
+import net.jini.activation.ActivationGroupDescImpl;
+import net.jini.activation.arg.ActivationGroupDesc.CommandEnvironment;
 import java.util.Properties;
 
 
@@ -55,7 +56,7 @@ import java.util.Properties;
  *          passing empty properties and some command line as a parameters
  *       4) run createGroup method passing FakeActivationGroupID
  *          and ActivationGroupDesc as a parameters
- *       5) verify instance of java.rmi.activation.ActivationGroup is created
+ *       5) verify instance of net.jini.activation.ActivationGroup is created
  * </pre>
  */
 public class CreateGroup_Test extends QATestEnvironment implements Test {
@@ -68,13 +69,13 @@ public class CreateGroup_Test extends QATestEnvironment implements Test {
         ActivationSystem system = new FakeActivationSystem(logger);
         ActivationGroupID agid = new FakeActivationGroupID(logger, system);
         Properties props = new Properties();
-        ActivationGroupDesc gd = new ActivationGroupDesc(
+        ActivationGroupDesc gd = new ActivationGroupDescImpl(
             "org.apache.river.test.spec.activation.util.FakeActivationGroup",
             null,
             null,
             props,
             null);
-        java.rmi.activation.ActivationGroup ag =
+        net.jini.activation.ActivationGroup ag =
                 ActivationGroup.createGroup(agid, gd, 0);
         assertion(ag instanceof ActivationGroup,
                 "ActivationGroup wasn't created properly");

@@ -56,7 +56,7 @@ public class WhenOnUnexport implements Remote, Unreferenced {
     }
 
     public static void main(String[] args) {
-
+        
 	System.err.println(
 	    "\nTest to verify correction interaction of " +
 	    "unexport and unreferenced\n");
@@ -139,6 +139,7 @@ public class WhenOnUnexport implements Remote, Unreferenced {
 	    if (e instanceof RuntimeException) {
 		throw (RuntimeException) e;
 	    } else {
+                e.fillInStackTrace();
 		throw new RuntimeException(
 		    "TEST FAILED: unexpected exception: " + e.toString());
 	    }

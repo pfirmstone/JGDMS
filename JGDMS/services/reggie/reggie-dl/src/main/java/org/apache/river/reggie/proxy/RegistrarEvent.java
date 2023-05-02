@@ -32,10 +32,13 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.export.ProxyAccessor;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicObjectInput;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.ReadInput;
 import org.apache.river.api.io.AtomicSerial.ReadObject;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Concrete implementation class for abstract ServiceEvent.
@@ -47,6 +50,18 @@ import org.apache.river.api.io.AtomicSerial.ReadObject;
 public class RegistrarEvent extends ServiceEvent implements ProxyAccessor {
 
     private static final long serialVersionUID = 2L;
+    
+    public static SerialForm[] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("serviceItem", Object.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, RegistrarEvent re) throws IOException{
+        arg.put("serviceItem", re.serviceItem);
+        arg.writeArgs();
+        re.serviceID.writeBytes(arg.output());
+    }
 
     /**
      * The new state of the serviceItem, or null if the serviceItem has been

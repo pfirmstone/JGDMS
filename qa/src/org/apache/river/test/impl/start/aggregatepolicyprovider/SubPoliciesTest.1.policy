@@ -6,14 +6,14 @@ grant {
     permission java.lang.RuntimePermission "A1";
 };
 
-grant codeBase "file:${org.apache.river.jsk.home}/foo/*" {
+grant codeBase "file:${jsk.home}/foo/*" {
     permission java.lang.RuntimePermission "B1";
 };
 
-grant codeBase "file:${org.apache.river.jsk.home}/foo/-" {
+grant codeBase "file:${jsk.home}/foo/-" {
     permission java.lang.RuntimePermission "C1";
 };
 
-grant codeBase "file:${org.apache.river.jsk.home}/bar.jar" {
+grant codeBase "file:${jsk.home}/bar.jar" {
     permission java.lang.RuntimePermission "D1";
 };

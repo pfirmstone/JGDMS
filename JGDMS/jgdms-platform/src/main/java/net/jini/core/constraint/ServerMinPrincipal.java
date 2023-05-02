@@ -28,6 +28,8 @@ import java.util.Collection;
 import java.util.Set;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * Represents a constraint on the server, such that if the server
@@ -64,13 +66,25 @@ public final class ServerMinPrincipal
 				implements InvocationConstraint, Serializable
 {
     private static final long serialVersionUID = 6082629466615675811L;
+    
+    private static final String PRINCIPALS = "principals";
 
     /**
      * @serialField principals Principal[] The principals.
      */
-    private static final ObjectStreamField[] serialPersistentFields = {
-        new ObjectStreamField("principals", Principal[].class, true)
-    };
+    private static final ObjectStreamField[] serialPersistentFields 
+            = serialForm();
+    
+    public static SerialForm [] serialForm (){
+        return new SerialForm []{
+            new SerialForm(PRINCIPALS, Principal[].class, true)
+        };
+    }
+    
+    public static void serialize(PutArg arg, ServerMinPrincipal p) throws IOException{
+        arg.put(PRINCIPALS, p.principals.clone());
+        arg.writeArgs();
+    }
 
     /**
      * The principals.

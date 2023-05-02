@@ -1,8 +1,8 @@
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-platform-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-platform-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jsk-lib.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
@@ -65,53 +65,53 @@ grant codebase "file:${org.apache.river.qa.harness.testJar}" {
     permission javax.security.auth.AuthPermission "getSubject";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+grant codebase "file:${qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}harness.jar" {
+grant codebase "file:${qa.home}${/}lib${/}harness.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.qa.home}${/}lib${/}ld.jar" {
+grant codebase "file:${qa.home}${/}lib${/}ld.jar" {
     permission net.jini.discovery.DiscoveryPermission "*";
     permission java.net.SocketPermission "*", "connect";
     permission java.io.FilePermission "${org.apache.river.test.home}${/}lib${/}ld.jar", "read";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}classserver-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}classserver-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-rmi-tls-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-pref-class-loader-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-pref-class-loader-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-activation-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-activation-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-jeri-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-jeri-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-discovery-providers-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-discovery-providers-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-collections-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-collections-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}service-starter-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}service-starter-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${org.apache.river.jsk.home}${/}lib${/}jgdms-url-integrity-${river.version}.jar" {
+grant codebase "file:${jsk.home}${/}lib${/}jgdms-url-integrity-${jgdms.version}.jar" {
     permission java.security.AllPermission "", "";
 };
 
@@ -125,7 +125,7 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester" {
 };
 
 grant {
-    permission java.io.FilePermission "${org.apache.river.jsk.home}${/}lib${/}-", "read";
+    permission java.io.FilePermission "${jsk.home}${/}lib${/}-", "read";
     permission java.util.PropertyPermission "org.apache.river.reggie.enableImplToStubReplacement", "read";
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";

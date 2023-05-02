@@ -41,8 +41,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
-import java.rmi.activation.Activatable;
-import java.rmi.activation.ActivationID;
+import net.jini.activation.arg.ActivationID;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessController;
@@ -233,6 +232,14 @@ public class TestLibrary {
 	 * found in the "test.classes" directory.
 	 */
 	File srcDir = new File(getProperty("test.classes", "."));
+        if (!srcDir.exists()) {
+            mesg("Directory, doesn't existing creating: " + srcDir.toString());
+            if (srcDir.mkdir()){
+                mesg("Directory successfully created");
+            } else {
+                mesg("Directory couldn't be created");
+            }
+        }
 	File srcFile = new File(srcDir, classFileName);
 
 mesg(srcFile);

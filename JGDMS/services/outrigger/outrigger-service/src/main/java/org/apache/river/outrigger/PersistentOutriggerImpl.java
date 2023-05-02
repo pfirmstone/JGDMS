@@ -18,13 +18,11 @@
 package org.apache.river.outrigger;
 
 import java.io.IOException;
-import java.rmi.MarshalledObject;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationException;
+import net.jini.activation.arg.ActivationID;
+import net.jini.activation.arg.ActivationException;
 import javax.security.auth.login.LoginException;
 import net.jini.config.ConfigurationException;
 import org.apache.river.start.lifecycle.LifeCycle;
-import net.jini.io.MarshalledInstance;
 
 /**
  * <code>OutriggerServerWrapper</code> subclass for
@@ -38,8 +36,7 @@ class PersistentOutriggerImpl extends OutriggerServerWrapper {
      * Create a new incarnation of an activatable
      * <code>OutriggerServerImpl</code> server.
      * @param activationID of the server, may be <code>null</code>.
-     * @param data an array of <code>String</code>s (packaged in
-     *        a marshalled object) that will be used 
+     * @param data an array of <code>String</code>s that will be used 
      *        to obtain a <code>Configuration</code>.
      * @throws IOException if there is problem recovering data
      *         from disk, exporting the server, or unpacking
@@ -57,11 +54,11 @@ class PersistentOutriggerImpl extends OutriggerServerWrapper {
      *         encapsulated inside <code>data</code> can not be found.
      */
     protected PersistentOutriggerImpl(ActivationID activationID, 
-			    MarshalledObject data) 
+			    String[] data) 
 	throws IOException, ConfigurationException, LoginException,
 	       ActivationException, ClassNotFoundException
     {
-	super(activationID, (String[]) new MarshalledInstance(data).get(false));
+	super(activationID, data);
 	allowCalls();
     }
 

@@ -22,7 +22,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InvalidClassException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.ObjectStreamConstants;
@@ -48,7 +50,7 @@ class ObjectStreamClassInformation {
 	    throws IOException, ClassNotFoundException {
 	ByteArrayOutputStream bao = new ByteArrayOutputStream();
 	ObjectOutputStream dao = new ObjectOutputStream(bao);
-	o.write(dao, true);
+	o.write(dao);
 	dao.flush();
 	byte[] bytes = bao.toByteArray();
 	ClassDescriptorConversionObjectInputStream pois 
@@ -72,20 +74,15 @@ class ObjectStreamClassInformation {
 	result.readFields(in);
 	return result;
     }
-    /**
-     * handle value representing null
-     */
-    private static final int NULL_HANDLE = -1;
-    private String fullyQualifiedClassName;
-    private long serialVer;
-    private boolean externalizable;
+    
+    String fullyQualifiedClassName;
+    long serialVer;
+    boolean externalizable;
     boolean serializable;
     boolean hasWriteObjectData;
     boolean hasBlockExternalData;
     boolean isEnum;
     ObjectStreamField[] fields;
-    boolean hasHandle;
-    int handle;
     private int primDataSize;
     int numObjFields;
 
@@ -101,14 +98,16 @@ class ObjectStreamClassInformation {
 		}
 	    }
 	}
-	b.append("Has Handle? ").append(hasHandle).append(endLine).append("Handle: ").append(handle).append(endLine).append("Primitive data size: ").append(primDataSize).append(endLine).append("Number of Object fields: ").append(numObjFields).append(endLine);
+	b.append("Primitive data size: ").append(primDataSize).append(endLine).append("Number of Object fields: ").append(numObjFields).append(endLine);
 	return b.toString();
     }
 
     /**
-     * Writes class descriptor information to given DataOutputStream.
+     * Writes non-proxy class descriptor information to given DataOutputStream.
      */
-    void write(ObjectOutputStream out, boolean replaceHandleWithObject) throws IOException {
+    void write(ObjectOutput out) throws IOException {
+//        System.out.println(fullyQualifiedClassName);
+//        System.out.println(serialVer);
 	out.writeUTF(fullyQualifiedClassName);
 	out.writeLong(serialVer);
 	byte flags = 0;
@@ -116,28 +115,33 @@ class ObjectStreamClassInformation {
 	    flags |= ObjectStreamConstants.SC_EXTERNALIZABLE;
 	    flags |= ObjectStreamConstants.SC_BLOCK_DATA; // Stream protocol version 1 isn't supported.
 	} else if (serializable) {
+//            System.out.println("Serializable");
 	    flags |= ObjectStreamConstants.SC_SERIALIZABLE;
 	}
 	if (hasWriteObjectData) {
+//            System.out.println("hasWriteObjectData");
 	    flags |= ObjectStreamConstants.SC_WRITE_METHOD;
 	}
 	if (isEnum) {
+//            System.out.println("isEnum");
 	    flags |= ObjectStreamConstants.SC_ENUM;
 	}
 	out.writeByte(flags);
-	out.writeShort(fields.length);
-	for (int i = 0, l = fields.length; i < l; i++) {
+        int length = fields != null ? fields.length : 0;
+	out.writeShort(length);
+	for (int i = 0; i < length; i++) {
 	    ObjectStreamField f = fields[i];
+//            System.out.println(f);
 	    out.writeByte(f.getTypeCode());
 	    out.writeUTF(f.getName());
 	    if (!f.isPrimitive()) {
 		String typeString = f.getTypeString();
 		if (typeString == null) {
 		    out.writeByte(ObjectStreamConstants.TC_NULL);
-		} else if (hasHandle && !replaceHandleWithObject) {
-		    out.writeByte(ObjectStreamConstants.TC_REFERENCE);
-		    out.writeInt(handle);
 		} else {
+                    if (out instanceof ObjOutputStream){
+                        ((ObjOutputStream)out).fieldTypeStringWritten(typeString);
+                    }
 		    out.writeByte(ObjectStreamConstants.TC_STRING);
 		    out.writeUTF(typeString);
 		}
@@ -147,8 +151,10 @@ class ObjectStreamClassInformation {
 
     /**
      * Reads non-proxy class descriptor information from given DataInputStream.
+     * 
+     * Note this doesn't read the field descriptors.
      */
-    void read(ObjectInputStream in) throws IOException {
+    void read(ObjectInput in) throws IOException {
 	//    	System.out.println("read in class descriptor");
 	fullyQualifiedClassName = in.readUTF();
 	if (fullyQualifiedClassName.length() == 0) {
@@ -172,83 +178,13 @@ class ObjectStreamClassInformation {
     }
 
     /**
-     * Reads a collection of field descriptors (name, type name, etc) for the
-     * class descriptor {@code cDesc} (an {@code ObjectStreamClass})
-     *
-     * @param cDesc The class descriptor (an {@code ObjectStreamClass}) for
-     * which to write field information
-     *
-     * @throws IOException If an IO exception happened when reading the field
-     * descriptors.
-     * @throws ClassNotFoundException If a class for one of the field types
-     * could not be found
-     *
-     * @see #readObject()
+     * Reads in field descriptors.
+     * 
+     * @param in
+     * @throws IOException
+     * @throws ClassNotFoundException 
      */
-    //    private void readFieldDescriptors(ObjectStreamClass cDesc)
-    //            throws ClassNotFoundException, IOException {
-    //        short numFields = input.readShort();
-    //        ObjectStreamField[] fields = new ObjectStreamField[numFields];
-    //
-    //        // We set it now, but each element will be inserted in the array further
-    //        // down
-    //        cDesc.setLoadFields(fields);
-    //
-    //        // Check ObjectOutputStream.writeFieldDescriptors
-    //        for (short i = 0; i < numFields; i++) {
-    //            char typecode = (char) input.readByte();
-    //            String fieldName = input.readUTF();
-    //            boolean isPrimType = isPrimitiveType(typecode);
-    //            String classSig;
-    //            if (isPrimType) {
-    //                classSig = String.valueOf(typecode);
-    //            } else {
-    //                // The spec says it is a UTF, but experience shows they dump
-    //                // this String using writeObject (unlike the field name, which
-    //                // is saved with writeUTF).
-    //                // And if resolveObject is enabled, the classSig may be modified
-    //                // so that the original class descriptor cannot be read
-    //                // properly, so it is disabled.
-    //                boolean old = enableResolve;
-    //                try {
-    //                    enableResolve = false;
-    //                    classSig = (String) readObject();
-    //                } finally {
-    //                    enableResolve = old;
-    //                }
-    //            }
-    //
-    //            classSig = formatClassSig(classSig);
-    //            ObjectStreamField f = new ObjectStreamField(classSig, fieldName);
-    //            fields[i] = f;
-    //        }
-    //    }
-    /*
-     * Format the class signature for ObjectStreamField, for example,
-     * "[L[Ljava.lang.String;;" is converted to "[Ljava.lang.String;"
-     */
-    //    private static String formatClassSig(String classSig) {
-    //        int start = 0;
-    //        int end = classSig.length();
-    //
-    //        if (end <= 0) {
-    //            return classSig;
-    //        }
-    //
-    //        while (classSig.startsWith("[L", start) //$NON-NLS-1$
-    //                && classSig.charAt(end - 1) == ';') {
-    //            start += 2;
-    //            end--;
-    //        }
-    //
-    //        if (start > 0) {
-    //            start -= 2;
-    //            end++;
-    //            return classSig.substring(start, end);
-    //        }
-    //        return classSig;
-    //    }
-    void readFields(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    void readFields(ObjectInput in) throws IOException, ClassNotFoundException {
 	//    	System.out.println("readFields");
 	int numFields = in.readShort();
 	if (isEnum && numFields != 0) {
@@ -364,6 +300,10 @@ class ObjectStreamClassInformation {
 	return externalizable;
     }
 
+    boolean isSerializable() {
+       return serializable;
+    }
+
     static class ObjectField extends ObjectStreamField {
 
 	private final Field field;
@@ -468,68 +408,6 @@ class ObjectStreamClassInformation {
 	public void setOffset(int offset) {
 	    super.setOffset(offset);
 	}
-	//	void resolve(ClassLoader loader) {
-	//	    String typeString = getTypeString();
-	//	    if (typeString == null && isPrimitive()){
-	//		// primitive type declared in a serializable class
-	//		typeString = String.valueOf(getTypeCode());
-	//	    }
-	//
-	//	    if (typeString.length() == 1) {
-	//		if (defaultResolve()) {
-	//		    return;
-	//		}
-	//	    }
-	//
-	//	    String className = typeString.replace('/', '.');
-	//	    if (className.charAt(0) == 'L') {
-	//		// remove L and ;
-	//		className = className.substring(1, className.length() - 1);
-	//	    }
-	//	    try {
-	//		Class<?> cl = Class.forName(className, false, loader);
-	//		type = (cl.getClassLoader() == null) ? cl
-	//			: new WeakReference<Class<?>>(cl);
-	//	    } catch (ClassNotFoundException e) {
-	//		// Ignored
-	//	    }
-	//	}
-	//	/**
-	//	 * Resolves typeString into type. Returns true if the type is primitive
-	//	 * and false otherwise.
-	//	 */
-	//	private boolean defaultResolve() {
-	//	    String typeString = getTypeString();
-	//	    switch (typeString.charAt(0)) {
-	//		case 'I':
-	//		    type = Integer.TYPE;
-	//		    return true;
-	//		case 'B':
-	//		    type = Byte.TYPE;
-	//		    return true;
-	//		case 'C':
-	//		    type = Character.TYPE;
-	//		    return true;
-	//		case 'S':
-	//		    type = Short.TYPE;
-	//		    return true;
-	//		case 'Z':
-	//		    type = Boolean.TYPE;
-	//		    return true;
-	//		case 'J':
-	//		    type = Long.TYPE;
-	//		    return true;
-	//		case 'F':
-	//		    type = Float.TYPE;
-	//		    return true;
-	//		case 'D':
-	//		    type = Double.TYPE;
-	//		    return true;
-	//		default:
-	//		    type = Object.class;
-	//		    return false;
-	//	    }
-	//	}
     }
 
     static class ClassDescriptorConversionObjectInputStream extends ObjectInputStream {

@@ -374,11 +374,11 @@ public class TestPerformance extends TestUtilities {
     public static class RMIJSSE {
 
 	static final String[][] propsList = {
-	    { "encrypt", "true", // Chaunged to true, as Confidentiality.NO is no longer supported as a required constraint to prevent MITM attacks.
-	      "clientAuth", "false" },
-	    { "clientAuth", "false",
-	      "serverAuth", "false" },
-	    { "clientAuth", "false" },
+	    { "encrypt", "true", // Changed to true, as Confidentiality.NO is no longer supported as a required constraint to prevent MITM attacks.
+	      "clientAuth", "true" }, // Changed to true.  ClientAuthentication.NO no longer supported.
+	    { "clientAuth", "true",
+	      "serverAuth", "true" },
+	    { "clientAuth", "true" },
 	    { },
 	    { "readOnlySubjects", "false" },
 	    { "numConstraints", "2",

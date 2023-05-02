@@ -2,7 +2,7 @@ testClass=ComputeDigest
 testCategories=url_spec,url
 
 # ComputeDigest Test Case names
-ComputeDigest.testCases=computeDigestNonEmptyMD5file computeDigestNonEmptyMD5http computeDigestNonEmptyMD5httpmd computeDigestNonEmptySHAfile computeDigestNonEmptySHAhttp computeDigestNonEmptySHAhttpmd computeDigestJarMD5file computeDigestJarMD5http computeDigestJarMD5httpmd computeDigestJarSHAfile computeDigestJarSHAhttp computeDigestJarSHAhttpmd computeDigestEmptyMD5file computeDigestEmptyMD5http computeDigestEmptyMD5httpmd computeDigestEmptySHAfile computeDigestEmptySHAhttp computeDigestEmptySHAhttpmd computeDigestNonExistMD5file computeDigestNonExistMD5http computeDigestNonExistMD5httpmd computeDigestBadUrl computeDigestBadAlgorithmInUrl computeDigestBadAlgorithmfile computeDigestBadAlgorithmhttp computeDigestBadAlgorithmhttpmd computeDigestNullAlgorithm computeDigestNullUrl computeDigestNull
+ComputeDigest.testCases=computeDigestNonEmptySHA-256file computeDigestNonEmptySHA-256http computeDigestNonEmptySHA-256httpmd computeDigestNonEmptySHA-384file computeDigestNonEmptySHA-384http computeDigestNonEmptySHA-384httpmd computeDigestJarSHA-256file computeDigestJarSHA-256http computeDigestJarSHA-256httpmd computeDigestJarSHA-384file computeDigestJarSHA-384http computeDigestJarSHA-384httpmd computeDigestEmptySHA-256file computeDigestEmptySHA-256http computeDigestEmptySHA-256httpmd computeDigestEmptySHA-384file computeDigestEmptySHA-384http computeDigestEmptySHA-384httpmd computeDigestNonExistSHA-256file computeDigestNonExistSHA-256http computeDigestNonExistSHA-256httpmd computeDigestBadUrl computeDigestBadAlgorithmInUrl computeDigestBadAlgorithmfile computeDigestBadAlgorithmhttp computeDigestBadAlgorithmhttpmd computeDigestNullAlgorithm computeDigestNullUrl computeDigestNull
 
 # The second HTTP Server parameters
 ComputeDigest.SecondHTTPServer.impl=org.apache.river.tool.ClassServer
@@ -10,155 +10,155 @@ ComputeDigest.SecondHTTPServer.port=8083
 ComputeDigest.SecondHTTPServer.dir=${java.io.tmpdir}
 ComputeDigest.SecondHTTPServer.type=classServer
 
-#        computeDigestNonEmptyMD5file
-computeDigestNonEmptyMD5file.Protocol=file
-computeDigestNonEmptyMD5file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonEmptyMD5file.FileName=nonempty_file
-computeDigestNonEmptyMD5file.Algorithm=MD5
+#        computeDigestNonEmptySHA-256file
+computeDigestNonEmptySHA-256file.Protocol=file
+computeDigestNonEmptySHA-256file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonEmptySHA-256file.FileName=nonempty_file
+computeDigestNonEmptySHA-256file.Algorithm=SHA-256
 
-#        computeDigestNonEmptyMD5http
-computeDigestNonEmptyMD5http.Protocol=http
-computeDigestNonEmptyMD5http.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestNonEmptyMD5http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonEmptyMD5http.FileName=nonempty_file
-computeDigestNonEmptyMD5http.Algorithm=MD5
+#        computeDigestNonEmptySHA-256http
+computeDigestNonEmptySHA-256http.Protocol=http
+computeDigestNonEmptySHA-256http.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestNonEmptySHA-256http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonEmptySHA-256http.FileName=nonempty_file
+computeDigestNonEmptySHA-256http.Algorithm=SHA-256
 
-#        computeDigestNonEmptyMD5httpmd
-computeDigestNonEmptyMD5httpmd.Protocol=httpmd
-computeDigestNonEmptyMD5httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestNonEmptyMD5httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonEmptyMD5httpmd.FileName=nonempty_file;MD5=aaa,comments
-computeDigestNonEmptyMD5httpmd.Algorithm=MD5
+#        computeDigestNonEmptySHA-256httpmd
+computeDigestNonEmptySHA-256httpmd.Protocol=httpmd
+computeDigestNonEmptySHA-256httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestNonEmptySHA-256httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonEmptySHA-256httpmd.FileName=nonempty_file;SHA-256=aaa,comments
+computeDigestNonEmptySHA-256httpmd.Algorithm=SHA-256
 
-#        computeDigestNonEmptySHAfile
-computeDigestNonEmptySHAfile.Protocol=file
-computeDigestNonEmptySHAfile.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonEmptySHAfile.FileName=nonempty_file
-computeDigestNonEmptySHAfile.Algorithm=SHA
+#        computeDigestNonEmptySHA-384file
+computeDigestNonEmptySHA-384file.Protocol=file
+computeDigestNonEmptySHA-384file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonEmptySHA-384file.FileName=nonempty_file
+computeDigestNonEmptySHA-384file.Algorithm=SHA-384
 
-#        computeDigestNonEmptySHAhttp
-computeDigestNonEmptySHAhttp.Protocol=http
-computeDigestNonEmptySHAhttp.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestNonEmptySHAhttp.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonEmptySHAhttp.FileName=nonempty_file
-computeDigestNonEmptySHAhttp.Algorithm=SHA
+#        computeDigestNonEmptySHA-384http
+computeDigestNonEmptySHA-384http.Protocol=http
+computeDigestNonEmptySHA-384http.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestNonEmptySHA-384http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonEmptySHA-384http.FileName=nonempty_file
+computeDigestNonEmptySHA-384http.Algorithm=SHA-384
 
-#        computeDigestNonEmptySHAhttpmd
-computeDigestNonEmptySHAhttpmd.Protocol=httpmd
-computeDigestNonEmptySHAhttpmd.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestNonEmptySHAhttpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonEmptySHAhttpmd.FileName=nonempty_file;SHA=aaa,comments
-computeDigestNonEmptySHAhttpmd.Algorithm=SHA
+#        computeDigestNonEmptySHA-384httpmd
+computeDigestNonEmptySHA-384httpmd.Protocol=httpmd
+computeDigestNonEmptySHA-384httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestNonEmptySHA-384httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonEmptySHA-384httpmd.FileName=nonempty_file;SHA-384=aaa,comments
+computeDigestNonEmptySHA-384httpmd.Algorithm=SHA-384
 
-#        computeDigestJarMD5file
-computeDigestJarMD5file.Protocol=file
-computeDigestJarMD5file.SrcDir=${testClassServer.dir}
-computeDigestJarMD5file.FileName=qa1-httpmd.jar
-computeDigestJarMD5file.Algorithm=MD5
+#        computeDigestJarSHA-256file
+computeDigestJarSHA-256file.Protocol=file
+computeDigestJarSHA-256file.SrcDir=${testClassServer.dir}
+computeDigestJarSHA-256file.FileName=qa1-httpmd.jar
+computeDigestJarSHA-256file.Algorithm=SHA-256
 
-#        computeDigestJarMD5http
-computeDigestJarMD5http.Protocol=http
-computeDigestJarMD5http.Port=${testClassServer.port}
-computeDigestJarMD5http.SrcDir=${testClassServer.dir}
-computeDigestJarMD5http.FileName=qa1-httpmd.jar
-computeDigestJarMD5http.Algorithm=MD5
+#        computeDigestJarSHA-256http
+computeDigestJarSHA-256http.Protocol=http
+computeDigestJarSHA-256http.Port=${testClassServer.port}
+computeDigestJarSHA-256http.SrcDir=${testClassServer.dir}
+computeDigestJarSHA-256http.FileName=qa1-httpmd.jar
+computeDigestJarSHA-256http.Algorithm=SHA-256
 
-#        computeDigestJarMD5httpmd
-computeDigestJarMD5httpmd.Protocol=httpmd
-computeDigestJarMD5httpmd.Port=${testClassServer.port}
-computeDigestJarMD5httpmd.SrcDir=${testClassServer.dir}
-computeDigestJarMD5httpmd.FileName=qa1-httpmd.jar;MD5=aaaaa,comments
-computeDigestJarMD5httpmd.Algorithm=MD5
+#        computeDigestJarSHA-256httpmd
+computeDigestJarSHA-256httpmd.Protocol=httpmd
+computeDigestJarSHA-256httpmd.Port=${testClassServer.port}
+computeDigestJarSHA-256httpmd.SrcDir=${testClassServer.dir}
+computeDigestJarSHA-256httpmd.FileName=qa1-httpmd.jar;SHA-256=aaaaa,comments
+computeDigestJarSHA-256httpmd.Algorithm=SHA-256
 
-#        computeDigestJarSHAfile
-computeDigestJarSHAfile.Protocol=file
-computeDigestJarSHAfile.SrcDir=${testClassServer.dir}
-computeDigestJarSHAfile.FileName=qa1-httpmd.jar
-computeDigestJarSHAfile.Algorithm=SHA
+#        computeDigestJarSHA-384file
+computeDigestJarSHA-384file.Protocol=file
+computeDigestJarSHA-384file.SrcDir=${testClassServer.dir}
+computeDigestJarSHA-384file.FileName=qa1-httpmd.jar
+computeDigestJarSHA-384file.Algorithm=SHA-384
 
-#        computeDigestJarSHAhttp
-computeDigestJarSHAhttp.Protocol=http
-computeDigestJarSHAhttp.Port=${testClassServer.port}
-computeDigestJarSHAhttp.SrcDir=${testClassServer.dir}
-computeDigestJarSHAhttp.FileName=qa1-httpmd.jar
-computeDigestJarSHAhttp.Algorithm=SHA
+#        computeDigestJarSHA-384http
+computeDigestJarSHA-384http.Protocol=http
+computeDigestJarSHA-384http.Port=${testClassServer.port}
+computeDigestJarSHA-384http.SrcDir=${testClassServer.dir}
+computeDigestJarSHA-384http.FileName=qa1-httpmd.jar
+computeDigestJarSHA-384http.Algorithm=SHA-384
 
-#        computeDigestJarSHAhttpmd
-computeDigestJarSHAhttpmd.Protocol=httpmd
-computeDigestJarSHAhttpmd.Port=${testClassServer.port}
-computeDigestJarSHAhttpmd.SrcDir=${testClassServer.dir}
-computeDigestJarSHAhttpmd.FileName=qa1-httpmd.jar;SHA=aaaaa,comments
-computeDigestJarSHAhttpmd.Algorithm=SHA
+#        computeDigestJarSHA-384httpmd
+computeDigestJarSHA-384httpmd.Protocol=httpmd
+computeDigestJarSHA-384httpmd.Port=${testClassServer.port}
+computeDigestJarSHA-384httpmd.SrcDir=${testClassServer.dir}
+computeDigestJarSHA-384httpmd.FileName=qa1-httpmd.jar;SHA-384=aaaaa,comments
+computeDigestJarSHA-384httpmd.Algorithm=SHA-384
 
-#        computeDigestEmptyMD5file
-computeDigestEmptyMD5file.Protocol=file
-computeDigestEmptyMD5file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestEmptyMD5file.FileName=empty_file
-computeDigestEmptyMD5file.Algorithm=MD5
+#        computeDigestEmptySHA-256file
+computeDigestEmptySHA-256file.Protocol=file
+computeDigestEmptySHA-256file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestEmptySHA-256file.FileName=empty_file
+computeDigestEmptySHA-256file.Algorithm=SHA-256
 
-#        computeDigestEmptyMD5http
-computeDigestEmptyMD5http.Protocol=http
-computeDigestEmptyMD5http.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestEmptyMD5http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestEmptyMD5http.FileName=empty_file
-computeDigestEmptyMD5http.Algorithm=MD5
+#        computeDigestEmptySHA-256http
+computeDigestEmptySHA-256http.Protocol=http
+computeDigestEmptySHA-256http.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestEmptySHA-256http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestEmptySHA-256http.FileName=empty_file
+computeDigestEmptySHA-256http.Algorithm=SHA-256
 
-#        computeDigestEmptyMD5httpmd
-computeDigestEmptyMD5httpmd.Protocol=httpmd
-computeDigestEmptyMD5httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestEmptyMD5httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestEmptyMD5httpmd.FileName=empty_file;MD5=aaa,comments
-computeDigestEmptyMD5httpmd.Algorithm=MD5
+#        computeDigestEmptySHA-256httpmd
+computeDigestEmptySHA-256httpmd.Protocol=httpmd
+computeDigestEmptySHA-256httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestEmptySHA-256httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestEmptySHA-256httpmd.FileName=empty_file;SHA-256=aaa,comments
+computeDigestEmptySHA-256httpmd.Algorithm=SHA-256
 
-#        computeDigestEmptySHAfile
-computeDigestEmptySHAfile.Protocol=file
-computeDigestEmptySHAfile.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestEmptySHAfile.FileName=empty_file
-computeDigestEmptySHAfile.Algorithm=SHA
+#        computeDigestEmptySHA-384file
+computeDigestEmptySHA-384file.Protocol=file
+computeDigestEmptySHA-384file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestEmptySHA-384file.FileName=empty_file
+computeDigestEmptySHA-384file.Algorithm=SHA-384
 
-#        computeDigestEmptySHAhttp
-computeDigestEmptySHAhttp.Protocol=http
-computeDigestEmptySHAhttp.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestEmptySHAhttp.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestEmptySHAhttp.FileName=empty_file
-computeDigestEmptySHAhttp.Algorithm=SHA
+#        computeDigestEmptySHA-384http
+computeDigestEmptySHA-384http.Protocol=http
+computeDigestEmptySHA-384http.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestEmptySHA-384http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestEmptySHA-384http.FileName=empty_file
+computeDigestEmptySHA-384http.Algorithm=SHA-384
 
-#        computeDigestEmptySHAhttpmd
-computeDigestEmptySHAhttpmd.Protocol=httpmd
-computeDigestEmptySHAhttpmd.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestEmptySHAhttpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestEmptySHAhttpmd.FileName=empty_file;SHA=aaa,comments
-computeDigestEmptySHAhttpmd.Algorithm=SHA
+#        computeDigestEmptySHA-384httpmd
+computeDigestEmptySHA-384httpmd.Protocol=httpmd
+computeDigestEmptySHA-384httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestEmptySHA-384httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestEmptySHA-384httpmd.FileName=empty_file;SHA-384=aaa,comments
+computeDigestEmptySHA-384httpmd.Algorithm=SHA-384
 
-#        computeDigestNonExistMD5file
-computeDigestNonExistMD5file.Protocol=file
-computeDigestNonExistMD5file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonExistMD5file.FileName=nonexist_file
-computeDigestNonExistMD5file.Algorithm=MD5
-computeDigestNonExistMD5file.Expected=java.io.IOException
+#        computeDigestNonExistSHA-256file
+computeDigestNonExistSHA-256file.Protocol=file
+computeDigestNonExistSHA-256file.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonExistSHA-256file.FileName=nonexist_file
+computeDigestNonExistSHA-256file.Algorithm=SHA-256
+computeDigestNonExistSHA-256file.Expected=java.io.IOException
 
-#        computeDigestNonExistMD5http
-computeDigestNonExistMD5http.Protocol=http
-computeDigestNonExistMD5http.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestNonExistMD5http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonExistMD5http.FileName=nonexist_file
-computeDigestNonExistMD5http.Algorithm=MD5
-computeDigestNonExistMD5http.Expected=java.io.IOException
+#        computeDigestNonExistSHA-256http
+computeDigestNonExistSHA-256http.Protocol=http
+computeDigestNonExistSHA-256http.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestNonExistSHA-256http.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonExistSHA-256http.FileName=nonexist_file
+computeDigestNonExistSHA-256http.Algorithm=SHA-256
+computeDigestNonExistSHA-256http.Expected=java.io.IOException
 
-#        computeDigestNonExistMD5httpmd
-computeDigestNonExistMD5httpmd.Protocol=httpmd
-computeDigestNonExistMD5httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
-computeDigestNonExistMD5httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNonExistMD5httpmd.FileName=nonexist_file;MD5=aaa,comments
-computeDigestNonExistMD5httpmd.Algorithm=MD5
-computeDigestNonExistMD5httpmd.Expected=java.io.IOException
+#        computeDigestNonExistSHA-256httpmd
+computeDigestNonExistSHA-256httpmd.Protocol=httpmd
+computeDigestNonExistSHA-256httpmd.Port=${ComputeDigest.SecondHTTPServer.port}
+computeDigestNonExistSHA-256httpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
+computeDigestNonExistSHA-256httpmd.FileName=nonexist_file;SHA-256=aaa,comments
+computeDigestNonExistSHA-256httpmd.Algorithm=SHA-256
+computeDigestNonExistSHA-256httpmd.Expected=java.io.IOException
 
 #        computeDigestBadUrl
 computeDigestBadUrl.Protocol=httpmd
 computeDigestBadUrl.Port=${ComputeDigest.SecondHTTPServer.port}
 computeDigestBadUrl.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
 computeDigestBadUrl.FileName=nonempty_file;md5=,comments
-computeDigestBadUrl.Algorithm=MD5
+computeDigestBadUrl.Algorithm=SHA-256
 computeDigestBadUrl.Expected=java.io.IOException
 
 #        computeDigestBadAlgorithmInUrl
@@ -166,7 +166,7 @@ computeDigestBadAlgorithmInUrl.Protocol=httpmd
 computeDigestBadAlgorithmInUrl.Port=${ComputeDigest.SecondHTTPServer.port}
 computeDigestBadAlgorithmInUrl.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
 computeDigestBadAlgorithmInUrl.FileName=nonempty_file;BADALG=,comments
-computeDigestBadAlgorithmInUrl.Algorithm=MD5
+computeDigestBadAlgorithmInUrl.Algorithm=SHA-256
 computeDigestBadAlgorithmInUrl.Expected=java.io.IOException
 
 #        computeDigestBadAlgorithmfile
@@ -188,7 +188,7 @@ computeDigestBadAlgorithmhttp.Expected=java.security.NoSuchAlgorithmException
 computeDigestBadAlgorithmhttpmd.Protocol=httpmd
 computeDigestBadAlgorithmhttpmd.Port=${ComputeDigest.SecondHTTPServer.port}
 computeDigestBadAlgorithmhttpmd.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestBadAlgorithmhttpmd.FileName=nonempty_file;SHA=aaa,comments
+computeDigestBadAlgorithmhttpmd.FileName=nonempty_file;SHA-384=aaa,comments
 computeDigestBadAlgorithmhttpmd.Algorithm=BADALG
 computeDigestBadAlgorithmhttpmd.Expected=java.security.NoSuchAlgorithmException
 
@@ -196,7 +196,7 @@ computeDigestBadAlgorithmhttpmd.Expected=java.security.NoSuchAlgorithmException
 computeDigestNullAlgorithm.Protocol=httpmd
 computeDigestNullAlgorithm.Port=${ComputeDigest.SecondHTTPServer.port}
 computeDigestNullAlgorithm.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
-computeDigestNullAlgorithm.FileName=nonempty_file;MD5=aaa,comments
+computeDigestNullAlgorithm.FileName=nonempty_file;SHA-256=aaa,comments
 computeDigestNullAlgorithm.Expected=java.lang.NullPointerException
 
 #        computeDigestNullUrl
@@ -204,7 +204,7 @@ computeDigestNullUrl.Protocol=httpmd
 computeDigestNullUrl.Port=${ComputeDigest.SecondHTTPServer.port}
 computeDigestNullUrl.SrcDir=${ComputeDigest.SecondHTTPServer.dir}
 computeDigestNullUrl.Expected=java.lang.NullPointerException
-computeDigestNullUrl.Algorithm=MD5
+computeDigestNullUrl.Algorithm=SHA-256
 
 #        computeDigestNull
 computeDigestNull.Protocol=httpmd

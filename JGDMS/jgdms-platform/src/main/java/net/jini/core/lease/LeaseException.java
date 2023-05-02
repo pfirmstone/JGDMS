@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.river.api.io.AtomicException;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.Stateless;
 
 /** 
  * Generic superclass for specific lease exceptions. 
@@ -31,10 +32,11 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * @since 1.0
  */
 @AtomicSerial
+@Stateless
 public class LeaseException extends AtomicException {
 
     private static final long serialVersionUID = -7902272546257490469L;
-
+    
     /**
      * Constructs an LeaseException with no detail message.
      */

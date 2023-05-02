@@ -30,6 +30,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 import org.apache.river.api.io.Valid;
 
 /** 
@@ -58,7 +60,20 @@ import org.apache.river.api.io.Valid;
  * detect or recover from recursion loops.
  */
 @AtomicSerial
-class Resolver implements Serializable {
+public class Resolver implements Serializable {
+    
+    public static SerialForm [] serialForm(){
+        return new SerialForm[]{
+            new SerialForm("config", QAConfig.class),
+            new SerialForm("tokenMap", Map.class)
+        };
+    }
+    
+    public static void serialize(PutArg arg, Resolver r) throws IOException{
+        arg.put("config", r.config);
+        arg.put("tokenMap", r.tokenMap);
+        arg.writeArgs();
+    }
 
     private final static Logger logger = Logger.getLogger("org.apache.river.qa.harness");
     private final QAConfig config;
@@ -70,8 +85,7 @@ class Resolver implements Serializable {
      * @param config the configuration object provided by the test suite.
      */
     Resolver(QAConfig config) {
-	this.tokenMap = new HashMap<String, String>();
-        this.config = config;
+        this(config, new HashMap<String, String>());
     }
     
     Resolver(GetArg arg) throws IOException, ClassNotFoundException{
@@ -85,9 +99,13 @@ class Resolver implements Serializable {
 	);
     }
     
-    private Resolver(QAConfig config, Map<String,String> tokenMap){
+    Resolver(QAConfig config, Map<String,String> tokenMap){
 	this.config = config;
 	this.tokenMap = tokenMap;
+    }
+    
+    Map<String, String> getTokenMap(){
+        return tokenMap;
     }
 
     void setToken(String token, String value) {

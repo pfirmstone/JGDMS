@@ -22,11 +22,12 @@ import org.apache.river.start.*;
 import org.apache.river.start.ActivateWrapper.*;
 import java.net.URL;
 import java.rmi.*;
-import java.rmi.activation.*;
-import java.rmi.activation.ActivationGroupDesc.*;
+import net.jini.activation.*;
+import net.jini.activation.arg.ActivationGroupDesc.*;
 import java.util.Arrays;
 import java.util.logging.Level;
 import net.jini.io.MarshalledInstance;
+import org.apache.river.api.io.AtomicMarshalledInstance;
 
 /**
  * This test verifies that the ActivateDesc constructor sets the
@@ -83,8 +84,9 @@ public class ActivateWrapperActivateDescTest extends AbstractStartBaseTest {
 	}
 
 	logger.log(Level.INFO, "Generating activation wrapper descriptor");
-        MarshalledObject params = null;
-	params = new MarshalledInstance(logDir).convertToMarshalledObject();
+//        net.jini.activation.arg.MarshalledObject params = null;
+//	params = new AtomicMarshalledInstance(logDir);
+        String [] params = new String[]{logDir};
 
 	// Create ActivateDesc
         ActivateWrapper.ActivateDesc adesc = null;
@@ -97,11 +99,11 @@ public class ActivateWrapperActivateDescTest extends AbstractStartBaseTest {
 	logger.log(Level.INFO, "ActivateDesc = " + adesc);
 
 	// Verifying component fields
-        if (!implClassName.equals(adesc.className)  ||
-	    !Arrays.equals(classpath, adesc.importLocation) ||
-	    !Arrays.equals(codebase, adesc.exportLocation)  ||
-	    !policy.equals(adesc.policy)            ||
-	    !params.equals(adesc.data)                ) {
+        if (!implClassName.equals(adesc.className())  ||
+	    !Arrays.equals(classpath, adesc.importLocation()) ||
+	    !Arrays.equals(codebase, adesc.exportLocation())  ||
+	    !policy.equals(adesc.policy())            ||
+	    !params.equals(adesc.configurationArguments())                ) {
             throw new TestException("ActivateWrapper descriptor is invalid.");
 	}
     }
