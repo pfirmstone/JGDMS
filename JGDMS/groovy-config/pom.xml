@@ -46,10 +46,10 @@
             <artifactId>jgdms-jeri</artifactId>
             <version>${project.version}</version>
         </dependency>
-	<dependency>
-            <groupId>biz.aQute.bnd</groupId>
-            <artifactId>biz.aQute.bnd.annotation</artifactId>
-            <version>${bnd.annotation.version}</version>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>osgi.annotation</artifactId>
+            <version>${osgi.annotation.version}</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

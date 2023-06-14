@@ -20,19 +20,19 @@ package org.apache.river.discovery.x500.sha512withecdsa;
 
 import org.apache.river.discovery.internal.MulticastServer;
 import org.apache.river.discovery.internal.X500Server;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Implements the server side of the
  * <code>net.jini.discovery.x500.SHA1withDSA</code> format.
  *
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="org.apache.river.discovery.DiscoveryFormatProvider")
 public class Server extends MulticastServer
 {

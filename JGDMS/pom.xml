@@ -122,7 +122,7 @@
     <tychoExtrasVersion>1.2.0</tychoExtrasVersion>
     <tychoVersion>1.2.0</tychoVersion>
     <maven.Jarsigner.version>1.4</maven.Jarsigner.version>
-    <bnd.annotation.version>4.3.1</bnd.annotation.version>
+    <osgi.annotation.version>8.1.0</osgi.annotation.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
@@ -180,7 +180,7 @@
         <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>5.2.1</version>
+            <version>8.0.2</version>
             <configuration>
                 <cveValidForHours>12</cveValidForHours>
                 <failBuildOnCVSS>4</failBuildOnCVSS>
@@ -275,7 +275,7 @@
             <source>8</source>
             <failOnError>false</failOnError>
             <links>
-              <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
+              <link>https://docs.oracle.com/javase/8/docs/api/</link>
             </links>
             <detectLinks>true</detectLinks>
             <breakiterator>true</breakiterator>

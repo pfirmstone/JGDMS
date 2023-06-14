@@ -23,8 +23,8 @@ import javax.net.SocketFactory;
 import javax.security.auth.x500.X500Principal;
 import net.jini.security.Security;
 import net.jini.security.TrustVerifier;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Trust verifier for the {@link SslEndpoint}, {@link HttpsEndpoint}, and
@@ -39,11 +39,11 @@ import aQute.bnd.annotation.headers.ProvideCapability;
  * @see HttpsEndpoint
  * @see ConfidentialityStrength
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="net.jini.security.TrustVerifier")
 public final class SslTrustVerifier implements TrustVerifier {
 

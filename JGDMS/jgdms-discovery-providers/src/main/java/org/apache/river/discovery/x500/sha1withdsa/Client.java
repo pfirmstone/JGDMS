@@ -20,8 +20,8 @@ package org.apache.river.discovery.x500.sha1withdsa;
 
 import org.apache.river.discovery.internal.MulticastClient;
 import org.apache.river.discovery.internal.X500Client;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Implements the client side of the
@@ -30,11 +30,11 @@ import aQute.bnd.annotation.headers.ProvideCapability;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="org.apache.river.discovery.DiscoveryFormatProvider")
 public class Client extends MulticastClient
 {

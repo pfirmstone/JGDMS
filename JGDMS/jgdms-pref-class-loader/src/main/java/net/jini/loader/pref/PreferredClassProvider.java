@@ -63,8 +63,8 @@ import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
 import org.apache.river.logging.Levels;
 import org.apache.river.logging.LogUtil;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 import org.apache.river.logging.LogDispatch;
 
 /**
@@ -259,11 +259,11 @@ import org.apache.river.logging.LogDispatch;
  * </table>
  **/
 
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="java.rmi.server.RMIClassLoaderSpi")
 public class PreferredClassProvider extends RMIClassLoaderSpi {
     

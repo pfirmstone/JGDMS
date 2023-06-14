@@ -40,6 +40,7 @@ public class OSGiServiceIterator implements BundleActivator {
     
     public OSGiServiceIterator(){}
 
+    @Override
     public void start(BundleContext bc) throws Exception {
 	if (osi != null) throw new IllegalArgumentException("start may only be called once");
 	Service.setOsgi();
@@ -47,6 +48,7 @@ public class OSGiServiceIterator implements BundleActivator {
 	osi = this;
     }
 
+    @Override
     public void stop(BundleContext bc) throws Exception {
 	bundleContext = null;
 	osi = null;
@@ -67,10 +69,12 @@ public class OSGiServiceIterator implements BundleActivator {
 	    index = 0;
 	}
 
+        @Override
 	public boolean hasNext() {
 	    return index < instances.length;
 	}
 
+        @Override
 	public S next() {
 	    if (!hasNext()) throw new NoSuchElementException("End reached");
 	    return instances[index++];

@@ -26,8 +26,8 @@ import javax.security.auth.x500.X500Principal;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import net.jini.core.constraint.*;
 import net.jini.security.TrustVerifier;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Trust verifier for instances of the constraint classes defined in the
@@ -41,11 +41,11 @@ import aQute.bnd.annotation.headers.ProvideCapability;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="net.jini.security.TrustVerifier")
 public class ConstraintTrustVerifier implements TrustVerifier {
 

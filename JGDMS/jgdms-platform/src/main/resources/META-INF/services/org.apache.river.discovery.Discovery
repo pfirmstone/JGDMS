@@ -16,4 +16,6 @@
 # limitations under the License.
 #*/
 
-org.apache.river.discovery.https.DiscoveryUnicastHTTPS
+org.apache.river.discovery.DiscoveryV2
+# deprecated
+#org.apache.river.discovery.DiscoveryV1

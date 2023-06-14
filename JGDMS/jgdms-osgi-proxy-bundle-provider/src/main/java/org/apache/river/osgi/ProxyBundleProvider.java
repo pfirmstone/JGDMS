@@ -15,8 +15,8 @@
  */
 package org.apache.river.osgi;
 
-import aQute.bnd.annotation.headers.ProvideCapability;
-import aQute.bnd.annotation.headers.RequireCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -61,11 +61,11 @@ import org.osgi.framework.BundleException;
  *
  * @author peter
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="net.jini.loader.ProxyCodebaseSpi")
 public class ProxyBundleProvider implements ProxyCodebaseSpi, BundleActivator {
     private static final ConcurrentMap<String,Uri[]> uriCache;

@@ -35,8 +35,8 @@ import org.apache.river.discovery.internal.EndpointBasedClient;
 import org.apache.river.jeri.internal.EndpointInternals;
 import org.apache.river.jeri.internal.SslEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastClient;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 import org.apache.river.discovery.Plaintext;
 
 /**
@@ -44,11 +44,11 @@ import org.apache.river.discovery.Plaintext;
  * unicast discovery format.
  *
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="org.apache.river.discovery.DiscoveryFormatProvider")
 public class Client extends UnicastClient {
     
@@ -58,8 +58,9 @@ public class Client extends UnicastClient {
 
     private static final class ClientImpl extends EndpointBasedClient {
 
-	private static EndpointInternals epi = 
+	private static final EndpointInternals epi = 
 	    AccessController.doPrivileged(new PrivilegedAction<EndpointInternals>() {
+                @Override
 		public EndpointInternals run() {
 		    return SslEndpointInternalsAccess.get();
 		}
@@ -73,6 +74,7 @@ public class Client extends UnicastClient {
 	}
 
 	// documentation inherited from EndpointBasedClient
+        @Override
 	protected Endpoint getEndpoint(SocketFactory factory,
 				       InvocationConstraints constraints)
 	    throws UnsupportedConstraintException

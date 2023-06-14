@@ -34,8 +34,8 @@ import org.apache.river.discovery.internal.EndpointBasedServer;
 import org.apache.river.jeri.internal.EndpointInternals;
 import org.apache.river.jeri.internal.HttpsEndpointInternalsAccess;
 import org.apache.river.discovery.internal.UnicastServer;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 import org.apache.river.discovery.Plaintext;
 
 /**
@@ -43,11 +43,11 @@ import org.apache.river.discovery.Plaintext;
  * unicast discovery format.
  *
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="org.apache.river.discovery.DiscoveryFormatProvider")
 class Server extends UnicastServer {
     

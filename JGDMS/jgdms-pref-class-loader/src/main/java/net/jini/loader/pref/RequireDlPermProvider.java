@@ -20,8 +20,8 @@ package net.jini.loader.pref;
 
 import java.rmi.server.RMIClassLoader;
 import net.jini.loader.DownloadPermission;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 import net.jini.loader.ClassLoading;
 
 /**
@@ -35,11 +35,11 @@ import net.jini.loader.ClassLoading;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="java.rmi.server.RMIClassLoaderSpi")
 public class RequireDlPermProvider extends PreferredClassProvider {
 

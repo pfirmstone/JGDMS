@@ -50,10 +50,18 @@ import java.util.logging.Logger;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.discovery.Constants;
 import net.jini.io.UnsupportedConstraintException;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Class providing methods for implementing discovery protocol version 2.
  */
+@Requirement(
+	namespace="osgi.extender",
+	filter="(osgi.extender=osgi.serviceloader.registrar)")
+@Capability(
+	namespace="osgi.serviceloader",
+	name="org.apache.river.discovery.Discovery")
 class DiscoveryV2 extends Discovery {
 
     private static final byte MULTICAST_ANNOUNCEMENT = 0;

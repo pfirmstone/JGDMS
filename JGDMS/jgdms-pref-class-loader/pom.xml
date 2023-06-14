@@ -55,9 +55,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>biz.aQute.bnd</groupId>
-            <artifactId>biz.aQute.bnd.annotation</artifactId>
-            <version>${bnd.annotation.version}</version>
+            <groupId>org.osgi</groupId>
+            <artifactId>osgi.annotation</artifactId>
+            <version>${osgi.annotation.version}</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

@@ -49,8 +49,8 @@ import net.jini.loader.ClassLoading;
 import net.jini.security.SecurityContext;
 import net.jini.security.TrustVerifier;
 import org.apache.river.api.io.AtomicMarshalInputStream;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Trust verifier for service proxies that use dynamically downloaded code.
@@ -102,11 +102,11 @@ import aQute.bnd.annotation.headers.ProvideCapability;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="net.jini.security.TrustVerifier")
 @Deprecated
 public class ProxyTrustVerifier implements TrustVerifier {

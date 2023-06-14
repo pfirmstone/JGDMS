@@ -21,8 +21,8 @@ package net.jini.url.httpmd;
 import java.net.URL;
 import net.jini.security.IntegrityVerifier;
 import net.jini.security.Security;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Integrity verifier for HTTPMD URLs. This class is intended to be specified
@@ -33,11 +33,11 @@ import aQute.bnd.annotation.headers.ProvideCapability;
  * @see net.jini.url.httpmd
  * @since 2.0
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="net.jini.security.IntegrityVerifier")
 public class HttpmdIntegrityVerifier implements IntegrityVerifier {
     /**
@@ -46,6 +46,7 @@ public class HttpmdIntegrityVerifier implements IntegrityVerifier {
      *
      * @throws NullPointerException {@inheritDoc}
      */
+    @Override
     public boolean providesIntegrity(URL url) {
 	return "httpmd".equals(url.getProtocol());
     }

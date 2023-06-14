@@ -16,8 +16,9 @@
 
 package net.jini.config.groovy
 
-import aQute.bnd.annotation.headers.ProvideCapability
-import aQute.bnd.annotation.headers.RequireCapability
+
+import org.osgi.annotation.bundle.Capability
+import org.osgi.annotation.bundle.Requirement
 import net.jini.config.Configuration
 import net.jini.config.ConfigurationException
 
@@ -25,11 +26,11 @@ import net.jini.config.ConfigurationException
  *
  * @author Peter Firmstone.
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="net.jini.config.ConfigurationServiceFactory")
 class GroovyConfigService implements net.jini.config.ConfigurationServiceFactory {
 	

@@ -20,8 +20,8 @@ package net.jini.url.https;
 
 import java.net.URL;
 import net.jini.security.IntegrityVerifier;
-import aQute.bnd.annotation.headers.RequireCapability;
-import aQute.bnd.annotation.headers.ProvideCapability;
+import org.osgi.annotation.bundle.Capability;
+import org.osgi.annotation.bundle.Requirement;
 
 /**
  * Integrity verifier for HTTPS URLs. This class is intended to be specified
@@ -35,11 +35,11 @@ import aQute.bnd.annotation.headers.ProvideCapability;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  */
-@RequireCapability(
-	ns="osgi.extender",
+@Requirement(
+	namespace="osgi.extender",
 	filter="(osgi.extender=osgi.serviceloader.registrar)")
-@ProvideCapability(
-	ns="osgi.serviceloader",
+@Capability(
+	namespace="osgi.serviceloader",
 	name="net.jini.security.IntegrityVerifier")
 public class HttpsIntegrityVerifier implements IntegrityVerifier {
     /**
@@ -48,6 +48,7 @@ public class HttpsIntegrityVerifier implements IntegrityVerifier {
      *
      * @throws NullPointerException {@inheritDoc}
      */
+    @Override
     public boolean providesIntegrity(URL url) {
 	return "https".equals(url.getProtocol());
     }
