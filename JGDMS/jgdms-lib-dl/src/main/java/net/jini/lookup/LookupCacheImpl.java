@@ -982,7 +982,7 @@ final class LookupCacheImpl implements LookupCache {
      * and others are executing, it isn't a safe way to ensure any kind of
      * consistency or ordering.
      */
-    private static class HandleServiceEventTask implements Runnable, Comparable {
+    private static class HandleServiceEventTask implements Runnable, Comparable<HandleServiceEventTask> {
         
         private final LookupCacheImpl cache;
         private final ServiceEvent theEvent;
@@ -1135,9 +1135,7 @@ final class LookupCacheImpl implements LookupCache {
         }
 
         @Override
-        public int compareTo(Object o) {
-            if (!(o instanceof HandleServiceEventTask)) return 0;
-            HandleServiceEventTask that = (HandleServiceEventTask) o;
+        public int compareTo(HandleServiceEventTask that) {
             long dif = this.theEvent.getSequenceNumber() - that.theEvent.getSequenceNumber();
             if (dif == 0) return 0;
             if (dif < 0) return -1; // Which means that.theEvent is larger than this.theEvent
