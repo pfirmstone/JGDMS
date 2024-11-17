@@ -41,7 +41,7 @@ import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.DynamicPolicyProvider;
 import org.apache.river.api.security.CombinerSecurityManager;
 import org.apache.river.api.io.AtomicMarshalInputStream;
-//import org.apache.river.tool.SecurityPolicyWriter;
+import org.apache.river.tool.SecurityPolicyWriter;
 //import org.bouncycastle.jce.provider.BouncyCastleProvider;
 //import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 
@@ -101,6 +101,7 @@ class MasterTest {
 	System.setErr(System.out);
 	logger.log(Level.FINE, "Starting MasterTest");
         if (System.getSecurityManager() == null) {
+            logger.log(Level.WARNING, "SecurityManager was null");
 //	    System.setSecurityManager(new java.rmi.RMISecurityManager());
 //            System.setSecurityManager(new SecurityPolicyWriter()); // Seems to be ok here
             System.setSecurityManager(new CombinerSecurityManager());

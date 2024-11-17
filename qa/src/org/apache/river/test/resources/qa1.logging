@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = INFO
+.level = CONFIG
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -198,12 +198,12 @@ org.apache.river.discovery.x500.level = SEVERE
 # For the Helper Utilities
 net.jini.discovery.LookupDiscovery.level = SEVERE
 net.jini.discovery.LookupLocatorDiscovery.level = SEVERE
-net.jini.lookup.JoinManager.level = SEVERE
+net.jini.lookup.JoinManager.level = FINEST
 net.jini.lookup.ServiceDiscoveryManager.level = SEVERE
 net.jini.lease.LeaseRenewalManager.level = SEVERE
 
 # For Thread Pool Utilities
-org.apache.river.thread.RetryTask.level = SEVERE
+org.apache.river.thread.RetryTask.level = FINER
 org.apache.river.thread.WakeupManager.level = SEVERE
 org.apache.river.thread.ThreadPool.level = SEVERE
 
@@ -278,8 +278,8 @@ org.apache.river.outrigger.transactions.level = SEVERE
 org.apache.river.example.browser.level = SEVERE
 
 # For the test harness, tests, and infrastructure.
-org.apache.river.qa.harness.level = INFO
-org.apache.river.qa.harness.test.level = INFO
-org.apache.river.qa.harness.service.level = INFO
-org.apache.river.qa.harness.config.level = INFO
+org.apache.river.qa.harness.level = FINE
+org.apache.river.qa.harness.test.level = FINE
+org.apache.river.qa.harness.service.level = FINE
+org.apache.river.qa.harness.config.level = FINE
 org.apache.river.test.spec.jeri.mux.level = SEVERE

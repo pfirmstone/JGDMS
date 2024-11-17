@@ -53,7 +53,6 @@ import net.jini.security.policy.PolicyInitializationException;
 import org.apache.river.concurrent.RC;
 import org.apache.river.concurrent.Ref;
 import org.apache.river.concurrent.Referrer;
-import org.apache.river.thread.NamedThreadFactory;
 
 /**
  * CombinerSecurityManager, is intended to be a highly scalable

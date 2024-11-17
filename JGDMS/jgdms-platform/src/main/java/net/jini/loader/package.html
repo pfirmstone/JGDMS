@@ -46,6 +46,13 @@ loading classes using <code>RMIClassLoader</code> with optional
 verification that the codebase URLs used to load classes provide
 content integrity.
 
+<p>{@link net.jini.loader.ProxyCodebaseSpi} has been provided to allow codebase
+    uri to be loaded into a ClassLoader, specific to the service proxy, where
+    class visibility is controlled by the ClassLoader, not any other mechanism,
+    such that codebase annotations are not required and will not cause issues.
+    
+<p>Refer to {@link https://web.archive.org/web/20060514011913/http://research.sun.com/technical-reports/2006/smli_tr-2006-149.pdf}
+
 @since 2.0
 @version 2.0
 

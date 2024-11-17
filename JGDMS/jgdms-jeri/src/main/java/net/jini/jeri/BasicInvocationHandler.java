@@ -250,7 +250,7 @@ public class BasicInvocationHandler
 	return true;
     }
     
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	ObjectEndpoint oe = (ObjectEndpoint) arg.get("oe", null);
 	if (oe == null) throw new InvalidObjectException("null object endpoint");
 	Object clientConstraints = arg.get("clientConstraints", null);
@@ -264,7 +264,7 @@ public class BasicInvocationHandler
 	return true;
     }
     
-    public BasicInvocationHandler(GetArg arg) throws IOException {
+    public BasicInvocationHandler(GetArg arg) throws IOException, ClassNotFoundException{
 	this(check(arg),
 	    (ObjectEndpoint) arg.get("oe", null),
 	    (MethodConstraints) arg.get("clientConstraints", null),

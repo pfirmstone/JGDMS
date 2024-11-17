@@ -634,18 +634,18 @@ public class TestDescription implements Serializable {
 	String testClass   = getTestClassName();
 	ArrayList cmdList = new ArrayList(64);
 	cmdList.add(getJVM());
-	cmdList.add("-Djava.security.policy=" + getPolicyFile());
-	if (getCodebase() != null) {
-	    cmdList.add("-Djava.rmi.server.codebase=" + getCodebase());
-	}
 	cmdList.add("-cp");
 	cmdList.add(getClasspath());
-	// all options follow -cp, making them easy to find in the log
+	// all options follow -cp, making them easy to find in the log       
 	String[] vmArgs = getJVMArgs();
 	String[] options = config.extractOptions(vmArgs);
 	for (int i = 0; i < options.length; i++) {
 	    cmdList.add(options[i]);
         }
+        cmdList.add("-Djava.security.policy=" + getPolicyFile());
+	if (getCodebase() != null) {
+	    cmdList.add("-Djava.rmi.server.codebase=" + getCodebase());
+	}
 	// extractproperties will discard undefined optional properties
 	// testhosts property is expected to be included here if defined
 	boolean discardLoggingProps = false;
