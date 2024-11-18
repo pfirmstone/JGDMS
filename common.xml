@@ -144,10 +144,10 @@
         <pathelement path="${river.classes.dir}"/>
     </path>
 
-    <!--<fileset id="asm.jars" dir="${root}/dep-libs/asm">
-        <include name="asm-5.0.1.jar" />
-        <include name="asm-commons-5.0.1.jar" />
-    </fileset>-->
+    <fileset id="asm.jars" dir="${root}/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib">
+        <include name="asm-9.5.jar" />
+        <include name="asm-commons-9.5.jar" />
+    </fileset>
 
     <path id="groovy.jars">
 		<fileset dir="${root}/dep-libs/groovy" includes="**/*.jar" />
@@ -177,9 +177,9 @@
     </path>-->
 
 
-    <!--<path id="asm.classpath">
+    <path id="asm.classpath">
         <fileset refid="asm.jars" />
-    </path>-->
+    </path>
 
     <path id="classdep.classes.classpath">
         <path refid="river.classes"/>
@@ -188,7 +188,7 @@
    
     <path id="classdep.jar.classpath">
         <pathelement location="${river.lib.dir}/classdep-3.1.1-SNAPSHOT.jar"/>
-        <!--<path refid="asm.classpath" />-->
+        <path refid="asm.classpath" />
     </path>
 
     <path id="classdep.classpath">

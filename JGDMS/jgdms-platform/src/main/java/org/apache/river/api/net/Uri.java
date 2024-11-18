@@ -45,7 +45,7 @@ import org.apache.river.impl.Messages;
  * RFC3986.  A zone delimiter %, if present, must be represented in escaped %25
  * form as per RFC6874.
  * <p>
- * In addition to RFC3896 normalization, IPv6 host addresses will be normalized
+ * In addition to RFC3986 normalization, IPv6 host addresses will be normalized
  * to comply with RFC 5952 A Recommendation for IPv6 Address Text Representation. 
  * This is to ensure consistent equality between identical IPv6 addresses.
  * 

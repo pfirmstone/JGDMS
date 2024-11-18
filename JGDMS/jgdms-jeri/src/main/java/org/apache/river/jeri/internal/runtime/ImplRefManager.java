@@ -18,7 +18,6 @@
 
 package org.apache.river.jeri.internal.runtime;
 
-import org.apache.river.jeri.internal.runtime.Target;
 import org.apache.river.thread.NewThreadAction;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;

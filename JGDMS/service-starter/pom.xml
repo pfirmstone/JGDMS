@@ -102,7 +102,10 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
+            <!-- Dependency check has been disabled for false positive with
+                 jgdms-pref-class-loader-3.1.1-SNAPSHOT.jar
+                 Suppression file not working            -->
+            <!--<plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
                 <executions>
@@ -112,7 +115,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin> 
+            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>

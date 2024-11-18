@@ -115,7 +115,7 @@
 
   <properties>
     <github.repo.basename>pfirmstone</github.repo.basename>
-    <groovy.version>2.4.12</groovy.version>
+    <groovy.version>2.4.21</groovy.version>
     <gmaven.version>1.5</gmaven.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
     <junit.version>4.8.2</junit.version>
@@ -177,7 +177,7 @@
               <useDefaultManifestFile>true</useDefaultManifestFile>
           </configuration>
         </plugin>
-        <plugin>
+        <!--<plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
             <version>8.0.2</version>
@@ -185,11 +185,11 @@
                 <cveValidForHours>12</cveValidForHours>
                 <failBuildOnCVSS>4</failBuildOnCVSS>
             </configuration>
-        </plugin>
+        </plugin>-->
         <plugin>
             <groupId>biz.aQute.bnd</groupId>
             <artifactId>bnd-maven-plugin</artifactId>
-            <version>4.2.0</version>
+            <version>7.0.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

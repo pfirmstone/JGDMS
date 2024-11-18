@@ -19,7 +19,7 @@ import java.security.Permission;
 import java.security.ProtectionDomain;
 
 /**
- * PolicyOnlySecurityManager allows the Principle of Lease Privilege to be used
+ * PolicyOnlySecurityManager allows the Principle of Least Privilege to be used
  * with a security Policy, while retaining scalability and performance.
  * <p>
  * ProtectionDomains created with the two argument constructor are static,
