@@ -145,8 +145,8 @@
     </path>
 
     <fileset id="asm.jars" dir="${root}/JGDMS/dist/target/JGDMS-3.1.1-SNAPSHOT/lib">
-        <include name="asm-9.5.jar" />
-        <include name="asm-commons-9.5.jar" />
+        <include name="asm-9.7.jar" />
+        <include name="asm-commons-9.7.jar" />
     </fileset>
 
     <path id="groovy.jars">

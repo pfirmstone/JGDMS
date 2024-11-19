@@ -10,7 +10,11 @@ $mvn -f JGDMS/pom.xml test
 
 After successfully testing the above, integration and regression tests can be run by:
 
+$export JSK_HOME=  /* path to current directory or set this property in build.properties*/
+
 $ cd qa
+
+$ ant build
 
 $ ant run-all
 
