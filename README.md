@@ -49,6 +49,6 @@ https://groups.google.com/forum/#!forum/river-secure-ipv6-discovery
 ## For secuity reasons, Java 24 and later versions are not supported.
 * Authorization is a foundational component of JGDMS, required to limit privileges between cooperating, trusted but independant parties.  Just because you trust to do business with someone, doesn't mean you would allow them to access all your personal information.
 * We do not reccommend you run untrusted code (sandboxing), with JGDMS, you can ensure that users are only granted privileges using the code you intended them to use.
-* If you would like to assist maintaining a fork of Java that includes Authorization, please get in touch.
+* If you would like to assist maintaining a fork of Java that includes Authorization, please get in touch. https://github.com/pfirmstone/jdk-with-authorization
 
 * https://youtu.be/uVob-4aXbxY
