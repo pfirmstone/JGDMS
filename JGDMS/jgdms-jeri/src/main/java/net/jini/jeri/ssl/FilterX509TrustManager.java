@@ -30,6 +30,7 @@ import java.security.NoSuchProviderException;
 import java.security.PrivilegedAction;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -63,6 +64,20 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
 	    )
 	);
     
+    private static final String [] authKeyTypes = new String[]{
+        "DHE_RSA", "DHE_PSK", "ECDHE_ECDSA", "ECDHE_RSA", // Recommended key exchange algorithms
+        "RSA", "ECDSA", "EdDSA", "PSK", //TLS 1.3 Auth types
+    };
+    
+    private static void check(String authType) throws CertificateException {
+        if (authType == null) throw new IllegalArgumentException("Authentication key type cannot be null");
+        for (int i = 0, l = authKeyTypes.length; i < l; i++){
+            if (authType.equals(authKeyTypes[i])) return;
+        }
+        throw new CertificateException("Unsupported authentication key Type: " + authType);
+    }
+
+    
     /** The set of permitted remote principals, or empty if no restriction. */
     private final Set principals;
 
@@ -93,6 +108,11 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
     public void checkClientTrusted(X509Certificate[] chain, String authType)
 	throws CertificateException
     {
+        if ("UNKNOWN".equals(authType)){
+            authType = "RSA";
+        } else {
+            check(authType);
+        }
 	trustManager.checkClientTrusted(chain, authType);
 	check(chain);
 	if (Utilities.SERVER_LOGGER.isLoggable(Level.FINE)) {
@@ -102,11 +122,16 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
 			     new Object[] { authType, Utilities.toString(chain) });
 	}
     }
-
+    
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType)
 	throws CertificateException
     {
+        if ("UNKNOWN".equals(authType)){
+            authType = "RSA";
+        } else {
+            check(authType);
+        }
 	trustManager.checkServerTrusted(chain, authType);
 	check(chain);
 	if (Utilities.CLIENT_LOGGER.isLoggable(Level.FINE)) {

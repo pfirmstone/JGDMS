@@ -36,6 +36,8 @@ import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.security.AccessControlException;
+import java.security.Permission;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
 /**
@@ -134,6 +136,7 @@ public class ThrowableSerializer implements Serializable, Resolve {
     private final String classname; // To support InvalidClassException
     private final int length; // To support OptionalDataException
     private final boolean eof; // To support OptionalDataException
+    private final Permission perm; // To support AccessControlException
     
     ThrowableSerializer(Throwable t){
 	throwable = t;
@@ -157,6 +160,11 @@ public class ThrowableSerializer implements Serializable, Resolve {
 	} else {
             length = 0;
             eof = false;
+        }
+        if (t instanceof AccessControlException){
+            perm = ((AccessControlException)t).getPermission();
+        } else {
+            perm = null;
         }
         /*
         * Numeous subclasses override Throwable.getMessage.  Unfortunately we
@@ -279,6 +287,10 @@ public class ThrowableSerializer implements Serializable, Resolve {
             } catch (SecurityException ex) {
                 throw new IOException("Unable to instantiate java.io.OptionalDataException", ex);
             }
+        } else if (AccessControlException.class.equals(clas)){
+            Permission perm = arg.get("perm", null, Permission.class);
+            result = new AccessControlException(message, perm);
+            if (cause != null) result.initCause(cause);
         } else {
             result = init(clas, message, cause);
         }

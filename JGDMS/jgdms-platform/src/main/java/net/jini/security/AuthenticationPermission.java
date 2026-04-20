@@ -171,16 +171,16 @@ public final class AuthenticationPermission extends Permission {
      * null principal name, no other element with the same class name will
      * exist.
      */
-    private transient String[] me;
+    private volatile transient String[] me;
     /**
      * The parsed elements of the peer principals, or null if no peer
      * principals were specified.
      */
-    private transient String[] peer;
+    private volatile transient String[] peer;
     /**
      * The parsed actions as a bitmask.
      */
-    private transient int mask;
+    private volatile transient int mask;
 
     /**
      * Creates an instance with the specified target name and actions.
@@ -219,31 +219,47 @@ public final class AuthenticationPermission extends Permission {
     /**
      * Internal structure to work around the fact that you can't do
      * computation on this prior to calling super() in a constructor.
+     * 
+     * Final fields to ensure visibility of AuthenticationPermission fields
+     * to other threads, since they can't be made final.
      */
     private static final class Data {
 	/**
 	 * The target name.
 	 */
-	String name;
+	final String name;
 	/**
 	 * The parsed elements of the local principals.
 	 */
-	String[] me;
+	final String[] me;
 	/**
 	 * The parsed elements of the peer principals.
 	 */
-	String[] peer;
+	final String[] peer;
 
-	/**
-	 * Simple constructor.
-	 */
-	Data() {}
-	
 	Data(String name){
 	    this.name = name;
 	    this.me = null;
 	    this.peer = null;
 	}
+        
+        Data(String name, String[] me, String[] peer){
+            this.name = name;
+            this.me = me;
+            this.peer = peer;
+        }
+        
+        Data(Data data, String[] me){
+            this.name = data.name;
+            this.peer = data.peer;
+            this.me = me;
+        }
+        
+        Data(String[] peer, Data data){
+            this.name = data.name;
+            this.peer = peer;
+            this.me = data.me;
+        }
     }
 
     /**
@@ -387,11 +403,10 @@ public final class AuthenticationPermission extends Permission {
 	    res = (String[]) vals.toArray(new String[vals.size()]);
 	}
 	if (peer) {
-	    data.peer = res;
+            return new Data(res, data);
 	} else {
-	    data.me = res;
+            return new Data(data, res);
 	}
-	return data;
     }
 
     /**
@@ -400,7 +415,7 @@ public final class AuthenticationPermission extends Permission {
      * the specified buffer, separated by spaces, with the principal
      * names in quotes.
      */
-    private static String[] cons(Set s, StringBuffer b) {
+    private static String[] cons(Set s, StringBuilder b) {
 	String[] vals = new String[s.size() * 2];
 	int i = 0;
 	for (Iterator iter = s.iterator(); iter.hasNext(); ) {
@@ -438,15 +453,15 @@ public final class AuthenticationPermission extends Permission {
 	    throw new IllegalArgumentException(
 					"local principals must be non-empty");
 	}
-	Data data = new Data();
-	StringBuffer b = new StringBuffer();
-	data.me = cons(me, b);
+        String [] p = null;
+        String [] m;
+	StringBuilder b = new StringBuilder();
+	m = cons(me, b);
 	if (peer != null && !peer.isEmpty()) {
 	    b.append(" peer ");
-	    data.peer = cons(peer, b);
+	    p = cons(peer, b);
 	}
-	data.name = b.toString();
-	return data;
+	return new Data(b.toString(), m, p);
     }
 
     /**
@@ -534,6 +549,7 @@ public final class AuthenticationPermission extends Permission {
      * peer principals of one instance matches the peer principals of the
      * other instance.
      */
+    @Override
     public boolean equals(Object obj) {
 	if (!(obj instanceof AuthenticationPermission)) {
 	    return false;
@@ -574,6 +590,7 @@ public final class AuthenticationPermission extends Permission {
     /**
      * Returns a hash code value for this object.
      */
+    @Override
     public int hashCode() {
 	int h = mask;
 	if (me != null) {
