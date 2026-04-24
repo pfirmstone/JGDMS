@@ -250,16 +250,15 @@ public class ProxyHostActivatable implements RemoteProxyHost {
                                        ClassLoader proxyLoader)
             throws RemoteException {
         if (!(proxy instanceof java.rmi.Remote)) {
-            // Wrap with a dynamic proxy that also implements Remote so it
-            // can be exported via JERI.
-            Class<?>[] ifaces = getRemoteInterfaces(proxy.getClass());
+            // Proxy does not implement Remote; verify it has at least one
+            // interface before wrapping it in a RemoteProxyWrapper for export.
+            Class<?>[] ifaces = getAllInterfaces(proxy.getClass());
             if (ifaces.length == 0) {
                 throw new ExportException(
                         "Proxy " + proxy.getClass().getName()
                         + " does not implement any interface that can be "
                         + "exported via JERI");
             }
-            // Re-use proxy as the invocation target; export directly.
         }
 
         Exporter proxyExporter = new BasicJeriExporter(
@@ -279,10 +278,9 @@ public class ProxyHostActivatable implements RemoteProxyHost {
     }
 
     /**
-     * Returns all non-{@code Remote} interfaces of a class so that we know
-     * which ones to expose.
+     * Returns all interfaces declared by the given class and its superclasses.
      */
-    private static Class<?>[] getRemoteInterfaces(Class<?> cls) {
+    private static Class<?>[] getAllInterfaces(Class<?> cls) {
         java.util.List<Class<?>> list = new java.util.ArrayList<Class<?>>();
         for (Class<?> iface : cls.getInterfaces()) {
             list.add(iface);

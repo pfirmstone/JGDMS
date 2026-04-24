@@ -84,21 +84,21 @@ public class StandardProxyBytecodeAnalyzer extends ProxyBytecodeAnalyzer {
                     "java/lang/ClassLoader.loadClass"
             )));
 
-    // Java class-file constant pool tags
-    private static final int CONSTANT_Utf8               =  1;
-    private static final int CONSTANT_Integer             =  3;
-    private static final int CONSTANT_Float               =  4;
-    private static final int CONSTANT_Long                =  5;
-    private static final int CONSTANT_Double              =  6;
-    private static final int CONSTANT_Class               =  7;
-    private static final int CONSTANT_String              =  8;
-    private static final int CONSTANT_Fieldref            =  9;
-    private static final int CONSTANT_Methodref           = 10;
-    private static final int CONSTANT_InterfaceMethodref  = 11;
-    private static final int CONSTANT_NameAndType         = 12;
-    private static final int CONSTANT_MethodHandle        = 15;
-    private static final int CONSTANT_MethodType          = 16;
-    private static final int CONSTANT_InvokeDynamic       = 18;
+    // Java class-file constant pool tags (JVMS Table 4.4-B)
+    private static final int CONSTANT_UTF8                =  1;
+    private static final int CONSTANT_INTEGER             =  3;
+    private static final int CONSTANT_FLOAT               =  4;
+    private static final int CONSTANT_LONG                =  5;
+    private static final int CONSTANT_DOUBLE              =  6;
+    private static final int CONSTANT_CLASS               =  7;
+    private static final int CONSTANT_STRING              =  8;
+    private static final int CONSTANT_FIELDREF            =  9;
+    private static final int CONSTANT_METHODREF           = 10;
+    private static final int CONSTANT_INTERFACE_METHODREF = 11;
+    private static final int CONSTANT_NAME_AND_TYPE       = 12;
+    private static final int CONSTANT_METHOD_HANDLE       = 15;
+    private static final int CONSTANT_METHOD_TYPE         = 16;
+    private static final int CONSTANT_INVOKE_DYNAMIC      = 18;
 
     private final Set<String> blacklist;
 
@@ -186,43 +186,43 @@ public class StandardProxyBytecodeAnalyzer extends ProxyBytecodeAnalyzer {
         for (int i = 1; i < cpCount; i++) {
             int tag = dis.readUnsignedByte();
             switch (tag) {
-                case CONSTANT_Utf8:
+                case CONSTANT_UTF8:
                     utf8Pool[i] = dis.readUTF();
                     break;
-                case CONSTANT_Integer:
-                case CONSTANT_Float:
+                case CONSTANT_INTEGER:
+                case CONSTANT_FLOAT:
                     dis.readInt();
                     break;
-                case CONSTANT_Long:
-                case CONSTANT_Double:
+                case CONSTANT_LONG:
+                case CONSTANT_DOUBLE:
                     dis.readLong();
                     i++; // takes two slots
                     break;
-                case CONSTANT_Class:
+                case CONSTANT_CLASS:
                     classNameIdx[i] = dis.readUnsignedShort();
                     break;
-                case CONSTANT_String:
+                case CONSTANT_STRING:
                     dis.readUnsignedShort();
                     break;
-                case CONSTANT_Fieldref:
-                case CONSTANT_Methodref:
-                case CONSTANT_InterfaceMethodref:
+                case CONSTANT_FIELDREF:
+                case CONSTANT_METHODREF:
+                case CONSTANT_INTERFACE_METHODREF:
                     natClass[i]    = dis.readUnsignedShort();
                     natNameType[i] = dis.readUnsignedShort();
                     isRef[i] = true;
                     break;
-                case CONSTANT_NameAndType:
+                case CONSTANT_NAME_AND_TYPE:
                     natName[i] = dis.readUnsignedShort();
                     dis.readUnsignedShort(); // descriptor_index (ignored)
                     break;
-                case CONSTANT_MethodHandle:
+                case CONSTANT_METHOD_HANDLE:
                     dis.readUnsignedByte();
                     dis.readUnsignedShort();
                     break;
-                case CONSTANT_MethodType:
+                case CONSTANT_METHOD_TYPE:
                     dis.readUnsignedShort();
                     break;
-                case CONSTANT_InvokeDynamic:
+                case CONSTANT_INVOKE_DYNAMIC:
                     dis.readUnsignedShort();
                     dis.readUnsignedShort();
                     break;
