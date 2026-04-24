@@ -19,12 +19,17 @@ package org.apache.river.api.codebase;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * An immutable, serializable authoritative verdict produced by a
@@ -48,29 +53,87 @@ import java.util.Set;
  *       above fields.</li>
  * </ul>
  *
- * <p><strong>Serialization safety.</strong> All fields are validated during
- * construction and on deserialization; the class is {@code final}.
+ * <p><strong>Serialization safety.</strong> All fields are validated atomically
+ * before the object is constructed, using the {@link AtomicSerial} protocol.
+ * The class is {@code final}.
  *
  * @see VerdictRegistry
  * @see BytecodeAnalysisEngine
  * @see SignedVerdict
  * @since 3.1.1
  */
+@AtomicSerial
 public final class RegistryVerdict implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    private static final String CODEBASE_URLS = "codebaseUrls";
+    private static final String VERDICT        = "verdict";
+    private static final String TIMESTAMP      = "timestamp";
+    private static final String SIGNATURE      = "signature";
+
+    @SuppressWarnings("unused")
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm(CODEBASE_URLS, URL[].class),
+            new SerialForm(VERDICT,       VerdictType.class),
+            new SerialForm(TIMESTAMP,     Long.TYPE),
+            new SerialForm(SIGNATURE,     byte[].class)
+        };
+    }
+
+    public static void serialize(PutArg arg, RegistryVerdict rv) throws IOException {
+        arg.put(CODEBASE_URLS, rv.codebaseUrls.clone());
+        arg.put(VERDICT,       rv.verdict);
+        arg.put(TIMESTAMP,     rv.timestamp);
+        arg.put(SIGNATURE,     rv.signature.clone());
+        arg.writeArgs();
+    }
+
+    // -------------------------------------------------------------------------
+    // Invariant check called before construction
+    // -------------------------------------------------------------------------
+
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
+        URL[] urls = (URL[]) arg.get(CODEBASE_URLS, null);
+        if (urls == null || urls.length == 0)
+            throw new InvalidObjectException("codebaseUrls must not be null or empty");
+        for (int i = 0; i < urls.length; i++) {
+            if (urls[i] == null)
+                throw new InvalidObjectException("codebaseUrls[" + i + "] must not be null");
+        }
+        if (arg.get(VERDICT, null, VerdictType.class) == null)
+            throw new InvalidObjectException("verdict must not be null");
+        long ts = arg.get(TIMESTAMP, 0L);
+        if (ts <= 0)
+            throw new InvalidObjectException("timestamp must be positive");
+        byte[] sig = (byte[]) arg.get(SIGNATURE, null);
+        if (sig == null || sig.length == 0)
+            throw new InvalidObjectException("signature must not be null or empty");
+        return true;
+    }
+
     /**
      * The ordered set of codebase URLs that were evaluated.
+     *
+     * @serial
      */
     private final URL[] codebaseUrls;
 
-    /** The verdict determined by the registry's quorum policy. */
+    /**
+     * The verdict determined by the registry's quorum policy.
+     *
+     * @serial
+     */
     private final VerdictType verdict;
 
     /**
      * UTC time (milliseconds since 1970-01-01T00:00:00Z) at which the
      * registry issued this verdict.
+     *
+     * @serial
      */
     private final long timestamp;
 
@@ -78,8 +141,25 @@ public final class RegistryVerdict implements Serializable {
      * DER-encoded signature produced by the registry's identity key over
      * the canonical serialized form of {@link #codebaseUrls},
      * {@link #verdict}, and {@link #timestamp}.
+     *
+     * @serial
      */
     private final byte[] signature;
+
+    /**
+     * {@link AtomicSerial} deserialization constructor.  Invariants are
+     * checked by {@link #check(GetArg)} before any field is assigned.
+     */
+    public RegistryVerdict(GetArg arg) throws IOException, ClassNotFoundException {
+        this(arg, check(arg));
+    }
+
+    private RegistryVerdict(GetArg arg, boolean checked) throws IOException, ClassNotFoundException {
+        codebaseUrls = ((URL[]) arg.get(CODEBASE_URLS, null)).clone();
+        verdict      = arg.get(VERDICT, null, VerdictType.class);
+        timestamp    = arg.get(TIMESTAMP, 0L);
+        signature    = ((byte[]) arg.get(SIGNATURE, null)).clone();
+    }
 
     /**
      * Constructs a new {@code RegistryVerdict}.
@@ -154,27 +234,6 @@ public final class RegistryVerdict implements Serializable {
      */
     public byte[] getSignature() {
         return signature.clone();
-    }
-
-    // -------------------------------------------------------------------------
-    // Serialization support
-    // -------------------------------------------------------------------------
-
-    private void readObject(java.io.ObjectInputStream in)
-            throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        if (codebaseUrls == null || codebaseUrls.length == 0)
-            throw new InvalidObjectException("codebaseUrls must not be null or empty");
-        for (int i = 0; i < codebaseUrls.length; i++) {
-            if (codebaseUrls[i] == null)
-                throw new InvalidObjectException("codebaseUrls[" + i + "] must not be null");
-        }
-        if (verdict == null)
-            throw new InvalidObjectException("verdict must not be null");
-        if (timestamp <= 0)
-            throw new InvalidObjectException("timestamp must be positive");
-        if (signature == null || signature.length == 0)
-            throw new InvalidObjectException("signature must not be null or empty");
     }
 
     @Override

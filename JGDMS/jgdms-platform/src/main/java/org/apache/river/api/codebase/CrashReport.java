@@ -19,12 +19,17 @@ package org.apache.river.api.codebase;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.api.io.AtomicSerial.PutArg;
+import org.apache.river.api.io.AtomicSerial.SerialForm;
 
 /**
  * An immutable, serializable record submitted by a Phoenix crash reporter
@@ -55,13 +60,15 @@ import java.util.Set;
  * malicious process cannot inject control characters, excessively large
  * payloads, or non-printable bytes into the registry's persistent state.
  *
- * <p><strong>Serialization safety.</strong> All fields are validated during
- * construction and on deserialization; the class is {@code final}.
+ * <p><strong>Serialization safety.</strong> All fields are validated atomically
+ * before the object is constructed, using the {@link AtomicSerial} protocol.
+ * The class is {@code final}.
  *
  * @see VerdictRegistry
  * @see BytecodeAnalysisEngine
  * @since 3.1.1
  */
+@AtomicSerial
 public final class CrashReport implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -69,22 +76,94 @@ public final class CrashReport implements Serializable {
     /** Maximum number of characters accepted in {@link #stderrSummary}. */
     public static final int MAX_STDERR_LENGTH = 4096;
 
+    private static final String CODEBASE_URLS  = "codebaseUrls";
+    private static final String EXIT_CODE      = "exitCode";
+    private static final String INCARNATION    = "incarnation";
+    private static final String STDERR_SUMMARY = "stderrSummary";
+    private static final String SIGNATURE      = "signature";
+
+    @SuppressWarnings("unused")
+    private static final ObjectStreamField[] serialPersistentFields = serialForm();
+
+    public static SerialForm[] serialForm() {
+        return new SerialForm[] {
+            new SerialForm(CODEBASE_URLS,  URL[].class),
+            new SerialForm(EXIT_CODE,      Integer.TYPE),
+            new SerialForm(INCARNATION,    Long.TYPE),
+            new SerialForm(STDERR_SUMMARY, String.class),
+            new SerialForm(SIGNATURE,      byte[].class)
+        };
+    }
+
+    public static void serialize(PutArg arg, CrashReport cr) throws IOException {
+        arg.put(CODEBASE_URLS,  cr.codebaseUrls.clone());
+        arg.put(EXIT_CODE,      cr.exitCode);
+        arg.put(INCARNATION,    cr.incarnation);
+        arg.put(STDERR_SUMMARY, cr.stderrSummary);
+        arg.put(SIGNATURE,      cr.signature.clone());
+        arg.writeArgs();
+    }
+
+    // -------------------------------------------------------------------------
+    // Invariant check called before construction
+    // -------------------------------------------------------------------------
+
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
+        URL[] urls = (URL[]) arg.get(CODEBASE_URLS, null);
+        if (urls == null || urls.length == 0)
+            throw new InvalidObjectException("codebaseUrls must not be null or empty");
+        for (int i = 0; i < urls.length; i++) {
+            if (urls[i] == null)
+                throw new InvalidObjectException("codebaseUrls[" + i + "] must not be null");
+        }
+        long incarnation = arg.get(INCARNATION, 0L);
+        if (incarnation < 0)
+            throw new InvalidObjectException("incarnation must be non-negative");
+        String stderr = arg.get(STDERR_SUMMARY, null, String.class);
+        if (stderr == null)
+            throw new InvalidObjectException("stderrSummary must not be null");
+        if (stderr.length() > MAX_STDERR_LENGTH)
+            throw new InvalidObjectException(
+                    "stderrSummary exceeds " + MAX_STDERR_LENGTH + " characters");
+        try {
+            checkPrintableAscii(stderr);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidObjectException(e.getMessage());
+        }
+        byte[] sig = (byte[]) arg.get(SIGNATURE, null);
+        if (sig == null || sig.length == 0)
+            throw new InvalidObjectException("signature must not be null or empty");
+        return true;
+    }
+
     /**
      * The ordered set of codebase URLs that were active in the crashed
      * activation group.
+     *
+     * @serial
      */
     private final URL[] codebaseUrls;
 
-    /** OS exit code returned by the crashed group JVM process. */
+    /**
+     * OS exit code returned by the crashed group JVM process.
+     *
+     * @serial
+     */
     private final int exitCode;
 
-    /** Phoenix incarnation number at the time of the crash. */
+    /**
+     * Phoenix incarnation number at the time of the crash.
+     *
+     * @serial
+     */
     private final long incarnation;
 
     /**
      * Sanitised, length-bounded excerpt from the standard-error output of
      * the crashed process.  Contains only printable ASCII characters
      * (code points 0x20–0x7E, plus {@code '\n'} and {@code '\r'}).
+     *
+     * @serial
      */
     private final String stderrSummary;
 
@@ -92,8 +171,26 @@ public final class CrashReport implements Serializable {
      * DER-encoded signature produced by Phoenix's identity key over the
      * canonical serialized form of {@link #codebaseUrls}, {@link #exitCode},
      * {@link #incarnation}, and {@link #stderrSummary}.
+     *
+     * @serial
      */
     private final byte[] signature;
+
+    /**
+     * {@link AtomicSerial} deserialization constructor.  Invariants are
+     * checked by {@link #check(GetArg)} before any field is assigned.
+     */
+    public CrashReport(GetArg arg) throws IOException, ClassNotFoundException {
+        this(arg, check(arg));
+    }
+
+    private CrashReport(GetArg arg, boolean checked) throws IOException, ClassNotFoundException {
+        codebaseUrls  = ((URL[]) arg.get(CODEBASE_URLS, null)).clone();
+        exitCode      = arg.get(EXIT_CODE, 0);
+        incarnation   = arg.get(INCARNATION, 0L);
+        stderrSummary = arg.get(STDERR_SUMMARY, null, String.class);
+        signature     = ((byte[]) arg.get(SIGNATURE, null)).clone();
+    }
 
     /**
      * Constructs a new {@code CrashReport}.
@@ -207,35 +304,6 @@ public final class CrashReport implements Serializable {
                                 + Integer.toHexString(c) + " at index " + i);
             }
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // Serialization support
-    // -------------------------------------------------------------------------
-
-    private void readObject(java.io.ObjectInputStream in)
-            throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-        if (codebaseUrls == null || codebaseUrls.length == 0)
-            throw new InvalidObjectException("codebaseUrls must not be null or empty");
-        for (int i = 0; i < codebaseUrls.length; i++) {
-            if (codebaseUrls[i] == null)
-                throw new InvalidObjectException("codebaseUrls[" + i + "] must not be null");
-        }
-        if (incarnation < 0)
-            throw new InvalidObjectException("incarnation must be non-negative");
-        if (stderrSummary == null)
-            throw new InvalidObjectException("stderrSummary must not be null");
-        if (stderrSummary.length() > MAX_STDERR_LENGTH)
-            throw new InvalidObjectException(
-                    "stderrSummary exceeds " + MAX_STDERR_LENGTH + " characters");
-        try {
-            checkPrintableAscii(stderrSummary);
-        } catch (IllegalArgumentException e) {
-            throw new InvalidObjectException(e.getMessage());
-        }
-        if (signature == null || signature.length == 0)
-            throw new InvalidObjectException("signature must not be null or empty");
     }
 
     @Override
