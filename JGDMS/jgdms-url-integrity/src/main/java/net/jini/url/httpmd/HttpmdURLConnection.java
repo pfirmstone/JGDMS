@@ -18,8 +18,6 @@
 
 package net.jini.url.httpmd;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -28,8 +26,6 @@ import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.jar.JarInputStream;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Pack200;
 
 /**
  * An HTTP URL connection for HTTPMD URLs.
@@ -138,11 +134,9 @@ class HttpmdURLConnection extends DelegatingHttpURLConnection {
 				     MessageDigest.getInstance(algorithm),
 				     expectedDigest);
 	    if (pack200){
-		Pack200.Unpacker unpacker = Pack200.newUnpacker();
-		ByteArrayOutputStream baos = new ByteArrayOutputStream(102400);
-		JarOutputStream jout = new JarOutputStream(baos);
-		unpacker.unpack(result, jout);
-		result = new JarInputStream(new ByteArrayInputStream(baos.toByteArray()));
+		// Pack200 was removed in Java 14; pack200-compressed content is
+		// no longer supported.
+		throw new IOException("Pack200-compressed content is not supported on Java 14+");
 	    }
 	    return result;
 	} catch (NoSuchAlgorithmException e) {

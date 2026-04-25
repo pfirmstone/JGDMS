@@ -1,0 +1,39 @@
+Manifest-Version: 1.0
+Bnd-LastModified: 1777104374948
+Bundle-Description: Infrastructure for providing secured micro service
+ s, that are dynamically discoverable and searchable over ipv6 network
+ s.
+Bundle-Developers: peter_firmstone;name="Peter Firmstone";roles=Develo
+ per;timezone="+10"
+Bundle-DocURL: https://pfirmstone.github.io/JGDMS/services/bytecode-an
+ alysis-engine/bytecode-analysis-engine-service/
+Bundle-License: "Apache Software License 2.0";link="http://www.apache.
+ org/licenses/LICENSE-2.0.txt"
+Bundle-ManifestVersion: 2
+Bundle-Name: Module :: Bytecode Analysis Engine Service Implementation
+Bundle-SCM: url="https://github.com/pfirmstone/JGDMS/services/bytecode
+ -analysis-engine/bytecode-analysis-engine-service",connection="scm:gi
+ t:git://github.com/pfirmstone/JGDMS.git/services/bytecode-analysis-en
+ gine/bytecode-analysis-engine-service",developer-connection="scm:git:
+ git@github.com:pfirmstone/JGDMS.git/services/bytecode-analysis-engine
+ /bytecode-analysis-engine-service",tag="jgdms-3.1.0"
+Bundle-SymbolicName: bytecode-analysis-engine-service
+Bundle-Version: 3.1.1.202604250806
+Created-By: 17.0.18 (Eclipse Adoptium)
+Import-Package: net.jini.activation;version="[3.1,4)",net.jini.activat
+ ion.arg;version="[3.1,4)",net.jini.config;version="[3.1,4)",net.jini.
+ core.constraint;version="[3.1,4)",net.jini.core.discovery;version="[3
+ .1,4)",net.jini.core.entry;version="[3.1,4)",net.jini.core.lookup;ver
+ sion="[3.1,4)",net.jini.discovery;version="[3.1,4)",net.jini.export;v
+ ersion="[3.1,4)",net.jini.id;version="[3.1,4)",net.jini.jeri;version=
+ "[3.1,4)",net.jini.jeri.tcp;version="[3.1,4)",net.jini.lease;version=
+ "[3.1,4)",net.jini.lookup;version="[3.1,4)",org.apache.river.api.code
+ base,org.apache.river.api.net;version="[3.1,4)",org.apache.river.api.
+ util;version="[3.1,4)",org.apache.river.bae.proxy,org.apache.river.co
+ nfig;version="[3.1,4)",org.apache.river.proxy;version="[3.1,4)",org.a
+ pache.river.start.lifecycle;version="[3.1,4)",org.apache.river.thread
+ ;version="[3.1,4)"
+Private-Package: org.apache.river.bae
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=1.8))"
+Tool: Bnd-6.4.0.202211291949
+
