@@ -30,6 +30,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.Valid;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -115,9 +116,8 @@ public final class CrashReport implements Serializable {
         String[] urls = (String[]) arg.get(CODEBASE_URLS, null);
         if (urls == null || urls.length == 0)
             throw new InvalidObjectException("codebaseUrls must not be null or empty");
+        Valid.nullElement(urls, "codebaseUrls must not contain null elements");
         for (int i = 0; i < urls.length; i++) {
-            if (urls[i] == null)
-                throw new InvalidObjectException("codebaseUrls[" + i + "] must not be null");
             try {
                 new Uri(urls[i]);
             } catch (URISyntaxException e) {
