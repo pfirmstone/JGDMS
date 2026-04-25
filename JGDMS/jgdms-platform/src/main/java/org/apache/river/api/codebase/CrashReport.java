@@ -68,6 +68,7 @@ import org.apache.river.api.net.Uri;
  * @see VerdictRegistry
  * @see BytecodeAnalysisEngine
  * @since 3.1.1
+ * @author peter
  * @author GitHub Copilot
  */
 @AtomicSerial

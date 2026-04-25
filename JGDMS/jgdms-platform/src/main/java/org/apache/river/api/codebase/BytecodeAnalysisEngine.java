@@ -61,6 +61,7 @@ import org.apache.river.api.net.Uri;
  * @see SignedVerdict
  * @see CrashReport
  * @since 3.1.1
+ * @author peter
  * @author GitHub Copilot
  */
 public interface BytecodeAnalysisEngine extends Remote {

@@ -28,6 +28,7 @@ package org.apache.river.api.codebase;
  * clients.
  *
  * @since 3.1.1
+ * @author peter
  * @author GitHub Copilot
  */
 public enum VerdictType {

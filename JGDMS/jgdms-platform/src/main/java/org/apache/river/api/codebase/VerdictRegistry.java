@@ -70,6 +70,7 @@ import org.apache.river.api.net.Uri;
  * @see CrashReport
  * @see RegistryVerdict
  * @since 3.1.1
+ * @author peter
  * @author GitHub Copilot
  */
 public interface VerdictRegistry extends Remote {

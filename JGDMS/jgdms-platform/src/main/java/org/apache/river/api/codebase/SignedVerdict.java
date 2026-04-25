@@ -60,6 +60,7 @@ import org.apache.river.api.net.Uri;
  * @see VerdictRegistry
  * @see RegistryVerdict
  * @since 3.1.1
+ * @author peter
  * @author GitHub Copilot
  */
 @AtomicSerial
