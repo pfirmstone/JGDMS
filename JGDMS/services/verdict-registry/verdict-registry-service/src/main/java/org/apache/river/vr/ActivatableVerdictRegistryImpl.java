@@ -29,11 +29,16 @@ import net.jini.activation.arg.ActivationID;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
 import net.jini.core.entry.Entry;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.export.CodebaseAccessor;
+import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.AtomicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -359,6 +364,10 @@ public class ActivatableVerdictRegistryImpl
         serverStub = (VerdictRegistry) exporter.export(this);
         logger.log(Level.CONFIG, "VerdictRegistry exported: {0}", serverStub);
 
+        // Provide the exported stub to the core impl so it can build leases
+        // and populate event sources.
+        impl.setEventSource(serverStub);
+
         // Build the smart proxy that will be registered in lookup services.
         outerProxy = new VerdictRegistryProxy(serverStub);
 
@@ -523,5 +532,29 @@ public class ActivatableVerdictRegistryImpl
     public RegistryVerdict getVerdict(Set<Uri> codebaseUrls) throws RemoteException {
         readyState.check();
         return impl.getVerdict(codebaseUrls);
+    }
+
+    @Override
+    public EventRegistration registerVerdictListener(RemoteEventListener listener,
+                                                     Set<Uri> codebaseUrls,
+                                                     MarshalledInstance handback,
+                                                     long leaseDuration)
+            throws RemoteException {
+        readyState.check();
+        return impl.registerVerdictListener(listener, codebaseUrls, handback, leaseDuration);
+    }
+
+    @Override
+    public long renewEventLease(Uuid leaseId, long duration)
+            throws UnknownLeaseException, RemoteException {
+        readyState.check();
+        return impl.renewEventLease(leaseId, duration);
+    }
+
+    @Override
+    public void cancelEventLease(Uuid leaseId)
+            throws UnknownLeaseException, RemoteException {
+        readyState.check();
+        impl.cancelEventLease(leaseId);
     }
 }

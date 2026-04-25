@@ -20,6 +20,11 @@ package org.apache.river.vr.proxy;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
 import java.util.Set;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.codebase.CrashReport;
 import org.apache.river.api.codebase.RegistryVerdict;
 import org.apache.river.api.codebase.SignedVerdict;
@@ -75,5 +80,26 @@ public class VerdictRegistryProxy implements VerdictRegistry {
     @Override
     public RegistryVerdict getVerdict(Set<Uri> codebaseUrls) throws RemoteException {
         return server.getVerdict(codebaseUrls);
+    }
+
+    @Override
+    public EventRegistration registerVerdictListener(RemoteEventListener listener,
+                                                     Set<Uri> codebaseUrls,
+                                                     MarshalledInstance handback,
+                                                     long leaseDuration)
+            throws RemoteException {
+        return server.registerVerdictListener(listener, codebaseUrls, handback, leaseDuration);
+    }
+
+    @Override
+    public long renewEventLease(Uuid leaseId, long duration)
+            throws UnknownLeaseException, RemoteException {
+        return server.renewEventLease(leaseId, duration);
+    }
+
+    @Override
+    public void cancelEventLease(Uuid leaseId)
+            throws UnknownLeaseException, RemoteException {
+        server.cancelEventLease(leaseId);
     }
 }

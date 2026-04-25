@@ -33,14 +33,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.id.Uuid;
+import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.codebase.CrashReport;
 import org.apache.river.api.codebase.RegistryVerdict;
 import org.apache.river.api.codebase.SignedVerdict;
 import org.apache.river.api.codebase.VerdictRegistry;
 import org.apache.river.api.codebase.VerdictType;
 import org.apache.river.api.net.Uri;
+import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.vr.proxy.VerdictEvent;
+import org.apache.river.vr.proxy.VerdictEventLease;
 
 /**
  * Server-side implementation of the {@link VerdictRegistry} service.
@@ -123,6 +139,40 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     private final ConcurrentHashMap<String, RegistryVerdict> publishedVerdicts =
             new ConcurrentHashMap<String, RegistryVerdict>();
 
+    /**
+     * Active event-listener registrations: leaseId → ListenerRegistration.
+     * Entries are added by {@link #registerVerdictListener} and removed by
+     * {@link #cancelEventLease} or lazily on definite delivery failure.
+     */
+    private final ConcurrentHashMap<Uuid, ListenerRegistration> listenerRegistrations =
+            new ConcurrentHashMap<Uuid, ListenerRegistration>();
+
+    /**
+     * Source of event IDs.  Each call to {@link #registerVerdictListener}
+     * consumes one ID.
+     */
+    private final AtomicLong nextEventId = new AtomicLong(1L);
+
+    /**
+     * Thread pool used to deliver {@link VerdictEvent}s asynchronously so
+     * that a slow or blocked listener does not stall verdict processing.
+     */
+    private final ExecutorService executorService;
+
+    /**
+     * The exported server stub, used as the event source in
+     * {@link VerdictEvent} objects and as the server reference in
+     * {@link VerdictEventLease} objects.  Null until
+     * {@link #setEventSource(VerdictRegistry)} is called after export.
+     */
+    private volatile VerdictRegistry eventSource;
+
+    /**
+     * Maximum duration (ms) a listener lease may be renewed to: 1 day.
+     */
+    private static final long MAX_LISTENER_LEASE_DURATION =
+            TimeUnit.DAYS.toMillis(1);
+
     // -------------------------------------------------------------------------
     // Inner classes
     // -------------------------------------------------------------------------
@@ -155,6 +205,83 @@ public class VerdictRegistryImpl implements VerdictRegistry {
 
         /** True once a DANGEROUS RegistryVerdict has been published. Permanent. */
         boolean dangerous;
+    }
+
+    /**
+     * State for one event-listener registration.
+     */
+    private static final class ListenerRegistration {
+        final Uuid             leaseId;
+        final long             eventId;
+        final AtomicLong       seqNum;
+        volatile long          leaseExpiration;
+        final RemoteEventListener listener;
+        final MarshalledInstance  handback;
+        final String           codebaseKey;
+
+        ListenerRegistration(Uuid leaseId,
+                             long eventId,
+                             long leaseExpiration,
+                             RemoteEventListener listener,
+                             MarshalledInstance handback,
+                             String codebaseKey) {
+            this.leaseId         = leaseId;
+            this.eventId         = eventId;
+            this.seqNum          = new AtomicLong(0L);
+            this.leaseExpiration = leaseExpiration;
+            this.listener        = listener;
+            this.handback        = handback;
+            this.codebaseKey     = codebaseKey;
+        }
+    }
+
+    /**
+     * Runnable that delivers a single {@link VerdictEvent} to one listener.
+     * Uses {@link ThrowableConstants} to classify failures: definite
+     * failures cancel the registration; transient failures are logged and
+     * left for the next event.
+     */
+    private final class SendVerdictTask implements Runnable {
+
+        private final ListenerRegistration reg;
+        private final RegistryVerdict      verdict;
+        private final long                 seqNum;
+
+        SendVerdictTask(ListenerRegistration reg,
+                        RegistryVerdict verdict,
+                        long seqNum) {
+            this.reg    = reg;
+            this.verdict = verdict;
+            this.seqNum  = seqNum;
+        }
+
+        @Override
+        public void run() {
+            VerdictEvent event = new VerdictEvent(
+                    eventSource, reg.eventId, seqNum, reg.handback, verdict);
+            try {
+                reg.listener.notify(event);
+            } catch (Throwable t) {
+                switch (ThrowableConstants.retryable(t)) {
+                    case ThrowableConstants.BAD_OBJECT:
+                        if (t instanceof Error) throw (Error) t;
+                        // fall through – definite failure
+                    case ThrowableConstants.BAD_INVOCATION:
+                    case ThrowableConstants.UNCATEGORIZED:
+                        listenerRegistrations.remove(reg.leaseId);
+                        logger.log(Level.INFO,
+                                "Cancelled listener lease after definite delivery failure",
+                                t);
+                        break;
+                    default:
+                        // ThrowableConstants.INDEFINITE – transient, leave intact
+                        logger.log(Level.FINE,
+                                "Transient failure delivering VerdictEvent; "
+                                + "registration retained", t);
+                        break;
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -199,6 +326,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         this.phoenixPublicKey     = phoenixPublicKey;
         this.phoenixSigAlgorithm  = phoenixSigAlgorithm;
         this.quorumMinimum        = quorumMinimum;
+        this.executorService      = createEventExecutor();
     }
 
     /**
@@ -216,6 +344,40 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                                String phoenixSigAlgorithm) {
         this(registryPrivateKey, registrySigAlgorithm,
              phoenixPublicKey,   phoenixSigAlgorithm, 1);
+    }
+
+    /**
+     * Sets the exported server stub used as the source in
+     * {@link VerdictEvent} objects and the server reference in
+     * {@link VerdictEventLease} objects.
+     *
+     * <p>Must be called after the service is exported but before any
+     * {@link #registerVerdictListener} call is accepted.  Typically invoked
+     * from the outer {@code ActivatableVerdictRegistryImpl.start()} method.
+     *
+     * @param proxy the exported {@link VerdictRegistry} stub; must be
+     *              non-null
+     * @throws NullPointerException if {@code proxy} is {@code null}
+     */
+    void setEventSource(VerdictRegistry proxy) {
+        if (proxy == null) throw new NullPointerException("proxy");
+        this.eventSource = proxy;
+    }
+
+    /** Creates the thread pool used for asynchronous event delivery. */
+    private static ExecutorService createEventExecutor() {
+        ThreadFactory daemonFactory = new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "VerdictRegistry-event-delivery");
+                t.setDaemon(true);
+                return t;
+            }
+        };
+        return new ThreadPoolExecutor(
+                0, 10, 60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<Runnable>(),
+                daemonFactory);
     }
 
     // -------------------------------------------------------------------------
@@ -324,6 +486,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                     logger.log(Level.WARNING,
                             "Published DANGEROUS verdict (engine vote) for key: {0}",
                             codebaseKey);
+                    notifyListeners(codebaseKey, rv);
                 }
             } else {
                 RegistryVerdict rv = evaluateSafe(state);
@@ -331,6 +494,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                     publishedVerdicts.put(codebaseKey, rv);
                     logger.log(Level.INFO,
                             "Published SAFE verdict for key: {0}", codebaseKey);
+                    notifyListeners(codebaseKey, rv);
                 }
             }
         }
@@ -373,6 +537,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 logger.log(Level.WARNING,
                         "Published DANGEROUS verdict (crash report) for key: {0}",
                         codebaseKey);
+                notifyListeners(codebaseKey, rv);
             }
         }
     }
@@ -382,6 +547,68 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         if (codebaseUrls == null) throw new NullPointerException("codebaseUrls");
         if (codebaseUrls.isEmpty()) throw new IllegalArgumentException("codebaseUrls must not be empty");
         return publishedVerdicts.get(codebaseKey(codebaseUrls));
+    }
+
+    @Override
+    public EventRegistration registerVerdictListener(RemoteEventListener listener,
+                                                     Set<Uri> codebaseUrls,
+                                                     MarshalledInstance handback,
+                                                     long leaseDuration)
+            throws RemoteException {
+        if (listener    == null) throw new NullPointerException("listener");
+        if (codebaseUrls == null) throw new NullPointerException("codebaseUrls");
+        if (codebaseUrls.isEmpty()) throw new IllegalArgumentException("codebaseUrls must not be empty");
+
+        VerdictRegistry src = eventSource;
+        if (src == null) throw new IllegalStateException(
+                "Service has not been exported yet; call setEventSource first");
+
+        long now         = System.currentTimeMillis();
+        long granted     = (leaseDuration == Lease.ANY || leaseDuration > MAX_LISTENER_LEASE_DURATION)
+                           ? MAX_LISTENER_LEASE_DURATION : Math.max(leaseDuration, 0L);
+        long expiration  = now + granted;
+        Uuid leaseId     = UuidFactory.generate();
+        long eventId     = nextEventId.getAndIncrement();
+        String codebaseKey = codebaseKey(codebaseUrls);
+
+        ListenerRegistration reg = new ListenerRegistration(
+                leaseId, eventId, expiration, listener, handback, codebaseKey);
+        listenerRegistrations.put(leaseId, reg);
+
+        // If a verdict is already published for this codebase, deliver it
+        // immediately so the listener does not miss it.
+        long initialSeqNum = 0L;
+        RegistryVerdict current = publishedVerdicts.get(codebaseKey);
+        if (current != null) {
+            initialSeqNum = reg.seqNum.incrementAndGet();
+            executorService.execute(new SendVerdictTask(reg, current, initialSeqNum));
+        }
+
+        Lease lease = new VerdictEventLease(src, leaseId, expiration);
+        return new EventRegistration(eventId, src, lease, initialSeqNum);
+    }
+
+    @Override
+    public long renewEventLease(Uuid leaseId, long duration)
+            throws UnknownLeaseException, RemoteException {
+        if (leaseId == null) throw new NullPointerException("leaseId");
+
+        ListenerRegistration reg = listenerRegistrations.get(leaseId);
+        if (reg == null) throw new UnknownLeaseException("Unknown lease: " + leaseId);
+
+        long granted = (duration == Lease.ANY || duration > MAX_LISTENER_LEASE_DURATION)
+                       ? MAX_LISTENER_LEASE_DURATION : Math.max(duration, 0L);
+        reg.leaseExpiration = System.currentTimeMillis() + granted;
+        return granted;
+    }
+
+    @Override
+    public void cancelEventLease(Uuid leaseId)
+            throws UnknownLeaseException, RemoteException {
+        if (leaseId == null) throw new NullPointerException("leaseId");
+        if (listenerRegistrations.remove(leaseId) == null) {
+            throw new UnknownLeaseException("Unknown lease: " + leaseId);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -410,6 +637,29 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             return issueVerdict(state.codebaseUrls, VerdictType.SAFE);
         }
         return null;
+    }
+
+    /**
+     * Fans out a newly-published {@link RegistryVerdict} to every registered
+     * listener whose codebase key matches.  Expired registrations are pruned
+     * lazily.  Called outside of any lock.
+     *
+     * @param codebaseKey the canonical key for the codebase set
+     * @param verdict     the verdict that was just published
+     */
+    private void notifyListeners(String codebaseKey, RegistryVerdict verdict) {
+        long now = System.currentTimeMillis();
+        for (Map.Entry<Uuid, ListenerRegistration> entry
+                : listenerRegistrations.entrySet()) {
+            ListenerRegistration reg = entry.getValue();
+            if (!codebaseKey.equals(reg.codebaseKey)) continue;
+            if (reg.leaseExpiration < now) {
+                listenerRegistrations.remove(entry.getKey());
+                continue;
+            }
+            long seqNum = reg.seqNum.incrementAndGet();
+            executorService.execute(new SendVerdictTask(reg, verdict, seqNum));
+        }
     }
 
     /**

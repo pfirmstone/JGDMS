@@ -21,6 +21,11 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
 import java.util.Set;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.UnknownLeaseException;
+import net.jini.id.Uuid;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -160,6 +165,70 @@ public interface VerdictRegistry extends Remote {
      * @throws RemoteException      if a communication failure occurs
      */
     void reportCrash(CrashReport report) throws RemoteException;
+
+    /**
+     * Registers a {@link RemoteEventListener} to receive a
+     * {@link org.apache.river.vr.proxy.VerdictEvent} whenever an authoritative
+     * {@link RegistryVerdict} is published for the specified codebase URLs.
+     *
+     * <p>If a verdict has already been published for the given URL set, the
+     * listener receives it immediately (sequence number 1) before this call
+     * returns.
+     *
+     * <p>The registration is protected by a lease.  The caller must renew the
+     * lease before it expires using {@link #renewEventLease}, or cancel it
+     * with {@link #cancelEventLease}.
+     *
+     * @param listener     the listener to notify; must be non-null
+     * @param codebaseUrls the ordered set of RFC3986-normalised codebase URIs
+     *                     to watch; must be non-null and non-empty
+     * @param handback     opaque object returned unchanged in every
+     *                     {@link org.apache.river.vr.proxy.VerdictEvent}
+     *                     delivered to {@code listener}; may be {@code null}
+     * @param leaseDuration the requested lease duration in milliseconds, or
+     *                     {@link net.jini.core.lease.Lease#ANY}
+     * @return an {@link EventRegistration} containing the event ID, the
+     *         initial sequence number, and the granted lease
+     * @throws IllegalArgumentException if {@code codebaseUrls} is empty
+     * @throws NullPointerException     if {@code listener} or
+     *                                  {@code codebaseUrls} is {@code null}
+     * @throws RemoteException          if a communication failure occurs
+     */
+    EventRegistration registerVerdictListener(RemoteEventListener listener,
+                                              Set<Uri> codebaseUrls,
+                                              MarshalledInstance handback,
+                                              long leaseDuration)
+            throws RemoteException;
+
+    /**
+     * Renews the event-listener lease identified by {@code leaseId} for the
+     * requested duration.
+     *
+     * @param leaseId  the lease cookie returned by
+     *                 {@link #registerVerdictListener}; must be non-null
+     * @param duration the requested renewal duration in milliseconds, or
+     *                 {@link net.jini.core.lease.Lease#ANY}
+     * @return the duration actually granted (may be less than requested)
+     * @throws UnknownLeaseException if the lease is unknown or has already
+     *                               expired
+     * @throws NullPointerException  if {@code leaseId} is {@code null}
+     * @throws RemoteException       if a communication failure occurs
+     */
+    long renewEventLease(Uuid leaseId, long duration)
+            throws UnknownLeaseException, RemoteException;
+
+    /**
+     * Cancels the event-listener lease identified by {@code leaseId}.
+     *
+     * @param leaseId the lease cookie returned by
+     *                {@link #registerVerdictListener}; must be non-null
+     * @throws UnknownLeaseException if the lease is unknown or has already
+     *                               expired
+     * @throws NullPointerException  if {@code leaseId} is {@code null}
+     * @throws RemoteException       if a communication failure occurs
+     */
+    void cancelEventLease(Uuid leaseId)
+            throws UnknownLeaseException, RemoteException;
 
     /**
      * Returns the current authoritative {@link RegistryVerdict} for the
