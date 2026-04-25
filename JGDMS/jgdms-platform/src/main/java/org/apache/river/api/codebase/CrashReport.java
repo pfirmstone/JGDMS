@@ -68,6 +68,7 @@ import org.apache.river.api.net.Uri;
  * @see VerdictRegistry
  * @see BytecodeAnalysisEngine
  * @since 3.1.1
+ * @author GitHub Copilot
  */
 @AtomicSerial
 public final class CrashReport implements Serializable {

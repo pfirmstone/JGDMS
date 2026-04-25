@@ -62,6 +62,7 @@ import org.apache.river.api.net.Uri;
  * @see BytecodeAnalysisEngine
  * @see SignedVerdict
  * @since 3.1.1
+ * @author GitHub Copilot
  */
 @AtomicSerial
 public final class RegistryVerdict implements Serializable {
