@@ -17,11 +17,11 @@
  */
 package org.apache.river.api.codebase;
 
-import java.net.URL;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
 import java.util.Set;
+import org.apache.river.api.net.Uri;
 
 /**
  * Remote service interface for the Verdict Registry (VR).
@@ -173,13 +173,13 @@ public interface VerdictRegistry extends Remote {
      * ensure the response is genuinely from the registry and has not been
      * tampered with in transit.
      *
-     * @param codebaseUrls the ordered set of codebase URLs to query;
-     *        must be non-null and non-empty
+     * @param codebaseUrls the ordered set of RFC3986-normalised codebase URIs
+     *        to query; must be non-null and non-empty
      * @return the current {@link RegistryVerdict}, or {@code null} if no
      *         authoritative verdict is available yet
      * @throws IllegalArgumentException if {@code codebaseUrls} is empty
      * @throws NullPointerException     if {@code codebaseUrls} is {@code null}
      * @throws RemoteException          if a communication failure occurs
      */
-    RegistryVerdict getVerdict(Set<URL> codebaseUrls) throws RemoteException;
+    RegistryVerdict getVerdict(Set<Uri> codebaseUrls) throws RemoteException;
 }

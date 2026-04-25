@@ -17,10 +17,10 @@
  */
 package org.apache.river.api.codebase;
 
-import java.net.URL;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Set;
+import org.apache.river.api.net.Uri;
 
 /**
  * Remote service interface for a Bytecode Analysis Engine (BAE).
@@ -78,11 +78,11 @@ public interface BytecodeAnalysisEngine extends Remote {
      * {@link CrashReport} for {@code codebaseUrls} directly to the
      * {@link VerdictRegistry} — bypassing this interface entirely.
      *
-     * @param codebaseUrls the ordered set of codebase URLs to analyse;
-     *        must be non-null and non-empty
+     * @param codebaseUrls the ordered set of RFC3986-normalised codebase URIs
+     *        to analyse; must be non-null and non-empty
      * @throws IllegalArgumentException if {@code codebaseUrls} is empty
      * @throws NullPointerException     if {@code codebaseUrls} is {@code null}
      * @throws RemoteException          if a communication failure occurs
      */
-    void requestAnalysis(Set<URL> codebaseUrls) throws RemoteException;
+    void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException;
 }

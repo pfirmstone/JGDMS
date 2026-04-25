@@ -21,9 +21,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -154,10 +152,12 @@ public final class CrashReport implements Serializable {
     private final String[] codebaseUrls;
 
     /**
-     * Runtime URL representation of {@link #codebaseUrls}, populated by the
-     * constructors.  Not serialized.
+     * Runtime {@link Uri} representation of {@link #codebaseUrls}, populated
+     * by the constructors.  Not serialized.  Callers that need a
+     * {@link java.net.URL} for making a network connection should call
+     * {@link Uri#toURL()} on the individual elements.
      */
-    private final transient URL[] codebaseUrlCache;
+    private final transient Uri[] codebaseUrlCache;
 
     /**
      * OS exit code returned by the crashed group JVM process.
@@ -201,7 +201,7 @@ public final class CrashReport implements Serializable {
 
     private CrashReport(GetArg arg, boolean checked) throws IOException, ClassNotFoundException {
         codebaseUrls     = ((String[]) arg.get(CODEBASE_URLS, null)).clone();
-        codebaseUrlCache = stringsToUrls(codebaseUrls);
+        codebaseUrlCache = stringsToUris(codebaseUrls);
         exitCode      = arg.get(EXIT_CODE, 0);
         incarnation   = arg.get(INCARNATION, 0L);
         stderrSummary = arg.get(STDERR_SUMMARY, null, String.class);
@@ -211,8 +211,9 @@ public final class CrashReport implements Serializable {
     /**
      * Constructs a new {@code CrashReport}.
      *
-     * @param codebaseUrls  the ordered set of codebase URLs active in the
-     *                      crashed group; must be non-null and non-empty
+     * @param codebaseUrls  the ordered set of RFC3986-normalised codebase URIs
+     *                      active in the crashed group; must be non-null and
+     *                      non-empty
      * @param exitCode      OS exit code of the crashed JVM process
      * @param incarnation   Phoenix incarnation number at crash time; must be
      *                      non-negative
@@ -225,7 +226,7 @@ public final class CrashReport implements Serializable {
      * @throws IllegalArgumentException if any argument fails a precondition
      * @throws NullPointerException     if any argument is {@code null}
      */
-    public CrashReport(URL[] codebaseUrls,
+    public CrashReport(Uri[] codebaseUrls,
                         int exitCode,
                         long incarnation,
                         String stderrSummary,
@@ -245,7 +246,7 @@ public final class CrashReport implements Serializable {
         if (signature == null) throw new NullPointerException("signature");
         if (signature.length == 0) throw new IllegalArgumentException("signature must not be empty");
 
-        this.codebaseUrls     = urlsToStrings(codebaseUrls);
+        this.codebaseUrls     = urisToStrings(codebaseUrls);
         this.codebaseUrlCache = codebaseUrls.clone();
         this.exitCode         = exitCode;
         this.incarnation      = incarnation;
@@ -254,15 +255,17 @@ public final class CrashReport implements Serializable {
     }
 
     /**
-     * Returns an unmodifiable view of the codebase URLs that were active in
-     * the crashed group.
+     * Returns an unmodifiable view of the RFC3986-normalised codebase URIs
+     * that were active in the crashed group.  Callers that need a
+     * {@link java.net.URL} for making a network connection should call
+     * {@link Uri#toURL()} on the individual elements.
      *
-     * @return an ordered, unmodifiable set of codebase URLs
+     * @return an ordered, unmodifiable set of codebase URIs
      */
-    public Set<URL> getCodebaseUrls() {
-        Set<URL> result = new LinkedHashSet<URL>(codebaseUrlCache.length * 2);
-        for (URL url : codebaseUrlCache) {
-            result.add(url);
+    public Set<Uri> getCodebaseUrls() {
+        Set<Uri> result = new LinkedHashSet<Uri>(codebaseUrlCache.length * 2);
+        for (Uri uri : codebaseUrlCache) {
+            result.add(uri);
         }
         return Collections.unmodifiableSet(result);
     }
@@ -335,36 +338,30 @@ public final class CrashReport implements Serializable {
     // -------------------------------------------------------------------------
 
     /**
-     * Converts a URL array to RFC3986-normalised String array using {@link Uri}.
-     * Throws {@link IllegalArgumentException} if any URL cannot be represented.
+     * Converts a {@link Uri} array to a String array by calling
+     * {@link Uri#toString()} on each element.
      */
-    private static String[] urlsToStrings(URL[] urls) {
-        String[] result = new String[urls.length];
-        for (int i = 0; i < urls.length; i++) {
-            try {
-                result[i] = Uri.urlToUri(urls[i]).toString();
-            } catch (URISyntaxException e) {
-                throw new IllegalArgumentException(
-                        "codebaseUrls[" + i + "] cannot be converted to RFC3986 URI: "
-                        + e.getMessage(), e);
-            }
+    private static String[] urisToStrings(Uri[] uris) {
+        String[] result = new String[uris.length];
+        for (int i = 0; i < uris.length; i++) {
+            result[i] = uris[i].toString();
         }
         return result;
     }
 
     /**
-     * Converts a String array of RFC3986 URIs to a URL array.
+     * Converts a String array of RFC3986 URIs to a {@link Uri} array.
      * Called after {@link #check(GetArg)} has already validated the strings.
      */
-    private static URL[] stringsToUrls(String[] urls) throws IOException {
-        URL[] result = new URL[urls.length];
+    private static Uri[] stringsToUris(String[] urls) throws IOException {
+        Uri[] result = new Uri[urls.length];
         for (int i = 0; i < urls.length; i++) {
             try {
-                result[i] = new Uri(urls[i]).toURL();
-            } catch (URISyntaxException | MalformedURLException e) {
+                result[i] = new Uri(urls[i]);
+            } catch (URISyntaxException e) {
                 // Should not happen: check() already validated these strings.
                 throw new InvalidObjectException(
-                        "codebaseUrls[" + i + "] could not be converted to URL: "
+                        "codebaseUrls[" + i + "] could not be parsed as URI: "
                         + e.getMessage());
             }
         }
