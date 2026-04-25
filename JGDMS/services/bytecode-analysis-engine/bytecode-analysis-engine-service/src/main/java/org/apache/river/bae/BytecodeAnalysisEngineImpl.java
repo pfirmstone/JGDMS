@@ -317,12 +317,15 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     static boolean containsDangerousCode(byte[] classBytes) {
         if (classBytes.length < 10) return true;
 
-        // Verify magic: 0xCAFEBABE
+        // Verify magic: 0xCAFEBABE; any other value means the bytes are not a
+        // valid class file, so treat conservatively as dangerous.
         if ((classBytes[0] & 0xFF) != 0xCA || (classBytes[1] & 0xFF) != 0xFE
                 || (classBytes[2] & 0xFF) != 0xBA || (classBytes[3] & 0xFF) != 0xBE) {
             return true;
         }
 
+        // The class file header is: magic(4), minor_version(2), major_version(2),
+        // constant_pool_count(2).  The count is at bytes 8-9.
         int cpCount = ((classBytes[8] & 0xFF) << 8) | (classBytes[9] & 0xFF);
         int offset  = 10;
 
@@ -347,7 +350,8 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                     break;
                 case 5: case 6: // CONSTANT_Long, CONSTANT_Double
                     offset += 8;
-                    i++; // these entries occupy two constant-pool slots
+                    i++; // per the JVM specification, Long and Double each occupy
+                         // two consecutive constant-pool slots
                     break;
                 case 7: case 8: case 16: case 19: case 20:
                     // CONSTANT_Class, CONSTANT_String, CONSTANT_MethodType,
@@ -364,8 +368,13 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                     offset += 3;
                     break;
                 default:
-                    // Unknown tag: class file is malformed or unsupported;
-                    // treat conservatively as dangerous.
+                    // Unknown tag: class file is malformed or uses a constant-pool
+                    // tag introduced in a newer JVM version that this parser does not
+                    // yet recognise.  Treat conservatively as dangerous and log the
+                    // tag value to aid diagnosis.
+                    logger.log(Level.WARNING,
+                            "Unknown constant-pool tag {0}; treating class as dangerous",
+                            tag);
                     return true;
             }
         }

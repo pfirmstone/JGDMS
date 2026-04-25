@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1777104374948
+Bnd-LastModified: 1777104490135
 Bundle-Description: Infrastructure for providing secured micro service
  s, that are dynamically discoverable and searchable over ipv6 network
  s.
@@ -18,7 +18,7 @@ Bundle-SCM: url="https://github.com/pfirmstone/JGDMS/services/bytecode
  git@github.com:pfirmstone/JGDMS.git/services/bytecode-analysis-engine
  /bytecode-analysis-engine-service",tag="jgdms-3.1.0"
 Bundle-SymbolicName: bytecode-analysis-engine-service
-Bundle-Version: 3.1.1.202604250806
+Bundle-Version: 3.1.1.202604250808
 Created-By: 17.0.18 (Eclipse Adoptium)
 Import-Package: net.jini.activation;version="[3.1,4)",net.jini.activat
  ion.arg;version="[3.1,4)",net.jini.config;version="[3.1,4)",net.jini.
