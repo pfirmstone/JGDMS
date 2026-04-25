@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,6 +32,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.net.Uri;
 
 /**
  * An immutable, serializable authoritative verdict produced by a
@@ -77,7 +80,7 @@ public final class RegistryVerdict implements Serializable {
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
-            new SerialForm(CODEBASE_URLS, URL[].class),
+            new SerialForm(CODEBASE_URLS, String[].class),
             new SerialForm(VERDICT,       VerdictType.class),
             new SerialForm(TIMESTAMP,     Long.TYPE),
             new SerialForm(SIGNATURE,     byte[].class)
@@ -97,12 +100,18 @@ public final class RegistryVerdict implements Serializable {
     // -------------------------------------------------------------------------
 
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
-        URL[] urls = (URL[]) arg.get(CODEBASE_URLS, null);
+        String[] urls = (String[]) arg.get(CODEBASE_URLS, null);
         if (urls == null || urls.length == 0)
             throw new InvalidObjectException("codebaseUrls must not be null or empty");
         for (int i = 0; i < urls.length; i++) {
             if (urls[i] == null)
                 throw new InvalidObjectException("codebaseUrls[" + i + "] must not be null");
+            try {
+                new Uri(urls[i]);
+            } catch (URISyntaxException e) {
+                throw new InvalidObjectException(
+                        "codebaseUrls[" + i + "] is not a valid RFC3986 URI: " + e.getMessage());
+            }
         }
         if (arg.get(VERDICT, null, VerdictType.class) == null)
             throw new InvalidObjectException("verdict must not be null");
@@ -116,11 +125,18 @@ public final class RegistryVerdict implements Serializable {
     }
 
     /**
-     * The ordered set of codebase URLs that were evaluated.
+     * The ordered set of codebase URLs that were evaluated, stored as RFC3986
+     * URI strings for safe serialization.
      *
      * @serial
      */
-    private final URL[] codebaseUrls;
+    private final String[] codebaseUrls;
+
+    /**
+     * Runtime URL representation of {@link #codebaseUrls}, populated by the
+     * constructors.  Not serialized.
+     */
+    private final transient URL[] codebaseUrlCache;
 
     /**
      * The verdict determined by the registry's quorum policy.
@@ -155,10 +171,11 @@ public final class RegistryVerdict implements Serializable {
     }
 
     private RegistryVerdict(GetArg arg, boolean checked) throws IOException, ClassNotFoundException {
-        codebaseUrls = ((URL[]) arg.get(CODEBASE_URLS, null)).clone();
-        verdict      = arg.get(VERDICT, null, VerdictType.class);
-        timestamp    = arg.get(TIMESTAMP, 0L);
-        signature    = ((byte[]) arg.get(SIGNATURE, null)).clone();
+        codebaseUrls     = ((String[]) arg.get(CODEBASE_URLS, null)).clone();
+        codebaseUrlCache = stringsToUrls(codebaseUrls);
+        verdict          = arg.get(VERDICT, null, VerdictType.class);
+        timestamp        = arg.get(TIMESTAMP, 0L);
+        signature        = ((byte[]) arg.get(SIGNATURE, null)).clone();
     }
 
     /**
@@ -189,10 +206,11 @@ public final class RegistryVerdict implements Serializable {
         if (signature == null) throw new NullPointerException("signature");
         if (signature.length == 0) throw new IllegalArgumentException("signature must not be empty");
 
-        this.codebaseUrls = codebaseUrls.clone();
-        this.verdict = verdict;
-        this.timestamp = timestamp;
-        this.signature = signature.clone();
+        this.codebaseUrls     = urlsToStrings(codebaseUrls);
+        this.codebaseUrlCache = codebaseUrls.clone();
+        this.verdict          = verdict;
+        this.timestamp        = timestamp;
+        this.signature        = signature.clone();
     }
 
     /**
@@ -201,8 +219,8 @@ public final class RegistryVerdict implements Serializable {
      * @return an ordered, unmodifiable set of codebase URLs
      */
     public Set<URL> getCodebaseUrls() {
-        Set<URL> result = new LinkedHashSet<URL>(codebaseUrls.length * 2);
-        for (URL url : codebaseUrls) {
+        Set<URL> result = new LinkedHashSet<URL>(codebaseUrlCache.length * 2);
+        for (URL url : codebaseUrlCache) {
             result.add(url);
         }
         return Collections.unmodifiableSet(result);
@@ -241,5 +259,46 @@ public final class RegistryVerdict implements Serializable {
         return "RegistryVerdict{verdict=" + verdict
                 + ", timestamp=" + timestamp
                 + ", urls=" + Arrays.toString(codebaseUrls) + '}';
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Converts a URL array to RFC3986-normalised String array using {@link Uri}.
+     * Throws {@link IllegalArgumentException} if any URL cannot be represented.
+     */
+    private static String[] urlsToStrings(URL[] urls) {
+        String[] result = new String[urls.length];
+        for (int i = 0; i < urls.length; i++) {
+            try {
+                result[i] = Uri.urlToUri(urls[i]).toString();
+            } catch (URISyntaxException e) {
+                throw new IllegalArgumentException(
+                        "codebaseUrls[" + i + "] cannot be converted to RFC3986 URI: "
+                        + e.getMessage(), e);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Converts a String array of RFC3986 URIs to a URL array.
+     * Called after {@link #check(GetArg)} has already validated the strings.
+     */
+    private static URL[] stringsToUrls(String[] urls) throws IOException {
+        URL[] result = new URL[urls.length];
+        for (int i = 0; i < urls.length; i++) {
+            try {
+                result[i] = new Uri(urls[i]).toURL();
+            } catch (URISyntaxException | MalformedURLException e) {
+                // Should not happen: check() already validated these strings.
+                throw new InvalidObjectException(
+                        "codebaseUrls[" + i + "] could not be converted to URL: "
+                        + e.getMessage());
+            }
+        }
+        return result;
     }
 }
