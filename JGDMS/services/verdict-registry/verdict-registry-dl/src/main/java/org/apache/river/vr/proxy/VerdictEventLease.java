@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -194,7 +195,7 @@ public final class VerdictEventLease extends AbstractLease {
             if (!(key instanceof VerdictEventLease)) return false;
             // All leases in the map must share the same server.
             // Peek at the first entry to get the reference server.
-            java.util.Iterator<?> it = map.keySet().iterator();
+            Iterator<?> it = map.keySet().iterator();
             if (!it.hasNext()) return true;
             VerdictEventLease first = (VerdictEventLease) it.next();
             return first.server.equals(((VerdictEventLease) key).server);
@@ -249,10 +250,10 @@ public final class VerdictEventLease extends AbstractLease {
             }
         }
 
-        private static java.util.HashMap<Lease, Throwable> buildExMap(
+        private static HashMap<Lease, Throwable> buildExMap(
                 List<Lease> leases, List<Throwable> exceptions) {
-            java.util.HashMap<Lease, Throwable> result =
-                    new java.util.HashMap<Lease, Throwable>(leases.size());
+            HashMap<Lease, Throwable> result =
+                    new HashMap<Lease, Throwable>(leases.size());
             for (int i = 0; i < leases.size(); i++) {
                 result.put(leases.get(i), exceptions.get(i));
             }

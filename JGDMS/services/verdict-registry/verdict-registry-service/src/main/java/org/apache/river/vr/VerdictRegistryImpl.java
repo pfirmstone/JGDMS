@@ -168,6 +168,16 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     private volatile VerdictRegistry eventSource;
 
     /**
+     * Maximum number of threads in the event-delivery thread pool.
+     */
+    private static final int EVENT_POOL_MAX_THREADS = 10;
+
+    /**
+     * Keep-alive time (seconds) for idle threads in the event-delivery pool.
+     */
+    private static final long EVENT_POOL_KEEP_ALIVE_SECONDS = 60L;
+
+    /**
      * Maximum duration (ms) a listener lease may be renewed to: 1 day.
      */
     private static final long MAX_LISTENER_LEASE_DURATION =
@@ -265,7 +275,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 switch (ThrowableConstants.retryable(t)) {
                     case ThrowableConstants.BAD_OBJECT:
                         if (t instanceof Error) throw (Error) t;
-                        // fall through – definite failure
+                        // fall through - definite failure
                     case ThrowableConstants.BAD_INVOCATION:
                     case ThrowableConstants.UNCATEGORIZED:
                         listenerRegistrations.remove(reg.leaseId);
@@ -274,7 +284,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                                 t);
                         break;
                     default:
-                        // ThrowableConstants.INDEFINITE – transient, leave intact
+                        // ThrowableConstants.INDEFINITE - transient, leave intact
                         logger.log(Level.FINE,
                                 "Transient failure delivering VerdictEvent; "
                                 + "registration retained", t);
@@ -375,7 +385,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             }
         };
         return new ThreadPoolExecutor(
-                0, 10, 60L, TimeUnit.SECONDS,
+                0, EVENT_POOL_MAX_THREADS, EVENT_POOL_KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<Runnable>(),
                 daemonFactory);
     }
@@ -564,8 +574,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 "Service has not been exported yet; call setEventSource first");
 
         long now         = System.currentTimeMillis();
-        long granted     = (leaseDuration == Lease.ANY || leaseDuration > MAX_LISTENER_LEASE_DURATION)
-                           ? MAX_LISTENER_LEASE_DURATION : Math.max(leaseDuration, 0L);
+        long granted     = clampLeaseDuration(leaseDuration);
         long expiration  = now + granted;
         Uuid leaseId     = UuidFactory.generate();
         long eventId     = nextEventId.getAndIncrement();
@@ -596,8 +605,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         ListenerRegistration reg = listenerRegistrations.get(leaseId);
         if (reg == null) throw new UnknownLeaseException("Unknown lease: " + leaseId);
 
-        long granted = (duration == Lease.ANY || duration > MAX_LISTENER_LEASE_DURATION)
-                       ? MAX_LISTENER_LEASE_DURATION : Math.max(duration, 0L);
+        long granted = clampLeaseDuration(duration);
         reg.leaseExpiration = System.currentTimeMillis() + granted;
         return granted;
     }
@@ -614,6 +622,22 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Clamps a requested lease duration to the range
+     * {@code [0, MAX_LISTENER_LEASE_DURATION]}.
+     * {@link Lease#ANY} is treated as a request for the maximum duration.
+     *
+     * @param requested the requested duration in milliseconds, or
+     *                  {@link Lease#ANY}
+     * @return the clamped duration in milliseconds
+     */
+    private static long clampLeaseDuration(long requested) {
+        if (requested == Lease.ANY || requested > MAX_LISTENER_LEASE_DURATION) {
+            return MAX_LISTENER_LEASE_DURATION;
+        }
+        return Math.max(requested, 0L);
+    }
 
     /**
      * Evaluates whether the current vote state has reached the SAFE quorum and,
