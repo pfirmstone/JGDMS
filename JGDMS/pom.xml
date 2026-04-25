@@ -121,8 +121,7 @@
     <gmaven.version>1.5</gmaven.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
     <junit.version>4.8.2</junit.version>
-    <tychoExtrasVersion>1.2.0</tychoExtrasVersion>
-    <tychoVersion>1.2.0</tychoVersion>
+    <pack200.version>1.14.0-SNAPSHOT</pack200.version>
     <maven.Jarsigner.version>1.4</maven.Jarsigner.version>
     <osgi.annotation.version>8.1.0</osgi.annotation.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -145,6 +144,19 @@
         </pluginRepository>
     </pluginRepositories>
 -->
+  <repositories>
+    <repository>
+      <id>ossrh-snapshots</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -156,6 +168,11 @@
         <groupId>org.codehaus.groovy.maven</groupId>
         <artifactId>gmaven-plugin</artifactId>
         <version>${gmaven.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+        <artifactId>Pack200-ex-openjdk</artifactId>
+        <version>${pack200.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -218,26 +235,23 @@
           <artifactId>tidy-maven-plugin</artifactId>
           <version>1.1.0</version>
         </plugin>
-        <!-- https://wiki.eclipse.org/Tycho/Pack200 -->
+        <!-- Pack200 via Pack200-ex-openjdk (replaces Eclipse Tycho pack200 plugins, works on Java 14+) -->
         <plugin>
-            <groupId>org.eclipse.tycho.extras</groupId>
-            <artifactId>tycho-pack200a-plugin</artifactId>
-            <version>${tychoExtrasVersion}</version>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>3.1.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+                    <artifactId>Pack200-ex-openjdk</artifactId>
+                    <version>${pack200.version}</version>
+                </dependency>
+            </dependencies>
         </plugin>
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-jarsigner-plugin</artifactId>
             <version>${maven.Jarsigner.version}</version>
-        </plugin>
-        <plugin>
-            <groupId>org.eclipse.tycho.extras</groupId>
-            <artifactId>tycho-pack200b-plugin</artifactId>
-            <version>${tychoExtrasVersion}</version>
-        </plugin>
-        <plugin>
-            <groupId>org.eclipse.tycho</groupId>
-            <artifactId>tycho-p2-plugin</artifactId>
-            <version>${tychoVersion}</version>
         </plugin>
         <!-- reporting plugins : begin -->
         <plugin>
