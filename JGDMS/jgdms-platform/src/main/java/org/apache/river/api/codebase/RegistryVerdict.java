@@ -62,7 +62,7 @@ import org.apache.river.api.net.Uri;
  * @see BytecodeAnalysisEngine
  * @see SignedVerdict
  * @since 3.1.1
- * @author peter
+ * @author Peter Firmstone
  * @author GitHub Copilot
  */
 @AtomicSerial
