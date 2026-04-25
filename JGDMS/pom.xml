@@ -78,6 +78,8 @@
     <module>services/norm</module>
     <module>services/group</module>
     <module>services/fiddler</module>
+    <module>services/bytecode-analysis-engine</module>
+    <module>services/verdict-registry</module>
     <module>tools</module>
     <module>phoenix-activation</module>
     <module>groovy-config</module>
