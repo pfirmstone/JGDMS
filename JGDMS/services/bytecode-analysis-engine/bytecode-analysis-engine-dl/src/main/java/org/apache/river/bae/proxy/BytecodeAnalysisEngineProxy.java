@@ -17,10 +17,15 @@
  */
 package org.apache.river.bae.proxy;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.Set;
+import net.jini.id.Uuid;
 import org.apache.river.api.codebase.BytecodeAnalysisEngine;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
+import org.apache.river.proxy.AbstractSmartProxy;
 
 /**
  * Client-side smart proxy for the {@link BytecodeAnalysisEngine} service.
@@ -29,25 +34,43 @@ import org.apache.river.api.net.Uri;
  * {@link #requestAnalysis} calls to the remote server-side implementation
  * over a JERI transport channel.
  *
+ * <p>The proxy is {@link AtomicSerial} and extends {@link AbstractSmartProxy},
+ * which provides safe deserialization, {@link net.jini.export.ProxyAccessor},
+ * and {@link net.jini.id.ReferentUuid} identity based on the service UUID.
+ *
  * @see BytecodeAnalysisEngine
+ * @see AbstractSmartProxy
  * @since 3.1.1
  */
-public class BytecodeAnalysisEngineProxy implements BytecodeAnalysisEngine {
+@AtomicSerial
+public class BytecodeAnalysisEngineProxy
+        extends AbstractSmartProxy
+        implements BytecodeAnalysisEngine {
 
-    private final BytecodeAnalysisEngine server;
+    private static final long serialVersionUID = 1L;
 
     /**
-     * Creates a new proxy that delegates to the given remote {@code server}.
+     * Creates a new proxy wrapping the given server stub.
      *
-     * @param server the remote server endpoint; must be non-null
+     * @param server  the remote server stub; must be non-null
+     * @param proxyID the service's stable unique identifier; must be non-null
      */
-    public BytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server) {
-        if (server == null) throw new NullPointerException("server");
-        this.server = server;
+    public BytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server, Uuid proxyID) {
+        super(server, proxyID);
+    }
+
+    /**
+     * {@link AtomicSerial} deserialization constructor.
+     *
+     * @param arg the deserialization argument bag
+     * @throws IOException if deserialization validation fails
+     */
+    BytecodeAnalysisEngineProxy(GetArg arg) throws IOException {
+        super(arg);
     }
 
     @Override
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
-        server.requestAnalysis(codebaseUrls);
+        ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
     }
 }

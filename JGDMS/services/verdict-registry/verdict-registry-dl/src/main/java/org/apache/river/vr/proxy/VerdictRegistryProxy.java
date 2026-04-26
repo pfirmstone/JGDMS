@@ -17,6 +17,7 @@
  */
 package org.apache.river.vr.proxy;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
 import java.util.Set;
@@ -29,7 +30,10 @@ import org.apache.river.api.codebase.CrashReport;
 import org.apache.river.api.codebase.RegistryVerdict;
 import org.apache.river.api.codebase.SignedVerdict;
 import org.apache.river.api.codebase.VerdictRegistry;
+import org.apache.river.api.io.AtomicSerial;
+import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
+import org.apache.river.proxy.AbstractSmartProxy;
 
 /**
  * Client-side smart proxy for the {@link VerdictRegistry} service.
@@ -38,48 +42,66 @@ import org.apache.river.api.net.Uri;
  * {@link VerdictRegistry} method calls to the remote server-side
  * implementation over a JERI transport channel.
  *
+ * <p>The proxy is {@link AtomicSerial} and extends {@link AbstractSmartProxy},
+ * which provides safe deserialization, {@link net.jini.export.ProxyAccessor},
+ * and {@link net.jini.id.ReferentUuid} identity based on the service UUID.
+ *
  * @see VerdictRegistry
+ * @see AbstractSmartProxy
  * @since 3.1.1
  */
-public class VerdictRegistryProxy implements VerdictRegistry {
+@AtomicSerial
+public class VerdictRegistryProxy
+        extends AbstractSmartProxy
+        implements VerdictRegistry {
 
-    private final VerdictRegistry server;
+    private static final long serialVersionUID = 1L;
 
     /**
-     * Creates a new proxy that delegates to the given remote {@code server}.
+     * Creates a new proxy wrapping the given server stub.
      *
-     * @param server the remote server endpoint; must be non-null
+     * @param server  the remote server stub; must be non-null
+     * @param proxyID the service's stable unique identifier; must be non-null
      */
-    public VerdictRegistryProxy(VerdictRegistry server) {
-        if (server == null) throw new NullPointerException("server");
-        this.server = server;
+    public VerdictRegistryProxy(VerdictRegistry server, Uuid proxyID) {
+        super(server, proxyID);
+    }
+
+    /**
+     * {@link AtomicSerial} deserialization constructor.
+     *
+     * @param arg the deserialization argument bag
+     * @throws IOException if deserialization validation fails
+     */
+    VerdictRegistryProxy(GetArg arg) throws IOException {
+        super(arg);
     }
 
     @Override
     public void registerAnalysisEngine(String engineId,
                                         PublicKey engineKey,
                                         String sigAlgorithm) throws RemoteException {
-        server.registerAnalysisEngine(engineId, engineKey, sigAlgorithm);
+        ((VerdictRegistry) server).registerAnalysisEngine(engineId, engineKey, sigAlgorithm);
     }
 
     @Override
     public void revokeAnalysisEngine(String engineId) throws RemoteException {
-        server.revokeAnalysisEngine(engineId);
+        ((VerdictRegistry) server).revokeAnalysisEngine(engineId);
     }
 
     @Override
     public void submitVerdict(String engineId, SignedVerdict verdict) throws RemoteException {
-        server.submitVerdict(engineId, verdict);
+        ((VerdictRegistry) server).submitVerdict(engineId, verdict);
     }
 
     @Override
     public void reportCrash(CrashReport report) throws RemoteException {
-        server.reportCrash(report);
+        ((VerdictRegistry) server).reportCrash(report);
     }
 
     @Override
     public RegistryVerdict getVerdict(Set<Uri> codebaseUrls) throws RemoteException {
-        return server.getVerdict(codebaseUrls);
+        return ((VerdictRegistry) server).getVerdict(codebaseUrls);
     }
 
     @Override
@@ -88,18 +110,19 @@ public class VerdictRegistryProxy implements VerdictRegistry {
                                                      MarshalledInstance handback,
                                                      long leaseDuration)
             throws RemoteException {
-        return server.registerVerdictListener(listener, codebaseUrls, handback, leaseDuration);
+        return ((VerdictRegistry) server).registerVerdictListener(
+                listener, codebaseUrls, handback, leaseDuration);
     }
 
     @Override
     public long renewEventLease(Uuid leaseId, long duration)
             throws UnknownLeaseException, RemoteException {
-        return server.renewEventLease(leaseId, duration);
+        return ((VerdictRegistry) server).renewEventLease(leaseId, duration);
     }
 
     @Override
     public void cancelEventLease(Uuid leaseId)
             throws UnknownLeaseException, RemoteException {
-        server.cancelEventLease(leaseId);
+        ((VerdictRegistry) server).cancelEventLease(leaseId);
     }
 }

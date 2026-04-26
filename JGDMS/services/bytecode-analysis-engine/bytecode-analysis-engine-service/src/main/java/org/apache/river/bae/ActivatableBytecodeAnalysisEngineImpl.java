@@ -24,6 +24,7 @@ import net.jini.activation.arg.ActivationID;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
+import net.jini.id.Uuid;
 import org.apache.river.api.codebase.BytecodeAnalysisEngine;
 import org.apache.river.api.codebase.VerdictRegistry;
 import org.apache.river.api.net.Uri;
@@ -158,8 +159,8 @@ public class ActivatableBytecodeAnalysisEngineImpl
     // -------------------------------------------------------------------------
 
     @Override
-    protected Object createProxy(Object stub) {
-        return new BytecodeAnalysisEngineProxy((BytecodeAnalysisEngine) stub);
+    protected Object createProxy(Object stub, Uuid serviceUuid) {
+        return new BytecodeAnalysisEngineProxy((BytecodeAnalysisEngine) stub, serviceUuid);
     }
 
     @Override

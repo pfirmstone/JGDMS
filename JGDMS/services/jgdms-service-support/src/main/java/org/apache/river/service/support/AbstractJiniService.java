@@ -185,11 +185,11 @@ public abstract class AbstractJiniService
 
         onExported(stub);
 
-        Object proxy = createProxy(stub);
+        Uuid uuid = UuidFactory.generate();
+        Object proxy = createProxy(stub, uuid);
         outerProxy = proxy;
 
         if (serviceId == null) {
-            Uuid uuid = UuidFactory.generate();
             serviceId = new ServiceID(
                     uuid.getMostSignificantBits(),
                     uuid.getLeastSignificantBits());
@@ -228,11 +228,19 @@ public abstract class AbstractJiniService
     /**
      * Wraps the raw exported server stub in the service's smart client proxy.
      *
-     * @param stub the exported server stub; never {@code null}
+     * <p>Implementations should return an instance of a class that extends
+     * {@link org.apache.river.proxy.AbstractSmartProxy}, passing {@code stub} and {@code serviceUuid}
+     * to the superclass constructor.  This ensures the proxy carries the
+     * stable service UUID needed for correct {@code equals()} / {@code hashCode()}
+     * behaviour and {@link net.jini.id.ReferentUuid} identity.
+     *
+     * @param stub        the exported server stub; never {@code null}
+     * @param serviceUuid the stable unique identifier generated for this
+     *                    service instance; never {@code null}
      * @return the smart proxy to advertise in lookup services; must be
      *         non-null
      */
-    protected abstract Object createProxy(Object stub);
+    protected abstract Object createProxy(Object stub, Uuid serviceUuid);
 
     /**
      * Returns the primary remote interface of this service.
