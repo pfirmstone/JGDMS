@@ -16,32 +16,29 @@
 ~ See the License for the specific language governing permissions and
 ~ limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>au.net.zeus.jgdms</groupId>
-        <artifactId>bytecode-analysis-engine</artifactId>
+        <groupId>au.net.zeus</groupId>
+        <artifactId>jgdms</artifactId>
         <version>3.1.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <groupId>au.net.zeus.jgdms.bae</groupId>
-    <artifactId>bytecode-analysis-engine-service</artifactId>
+    <groupId>au.net.zeus.jgdms</groupId>
+    <artifactId>jgdms-service-support</artifactId>
     <packaging>jar</packaging>
 
-    <name>Module :: Bytecode Analysis Engine Service Implementation</name>
+    <name>Module :: JGDMS Service Support (Abstract Service Base &amp; Parameter Object)</name>
+    <description>
+        Provides AbstractJiniService and JiniServiceParameters to eliminate boilerplate
+        when building Jini/JGDMS activatable services.
+    </description>
 
     <dependencies>
-        <dependency>
-            <groupId>au.net.zeus.jgdms.bae</groupId>
-            <artifactId>bytecode-analysis-engine-dl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>au.net.zeus.jgdms</groupId>
-            <artifactId>jgdms-service-support</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-platform</artifactId>
@@ -72,17 +69,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
@@ -90,13 +76,6 @@
         <plugins>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <configuration>
-                    <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
-                </configuration>
             </plugin>
         </plugins>
     </reporting>

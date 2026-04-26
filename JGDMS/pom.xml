@@ -78,6 +78,7 @@
     <module>services/norm</module>
     <module>services/group</module>
     <module>services/fiddler</module>
+    <module>services/jgdms-service-support</module>
     <module>services/bytecode-analysis-engine</module>
     <module>services/verdict-registry</module>
     <module>tools</module>
@@ -128,6 +129,26 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.codehaus.groovy</groupId>
+        <artifactId>groovy-all</artifactId>
+        <version>${groovy.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.groovy.maven</groupId>
+        <artifactId>gmaven-plugin</artifactId>
+        <version>${gmaven.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+        <artifactId>Pack200-ex-openjdk</artifactId>
+        <version>${pack200.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <!--
     <distributionManagement>
         <repository>
@@ -156,26 +177,6 @@
       </snapshots>
     </repository>
   </repositories>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.codehaus.groovy</groupId>
-        <artifactId>groovy-all</artifactId>
-        <version>${groovy.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.codehaus.groovy.maven</groupId>
-        <artifactId>gmaven-plugin</artifactId>
-        <version>${gmaven.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
-        <artifactId>Pack200-ex-openjdk</artifactId>
-        <version>${pack200.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <build>
     <pluginManagement>
