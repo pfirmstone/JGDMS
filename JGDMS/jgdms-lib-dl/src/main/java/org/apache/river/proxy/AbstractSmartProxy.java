@@ -129,11 +129,16 @@ public abstract class AbstractSmartProxy
      * {@link AtomicSerial} deserialization constructor.
      *
      * <p>Reads the {@code server} and {@code proxyID} fields from
-     * {@code arg}, validates that neither is {@code null}, then verifies
-     * that {@code server} implements every interface declared directly on
-     * the concrete proxy class (i.e. the service interfaces that the proxy
-     * itself implements).  This check is performed automatically without
-     * requiring subclasses to override any method.
+     * {@code arg} and delegates all validation to the static
+     * {@link #checkServer(GetArg)} method, which runs <em>before</em> any
+     * field is assigned.  This satisfies the {@link AtomicSerial} contract
+     * that all invariant checks are performed prior to object construction.
+     *
+     * <p>{@code checkServer} uses {@link GetArg#serialClasses()} to obtain
+     * the concrete proxy class at deserialization time and verifies that
+     * {@code server} implements every interface declared directly on that
+     * class (i.e. the service interfaces), without requiring subclasses to
+     * override any method.
      *
      * @param arg the deserialization argument bag; must be non-null
      * @throws IOException if either field is {@code null}, cannot be read,
@@ -142,26 +147,26 @@ public abstract class AbstractSmartProxy
      */
     protected AbstractSmartProxy(GetArg arg) throws IOException {
         this(checkServer(arg), (Uuid) arg.get("proxyID", null));
-        // Validate that the deserialized server implements every interface that
-        // the concrete proxy class directly declares.  Concrete proxy classes
-        // declare service interfaces (e.g. BytecodeAnalysisEngine) while
-        // AbstractSmartProxy owns the infrastructure interfaces (Serializable,
-        // ProxyAccessor, ReferentUuid), so getInterfaces() on the concrete
-        // class returns only the service interfaces that need to be checked.
-        for (Class<?> iface : this.getClass().getInterfaces()) {
-            if (!iface.isInstance(server)) {
-                throw new InvalidObjectException(
-                        "deserialized server does not implement "
-                        + iface.getName()
-                        + "; actual type: " + server.getClass().getName());
-            }
-        }
     }
 
     // -------------------------------------------------------------------------
     // Deserialization validation
     // -------------------------------------------------------------------------
 
+    /**
+     * Validates fields read from {@code arg} before any field is assigned,
+     * as required by the {@link AtomicSerial} contract.
+     *
+     * <p>Uses {@link GetArg#serialClasses()} to discover the concrete proxy
+     * class at deserialization time (the last element in the array, which is
+     * the most-derived class in the stream hierarchy).  The {@code server}
+     * stub is then checked against every interface declared directly on that
+     * class -- these are always the service interfaces, since the
+     * infrastructure interfaces ({@link Serializable}, {@link ProxyAccessor},
+     * {@link ReferentUuid}) are declared on {@link AbstractSmartProxy} itself
+     * and therefore do not appear in the concrete class's
+     * {@code getInterfaces()} result.
+     */
     private static Object checkServer(GetArg arg) throws IOException {
         Object server  = arg.get("server",  null);
         Uuid   proxyID = (Uuid) arg.get("proxyID", null);
@@ -172,6 +177,22 @@ public abstract class AbstractSmartProxy
         if (proxyID == null) {
             throw new InvalidObjectException(
                     "proxyID field is null");
+        }
+        // Defensively verify that server implements every service interface
+        // declared by the concrete proxy class.  This check must happen here
+        // (in the static helper) so that it runs BEFORE any field is assigned,
+        // satisfying the @AtomicSerial defensive-construction contract.
+        Class<?>[] classes = arg.serialClasses();
+        if (classes != null && classes.length > 0) {
+            Class<?> concreteClass = classes[classes.length - 1];
+            for (Class<?> iface : concreteClass.getInterfaces()) {
+                if (!iface.isInstance(server)) {
+                    throw new InvalidObjectException(
+                            "deserialized server does not implement "
+                            + iface.getName()
+                            + "; actual type: " + server.getClass().getName());
+                }
+            }
         }
         return server;
     }

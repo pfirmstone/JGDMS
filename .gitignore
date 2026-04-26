@@ -187,6 +187,13 @@
 /JGDMS/phoenix-activation/phoenix-init/target/
 /JGDMS/dist/target/
 /JGDMS/services/target/
+/JGDMS/services/bytecode-analysis-engine/target/
+/JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-dl/target/
+/JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/target/
+/JGDMS/services/verdict-registry/target/
+/JGDMS/services/verdict-registry/verdict-registry-dl/target/
+/JGDMS/services/verdict-registry/verdict-registry-service/target/
+/JGDMS/services/jgdms-service-support/target/
 /qa/result/
 /qa/bouncyResult1.txt
 /qa/bouncyResult2.txt
