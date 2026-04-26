@@ -84,6 +84,10 @@ public class VerdictRegistryProxy
     /**
      * Creates a new proxy wrapping the given server stub.
      *
+     * <p>Prefer the {@link #create(VerdictRegistry, Uuid)} factory method,
+     * which automatically returns a constrainable proxy when the server stub
+     * implements {@link RemoteMethodControl}.
+     *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
      */
