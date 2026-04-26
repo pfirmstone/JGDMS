@@ -69,28 +69,28 @@ import org.apache.river.config.Config;
 public abstract class JiniServiceParameters {
 
     /** Exporter used to export the service over the wire. */
-    public final Exporter exporter;
+    private final Exporter exporter;
 
     /** Lookup groups that the service will join. */
-    public final String[] lookupGroups;
+    private final String[] lookupGroups;
 
     /** Lookup locators that the service will join. */
-    public final LookupLocator[] lookupLocators;
+    private final LookupLocator[] lookupLocators;
 
     /** Attributes published to Jini lookup services. */
-    public final Entry[] lookupAttributes;
+    private final Entry[] lookupAttributes;
 
     /** Codebase annotation; empty string means derive from the service interface. */
-    public final String codebaseAnnotation;
+    private final String codebaseAnnotation;
 
     /** X.509 certificate factory type identifier for {@link net.jini.export.CodebaseAccessor}. */
-    public final String certFactoryType;
+    private final String certFactoryType;
 
     /** Certificate-path encoding for {@link net.jini.export.CodebaseAccessor}. */
-    public final String certPathEncoding;
+    private final String certPathEncoding;
 
     /** DER-encoded certificate path for {@link net.jini.export.CodebaseAccessor}. */
-    public final byte[] encodedCerts;
+    private final byte[] encodedCerts;
 
     /**
      * Reads all common Jini service configuration entries, throwing
@@ -162,5 +162,57 @@ public abstract class JiniServiceParameters {
         this.encodedCerts = Config.getNonNullEntry(
                 config, component, "Codebase_Certs",
                 byte[].class, new byte[0]).clone();
+    }
+
+    /** Returns the exporter used to export the service over the wire. */
+    public Exporter getExporter() {
+        return exporter;
+    }
+
+    /**
+     * Returns a defensive copy of the lookup groups that the service will join.
+     * Callers cannot mutate the validated groups stored in this parameter object.
+     */
+    public String[] getLookupGroups() {
+        return lookupGroups == null ? null : lookupGroups.clone();
+    }
+
+    /**
+     * Returns a defensive copy of the lookup locators that the service will join.
+     * Callers cannot mutate the validated locators stored in this parameter object.
+     */
+    public LookupLocator[] getLookupLocators() {
+        return lookupLocators == null ? null : lookupLocators.clone();
+    }
+
+    /**
+     * Returns a defensive copy of the attributes published to Jini lookup services.
+     * Callers cannot mutate the validated attributes stored in this parameter object.
+     */
+    public Entry[] getLookupAttributes() {
+        return lookupAttributes == null ? null : lookupAttributes.clone();
+    }
+
+    /** Returns the codebase annotation; empty string means derive from the service interface. */
+    public String getCodebaseAnnotation() {
+        return codebaseAnnotation;
+    }
+
+    /** Returns the X.509 certificate factory type identifier. */
+    public String getCertFactoryType() {
+        return certFactoryType;
+    }
+
+    /** Returns the certificate-path encoding. */
+    public String getCertPathEncoding() {
+        return certPathEncoding;
+    }
+
+    /**
+     * Returns a defensive copy of the DER-encoded certificate path.
+     * Callers cannot mutate the validated certificate bytes stored in this parameter object.
+     */
+    public byte[] getEncodedCerts() {
+        return encodedCerts == null ? null : encodedCerts.clone();
     }
 }
