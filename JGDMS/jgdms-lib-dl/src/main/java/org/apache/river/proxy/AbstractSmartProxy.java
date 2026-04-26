@@ -64,6 +64,42 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *       stub implements each of them.</li>
  * </ol>
  *
+ * <h2>Recommended additional proxy interfaces</h2>
+ * Based on the patterns used across existing JGDMS service proxies
+ * (Fiddler, Mahalo, Mercury, Reggie), concrete proxy subclasses should also
+ * consider implementing:
+ * <ul>
+ *   <li>{@link net.jini.admin.Administrable} — when the service supports
+ *       administrative operations, the proxy should implement
+ *       {@code getAdmin()} by delegating to the server stub.  This is
+ *       the standard pattern used by FiddlerProxy, TxnMgrProxy,
+ *       MailboxProxy, and RegistrarProxy.</li>
+ * </ul>
+ *
+ * <h2>Interfaces that belong to the server only — not to the proxy</h2>
+ * The following interfaces are implemented by service back-end
+ * implementations (i.e. classes that extend
+ * {@link org.apache.river.service.support.AbstractJiniService} or similar)
+ * and must <em>not</em> be declared on the proxy:
+ * <ul>
+ *   <li>{@code net.jini.security.proxytrust.ServerProxyTrust} — the server
+ *       supplies a {@code TrustVerifier} so that the trust infrastructure can
+ *       verify the proxy; this is a server-side concern only.</li>
+ *   <li>{@code net.jini.export.Startable} — server lifecycle hook.</li>
+ *   <li>{@code net.jini.lookup.ServiceProxyAccessor} — provides the lookup
+ *       proxy to the JoinManager; server-side only.</li>
+ *   <li>{@code net.jini.lookup.ServiceAttributesAccessor} — provides lookup
+ *       attributes; server-side only.</li>
+ *   <li>{@code net.jini.lookup.ServiceIDAccessor} — provides the service ID;
+ *       server-side only.</li>
+ *   <li>{@code net.jini.export.CodebaseAccessor} — provides codebase
+ *       annotation for the class loader; server-side only.</li>
+ * </ul>
+ * Because {@link #checkServer(GetArg)} only validates the interfaces declared
+ * <em>directly</em> on the concrete proxy class (via
+ * {@link Class#getInterfaces()}), and none of the above are declared on any
+ * proxy subclass, they are already excluded from the server-stub validation.
+ *
  * <h2>Constrainable proxies</h2>
  * When the server stub implements
  * {@link net.jini.core.constraint.RemoteMethodControl}, create a
