@@ -52,16 +52,16 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *   <li>Annotate the concrete proxy class with {@code @AtomicSerial}.</li>
  *   <li>Implement the service interface(s) and delegate to
  *       {@link #server}.</li>
- *   <li>Override {@link #getServiceInterfaces()} to return the interface(s)
- *       that {@link #server} must implement; this is validated on every
- *       {@link AtomicSerial} deserialisation.</li>
  *   <li>Provide a public factory method that calls
  *       {@code new ConcreteProxy(stub, uuid)} directly, or returns a
  *       constrainable subclass when the stub implements
  *       {@link net.jini.core.constraint.RemoteMethodControl}.</li>
  *   <li>Provide a package-access {@code (GetArg)} constructor that calls
  *       {@code super(arg)}; this satisfies the {@link AtomicSerial}
- *       deserialization contract.</li>
+ *       deserialization contract.  During deserialization the base class
+ *       automatically detects all interfaces declared directly on the
+ *       concrete proxy class and verifies that the deserialized {@code server}
+ *       stub implements each of them.</li>
  * </ol>
  *
  * <h2>Constrainable proxies</h2>
@@ -130,22 +130,25 @@ public abstract class AbstractSmartProxy
      *
      * <p>Reads the {@code server} and {@code proxyID} fields from
      * {@code arg}, validates that neither is {@code null}, then verifies
-     * that {@code server} implements every interface returned by
-     * {@link #getServiceInterfaces()}.
+     * that {@code server} implements every interface declared directly on
+     * the concrete proxy class (i.e. the service interfaces that the proxy
+     * itself implements).  This check is performed automatically without
+     * requiring subclasses to override any method.
      *
      * @param arg the deserialization argument bag; must be non-null
      * @throws IOException if either field is {@code null}, cannot be read,
-     *                     or {@code server} does not implement all required
-     *                     service interfaces
+     *                     or {@code server} does not implement all service
+     *                     interfaces declared by the concrete proxy class
      */
     protected AbstractSmartProxy(GetArg arg) throws IOException {
         this(checkServer(arg), (Uuid) arg.get("proxyID", null));
-        Class<?>[] ifaces = getServiceInterfaces();
-        if (ifaces == null || ifaces.length == 0) {
-            throw new InvalidObjectException(
-                    "getServiceInterfaces() must return a non-null, non-empty array");
-        }
-        for (Class<?> iface : ifaces) {
+        // Validate that the deserialized server implements every interface that
+        // the concrete proxy class directly declares.  Concrete proxy classes
+        // declare service interfaces (e.g. BytecodeAnalysisEngine) while
+        // AbstractSmartProxy owns the infrastructure interfaces (Serializable,
+        // ProxyAccessor, ReferentUuid), so getInterfaces() on the concrete
+        // class returns only the service interfaces that need to be checked.
+        for (Class<?> iface : this.getClass().getInterfaces()) {
             if (!iface.isInstance(server)) {
                 throw new InvalidObjectException(
                         "deserialized server does not implement "
@@ -172,30 +175,6 @@ public abstract class AbstractSmartProxy
         }
         return server;
     }
-
-    // -------------------------------------------------------------------------
-    // Abstract template method
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns the remote service interfaces that the {@link #server} object
-     * must implement.
-     *
-     * <p>This method is called during {@link AtomicSerial} deserialization to
-     * validate that the deserialized {@code server} stub actually implements
-     * all interfaces the proxy needs to delegate to.  Implementations must
-     * return a compile-time constant array, for example:
-     * <pre>
-     *   {@literal @}Override
-     *   protected Class&lt;?&gt;[] getServiceInterfaces() {
-     *       return new Class&lt;?&gt;[] { MyService.class };
-     *   }
-     * </pre>
-     *
-     * @return array of required interface types; must be non-null and
-     *         non-empty
-     */
-    protected abstract Class<?>[] getServiceInterfaces();
 
     private void readObjectNoData() throws ObjectStreamException {
         throw new InvalidObjectException(

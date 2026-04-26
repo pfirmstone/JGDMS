@@ -70,11 +70,6 @@ public class BytecodeAnalysisEngineProxy
     }
 
     @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ BytecodeAnalysisEngine.class };
-    }
-
-    @Override
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
         ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
     }

@@ -78,11 +78,6 @@ public class VerdictRegistryProxy
     }
 
     @Override
-    protected Class<?>[] getServiceInterfaces() {
-        return new Class<?>[]{ VerdictRegistry.class };
-    }
-
-    @Override
     public void registerAnalysisEngine(String engineId,
                                         PublicKey engineKey,
                                         String sigAlgorithm) throws RemoteException {
