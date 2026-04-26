@@ -20,6 +20,8 @@ package org.apache.river.bae.proxy;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.Set;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import org.apache.river.api.codebase.BytecodeAnalysisEngine;
 import org.apache.river.api.io.AtomicSerial;
@@ -38,8 +40,14 @@ import org.apache.river.proxy.AbstractSmartProxy;
  * which provides safe deserialization, {@link net.jini.export.ProxyAccessor},
  * and {@link net.jini.id.ReferentUuid} identity based on the service UUID.
  *
+ * <p>Use the {@link #create(BytecodeAnalysisEngine, Uuid)} factory method
+ * rather than constructing directly; the factory automatically returns a
+ * {@link ConstrainableBytecodeAnalysisEngineProxy} when the server stub
+ * implements {@link RemoteMethodControl}.
+ *
  * @see BytecodeAnalysisEngine
  * @see AbstractSmartProxy
+ * @see ConstrainableBytecodeAnalysisEngineProxy
  * @since 3.1.1
  */
 @AtomicSerial
@@ -50,12 +58,29 @@ public class BytecodeAnalysisEngineProxy
     private static final long serialVersionUID = 1L;
 
     /**
+     * Factory method — returns a {@link ConstrainableBytecodeAnalysisEngineProxy}
+     * when {@code server} implements {@link RemoteMethodControl}, otherwise a
+     * plain {@code BytecodeAnalysisEngineProxy}.
+     *
+     * @param server  the remote server stub; must be non-null
+     * @param proxyID the service's stable unique identifier; must be non-null
+     * @return the appropriate proxy instance
+     */
+    public static AbstractSmartProxy create(BytecodeAnalysisEngine server,
+                                            Uuid proxyID) {
+        if (server instanceof RemoteMethodControl) {
+            return new ConstrainableBytecodeAnalysisEngineProxy(server, proxyID, null);
+        }
+        return new BytecodeAnalysisEngineProxy(server, proxyID);
+    }
+
+    /**
      * Creates a new proxy wrapping the given server stub.
      *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
      */
-    public BytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server, Uuid proxyID) {
+    BytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server, Uuid proxyID) {
         super(server, proxyID);
     }
 
@@ -72,5 +97,61 @@ public class BytecodeAnalysisEngineProxy
     @Override
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
         ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
+    }
+
+    // =========================================================================
+    // Nested class: ConstrainableBytecodeAnalysisEngineProxy
+    // =========================================================================
+
+    /**
+     * Constrainable subclass of {@link BytecodeAnalysisEngineProxy}.
+     *
+     * <p>Extends {@link AbstractSmartProxy.ConstrainableSmartProxy} to
+     * provide full {@link RemoteMethodControl} support.  Instances are
+     * produced by the {@link BytecodeAnalysisEngineProxy#create} factory
+     * when the server stub implements {@link RemoteMethodControl}.
+     *
+     * @since 3.1.1
+     */
+    @AtomicSerial
+    public static final class ConstrainableBytecodeAnalysisEngineProxy
+            extends AbstractSmartProxy.ConstrainableSmartProxy
+            implements BytecodeAnalysisEngine {
+
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Creates a new constrained proxy.
+         *
+         * @param server      the remote server stub
+         * @param proxyID     the service's stable unique identifier
+         * @param constraints the client method constraints; may be {@code null}
+         */
+        ConstrainableBytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server,
+                                                  Uuid proxyID,
+                                                  MethodConstraints constraints) {
+            super(server, proxyID, constraints);
+        }
+
+        /**
+         * {@link AtomicSerial} deserialization constructor.
+         *
+         * @param arg the deserialization argument bag
+         * @throws IOException if deserialization validation fails
+         */
+        ConstrainableBytecodeAnalysisEngineProxy(GetArg arg) throws IOException {
+            super(arg);
+        }
+
+        @Override
+        public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+            return new ConstrainableBytecodeAnalysisEngineProxy(
+                    (BytecodeAnalysisEngine) server, getReferentUuid(), constraints);
+        }
+
+        @Override
+        public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
+            ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
+        }
     }
 }

@@ -179,7 +179,7 @@ public class ActivatableVerdictRegistryImpl
 
     @Override
     protected Object createProxy(Object stub, Uuid serviceUuid) {
-        return new VerdictRegistryProxy((VerdictRegistry) stub, serviceUuid);
+        return VerdictRegistryProxy.create((VerdictRegistry) stub, serviceUuid);
     }
 
     @Override

@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
 import java.util.Set;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
@@ -46,8 +48,14 @@ import org.apache.river.proxy.AbstractSmartProxy;
  * which provides safe deserialization, {@link net.jini.export.ProxyAccessor},
  * and {@link net.jini.id.ReferentUuid} identity based on the service UUID.
  *
+ * <p>Use the {@link #create(VerdictRegistry, Uuid)} factory method
+ * rather than constructing directly; the factory automatically returns a
+ * {@link ConstrainableVerdictRegistryProxy} when the server stub implements
+ * {@link RemoteMethodControl}.
+ *
  * @see VerdictRegistry
  * @see AbstractSmartProxy
+ * @see ConstrainableVerdictRegistryProxy
  * @since 3.1.1
  */
 @AtomicSerial
@@ -58,12 +66,28 @@ public class VerdictRegistryProxy
     private static final long serialVersionUID = 1L;
 
     /**
+     * Factory method — returns a {@link ConstrainableVerdictRegistryProxy}
+     * when {@code server} implements {@link RemoteMethodControl}, otherwise a
+     * plain {@code VerdictRegistryProxy}.
+     *
+     * @param server  the remote server stub; must be non-null
+     * @param proxyID the service's stable unique identifier; must be non-null
+     * @return the appropriate proxy instance
+     */
+    public static AbstractSmartProxy create(VerdictRegistry server, Uuid proxyID) {
+        if (server instanceof RemoteMethodControl) {
+            return new ConstrainableVerdictRegistryProxy(server, proxyID, null);
+        }
+        return new VerdictRegistryProxy(server, proxyID);
+    }
+
+    /**
      * Creates a new proxy wrapping the given server stub.
      *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
      */
-    public VerdictRegistryProxy(VerdictRegistry server, Uuid proxyID) {
+    VerdictRegistryProxy(VerdictRegistry server, Uuid proxyID) {
         super(server, proxyID);
     }
 
@@ -124,5 +148,105 @@ public class VerdictRegistryProxy
     public void cancelEventLease(Uuid leaseId)
             throws UnknownLeaseException, RemoteException {
         ((VerdictRegistry) server).cancelEventLease(leaseId);
+    }
+
+    // =========================================================================
+    // Nested class: ConstrainableVerdictRegistryProxy
+    // =========================================================================
+
+    /**
+     * Constrainable subclass of {@link VerdictRegistryProxy}.
+     *
+     * <p>Extends {@link AbstractSmartProxy.ConstrainableSmartProxy} to
+     * provide full {@link RemoteMethodControl} support.  Instances are
+     * produced by the {@link VerdictRegistryProxy#create} factory when the
+     * server stub implements {@link RemoteMethodControl}.
+     *
+     * @since 3.1.1
+     */
+    @AtomicSerial
+    public static final class ConstrainableVerdictRegistryProxy
+            extends AbstractSmartProxy.ConstrainableSmartProxy
+            implements VerdictRegistry {
+
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * Creates a new constrained proxy.
+         *
+         * @param server      the remote server stub
+         * @param proxyID     the service's stable unique identifier
+         * @param constraints the client method constraints; may be {@code null}
+         */
+        ConstrainableVerdictRegistryProxy(VerdictRegistry server,
+                                          Uuid proxyID,
+                                          MethodConstraints constraints) {
+            super(server, proxyID, constraints);
+        }
+
+        /**
+         * {@link AtomicSerial} deserialization constructor.
+         *
+         * @param arg the deserialization argument bag
+         * @throws IOException if deserialization validation fails
+         */
+        ConstrainableVerdictRegistryProxy(GetArg arg) throws IOException {
+            super(arg);
+        }
+
+        @Override
+        public RemoteMethodControl setConstraints(MethodConstraints constraints) {
+            return new ConstrainableVerdictRegistryProxy(
+                    (VerdictRegistry) server, getReferentUuid(), constraints);
+        }
+
+        @Override
+        public void registerAnalysisEngine(String engineId,
+                                           PublicKey engineKey,
+                                           String sigAlgorithm) throws RemoteException {
+            ((VerdictRegistry) server).registerAnalysisEngine(engineId, engineKey, sigAlgorithm);
+        }
+
+        @Override
+        public void revokeAnalysisEngine(String engineId) throws RemoteException {
+            ((VerdictRegistry) server).revokeAnalysisEngine(engineId);
+        }
+
+        @Override
+        public void submitVerdict(String engineId, SignedVerdict verdict) throws RemoteException {
+            ((VerdictRegistry) server).submitVerdict(engineId, verdict);
+        }
+
+        @Override
+        public void reportCrash(CrashReport report) throws RemoteException {
+            ((VerdictRegistry) server).reportCrash(report);
+        }
+
+        @Override
+        public RegistryVerdict getVerdict(Set<Uri> codebaseUrls) throws RemoteException {
+            return ((VerdictRegistry) server).getVerdict(codebaseUrls);
+        }
+
+        @Override
+        public EventRegistration registerVerdictListener(RemoteEventListener listener,
+                                                         Set<Uri> codebaseUrls,
+                                                         MarshalledInstance handback,
+                                                         long leaseDuration)
+                throws RemoteException {
+            return ((VerdictRegistry) server).registerVerdictListener(
+                    listener, codebaseUrls, handback, leaseDuration);
+        }
+
+        @Override
+        public long renewEventLease(Uuid leaseId, long duration)
+                throws UnknownLeaseException, RemoteException {
+            return ((VerdictRegistry) server).renewEventLease(leaseId, duration);
+        }
+
+        @Override
+        public void cancelEventLease(Uuid leaseId)
+                throws UnknownLeaseException, RemoteException {
+            ((VerdictRegistry) server).cancelEventLease(leaseId);
+        }
     }
 }

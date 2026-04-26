@@ -23,6 +23,8 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
+import net.jini.core.constraint.MethodConstraints;
+import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
@@ -31,6 +33,8 @@ import net.jini.id.Uuid;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
+import net.jini.security.proxytrust.ProxyTrustIterator;
+import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -99,13 +103,24 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * <h2>Constrainable proxies</h2>
  * When the server stub implements
- * {@link net.jini.core.constraint.RemoteMethodControl}, create a
- * constrainable inner subclass that also implements
- * {@code RemoteMethodControl} and delegates
- * {@link net.jini.core.constraint.RemoteMethodControl#setConstraints} to a
- * new instance.  The {@code getProxyTrustIterator()} method (called
- * reflectively by {@code BasicJeriTrustVerifier}) should return
- * {@code new SingletonProxyTrustIterator(server)}.
+ * {@link RemoteMethodControl}, use the nested
+ * {@link ConstrainableSmartProxy} abstract class as the base for a
+ * constrainable inner subclass.  The concrete constrainable proxy must:
+ * <ol>
+ *   <li>Extend {@code ConstrainableSmartProxy}.</li>
+ *   <li>Be annotated with {@code @AtomicSerial}.</li>
+ *   <li>Implement the service interface(s) by delegating to {@link #server}.</li>
+ *   <li>Implement {@link RemoteMethodControl#setConstraints} by returning a
+ *       new instance of itself with the constraints applied.</li>
+ *   <li>Provide a {@code (GetArg)} constructor that calls
+ *       {@code super(arg)}; this triggers both the infrastructure-interface
+ *       validation in {@link AbstractSmartProxy} and the
+ *       {@code RemoteMethodControl} check added by
+ *       {@link ConstrainableSmartProxy}.</li>
+ * </ol>
+ * A static factory method on the outer proxy class typically returns the
+ * constrainable variant when the server stub implements
+ * {@link RemoteMethodControl}, and the plain variant otherwise.
  *
  * <h2>Serialized form</h2>
  * Two fields are serialized by this class:
@@ -361,5 +376,217 @@ public abstract class AbstractSmartProxy
     @Override
     public final boolean equals(Object o) {
         return ReferentUuids.compare(this, o);
+    }
+
+    // =========================================================================
+    // Nested class: ConstrainableSmartProxy
+    // =========================================================================
+
+    /**
+     * Abstract base class for constrainable smart proxies.
+     *
+     * <p>Extends {@link AbstractSmartProxy} and additionally implements
+     * {@link RemoteMethodControl}, providing the boilerplate common to all
+     * constrainable JGDMS service proxies:
+     * <ul>
+     *   <li>Applying client constraints to the server stub at construction
+     *       time.</li>
+     *   <li>Validating (at deserialization time) that the {@code server} stub
+     *       implements {@link RemoteMethodControl}, in addition to all the
+     *       checks performed by {@link AbstractSmartProxy}.</li>
+     *   <li>{@link #getConstraints()} — delegates to the server stub.</li>
+     *   <li>{@code getProxyTrustIterator()} — returns a
+     *       {@link SingletonProxyTrustIterator} wrapping the server stub,
+     *       as required by {@code BasicJeriTrustVerifier}.</li>
+     * </ul>
+     *
+     * <h2>Concrete subclass responsibilities</h2>
+     * <ol>
+     *   <li>Annotate with {@code @AtomicSerial}.</li>
+     *   <li>Implement the service interface(s), delegating to
+     *       {@link AbstractSmartProxy#server server}.</li>
+     *   <li>Implement {@link #setConstraints} by constructing a new instance
+     *       of the same concrete class with the constraints applied.
+     *       Use the protected
+     *       {@link #ConstrainableSmartProxy(Object, Uuid, MethodConstraints)}
+     *       constructor to apply the constraints to the server stub.</li>
+     *   <li>Provide a {@code (GetArg)} constructor that calls
+     *       {@code super(arg)}.</li>
+     * </ol>
+     *
+     * @author Peter Firmstone
+     * @author GitHub Copilot
+     * @since 3.1.1
+     */
+    @AtomicSerial
+    public static abstract class ConstrainableSmartProxy
+            extends AbstractSmartProxy
+            implements RemoteMethodControl {
+
+        private static final long serialVersionUID = 1L;
+
+        // -------------------------------------------------------------------------
+        // Constructors
+        // -------------------------------------------------------------------------
+
+        /**
+         * Creates a new constrainable smart proxy, applying {@code constraints}
+         * to the server stub before storing it.
+         *
+         * <p>Validation that the arguments are non-null is delegated to the
+         * superclass constructor (via {@link AbstractSmartProxy#checkArgs}).
+         * Validation that {@code server} implements {@link RemoteMethodControl}
+         * is performed before this constructor body runs, by the
+         * {@link #checkConstrainable(Object, Uuid)} helper.
+         *
+         * @param server      the remote server stub; must implement
+         *                    {@link RemoteMethodControl}
+         * @param proxyID     the service's stable unique identifier;
+         *                    must be non-null
+         * @param constraints the client method constraints to apply; may be
+         *                    {@code null}
+         * @throws IllegalArgumentException if {@code server} does not
+         *                                  implement {@link RemoteMethodControl},
+         *                                  or if {@code server} or
+         *                                  {@code proxyID} is {@code null}
+         */
+        protected ConstrainableSmartProxy(Object server, Uuid proxyID,
+                                          MethodConstraints constraints) {
+            super(applyConstraints(checkConstrainable(server, proxyID), constraints),
+                  proxyID);
+        }
+
+        /**
+         * {@link AtomicSerial} deserialization constructor.
+         *
+         * <p>Validates that the deserialized {@code server} implements
+         * {@link RemoteMethodControl} <em>before</em> delegating to
+         * {@link AbstractSmartProxy#AbstractSmartProxy(GetArg)}, which performs
+         * all infrastructure-interface checks.  Both validations run before any
+         * field is assigned, satisfying the {@link AtomicSerial} contract.
+         *
+         * @param arg the deserialization argument bag
+         * @throws IOException if the {@code server} does not implement
+         *                     {@link RemoteMethodControl}, or if any of the
+         *                     superclass validations fail
+         */
+        protected ConstrainableSmartProxy(GetArg arg) throws IOException {
+            super(checkConstrainable(arg));
+        }
+
+        // -------------------------------------------------------------------------
+        // Deserialization validation
+        // -------------------------------------------------------------------------
+
+        /**
+         * Validates that {@code server} implements {@link RemoteMethodControl}
+         * before any field is assigned.  Called as a constructor argument, so
+         * the check runs outside the constructor body.
+         *
+         * @return {@code server} unchanged
+         * @throws IllegalArgumentException if {@code server} or {@code proxyID}
+         *                                  is {@code null}, or if {@code server}
+         *                                  does not implement
+         *                                  {@link RemoteMethodControl}
+         */
+        private static Object checkConstrainable(Object server, Uuid proxyID) {
+            if (server == null)
+                throw new IllegalArgumentException("server must not be null");
+            if (proxyID == null)
+                throw new IllegalArgumentException("proxyID must not be null");
+            if (!(server instanceof RemoteMethodControl))
+                throw new IllegalArgumentException(
+                        "server must implement RemoteMethodControl; actual type: "
+                        + server.getClass().getName());
+            return server;
+        }
+
+        /**
+         * Validates that the deserialized {@code server} field implements
+         * {@link RemoteMethodControl} before passing {@code arg} to the
+         * superclass deserialization constructor.
+         *
+         * @return {@code arg} unchanged
+         * @throws InvalidObjectException if the server does not implement
+         *                                {@link RemoteMethodControl}
+         */
+        private static GetArg checkConstrainable(GetArg arg) throws IOException {
+            Object server = arg.get("server", null);
+            if (!(server instanceof RemoteMethodControl)) {
+                throw new InvalidObjectException(
+                        "deserialized server does not implement RemoteMethodControl"
+                        + "; actual type: "
+                        + (server == null ? "null" : server.getClass().getName()));
+            }
+            return arg;
+        }
+
+        /**
+         * Applies {@code constraints} to {@code server} by calling
+         * {@link RemoteMethodControl#setConstraints}, returning the constrained
+         * server stub.
+         *
+         * @param server      a non-null server stub that implements
+         *                    {@link RemoteMethodControl}
+         * @param constraints the constraints to apply; may be {@code null}
+         * @return the constrained server stub
+         */
+        private static Object applyConstraints(Object server,
+                                               MethodConstraints constraints) {
+            return ((RemoteMethodControl) server).setConstraints(constraints);
+        }
+
+        // -------------------------------------------------------------------------
+        // RemoteMethodControl
+        // -------------------------------------------------------------------------
+
+        /**
+         * Returns the client constraints currently set on this proxy, by
+         * delegating to the (constrained) server stub.
+         *
+         * @return the current client constraints; may be {@code null}
+         */
+        @Override
+        public MethodConstraints getConstraints() {
+            return ((RemoteMethodControl) server).getConstraints();
+        }
+
+        /**
+         * Returns a new proxy with the given constraints, by constructing a
+         * new instance of the same concrete proxy class.
+         *
+         * <p>Concrete subclasses must implement this method.  The typical
+         * implementation is:
+         * <pre>
+         *   return new ConcreteConstrainableProxy(server, getReferentUuid(),
+         *                                         constraints);
+         * </pre>
+         * where the constructor calls
+         * {@link #ConstrainableSmartProxy(Object, Uuid, MethodConstraints)}.
+         *
+         * @param constraints the new client constraints; may be {@code null}
+         * @return a new proxy with {@code constraints} applied
+         */
+        @Override
+        public abstract RemoteMethodControl setConstraints(
+                MethodConstraints constraints);
+
+        // -------------------------------------------------------------------------
+        // ProxyTrust support
+        // -------------------------------------------------------------------------
+
+        /**
+         * Returns a {@link ProxyTrustIterator} containing the server stub.
+         *
+         * <p>This method is called reflectively by
+         * {@code BasicJeriTrustVerifier} to obtain the trust verifier for this
+         * proxy.  It must remain {@code private} so that it is found via
+         * reflection but cannot be called directly by client code.
+         *
+         * @return a singleton iterator wrapping the server stub
+         */
+        private ProxyTrustIterator getProxyTrustIterator() {
+            return new SingletonProxyTrustIterator(server);
+        }
     }
 }

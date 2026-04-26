@@ -160,7 +160,7 @@ public class ActivatableBytecodeAnalysisEngineImpl
 
     @Override
     protected Object createProxy(Object stub, Uuid serviceUuid) {
-        return new BytecodeAnalysisEngineProxy((BytecodeAnalysisEngine) stub, serviceUuid);
+        return BytecodeAnalysisEngineProxy.create((BytecodeAnalysisEngine) stub, serviceUuid);
     }
 
     @Override
