@@ -30,7 +30,14 @@
 
     <name>Module :: JGDMS Service DL Library</name>
 
-    <dependencies>       
+    <dependencies>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
