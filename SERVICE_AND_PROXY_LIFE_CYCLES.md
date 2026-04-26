@@ -331,7 +331,7 @@ flowchart TD
     end
 
     subgraph SERIAL ["Phase 2 — Serialisation  AtomicMarshalOutputStream"]
-        W1["writeObject on\nProxyAccessor or\nDynamicProxyCodebaseAccessor"] --> W2
+        W1["AtomicSerial serialises\nProxyAccessor or\nDynamicProxyCodebaseAccessor"] --> W2
         W2["ProxySerializer.create(\n  proxy, streamLoader, context\n)"] --> W3
         W3["ProxyCodebaseSpi.substitute(\n  serviceClass, streamLoader\n)\nIs class invisible at remote end?"] --> W4
         W4{"substitute\nreturns true?"} -- No, class locally visible --> W5([Write proxy as-is\nno substitution])
@@ -341,9 +341,9 @@ flowchart TD
         W8["Write ProxySerializer to stream:\n{ bootstrapProxy, serviceProxy }"]
     end
 
-    subgraph DESER ["Phase 3 — SPI Discovery  AtomicMarshalInputStream readResolve"]
-        R1["Stream contains ProxySerializer\nfields populated by AtomicSerial"] --> R2
-        R2["ProxySerializer.readResolve\ncalled after field validation"] --> R3
+    subgraph DESER ["Phase 3 — SPI Discovery  AtomicMarshalInputStream"]
+        R1["Stream contains ProxySerializer\nfields validated by AtomicSerial\nGetArg constructor"] --> R2
+        R2["ProxySerializer resolved\nby AtomicSerial framework\nafter GetArg validation"] --> R3
         R3["Service.providers(\n  ProxyCodebaseSpi.class,\n  defaultLoader\n)\nMETA-INF/services SPI lookup"] --> R4
         R4{"Provider\nfound?"} -- No --> R5
         R4 -- Yes --> R6
@@ -445,7 +445,7 @@ flowchart LR
 |---|---|---|
 | **① Export / record** | `AtomicILFactory.createInstances`, `ProxyCodebaseSpi.record` | Stores `(InvocationHandler, codebase) → ClassLoader` in `SERVICES_EXP` to support boomerang proxies returning to their export node. Not idempotent — throws `ExportException` if called twice. |
 | **② Serialisation / substitute** | `AtomicMarshalOutputStream`, `ProxySerializer.create`, `ProxyCodebaseSpi.substitute` | Decides whether the proxy class is invisible at the remote end. If so, replaces it with a `ProxySerializer` holding a narrowed *bootstrapProxy* (`[CodebaseAccessor, RemoteMethodControl]`) and the full proxy inside an `AtomicMarshalledInstance`. |
-| **③ SPI discovery** | `ProxySerializer.readResolve`, `Service.providers` | Locates the active `ProxyCodebaseSpi` implementation via `META-INF/services`. Falls back to a no-op default (no isolation, no download). |
+| **③ SPI discovery** | `ProxySerializer` (AtomicSerial-resolved), `Service.providers` | Locates the active `ProxyCodebaseSpi` implementation via `META-INF/services`. Falls back to a no-op default (no isolation, no download). |
 | **④ Constraint application** | `RemoteMethodControl.setConstraints`, stream context | Client-side `MethodConstraints` and `IntegrityEnforcement` extracted from `ObjectStreamContext`, applied to `bootstrapProxy` before any remote calls (MinPrincipal authentication enforced here). |
 | **⑤ ClassLoader provisioning** | `SERVICES_EXP`, `CACHE`, parent annotation check | Four-path priority: boomerang → self-unmarshal → cached → new. New loaders are verified before creation. |
 | **⑥ Codebase integrity** | `Security.verifyCodebaseIntegrity`, `CertificateFactory`, `JarURLConnection` | URL-based or certificate-based JAR signature verification, depending on whether `bootstrapProxy.getEncodedCerts()` returns data. |
@@ -480,7 +480,7 @@ flowchart LR
 
     subgraph SPI ["ProxyCodebaseSpi Life Cycle"]
         SP1["ProxySerializer\nin stream"] --> SP2
-        SP2["readResolve calls\nprovider.resolve"] --> SP3
+        SP2["AtomicSerial resolves\nprovider.resolve"] --> SP3
         SP3["ClassLoader provisioned\nor boomerang / cached"] --> SP4
         SP4["serviceProxy.get(loader)\nunmarshals typed proxy"] --> SP5
         SP5[Constraints merged\nproxy returned]
@@ -505,8 +505,8 @@ The three connection points are:
    calling `((ServiceProxyAccessor) item.service).getServiceProxy()` — a remote call to the
    bootstrap proxy's authenticated endpoint.
 
-3. The returned stream contains a `ProxySerializer` object. `AtomicMarshalInputStream` calls its
-   `readResolve`, which delegates to the active `ProxyCodebaseSpi.resolve` (Phase 3 of the
-   ProxyCodebaseSpi life cycle). The SPI provisions the correct `ClassLoader`, unmarshals the
-   smart proxy, merges client constraints, and returns the fully typed, constrained proxy.
-   The filter stores it as `filteredItem` and returns pass.
+3. The returned stream contains a `ProxySerializer` object. `AtomicSerial` resolves it (via the
+   `GetArg` constructor and post-construction resolution), delegating to the active
+   `ProxyCodebaseSpi.resolve` (Phase 3 of the ProxyCodebaseSpi life cycle). The SPI provisions
+   the correct `ClassLoader`, unmarshals the smart proxy, merges client constraints, and returns
+   the fully typed, constrained proxy. The filter stores it as `filteredItem` and returns pass.
