@@ -52,6 +52,9 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *   <li>Annotate the concrete proxy class with {@code @AtomicSerial}.</li>
  *   <li>Implement the service interface(s) and delegate to
  *       {@link #server}.</li>
+ *   <li>Override {@link #getServiceInterfaces()} to return the interface(s)
+ *       that {@link #server} must implement; this is validated on every
+ *       {@link AtomicSerial} deserialisation.</li>
  *   <li>Provide a public factory method that calls
  *       {@code new ConcreteProxy(stub, uuid)} directly, or returns a
  *       constrainable subclass when the stub implements
@@ -126,14 +129,25 @@ public abstract class AbstractSmartProxy
      * {@link AtomicSerial} deserialization constructor.
      *
      * <p>Reads the {@code server} and {@code proxyID} fields from
-     * {@code arg} and validates that neither is {@code null} before
-     * delegating to the normal constructor.
+     * {@code arg}, validates that neither is {@code null}, then verifies
+     * that {@code server} implements every interface returned by
+     * {@link #getServiceInterfaces()}.
      *
      * @param arg the deserialization argument bag; must be non-null
-     * @throws IOException if either field is {@code null} or cannot be read
+     * @throws IOException if either field is {@code null}, cannot be read,
+     *                     or {@code server} does not implement all required
+     *                     service interfaces
      */
     protected AbstractSmartProxy(GetArg arg) throws IOException {
         this(checkServer(arg), (Uuid) arg.get("proxyID", null));
+        for (Class<?> iface : getServiceInterfaces()) {
+            if (!iface.isInstance(server)) {
+                throw new InvalidObjectException(
+                        "deserialized server does not implement "
+                        + iface.getName()
+                        + "; actual type: " + server.getClass().getName());
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -153,6 +167,30 @@ public abstract class AbstractSmartProxy
         }
         return server;
     }
+
+    // -------------------------------------------------------------------------
+    // Abstract template method
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns the remote service interfaces that the {@link #server} object
+     * must implement.
+     *
+     * <p>This method is called during {@link AtomicSerial} deserialization to
+     * validate that the deserialized {@code server} stub actually implements
+     * all interfaces the proxy needs to delegate to.  Implementations must
+     * return a compile-time constant array, for example:
+     * <pre>
+     *   {@literal @}Override
+     *   protected Class&lt;?&gt;[] getServiceInterfaces() {
+     *       return new Class&lt;?&gt;[] { MyService.class };
+     *   }
+     * </pre>
+     *
+     * @return array of required interface types; must be non-null and
+     *         non-empty
+     */
+    protected abstract Class<?>[] getServiceInterfaces();
 
     private void readObjectNoData() throws ObjectStreamException {
         throw new InvalidObjectException(

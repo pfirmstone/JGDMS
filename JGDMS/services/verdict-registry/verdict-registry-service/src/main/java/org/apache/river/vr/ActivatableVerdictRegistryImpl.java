@@ -183,8 +183,8 @@ public class ActivatableVerdictRegistryImpl
     }
 
     @Override
-    protected Class<?> getServiceInterface() {
-        return VerdictRegistry.class;
+    protected Class<?>[] getServiceInterfaces() {
+        return new Class<?>[]{ VerdictRegistry.class };
     }
 
     // -------------------------------------------------------------------------

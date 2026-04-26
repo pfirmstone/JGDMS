@@ -66,10 +66,10 @@ import org.apache.river.thread.ReadyState;
  *   <li>Extend {@code AbstractJiniService} and implement the two template
  *       methods:
  *       <ul>
- *         <li>{@link #createProxy(Object)} — wrap the exported server stub
+ *         <li>{@link #createProxy(Object, Uuid)} — wrap the exported server stub
  *             in the appropriate smart proxy</li>
- *         <li>{@link #getServiceInterface()} — return the primary remote
- *             interface, used as the codebase fallback</li>
+ *         <li>{@link #getServiceInterfaces()} — return the remote service
+ *             interface(s), used as the codebase fallback</li>
  *       </ul>
  *   </li>
  *   <li>Override {@link #onExported(Object)} if post-export work is needed
@@ -243,15 +243,19 @@ public abstract class AbstractJiniService
     protected abstract Object createProxy(Object stub, Uuid serviceUuid);
 
     /**
-     * Returns the primary remote interface of this service.
+     * Returns the remote service interfaces implemented by this service.
      *
-     * <p>Used as the fallback argument to
+     * <p>The first element is used as the fallback argument to
      * {@link CodebaseProvider#getClassAnnotation(Class)} when no explicit
-     * {@code Codebase_Annotation} has been configured.
+     * codebase annotation has been configured.
      *
-     * @return the service interface class; must be non-null
+     * <p>A service may implement more than one remote interface; returning
+     * all of them here allows future infrastructure to register the service
+     * under each interface in the lookup service.
+     *
+     * @return the service interface classes; must be non-null and non-empty
      */
-    protected abstract Class<?> getServiceInterface();
+    protected abstract Class<?>[] getServiceInterfaces();
 
     // -------------------------------------------------------------------------
     // ReadyState access for subclasses
@@ -346,7 +350,7 @@ public abstract class AbstractJiniService
      * Returns the codebase annotation for the service's proxy class.
      *
      * <p>Falls back to {@link CodebaseProvider#getClassAnnotation} for the
-     * class returned by {@link #getServiceInterface()} when no explicit
+     * first class returned by {@link #getServiceInterfaces()} when no explicit
      * codebase annotation has been configured.
      *
      * @return the codebase annotation; never {@code null}
@@ -355,7 +359,7 @@ public abstract class AbstractJiniService
     @Override
     public String getClassAnnotation() throws IOException {
         return (codebaseAnnotation == null || codebaseAnnotation.isEmpty())
-                ? CodebaseProvider.getClassAnnotation(getServiceInterface())
+                ? CodebaseProvider.getClassAnnotation(getServiceInterfaces()[0])
                 : codebaseAnnotation;
     }
 

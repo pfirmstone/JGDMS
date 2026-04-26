@@ -164,8 +164,8 @@ public class ActivatableBytecodeAnalysisEngineImpl
     }
 
     @Override
-    protected Class<?> getServiceInterface() {
-        return BytecodeAnalysisEngine.class;
+    protected Class<?>[] getServiceInterfaces() {
+        return new Class<?>[]{ BytecodeAnalysisEngine.class };
     }
 
     // -------------------------------------------------------------------------
