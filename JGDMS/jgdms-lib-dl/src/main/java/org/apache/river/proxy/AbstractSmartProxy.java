@@ -162,10 +162,11 @@ public abstract class AbstractSmartProxy
 
     /**
      * Private raw constructor — fields are assigned without further
-     * validation.  The {@code dummy} parameter exists solely to distinguish
-     * this constructor from the public one; it is otherwise unused.
+     * validation.  The {@code disambiguator} parameter exists solely to give
+     * this constructor a distinct signature; its value is intentionally
+     * ignored.
      */
-    private AbstractSmartProxy(Object server, Uuid proxyID, boolean dummy) {
+    private AbstractSmartProxy(Object server, Uuid proxyID, boolean disambiguator) {
         this.server  = server;
         this.proxyID = proxyID;
     }
