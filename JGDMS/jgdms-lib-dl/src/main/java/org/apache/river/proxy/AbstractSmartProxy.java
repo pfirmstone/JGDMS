@@ -145,11 +145,11 @@ public abstract class AbstractSmartProxy
         Uuid   proxyID = (Uuid) arg.get("proxyID", null);
         if (server == null) {
             throw new InvalidObjectException(
-                    "server field is null in " + arg.getClass().getName());
+                    "server field is null");
         }
         if (proxyID == null) {
             throw new InvalidObjectException(
-                    "proxyID field is null in " + arg.getClass().getName());
+                    "proxyID field is null");
         }
         return server;
     }
@@ -168,8 +168,8 @@ public abstract class AbstractSmartProxy
      *
      * <p>This is the value that was supplied as {@code server} at construction
      * time.  The Phoenix activation infrastructure and
-     * {@link BasicProxyTrustVerifier} use this method to obtain the raw
-     * remote reference.
+     * {@link org.apache.river.proxy.BasicProxyTrustVerifier} use this method
+     * to obtain the raw remote reference.
      *
      * @return the server stub; never {@code null}
      */
