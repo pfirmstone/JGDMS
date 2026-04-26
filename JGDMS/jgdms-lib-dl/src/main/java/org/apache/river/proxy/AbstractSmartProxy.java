@@ -140,7 +140,12 @@ public abstract class AbstractSmartProxy
      */
     protected AbstractSmartProxy(GetArg arg) throws IOException {
         this(checkServer(arg), (Uuid) arg.get("proxyID", null));
-        for (Class<?> iface : getServiceInterfaces()) {
+        Class<?>[] ifaces = getServiceInterfaces();
+        if (ifaces == null || ifaces.length == 0) {
+            throw new InvalidObjectException(
+                    "getServiceInterfaces() must return a non-null, non-empty array");
+        }
+        for (Class<?> iface : ifaces) {
             if (!iface.isInstance(server)) {
                 throw new InvalidObjectException(
                         "deserialized server does not implement "

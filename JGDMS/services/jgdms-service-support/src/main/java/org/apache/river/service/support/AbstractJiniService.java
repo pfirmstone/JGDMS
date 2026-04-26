@@ -358,9 +358,15 @@ public abstract class AbstractJiniService
      */
     @Override
     public String getClassAnnotation() throws IOException {
-        return (codebaseAnnotation == null || codebaseAnnotation.isEmpty())
-                ? CodebaseProvider.getClassAnnotation(getServiceInterfaces()[0])
-                : codebaseAnnotation;
+        if (codebaseAnnotation != null && !codebaseAnnotation.isEmpty()) {
+            return codebaseAnnotation;
+        }
+        Class<?>[] ifaces = getServiceInterfaces();
+        if (ifaces == null || ifaces.length == 0) {
+            throw new IllegalStateException(
+                    "getServiceInterfaces() must return a non-null, non-empty array");
+        }
+        return CodebaseProvider.getClassAnnotation(ifaces[0]);
     }
 
     /** {@inheritDoc} */
