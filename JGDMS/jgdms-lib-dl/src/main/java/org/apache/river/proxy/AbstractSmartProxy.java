@@ -21,10 +21,16 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
+import java.rmi.RemoteException;
+import net.jini.admin.Administrable;
+import net.jini.export.CodebaseAccessor;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
+import net.jini.lookup.ServiceAttributesAccessor;
+import net.jini.lookup.ServiceIDAccessor;
+import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 
@@ -45,6 +51,9 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *   <li>{@link ReferentUuid} — stable UUID-based identity; two proxy
  *       instances wrapping the same service are equal iff they carry the
  *       same {@link Uuid}</li>
+ *   <li>{@link Administrable} — every service should be administrable;
+ *       {@link #getAdmin()} delegates to the server stub so that callers can
+ *       obtain the administration object for the remote service</li>
  * </ul>
  *
  * <h2>Usage</h2>
@@ -66,15 +75,9 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *
  * <h2>Recommended additional proxy interfaces</h2>
  * Based on the patterns used across existing JGDMS service proxies
- * (Fiddler, Mahalo, Mercury, Reggie), concrete proxy subclasses should also
- * consider implementing:
- * <ul>
- *   <li>{@link net.jini.admin.Administrable} — when the service supports
- *       administrative operations, the proxy should implement
- *       {@code getAdmin()} by delegating to the server stub.  This is
- *       the standard pattern used by FiddlerProxy, TxnMgrProxy,
- *       MailboxProxy, and RegistrarProxy.</li>
- * </ul>
+ * (Fiddler, Mahalo, Mercury, Reggie), this base class already implements
+ * {@link Administrable}.  Concrete proxy subclasses may also wish to
+ * implement constrainable variants — see below.
  *
  * <h2>Interfaces that belong to the server only — not to the proxy</h2>
  * The following interfaces are implemented by service back-end
@@ -85,20 +88,14 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  *   <li>{@code net.jini.security.proxytrust.ServerProxyTrust} — the server
  *       supplies a {@code TrustVerifier} so that the trust infrastructure can
  *       verify the proxy; this is a server-side concern only.</li>
- *   <li>{@code net.jini.export.Startable} — server lifecycle hook.</li>
- *   <li>{@code net.jini.lookup.ServiceProxyAccessor} — provides the lookup
- *       proxy to the JoinManager; server-side only.</li>
- *   <li>{@code net.jini.lookup.ServiceAttributesAccessor} — provides lookup
- *       attributes; server-side only.</li>
- *   <li>{@code net.jini.lookup.ServiceIDAccessor} — provides the service ID;
- *       server-side only.</li>
- *   <li>{@code net.jini.export.CodebaseAccessor} — provides codebase
- *       annotation for the class loader; server-side only.</li>
+ *   <li>{@code org.apache.river.api.util.Startable} — server lifecycle hook
+ *       (not a remote interface; not present on the exported stub).</li>
  * </ul>
- * Because {@link #checkServer(GetArg)} only validates the interfaces declared
- * <em>directly</em> on the concrete proxy class (via
- * {@link Class#getInterfaces()}), and none of the above are declared on any
- * proxy subclass, they are already excluded from the server-stub validation.
+ * {@link CodebaseAccessor}, {@link ServiceProxyAccessor},
+ * {@link ServiceAttributesAccessor}, and {@link ServiceIDAccessor} are
+ * Remote interfaces implemented by the server stub and are validated
+ * during {@link #checkServer(GetArg) deserialization}.  They do not need
+ * to be re-declared on the concrete proxy class.
  *
  * <h2>Constrainable proxies</h2>
  * When the server stub implements
@@ -124,7 +121,7 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  */
 @AtomicSerial
 public abstract class AbstractSmartProxy
-        implements Serializable, ProxyAccessor, ReferentUuid {
+        implements Serializable, ProxyAccessor, ReferentUuid, Administrable {
 
     private static final long serialVersionUID = 1L;
 
@@ -150,15 +147,42 @@ public abstract class AbstractSmartProxy
     /**
      * Creates a new smart proxy wrapping the given server stub.
      *
+     * <p>Validation is performed before construction (via {@link #checkArgs})
+     * to avoid throwing an exception inside the constructor body.  This
+     * follows the JGDMS convention of deferring validation to static helpers
+     * to protect against finalizer attacks on partially-initialised objects.
+     *
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
-     * @throws NullPointerException if either argument is {@code null}
+     * @throws IllegalArgumentException if either argument is {@code null}
      */
     protected AbstractSmartProxy(Object server, Uuid proxyID) {
-        if (server == null)  throw new NullPointerException("server");
-        if (proxyID == null) throw new NullPointerException("proxyID");
+        this(checkArgs(server, proxyID), proxyID, false);
+    }
+
+    /**
+     * Private raw constructor — fields are assigned without further
+     * validation.  The {@code dummy} parameter exists solely to distinguish
+     * this constructor from the public one; it is otherwise unused.
+     */
+    private AbstractSmartProxy(Object server, Uuid proxyID, boolean dummy) {
         this.server  = server;
         this.proxyID = proxyID;
+    }
+
+    /**
+     * Validates the arguments for {@link #AbstractSmartProxy(Object, Uuid)}.
+     * Called as a constructor argument so that any exception is thrown
+     * <em>before</em> the private constructor body runs.
+     *
+     * @return {@code server} unchanged
+     * @throws IllegalArgumentException if {@code server} or {@code proxyID}
+     *                                  is {@code null}
+     */
+    private static Object checkArgs(Object server, Uuid proxyID) {
+        if (server  == null) throw new IllegalArgumentException("server must not be null");
+        if (proxyID == null) throw new IllegalArgumentException("proxyID must not be null");
+        return server;
     }
 
     /**
@@ -199,9 +223,14 @@ public abstract class AbstractSmartProxy
      * stub is then checked against every interface declared directly on that
      * class -- these are always the service interfaces, since the
      * infrastructure interfaces ({@link Serializable}, {@link ProxyAccessor},
-     * {@link ReferentUuid}) are declared on {@link AbstractSmartProxy} itself
-     * and therefore do not appear in the concrete class's
-     * {@code getInterfaces()} result.
+     * {@link ReferentUuid}, {@link Administrable}) are declared on
+     * {@link AbstractSmartProxy} itself and therefore do not appear in the
+     * concrete class's {@code getInterfaces()} result.
+     *
+     * <p>In addition, the method also verifies that {@code server} implements
+     * the Remote infrastructure interfaces that every JGDMS service stub
+     * exposes: {@link CodebaseAccessor}, {@link ServiceProxyAccessor},
+     * {@link ServiceAttributesAccessor}, and {@link ServiceIDAccessor}.
      */
     private static Object checkServer(GetArg arg) throws IOException {
         Object server  = arg.get("server",  null);
@@ -214,10 +243,8 @@ public abstract class AbstractSmartProxy
             throw new InvalidObjectException(
                     "proxyID field is null");
         }
-        // Defensively verify that server implements every service interface
-        // declared by the concrete proxy class.  This check must happen here
-        // (in the static helper) so that it runs BEFORE any field is assigned,
-        // satisfying the @AtomicSerial defensive-construction contract.
+        // Verify the server stub implements each service interface declared
+        // directly on the concrete proxy class.
         Class<?>[] classes = arg.serialClasses();
         if (classes != null && classes.length > 0) {
             Class<?> concreteClass = classes[classes.length - 1];
@@ -230,7 +257,25 @@ public abstract class AbstractSmartProxy
                 }
             }
         }
+        // Verify the server stub implements the Remote infrastructure
+        // interfaces that every JGDMS service (built on AbstractJiniService)
+        // exports.
+        checkInfrastructureInterface(server, Administrable.class);
+        checkInfrastructureInterface(server, CodebaseAccessor.class);
+        checkInfrastructureInterface(server, ServiceProxyAccessor.class);
+        checkInfrastructureInterface(server, ServiceAttributesAccessor.class);
+        checkInfrastructureInterface(server, ServiceIDAccessor.class);
         return server;
+    }
+
+    private static void checkInfrastructureInterface(
+            Object server, Class<?> iface) throws InvalidObjectException {
+        if (!iface.isInstance(server)) {
+            throw new InvalidObjectException(
+                    "deserialized server does not implement "
+                    + iface.getName()
+                    + "; actual type: " + server.getClass().getName());
+        }
     }
 
     private void readObjectNoData() throws ObjectStreamException {
@@ -255,6 +300,25 @@ public abstract class AbstractSmartProxy
     @Override
     public final Object getProxy() {
         return server;
+    }
+
+    // -------------------------------------------------------------------------
+    // Administrable
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns the administration object for the remote service.
+     *
+     * <p>Delegates directly to the server stub, which must implement
+     * {@link Administrable} (verified during {@link AtomicSerial}
+     * deserialization via {@link #checkServer(GetArg)}).
+     *
+     * @return the administration object for the remote service
+     * @throws RemoteException if a communication failure occurs
+     */
+    @Override
+    public Object getAdmin() throws RemoteException {
+        return ((Administrable) server).getAdmin();
     }
 
     // -------------------------------------------------------------------------

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.admin.Administrable;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
 import net.jini.discovery.LookupDiscoveryManager;
@@ -51,8 +52,8 @@ import org.apache.river.thread.ReadyState;
  *   <li>Starting discovery and joining lookup services via a
  *       {@link JoinManager}</li>
  *   <li>Implementing {@link ProxyAccessor}, {@link ServiceProxyAccessor},
- *       {@link ServiceAttributesAccessor}, {@link ServiceIDAccessor}, and
- *       {@link CodebaseAccessor} correctly</li>
+ *       {@link ServiceAttributesAccessor}, {@link ServiceIDAccessor},
+ *       {@link CodebaseAccessor}, and {@link Administrable} correctly</li>
  *   <li>Guarding all service methods with a {@link ReadyState} that
  *       rejects calls before {@link #start()} or after shutdown</li>
  * </ul>
@@ -83,6 +84,7 @@ import org.apache.river.thread.ReadyState;
 public abstract class AbstractJiniService
         implements ProxyAccessor,
                    Startable,
+                   Administrable,
                    CodebaseAccessor,
                    ServiceProxyAccessor,
                    ServiceAttributesAccessor,
@@ -288,6 +290,28 @@ public abstract class AbstractJiniService
      */
     @Override
     public Object getProxy() {
+        return serverStub;
+    }
+
+    // -------------------------------------------------------------------------
+    // Administrable
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns the administration object for this service.
+     *
+     * <p>Returns the exported server stub, which implements
+     * {@link ServiceAttributesAccessor}, {@link ServiceIDAccessor},
+     * {@link ServiceProxyAccessor}, and {@link CodebaseAccessor} —
+     * all of the interfaces needed for remote administration.
+     * Subclasses may override this to return a richer admin proxy.
+     *
+     * @return the exported server stub as the administration object
+     * @throws RemoteException if the service has not been started
+     */
+    @Override
+    public Object getAdmin() throws RemoteException {
+        readyState.check();
         return serverStub;
     }
 
