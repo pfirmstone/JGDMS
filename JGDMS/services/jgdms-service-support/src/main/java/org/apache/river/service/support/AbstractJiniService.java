@@ -152,14 +152,14 @@ public abstract class AbstractJiniService
     protected AbstractJiniService(JiniServiceParameters params,
                                   LifeCycle lifeCycle) {
         if (params == null) throw new NullPointerException("params");
-        this.exporter              = params.getExporter();
-        this.lookupAttrs           = params.getLookupAttributes();
-        this.initialLookupGroups   = params.getLookupGroups();
-        this.initialLookupLocators = params.getLookupLocators();
-        this.codebaseAnnotation    = params.getCodebaseAnnotation();
-        this.certFactoryType       = params.getCertFactoryType();
-        this.certPathEncoding      = params.getCertPathEncoding();
-        this.encodedCerts          = params.getEncodedCerts();
+        this.exporter              = params.exporter;
+        this.lookupAttrs           = params.lookupAttributes;
+        this.initialLookupGroups   = params.lookupGroups;
+        this.initialLookupLocators = params.lookupLocators;
+        this.codebaseAnnotation    = params.codebaseAnnotation;
+        this.certFactoryType       = params.certFactoryType;
+        this.certPathEncoding      = params.certPathEncoding;
+        this.encodedCerts          = params.encodedCerts;
         this.lifeCycle             = lifeCycle;
     }
 
