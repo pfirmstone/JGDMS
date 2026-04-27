@@ -144,6 +144,13 @@ public abstract class AbstractJiniService
     /** Ensures {@link #start()} is idempotent. */
     private boolean started = false;
 
+    /**
+     * The Subject under which this service was started, or {@code null} when
+     * no JAAS {@link LoginContext} was configured.  Set once during
+     * {@link #start()} and consulted during {@link #destroy()} for logout.
+     */
+    private volatile Subject loginSubject;
+
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
@@ -194,15 +201,16 @@ public abstract class AbstractJiniService
      * @throws Exception if export, JAAS login, or discovery setup fails
      */
     @Override
-    public synchronized void start() throws Exception {
+    public final synchronized void start() throws Exception {
         if (started) return;
         started = true;
 
         if (loginContext != null) {
             loginContext.login();
+            loginSubject = loginContext.getSubject();
             try {
                 Subject.doAsPrivileged(
-                        loginContext.getSubject(),
+                        loginSubject,
                         (PrivilegedExceptionAction<Void>) () -> {
                             doStart();
                             return null;
@@ -247,6 +255,7 @@ public abstract class AbstractJiniService
         logger.log(Level.INFO, "{0} started, serviceId={1}",
                 new Object[]{getClass().getSimpleName(), serviceId});
 
+        onStart(loginSubject);
         readyState.ready();
     }
 
@@ -276,6 +285,7 @@ public abstract class AbstractJiniService
                 logger.log(Level.WARNING,
                         "Trouble logging out of JAAS login session", e);
             }
+            loginSubject = null;
         }
         readyState.shutdown();
     }
@@ -283,6 +293,28 @@ public abstract class AbstractJiniService
     // -------------------------------------------------------------------------
     // Template methods for subclasses
     // -------------------------------------------------------------------------
+
+    /**
+     * Called during {@link #start()} after the service is exported, the smart
+     * proxy is built, and the {@link JoinManager} is running — but before the
+     * service is made visible to callers via {@link ReadyState#ready()}.
+     *
+     * <p>This hook is always called from within the correct security context:
+     * when a JAAS {@link LoginContext} is configured the call executes inside
+     * {@link Subject#doAsPrivileged}, so any threads created here (e.g. to
+     * back a service-specific executor) automatically inherit that Subject.
+     * When no login is configured {@code subject} is {@code null}.
+     *
+     * <p>The default implementation is a no-op.  Override this method if the
+     * concrete service needs to initialise Subject-aware infrastructure
+     * (thread pools, scheduled tasks, etc.) before accepting remote calls.
+     *
+     * @param subject the authenticated Subject, or {@code null} if no JAAS
+     *                login was performed
+     */
+    protected void onStart(Subject subject) {
+        // default no-op
+    }
 
     /**
      * Called immediately after this service is exported, before the smart
@@ -362,7 +394,7 @@ public abstract class AbstractJiniService
      * @return the server stub, or {@code null} if not yet started
      */
     @Override
-    public Object getProxy() {
+    public final Object getProxy() {
         return serverStub;
     }
 
@@ -399,7 +431,7 @@ public abstract class AbstractJiniService
      * @throws RemoteException if the service has not been started yet
      */
     @Override
-    public Object getServiceProxy() throws RemoteException {
+    public final Object getServiceProxy() throws RemoteException {
         readyState.check();
         return outerProxy;
     }
@@ -417,7 +449,7 @@ public abstract class AbstractJiniService
      *                     communication failure occurs
      */
     @Override
-    public Entry[] getServiceAttributes() throws IOException {
+    public final Entry[] getServiceAttributes() throws IOException {
         readyState.check();
         JoinManager jm = joiner;
         return jm != null ? jm.getAttributes() : lookupAttrs.clone();
@@ -434,7 +466,7 @@ public abstract class AbstractJiniService
      * @throws IOException if the service has not been started
      */
     @Override
-    public ServiceID serviceID() throws IOException {
+    public final ServiceID serviceID() throws IOException {
         readyState.check();
         return serviceId;
     }
@@ -454,7 +486,7 @@ public abstract class AbstractJiniService
      * @throws IOException if a communication failure occurs
      */
     @Override
-    public String getClassAnnotation() throws IOException {
+    public final String getClassAnnotation() throws IOException {
         if (codebaseAnnotation != null && !codebaseAnnotation.isEmpty()) {
             return codebaseAnnotation;
         }
@@ -468,19 +500,19 @@ public abstract class AbstractJiniService
 
     /** {@inheritDoc} */
     @Override
-    public String getCertFactoryType() throws IOException {
+    public final String getCertFactoryType() throws IOException {
         return certFactoryType;
     }
 
     /** {@inheritDoc} */
     @Override
-    public String getCertPathEncoding() throws IOException {
+    public final String getCertPathEncoding() throws IOException {
         return certPathEncoding;
     }
 
     /** {@inheritDoc} */
     @Override
-    public byte[] getEncodedCerts() throws IOException {
+    public final byte[] getEncodedCerts() throws IOException {
         return encodedCerts.clone();
     }
 }
