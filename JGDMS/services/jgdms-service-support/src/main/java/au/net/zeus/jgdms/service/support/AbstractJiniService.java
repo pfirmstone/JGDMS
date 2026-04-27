@@ -209,7 +209,8 @@ public abstract class AbstractJiniService
                         },
                         null);
             } catch (PrivilegedActionException e) {
-                throw e.getException();
+                Exception cause = e.getException();
+                throw (cause != null) ? cause : new RuntimeException(e.getCause());
             }
         } else {
             doStart();
@@ -263,7 +264,11 @@ public abstract class AbstractJiniService
             jm.terminate();
             joiner = null;
         }
-        exporter.unexport(true);
+        try {
+            exporter.unexport(true);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Problem unexporting service", e);
+        }
         if (loginContext != null) {
             try {
                 loginContext.logout();
