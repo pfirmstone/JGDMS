@@ -17,13 +17,13 @@
  */
 package au.net.zeus.jgdms.service.support;
 
-import au.net.zeus.jgdms.proxy.AbstractJiniServiceAdminProxy;
-import au.net.zeus.jgdms.proxy.JiniServiceServer;
+import au.net.zeus.jgdms.proxy.AdminProxy;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.InputStream;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -103,7 +103,9 @@ public abstract class AbstractJiniService
         implements ProxyAccessor,
                    Startable,
                    Administrable,
-                   JiniServiceServer,
+                   JoinAdmin,
+                   DestroyAdmin,
+                   Remote,
                    CodebaseAccessor,
                    ServiceProxyAccessor,
                    ServiceAttributesAccessor,
@@ -617,7 +619,7 @@ public abstract class AbstractJiniService
     // -------------------------------------------------------------------------
 
     /**
-     * Returns an {@link AbstractJiniServiceAdminProxy} for this service.
+     * Returns an {@link AdminProxy} for this service.
      *
      * <p>The admin proxy implements {@link JoinAdmin} (allowing clients to
      * modify the lookup-service groups, locators, and attributes the service
@@ -638,8 +640,9 @@ public abstract class AbstractJiniService
         readyState.check();
         Object stub = serverStub;
         Uuid uuid = serviceUuid;
-        if (stub instanceof JiniServiceServer && uuid != null) {
-            return AbstractJiniServiceAdminProxy.create((JiniServiceServer) stub, uuid);
+        if (stub instanceof Remote && stub instanceof JoinAdmin
+                && stub instanceof DestroyAdmin && uuid != null) {
+            return AdminProxy.create((Remote) stub, uuid);
         }
         return stub;
     }

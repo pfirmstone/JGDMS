@@ -23,6 +23,7 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
+import net.jini.admin.JoinAdmin;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.CodebaseAccessor;
@@ -34,6 +35,7 @@ import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import net.jini.security.proxytrust.ProxyTrustIterator;
+import org.apache.river.admin.DestroyAdmin;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
@@ -281,7 +283,8 @@ public abstract class AbstractSmartProxy
         checkInfrastructureInterface(server, ServiceProxyAccessor.class);
         checkInfrastructureInterface(server, ServiceAttributesAccessor.class);
         checkInfrastructureInterface(server, ServiceIDAccessor.class);
-        checkInfrastructureInterface(server, JiniServiceServer.class);
+        checkInfrastructureInterface(server, JoinAdmin.class);
+        checkInfrastructureInterface(server, DestroyAdmin.class);
         return server;
     }
 

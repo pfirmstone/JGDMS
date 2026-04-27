@@ -20,6 +20,7 @@ package au.net.zeus.jgdms.proxy;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.admin.JoinAdmin;
 import net.jini.core.constraint.MethodConstraints;
@@ -43,36 +44,36 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * <p>This proxy is returned by {@code AbstractJiniService.getAdmin()} and
  * implements both {@link JoinAdmin} (controlling which lookup services the
  * service registers with) and {@link DestroyAdmin} (shutting the service
- * down).  All methods delegate to the server stub, which is typed as
- * {@link JiniServiceServer}.
+ * down).  All methods delegate to the server stub, which must implement both
+ * {@link JoinAdmin} and {@link DestroyAdmin}.
  *
- * <p>The static {@link #create(JiniServiceServer, Uuid)} factory method
- * automatically returns a {@link ConstrainableAdminProxy} when the server
- * stub implements {@link RemoteMethodControl}, exactly mirroring the pattern
- * used by all other JGDMS service admin proxies.
+ * <p>The static {@link #create(Remote, Uuid)} factory method automatically
+ * returns a {@link ConstrainableAdminProxy} when the server stub implements
+ * {@link RemoteMethodControl}, exactly mirroring the pattern used by all
+ * other JGDMS service admin proxies.
  *
  * <h2>Serialisation safety</h2>
  * The class is annotated {@link AtomicSerial}.  The {@link GetArg}-based
- * constructor validates that {@code server} and {@code proxyID} are non-null
- * before any field is assigned, satisfying the {@code @AtomicSerial} contract.
+ * constructor validates that {@code server} implements {@link JoinAdmin} and
+ * {@link DestroyAdmin} and that {@code proxyID} is non-null before any field
+ * is assigned, satisfying the {@code @AtomicSerial} contract.
  *
  * @author Peter Firmstone
  * @author GitHub Copilot
  * @since 3.1.1
- * @see JiniServiceServer
  */
 @AtomicSerial
-public class AbstractJiniServiceAdminProxy
+public class AdminProxy
         implements JoinAdmin, DestroyAdmin, Serializable, ReferentUuid, ProxyAccessor {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * The server stub.
+     * The server stub. Must implement {@link JoinAdmin} and {@link DestroyAdmin}.
      *
      * @serial
      */
-    final JiniServiceServer server;
+    final Remote server;
 
     /**
      * The service UUID used for equality comparisons.
@@ -89,38 +90,52 @@ public class AbstractJiniServiceAdminProxy
      * Creates an admin proxy, returning a {@link ConstrainableAdminProxy}
      * when the server stub also implements {@link RemoteMethodControl}.
      *
-     * @param server  the server stub; must be non-null
+     * @param server  the server stub; must implement {@link JoinAdmin} and
+     *                {@link DestroyAdmin}, and must be non-null
      * @param proxyID the service UUID; must be non-null
      * @return a new admin proxy instance
+     * @throws IllegalArgumentException if {@code server} does not implement
+     *         {@link JoinAdmin} or {@link DestroyAdmin}
      */
-    public static AbstractJiniServiceAdminProxy create(JiniServiceServer server,
-                                                       Uuid proxyID) {
+    public static AdminProxy create(Remote server, Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
             return new ConstrainableAdminProxy(server, proxyID);
         }
-        return new AbstractJiniServiceAdminProxy(server, proxyID);
+        return new AdminProxy(server, proxyID);
     }
 
     // -------------------------------------------------------------------------
     // Constructors
     // -------------------------------------------------------------------------
 
-    AbstractJiniServiceAdminProxy(JiniServiceServer server, Uuid proxyID) {
+    AdminProxy(Remote server, Uuid proxyID) {
         if (server == null) throw new IllegalArgumentException("server cannot be null");
+        if (!(server instanceof JoinAdmin)) {
+            throw new IllegalArgumentException("server must implement JoinAdmin");
+        }
+        if (!(server instanceof DestroyAdmin)) {
+            throw new IllegalArgumentException("server must implement DestroyAdmin");
+        }
         if (proxyID == null) throw new IllegalArgumentException("proxyID cannot be null");
         this.server = server;
         this.proxyID = proxyID;
     }
 
     /** AtomicSerial deserialization constructor. */
-    AbstractJiniServiceAdminProxy(GetArg arg) throws IOException {
+    AdminProxy(GetArg arg) throws IOException {
         this(checkFields(arg), (Uuid) arg.get("proxyID", null));
     }
 
-    private static JiniServiceServer checkFields(GetArg arg) throws IOException {
-        JiniServiceServer server = (JiniServiceServer) arg.get("server", null);
+    private static Remote checkFields(GetArg arg) throws IOException {
+        Remote server = (Remote) arg.get("server", null);
         if (server == null) {
             throw new InvalidObjectException("server cannot be null");
+        }
+        if (!(server instanceof JoinAdmin)) {
+            throw new InvalidObjectException("server must implement JoinAdmin");
+        }
+        if (!(server instanceof DestroyAdmin)) {
+            throw new InvalidObjectException("server must implement DestroyAdmin");
         }
         if (arg.get("proxyID", null) == null) {
             throw new InvalidObjectException("proxyID cannot be null");
@@ -134,58 +149,58 @@ public class AbstractJiniServiceAdminProxy
 
     @Override
     public Entry[] getLookupAttributes() throws RemoteException {
-        return server.getLookupAttributes();
+        return ((JoinAdmin) server).getLookupAttributes();
     }
 
     @Override
     public void addLookupAttributes(Entry[] attrSets) throws RemoteException {
-        server.addLookupAttributes(attrSets);
+        ((JoinAdmin) server).addLookupAttributes(attrSets);
     }
 
     @Override
     public void modifyLookupAttributes(Entry[] attrSetTemplates, Entry[] attrSets)
             throws RemoteException {
-        server.modifyLookupAttributes(attrSetTemplates, attrSets);
+        ((JoinAdmin) server).modifyLookupAttributes(attrSetTemplates, attrSets);
     }
 
     @Override
     public String[] getLookupGroups() throws RemoteException {
-        return server.getLookupGroups();
+        return ((JoinAdmin) server).getLookupGroups();
     }
 
     @Override
     public void addLookupGroups(String[] groups) throws RemoteException {
-        server.addLookupGroups(groups);
+        ((JoinAdmin) server).addLookupGroups(groups);
     }
 
     @Override
     public void removeLookupGroups(String[] groups) throws RemoteException {
-        server.removeLookupGroups(groups);
+        ((JoinAdmin) server).removeLookupGroups(groups);
     }
 
     @Override
     public void setLookupGroups(String[] groups) throws RemoteException {
-        server.setLookupGroups(groups);
+        ((JoinAdmin) server).setLookupGroups(groups);
     }
 
     @Override
     public LookupLocator[] getLookupLocators() throws RemoteException {
-        return server.getLookupLocators();
+        return ((JoinAdmin) server).getLookupLocators();
     }
 
     @Override
     public void addLookupLocators(LookupLocator[] locators) throws RemoteException {
-        server.addLookupLocators(locators);
+        ((JoinAdmin) server).addLookupLocators(locators);
     }
 
     @Override
     public void removeLookupLocators(LookupLocator[] locators) throws RemoteException {
-        server.removeLookupLocators(locators);
+        ((JoinAdmin) server).removeLookupLocators(locators);
     }
 
     @Override
     public void setLookupLocators(LookupLocator[] locators) throws RemoteException {
-        server.setLookupLocators(locators);
+        ((JoinAdmin) server).setLookupLocators(locators);
     }
 
     // -------------------------------------------------------------------------
@@ -194,7 +209,7 @@ public class AbstractJiniServiceAdminProxy
 
     @Override
     public void destroy() throws RemoteException {
-        server.destroy();
+        ((DestroyAdmin) server).destroy();
     }
 
     // -------------------------------------------------------------------------
@@ -226,16 +241,16 @@ public class AbstractJiniServiceAdminProxy
     // -------------------------------------------------------------------------
 
     /**
-     * Constrainable variant of the admin proxy, returned when the server stub
-     * implements {@link RemoteMethodControl}.
+     * Constrainable variant of the admin proxy, returned by {@link #create}
+     * when the server stub implements {@link RemoteMethodControl}.
      */
     @AtomicSerial
-    static final class ConstrainableAdminProxy extends AbstractJiniServiceAdminProxy
+    static final class ConstrainableAdminProxy extends AdminProxy
             implements RemoteMethodControl {
 
         private static final long serialVersionUID = 1L;
 
-        ConstrainableAdminProxy(JiniServiceServer server, Uuid proxyID) {
+        ConstrainableAdminProxy(Remote server, Uuid proxyID) {
             super(server, proxyID);
             if (!(server instanceof RemoteMethodControl)) {
                 throw new IllegalArgumentException(
@@ -249,7 +264,7 @@ public class AbstractJiniServiceAdminProxy
         }
 
         private static GetArg checkConstrainable(GetArg arg) throws IOException {
-            JiniServiceServer server = (JiniServiceServer) arg.get("server", null);
+            Remote server = (Remote) arg.get("server", null);
             if (!(server instanceof RemoteMethodControl)) {
                 throw new InvalidObjectException(
                         "server must implement RemoteMethodControl");
@@ -259,7 +274,7 @@ public class AbstractJiniServiceAdminProxy
 
         @Override
         public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-            JiniServiceServer constrained = (JiniServiceServer)
+            Remote constrained = (Remote)
                     ((RemoteMethodControl) server).setConstraints(constraints);
             return new ConstrainableAdminProxy(constrained, proxyID);
         }
