@@ -17,6 +17,8 @@
  */
 package au.net.zeus.jgdms.service.support;
 
+import au.net.zeus.jgdms.proxy.AbstractJiniServiceAdminProxy;
+import au.net.zeus.jgdms.proxy.JiniServiceServer;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -31,8 +33,12 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import net.jini.admin.Administrable;
+import net.jini.admin.JoinAdmin;
+import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
+import net.jini.discovery.DiscoveryGroupManagement;
+import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.export.CodebaseAccessor;
 import net.jini.export.Exporter;
@@ -43,6 +49,7 @@ import net.jini.lookup.JoinManager;
 import net.jini.lookup.ServiceAttributesAccessor;
 import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
+import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.api.util.Startable;
 import org.apache.river.proxy.CodebaseProvider;
 import org.apache.river.reliableLog.LogHandler;
@@ -96,6 +103,7 @@ public abstract class AbstractJiniService
         implements ProxyAccessor,
                    Startable,
                    Administrable,
+                   JiniServiceServer,
                    CodebaseAccessor,
                    ServiceProxyAccessor,
                    ServiceAttributesAccessor,
@@ -144,8 +152,24 @@ public abstract class AbstractJiniService
     /** Stable service identity. Set once during {@link #start()}. */
     private volatile ServiceID serviceId;
 
+    /**
+     * The stable Uuid form of {@link #serviceId}, used by the admin proxy.
+     * Set once during {@link #start()}, together with {@code serviceId}.
+     */
+    private volatile Uuid serviceUuid;
+
     /** Manages discovery and lookup-service registration. Set during {@link #start()}. */
     private volatile JoinManager joiner;
+
+    /**
+     * The discovery manager used by the {@link JoinManager}.
+     * {@link LookupDiscoveryManager} implements both
+     * {@link DiscoveryGroupManagement} and {@link DiscoveryLocatorManagement},
+     * so the private helpers {@link #groupMgmt()} and {@link #locatorMgmt()}
+     * cast it without duplicating the cast at each call site.
+     * Set during {@link #start()}.
+     */
+    private volatile LookupDiscoveryManager ldm;
 
     /**
      * Write-ahead transaction log for persistent state.
@@ -299,10 +323,12 @@ public abstract class AbstractJiniService
 
         Object proxy = createProxy(stub, uuid);
         outerProxy = proxy;
+        serviceUuid = uuid;
 
-        LookupDiscoveryManager ldm = new LookupDiscoveryManager(
+        LookupDiscoveryManager discoveryMgr = new LookupDiscoveryManager(
                 initialLookupGroups, initialLookupLocators, null);
-        joiner = new JoinManager(proxy, lookupAttrs, serviceId, ldm, null);
+        ldm = discoveryMgr;
+        joiner = new JoinManager(proxy, lookupAttrs, serviceId, discoveryMgr, null);
         logger.log(Level.INFO, "{0} started, serviceId={1}",
                 new Object[]{getClass().getSimpleName(), serviceId});
 
@@ -318,22 +344,28 @@ public abstract class AbstractJiniService
      * but must call {@code super.destroy()} to ensure the login session is
      * correctly terminated.
      */
+    @Override
     public synchronized void destroy() {
         JoinManager jm = joiner;
         if (jm != null) {
             jm.terminate();
             joiner = null;
         }
+        LookupDiscoveryManager l = ldm;
+        if (l != null) {
+            l.terminate();
+            ldm = null;
+        }
         try {
             exporter.unexport(true);
         } catch (Exception e) {
             logger.log(Level.WARNING, "Problem unexporting service", e);
         }
-        ReliableLog l = log;
-        if (l != null) {
+        ReliableLog rl = log;
+        if (rl != null) {
             log = null;
             try {
-                l.close();
+                rl.close();
             } catch (IOException e) {
                 logger.log(Level.WARNING, "Problem closing reliable log", e);
             }
@@ -585,21 +617,162 @@ public abstract class AbstractJiniService
     // -------------------------------------------------------------------------
 
     /**
-     * Returns the administration object for this service.
+     * Returns an {@link AbstractJiniServiceAdminProxy} for this service.
      *
-     * <p>Returns the exported server stub, which implements
-     * {@link ServiceAttributesAccessor}, {@link ServiceIDAccessor},
-     * {@link ServiceProxyAccessor}, and {@link CodebaseAccessor} —
-     * all of the interfaces needed for remote administration.
-     * Subclasses may override this to return a richer admin proxy.
+     * <p>The admin proxy implements {@link JoinAdmin} (allowing clients to
+     * modify the lookup-service groups, locators, and attributes the service
+     * registers with) and {@link DestroyAdmin} (allowing clients to shut the
+     * service down).  If the server stub implements
+     * {@link net.jini.core.constraint.RemoteMethodControl} the returned proxy
+     * is automatically the constrainable variant.
      *
-     * @return the exported server stub as the administration object
+     * <p>Subclasses may override this method to return a richer admin object,
+     * but should ensure the returned object still implements at least
+     * {@link JoinAdmin} and {@link DestroyAdmin}.
+     *
+     * @return an admin proxy for this service
      * @throws RemoteException if the service has not been started
      */
     @Override
     public Object getAdmin() throws RemoteException {
         readyState.check();
-        return serverStub;
+        Object stub = serverStub;
+        Uuid uuid = serviceUuid;
+        if (stub instanceof JiniServiceServer && uuid != null) {
+            return AbstractJiniServiceAdminProxy.create((JiniServiceServer) stub, uuid);
+        }
+        return stub;
+    }
+
+    // -------------------------------------------------------------------------
+    // JoinAdmin — delegates to the JoinManager / LookupDiscoveryManager
+    // -------------------------------------------------------------------------
+
+    /** Returns {@link #ldm} cast to {@link DiscoveryGroupManagement}, or {@code null}. */
+    private DiscoveryGroupManagement groupMgmt() {
+        return ldm;  // LookupDiscoveryManager implements DiscoveryGroupManagement
+    }
+
+    /** Returns {@link #ldm} cast to {@link DiscoveryLocatorManagement}, or {@code null}. */
+    private DiscoveryLocatorManagement locatorMgmt() {
+        return ldm;  // LookupDiscoveryManager implements DiscoveryLocatorManagement
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Delegates to the {@link JoinManager} for attribute management.
+     */
+    @Override
+    public final Entry[] getLookupAttributes() throws RemoteException {
+        readyState.check();
+        JoinManager jm = joiner;
+        return jm != null ? jm.getAttributes() : lookupAttrs.clone();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void addLookupAttributes(Entry[] attrSets) throws RemoteException {
+        readyState.check();
+        JoinManager jm = joiner;
+        if (jm != null) {
+            jm.addAttributes(attrSets);
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void modifyLookupAttributes(Entry[] attrSetTemplates,
+                                             Entry[] attrSets) throws RemoteException {
+        readyState.check();
+        JoinManager jm = joiner;
+        if (jm != null) {
+            jm.modifyAttributes(attrSetTemplates, attrSets);
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final String[] getLookupGroups() throws RemoteException {
+        readyState.check();
+        DiscoveryGroupManagement gm = groupMgmt();
+        return gm != null ? gm.getGroups() : initialLookupGroups.clone();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void addLookupGroups(String[] groups) throws RemoteException {
+        readyState.check();
+        DiscoveryGroupManagement gm = groupMgmt();
+        if (gm != null) {
+            try {
+                gm.addGroups(groups);
+            } catch (IOException e) {
+                throw new RemoteException("addLookupGroups failed", e);
+            }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void removeLookupGroups(String[] groups) throws RemoteException {
+        readyState.check();
+        DiscoveryGroupManagement gm = groupMgmt();
+        if (gm != null) {
+            gm.removeGroups(groups);
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void setLookupGroups(String[] groups) throws RemoteException {
+        readyState.check();
+        DiscoveryGroupManagement gm = groupMgmt();
+        if (gm != null) {
+            try {
+                gm.setGroups(groups);
+            } catch (IOException e) {
+                throw new RemoteException("setLookupGroups failed", e);
+            }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final LookupLocator[] getLookupLocators() throws RemoteException {
+        readyState.check();
+        DiscoveryLocatorManagement lm = locatorMgmt();
+        return lm != null ? lm.getLocators() : initialLookupLocators.clone();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void addLookupLocators(LookupLocator[] locators) throws RemoteException {
+        readyState.check();
+        DiscoveryLocatorManagement lm = locatorMgmt();
+        if (lm != null) {
+            lm.addLocators(locators);
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void removeLookupLocators(LookupLocator[] locators) throws RemoteException {
+        readyState.check();
+        DiscoveryLocatorManagement lm = locatorMgmt();
+        if (lm != null) {
+            lm.removeLocators(locators);
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final void setLookupLocators(LookupLocator[] locators) throws RemoteException {
+        readyState.check();
+        DiscoveryLocatorManagement lm = locatorMgmt();
+        if (lm != null) {
+            lm.setLocators(locators);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -626,15 +799,15 @@ public abstract class AbstractJiniService
      * Returns the lookup attributes currently registered with Jini lookup
      * services.
      *
+     * <p>Delegates to {@link #getLookupAttributes()}.
+     *
      * @return the current attributes; never {@code null}
      * @throws IOException if the service has not been started or a
      *                     communication failure occurs
      */
     @Override
     public final Entry[] getServiceAttributes() throws IOException {
-        readyState.check();
-        JoinManager jm = joiner;
-        return jm != null ? jm.getAttributes() : lookupAttrs.clone();
+        return getLookupAttributes();
     }
 
     // -------------------------------------------------------------------------

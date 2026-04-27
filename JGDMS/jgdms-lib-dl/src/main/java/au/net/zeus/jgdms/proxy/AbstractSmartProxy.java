@@ -281,6 +281,7 @@ public abstract class AbstractSmartProxy
         checkInfrastructureInterface(server, ServiceProxyAccessor.class);
         checkInfrastructureInterface(server, ServiceAttributesAccessor.class);
         checkInfrastructureInterface(server, ServiceIDAccessor.class);
+        checkInfrastructureInterface(server, JiniServiceServer.class);
         return server;
     }
 
