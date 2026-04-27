@@ -33,6 +33,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>au.net.zeus.jgdms.vr</groupId>
             <artifactId>verdict-registry-dl</artifactId>
             <version>${project.version}</version>

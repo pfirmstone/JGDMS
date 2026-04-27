@@ -73,8 +73,11 @@ import org.apache.river.api.net.Uri;
  *   <li>{@code sun/misc/Unsafe} — direct memory access</li>
  *   <li>{@code jdk/internal/misc/Unsafe} — direct memory access (JDK 9+)</li>
  *   <li>{@code java/lang/ClassLoader} — arbitrary class-loading</li>
- *   <li>{@code loadLibrary} — native library loading</li>
  * </ul>
+ * <p>Note: native library loading ({@code loadLibrary}) is intentionally
+ * <em>not</em> treated as dangerous here; whether a service is allowed to
+ * load native code is governed by the Jini/Phoenix security policy rather
+ * than by bytecode analysis.
  * Additionally, if a JAR entry cannot be read (e.g. due to a network error),
  * the verdict is conservatively {@link VerdictType#DANGEROUS}.
  *
@@ -113,8 +116,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         "java/lang/ProcessImpl",
         "sun/misc/Unsafe",
         "jdk/internal/misc/Unsafe",
-        "java/lang/ClassLoader",
-        "loadLibrary"
+        "java/lang/ClassLoader"
     };
 
     // -------------------------------------------------------------------------
