@@ -65,6 +65,13 @@ import org.apache.river.config.Config;
  *       {@code "PkiPath"})</li>
  *   <li>{@code Codebase_Certs} ({@code byte[]}, default empty)
  *       — DER-encoded certificate path</li>
+ *   <li>{@code persistenceDirectory} ({@link String}, default {@code null})
+ *       — directory path for persistent state (ServiceID + service-specific
+ *       state via {@link AbstractJiniService#snapshot},
+ *       {@link AbstractJiniService#recover}, and
+ *       {@link AbstractJiniService#applyUpdate}); when {@code null} the
+ *       service is non-persistent and generates a new ServiceID on every
+ *       restart</li>
  * </ul>
  *
  * @author Peter Firmstone
@@ -103,6 +110,14 @@ public abstract class JiniServiceParameters {
 
     /** DER-encoded certificate path for {@link net.jini.export.CodebaseAccessor}. */
     final byte[] encodedCerts;
+
+    /**
+     * Directory for persistent state storage, or {@code null} for
+     * non-persistent operation.  When non-null,
+     * {@link AbstractJiniService} uses {@link org.apache.river.reliableLog.ReliableLog}
+     * to persist the ServiceID (and any subclass state) across restarts.
+     */
+    final String persistDir;
 
     /**
      * Reads all common Jini service configuration entries, throwing
@@ -177,6 +192,9 @@ public abstract class JiniServiceParameters {
         this.encodedCerts = Config.getNonNullEntry(
                 config, component, "Codebase_Certs",
                 byte[].class, new byte[0]).clone();
+
+        this.persistDir = (String) config.getEntry(
+                component, "persistenceDirectory", String.class, null);
     }
 
 }

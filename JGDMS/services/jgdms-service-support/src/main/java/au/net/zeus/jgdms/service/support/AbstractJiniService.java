@@ -18,6 +18,10 @@
 package au.net.zeus.jgdms.service.support;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -41,6 +45,8 @@ import net.jini.lookup.ServiceIDAccessor;
 import net.jini.lookup.ServiceProxyAccessor;
 import org.apache.river.api.util.Startable;
 import org.apache.river.proxy.CodebaseProvider;
+import org.apache.river.reliableLog.LogHandler;
+import org.apache.river.reliableLog.ReliableLog;
 import org.apache.river.start.lifecycle.LifeCycle;
 import org.apache.river.thread.ReadyState;
 
@@ -112,6 +118,13 @@ public abstract class AbstractJiniService
     private final byte[] encodedCerts;
     private final LifeCycle lifeCycle;
     /**
+     * Directory for persistent state, or {@code null} for non-persistent operation.
+     * When non-null, a {@link ReliableLog} is created in {@link #doStart()} and
+     * the ServiceID (plus any subclass state written by
+     * {@link #snapshot(ObjectOutputStream)}) is recovered across restarts.
+     */
+    private final String persistDir;
+    /**
      * JAAS login context, or {@code null} when no login is required.
      * When non-null, {@link #start()} performs {@link LoginContext#login()}
      * and runs the start body as the resulting Subject.
@@ -133,6 +146,13 @@ public abstract class AbstractJiniService
 
     /** Manages discovery and lookup-service registration. Set during {@link #start()}. */
     private volatile JoinManager joiner;
+
+    /**
+     * Write-ahead transaction log for persistent state.
+     * {@code null} when {@link #persistDir} is {@code null}.
+     * Created in {@link #doStart()}.
+     */
+    private volatile ReliableLog log;
 
     // -------------------------------------------------------------------------
     // Guards
@@ -179,6 +199,7 @@ public abstract class AbstractJiniService
         this.certFactoryType       = params.certFactoryType;
         this.certPathEncoding      = params.certPathEncoding;
         this.encodedCerts          = params.encodedCerts.clone();
+        this.persistDir            = params.persistDir;
         this.lifeCycle             = lifeCycle;
     }
 
@@ -231,6 +252,23 @@ public abstract class AbstractJiniService
      * {@link Subject#doAsPrivileged}).
      */
     private void doStart() throws Exception {
+        // If persistence is configured, create the log and recover state.
+        // Recovery populates serviceId (and any subclass state) if this
+        // is a restart rather than a fresh start.  Use the concrete class's
+        // ClassLoader so that subclass-specific objects deserialize correctly.
+        if (persistDir != null) {
+            ReliableLog l = new ReliableLog(persistDir, new ServiceLogHandler());
+            log = l;
+            try {
+                l.recover(getClass().getClassLoader()); // no-op on first start; populates serviceId on restart
+            } catch (Exception e) {
+                // Recovery failed — close the log and propagate so start() fails cleanly
+                log = null;
+                try { l.close(); } catch (IOException ignore) { /* best-effort */ }
+                throw e;
+            }
+        }
+
         Object stub = exporter.export(this);
         serverStub = stub;
         logger.log(Level.CONFIG, "{0} exported: {1}",
@@ -238,16 +276,29 @@ public abstract class AbstractJiniService
 
         onExported(stub);
 
-        Uuid uuid = UuidFactory.generate();
-        Object proxy = createProxy(stub, uuid);
-        outerProxy = proxy;
-
-        if (serviceId == null) {
+        // Use the recovered UUID (from serviceId) on a restart; generate a
+        // fresh one on a first start.
+        final Uuid uuid;
+        if (serviceId != null) {
+            uuid = UuidFactory.create(serviceId.getMostSignificantBits(),
+                                      serviceId.getLeastSignificantBits());
+            logger.log(Level.CONFIG, "Recovered ServiceID: {0}", serviceId);
+        } else {
+            uuid = UuidFactory.generate();
             serviceId = new ServiceID(
                     uuid.getMostSignificantBits(),
                     uuid.getLeastSignificantBits());
             logger.log(Level.CONFIG, "Generated ServiceID: {0}", serviceId);
+            // Write the initial baseline snapshot so future restarts can
+            // recover this ServiceID.
+            ReliableLog l = log;
+            if (l != null) {
+                l.snapshot();
+            }
         }
+
+        Object proxy = createProxy(stub, uuid);
+        outerProxy = proxy;
 
         LookupDiscoveryManager ldm = new LookupDiscoveryManager(
                 initialLookupGroups, initialLookupLocators, null);
@@ -277,6 +328,15 @@ public abstract class AbstractJiniService
             exporter.unexport(true);
         } catch (Exception e) {
             logger.log(Level.WARNING, "Problem unexporting service", e);
+        }
+        ReliableLog l = log;
+        if (l != null) {
+            log = null;
+            try {
+                l.close();
+            } catch (IOException e) {
+                logger.log(Level.WARNING, "Problem closing reliable log", e);
+            }
         }
         if (loginContext != null) {
             try {
@@ -378,6 +438,128 @@ public abstract class AbstractJiniService
      */
     protected final ReadyState getReadyState() {
         return readyState;
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistence template methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Writes service-specific state to the persistent snapshot.
+     *
+     * <p>This method is called by the infrastructure's {@link LogHandler}
+     * whenever a snapshot is taken (once on first start to establish a
+     * baseline, and subsequently whenever the log grows large enough to
+     * warrant compaction).  The base implementation writes the
+     * {@link ServiceID}; subclasses should call {@code super.snapshot(out)}
+     * first and then write their own fields.
+     *
+     * <p>The default override is a no-op (the ServiceID is written by the
+     * infrastructure regardless).
+     *
+     * @param out the object output stream for the snapshot; never {@code null}
+     * @throws Exception if serialisation fails
+     */
+    protected void snapshot(ObjectOutputStream out) throws Exception {
+        // default no-op — ServiceID is handled by ServiceLogHandler
+    }
+
+    /**
+     * Reads service-specific state back from a persistent snapshot.
+     *
+     * <p>This method is called during {@link #start()} recovery, after the
+     * infrastructure has read the {@link ServiceID}.  The stream position is
+     * exactly where {@link #snapshot(ObjectOutputStream)} left off.
+     *
+     * <p>The default implementation is a no-op.
+     *
+     * @param in the object input stream for the snapshot; never {@code null}
+     * @throws Exception if deserialisation fails
+     */
+    protected void recover(ObjectInputStream in) throws Exception {
+        // default no-op
+    }
+
+    /**
+     * Applies an incremental state-change record that was previously written
+     * via {@link #logUpdate(Object)}.
+     *
+     * <p>Called during recovery for each log record written after the last
+     * snapshot.  The default implementation is a no-op.
+     *
+     * @param update the update object previously passed to
+     *               {@link #logUpdate(Object)}; may be {@code null}
+     * @throws Exception if applying the update fails
+     */
+    protected void applyUpdate(Object update) throws Exception {
+        // default no-op
+    }
+
+    /**
+     * Records an incremental state-change to the persistent transaction log.
+     *
+     * <p>Subclasses call this method whenever service state changes that must
+     * survive a restart.  If the service is non-persistent (no
+     * {@code persistenceDirectory} config entry) this is a no-op.  The
+     * {@code update} object must be serializable.
+     *
+     * <p>After enough log records accumulate the infrastructure may
+     * automatically compact the log by taking a new snapshot.
+     *
+     * @param update the state-change record; must be serializable
+     * @throws IOException if writing to the log fails
+     */
+    protected final void logUpdate(Object update) throws IOException {
+        ReliableLog l = log;
+        if (l != null) {
+            l.update(update);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Inner class: LogHandler implementation
+    // -------------------------------------------------------------------------
+
+    /**
+     * Handles snapshot and recovery for the persistent {@link ReliableLog}.
+     *
+     * <p>The base snapshot format is:
+     * <ol>
+     *   <li>{@code long} — ServiceID most-significant bits</li>
+     *   <li>{@code long} — ServiceID least-significant bits</li>
+     *   <li>service-specific data written by
+     *       {@link AbstractJiniService#snapshot(ObjectOutputStream)}</li>
+     * </ol>
+     */
+    private final class ServiceLogHandler extends LogHandler {
+
+        @Override
+        public void snapshot(OutputStream out) throws Exception {
+            ObjectOutputStream oos = new ObjectOutputStream(out);
+            ServiceID sid = serviceId;
+            if (sid == null) {
+                throw new IllegalStateException(
+                        "snapshot() called before serviceId is set");
+            }
+            oos.writeLong(sid.getMostSignificantBits());
+            oos.writeLong(sid.getLeastSignificantBits());
+            AbstractJiniService.this.snapshot(oos);
+            oos.flush();
+        }
+
+        @Override
+        public void recover(InputStream in) throws Exception {
+            ObjectInputStream ois = new ObjectInputStream(in);
+            long msb = ois.readLong();
+            long lsb = ois.readLong();
+            serviceId = new ServiceID(msb, lsb);
+            AbstractJiniService.this.recover(ois);
+        }
+
+        @Override
+        public void applyUpdate(Object update) throws Exception {
+            AbstractJiniService.this.applyUpdate(update);
+        }
     }
 
     // -------------------------------------------------------------------------
