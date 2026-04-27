@@ -29,7 +29,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
-import java.util.jar.Pack200;
+import net.pack200.Pack200;
 
 /**
  * An HTTP URL connection for HTTPMD URLs.
