@@ -20,6 +20,7 @@ package au.net.zeus.jgdms.proxy;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.admin.JoinAdmin;
@@ -36,6 +37,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 import org.apache.river.admin.DestroyAdmin;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
+import org.apache.river.proxy.ConstrainableProxyUtil;
 
 /**
  * Client-side administration proxy for JGDMS services built on
@@ -51,6 +53,11 @@ import org.apache.river.api.io.AtomicSerial.GetArg;
  * returns a {@link ConstrainableAdminProxy} when the server stub implements
  * {@link RemoteMethodControl}, exactly mirroring the pattern used by all
  * other JGDMS service admin proxies.
+ *
+ * <h2>Typed transient fields</h2>
+ * After validation, the {@code server} reference is also stored in two
+ * transient, typed fields — {@code joinAdmin} and {@code destroyAdmin} — so
+ * that every delegation call can be made without an explicit cast.
  *
  * <h2>Serialisation safety</h2>
  * The class is annotated {@link AtomicSerial}.  The {@link GetArg}-based
@@ -82,6 +89,30 @@ public class AdminProxy
      */
     final Uuid proxyID;
 
+    /**
+     * Typed view of {@link #server} as {@link JoinAdmin}.
+     * Transient — re-initialised in every constructor path.
+     */
+    transient final JoinAdmin joinAdmin;
+
+    /**
+     * Typed view of {@link #server} as {@link DestroyAdmin}.
+     * Transient — re-initialised in every constructor path.
+     */
+    transient final DestroyAdmin destroyAdmin;
+
+    // -------------------------------------------------------------------------
+    // Package-private helper: reflectively obtain a Method, throwing Error if absent
+    // -------------------------------------------------------------------------
+
+    static Method getMethod(Class<?> iface, String name, Class<?>... params) {
+        try {
+            return iface.getMethod(name, params);
+        } catch (NoSuchMethodException e) {
+            throw (NoSuchMethodError) new NoSuchMethodError(e.getMessage()).initCause(e);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Factory
     // -------------------------------------------------------------------------
@@ -99,7 +130,7 @@ public class AdminProxy
      */
     public static AdminProxy create(Remote server, Uuid proxyID) {
         if (server instanceof RemoteMethodControl) {
-            return new ConstrainableAdminProxy(server, proxyID);
+            return new ConstrainableAdminProxy(server, proxyID, null);
         }
         return new AdminProxy(server, proxyID);
     }
@@ -121,6 +152,8 @@ public class AdminProxy
     private AdminProxy(Remote server, Uuid proxyID, boolean disambiguator) {
         this.server = server;
         this.proxyID = proxyID;
+        this.joinAdmin = (JoinAdmin) server;
+        this.destroyAdmin = (DestroyAdmin) server;
     }
 
     /** AtomicSerial deserialization constructor. */
@@ -158,72 +191,72 @@ public class AdminProxy
     }
 
     // -------------------------------------------------------------------------
-    // JoinAdmin
+    // JoinAdmin — delegates to transient joinAdmin (no cast needed)
     // -------------------------------------------------------------------------
 
     @Override
     public Entry[] getLookupAttributes() throws RemoteException {
-        return ((JoinAdmin) server).getLookupAttributes();
+        return joinAdmin.getLookupAttributes();
     }
 
     @Override
     public void addLookupAttributes(Entry[] attrSets) throws RemoteException {
-        ((JoinAdmin) server).addLookupAttributes(attrSets);
+        joinAdmin.addLookupAttributes(attrSets);
     }
 
     @Override
     public void modifyLookupAttributes(Entry[] attrSetTemplates, Entry[] attrSets)
             throws RemoteException {
-        ((JoinAdmin) server).modifyLookupAttributes(attrSetTemplates, attrSets);
+        joinAdmin.modifyLookupAttributes(attrSetTemplates, attrSets);
     }
 
     @Override
     public String[] getLookupGroups() throws RemoteException {
-        return ((JoinAdmin) server).getLookupGroups();
+        return joinAdmin.getLookupGroups();
     }
 
     @Override
     public void addLookupGroups(String[] groups) throws RemoteException {
-        ((JoinAdmin) server).addLookupGroups(groups);
+        joinAdmin.addLookupGroups(groups);
     }
 
     @Override
     public void removeLookupGroups(String[] groups) throws RemoteException {
-        ((JoinAdmin) server).removeLookupGroups(groups);
+        joinAdmin.removeLookupGroups(groups);
     }
 
     @Override
     public void setLookupGroups(String[] groups) throws RemoteException {
-        ((JoinAdmin) server).setLookupGroups(groups);
+        joinAdmin.setLookupGroups(groups);
     }
 
     @Override
     public LookupLocator[] getLookupLocators() throws RemoteException {
-        return ((JoinAdmin) server).getLookupLocators();
+        return joinAdmin.getLookupLocators();
     }
 
     @Override
     public void addLookupLocators(LookupLocator[] locators) throws RemoteException {
-        ((JoinAdmin) server).addLookupLocators(locators);
+        joinAdmin.addLookupLocators(locators);
     }
 
     @Override
     public void removeLookupLocators(LookupLocator[] locators) throws RemoteException {
-        ((JoinAdmin) server).removeLookupLocators(locators);
+        joinAdmin.removeLookupLocators(locators);
     }
 
     @Override
     public void setLookupLocators(LookupLocator[] locators) throws RemoteException {
-        ((JoinAdmin) server).setLookupLocators(locators);
+        joinAdmin.setLookupLocators(locators);
     }
 
     // -------------------------------------------------------------------------
-    // DestroyAdmin
+    // DestroyAdmin — delegates to transient destroyAdmin (no cast needed)
     // -------------------------------------------------------------------------
 
     @Override
     public void destroy() throws RemoteException {
-        ((DestroyAdmin) server).destroy();
+        destroyAdmin.destroy();
     }
 
     // -------------------------------------------------------------------------
@@ -255,8 +288,22 @@ public class AdminProxy
     // -------------------------------------------------------------------------
 
     /**
-     * Constrainable variant of the admin proxy, returned by {@link #create}
-     * when the server stub implements {@link RemoteMethodControl}.
+     * Constrainable variant of the admin proxy, returned by
+     * {@link AdminProxy#create} when the server stub implements
+     * {@link RemoteMethodControl}.
+     *
+     * <p>Implements the full JERI constraint-translation pattern:
+     * <ul>
+     *   <li>{@link #setConstraints} translates caller-visible constraints to
+     *       server-side method names via {@link #methodMapArray} and applies
+     *       them to the underlying server stub.</li>
+     *   <li>{@link #getConstraints} returns the caller-visible constraints
+     *       (the logical view, not the translated view).</li>
+     *   <li>The {@link GetArg}-based deserialization constructor calls
+     *       {@link ConstrainableProxyUtil#verifyConsistentConstraints} to
+     *       confirm that the constraints on the deserialized server stub are
+     *       consistent with the stored {@code methodConstraints}.</li>
+     * </ul>
      */
     @AtomicSerial
     static final class ConstrainableAdminProxy extends AdminProxy
@@ -264,11 +311,126 @@ public class AdminProxy
 
         private static final long serialVersionUID = 1L;
 
-        ConstrainableAdminProxy(Remote server, Uuid proxyID) {
-            super(checkConstrainableArgs(server), proxyID);
+        /**
+         * Array of (proxy-method, server-method) pairs used by
+         * {@link ConstrainableProxyUtil} to translate client-visible
+         * constraints into the constraints that should be set on the server
+         * stub.
+         *
+         * <p>Each pair of elements maps:
+         * <ul>
+         *   <li>element 2k   — the public, remote method invocable through
+         *       this proxy</li>
+         *   <li>element 2k+1 — the method ultimately executed on the
+         *       server backend</li>
+         * </ul>
+         * Because the proxy and server interfaces are the same here (the
+         * service directly implements {@link JoinAdmin} and
+         * {@link DestroyAdmin}), every proxy method maps to itself.
+         */
+        private static final Method[] methodMapArray = {
+            getMethod(JoinAdmin.class, "getLookupAttributes"),
+            getMethod(JoinAdmin.class, "getLookupAttributes"),
+
+            getMethod(JoinAdmin.class, "addLookupAttributes", Entry[].class),
+            getMethod(JoinAdmin.class, "addLookupAttributes", Entry[].class),
+
+            getMethod(JoinAdmin.class, "modifyLookupAttributes",
+                      Entry[].class, Entry[].class),
+            getMethod(JoinAdmin.class, "modifyLookupAttributes",
+                      Entry[].class, Entry[].class),
+
+            getMethod(JoinAdmin.class, "getLookupGroups"),
+            getMethod(JoinAdmin.class, "getLookupGroups"),
+
+            getMethod(JoinAdmin.class, "addLookupGroups", String[].class),
+            getMethod(JoinAdmin.class, "addLookupGroups", String[].class),
+
+            getMethod(JoinAdmin.class, "removeLookupGroups", String[].class),
+            getMethod(JoinAdmin.class, "removeLookupGroups", String[].class),
+
+            getMethod(JoinAdmin.class, "setLookupGroups", String[].class),
+            getMethod(JoinAdmin.class, "setLookupGroups", String[].class),
+
+            getMethod(JoinAdmin.class, "getLookupLocators"),
+            getMethod(JoinAdmin.class, "getLookupLocators"),
+
+            getMethod(JoinAdmin.class, "addLookupLocators", LookupLocator[].class),
+            getMethod(JoinAdmin.class, "addLookupLocators", LookupLocator[].class),
+
+            getMethod(JoinAdmin.class, "removeLookupLocators", LookupLocator[].class),
+            getMethod(JoinAdmin.class, "removeLookupLocators", LookupLocator[].class),
+
+            getMethod(JoinAdmin.class, "setLookupLocators", LookupLocator[].class),
+            getMethod(JoinAdmin.class, "setLookupLocators", LookupLocator[].class),
+
+            getMethod(DestroyAdmin.class, "destroy"),
+            getMethod(DestroyAdmin.class, "destroy"),
+        };
+
+        /**
+         * The client-visible method constraints placed on this proxy.
+         * May be {@code null}, meaning all methods have empty constraints.
+         *
+         * @serial
+         */
+        private final MethodConstraints methodConstraints;
+
+        /**
+         * Constructs a new {@code ConstrainableAdminProxy}.
+         *
+         * @param server            the server stub; must implement
+         *                          {@link RemoteMethodControl}, {@link JoinAdmin},
+         *                          and {@link DestroyAdmin}
+         * @param proxyID           the service UUID
+         * @param methodConstraints the client-visible constraints (may be {@code null})
+         */
+        ConstrainableAdminProxy(Remote server, Uuid proxyID,
+                                MethodConstraints methodConstraints) {
+            super(constrainServer(checkConstrainable(server), methodConstraints), proxyID);
+            this.methodConstraints = methodConstraints;
         }
 
-        private static Remote checkConstrainableArgs(Remote server) {
+        /** AtomicSerial deserialization constructor. */
+        ConstrainableAdminProxy(GetArg arg) throws IOException {
+            this(arg, checkConstrainable(arg));
+        }
+
+        private ConstrainableAdminProxy(GetArg arg, MethodConstraints mc)
+                throws IOException {
+            super(arg);
+            this.methodConstraints = mc;
+        }
+
+        /**
+         * Validates the deserialized server stub and extracts/verifies the
+         * method constraints.  Called before any field assignment.
+         */
+        private static MethodConstraints checkConstrainable(GetArg arg)
+                throws IOException {
+            Remote server = (Remote) arg.get("server", null);
+            if (!(server instanceof RemoteMethodControl)) {
+                throw new InvalidObjectException(
+                        "server must implement RemoteMethodControl");
+            }
+            MethodConstraints methodConstraints =
+                    (MethodConstraints) arg.get("methodConstraints", null);
+            MethodConstraints proxyCon =
+                    ((RemoteMethodControl) server).getConstraints();
+            if (proxyCon != null) {
+                // Server constraints were baked in during serialization;
+                // reverse-translate them to recover the logical constraints.
+                return ConstrainableProxyUtil.reverseTranslateConstraints(
+                        proxyCon, methodMapArray);
+            }
+            // Verify that the stored logical constraints match the server stub.
+            ConstrainableProxyUtil.verifyConsistentConstraints(
+                    methodConstraints, server, methodMapArray);
+            return methodConstraints;
+        }
+
+        /** Pre-construction validation for direct (non-deserialization) path. */
+        private static Remote checkConstrainable(Remote server) {
             if (!(server instanceof RemoteMethodControl)) {
                 throw new IllegalArgumentException(
                         "server must implement RemoteMethodControl");
@@ -276,30 +438,35 @@ public class AdminProxy
             return server;
         }
 
-        /** AtomicSerial deserialization constructor. */
-        ConstrainableAdminProxy(GetArg arg) throws IOException {
-            super(checkConstrainable(arg));
+        /**
+         * Returns a copy of {@code server} with translated method constraints
+         * applied.  Translating {@code null} constraints clears them.
+         */
+        private static Remote constrainServer(Remote server,
+                                              MethodConstraints constraints) {
+            MethodConstraints translated =
+                    ConstrainableProxyUtil.translateConstraints(constraints,
+                                                                methodMapArray);
+            return (Remote) ((RemoteMethodControl) server).setConstraints(translated);
         }
 
-        private static GetArg checkConstrainable(GetArg arg) throws IOException {
-            Remote server = (Remote) arg.get("server", null);
-            if (!(server instanceof RemoteMethodControl)) {
-                throw new InvalidObjectException(
-                        "server must implement RemoteMethodControl");
-            }
-            return arg;
-        }
-
+        /**
+         * Returns a new proxy with the specified client constraints.
+         * The constraints are translated to server-method form via
+         * {@link #methodMapArray} before being applied to the server stub.
+         */
         @Override
         public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-            Remote constrained = (Remote)
-                    ((RemoteMethodControl) server).setConstraints(constraints);
-            return new ConstrainableAdminProxy(constrained, proxyID);
+            return new ConstrainableAdminProxy(server, proxyID, constraints);
         }
 
+        /**
+         * Returns the client-visible constraints on this proxy, or
+         * {@code null} if none have been set.
+         */
         @Override
         public MethodConstraints getConstraints() {
-            return ((RemoteMethodControl) server).getConstraints();
+            return methodConstraints;
         }
 
         /**
