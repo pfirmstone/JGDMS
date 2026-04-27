@@ -152,6 +152,9 @@ public class AdminProxy
     private AdminProxy(Remote server, Uuid proxyID, boolean disambiguator) {
         this.server = server;
         this.proxyID = proxyID;
+        // These casts are always safe: every constructor path flows through
+        // checkArgs() or checkFields() which verify that server implements both
+        // JoinAdmin and DestroyAdmin before reaching this point.
         this.joinAdmin = (JoinAdmin) server;
         this.destroyAdmin = (DestroyAdmin) server;
     }
@@ -326,7 +329,11 @@ public class AdminProxy
          * </ul>
          * Because the proxy and server interfaces are the same here (the
          * service directly implements {@link JoinAdmin} and
-         * {@link DestroyAdmin}), every proxy method maps to itself.
+         * {@link DestroyAdmin}), every proxy method maps to itself (the first
+         * and second element of each pair are identical).  This is the
+         * standard pattern used by services where the proxy's remote interface
+         * is the same as the server's remote interface — see
+         * {@code ConstrainableFiddlerAdminProxy} for a prior art example.
          */
         private static final Method[] methodMapArray = {
             getMethod(JoinAdmin.class, "getLookupAttributes"),
