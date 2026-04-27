@@ -109,6 +109,26 @@ public class AdminProxy
     // -------------------------------------------------------------------------
 
     AdminProxy(Remote server, Uuid proxyID) {
+        this(checkArgs(server, proxyID), proxyID, false);
+    }
+
+    /**
+     * Private raw constructor — fields are assigned without further
+     * validation.  The {@code disambiguator} parameter exists solely to give
+     * this constructor a distinct signature; its value is intentionally
+     * ignored.
+     */
+    private AdminProxy(Remote server, Uuid proxyID, boolean disambiguator) {
+        this.server = server;
+        this.proxyID = proxyID;
+    }
+
+    /** AtomicSerial deserialization constructor. */
+    AdminProxy(GetArg arg) throws IOException {
+        this(checkFields(arg), (Uuid) arg.get("proxyID", null), false);
+    }
+
+    private static Remote checkArgs(Remote server, Uuid proxyID) {
         if (server == null) throw new IllegalArgumentException("server cannot be null");
         if (!(server instanceof JoinAdmin)) {
             throw new IllegalArgumentException("server must implement JoinAdmin");
@@ -117,13 +137,7 @@ public class AdminProxy
             throw new IllegalArgumentException("server must implement DestroyAdmin");
         }
         if (proxyID == null) throw new IllegalArgumentException("proxyID cannot be null");
-        this.server = server;
-        this.proxyID = proxyID;
-    }
-
-    /** AtomicSerial deserialization constructor. */
-    AdminProxy(GetArg arg) throws IOException {
-        this(checkFields(arg), (Uuid) arg.get("proxyID", null));
+        return server;
     }
 
     private static Remote checkFields(GetArg arg) throws IOException {
@@ -251,11 +265,15 @@ public class AdminProxy
         private static final long serialVersionUID = 1L;
 
         ConstrainableAdminProxy(Remote server, Uuid proxyID) {
-            super(server, proxyID);
+            super(checkConstrainableArgs(server), proxyID);
+        }
+
+        private static Remote checkConstrainableArgs(Remote server) {
             if (!(server instanceof RemoteMethodControl)) {
                 throw new IllegalArgumentException(
                         "server must implement RemoteMethodControl");
             }
+            return server;
         }
 
         /** AtomicSerial deserialization constructor. */
