@@ -17,6 +17,7 @@
  */
 package au.net.zeus.jgdms.service.support;
 
+import javax.security.auth.login.LoginContext;
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.arg.ActivationID;
 import net.jini.config.Configuration;
@@ -46,6 +47,10 @@ import org.apache.river.config.Config;
  *       service; defaults to a {@link BasicJeriExporter} over TCP (or an
  *       {@link ActivationExporter} wrapping one when {@code activationID}
  *       is non-null)</li>
+ *   <li>{@code loginContext} ({@link LoginContext}, default {@code null})
+ *       — when present, {@link AbstractJiniService#start()} performs a JAAS
+ *       login and runs as the resulting {@link javax.security.auth.Subject};
+ *       the service logs out when destroyed</li>
  *   <li>{@code initialLookupGroups} ({@code String[]}, default {@code {""}})
  *       — lookup groups to join</li>
  *   <li>{@code initialLookupLocators} ({@link LookupLocator}[], default
@@ -70,6 +75,13 @@ public abstract class JiniServiceParameters {
 
     /** Exporter used to export the service over the wire. */
     final Exporter exporter;
+
+    /**
+     * JAAS login context; {@code null} when no login is required.
+     * When non-null, {@link AbstractJiniService#start()} calls
+     * {@link LoginContext#login()} and runs as the resulting Subject.
+     */
+    final LoginContext loginContext;
 
     /** Lookup groups that the service will join. */
     final String[] lookupGroups;
@@ -137,6 +149,9 @@ public abstract class JiniServiceParameters {
                         Exporter.class, defaultExporter, activationID)
                 : Config.getNonNullEntry(config, component, "serverExporter",
                         Exporter.class, defaultExporter);
+
+        this.loginContext = (LoginContext) config.getEntry(
+                component, "loginContext", LoginContext.class, null);
 
         this.lookupGroups = Config.getNonNullEntry(
                 config, component, "initialLookupGroups",

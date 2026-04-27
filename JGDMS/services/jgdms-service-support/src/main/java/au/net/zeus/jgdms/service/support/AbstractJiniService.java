@@ -19,8 +19,13 @@ package au.net.zeus.jgdms.service.support;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
 import net.jini.admin.Administrable;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
@@ -106,6 +111,12 @@ public abstract class AbstractJiniService
     private final String certPathEncoding;
     private final byte[] encodedCerts;
     private final LifeCycle lifeCycle;
+    /**
+     * JAAS login context, or {@code null} when no login is required.
+     * When non-null, {@link #start()} performs {@link LoginContext#login()}
+     * and runs the start body as the resulting Subject.
+     */
+    private final LoginContext loginContext;
 
     // -------------------------------------------------------------------------
     // Volatile post-start fields
@@ -153,6 +164,7 @@ public abstract class AbstractJiniService
                                   LifeCycle lifeCycle) {
         if (params == null) throw new NullPointerException("params");
         this.exporter              = params.exporter;
+        this.loginContext          = params.loginContext;
         this.lookupAttrs           = params.lookupAttributes.clone();
         this.initialLookupGroups   = params.lookupGroups.clone();
         this.initialLookupLocators = params.lookupLocators.clone();
@@ -173,13 +185,43 @@ public abstract class AbstractJiniService
      *
      * <p>This method is idempotent: subsequent invocations return immediately.
      *
-     * @throws Exception if export or discovery setup fails
+     * <p>When a {@code loginContext} is present in the service configuration,
+     * this method performs a JAAS {@link LoginContext#login()} and runs the
+     * entire start sequence as the resulting
+     * {@link javax.security.auth.Subject}.  The Subject is logged out when
+     * the service is {@link #destroy destroyed}.
+     *
+     * @throws Exception if export, JAAS login, or discovery setup fails
      */
     @Override
     public synchronized void start() throws Exception {
         if (started) return;
         started = true;
 
+        if (loginContext != null) {
+            loginContext.login();
+            try {
+                Subject.doAsPrivileged(
+                        loginContext.getSubject(),
+                        (PrivilegedExceptionAction<Void>) () -> {
+                            doStart();
+                            return null;
+                        },
+                        null);
+            } catch (PrivilegedActionException e) {
+                throw e.getException();
+            }
+        } else {
+            doStart();
+        }
+    }
+
+    /**
+     * Internal implementation of the start sequence.  Always called from
+     * within the correct security context (either directly or via
+     * {@link Subject#doAsPrivileged}).
+     */
+    private void doStart() throws Exception {
         Object stub = exporter.export(this);
         serverStub = stub;
         logger.log(Level.CONFIG, "{0} exported: {1}",
@@ -205,6 +247,32 @@ public abstract class AbstractJiniService
                 new Object[]{getClass().getSimpleName(), serviceId});
 
         readyState.ready();
+    }
+
+    /**
+     * Destroys this service: terminates discovery, unexports, and — if a
+     * JAAS login was performed — logs out.
+     *
+     * <p>Subclasses may override this method to perform additional cleanup,
+     * but must call {@code super.destroy()} to ensure the login session is
+     * correctly terminated.
+     */
+    public synchronized void destroy() {
+        JoinManager jm = joiner;
+        if (jm != null) {
+            jm.terminate();
+            joiner = null;
+        }
+        exporter.unexport(true);
+        if (loginContext != null) {
+            try {
+                loginContext.logout();
+            } catch (LoginException e) {
+                logger.log(Level.WARNING,
+                        "Trouble logging out of JAAS login session", e);
+            }
+        }
+        readyState.shutdown();
     }
 
     // -------------------------------------------------------------------------
