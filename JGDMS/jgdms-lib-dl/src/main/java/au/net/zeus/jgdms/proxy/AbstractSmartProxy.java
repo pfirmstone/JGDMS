@@ -19,6 +19,7 @@ package au.net.zeus.jgdms.proxy;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.RemoteException;
@@ -298,9 +299,12 @@ public abstract class AbstractSmartProxy
         }
     }
 
+    private void readObject(ObjectInputStream in) throws InvalidObjectException {
+        throw new InvalidObjectException("Java Serialization is not supported");
+    }
+
     private void readObjectNoData() throws ObjectStreamException {
-        throw new InvalidObjectException(
-                "no data found when deserializing " + getClass().getName());
+        throw new InvalidObjectException("Java Serialization is not supported");
     }
 
     // -------------------------------------------------------------------------
