@@ -30,16 +30,22 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.logging.Level;
@@ -88,11 +94,41 @@ import org.apache.river.api.net.Uri;
  * {@link #requestAnalysis} is safe for concurrent use.  Each analysis request
  * is executed asynchronously on a shared daemon thread pool.
  *
+ * <h2>Graceful Shutdown</h2>
+ * Call {@link #shutdown(long)} to initiate graceful shutdown. This method:
+ * <ol>
+ *   <li>Stops accepting new analysis requests</li>
+ *   <li>Waits for all in-flight tasks to complete (with timeout)</li>
+ *   <li>Terminates the thread pool</li>
+ * </ol>
+ *
+ * <p>For forced termination, use {@link #shutdownNow()}, but note that this may
+ * leave verdicts unpublished and pending tasks cancelled.
+ *
+ * <p>The shutdown state can be queried via {@link #isShutdown()} and
+ * {@link #isTerminated()}.
+ *
  * @see BytecodeAnalysisEngine
  * @see VerdictRegistry
  * @since 3.1.1
  */
 public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
+
+    // -------------------------------------------------------------------------
+    // Shutdown state machine
+    // -------------------------------------------------------------------------
+
+    /**
+     * Lifecycle states for this engine instance.
+     */
+    enum ShutdownState {
+        /** The engine is running normally and accepts new analysis requests. */
+        RUNNING,
+        /** Shutdown has been requested; new requests are rejected. */
+        SHUTDOWN_REQUESTED,
+        /** Shutdown is complete; the thread pool has terminated. */
+        SHUTDOWN_COMPLETE
+    }
 
     private static final Logger logger =
             Logger.getLogger(BytecodeAnalysisEngineImpl.class.getName());
@@ -159,6 +195,31 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
     /** Thread pool for asynchronous analysis tasks. */
     private final ExecutorService analysisExecutor;
+
+    /** Current lifecycle state of this engine. */
+    private final AtomicReference<ShutdownState> shutdownState =
+            new AtomicReference<>(ShutdownState.RUNNING);
+
+    /**
+     * Fast flag checked by {@link #requestAnalysis} to reject new requests
+     * once shutdown has been requested, without needing to read the full
+     * {@link #shutdownState}.
+     */
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+
+    /**
+     * Count of analysis tasks currently executing (started but not yet
+     * finished).  Incremented at the start of each task, decremented in the
+     * task's {@code finally} block.
+     */
+    private final AtomicInteger inFlightTaskCount = new AtomicInteger(0);
+
+    /**
+     * Latch used during shutdown to block until all in-flight tasks complete.
+     * Created in {@link #shutdown(long)} with a count equal to the number of
+     * in-flight tasks at that moment; {@code null} at all other times.
+     */
+    private volatile CountDownLatch allTasksComplete;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -243,6 +304,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      *                     must be non-null and non-empty
      * @throws NullPointerException       if {@code codebaseUrls} is {@code null}
      * @throws IllegalArgumentException   if {@code codebaseUrls} is empty
+     * @throws IllegalStateException      if the engine is shutting down
      * @throws RejectedExecutionException if the analysis task queue is full
      * @throws RemoteException            never thrown directly; declared for the
      *                                    remote interface contract
@@ -251,10 +313,126 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
         if (codebaseUrls == null)   throw new NullPointerException("codebaseUrls");
         if (codebaseUrls.isEmpty()) throw new IllegalArgumentException("codebaseUrls must not be empty");
+        if (shutdownRequested.get()) {
+            throw new IllegalStateException(
+                    "BytecodeAnalysisEngine is shutting down; "
+                    + "new analysis requests are not accepted");
+        }
 
         // Snapshot the set so the task is independent of caller mutations.
         Set<Uri> snapshot = new LinkedHashSet<Uri>(codebaseUrls);
         analysisExecutor.execute(new AnalysisTask(snapshot));
+    }
+
+    // -------------------------------------------------------------------------
+    // Shutdown methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Initiates graceful shutdown of this engine.
+     *
+     * <p>After this method is called:
+     * <ol>
+     *   <li>New analysis requests are rejected with {@link IllegalStateException}.</li>
+     *   <li>All in-flight analysis tasks are allowed to complete.</li>
+     *   <li>The method blocks until all in-flight tasks finish or
+     *       {@code timeoutMs} milliseconds elapse.</li>
+     *   <li>The internal thread pool is shut down.</li>
+     * </ol>
+     *
+     * <p>This method is idempotent: calling it more than once is safe.
+     *
+     * @param timeoutMs maximum time in milliseconds to wait for in-flight
+     *                  tasks to complete; use {@code 0} to wait indefinitely
+     * @throws InterruptedException if the calling thread is interrupted while
+     *                              waiting for tasks to complete
+     */
+    public synchronized void shutdown(long timeoutMs) throws InterruptedException {
+        if (!shutdownRequested.compareAndSet(false, true)) {
+            return; // already shutting down or shut down
+        }
+        shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
+
+        int inFlight = inFlightTaskCount.get();
+        if (inFlight > 0) {
+            allTasksComplete = new CountDownLatch(inFlight);
+        }
+
+        analysisExecutor.shutdown();
+
+        if (allTasksComplete != null) {
+            boolean completed;
+            if (timeoutMs <= 0) {
+                allTasksComplete.await();
+                completed = true;
+            } else {
+                completed = allTasksComplete.await(timeoutMs, TimeUnit.MILLISECONDS);
+            }
+            if (!completed) {
+                logger.log(Level.WARNING,
+                        "Shutdown timeout: {0} tasks did not complete within {1}ms",
+                        new Object[]{inFlightTaskCount.get(), timeoutMs});
+            }
+        }
+
+        shutdownState.set(ShutdownState.SHUTDOWN_COMPLETE);
+    }
+
+    /**
+     * Blocks until all in-flight analysis tasks have completed after a
+     * {@link #shutdown(long)} call, or the timeout expires.
+     *
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the {@code timeout} argument
+     * @return {@code true} if all tasks completed before the timeout;
+     *         {@code false} if the timeout elapsed
+     * @throws InterruptedException if the calling thread is interrupted while
+     *                              waiting
+     */
+    public boolean awaitTermination(long timeout, TimeUnit unit)
+            throws InterruptedException {
+        return analysisExecutor.awaitTermination(timeout, unit);
+    }
+
+    /**
+     * Attempts to stop all actively executing analysis tasks and halts the
+     * processing of waiting tasks.
+     *
+     * <p>There are no guarantees beyond best-effort attempts to stop processing
+     * actively executing tasks.  For example, typical implementations will
+     * cancel via {@link Thread#interrupt}, so any task that fails to respond to
+     * interrupts may never terminate.
+     *
+     * @return list of tasks that were awaiting execution but never started
+     */
+    public List<Runnable> shutdownNow() {
+        shutdownRequested.set(true);
+        shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
+        List<Runnable> pending = analysisExecutor.shutdownNow();
+        shutdownState.set(ShutdownState.SHUTDOWN_COMPLETE);
+        return pending;
+    }
+
+    /**
+     * Returns {@code true} if shutdown has been initiated on this engine
+     * (either {@link #shutdown(long)} or {@link #shutdownNow()} has been
+     * called).
+     *
+     * @return {@code true} if shutdown has been requested
+     */
+    public boolean isShutdown() {
+        return shutdownRequested.get();
+    }
+
+    /**
+     * Returns {@code true} if all tasks have completed following a shutdown
+     * request.  Note that {@code isTerminated} is never {@code true} unless
+     * {@link #shutdown(long)} or {@link #shutdownNow()} was called first.
+     *
+     * @return {@code true} if the executor has terminated
+     */
+    public boolean isTerminated() {
+        return analysisExecutor.isTerminated();
     }
 
     // -------------------------------------------------------------------------
@@ -275,20 +453,29 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
         @Override
         public void run() {
-            VerdictType verdict = analyzeCodebase(codebaseUrls);
-            long timestamp = System.currentTimeMillis();
+            inFlightTaskCount.incrementAndGet();
             try {
-                Uri[] sortedUrls = sortedUriArray(codebaseUrls);
-                byte[] canonical = canonicalBytes(sortedUrls, verdict, timestamp);
-                byte[] sig       = sign(enginePrivateKey, sigAlgorithm, canonical);
-                SignedVerdict sv = new SignedVerdict(sortedUrls, verdict, timestamp, sig);
-                registry.submitVerdict(engineId, sv);
-                logger.log(Level.INFO,
-                        "Submitted {0} verdict for {1} to registry",
-                        new Object[]{verdict, codebaseUrls});
-            } catch (Exception e) {
-                logger.log(Level.SEVERE,
-                        "Failed to sign or submit verdict for " + codebaseUrls, e);
+                VerdictType verdict = analyzeCodebase(codebaseUrls);
+                long timestamp = System.currentTimeMillis();
+                try {
+                    Uri[] sortedUrls = sortedUriArray(codebaseUrls);
+                    byte[] canonical = canonicalBytes(sortedUrls, verdict, timestamp);
+                    byte[] sig       = sign(enginePrivateKey, sigAlgorithm, canonical);
+                    SignedVerdict sv = new SignedVerdict(sortedUrls, verdict, timestamp, sig);
+                    registry.submitVerdict(engineId, sv);
+                    logger.log(Level.INFO,
+                            "Submitted {0} verdict for {1} to registry",
+                            new Object[]{verdict, codebaseUrls});
+                } catch (Exception e) {
+                    logger.log(Level.SEVERE,
+                            "Failed to sign or submit verdict for " + codebaseUrls, e);
+                }
+            } finally {
+                inFlightTaskCount.decrementAndGet();
+                CountDownLatch latch = allTasksComplete;
+                if (latch != null) {
+                    latch.countDown();
+                }
             }
         }
     }

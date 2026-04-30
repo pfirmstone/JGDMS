@@ -92,6 +92,13 @@ public class ActivatableBytecodeAnalysisEngineImpl
     /** The core implementation to which all service calls are delegated. */
     private final BytecodeAnalysisEngineImpl impl;
 
+    /**
+     * Maximum time in milliseconds to wait for in-flight analysis tasks to
+     * complete during graceful shutdown.  Defaults to 30 seconds.  Configurable
+     * via the {@code shutdownTimeoutMs} entry in component {@value #COMPONENT}.
+     */
+    private final long shutdownTimeoutMs;
+
     // -------------------------------------------------------------------------
     // Public constructors
     // -------------------------------------------------------------------------
@@ -152,6 +159,7 @@ public class ActivatableBytecodeAnalysisEngineImpl
                 params.engineSigAlgorithm,
                 params.engineId,
                 params.verdictRegistry);
+        this.shutdownTimeoutMs = params.shutdownTimeoutMs;
     }
 
     // -------------------------------------------------------------------------
@@ -166,6 +174,22 @@ public class ActivatableBytecodeAnalysisEngineImpl
     @Override
     protected Class<?>[] getServiceInterfaces() {
         return new Class<?>[]{ BytecodeAnalysisEngine.class };
+    }
+
+    /**
+     * Destroys this service: initiates graceful shutdown of the analysis
+     * engine (waiting up to {@code shutdownTimeoutMs} for in-flight tasks to
+     * complete), then delegates to {@link AbstractJiniService#destroy()} to
+     * terminate discovery, unexport, and clean up resources.
+     */
+    @Override
+    public synchronized void destroy() {
+        try {
+            impl.shutdown(shutdownTimeoutMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        super.destroy();
     }
 
     // -------------------------------------------------------------------------
@@ -204,6 +228,14 @@ public class ActivatableBytecodeAnalysisEngineImpl
         public final VerdictRegistry verdictRegistry;
 
         /**
+         * Maximum time in milliseconds to wait for in-flight analysis tasks
+         * to complete during graceful shutdown.  Defaults to {@code 30000}
+         * (30 seconds).  Must be positive.  Configurable via
+         * {@code shutdownTimeoutMs} in component {@code au.net.zeus.jgdms.bae}.
+         */
+        public final long shutdownTimeoutMs;
+
+        /**
          * Reads BAE-specific configuration entries after delegating common
          * entries to {@link JiniServiceParameters}.
          *
@@ -229,6 +261,10 @@ public class ActivatableBytecodeAnalysisEngineImpl
 
             this.verdictRegistry = (VerdictRegistry) Config.getNonNullEntry(
                     config, COMPONENT, "verdictRegistry", VerdictRegistry.class);
+
+            this.shutdownTimeoutMs = Config.getLongEntry(
+                    config, COMPONENT, "shutdownTimeoutMs",
+                    30_000L, 1L, Long.MAX_VALUE);
         }
     }
 }

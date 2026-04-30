@@ -518,8 +518,18 @@ public class VerdictRegistryImplTest {
                    SignatureException, IOException, URISyntaxException {
         Uri[] sorted = sortedUris(codebaseUrls);
         long timestamp = System.currentTimeMillis();
-        byte[] canonical = BytecodeAnalysisEngineImpl.canonicalBytes(
-                sorted, type, timestamp);
+        // Build canonical bytes (mirrors BytecodeAnalysisEngineImpl.canonicalBytes)
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        java.io.DataOutputStream dos = new java.io.DataOutputStream(baos);
+        for (Uri uri : sorted) {
+            byte[] b = uri.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            dos.writeInt(b.length);
+            dos.write(b);
+        }
+        dos.writeInt(type.ordinal());
+        dos.writeLong(timestamp);
+        dos.flush();
+        byte[] canonical = baos.toByteArray();
         byte[] sig = rsaSign(signingKey, canonical);
         return new SignedVerdict(sorted, type, timestamp, sig);
     }
