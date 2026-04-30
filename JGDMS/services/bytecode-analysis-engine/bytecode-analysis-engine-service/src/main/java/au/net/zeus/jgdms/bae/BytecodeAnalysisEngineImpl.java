@@ -1224,7 +1224,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                 //   start_pc(2), end_pc(2), handler_pc(2), catch_type(2)
                 // catch_type is a CP index into CONSTANT_Class; we have already
                 // checked that the CP string "java/lang/InterruptedException"
-                // exists (presense check), so instead of resolving the CP index
+                // exists (presence check), so instead of resolving the CP index
                 // here we use the simpler (and conservative) heuristic: if
                 // InterruptedException is in the CP AND there is any exception
                 // handler AND the handler body contains no call to interrupt(),
@@ -1414,10 +1414,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * <p>Usage:
      * <pre>
      * MethodIterator it = new MethodIterator(classBytes);
-     * if (!it.valid()) { /* parse error * / }
+     * if (!it.valid()) { // parse error
+     * }
      * while (it.hasNext()) {
      *     byte[] code = it.nextMethodCode();
-     *     if (code == null) { /* parse error * / }
+     *     if (code == null) { // parse error
+     *     }
      *     // ... scan code ...
      * }
      * </pre>
