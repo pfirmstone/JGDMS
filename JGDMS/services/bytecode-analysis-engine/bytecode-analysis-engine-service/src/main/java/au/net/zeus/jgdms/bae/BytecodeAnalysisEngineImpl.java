@@ -500,7 +500,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         return new ThreadPoolExecutor(
                 0, ANALYSIS_POOL_MAX_THREADS, ANALYSIS_POOL_KEEP_ALIVE_SECONDS,
                 TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(ANALYSIS_QUEUE_MAX_SIZE),
+                new ArrayBlockingQueue<>(ANALYSIS_QUEUE_MAX_SIZE),
                 daemonFactory,
                 new LoggingAbortPolicy(rejectedTaskCount));
     }

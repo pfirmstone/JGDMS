@@ -325,7 +325,7 @@ public class BytecodeAnalysisEngineImplTest {
         // busy is immediately rejected.
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 1, 1, 0L, TimeUnit.SECONDS,
-                new SynchronousQueue<Runnable>(),
+                new SynchronousQueue<>(),
                 new ThreadPoolExecutor.AbortPolicy());
 
         BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
@@ -333,12 +333,10 @@ public class BytecodeAnalysisEngineImplTest {
                 executor);
 
         // Occupy the single worker thread.
-        executor.execute(new Runnable() {
-            @Override public void run() {
-                taskStarted.countDown();
-                try { releaseTask.await(); } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+        executor.execute(() -> {
+            taskStarted.countDown();
+            try { releaseTask.await(); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         });
         taskStarted.await(); // wait until the worker is truly running
@@ -362,7 +360,7 @@ public class BytecodeAnalysisEngineImplTest {
         // 1 thread, queue of 10 — plenty of room for a single task.
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 1, 1, 0L, TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(10),
+                new ArrayBlockingQueue<>(10),
                 new ThreadPoolExecutor.AbortPolicy());
 
         BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
