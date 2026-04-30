@@ -19,10 +19,9 @@ package au.net.zeus.jgdms.bae;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URISyntaxException;
@@ -31,15 +30,22 @@ import java.rmi.RemoteException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
@@ -50,6 +56,8 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -63,6 +71,7 @@ import static org.junit.Assert.assertTrue;
  *       patterns, safe classes, and malformed inputs</li>
  *   <li>{@link BytecodeAnalysisEngineImpl#canonicalBytes} — canonical byte
  *       representation used for signing</li>
+ *   <li>Metrics collection — queue, analysis, verdict, and submission counters</li>
  * </ul>
  *
  * @author Peter Firmstone
@@ -513,6 +522,7 @@ public class BytecodeAnalysisEngineImplTest {
         }
     }
 
+
     // =========================================================================
     // AnalysisTaskWithTimeout — timeout fires → DANGEROUS verdict
     // =========================================================================
@@ -709,6 +719,7 @@ public class BytecodeAnalysisEngineImplTest {
     // Private helpers
     // =========================================================================
 
+
     /**
      * Returns a minimal {@link VerdictRegistry} that stores the last verdict
      * type passed to {@link VerdictRegistry#submitVerdict} in
@@ -776,4 +787,558 @@ public class BytecodeAnalysisEngineImplTest {
         dos.flush();
         return baos.toByteArray();
     }
+
+    // =========================================================================
+    // Metrics — queue
+    // =========================================================================
+
+    /**
+     * Verifies that {@link BytecodeAnalysisEngineImpl#getMetrics()} exposes
+     * {@code queue.totalRejections} and that the counter is incremented when
+     * {@link BytecodeAnalysisEngineImpl.LoggingAbortPolicy} fires.
+     */
+    @Test
+    public void testMetrics_QueueRejection_IncrementCounter() throws Exception {
+        final CountDownLatch taskStarted = new CountDownLatch(1);
+        final CountDownLatch releaseTask = new CountDownLatch(1);
+
+        // 1 thread, zero-capacity queue → any submission while thread is busy
+        // triggers the rejection handler.
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new SynchronousQueue<>(),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        // Replace the executor's rejection handler with one that updates the
+        // engine's rejectedTaskCount (simulating what the production executor
+        // does via LoggingAbortPolicy).
+        executor.setRejectedExecutionHandler(
+                new BytecodeAnalysisEngineImpl.LoggingAbortPolicy(engine.rejectedTaskCount));
+
+        // Occupy the single worker thread.
+        executor.execute(() -> {
+            taskStarted.countDown();
+            try { releaseTask.await(); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> before = engine.getMetrics();
+        assertEquals(0L, ((Map<String, Object>) before.get("queue")).get("totalRejections"));
+
+        Set<Uri> uris = Collections.singleton(new Uri("http://example.com/a.jar"));
+        try {
+            engine.requestAnalysis(uris);
+        } catch (RejectedExecutionException expected) {
+            // expected
+        } finally {
+            releaseTask.countDown();
+            executor.shutdownNow();
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> after = engine.getMetrics();
+        assertEquals(1L, ((Map<String, Object>) after.get("queue")).get("totalRejections"));
+        assertEquals(1L, engine.totalRejections());
+    }
+
+    /**
+     * Verifies that the peak queue depth is tracked and exposed via
+     * {@link BytecodeAnalysisEngineImpl#getMetrics()}.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_PeakQueueDepth_Tracked() throws Exception {
+        final CountDownLatch taskRunning = new CountDownLatch(1);
+        final CountDownLatch releaseTask = new CountDownLatch(1);
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        Map<String, Object> initial = engine.getMetrics();
+        assertEquals(0L, ((Map<String, Object>) initial.get("queue")).get("peakDepth"));
+
+        // Occupy the single thread so that subsequent submissions queue up.
+        executor.execute(() -> {
+            taskRunning.countDown();
+            try { releaseTask.await(); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskRunning.await();
+
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_peak_test.jar"));
+        engine.requestAnalysis(uris);
+
+        Map<String, Object> after = engine.getMetrics();
+        assertTrue((long) ((Map<String, Object>) after.get("queue")).get("peakDepth") >= 1L);
+
+        releaseTask.countDown();
+        executor.shutdownNow();
+    }
+
+    // =========================================================================
+    // Metrics — analysis attempts and duration
+    // =========================================================================
+
+    /**
+     * Each call to {@link BytecodeAnalysisEngineImpl#requestAnalysis} must
+     * increment {@code analysis.totalAttempts} by one.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_AnalysisAttempt_Incremented() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_attempt.jar"));
+        engine.requestAnalysis(uris);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        Map<String, Object> metrics = engine.getMetrics();
+        Map<String, Object> analysis = (Map<String, Object>) metrics.get("analysis");
+        assertEquals(1L, analysis.get("totalAttempts"));
+        assertEquals(1L, analysis.get("totalCompleted"));
+    }
+
+    /**
+     * After a completed analysis, at least one duration histogram bucket must
+     * have been incremented.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_AnalysisDuration_RecordedInBucket() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_duration.jar"));
+        engine.requestAnalysis(uris);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        Map<String, Object> metrics = engine.getMetrics();
+        Map<String, Object> analysis = (Map<String, Object>) metrics.get("analysis");
+        Map<String, Object> buckets = (Map<String, Object>) analysis.get("durationBuckets");
+
+        long totalInBuckets = (long) buckets.get("0_100ms")
+                + (long) buckets.get("100_500ms")
+                + (long) buckets.get("500_1000ms")
+                + (long) buckets.get("1_5s")
+                + (long) buckets.get("5_10s")
+                + (long) buckets.get("10s_plus");
+        assertEquals(1L, totalInBuckets);
+    }
+
+    /**
+     * Calling {@link BytecodeAnalysisEngineImpl#recordAnalysisTimeout()} must
+     * increment {@code analysis.totalTimeouts} in the metrics snapshot.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_Timeout_Incremented() {
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry);
+
+        Map<String, Object> before = engine.getMetrics();
+        assertEquals(0L,
+                ((Map<String, Object>) before.get("analysis")).get("totalTimeouts"));
+
+        engine.recordAnalysisTimeout();
+
+        Map<String, Object> after = engine.getMetrics();
+        assertEquals(1L,
+                ((Map<String, Object>) after.get("analysis")).get("totalTimeouts"));
+    }
+
+    // =========================================================================
+    // Metrics — parse errors
+    // =========================================================================
+
+    /**
+     * An IOException while reading a JAR must increment
+     * {@code analysis.classParseErrors}.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_ParseError_Incremented() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        // A non-existent file URL causes IOException in analyzeCodebase,
+        // which increments classParseErrors.
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_parse_error.jar"));
+        engine.requestAnalysis(uris);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        Map<String, Object> metrics = engine.getMetrics();
+        Map<String, Object> analysis = (Map<String, Object>) metrics.get("analysis");
+        assertEquals(1L, analysis.get("classParseErrors"));
+    }
+
+    // =========================================================================
+    // Metrics — verdict distribution
+    // =========================================================================
+
+    /**
+     * A non-existent JAR URL yields a DANGEROUS verdict.  The
+     * {@code verdict.dangerous} counter must be 1 and {@code verdict.safe}
+     * must remain 0.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_VerdictCounts_Dangerous() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_verdict.jar"));
+        engine.requestAnalysis(uris);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        Map<String, Object> metrics = engine.getMetrics();
+        Map<String, Object> verdict = (Map<String, Object>) metrics.get("verdict");
+        assertEquals(1L, verdict.get("dangerous"));
+        assertEquals(0L, verdict.get("safe"));
+    }
+
+    /**
+     * Analysing a JAR whose class files contain no dangerous patterns must
+     * increment {@code verdict.safe} and leave {@code verdict.dangerous} at 0.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_VerdictCounts_Safe() throws Exception {
+        File safeJar = createMinimalSafeJar();
+        try {
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                    1, 1, 0L, TimeUnit.SECONDS,
+                    new ArrayBlockingQueue<>(10),
+                    Executors.defaultThreadFactory(),
+                    new ThreadPoolExecutor.AbortPolicy());
+
+            BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                    engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+            Set<Uri> uris = Collections.singleton(
+                    new Uri(safeJar.toURI().toString()));
+            engine.requestAnalysis(uris);
+
+            executor.shutdown();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+
+            Map<String, Object> metrics = engine.getMetrics();
+            Map<String, Object> verdict = (Map<String, Object>) metrics.get("verdict");
+            assertEquals(1L, verdict.get("safe"));
+            assertEquals(0L, verdict.get("dangerous"));
+        } finally {
+            safeJar.delete();
+        }
+    }
+
+    // =========================================================================
+    // Metrics — registry submission
+    // =========================================================================
+
+    /**
+     * A successful {@code registry.submitVerdict()} call must increment
+     * {@code submission.successful} and record a latency observation.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_RegistrySubmissionSuccess_Counted() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_submit.jar"));
+        engine.requestAnalysis(uris);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        Map<String, Object> metrics = engine.getMetrics();
+        Map<String, Object> submission = (Map<String, Object>) metrics.get("submission");
+        assertEquals(1L, submission.get("successful"));
+        assertEquals(0L, submission.get("failed"));
+
+        Map<String, Object> latencyBuckets =
+                (Map<String, Object>) submission.get("latencyBuckets");
+        long totalLatency = (long) latencyBuckets.get("0_100ms")
+                + (long) latencyBuckets.get("100_500ms")
+                + (long) latencyBuckets.get("500_1000ms")
+                + (long) latencyBuckets.get("1000ms_plus");
+        assertEquals(1L, totalLatency);
+    }
+
+    /**
+     * When {@code registry.submitVerdict()} throws, {@code submission.failed}
+     * must be incremented and the exception class must appear in
+     * {@code submission.errorsByType}.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_RegistrySubmissionFailure_Counted() throws Exception {
+        // Registry that always throws on submitVerdict.
+        VerdictRegistry failingRegistry = new VerdictRegistry() {
+            @Override public void registerAnalysisEngine(String id,
+                    java.security.PublicKey k, String alg) {}
+            @Override public void revokeAnalysisEngine(String id) {}
+            @Override public void submitVerdict(String id, SignedVerdict v)
+                    throws RemoteException {
+                throw new RemoteException("simulated failure");
+            }
+            @Override public void reportCrash(
+                    au.net.zeus.jgdms.api.codebase.CrashReport r) {}
+            @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdict(
+                    Set<Uri> u) { return null; }
+            @Override public net.jini.core.event.EventRegistration registerVerdictListener(
+                    net.jini.core.event.RemoteEventListener l, Set<Uri> u,
+                    net.jini.io.MarshalledInstance h, long d) { return null; }
+            @Override public long renewEventLease(net.jini.id.Uuid id, long d)
+                    throws net.jini.core.lease.UnknownLeaseException { return d; }
+            @Override public void cancelEventLease(net.jini.id.Uuid id)
+                    throws net.jini.core.lease.UnknownLeaseException {}
+        };
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", failingRegistry, executor);
+
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_fail.jar"));
+        engine.requestAnalysis(uris);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        Map<String, Object> metrics = engine.getMetrics();
+        Map<String, Object> submission = (Map<String, Object>) metrics.get("submission");
+        assertEquals(0L, submission.get("successful"));
+        assertEquals(1L, submission.get("failed"));
+
+        Map<String, Long> errorsByType =
+                (Map<String, Long>) submission.get("errorsByType");
+        assertTrue(errorsByType.containsKey("java.rmi.RemoteException"));
+        assertEquals(1L, (long) errorsByType.get("java.rmi.RemoteException"));
+    }
+
+    // =========================================================================
+    // Metrics — thread safety
+    // =========================================================================
+
+    /**
+     * Concurrent calls to {@link BytecodeAnalysisEngineImpl#getMetrics()} must
+     * never throw.
+     */
+    @Test
+    public void testMetrics_Snapshot_ThreadSafe() throws Exception {
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry);
+
+        // Artificially inflate counters to make the snapshot non-trivial.
+        engine.rejectedTaskCount.incrementAndGet();
+        engine.recordAnalysisTimeout();
+
+        int threads = 8;
+        int iterations = 500;
+        final List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
+        final CountDownLatch ready = new CountDownLatch(threads);
+        final CountDownLatch start = new CountDownLatch(1);
+        final CountDownLatch done  = new CountDownLatch(threads);
+
+        for (int i = 0; i < threads; i++) {
+            new Thread(() -> {
+                ready.countDown();
+                try { start.await(); } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                for (int j = 0; j < iterations; j++) {
+                    try {
+                        assertNotNull(engine.getMetrics());
+                    } catch (Throwable t) {
+                        errors.add(t);
+                    }
+                }
+                done.countDown();
+            }).start();
+        }
+
+        ready.await();
+        start.countDown();
+        done.await(10, TimeUnit.SECONDS);
+
+        assertTrue("Concurrent getMetrics() threw exceptions: " + errors,
+                errors.isEmpty());
+    }
+
+    // =========================================================================
+    // Metrics — recent-verdicts circular buffer
+    // =========================================================================
+
+    /**
+     * After submitting more than 100 analysis tasks the circular buffer must
+     * wrap and only retain the last 100 entries; the index must not grow
+     * unboundedly.
+     */
+    @Test
+    public void testMetrics_RecentVerdicts_CircularBuffer() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                4, 4, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(200),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        // Submit 110 analysis tasks; each fails fast (non-existent file URL).
+        for (int i = 0; i < 110; i++) {
+            Set<Uri> uris = Collections.singleton(
+                    new Uri("file:///nonexistent_buf_" + i + ".jar"));
+            engine.requestAnalysis(uris);
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        // recentVerdictIndex counts total writes; index into the array is
+        // taken modulo 100 so every slot is occupied.
+        int filledSlots = 0;
+        for (BytecodeAnalysisEngineImpl.VerdictRecord r : engine.recentVerdicts) {
+            if (r != null) filledSlots++;
+        }
+        assertEquals(100, filledSlots);
+    }
+
+    // =========================================================================
+    // Metrics — reset
+    // =========================================================================
+
+    /**
+     * {@link BytecodeAnalysisEngineImpl#resetMetrics()} must zero all counters
+     * and clear the recent-verdicts buffer.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMetrics_Reset_ClearsCounters() throws Exception {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                Executors.defaultThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry, executor);
+
+        // Run one analysis to populate counters.
+        Set<Uri> uris = Collections.singleton(new Uri("file:///nonexistent_reset.jar"));
+        engine.requestAnalysis(uris);
+
+        executor.shutdown();
+        executor.awaitTermination(5, TimeUnit.SECONDS);
+
+        // At least one counter must be non-zero before reset.
+        Map<String, Object> before = engine.getMetrics();
+        long attemptsBefore =
+                (long) ((Map<String, Object>) before.get("analysis")).get("totalAttempts");
+        assertTrue(attemptsBefore > 0);
+
+        engine.resetMetrics();
+
+        Map<String, Object> after = engine.getMetrics();
+        Map<String, Object> queueAfter    = (Map<String, Object>) after.get("queue");
+        Map<String, Object> analysisAfter = (Map<String, Object>) after.get("analysis");
+        Map<String, Object> verdictAfter  = (Map<String, Object>) after.get("verdict");
+        Map<String, Object> submitAfter   = (Map<String, Object>) after.get("submission");
+
+        assertEquals(0L, queueAfter.get("totalRejections"));
+        assertEquals(0L, queueAfter.get("peakDepth"));
+        assertEquals(0L, analysisAfter.get("totalAttempts"));
+        assertEquals(0L, analysisAfter.get("totalCompleted"));
+        assertEquals(0L, analysisAfter.get("totalTimeouts"));
+        assertEquals(0L, analysisAfter.get("classParseErrors"));
+        assertEquals(0L, verdictAfter.get("safe"));
+        assertEquals(0L, verdictAfter.get("dangerous"));
+        assertEquals(0L, submitAfter.get("successful"));
+        assertEquals(0L, submitAfter.get("failed"));
+
+        // Verify the circular buffer was cleared.
+        for (BytecodeAnalysisEngineImpl.VerdictRecord r : engine.recentVerdicts) {
+            assertNull(r);
+        }
+    }
+
+    // =========================================================================
+    // Private helpers
+    // =========================================================================
+
+    /**
+     * Creates a minimal JAR file in the system temp directory containing a
+     * single class file with no dangerous constant-pool patterns.  The caller
+     * is responsible for deleting the file after use.
+     */
+    private static File createMinimalSafeJar() throws Exception {
+        File jar = File.createTempFile("bae-test-safe-", ".jar");
+        jar.deleteOnExit();
+        try (JarOutputStream jos =
+                new JarOutputStream(new FileOutputStream(jar))) {
+            JarEntry entry = new JarEntry("SafeClass.class");
+            jos.putNextEntry(entry);
+            jos.write(buildClassWithUtf8("Hello", "world"));
+            jos.closeEntry();
+        }
+        return jar;
+    }
+
 }
