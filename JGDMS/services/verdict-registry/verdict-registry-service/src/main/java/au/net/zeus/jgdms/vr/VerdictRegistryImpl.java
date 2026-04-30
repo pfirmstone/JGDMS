@@ -20,6 +20,12 @@ package au.net.zeus.jgdms.vr;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.security.InvalidKeyException;
@@ -55,6 +61,8 @@ import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import org.apache.river.api.net.Uri;
 import org.apache.river.constants.ThrowableConstants;
+import org.apache.river.reliableLog.LogHandler;
+import org.apache.river.reliableLog.ReliableLog;
 import au.net.zeus.jgdms.vr.proxy.VerdictEvent;
 import au.net.zeus.jgdms.vr.proxy.VerdictEventLease;
 
@@ -75,7 +83,25 @@ import au.net.zeus.jgdms.vr.proxy.VerdictEventLease;
  *   <li>The published-verdict cache ({@link #publishedVerdicts}) is a
  *       {@link ConcurrentHashMap} of immutable {@link RegistryVerdict} objects;
  *       reads are always safe.</li>
+ *   <li>The {@link ReliableLog} instance ({@link #log}) is not thread-safe;
+ *       all write operations on it are serialised through {@link #logLock}.</li>
  * </ul>
+ *
+ * <h2>Persistence</h2>
+ * When constructed with a {@code logDir} path, this implementation uses
+ * {@link ReliableLog} to persist all state-changing operations so that the
+ * full verdict registry state can be recovered after a restart.  The log
+ * stores three types of update records:
+ * <ul>
+ *   <li>{@link RegisterEngineRecord} / {@link RevokeEngineRecord} — engine
+ *       lifecycle events.</li>
+ *   <li>{@link VoteRecord} — a signature-verified vote submission.</li>
+ *   <li>{@link PublishedVerdictRecord} — a newly published
+ *       {@link RegistryVerdict}.</li>
+ * </ul>
+ * On startup, {@link ReliableLog#recover()} replays the snapshot plus all
+ * subsequent log entries to reconstruct the full in-memory state.  A new
+ * snapshot is written immediately after recovery to consolidate the log.
  *
  * <h2>Canonical byte format</h2>
  * The following layout is used for every signed or verified payload:
@@ -152,6 +178,19 @@ public class VerdictRegistryImpl implements VerdictRegistry {
      * consumes one ID.
      */
     private final AtomicLong nextEventId = new AtomicLong(1L);
+
+    /**
+     * Persistent log for recording all state-changing operations so that
+     * registry state can be recovered after a restart.  {@code null} when
+     * persistence is disabled (transient mode).
+     */
+    private final ReliableLog log;
+
+    /**
+     * Guards all write operations on {@link #log}.  {@link ReliableLog} is
+     * not thread-safe; this lock serialises concurrent updates.
+     */
+    private final Object logLock = new Object();
 
     /**
      * Thread pool used to deliver {@link VerdictEvent}s asynchronously so
@@ -299,7 +338,8 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     // -------------------------------------------------------------------------
 
     /**
-     * Creates a new {@code VerdictRegistryImpl}.
+     * Creates a new {@code VerdictRegistryImpl} <em>without</em> persistence.
+     * All state is kept in-memory only and is lost on restart.
      *
      * @param registryPrivateKey   the registry's private key for signing
      *                             {@link RegistryVerdict} objects; must be non-null
@@ -337,6 +377,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         this.phoenixSigAlgorithm  = phoenixSigAlgorithm;
         this.quorumMinimum        = quorumMinimum;
         this.executorService      = createEventExecutor();
+        this.log                  = null;
     }
 
     /**
@@ -354,6 +395,61 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                                String phoenixSigAlgorithm) {
         this(registryPrivateKey, registrySigAlgorithm,
              phoenixPublicKey,   phoenixSigAlgorithm, 1);
+    }
+
+    /**
+     * Creates a new {@code VerdictRegistryImpl} <em>with</em> persistence.
+     * State is recovered from {@code logDir} on startup and all subsequent
+     * state-changing operations are durably logged so that the full state is
+     * available after a restart.
+     *
+     * @param registryPrivateKey   see {@link #VerdictRegistryImpl(PrivateKey, String, PublicKey, String, int)}
+     * @param registrySigAlgorithm see {@link #VerdictRegistryImpl(PrivateKey, String, PublicKey, String, int)}
+     * @param phoenixPublicKey     see {@link #VerdictRegistryImpl(PrivateKey, String, PublicKey, String, int)}
+     * @param phoenixSigAlgorithm  see {@link #VerdictRegistryImpl(PrivateKey, String, PublicKey, String, int)}
+     * @param quorumMinimum        see {@link #VerdictRegistryImpl(PrivateKey, String, PublicKey, String, int)}
+     * @param logDir               path to the directory used for
+     *                             {@link ReliableLog} stable storage; the
+     *                             directory is created if it does not exist;
+     *                             must be non-null and non-empty
+     * @throws NullPointerException     if any argument is {@code null}
+     * @throws IllegalArgumentException if any String argument is empty, or
+     *                                  {@code quorumMinimum} is &lt; 1
+     * @throws IOException              if the persistent log cannot be
+     *                                  created or recovered
+     */
+    public VerdictRegistryImpl(PrivateKey registryPrivateKey,
+                               String registrySigAlgorithm,
+                               PublicKey phoenixPublicKey,
+                               String phoenixSigAlgorithm,
+                               int quorumMinimum,
+                               String logDir) throws IOException {
+        if (registryPrivateKey   == null) throw new NullPointerException("registryPrivateKey");
+        if (registrySigAlgorithm == null) throw new NullPointerException("registrySigAlgorithm");
+        if (registrySigAlgorithm.isEmpty()) throw new IllegalArgumentException("registrySigAlgorithm must not be empty");
+        if (phoenixPublicKey     == null) throw new NullPointerException("phoenixPublicKey");
+        if (phoenixSigAlgorithm  == null) throw new NullPointerException("phoenixSigAlgorithm");
+        if (phoenixSigAlgorithm.isEmpty()) throw new IllegalArgumentException("phoenixSigAlgorithm must not be empty");
+        if (quorumMinimum < 1) throw new IllegalArgumentException("quorumMinimum must be >= 1");
+        if (logDir == null) throw new NullPointerException("logDir");
+        if (logDir.isEmpty()) throw new IllegalArgumentException("logDir must not be empty");
+
+        this.registryPrivateKey   = registryPrivateKey;
+        this.registrySigAlgorithm = registrySigAlgorithm;
+        this.phoenixPublicKey     = phoenixPublicKey;
+        this.phoenixSigAlgorithm  = phoenixSigAlgorithm;
+        this.quorumMinimum        = quorumMinimum;
+        this.executorService      = createEventExecutor();
+
+        // Create the log and recover any previously persisted state.
+        ReliableLog rl = new ReliableLog(logDir, new LocalLogHandler());
+        rl.recover(VerdictRegistryImpl.class.getClassLoader());
+        // Consolidate replayed log entries into a fresh snapshot.
+        rl.snapshot();
+        this.log = rl;
+        logger.log(Level.INFO,
+                "VerdictRegistryImpl: persistence initialised from log directory: {0}",
+                logDir);
     }
 
     /**
@@ -406,6 +502,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
 
         engines.put(engineId, new EngineRegistration(engineKey, sigAlgorithm));
         logger.log(Level.INFO, "Registered analysis engine: {0}", engineId);
+        appendLogRecord(new RegisterEngineRecord(engineId, engineKey, sigAlgorithm));
     }
 
     @Override
@@ -420,6 +517,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             return;
         }
         logger.log(Level.INFO, "Revoked analysis engine: {0}", engineId);
+        appendLogRecord(new RevokeEngineRecord(engineId));
 
         // Remove the revoked engine's vote from every codebase state and
         // re-evaluate.  DANGEROUS verdicts are permanent (fail-safe), so only
@@ -477,6 +575,10 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         VerdictState state    = verdictStates.computeIfAbsent(
                 codebaseKey, k -> new VerdictState());
 
+        RegistryVerdict publishedRv = null;
+        boolean         dangerous   = false;
+        String[]        sortedUrlStrings = null;
+
         synchronized (state) {
             if (state.dangerous) {
                 // Already locked in DANGEROUS; nothing more to do.
@@ -486,6 +588,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             if (state.codebaseUrls == null) {
                 state.codebaseUrls = sortedUriArray(codebaseUrls);
             }
+            sortedUrlStrings = uriArrayToStrings(state.codebaseUrls);
             state.votes.put(engineId, verdict.getVerdict());
 
             if (verdict.getVerdict() == VerdictType.DANGEROUS) {
@@ -496,7 +599,8 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                     logger.log(Level.WARNING,
                             "Published DANGEROUS verdict (engine vote) for key: {0}",
                             codebaseKey);
-                    notifyListeners(codebaseKey, rv);
+                    publishedRv = rv;
+                    dangerous   = true;
                 }
             } else {
                 RegistryVerdict rv = evaluateSafe(state);
@@ -504,9 +608,18 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                     publishedVerdicts.put(codebaseKey, rv);
                     logger.log(Level.INFO,
                             "Published SAFE verdict for key: {0}", codebaseKey);
-                    notifyListeners(codebaseKey, rv);
+                    publishedRv = rv;
                 }
             }
+        }
+
+        // Log the accepted vote outside of the VerdictState lock.
+        appendLogRecord(new VoteRecord(engineId, codebaseKey,
+                sortedUrlStrings, verdict.getVerdict()));
+        if (publishedRv != null) {
+            appendLogRecord(new PublishedVerdictRecord(
+                    codebaseKey, publishedRv, dangerous));
+            notifyListeners(codebaseKey, publishedRv);
         }
     }
 
@@ -533,6 +646,8 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         VerdictState state    = verdictStates.computeIfAbsent(
                 codebaseKey, k -> new VerdictState());
 
+        RegistryVerdict publishedRv = null;
+
         synchronized (state) {
             if (state.dangerous) {
                 return;
@@ -547,8 +662,13 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 logger.log(Level.WARNING,
                         "Published DANGEROUS verdict (crash report) for key: {0}",
                         codebaseKey);
-                notifyListeners(codebaseKey, rv);
+                publishedRv = rv;
             }
+        }
+
+        if (publishedRv != null) {
+            appendLogRecord(new PublishedVerdictRecord(codebaseKey, publishedRv, true));
+            notifyListeners(codebaseKey, publishedRv);
         }
     }
 
@@ -841,5 +961,358 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         sig.initVerify(key);
         sig.update(data);
         return sig.verify(signature);
+    }
+
+    /**
+     * Converts a sorted {@link Uri} array to a {@code String[]} of URI strings.
+     */
+    private static String[] uriArrayToStrings(Uri[] uris) {
+        String[] strs = new String[uris.length];
+        for (int i = 0; i < uris.length; i++) {
+            strs[i] = uris[i].toString();
+        }
+        return strs;
+    }
+
+    /**
+     * Converts a {@code String[]} of URI strings back to a sorted {@link Uri} array.
+     * Strings that cannot be parsed as valid RFC 3986 URIs are silently skipped
+     * (which cannot occur in practice because they were validated on first submission).
+     */
+    private static Uri[] stringsToUriArray(String[] strs) {
+        Uri[] uris = new Uri[strs.length];
+        int count = 0;
+        for (String s : strs) {
+            try {
+                uris[count++] = new Uri(s);
+            } catch (URISyntaxException e) {
+                logger.log(Level.WARNING,
+                        "Skipping unparseable URI during log recovery: {0}", s);
+            }
+        }
+        if (count == strs.length) {
+            return uris;
+        }
+        return Arrays.copyOf(uris, count);
+    }
+
+    /**
+     * Writes a log record if persistence is enabled.  Failures are logged
+     * as warnings but do not propagate: the service remains functional even
+     * if the log write fails (the state is already updated in-memory).
+     *
+     * @param record the serializable log record to append
+     */
+    private void appendLogRecord(Serializable record) {
+        if (log == null) {
+            return;
+        }
+        synchronized (logLock) {
+            try {
+                log.update(record);
+            } catch (IOException e) {
+                logger.log(Level.WARNING,
+                        "Failed to write persistence log record; state may not survive restart",
+                        e);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistence — log handler and record types
+    // -------------------------------------------------------------------------
+
+    /**
+     * {@link LogHandler} implementation that serialises the full registry
+     * state as a snapshot and applies incremental update records during
+     * recovery.
+     */
+    private final class LocalLogHandler extends LogHandler {
+
+        @Override
+        public void snapshot(OutputStream out) throws Exception {
+            // Build serialisable snapshots of all three state maps.
+            HashMap<String, SerializableEngineReg> engSnap =
+                    new HashMap<String, SerializableEngineReg>(engines.size());
+            for (Map.Entry<String, EngineRegistration> e : engines.entrySet()) {
+                engSnap.put(e.getKey(),
+                        new SerializableEngineReg(e.getValue().publicKey,
+                                                  e.getValue().sigAlgorithm));
+            }
+
+            HashMap<String, SerializableVerdictState> stateSnap =
+                    new HashMap<String, SerializableVerdictState>(verdictStates.size());
+            for (Map.Entry<String, VerdictState> e : verdictStates.entrySet()) {
+                VerdictState vs = e.getValue();
+                synchronized (vs) {
+                    stateSnap.put(e.getKey(),
+                            new SerializableVerdictState(
+                                    vs.codebaseUrls == null
+                                            ? new String[0]
+                                            : uriArrayToStrings(vs.codebaseUrls),
+                                    new HashMap<String, VerdictType>(vs.votes),
+                                    vs.dangerous));
+                }
+            }
+
+            HashMap<String, SerializablePublishedVerdict> pubSnap =
+                    new HashMap<String, SerializablePublishedVerdict>(publishedVerdicts.size());
+            for (Map.Entry<String, RegistryVerdict> e : publishedVerdicts.entrySet()) {
+                RegistryVerdict rv = e.getValue();
+                pubSnap.put(e.getKey(),
+                        new SerializablePublishedVerdict(
+                                sortedUriStrings(rv.getCodebaseUrls()),
+                                rv.getVerdict(),
+                                rv.getTimestamp(),
+                                rv.getSignature()));
+            }
+
+            PersistentSnapshot snap =
+                    new PersistentSnapshot(engSnap, stateSnap, pubSnap);
+            ObjectOutputStream oos = new ObjectOutputStream(out);
+            oos.writeObject(snap);
+            oos.flush();
+        }
+
+        @Override
+        public void recover(InputStream in) throws Exception {
+            ObjectInputStream ois = new ObjectInputStream(in);
+            PersistentSnapshot snap = (PersistentSnapshot) ois.readObject();
+
+            for (Map.Entry<String, SerializableEngineReg> e : snap.engines.entrySet()) {
+                engines.put(e.getKey(),
+                        new EngineRegistration(e.getValue().publicKey,
+                                               e.getValue().sigAlgorithm));
+            }
+
+            for (Map.Entry<String, SerializableVerdictState> e : snap.states.entrySet()) {
+                VerdictState vs = new VerdictState();
+                SerializableVerdictState svs = e.getValue();
+                if (svs.codebaseUrls != null && svs.codebaseUrls.length > 0) {
+                    vs.codebaseUrls = stringsToUriArray(svs.codebaseUrls);
+                }
+                vs.votes.putAll(svs.votes);
+                vs.dangerous = svs.dangerous;
+                verdictStates.put(e.getKey(), vs);
+            }
+
+            for (Map.Entry<String, SerializablePublishedVerdict> e : snap.published.entrySet()) {
+                SerializablePublishedVerdict spv = e.getValue();
+                Uri[] uris = stringsToUriArray(spv.codebaseUrls);
+                if (uris.length > 0) {
+                    publishedVerdicts.put(e.getKey(),
+                            new RegistryVerdict(uris, spv.verdictType,
+                                                spv.timestamp, spv.signature));
+                }
+            }
+        }
+
+        @Override
+        public void applyUpdate(Object update) throws Exception {
+            if (update instanceof RegisterEngineRecord) {
+                RegisterEngineRecord rec = (RegisterEngineRecord) update;
+                engines.put(rec.engineId,
+                        new EngineRegistration(rec.publicKey, rec.sigAlgorithm));
+
+            } else if (update instanceof RevokeEngineRecord) {
+                RevokeEngineRecord rec = (RevokeEngineRecord) update;
+                engines.remove(rec.engineId);
+                // Re-evaluate quorum for all codebases that had a vote from
+                // the revoked engine.
+                for (Map.Entry<String, VerdictState> entry : verdictStates.entrySet()) {
+                    String codebaseKey = entry.getKey();
+                    VerdictState state = entry.getValue();
+                    synchronized (state) {
+                        if (state.votes.remove(rec.engineId) != null && !state.dangerous) {
+                            RegistryVerdict rv = evaluateSafe(state);
+                            if (rv != null) {
+                                publishedVerdicts.put(codebaseKey, rv);
+                            } else {
+                                publishedVerdicts.remove(codebaseKey);
+                            }
+                        }
+                    }
+                }
+
+            } else if (update instanceof VoteRecord) {
+                VoteRecord rec = (VoteRecord) update;
+                VerdictState state = verdictStates.computeIfAbsent(
+                        rec.codebaseKey, k -> new VerdictState());
+                synchronized (state) {
+                    if (state.codebaseUrls == null
+                            && rec.codebaseUrls != null
+                            && rec.codebaseUrls.length > 0) {
+                        state.codebaseUrls = stringsToUriArray(rec.codebaseUrls);
+                    }
+                    state.votes.put(rec.engineId, rec.verdictType);
+                    // Re-evaluate quorum in case the corresponding
+                    // PublishedVerdictRecord was not flushed before a crash.
+                    if (rec.verdictType == VerdictType.DANGEROUS && !state.dangerous) {
+                        RegistryVerdict rv = issueVerdict(
+                                state.codebaseUrls, VerdictType.DANGEROUS);
+                        if (rv != null) {
+                            state.dangerous = true;
+                            publishedVerdicts.put(rec.codebaseKey, rv);
+                        }
+                    } else if (rec.verdictType != VerdictType.DANGEROUS) {
+                        RegistryVerdict rv = evaluateSafe(state);
+                        if (rv != null) {
+                            publishedVerdicts.put(rec.codebaseKey, rv);
+                        }
+                    }
+                }
+
+            } else if (update instanceof PublishedVerdictRecord) {
+                PublishedVerdictRecord rec = (PublishedVerdictRecord) update;
+                Uri[] uris = stringsToUriArray(rec.codebaseUrls);
+                if (uris.length > 0) {
+                    RegistryVerdict rv = new RegistryVerdict(
+                            uris, rec.verdictType, rec.timestamp, rec.signature);
+                    publishedVerdicts.put(rec.codebaseKey, rv);
+                    VerdictState state = verdictStates.computeIfAbsent(
+                            rec.codebaseKey, k -> new VerdictState());
+                    synchronized (state) {
+                        if (rec.dangerous) {
+                            state.dangerous = true;
+                        }
+                        if (state.codebaseUrls == null) {
+                            state.codebaseUrls = uris;
+                        }
+                    }
+                }
+            } else {
+                logger.log(Level.WARNING,
+                        "Unknown log record type during recovery: {0}",
+                        update == null ? "null" : update.getClass().getName());
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Persistence — serialisable data carriers
+    // -------------------------------------------------------------------------
+
+    /** Full snapshot of all persistent state. */
+    static final class PersistentSnapshot implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final HashMap<String, SerializableEngineReg>        engines;
+        final HashMap<String, SerializableVerdictState>     states;
+        final HashMap<String, SerializablePublishedVerdict> published;
+        PersistentSnapshot(HashMap<String, SerializableEngineReg>        engines,
+                           HashMap<String, SerializableVerdictState>     states,
+                           HashMap<String, SerializablePublishedVerdict> published) {
+            this.engines   = engines;
+            this.states    = states;
+            this.published = published;
+        }
+    }
+
+    /** Serialisable form of {@link EngineRegistration}. */
+    static final class SerializableEngineReg implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final PublicKey publicKey;
+        final String    sigAlgorithm;
+        SerializableEngineReg(PublicKey publicKey, String sigAlgorithm) {
+            this.publicKey    = publicKey;
+            this.sigAlgorithm = sigAlgorithm;
+        }
+    }
+
+    /** Serialisable form of {@link VerdictState}. */
+    static final class SerializableVerdictState implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String[]                   codebaseUrls; // sorted URI strings
+        final HashMap<String, VerdictType> votes;
+        final boolean                    dangerous;
+        SerializableVerdictState(String[] codebaseUrls,
+                                 HashMap<String, VerdictType> votes,
+                                 boolean dangerous) {
+            this.codebaseUrls = codebaseUrls;
+            this.votes        = votes;
+            this.dangerous    = dangerous;
+        }
+    }
+
+    /** Serialisable form of a published {@link RegistryVerdict}. */
+    static final class SerializablePublishedVerdict implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String[]    codebaseUrls; // sorted URI strings
+        final VerdictType verdictType;
+        final long        timestamp;
+        final byte[]      signature;
+        SerializablePublishedVerdict(String[] codebaseUrls, VerdictType verdictType,
+                                     long timestamp, byte[] signature) {
+            this.codebaseUrls = codebaseUrls;
+            this.verdictType  = verdictType;
+            this.timestamp    = timestamp;
+            this.signature    = signature;
+        }
+    }
+
+    /** Log record: an analysis engine was registered. */
+    static final class RegisterEngineRecord implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String    engineId;
+        final PublicKey publicKey;
+        final String    sigAlgorithm;
+        RegisterEngineRecord(String engineId, PublicKey publicKey, String sigAlgorithm) {
+            this.engineId     = engineId;
+            this.publicKey    = publicKey;
+            this.sigAlgorithm = sigAlgorithm;
+        }
+    }
+
+    /** Log record: an analysis engine was revoked. */
+    static final class RevokeEngineRecord implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String engineId;
+        RevokeEngineRecord(String engineId) {
+            this.engineId = engineId;
+        }
+    }
+
+    /**
+     * Log record: a signature-verified vote was accepted.
+     * URI strings are stored instead of {@link Uri} objects because {@link Uri}
+     * is not {@link Serializable}.
+     */
+    static final class VoteRecord implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String      engineId;
+        final String      codebaseKey;
+        final String[]    codebaseUrls; // sorted URI strings
+        final VerdictType verdictType;
+        VoteRecord(String engineId, String codebaseKey,
+                   String[] codebaseUrls, VerdictType verdictType) {
+            this.engineId     = engineId;
+            this.codebaseKey  = codebaseKey;
+            this.codebaseUrls = codebaseUrls;
+            this.verdictType  = verdictType;
+        }
+    }
+
+    /**
+     * Log record: a {@link RegistryVerdict} was published.
+     * Stores the raw fields of the verdict rather than the verdict itself
+     * because {@link RegistryVerdict} uses {@code @AtomicSerial} and requires
+     * a specialised {@link ObjectInputStream} for safe deserialisation.
+     */
+    static final class PublishedVerdictRecord implements Serializable {
+        private static final long serialVersionUID = 1L;
+        final String      codebaseKey;
+        final String[]    codebaseUrls; // sorted URI strings
+        final VerdictType verdictType;
+        final long        timestamp;
+        final byte[]      signature;
+        final boolean     dangerous;
+        PublishedVerdictRecord(String codebaseKey, RegistryVerdict verdict,
+                               boolean dangerous) {
+            this.codebaseKey  = codebaseKey;
+            this.codebaseUrls = sortedUriStrings(verdict.getCodebaseUrls());
+            this.verdictType  = verdict.getVerdict();
+            this.timestamp    = verdict.getTimestamp();
+            this.signature    = verdict.getSignature();
+            this.dangerous    = dangerous;
+        }
     }
 }
