@@ -28,6 +28,12 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import org.apache.river.api.net.Uri;
 import org.junit.Before;
@@ -295,6 +301,81 @@ public class BytecodeAnalysisEngineImplTest {
         byte[] b2 = BytecodeAnalysisEngineImpl.canonicalBytes(
                 uris, au.net.zeus.jgdms.api.codebase.VerdictType.SAFE, 2000L);
         assertFalse(java.util.Arrays.equals(b1, b2));
+    }
+
+    // =========================================================================
+    // requestAnalysis — bounded-queue rejection
+    // =========================================================================
+
+    /**
+     * When the executor's work queue is full, {@code requestAnalysis} must
+     * propagate a {@link RejectedExecutionException} to the caller.
+     *
+     * <p>A {@link SynchronousQueue} (zero-capacity hand-off) paired with a
+     * single-thread pool ensures that a second concurrent submission is
+     * rejected as soon as the one thread is occupied.
+     */
+    @Test(expected = RejectedExecutionException.class)
+    public void testRequestAnalysis_QueueFull_ThrowsRejectedExecutionException()
+            throws Exception {
+        final CountDownLatch taskStarted  = new CountDownLatch(1);
+        final CountDownLatch releaseTask  = new CountDownLatch(1);
+
+        // 1 thread, zero-capacity queue → any submission while the thread is
+        // busy is immediately rejected.
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new SynchronousQueue<Runnable>(),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry,
+                executor);
+
+        // Occupy the single worker thread.
+        executor.execute(new Runnable() {
+            @Override public void run() {
+                taskStarted.countDown();
+                try { releaseTask.await(); } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        taskStarted.await(); // wait until the worker is truly running
+
+        try {
+            Set<Uri> uris = Collections.singleton(new Uri("http://example.com/a.jar"));
+            // Thread is busy, queue has no capacity → must be rejected.
+            engine.requestAnalysis(uris);
+        } finally {
+            releaseTask.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * When the queue has capacity, {@code requestAnalysis} must accept the
+     * task without throwing an exception.
+     */
+    @Test
+    public void testRequestAnalysis_WithCapacity_Succeeds() throws Exception {
+        // 1 thread, queue of 10 — plenty of room for a single task.
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<Runnable>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry,
+                executor);
+
+        try {
+            // Should not throw — queue is empty, task is accepted.
+            Set<Uri> uris = Collections.singleton(new Uri("http://example.com/b.jar"));
+            engine.requestAnalysis(uris);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     // =========================================================================

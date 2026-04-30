@@ -32,11 +32,14 @@ import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.logging.Level;
@@ -100,6 +103,20 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
     private static final int  ANALYSIS_POOL_MAX_THREADS        = 4;
     private static final long ANALYSIS_POOL_KEEP_ALIVE_SECONDS = 60L;
+
+    /**
+     * Maximum number of analysis tasks that may be pending in the executor
+     * queue at any one time.  Submissions beyond this limit are rejected with
+     * a {@link RejectedExecutionException} to prevent unbounded memory growth
+     * (denial-of-service protection).
+     */
+    static final int ANALYSIS_QUEUE_MAX_SIZE = 1000;
+
+    /**
+     * Cumulative count of analysis tasks that have been rejected because the
+     * bounded work queue was full.  Useful for operational monitoring.
+     */
+    private static final AtomicLong rejectedTaskCount = new AtomicLong();
 
     // -------------------------------------------------------------------------
     // Dangerous constant-pool patterns
@@ -180,6 +197,31 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.analysisExecutor = createAnalysisExecutor();
     }
 
+    /**
+     * Package-private constructor that accepts a custom {@link ExecutorService}.
+     * Intended only for unit testing; production code must use the public
+     * four-argument constructor.
+     */
+    BytecodeAnalysisEngineImpl(PrivateKey enginePrivateKey,
+                               String sigAlgorithm,
+                               String engineId,
+                               VerdictRegistry registry,
+                               ExecutorService executor) {
+        if (enginePrivateKey == null) throw new NullPointerException("enginePrivateKey");
+        if (sigAlgorithm == null)     throw new NullPointerException("sigAlgorithm");
+        if (sigAlgorithm.isEmpty())   throw new IllegalArgumentException("sigAlgorithm must not be empty");
+        if (engineId == null)         throw new NullPointerException("engineId");
+        if (engineId.isEmpty())       throw new IllegalArgumentException("engineId must not be empty");
+        if (registry == null)         throw new NullPointerException("registry");
+        if (executor == null)         throw new NullPointerException("executor");
+
+        this.enginePrivateKey = enginePrivateKey;
+        this.sigAlgorithm     = sigAlgorithm;
+        this.engineId         = engineId;
+        this.registry         = registry;
+        this.analysisExecutor = executor;
+    }
+
     // -------------------------------------------------------------------------
     // BytecodeAnalysisEngine
     // -------------------------------------------------------------------------
@@ -190,12 +232,18 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * {@link SignedVerdict} is submitted to the {@link VerdictRegistry} when
      * the analysis completes.
      *
+     * <p>If the internal task queue is full (more than
+     * {@value #ANALYSIS_QUEUE_MAX_SIZE} tasks pending), the request is
+     * rejected immediately with a {@link RejectedExecutionException} and
+     * a WARNING is logged.  Callers should back off and retry.
+     *
      * @param codebaseUrls the ordered set of RFC3986-normalised codebase URIs;
      *                     must be non-null and non-empty
-     * @throws NullPointerException     if {@code codebaseUrls} is {@code null}
-     * @throws IllegalArgumentException if {@code codebaseUrls} is empty
-     * @throws RemoteException          never thrown directly; declared for the
-     *                                  remote interface contract
+     * @throws NullPointerException       if {@code codebaseUrls} is {@code null}
+     * @throws IllegalArgumentException   if {@code codebaseUrls} is empty
+     * @throws RejectedExecutionException if the analysis task queue is full
+     * @throws RemoteException            never thrown directly; declared for the
+     *                                    remote interface contract
      */
     @Override
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
@@ -403,6 +451,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
     /**
      * Creates the daemon thread pool used for asynchronous analysis tasks.
+     *
+     * <p>The work queue is bounded to {@value #ANALYSIS_QUEUE_MAX_SIZE} entries.
+     * If the queue is full when a new task is submitted, the custom
+     * {@link RejectedExecutionHandler} logs a WARNING, increments the
+     * {@link #rejectedTaskCount} counter, and re-throws a
+     * {@link RejectedExecutionException} to the caller.
      */
     private static ExecutorService createAnalysisExecutor() {
         ThreadFactory daemonFactory = new ThreadFactory() {
@@ -413,11 +467,24 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                 return t;
             }
         };
+        RejectedExecutionHandler loggingAbortPolicy = new RejectedExecutionHandler() {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+                long count = rejectedTaskCount.incrementAndGet();
+                logger.log(Level.WARNING,
+                        "Analysis task rejected: queue is full "
+                        + "(limit={0}, total rejections={1}). Task: {2}",
+                        new Object[]{ANALYSIS_QUEUE_MAX_SIZE, count, r});
+                throw new RejectedExecutionException(
+                        "Analysis queue full (limit=" + ANALYSIS_QUEUE_MAX_SIZE + ")");
+            }
+        };
         return new ThreadPoolExecutor(
                 0, ANALYSIS_POOL_MAX_THREADS, ANALYSIS_POOL_KEEP_ALIVE_SECONDS,
                 TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>(),
-                daemonFactory);
+                new ArrayBlockingQueue<Runnable>(ANALYSIS_QUEUE_MAX_SIZE),
+                daemonFactory,
+                loggingAbortPolicy);
     }
 
     /**
