@@ -776,4 +776,552 @@ public class BytecodeAnalysisEngineImplTest {
         dos.flush();
         return baos.toByteArray();
     }
+
+    // =========================================================================
+    // Synthetic class-file builder for bytecode-level tests
+    // =========================================================================
+
+    /**
+     * Minimal class-file builder used by threading anti-pattern tests.
+     *
+     * <p>Produces a structurally valid {@code .class} file (magic, version,
+     * constant pool, access flags, this/super class refs, no interfaces, no
+     * fields) with a single method whose {@code Code} attribute contains the
+     * supplied bytecode and exception handler table.
+     *
+     * <p>Constant pool layout (1-based indices):
+     * <ol>
+     *   <li>CONSTANT_Utf8 "SyntheticClass"    (class name)</li>
+     *   <li>CONSTANT_Class → #1</li>
+     *   <li>CONSTANT_Utf8 "java/lang/Object"  (super class)</li>
+     *   <li>CONSTANT_Class → #3</li>
+     *   <li>CONSTANT_Utf8 "run"               (method name)</li>
+     *   <li>CONSTANT_Utf8 "()V"               (method descriptor)</li>
+     *   <li>CONSTANT_Utf8 "Code"              (attribute name)</li>
+     *   <li..N> extra UTF-8 entries supplied by caller
+     * </ol>
+     */
+    private static final class ClassBuilder {
+
+        private final ByteArrayOutputStream cpBaos = new ByteArrayOutputStream();
+        private final DataOutputStream cpDos = new DataOutputStream(cpBaos);
+        private int cpIndex = 1; // next free CP slot (1-based)
+
+        // Fixed CP entries (written first)
+        private final int classNameIdx;
+        private final int classRefIdx;
+        private final int superNameIdx;
+        private final int superRefIdx;
+        private final int methodNameIdx;
+        private final int methodDescIdx;
+        private final int codeAttrIdx;
+
+        ClassBuilder() throws IOException {
+            classNameIdx  = addUtf8("SyntheticClass");
+            classRefIdx   = addClassRef(classNameIdx);
+            superNameIdx  = addUtf8("java/lang/Object");
+            superRefIdx   = addClassRef(superNameIdx);
+            methodNameIdx = addUtf8("run");
+            methodDescIdx = addUtf8("()V");
+            codeAttrIdx   = addUtf8("Code");
+        }
+
+        /** Adds a CONSTANT_Utf8 entry; returns its 1-based index. */
+        int addUtf8(String value) throws IOException {
+            byte[] b = value.getBytes(StandardCharsets.UTF_8);
+            cpDos.writeByte(1);
+            cpDos.writeShort(b.length);
+            cpDos.write(b);
+            return cpIndex++;
+        }
+
+        /** Adds a CONSTANT_Class entry pointing to {@code nameIdx}; returns its index. */
+        private int addClassRef(int nameIdx) throws IOException {
+            cpDos.writeByte(7); // CONSTANT_Class
+            cpDos.writeShort(nameIdx);
+            return cpIndex++;
+        }
+
+        /**
+         * Assembles the complete class file bytes with a single {@code run()}
+         * method containing the supplied bytecode and exception handlers.
+         *
+         * @param bytecode         raw method bytecode
+         * @param exceptionHandlers exception handler table entries, each an
+         *                          {@code int[4]}: {start_pc, end_pc, handler_pc, catch_type}
+         *                          (catch_type = 0 means finally; use a CP Class index otherwise)
+         */
+        byte[] build(byte[] bytecode, int[][] exceptionHandlers) throws IOException {
+            cpDos.flush();
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(out);
+
+            // Magic + version
+            dos.writeInt(0xCAFEBABE);
+            dos.writeShort(0);   // minor
+            dos.writeShort(52);  // major (Java 8)
+
+            // Constant pool
+            dos.writeShort(cpIndex); // cp_count
+            dos.write(cpBaos.toByteArray());
+
+            // access_flags=0x0021 (ACC_PUBLIC | ACC_SUPER), this_class, super_class
+            dos.writeShort(0x0021);
+            dos.writeShort(classRefIdx);
+            dos.writeShort(superRefIdx);
+
+            // No interfaces
+            dos.writeShort(0);
+            // No fields
+            dos.writeShort(0);
+
+            // One method
+            dos.writeShort(1);
+            buildMethod(dos, bytecode, exceptionHandlers);
+
+            // No class attributes
+            dos.writeShort(0);
+
+            dos.flush();
+            return out.toByteArray();
+        }
+
+        /** Convenience overload: no exception handlers. */
+        byte[] build(byte[] bytecode) throws IOException {
+            return build(bytecode, new int[0][]);
+        }
+
+        private void buildMethod(DataOutputStream dos, byte[] bytecode,
+                                  int[][] exceptionHandlers) throws IOException {
+            // method_info: access_flags, name_index, descriptor_index, attributes_count
+            dos.writeShort(0x0001); // ACC_PUBLIC
+            dos.writeShort(methodNameIdx);
+            dos.writeShort(methodDescIdx);
+            dos.writeShort(1); // one attribute: Code
+
+            // Code attribute
+            // Compute length:
+            // max_stack(2) + max_locals(2) + code_length(4) + code(N)
+            // + exception_table_length(2) + handlers(8 each)
+            // + attributes_count(2) = total
+            int ehCount = exceptionHandlers.length;
+            int codeAttrLen = 2 + 2 + 4 + bytecode.length
+                    + 2 + ehCount * 8
+                    + 2;
+
+            dos.writeShort(codeAttrIdx); // attribute_name_index
+            dos.writeInt(codeAttrLen);
+            dos.writeShort(10);  // max_stack
+            dos.writeShort(10);  // max_locals
+            dos.writeInt(bytecode.length);
+            dos.write(bytecode);
+
+            // Exception table
+            dos.writeShort(ehCount);
+            for (int[] eh : exceptionHandlers) {
+                dos.writeShort(eh[0]); // start_pc
+                dos.writeShort(eh[1]); // end_pc
+                dos.writeShort(eh[2]); // handler_pc
+                dos.writeShort(eh[3]); // catch_type (0 = any)
+            }
+            dos.writeShort(0); // no sub-attributes
+        }
+    }
+
+    // =========================================================================
+    // hasVirtualThreadPinning — positive cases
+    // =========================================================================
+
+    /**
+     * A class that contains MONITORENTER (0xC2) and references java/io/InputStream
+     * (a blocking-I/O pinning CP entry) must be flagged.
+     */
+    @Test
+    public void testHasVirtualThreadPinning_MonitorenterWithObjectRef_IsTrue()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/io/InputStream");
+        // bytecode: MONITORENTER + RETURN
+        byte[] code = {(byte)0xC2, (byte)0xB1};
+        byte[] classBytes = cb.build(code);
+        assertTrue(BytecodeAnalysisEngineImpl.hasVirtualThreadPinning(classBytes));
+    }
+
+    /**
+     * A class that contains MONITORENTER and references java/net/Socket must be flagged.
+     */
+    @Test
+    public void testHasVirtualThreadPinning_MonitorenterWithSocketRef_IsTrue()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/net/Socket");
+        // bytecode: MONITORENTER + MONITOREXIT + RETURN
+        byte[] code = {(byte)0xC2, (byte)0xC3, (byte)0xB1};
+        byte[] classBytes = cb.build(code);
+        assertTrue(BytecodeAnalysisEngineImpl.hasVirtualThreadPinning(classBytes));
+    }
+
+    /**
+     * A class that contains MONITORENTER and references java/nio/channels/Selector
+     * must be flagged.
+     */
+    @Test
+    public void testHasVirtualThreadPinning_MonitorenterWithSelectorRef_IsTrue()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/nio/channels/Selector");
+        byte[] code = {(byte)0xC2, (byte)0xB1};
+        byte[] classBytes = cb.build(code);
+        assertTrue(BytecodeAnalysisEngineImpl.hasVirtualThreadPinning(classBytes));
+    }
+
+    // =========================================================================
+    // hasVirtualThreadPinning — negative cases
+    // =========================================================================
+
+    /**
+     * A class with no MONITORENTER opcode must not be flagged, even if it
+     * references a pinning CP entry.
+     */
+    @Test
+    public void testHasVirtualThreadPinning_NoMonitorenter_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/net/Socket");
+        // bytecode: just RETURN — no MONITORENTER
+        byte[] code = {(byte)0xB1};
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasVirtualThreadPinning(classBytes));
+    }
+
+    /**
+     * A class with MONITORENTER but no pinning CP entries must not be flagged.
+     */
+    @Test
+    public void testHasVirtualThreadPinning_MonitorenterNoPinningRef_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("com/example/Foo"); // not a pinning entry
+        byte[] code = {(byte)0xC2, (byte)0xB1};
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasVirtualThreadPinning(classBytes));
+    }
+
+    /**
+     * A minimal stub (CP-only class with no method table) must not be flagged
+     * by the pinning detector.
+     */
+    @Test
+    public void testHasVirtualThreadPinning_StubClassNoMethods_IsFalse()
+            throws IOException {
+        // buildClassWithUtf8 creates a CP-only class (no method table)
+        byte[] classBytes = buildClassWithUtf8("java/net/Socket");
+        assertFalse(BytecodeAnalysisEngineImpl.hasVirtualThreadPinning(classBytes));
+    }
+
+    // =========================================================================
+    // hasCpuConsumingLoops — positive cases
+    // =========================================================================
+
+    /**
+     * A class with a backward GOTO (-3 offset from the GOTO instruction itself,
+     * forming a tight infinite loop) and no yield-point CP entries must be flagged.
+     */
+    @Test
+    public void testHasCpuConsumingLoops_BackwardGoto_IsTrue() throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        // No yield-point strings in CP (the builder adds "run", "()V", "Code" etc.
+        // but none of the loop-yield method names).
+        // bytecode: NOP GOTO -3 (offset -3 → back to the NOP)
+        // GOTO = 0xA7; offset bytes: 0xFF, 0xFD = -3 in signed short
+        byte[] code = {
+            (byte)0x00,             // 0: NOP
+            (byte)0xA7,             // 1: GOTO
+            (byte)0xFF, (byte)0xFD  // 2-3: offset -3 → pc = 1 + (-3) = -2? let's use -2
+        };
+        // Actually: GOTO offset is relative to the position of the GOTO instruction.
+        // GOTO at pc=1, offset=-3 → target = 1 + (-3) = -2 (wraps, but negative = backward)
+        // For the test, we just need offset < 0.
+        byte[] classBytes = cb.build(code);
+        assertTrue(BytecodeAnalysisEngineImpl.hasCpuConsumingLoops(classBytes));
+    }
+
+    /**
+     * A backward GOTO loop that also references "sleep" in the constant pool
+     * must NOT be flagged — sleep is a valid yield point.
+     */
+    @Test
+    public void testHasCpuConsumingLoops_BackwardGotoWithSleep_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("sleep"); // yield point
+        byte[] code = {
+            (byte)0x00,             // NOP
+            (byte)0xA7,             // GOTO
+            (byte)0xFF, (byte)0xFD  // offset -3
+        };
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasCpuConsumingLoops(classBytes));
+    }
+
+    /**
+     * A backward GOTO loop that also references "yield" in the constant pool
+     * must NOT be flagged.
+     */
+    @Test
+    public void testHasCpuConsumingLoops_BackwardGotoWithYield_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("yield");
+        byte[] code = {
+            (byte)0x00,
+            (byte)0xA7,
+            (byte)0xFF, (byte)0xFD
+        };
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasCpuConsumingLoops(classBytes));
+    }
+
+    /**
+     * A backward GOTO loop that also references "park" must NOT be flagged.
+     */
+    @Test
+    public void testHasCpuConsumingLoops_BackwardGotoWithPark_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("park");
+        byte[] code = {
+            (byte)0x00,
+            (byte)0xA7,
+            (byte)0xFF, (byte)0xFD
+        };
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasCpuConsumingLoops(classBytes));
+    }
+
+    // =========================================================================
+    // hasCpuConsumingLoops — negative cases
+    // =========================================================================
+
+    /**
+     * A class with only forward GOTO (no loop) must not be flagged, even without
+     * yield-point CP entries.
+     */
+    @Test
+    public void testHasCpuConsumingLoops_ForwardGotoOnly_IsFalse() throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        // GOTO +2 (forward): skip over NOP, then RETURN
+        byte[] code = {
+            (byte)0xA7,             // 0: GOTO
+            (byte)0x00, (byte)0x03, // 1-2: offset +3 → skip to pc=3
+            (byte)0x00,             // 3: NOP
+            (byte)0xB1              // 4: RETURN
+        };
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasCpuConsumingLoops(classBytes));
+    }
+
+    /**
+     * A class with no GOTO at all must not be flagged.
+     */
+    @Test
+    public void testHasCpuConsumingLoops_NoGoto_IsFalse() throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        byte[] code = {(byte)0x00, (byte)0xB1}; // NOP, RETURN
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasCpuConsumingLoops(classBytes));
+    }
+
+    /**
+     * A minimal stub (CP-only, no method table) must not be flagged.
+     */
+    @Test
+    public void testHasCpuConsumingLoops_StubClassNoMethods_IsFalse()
+            throws IOException {
+        byte[] classBytes = buildClassWithUtf8("loop");
+        assertFalse(BytecodeAnalysisEngineImpl.hasCpuConsumingLoops(classBytes));
+    }
+
+    // =========================================================================
+    // hasInterruptSwallowing — positive cases
+    // =========================================================================
+
+    /**
+     * A method that catches {@code InterruptedException} (CP reference present)
+     * and the handler body is just RETURN (no invocation opcode) must be flagged.
+     *
+     * <p>Exception handler table: catch_type points to a Class CP entry.  In this
+     * minimal test we use a non-zero catch_type value (8 = index into CP) and
+     * ensure the CP does NOT contain "interrupt" so the check fires immediately.
+     */
+    @Test
+    public void testHasInterruptSwallowing_EmptyHandler_IsTrue() throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        // Add "java/lang/InterruptedException" to CP
+        cb.addUtf8("java/lang/InterruptedException");
+        // bytecode:
+        //   0: NOP          (try block start)
+        //   1: GOTO +3      (skip handler, jump to RETURN at 6)
+        //   4: POP          (handler start: discard the exception)
+        //   5: RETURN       (empty handler — swallows)
+        byte[] code = {
+            (byte)0x00,             // 0: NOP (try start)
+            (byte)0xA7,             // 1: GOTO
+            (byte)0x00, (byte)0x04, // 2-3: +4 → pc=5 (RETURN — wait, handler at 4)
+            (byte)0x57,             // 4: POP  (handler_pc=4)
+            (byte)0xB1              // 5: RETURN
+        };
+        // Exception handler: start_pc=0, end_pc=1, handler_pc=4, catch_type=8 (non-zero = InterruptedException)
+        int[][] handlers = {{0, 1, 4, 8}};
+        byte[] classBytes = cb.build(code, handlers);
+        assertTrue(BytecodeAnalysisEngineImpl.hasInterruptSwallowing(classBytes));
+    }
+
+    /**
+     * A class whose CP contains "java/lang/InterruptedException" but whose
+     * handler also contains "interrupt" (a method invocation) in the CP is
+     * NOT flagged — we assume the developer called {@code Thread.currentThread().interrupt()}.
+     */
+    @Test
+    public void testHasInterruptSwallowing_HandlerCallsInterrupt_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/lang/InterruptedException");
+        cb.addUtf8("interrupt"); // interrupt() method referenced
+        // bytecode:
+        //   0: NOP
+        //   1: GOTO +5 (skip to RETURN)
+        //   4: INVOKEVIRTUAL (0xB6) index1 index2 → calls interrupt
+        //   7: RETURN
+        byte[] code = {
+            (byte)0x00,             // 0: NOP
+            (byte)0xA7,             // 1: GOTO
+            (byte)0x00, (byte)0x06, // 2-3: +6 → pc=7
+            (byte)0xB6,             // 4: INVOKEVIRTUAL (handler body)
+            (byte)0x00, (byte)0x00, // 5-6: method index (stub — just needs the opcode)
+            (byte)0xB1              // 7: RETURN
+        };
+        int[][] handlers = {{0, 1, 4, 8}};
+        byte[] classBytes = cb.build(code, handlers);
+        assertFalse(BytecodeAnalysisEngineImpl.hasInterruptSwallowing(classBytes));
+    }
+
+    // =========================================================================
+    // hasInterruptSwallowing — negative cases
+    // =========================================================================
+
+    /**
+     * A class with NO reference to InterruptedException must never be flagged.
+     */
+    @Test
+    public void testHasInterruptSwallowing_NoInterruptedException_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        // No "java/lang/InterruptedException" in CP
+        byte[] code = {(byte)0x57, (byte)0xB1}; // POP, RETURN
+        int[][] handlers = {{0, 1, 0, 8}}; // some handler, but IE not in CP
+        byte[] classBytes = cb.build(code, handlers);
+        assertFalse(BytecodeAnalysisEngineImpl.hasInterruptSwallowing(classBytes));
+    }
+
+    /**
+     * A class with InterruptedException in the CP but no exception handlers
+     * must not be flagged.
+     */
+    @Test
+    public void testHasInterruptSwallowing_NoHandlers_IsFalse() throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/lang/InterruptedException");
+        byte[] code = {(byte)0xB1}; // RETURN, no handlers
+        byte[] classBytes = cb.build(code);
+        assertFalse(BytecodeAnalysisEngineImpl.hasInterruptSwallowing(classBytes));
+    }
+
+    /**
+     * A catch-all finally handler (catch_type = 0) that has no invocation must
+     * NOT be flagged because finally blocks are not interrupt handlers.
+     */
+    @Test
+    public void testHasInterruptSwallowing_FinallyHandler_IsFalse()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/lang/InterruptedException");
+        byte[] code = {(byte)0x57, (byte)0xBF}; // POP, ATHROW (re-throw)
+        // catch_type = 0 → finally block, should be ignored
+        int[][] handlers = {{0, 1, 0, 0}};
+        byte[] classBytes = cb.build(code, handlers);
+        assertFalse(BytecodeAnalysisEngineImpl.hasInterruptSwallowing(classBytes));
+    }
+
+    /**
+     * A minimal stub class (CP-only, no method table) must not be flagged even
+     * if InterruptedException appears in the CP.
+     */
+    @Test
+    public void testHasInterruptSwallowing_StubClassNoMethods_IsFalse()
+            throws IOException {
+        byte[] classBytes = buildClassWithUtf8("java/lang/InterruptedException");
+        assertFalse(BytecodeAnalysisEngineImpl.hasInterruptSwallowing(classBytes));
+    }
+
+    // =========================================================================
+    // containsDangerousCode integration — threading detectors via main entry point
+    // =========================================================================
+
+    /**
+     * {@code containsDangerousCode} must flag a class that has both MONITORENTER
+     * and a blocking-I/O CP reference, even if no CP pattern from the default
+     * dangerous list is present.
+     */
+    @Test
+    public void testContainsDangerousCode_VirtualThreadPinning_IsTrue()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/net/Socket");
+        byte[] code = {(byte)0xC2, (byte)0xB1}; // MONITORENTER, RETURN
+        byte[] classBytes = cb.build(code);
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(classBytes,
+                new String[0]));
+    }
+
+    /**
+     * {@code containsDangerousCode} must flag a class that has a CPU-consuming
+     * spin loop (backward GOTO, no yield point).
+     */
+    @Test
+    public void testContainsDangerousCode_CpuConsumingLoop_IsTrue()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        byte[] code = {
+            (byte)0x00,
+            (byte)0xA7,
+            (byte)0xFF, (byte)0xFD  // backward GOTO
+        };
+        byte[] classBytes = cb.build(code);
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(classBytes,
+                new String[0]));
+    }
+
+    /**
+     * {@code containsDangerousCode} must flag a class that swallows
+     * {@code InterruptedException} in an empty handler.
+     */
+    @Test
+    public void testContainsDangerousCode_InterruptSwallowing_IsTrue()
+            throws IOException {
+        ClassBuilder cb = new ClassBuilder();
+        cb.addUtf8("java/lang/InterruptedException");
+        byte[] code = {
+            (byte)0x00,
+            (byte)0xA7,
+            (byte)0x00, (byte)0x04,
+            (byte)0x57,
+            (byte)0xB1
+        };
+        int[][] handlers = {{0, 1, 4, 8}};
+        byte[] classBytes = cb.build(code, handlers);
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(classBytes,
+                new String[0]));
+    }
 }
