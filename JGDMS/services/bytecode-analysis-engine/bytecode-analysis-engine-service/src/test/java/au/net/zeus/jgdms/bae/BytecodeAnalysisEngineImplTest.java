@@ -19,7 +19,12 @@ package au.net.zeus.jgdms.bae;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
@@ -34,11 +39,16 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.jar.JarOutputStream;
+import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import au.net.zeus.jgdms.api.codebase.VerdictType;
 import org.apache.river.api.net.Uri;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -377,8 +387,240 @@ public class BytecodeAnalysisEngineImplTest {
     }
 
     // =========================================================================
+    // AnalysisTaskWithTimeout — timeout fires → DANGEROUS verdict
+    // =========================================================================
+
+    /**
+     * When the codebase server accepts the TCP connection but never sends any
+     * HTTP response, {@code analyzeCodebase} blocks indefinitely on
+     * {@code url.openStream()}.  After the configured timeout the engine must
+     * submit a {@link VerdictType#DANGEROUS} verdict to the registry as a
+     * fail-safe.
+     */
+    @Test
+    public void testAnalysisTask_Timeout_SubmitsDangerousVerdict() throws Exception {
+        // Start a server that accepts connections but never responds.
+        final ServerSocket blockingServer = new ServerSocket(0);
+        Thread blockingServerThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Socket client = blockingServer.accept();
+                    // Hold the connection open without sending any data.
+                    Thread.sleep(30_000L);
+                    client.close();
+                } catch (Exception ignored) {}
+            }
+        });
+        blockingServerThread.setDaemon(true);
+        blockingServerThread.start();
+
+        final AtomicReference<VerdictType> submittedVerdict = new AtomicReference<>();
+        final CountDownLatch verdictLatch = new CountDownLatch(1);
+        VerdictRegistry trackingRegistry = createTrackingRegistry(submittedVerdict, verdictLatch);
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+        // Use a 400 ms timeout so the test completes quickly.
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", trackingRegistry,
+                executor, 400L);
+        try {
+            Set<Uri> uris = Collections.singleton(
+                    new Uri("http://localhost:" + blockingServer.getLocalPort() + "/test.jar"));
+            engine.requestAnalysis(uris);
+            assertTrue("Timeout verdict not received within 5 s",
+                    verdictLatch.await(5, TimeUnit.SECONDS));
+            assertEquals(VerdictType.DANGEROUS, submittedVerdict.get());
+        } finally {
+            blockingServer.close();
+            executor.shutdownNow();
+        }
+    }
+
+    // =========================================================================
+    // AnalysisTaskWithTimeout — completes before timeout → correct verdict
+    // =========================================================================
+
+    /**
+     * When the analysis completes normally (before the timeout), the engine
+     * must submit the actual verdict — {@link VerdictType#SAFE} for an empty
+     * JAR that contains no dangerous patterns — not a spurious DANGEROUS.
+     */
+    @Test
+    public void testAnalysisTask_CompletesBeforeTimeout_SubmitsSafeVerdict() throws Exception {
+        // Build an empty JAR (no class files → no dangerous patterns → SAFE).
+        java.io.File safeTestJar = java.io.File.createTempFile("bae-safe-test", ".jar");
+        safeTestJar.deleteOnExit();
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(safeTestJar))) {
+            // intentionally empty
+        }
+
+        final AtomicReference<VerdictType> submittedVerdict = new AtomicReference<>();
+        final CountDownLatch verdictLatch = new CountDownLatch(1);
+        VerdictRegistry trackingRegistry = createTrackingRegistry(submittedVerdict, verdictLatch);
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+        // Generous 10 s timeout — analysis should finish almost instantly.
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", trackingRegistry,
+                executor, 10_000L);
+        try {
+            Set<Uri> uris = Collections.singleton(new Uri(safeTestJar.toURI().toString()));
+            engine.requestAnalysis(uris);
+            assertTrue("Safe verdict not received within 5 s",
+                    verdictLatch.await(5, TimeUnit.SECONDS));
+            assertEquals(VerdictType.SAFE, submittedVerdict.get());
+        } finally {
+            safeTestJar.delete();
+            executor.shutdownNow();
+        }
+    }
+
+    // =========================================================================
+    // AnalysisTaskWithTimeout — timeout releases the executor thread
+    // =========================================================================
+
+    /**
+     * After a timeout fires, the executor thread that was waiting on
+     * {@code FutureTask.get()} must be released and available to process
+     * subsequent tasks.  This test verifies that the engine is not deadlocked
+     * after a timeout by submitting a second (fast) task and confirming it
+     * also produces a verdict.
+     */
+    @Test
+    public void testAnalysisTask_TimeoutInterrupts_Thread() throws Exception {
+        // First server: blocks the initial analysis task.
+        final ServerSocket blockingServer = new ServerSocket(0);
+        Thread blockingServerThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Socket client = blockingServer.accept();
+                    Thread.sleep(30_000L);
+                    client.close();
+                } catch (Exception ignored) {}
+            }
+        });
+        blockingServerThread.setDaemon(true);
+        blockingServerThread.start();
+
+        // Second task: an empty JAR served from the local file system.
+        java.io.File fastCompletionJar = java.io.File.createTempFile("bae-timeout-interrupt", ".jar");
+        fastCompletionJar.deleteOnExit();
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(fastCompletionJar))) {
+            // intentionally empty
+        }
+
+        // Registry that counts how many verdicts arrive.
+        final CountDownLatch twoVerdicts = new CountDownLatch(2);
+        VerdictRegistry countingRegistry = new VerdictRegistry() {
+            @Override
+            public void registerAnalysisEngine(String id,
+                    java.security.PublicKey k, String alg) {}
+            @Override
+            public void revokeAnalysisEngine(String id) {}
+            @Override
+            public void submitVerdict(String id, SignedVerdict v) {
+                twoVerdicts.countDown();
+            }
+            @Override
+            public void reportCrash(
+                    au.net.zeus.jgdms.api.codebase.CrashReport r) {}
+            @Override
+            public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdict(
+                    Set<Uri> u) { return null; }
+            @Override
+            public net.jini.core.event.EventRegistration registerVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    Set<Uri> u,
+                    net.jini.io.MarshalledInstance h,
+                    long d) { return null; }
+            @Override
+            public long renewEventLease(net.jini.id.Uuid id, long d)
+                    throws net.jini.core.lease.UnknownLeaseException { return d; }
+            @Override
+            public void cancelEventLease(net.jini.id.Uuid id)
+                    throws net.jini.core.lease.UnknownLeaseException {}
+        };
+
+        // Two-thread pool; 400 ms timeout.
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                2, 2, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", countingRegistry,
+                executor, 400L);
+        try {
+            // Submit the blocking task first.
+            Set<Uri> blockingUris = Collections.singleton(
+                    new Uri("http://localhost:" + blockingServer.getLocalPort() + "/test.jar"));
+            engine.requestAnalysis(blockingUris);
+
+            // Submit the fast (safe-JAR) task immediately after.
+            Set<Uri> safeUris = Collections.singleton(new Uri(fastCompletionJar.toURI().toString()));
+            engine.requestAnalysis(safeUris);
+
+            // Both tasks must produce a verdict within a reasonable window.
+            // The first times out (→ DANGEROUS), the second completes fast (→ SAFE).
+            assertTrue("Both verdicts not received within 6 s",
+                    twoVerdicts.await(6, TimeUnit.SECONDS));
+        } finally {
+            blockingServer.close();
+            fastCompletionJar.delete();
+            executor.shutdownNow();
+        }
+    }
+
+    // =========================================================================
     // Private helpers
     // =========================================================================
+
+    /**
+     * Returns a minimal {@link VerdictRegistry} that stores the last verdict
+     * type passed to {@link VerdictRegistry#submitVerdict} in
+     * {@code verdictRef} and counts down {@code latch} once.
+     */
+    private static VerdictRegistry createTrackingRegistry(
+            final AtomicReference<VerdictType> verdictRef,
+            final CountDownLatch latch) {
+        return new VerdictRegistry() {
+            @Override
+            public void registerAnalysisEngine(String id,
+                    java.security.PublicKey k, String alg) {}
+            @Override
+            public void revokeAnalysisEngine(String id) {}
+            @Override
+            public void submitVerdict(String id, SignedVerdict v) {
+                verdictRef.set(v.getVerdict());
+                latch.countDown();
+            }
+            @Override
+            public void reportCrash(
+                    au.net.zeus.jgdms.api.codebase.CrashReport r) {}
+            @Override
+            public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdict(
+                    Set<Uri> u) { return null; }
+            @Override
+            public net.jini.core.event.EventRegistration registerVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    Set<Uri> u,
+                    net.jini.io.MarshalledInstance h,
+                    long d) { return null; }
+            @Override
+            public long renewEventLease(net.jini.id.Uuid id, long d)
+                    throws net.jini.core.lease.UnknownLeaseException { return d; }
+            @Override
+            public void cancelEventLease(net.jini.id.Uuid id)
+                    throws net.jini.core.lease.UnknownLeaseException {}
+        };
+    }
 
     /**
      * Builds a minimal synthetic class file with the supplied {@code CONSTANT_Utf8}

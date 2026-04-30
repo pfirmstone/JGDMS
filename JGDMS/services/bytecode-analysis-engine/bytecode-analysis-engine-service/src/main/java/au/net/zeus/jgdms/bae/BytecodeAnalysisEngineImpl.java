@@ -33,12 +33,16 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -84,6 +88,15 @@ import org.apache.river.api.net.Uri;
  * Additionally, if a JAR entry cannot be read (e.g. due to a network error),
  * the verdict is conservatively {@link VerdictType#DANGEROUS}.
  *
+ * <h2>Timeout protection</h2>
+ * Each analysis task is bounded by a configurable per-task timeout (default
+ * {@value #ANALYSIS_TASK_TIMEOUT_MILLIS} ms).  If a task does not complete
+ * within the timeout — for example because {@code url.openStream()} blocks
+ * indefinitely against an unresponsive codebase server — the analysis thread
+ * is interrupted (best-effort) and a {@link VerdictType#DANGEROUS} verdict is
+ * submitted to the registry as a fail-safe.  A WARNING is logged with the
+ * codebase URLs and the elapsed time.
+ *
  * <h2>Thread safety</h2>
  * {@link #requestAnalysis} is safe for concurrent use.  Each analysis request
  * is executed asynchronously on a shared daemon thread pool.
@@ -111,6 +124,17 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * (denial-of-service protection).
      */
     static final int ANALYSIS_QUEUE_MAX_SIZE = 1000;
+
+    /**
+     * Default per-task analysis timeout in milliseconds (5 minutes).
+     * If an analysis task does not complete within this time, the analysis
+     * thread is interrupted (best-effort) and a {@link VerdictType#DANGEROUS}
+     * verdict is submitted to the registry as a fail-safe.
+     *
+     * <p>Administrators may override this per deployment by passing a custom
+     * value to the package-private test/service constructor.
+     */
+    static final long ANALYSIS_TASK_TIMEOUT_MILLIS = 300_000L;
 
     /**
      * Cumulative count of analysis tasks that have been rejected because the
@@ -160,6 +184,13 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     /** Thread pool for asynchronous analysis tasks. */
     private final ExecutorService analysisExecutor;
 
+    /**
+     * Per-task timeout in milliseconds.  Defaults to
+     * {@value #ANALYSIS_TASK_TIMEOUT_MILLIS}; may be overridden via the
+     * package-private constructor for testing or per-deployment tuning.
+     */
+    private final long taskTimeoutMillis;
+
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
@@ -197,6 +228,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.engineId         = engineId;
         this.registry         = registry;
         this.analysisExecutor = createAnalysisExecutor(this.rejectedTaskCount);
+        this.taskTimeoutMillis = ANALYSIS_TASK_TIMEOUT_MILLIS;
     }
 
     /**
@@ -209,6 +241,24 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                                String engineId,
                                VerdictRegistry registry,
                                ExecutorService executor) {
+        this(enginePrivateKey, sigAlgorithm, engineId, registry, executor,
+                ANALYSIS_TASK_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * Package-private constructor that accepts a custom {@link ExecutorService}
+     * and a per-task timeout.  Intended only for unit testing or per-deployment
+     * tuning; production code should use the public four-argument constructor.
+     *
+     * @param taskTimeoutMillis per-task analysis timeout in milliseconds;
+     *                          must be positive
+     */
+    BytecodeAnalysisEngineImpl(PrivateKey enginePrivateKey,
+                               String sigAlgorithm,
+                               String engineId,
+                               VerdictRegistry registry,
+                               ExecutorService executor,
+                               long taskTimeoutMillis) {
         if (enginePrivateKey == null) throw new NullPointerException("enginePrivateKey");
         if (sigAlgorithm == null)     throw new NullPointerException("sigAlgorithm");
         if (sigAlgorithm.isEmpty())   throw new IllegalArgumentException("sigAlgorithm must not be empty");
@@ -216,12 +266,14 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         if (engineId.isEmpty())       throw new IllegalArgumentException("engineId must not be empty");
         if (registry == null)         throw new NullPointerException("registry");
         if (executor == null)         throw new NullPointerException("executor");
+        if (taskTimeoutMillis <= 0)   throw new IllegalArgumentException("taskTimeoutMillis must be positive");
 
-        this.enginePrivateKey = enginePrivateKey;
-        this.sigAlgorithm     = sigAlgorithm;
-        this.engineId         = engineId;
-        this.registry         = registry;
-        this.analysisExecutor = executor;
+        this.enginePrivateKey  = enginePrivateKey;
+        this.sigAlgorithm      = sigAlgorithm;
+        this.engineId          = engineId;
+        this.registry          = registry;
+        this.analysisExecutor  = executor;
+        this.taskTimeoutMillis = taskTimeoutMillis;
     }
 
     // -------------------------------------------------------------------------
@@ -239,6 +291,13 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * rejected immediately with a {@link RejectedExecutionException} and
      * a WARNING is logged.  Callers should back off and retry.
      *
+     * <p>Each analysis task is bounded by a configurable timeout (default
+     * {@value #ANALYSIS_TASK_TIMEOUT_MILLIS} ms).  If the task does not
+     * complete within that time, the analysis thread is interrupted
+     * (best-effort) and a {@link VerdictType#DANGEROUS} verdict is
+     * submitted to the registry as a fail-safe.  A WARNING is logged with
+     * the codebase URLs and elapsed time.
+     *
      * @param codebaseUrls the ordered set of RFC3986-normalised codebase URIs;
      *                     must be non-null and non-empty
      * @throws NullPointerException       if {@code codebaseUrls} is {@code null}
@@ -254,28 +313,78 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
         // Snapshot the set so the task is independent of caller mutations.
         Set<Uri> snapshot = new LinkedHashSet<Uri>(codebaseUrls);
-        analysisExecutor.execute(new AnalysisTask(snapshot));
+        analysisExecutor.execute(new AnalysisTaskWithTimeout(snapshot));
     }
 
     // -------------------------------------------------------------------------
-    // Private inner class: AnalysisTask
+    // Private inner class: AnalysisTaskWithTimeout
     // -------------------------------------------------------------------------
 
     /**
-     * Runnable that downloads JARs, scans their class files, signs the
-     * resulting {@link SignedVerdict}, and submits it to the registry.
+     * Runnable that downloads JARs, scans their class files within a
+     * configurable timeout, signs the resulting {@link SignedVerdict}, and
+     * submits it to the registry.
+     *
+     * <p>The I/O-intensive analysis ({@link #analyzeCodebase}) is executed
+     * on a dedicated daemon thread.  The outer (executor-pool) thread waits
+     * for completion using {@link FutureTask#get(long, TimeUnit)}.  If the
+     * timeout ({@link #taskTimeoutMillis} ms) elapses before analysis
+     * completes, the analysis thread is interrupted (best-effort), a WARNING
+     * is logged, and a {@link VerdictType#DANGEROUS} verdict is submitted to
+     * the registry as a fail-safe.
      */
-    private final class AnalysisTask implements Runnable {
+    private final class AnalysisTaskWithTimeout implements Runnable {
 
         private final Set<Uri> codebaseUrls;
 
-        AnalysisTask(Set<Uri> codebaseUrls) {
+        AnalysisTaskWithTimeout(Set<Uri> codebaseUrls) {
             this.codebaseUrls = codebaseUrls;
         }
 
         @Override
         public void run() {
-            VerdictType verdict = analyzeCodebase(codebaseUrls);
+            long startNanos = System.nanoTime();
+            final Set<Uri> urls = codebaseUrls;
+            FutureTask<VerdictType> analysisWork = new FutureTask<VerdictType>(
+                    new Callable<VerdictType>() {
+                        @Override
+                        public VerdictType call() {
+                            return analyzeCodebase(urls);
+                        }
+                    });
+            Thread worker = new Thread(analysisWork, "BAE-analysis-worker");
+            worker.setDaemon(true);
+            worker.start();
+
+            VerdictType verdict;
+            try {
+                verdict = analysisWork.get(taskTimeoutMillis, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                long elapsedMs =
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+                logger.log(Level.WARNING,
+                        "Analysis task timed out after {0} ms for codebase {1}; "
+                        + "submitting DANGEROUS verdict as fail-safe",
+                        new Object[]{elapsedMs, codebaseUrls});
+                analysisWork.cancel(true);
+                worker.interrupt();  // belt-and-suspenders
+                verdict = VerdictType.DANGEROUS;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                analysisWork.cancel(true);
+                worker.interrupt();
+                verdict = VerdictType.DANGEROUS;
+            } catch (ExecutionException e) {
+                logger.log(Level.SEVERE,
+                        "Unexpected analysis failure for " + codebaseUrls,
+                        e.getCause());
+                verdict = VerdictType.DANGEROUS;
+            }
+
+            signAndSubmit(verdict);
+        }
+
+        private void signAndSubmit(VerdictType verdict) {
             long timestamp = System.currentTimeMillis();
             try {
                 Uri[] sortedUrls = sortedUriArray(codebaseUrls);
