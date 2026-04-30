@@ -343,7 +343,11 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * <p>This method is idempotent: calling it more than once is safe.
      *
      * @param timeoutMs maximum time in milliseconds to wait for in-flight
-     *                  tasks to complete; use {@code 0} to wait indefinitely
+     *                  tasks to complete; use {@code 0} to wait indefinitely.
+     *                  Milliseconds are used here (rather than a {@link TimeUnit}
+     *                  pair) to match the Jini/JGDMS configuration convention
+     *                  where timeouts are expressed as plain {@code long} values
+     *                  in configuration files (e.g. {@code shutdownTimeoutMs}).
      * @throws InterruptedException if the calling thread is interrupted while
      *                              waiting for tasks to complete
      */
@@ -415,13 +419,21 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * cancel via {@link Thread#interrupt}, so any task that fails to respond to
      * interrupts may never terminate.
      *
+     * <p>Note: after this method returns, in-flight tasks that are already
+     * executing may still be running until they respond to interruption.  Use
+     * {@link #isTerminated()} (which delegates to the underlying executor) to
+     * determine when all threads have actually stopped.
+     *
      * @return list of tasks that were awaiting execution but never started
      */
     public synchronized List<Runnable> shutdownNow() {
         shutdownRequested.set(true);
         shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
         List<Runnable> pending = analysisExecutor.shutdownNow();
-        shutdownState.set(ShutdownState.SHUTDOWN_COMPLETE);
+        // Do not set SHUTDOWN_COMPLETE here: in-flight tasks may still be
+        // running and will complete asynchronously.  isTerminated() delegates
+        // to analysisExecutor.isTerminated() which accurately reflects when
+        // all threads have finished.
         return pending;
     }
 
