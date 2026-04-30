@@ -179,6 +179,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     // -------------------------------------------------------------------------
 
     // -- Queue metrics
+    /** Approximate peak queue depth; updated on each successful {@link #requestAnalysis} call. */
     final AtomicLong peakQueueDepth = new AtomicLong(0);
 
     // -- Analysis task metrics
@@ -393,7 +394,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
             }
 
             // Record in the recent-verdicts circular buffer.
-            int idx = (recentVerdictIndex.getAndIncrement() & Integer.MAX_VALUE) % 100;
+            int idx = Math.floorMod(recentVerdictIndex.getAndIncrement(), 100);
             recentVerdicts[idx] = new VerdictRecord(
                     System.currentTimeMillis(), codebaseUrls, verdict, analysisDurationMs);
 
@@ -763,11 +764,17 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     // -------------------------------------------------------------------------
 
     /**
-     * Returns the current analysis-queue depth: the number of tasks that are
-     * either queued or actively executing.
+     * Returns an approximate current analysis-queue depth: the sum of tasks
+     * that are queued and tasks that are actively executing.
      *
-     * @return current queue depth, or {@code -1} if depth cannot be determined
-     *         (e.g. when a custom executor was injected for testing)
+     * <p>The queue size and active-count are read non-atomically; the sum may
+     * therefore transiently over- or under-count by a small number of tasks in
+     * a concurrent environment.  This is acceptable for operational monitoring
+     * where approximate values are sufficient.
+     *
+     * @return approximate current queue depth, or {@code -1} if depth cannot
+     *         be determined (e.g. when a custom executor was injected for
+     *         testing)
      */
     public long queueDepth() {
         if (poolExecutor != null) {
