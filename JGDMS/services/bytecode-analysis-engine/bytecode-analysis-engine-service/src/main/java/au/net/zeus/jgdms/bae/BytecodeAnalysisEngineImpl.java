@@ -72,21 +72,100 @@ import org.apache.river.api.net.Uri;
  * across all JARs, the verdict is {@link VerdictType#SAFE}.
  *
  * <h2>Dangerous patterns</h2>
- * The following constant-pool strings are considered dangerous:
+ * The following constant-pool strings are considered dangerous by default.
+ * The list is configurable via the {@code dangerousConstantPoolPatterns}
+ * Jini configuration entry, allowing deployments to tighten or relax the
+ * default threat model.
+ *
+ * <h3>OS-process execution</h3>
  * <ul>
  *   <li>{@code java/lang/Runtime} — OS-process execution</li>
  *   <li>{@code java/lang/ProcessBuilder} — OS-process execution</li>
  *   <li>{@code java/lang/ProcessImpl} — OS-process execution (JDK internal)</li>
+ * </ul>
+ *
+ * <h3>Direct memory access</h3>
+ * <ul>
  *   <li>{@code sun/misc/Unsafe} — direct memory access</li>
  *   <li>{@code jdk/internal/misc/Unsafe} — direct memory access (JDK 9+)</li>
+ * </ul>
+ *
+ * <h3>Arbitrary class-loading</h3>
+ * <ul>
  *   <li>{@code java/lang/ClassLoader} — arbitrary class-loading</li>
  * </ul>
+ *
+ * <h3>Reflection APIs</h3>
+ * <ul>
+ *   <li>{@code java/lang/reflect/Method} — invoke arbitrary methods via reflection</li>
+ *   <li>{@code java/lang/reflect/Field} — read/write arbitrary field values</li>
+ *   <li>{@code java/lang/reflect/Constructor} — instantiate arbitrary classes</li>
+ *   <li>{@code java/lang/reflect/Proxy} — create dynamic proxy classes</li>
+ *   <li>{@code jdk/internal/reflect/Reflection} — JDK-internal reflection</li>
+ * </ul>
+ *
+ * <h3>Method/Variable Handles (Java 7+)</h3>
+ * <ul>
+ *   <li>{@code java/lang/invoke/MethodHandle} — low-level method invocation</li>
+ *   <li>{@code java/lang/invoke/VarHandle} — atomic variable access</li>
+ *   <li>{@code java/lang/invoke/MethodHandles} — method handle lookup</li>
+ *   <li>{@code java/lang/invoke/MethodHandles$Lookup} — privileged lookup object</li>
+ * </ul>
+ *
+ * <h3>Dynamic code generation &amp; bytecode manipulation</h3>
+ * <ul>
+ *   <li>{@code jdk/internal/org/objectweb/asm/} — JDK-bundled ASM bytecode library</li>
+ *   <li>{@code javassist/} — Javassist bytecode manipulation library</li>
+ *   <li>{@code net/bytebuddy/} — Byte Buddy bytecode instrumentation</li>
+ *   <li>{@code org/springframework/cglib/} — Spring CGLIB code generation</li>
+ * </ul>
+ *
+ * <h3>Module system &amp; shared secrets</h3>
+ * <ul>
+ *   <li>{@code java/lang/Module} — module system manipulation</li>
+ *   <li>{@code java/lang/ModuleLayer} — module layer access</li>
+ *   <li>{@code sun/misc/SharedSecrets} — JDK internal shared secrets</li>
+ *   <li>{@code jdk/internal/access/SharedSecrets} — shared secrets (JDK 9+)</li>
+ * </ul>
+ *
+ * <h3>Script execution &amp; expression languages</h3>
+ * <ul>
+ *   <li>{@code javax/script/ScriptEngine} — execute arbitrary scripts</li>
+ *   <li>{@code org/mozilla/javascript/} — Rhino JavaScript engine</li>
+ *   <li>{@code org/python/core/} — Jython Python execution</li>
+ *   <li>{@code groovy/lang/} — Groovy script execution</li>
+ * </ul>
+ *
+ * <h3>File I/O &amp; process interaction</h3>
+ * <ul>
+ *   <li>{@code java/nio/file/Files} — file write operations</li>
+ *   <li>{@code java/io/FileOutputStream} — direct file writes</li>
+ *   <li>{@code java/io/RandomAccessFile} — arbitrary file access</li>
+ *   <li>{@code java/nio/channels/FileChannel} — NIO file operations</li>
+ * </ul>
+ *
  * <p>Note: native library loading ({@code loadLibrary}) is intentionally
  * <em>not</em> treated as dangerous here; whether a service is allowed to
  * load native code is governed by the Jini/Phoenix security policy rather
  * than by bytecode analysis.
  * Additionally, if a JAR entry cannot be read (e.g. due to a network error),
  * the verdict is conservatively {@link VerdictType#DANGEROUS}.
+ *
+ * <h2>Configuration</h2>
+ * The pattern list can be overridden via Jini configuration:
+ * <pre>
+ * au.net.zeus.jgdms.bae {
+ *     dangerousConstantPoolPatterns = new String[]{
+ *         "java/lang/reflect/Method",
+ *         "javax/script/ScriptEngine",
+ *         // ... additional patterns
+ *     };
+ * }
+ * </pre>
+ * Pass the configured array to the
+ * {@link #BytecodeAnalysisEngineImpl(PrivateKey, String, String, VerdictRegistry, String[])}
+ * constructor.  An empty array disables all pattern checks (use only in
+ * controlled test environments).
  *
  * <h2>Timeout protection</h2>
  * Each analysis task is bounded by a configurable per-task timeout (default
@@ -149,17 +228,66 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     // -------------------------------------------------------------------------
 
     /**
-     * Internal JVM class names (using {@code /} separators) and method names
+     * Default set of internal JVM class names (using {@code /} separators)
      * whose presence in a class file's constant pool is treated as a
      * dangerous indicator.
+     *
+     * <p>This list covers seven broad threat categories:
+     * <ol>
+     *   <li>OS-process execution</li>
+     *   <li>Direct memory access</li>
+     *   <li>Arbitrary class-loading</li>
+     *   <li>Reflection &amp; method/variable handles</li>
+     *   <li>Dynamic code generation &amp; bytecode manipulation</li>
+     *   <li>Script execution engines</li>
+     *   <li>File I/O and module/shared-secrets access</li>
+     * </ol>
+     *
+     * <p>Deployments may supply a custom list via the constructor that accepts
+     * a {@code String[]} parameter (intended for Jini configuration injection).
+     * An empty array disables all pattern checks.
      */
-    private static final String[] DANGEROUS_CP_ENTRIES = {
+    static final String[] DANGEROUS_CP_ENTRIES = {
+        // OS-process execution
         "java/lang/Runtime",
         "java/lang/ProcessBuilder",
         "java/lang/ProcessImpl",
+        // Direct memory access
         "sun/misc/Unsafe",
         "jdk/internal/misc/Unsafe",
-        "java/lang/ClassLoader"
+        // Arbitrary class-loading
+        "java/lang/ClassLoader",
+        // Reflection APIs
+        "java/lang/reflect/Method",
+        "java/lang/reflect/Field",
+        "java/lang/reflect/Constructor",
+        "java/lang/reflect/Proxy",
+        "jdk/internal/reflect/Reflection",
+        // Method/Variable Handles (Java 7+)
+        "java/lang/invoke/MethodHandle",
+        "java/lang/invoke/VarHandle",
+        "java/lang/invoke/MethodHandles",
+        "java/lang/invoke/MethodHandles$Lookup",
+        // Dynamic code generation & bytecode manipulation
+        "jdk/internal/org/objectweb/asm/",
+        "javassist/",
+        "net/bytebuddy/",
+        "org/springframework/cglib/",
+        // Module system & shared secrets
+        "java/lang/Module",
+        "java/lang/ModuleLayer",
+        "sun/misc/SharedSecrets",
+        "jdk/internal/access/SharedSecrets",
+        // Script execution & expression languages
+        "javax/script/ScriptEngine",
+        "org/mozilla/javascript/",
+        "org/python/core/",
+        "groovy/lang/",
+        // File I/O & process interaction
+        "java/nio/file/Files",
+        "java/io/FileOutputStream",
+        "java/io/RandomAccessFile",
+        "java/nio/channels/FileChannel"
     };
 
     // -------------------------------------------------------------------------
@@ -185,6 +313,14 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     private final ExecutorService analysisExecutor;
 
     /**
+    /**
+     * The set of constant-pool patterns treated as dangerous for this engine
+     * instance.  Defaults to {@link #DANGEROUS_CP_ENTRIES}; may be overridden
+     * via the constructor that accepts a custom {@code String[]} argument.
+     */
+    private final String[] dangerousPatterns;
+
+    /**
      * Per-task timeout in milliseconds.  Defaults to
      * {@value #ANALYSIS_TASK_TIMEOUT_MILLIS}; may be overridden via the
      * package-private constructor for testing or per-deployment tuning.
@@ -196,7 +332,8 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     // -------------------------------------------------------------------------
 
     /**
-     * Creates a new {@code BytecodeAnalysisEngineImpl}.
+     * Creates a new {@code BytecodeAnalysisEngineImpl} using the default
+     * dangerous constant-pool patterns ({@link #DANGEROUS_CP_ENTRIES}).
      *
      * @param enginePrivateKey the engine's private key for signing verdicts;
      *                         must be non-null
@@ -223,18 +360,72 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         if (engineId.isEmpty())       throw new IllegalArgumentException("engineId must not be empty");
         if (registry == null)         throw new NullPointerException("registry");
 
-        this.enginePrivateKey = enginePrivateKey;
-        this.sigAlgorithm     = sigAlgorithm;
-        this.engineId         = engineId;
-        this.registry         = registry;
-        this.analysisExecutor = createAnalysisExecutor(this.rejectedTaskCount);
+        this.enginePrivateKey  = enginePrivateKey;
+        this.sigAlgorithm      = sigAlgorithm;
+        this.engineId          = engineId;
+        this.registry          = registry;
+        this.dangerousPatterns = DANGEROUS_CP_ENTRIES.clone();
+        this.analysisExecutor  = createAnalysisExecutor(this.rejectedTaskCount);
+        this.taskTimeoutMillis = ANALYSIS_TASK_TIMEOUT_MILLIS;
+    }
+
+    /**
+     * Creates a new {@code BytecodeAnalysisEngineImpl} with a configurable
+     * dangerous pattern list.
+     *
+     * <p>This constructor is intended for Jini configuration injection.
+     * Example configuration:
+     * <pre>
+     * au.net.zeus.jgdms.bae {
+     *     dangerousConstantPoolPatterns = new String[]{
+     *         "java/lang/reflect/Method",
+     *         "javax/script/ScriptEngine",
+     *     };
+     * }
+     * </pre>
+     *
+     * @param enginePrivateKey the engine's private key for signing verdicts;
+     *                         must be non-null
+     * @param sigAlgorithm     JCA standard name of the signature algorithm;
+     *                         must be non-null and non-empty
+     * @param engineId         the identifier used to register this engine;
+     *                         must be non-null and non-empty
+     * @param registry         the registry to which signed verdicts are
+     *                         submitted; must be non-null
+     * @param dangerousPatterns
+     *                         the constant-pool patterns to treat as dangerous;
+     *                         must be non-null; an empty array disables all
+     *                         pattern checks (use only in test environments)
+     * @throws NullPointerException     if any argument is {@code null}
+     * @throws IllegalArgumentException if {@code sigAlgorithm} or
+     *                                  {@code engineId} is empty
+     */
+    public BytecodeAnalysisEngineImpl(PrivateKey enginePrivateKey,
+                                      String sigAlgorithm,
+                                      String engineId,
+                                      VerdictRegistry registry,
+                                      String[] dangerousPatterns) {
+        if (enginePrivateKey == null)  throw new NullPointerException("enginePrivateKey");
+        if (sigAlgorithm == null)      throw new NullPointerException("sigAlgorithm");
+        if (sigAlgorithm.isEmpty())    throw new IllegalArgumentException("sigAlgorithm must not be empty");
+        if (engineId == null)          throw new NullPointerException("engineId");
+        if (engineId.isEmpty())        throw new IllegalArgumentException("engineId must not be empty");
+        if (registry == null)          throw new NullPointerException("registry");
+        if (dangerousPatterns == null) throw new NullPointerException("dangerousPatterns");
+
+        this.enginePrivateKey  = enginePrivateKey;
+        this.sigAlgorithm      = sigAlgorithm;
+        this.engineId          = engineId;
+        this.registry          = registry;
+        this.dangerousPatterns = dangerousPatterns.clone();
+        this.analysisExecutor  = createAnalysisExecutor(this.rejectedTaskCount);
         this.taskTimeoutMillis = ANALYSIS_TASK_TIMEOUT_MILLIS;
     }
 
     /**
      * Package-private constructor that accepts a custom {@link ExecutorService}.
      * Intended only for unit testing; production code must use the public
-     * four-argument constructor.
+     * constructors.
      */
     BytecodeAnalysisEngineImpl(PrivateKey enginePrivateKey,
                                String sigAlgorithm,
@@ -248,7 +439,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     /**
      * Package-private constructor that accepts a custom {@link ExecutorService}
      * and a per-task timeout.  Intended only for unit testing or per-deployment
-     * tuning; production code should use the public four-argument constructor.
+     * tuning; production code should use the public constructors.
      *
      * @param taskTimeoutMillis per-task analysis timeout in milliseconds;
      *                          must be positive
@@ -272,6 +463,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.sigAlgorithm      = sigAlgorithm;
         this.engineId          = engineId;
         this.registry          = registry;
+        this.dangerousPatterns = DANGEROUS_CP_ENTRIES.clone();
         this.analysisExecutor  = executor;
         this.taskTimeoutMillis = taskTimeoutMillis;
     }
@@ -345,11 +537,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         public void run() {
             long startNanos = System.nanoTime();
             final Set<Uri> urls = codebaseUrls;
+            final String[] patterns = dangerousPatterns;
             FutureTask<VerdictType> analysisWork = new FutureTask<VerdictType>(
                     new Callable<VerdictType>() {
                         @Override
                         public VerdictType call() {
-                            return analyzeCodebase(urls);
+                            return analyzeCodebase(urls, patterns);
                         }
                     });
             Thread worker = new Thread(analysisWork, "BAE-analysis-worker");
@@ -411,8 +604,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * Returns {@link VerdictType#DANGEROUS} as soon as a dangerous pattern is
      * found, or if a JAR cannot be read.  Returns {@link VerdictType#SAFE}
      * only when every class file in every JAR has been scanned clean.
+     *
+     * @param codebaseUrls the set of codebase URIs to analyse
+     * @param patterns     the constant-pool patterns to treat as dangerous
      */
-    private static VerdictType analyzeCodebase(Set<Uri> codebaseUrls) {
+    private static VerdictType analyzeCodebase(Set<Uri> codebaseUrls,
+                                               String[] patterns) {
         for (Uri uri : codebaseUrls) {
             URL url;
             try {
@@ -430,7 +627,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                         while ((entry = jis.getNextJarEntry()) != null) {
                             if (!entry.getName().endsWith(".class")) continue;
                             byte[] classBytes = readFully(jis);
-                            if (classBytes != null && containsDangerousCode(classBytes)) {
+                            if (classBytes != null && containsDangerousCode(classBytes, patterns)) {
                                 logger.log(Level.INFO,
                                         "Dangerous class found: {0} in {1}",
                                         new Object[]{entry.getName(), uri});
@@ -458,7 +655,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
     /**
      * Returns {@code true} if any {@code CONSTANT_Utf8} entry in the constant
-     * pool of the supplied class file bytes matches a known dangerous pattern.
+     * pool of the supplied class file bytes matches a known dangerous pattern
+     * from {@link #DANGEROUS_CP_ENTRIES}.
+     *
+     * <p>This is a convenience overload that uses the default pattern list.
+     * Use {@link #containsDangerousCode(byte[], String[])} to specify a custom
+     * pattern list.
      *
      * <p>The JVM class-file format specifies the constant pool immediately
      * after the 10-byte file header (magic, minor version, major version,
@@ -476,6 +678,30 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      *         be parsed; {@code false} otherwise
      */
     static boolean containsDangerousCode(byte[] classBytes) {
+        return containsDangerousCode(classBytes, DANGEROUS_CP_ENTRIES);
+    }
+
+    /**
+     * Returns {@code true} if any {@code CONSTANT_Utf8} entry in the constant
+     * pool of the supplied class file bytes starts with or equals any entry in
+     * the supplied {@code patterns} array.
+     *
+     * <p>Patterns that end with {@code /} are treated as prefix matches so that
+     * an entire package hierarchy (e.g. {@code javassist/}) is covered by a
+     * single entry.  All other patterns require an exact string match.
+     *
+     * <p>If the byte array does not begin with the class-file magic number
+     * {@code 0xCAFEBABE}, or if the array is shorter than the minimum valid
+     * class-file header, the method conservatively returns {@code true}.
+     *
+     * @param classBytes the raw bytes of a {@code .class} file
+     * @param patterns   the constant-pool patterns to treat as dangerous;
+     *                   an empty array causes the method to always return
+     *                   {@code false} (unless the file header is invalid)
+     * @return {@code true} if dangerous code is detected or if the file cannot
+     *         be parsed; {@code false} otherwise
+     */
+    static boolean containsDangerousCode(byte[] classBytes, String[] patterns) {
         if (classBytes.length < 10) return true;
 
         // Verify magic: 0xCAFEBABE; any other value means the bytes are not a
@@ -484,6 +710,8 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                 || (classBytes[2] & 0xFF) != 0xBA || (classBytes[3] & 0xFF) != 0xBE) {
             return true;
         }
+
+        if (patterns.length == 0) return false;
 
         // The class file header is: magic(4), minor_version(2), major_version(2),
         // constant_pool_count(2).  The count is at bytes 8-9.
@@ -503,7 +731,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                     String value = new String(classBytes, offset, len,
                             StandardCharsets.UTF_8);
                     offset += len;
-                    if (isDangerousCpEntry(value)) return true;
+                    if (isDangerousCpEntry(value, patterns)) return true;
                     break;
                 }
                 case 3: case 4: // CONSTANT_Integer, CONSTANT_Float
@@ -544,14 +772,23 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
     /**
      * Returns {@code true} if {@code cpEntry} matches any entry in
-     * {@link #DANGEROUS_CP_ENTRIES}.
+     * {@code patterns}.
      *
-     * @param cpEntry a {@code CONSTANT_Utf8} value from a class file constant pool
-     * @return {@code true} if the entry is on the dangerous list
+     * <p>A pattern that ends with {@code /} is treated as a package-prefix
+     * match: the entry matches if it starts with that pattern.  All other
+     * patterns require an exact string match.
+     *
+     * @param cpEntry  a {@code CONSTANT_Utf8} value from a class file constant pool
+     * @param patterns the patterns to check against
+     * @return {@code true} if the entry matches any pattern
      */
-    private static boolean isDangerousCpEntry(String cpEntry) {
-        for (String dangerous : DANGEROUS_CP_ENTRIES) {
-            if (cpEntry.equals(dangerous)) return true;
+    private static boolean isDangerousCpEntry(String cpEntry, String[] patterns) {
+        for (String pattern : patterns) {
+            if (pattern.endsWith("/")) {
+                if (cpEntry.startsWith(pattern)) return true;
+            } else {
+                if (cpEntry.equals(pattern)) return true;
+            }
         }
         return false;
     }

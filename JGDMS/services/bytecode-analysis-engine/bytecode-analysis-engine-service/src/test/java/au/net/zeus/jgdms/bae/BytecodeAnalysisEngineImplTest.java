@@ -267,8 +267,135 @@ public class BytecodeAnalysisEngineImplTest {
     }
 
     // =========================================================================
-    // containsDangerousCode — dangerous pattern mixed with benign entries
+    // containsDangerousCode — new patterns added in extended detection
     // =========================================================================
+
+    @Test
+    public void testContainsDangerousCode_ReflectionMethod_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Method")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ReflectionField_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Field")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ReflectionConstructor_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Constructor")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ReflectionProxy_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Proxy")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_MethodHandle_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/invoke/MethodHandle")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_VarHandle_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/invoke/VarHandle")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_MethodHandles_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/invoke/MethodHandles")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ASM_IsTrue() throws IOException {
+        // Prefix pattern "jdk/internal/org/objectweb/asm/" should match any class in that package
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("jdk/internal/org/objectweb/asm/ClassWriter")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_Javassist_IsTrue() throws IOException {
+        // Prefix pattern "javassist/" should match any class in the javassist package hierarchy
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("javassist/ClassPool")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ByteBuddy_IsTrue() throws IOException {
+        // Prefix pattern "net/bytebuddy/" should match any ByteBuddy class
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("net/bytebuddy/ByteBuddy")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ScriptEngine_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("javax/script/ScriptEngine")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_FileOutputStream_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/io/FileOutputStream")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_Module_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/Module")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_SharedSecrets_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("sun/misc/SharedSecrets")));
+    }
+
+    // =========================================================================
+    // containsDangerousCode — custom pattern list
+    // =========================================================================
+
+    @Test
+    public void testContainsDangerousCode_CustomPatterns_IsTrue() throws IOException {
+        // A pattern that is NOT in the default list; the class bytes contain it.
+        String customPattern = "com/example/dangerous/EvilClass";
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8(customPattern),
+                new String[]{customPattern}));
+    }
+
+    @Test
+    public void testContainsDangerousCode_CustomPrefixPattern_IsTrue() throws IOException {
+        // A prefix pattern (ending with '/') should match any sub-class name.
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("com/example/evil/EvilSubClass"),
+                new String[]{"com/example/evil/"}));
+    }
+
+    @Test
+    public void testContainsDangerousCode_NoPatterns_EmptyList_IsFalse() throws IOException {
+        // With an empty pattern list even a normally-dangerous class is allowed.
+        assertFalse(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/Runtime"),
+                new String[0]));
+    }
+
+    @Test
+    public void testContainsDangerousCode_CustomPatterns_DefaultDangerousNotDetected()
+            throws IOException {
+        // Custom list has only one entry; default dangerous patterns are NOT matched.
+        assertFalse(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/Runtime"),
+                new String[]{"com/example/other/Class"}));
+    }
+
+
 
     @Test
     public void testContainsDangerousCode_DangerousAmongBenign_IsTrue() throws IOException {
