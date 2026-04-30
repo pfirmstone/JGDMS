@@ -1033,7 +1033,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
         public void snapshot(OutputStream out) throws Exception {
             // Build serialisable snapshots of all three state maps.
             HashMap<String, SerializableEngineReg> engSnap =
-                    new HashMap<String, SerializableEngineReg>(engines.size() * 2);
+                    new HashMap<String, SerializableEngineReg>(engines.size());
             for (Map.Entry<String, EngineRegistration> e : engines.entrySet()) {
                 engSnap.put(e.getKey(),
                         new SerializableEngineReg(e.getValue().publicKey,
@@ -1041,7 +1041,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             }
 
             HashMap<String, SerializableVerdictState> stateSnap =
-                    new HashMap<String, SerializableVerdictState>(verdictStates.size() * 2);
+                    new HashMap<String, SerializableVerdictState>(verdictStates.size());
             for (Map.Entry<String, VerdictState> e : verdictStates.entrySet()) {
                 VerdictState vs = e.getValue();
                 synchronized (vs) {
@@ -1056,7 +1056,7 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             }
 
             HashMap<String, SerializablePublishedVerdict> pubSnap =
-                    new HashMap<String, SerializablePublishedVerdict>(publishedVerdicts.size() * 2);
+                    new HashMap<String, SerializablePublishedVerdict>(publishedVerdicts.size());
             for (Map.Entry<String, RegistryVerdict> e : publishedVerdicts.entrySet()) {
                 RegistryVerdict rv = e.getValue();
                 pubSnap.put(e.getKey(),
