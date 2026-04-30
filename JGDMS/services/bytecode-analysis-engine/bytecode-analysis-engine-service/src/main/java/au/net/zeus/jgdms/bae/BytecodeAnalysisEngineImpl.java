@@ -347,26 +347,36 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * @throws InterruptedException if the calling thread is interrupted while
      *                              waiting for tasks to complete
      */
-    public synchronized void shutdown(long timeoutMs) throws InterruptedException {
-        if (!shutdownRequested.compareAndSet(false, true)) {
-            return; // already shutting down or shut down
+    public void shutdown(long timeoutMs) throws InterruptedException {
+        CountDownLatch latch;
+        synchronized (this) {
+            if (!shutdownRequested.compareAndSet(false, true)) {
+                return; // already shutting down or shut down
+            }
+            shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
+
+            // Read inFlightTaskCount and install the latch under the same lock
+            // that AnalysisTask.run() holds when it decrements the count and
+            // checks the latch.  This ensures no task can "escape" between our
+            // read and the latch installation.
+            int inFlight = inFlightTaskCount.get();
+            if (inFlight > 0) {
+                allTasksComplete = new CountDownLatch(inFlight);
+            }
+            latch = allTasksComplete;
+
+            analysisExecutor.shutdown();
         }
-        shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
 
-        int inFlight = inFlightTaskCount.get();
-        if (inFlight > 0) {
-            allTasksComplete = new CountDownLatch(inFlight);
-        }
-
-        analysisExecutor.shutdown();
-
-        if (allTasksComplete != null) {
+        // Await OUTSIDE the synchronized block so tasks can enter it to
+        // decrement inFlightTaskCount and count down the latch.
+        if (latch != null) {
             boolean completed;
             if (timeoutMs <= 0) {
-                allTasksComplete.await();
+                latch.await();
                 completed = true;
             } else {
-                completed = allTasksComplete.await(timeoutMs, TimeUnit.MILLISECONDS);
+                completed = latch.await(timeoutMs, TimeUnit.MILLISECONDS);
             }
             if (!completed) {
                 logger.log(Level.WARNING,
@@ -375,7 +385,9 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
             }
         }
 
-        shutdownState.set(ShutdownState.SHUTDOWN_COMPLETE);
+        synchronized (this) {
+            shutdownState.set(ShutdownState.SHUTDOWN_COMPLETE);
+        }
     }
 
     /**
@@ -405,7 +417,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      *
      * @return list of tasks that were awaiting execution but never started
      */
-    public List<Runnable> shutdownNow() {
+    public synchronized List<Runnable> shutdownNow() {
         shutdownRequested.set(true);
         shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
         List<Runnable> pending = analysisExecutor.shutdownNow();
@@ -471,10 +483,17 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                             "Failed to sign or submit verdict for " + codebaseUrls, e);
                 }
             } finally {
-                inFlightTaskCount.decrementAndGet();
-                CountDownLatch latch = allTasksComplete;
-                if (latch != null) {
-                    latch.countDown();
+                // Decrement and check the latch atomically under the same
+                // monitor used by shutdown() to read inFlightTaskCount and
+                // install allTasksComplete.  This eliminates the race where a
+                // task completes between shutdown()'s count-read and latch-
+                // creation, leaving the latch count permanently stuck above zero.
+                synchronized (BytecodeAnalysisEngineImpl.this) {
+                    inFlightTaskCount.decrementAndGet();
+                    CountDownLatch latch = allTasksComplete;
+                    if (latch != null) {
+                        latch.countDown();
+                    }
                 }
             }
         }
