@@ -19,6 +19,7 @@
    - [4.6 Platform Security Layer](#46-platform-security-layer)
    - [4.7 Bytecode Analysis Engine and Verdict Registry](#47-bytecode-analysis-engine-and-verdict-registry)
    - [4.8 Other Services](#48-other-services)
+   - [4.9 Constrainable Proxies and Method Constraints](#49-constrainable-proxies-and-method-constraints)
 5. [Communication Patterns](#5-communication-patterns)
    - [5.1 Discovery](#51-discovery-service-advertising-and-location)
    - [5.2 Service Registration and Lookup](#52-service-registration-and-lookup)
@@ -404,6 +405,160 @@ and `Activatable`, `NonActivatable`, and `Transient` variants.
 
 ---
 
+### 4.9 Constrainable Proxies and Method Constraints
+
+**Files:**
+* `JGDMS/jgdms-lib-dl/src/main/java/au/net/zeus/jgdms/proxy/AbstractSmartProxy.java`
+  (nested class `ConstrainableSmartProxy`)
+* `JGDMS/jgdms-lib-dl/src/main/java/org/apache/river/proxy/ConstrainableProxyUtil.java`
+* `JGDMS/jgdms-lib-dl/src/main/java/au/net/zeus/jgdms/proxy/AdminProxy.java`
+  (nested class `ConstrainableAdminProxy`)
+* `JGDMS/services/verdict-registry/verdict-registry-dl/.../VerdictRegistryProxy.java`
+  (nested class `ConstrainableVerdictRegistryProxy`)
+* `JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-dl/.../BytecodeAnalysisEngineProxy.java`
+  (nested class `ConstrainableBytecodeAnalysisEngineProxy`)
+
+#### What are proxy method constraints?
+
+Every JGDMS service proxy can optionally implement `net.jini.core.constraint.RemoteMethodControl`.
+When it does, a client can call `proxy.setConstraints(MethodConstraints)` to specify security
+requirements that must be satisfied for every outgoing call routed through the proxy.  Example
+constraints include:
+
+| Constraint | Effect |
+|---|---|
+| `ServerAuthentication.YES` | The remote endpoint must present a verifiable certificate |
+| `ClientAuthentication.YES` | The client must authenticate itself to the server |
+| `Confidentiality.YES` | All bytes in flight must be encrypted |
+| `Integrity.YES` | All bytes in flight must be covered by a MAC or digital signature |
+| `AtomicInputValidation.YES` | Server must use `AtomicMarshalInputStream` for all deserialized arguments |
+| `ConfidentialityStrength.STRONG` | Cipher suite must meet a minimum key-strength threshold |
+
+The constraints are enforced by the underlying `Endpoint` implementation (e.g. `SslEndpoint`) as
+part of opening each `OutboundRequest`.  Any call that cannot satisfy its declared requirements
+throws `UnsupportedConstraintException` before bytes leave the client JVM.
+
+#### `AbstractSmartProxy.ConstrainableSmartProxy`
+
+This nested abstract class (introduced in 3.1.1) provides the common boilerplate for all
+constrainable JGDMS service proxies:
+
+1. **Construction** — `ConstrainableSmartProxy(Object server, Uuid proxyID, MethodConstraints
+   constraints)` calls `((RemoteMethodControl) server).setConstraints(constraints)` before storing
+   the stub, so constraints are baked into the serialized server stub at proxy creation time
+   (`AbstractSmartProxy.java` `applyConstraints()` helper).
+
+2. **Deserialization validation** — the `(GetArg)` constructor verifies that the deserialized
+   `server` field implements `RemoteMethodControl` *before* any field is assigned, satisfying the
+   `@AtomicSerial` pre-construction contract (`AbstractSmartProxy.java`
+   `checkConstrainable(GetArg)`, lines 517–526).
+
+3. **`getConstraints()`** — delegates to `((RemoteMethodControl) server).getConstraints()`, returning
+   the constraints currently set on the server stub.
+
+4. **`getProxyTrustIterator()`** — private method found reflectively by `BasicJeriTrustVerifier`,
+   returns a `SingletonProxyTrustIterator` wrapping the server stub; this enables the trust
+   verification chain to reach the remote service for verification.
+
+5. **`setConstraints()` is abstract** — concrete subclasses must implement it by constructing a
+   new instance of themselves with the updated constraints.
+
+#### The `methodMapArray` constraint-translation pattern
+
+When a proxy method name differs from the corresponding server-side method name, the
+`ConstrainableProxyUtil` utilities translate `MethodConstraints` between the two namespaces.
+
+```
+// Static array in the constrainable proxy class (pairs: proxy-method → server-method)
+private static final Method[] methodMapArray = {
+    getMethod(MyServiceInterface.class, "clientMethod", ...),  // proxy-visible
+    getMethod(MyBackendInterface.class, "serverMethod", ...),  // server-side name
+    ...
+};
+
+// In setConstraints():
+MethodConstraints translated =
+    ConstrainableProxyUtil.translateConstraints(constraints, methodMapArray);
+return (Remote) ((RemoteMethodControl) server).setConstraints(translated);
+
+// In the (GetArg) deserialization constructor:
+ConstrainableProxyUtil.verifyConsistentConstraints(
+    methodConstraints, server, methodMapArray);
+```
+
+The key utility methods in `ConstrainableProxyUtil` are:
+
+| Method | Purpose |
+|---|---|
+| `translateConstraints(mc, mappings)` | Maps proxy-side method constraints to server-side names |
+| `reverseTranslateConstraints(mc, mappings)` | Recovers logical constraints from constraints baked into the server stub |
+| `verifyConsistentConstraints(mc, proxy, mappings)` | At deserialization: asserts that the stored `MethodConstraints` are consistent with the constraints already on the server stub |
+| `equivalentConstraints(mc1, mc2, mappings)` | Tests equivalence of two `MethodConstraints` instances under a given method mapping |
+
+When the proxy interface and server interface are identical (the common case in 3.1.1 services),
+every element of `methodMapArray` maps a method to itself, and `translateConstraints` acts as a
+pass-through — as seen in `ConstrainableAdminProxy` (`AdminProxy.java` lines 338–376).
+
+#### Proxy factory pattern
+
+Every constrainable service proxy uses the same static factory idiom:
+
+```java
+// Factory returns the constrainable variant when the server stub supports it
+public static FooProxy create(FooService server, Uuid proxyID) {
+    if (server instanceof RemoteMethodControl) {
+        return new ConstrainableFooProxy(server, proxyID, null);
+    }
+    return new FooProxy(server, proxyID);
+}
+```
+
+This allows the same service to be used:
+* **Constraint-free** — over a plain TCP endpoint (e.g. in a testing or trusted-LAN environment).
+* **Constrained** — over an SSL endpoint with full authentication and integrity requirements.
+
+The returned proxy type is transparent to the caller; the difference is only observable through
+`instanceof RemoteMethodControl` or by calling `getConstraints()`.
+
+#### End-to-end constraint lifecycle
+
+```
+ProxyPreparer.prepareProxy(downloadedProxy)
+  → BasicProxyPreparer.prepareProxy()
+  → BasicProxyTrustVerifier.isTrustedObject()
+      → proxy.getProxyTrustIterator() → server stub
+      → server.getProxyVerifier() (remote call to verify trust)
+  → proxy.setConstraints(clientRequiredConstraints)
+      → ConstrainableProxyUtil.translateConstraints(constraints, methodMapArray)
+      → server.setConstraints(translatedConstraints)        ← stored in stub
+  → dynamicGranter.grant(proxy)                             ← e.g. DownloadPermission
+
+Later, on each proxy method call:
+  AtomicInvocationHandler.invoke()
+  → stub.getConstraints() — retrieve translated constraints
+  → endpoint.checkConstraints(constraints)
+  → OutboundRequest opened only if all requirements are satisfiable
+```
+
+#### Serialized form and deserialization safety
+
+In 3.1.1-style constrainable proxies (those extending `ConstrainableSmartProxy`), the constraints
+are **not stored as a separate serial field** — they are baked into the server stub at construction
+time by `applyConstraints()`.  The deserialization constructor recovers them from the stub via
+`((RemoteMethodControl) server).getConstraints()` and optionally calls
+`ConstrainableProxyUtil.verifyConsistentConstraints` to confirm nothing was tampered with during
+serialization.
+
+In older-style constrainable proxies (Fiddler, Mercury, Norm), a `methodConstraints` field *is*
+stored separately, and `verifyConsistentConstraints` is called during `readObject` /
+`(GetArg)` deserialization to ensure the separate field and the stub's baked-in constraints agree.
+
+Both approaches guarantee that a tampered serialization stream that changes the constraints in only
+one place — either the stub or the separate field — is detected and rejected before any field is
+assigned.
+
+---
+
 ## 5. Communication Patterns
 
 ### 5.1 Discovery — Service Advertising and Location
@@ -518,6 +673,10 @@ encapsulates the boilerplate every smart proxy must implement:
 * `ReferentUuid` — stable UUID-based identity.
 * `ProxyTrustIterator` chain for trust verification.
 
+Its nested **`ConstrainableSmartProxy`** class adds `RemoteMethodControl` support (see §4.9), enabling
+clients to attach per-method security constraints to any proxy whose server stub also implements
+`RemoteMethodControl`.
+
 ---
 
 ## 7. Security and Defensive Features
@@ -556,10 +715,12 @@ encapsulates the boilerplate every smart proxy must implement:
 
 * `BasicProxyTrustVerifier` validates that a received proxy's server stub is reachable and that the
   stub's trust chain can be verified.
-* `ConstrainableProxyUtil` checks that method constraints on a received proxy are at least as strong
-  as required.
+* `ConstrainableProxyUtil` (`verifyConsistentConstraints`, `translateConstraints`,
+  `reverseTranslateConstraints`) ensures that method constraints on a received proxy are
+  consistent, correctly translated between proxy-visible and server-side method names, and not
+  tampered with during deserialization (see §4.9).
 * `ProxyPreparer` / `BasicProxyPreparer` — called at proxy receipt time to: (a) verify trust,
-  (b) apply method constraints, (c) dynamically grant permissions.
+  (b) apply method constraints via `setConstraints()`, (c) dynamically grant permissions.
 
 ### 7.5 Codebase Safety Pipeline
 
@@ -618,7 +779,9 @@ follows these steps:
 
 3. **Create a `*-dl` module** containing:
    * A smart proxy extending `AbstractSmartProxy` (`@AtomicSerial`, `ProxyTrustIterator`,
-     `ReferentUuid`).
+     `ReferentUuid`).  If the service should support per-method security constraints, also
+     provide a nested `Constrainable*Proxy` extending `AbstractSmartProxy.ConstrainableSmartProxy`
+     — returned by the factory when the server stub implements `RemoteMethodControl` (see §4.9).
    * A `ProxyVerifier` implementing `TrustVerifier`.
    * Lease classes extending `ConstrainableLandlordLease`.
 
@@ -653,6 +816,7 @@ follows these steps:
 | **Atomic serialization (pre-construction validation)** | `@AtomicSerial` on all wire types |
 | **Subject-per-dispatch-thread** | JERI `BasicInvocationDispatcher` via `ServerContext` / `ClientSubject` |
 | **Pluggable constraints (invocation + discovery)** | JERI `MethodConstraints`, Discovery SPI |
+| **Constrainable proxy pattern** | `ConstrainableSmartProxy` + `ConstrainableProxyUtil.translateConstraints` in every `*-dl` proxy |
 | **Process isolation via Phoenix groups** | BAE, Reggie, services in separate JVM groups |
 | **Quorum-based trust aggregation** | VerdictRegistry quorum policy |
 | **Fail-safe DANGEROUS propagation** | VerdictRegistry + CrashReport path |
