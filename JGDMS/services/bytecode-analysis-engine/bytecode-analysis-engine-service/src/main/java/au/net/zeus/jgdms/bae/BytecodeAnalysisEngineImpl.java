@@ -200,7 +200,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * whose presence in a class file's constant pool is treated as a
      * dangerous indicator.
      *
-     * <p>This list covers six broad threat categories:
+     * <p>This list covers seven broad threat categories:
      * <ol>
      *   <li>OS-process execution</li>
      *   <li>Direct memory access</li>
