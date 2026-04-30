@@ -22,6 +22,10 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
@@ -42,10 +46,12 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import au.net.zeus.jgdms.api.codebase.VerdictType;
 import org.apache.river.api.net.Uri;
 import org.junit.Before;
 import org.junit.Test;
@@ -272,8 +278,135 @@ public class BytecodeAnalysisEngineImplTest {
     }
 
     // =========================================================================
-    // containsDangerousCode — dangerous pattern mixed with benign entries
+    // containsDangerousCode — new patterns added in extended detection
     // =========================================================================
+
+    @Test
+    public void testContainsDangerousCode_ReflectionMethod_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Method")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ReflectionField_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Field")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ReflectionConstructor_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Constructor")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ReflectionProxy_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/reflect/Proxy")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_MethodHandle_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/invoke/MethodHandle")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_VarHandle_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/invoke/VarHandle")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_MethodHandles_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/invoke/MethodHandles")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ASM_IsTrue() throws IOException {
+        // Prefix pattern "jdk/internal/org/objectweb/asm/" should match any class in that package
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("jdk/internal/org/objectweb/asm/ClassWriter")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_Javassist_IsTrue() throws IOException {
+        // Prefix pattern "javassist/" should match any class in the javassist package hierarchy
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("javassist/ClassPool")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ByteBuddy_IsTrue() throws IOException {
+        // Prefix pattern "net/bytebuddy/" should match any ByteBuddy class
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("net/bytebuddy/ByteBuddy")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_ScriptEngine_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("javax/script/ScriptEngine")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_FileOutputStream_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/io/FileOutputStream")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_Module_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/Module")));
+    }
+
+    @Test
+    public void testContainsDangerousCode_SharedSecrets_IsTrue() throws IOException {
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("sun/misc/SharedSecrets")));
+    }
+
+    // =========================================================================
+    // containsDangerousCode — custom pattern list
+    // =========================================================================
+
+    @Test
+    public void testContainsDangerousCode_CustomPatterns_IsTrue() throws IOException {
+        // A pattern that is NOT in the default list; the class bytes contain it.
+        String customPattern = "com/example/dangerous/EvilClass";
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8(customPattern),
+                new String[]{customPattern}));
+    }
+
+    @Test
+    public void testContainsDangerousCode_CustomPrefixPattern_IsTrue() throws IOException {
+        // A prefix pattern (ending with '/') should match any sub-class name.
+        assertTrue(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("com/example/evil/EvilSubClass"),
+                new String[]{"com/example/evil/"}));
+    }
+
+    @Test
+    public void testContainsDangerousCode_NoPatterns_EmptyList_IsFalse() throws IOException {
+        // With an empty pattern list even a normally-dangerous class is allowed.
+        assertFalse(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/Runtime"),
+                new String[0]));
+    }
+
+    @Test
+    public void testContainsDangerousCode_CustomPatterns_DefaultDangerousNotDetected()
+            throws IOException {
+        // Custom list has only one entry; default dangerous patterns are NOT matched.
+        assertFalse(BytecodeAnalysisEngineImpl.containsDangerousCode(
+                buildClassWithUtf8("java/lang/Runtime"),
+                new String[]{"com/example/other/Class"}));
+    }
+
+
 
     @Test
     public void testContainsDangerousCode_DangerousAmongBenign_IsTrue() throws IOException {
@@ -389,6 +522,244 @@ public class BytecodeAnalysisEngineImplTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+
+    // =========================================================================
+    // AnalysisTaskWithTimeout — timeout fires → DANGEROUS verdict
+    // =========================================================================
+
+    /**
+     * When the codebase server accepts the TCP connection but never sends any
+     * HTTP response, {@code analyzeCodebase} blocks indefinitely on
+     * {@code url.openStream()}.  After the configured timeout the engine must
+     * submit a {@link VerdictType#DANGEROUS} verdict to the registry as a
+     * fail-safe.
+     */
+    @Test
+    public void testAnalysisTask_Timeout_SubmitsDangerousVerdict() throws Exception {
+        // Start a server that accepts connections but never responds.
+        final ServerSocket blockingServer = new ServerSocket(0);
+        Thread blockingServerThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Socket client = blockingServer.accept();
+                    // Hold the connection open without sending any data.
+                    Thread.sleep(30_000L);
+                    client.close();
+                } catch (Exception ignored) {}
+            }
+        });
+        blockingServerThread.setDaemon(true);
+        blockingServerThread.start();
+
+        final AtomicReference<VerdictType> submittedVerdict = new AtomicReference<>();
+        final CountDownLatch verdictLatch = new CountDownLatch(1);
+        VerdictRegistry trackingRegistry = createTrackingRegistry(submittedVerdict, verdictLatch);
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+        // Use a 400 ms timeout so the test completes quickly.
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", trackingRegistry,
+                executor, 400L);
+        try {
+            Set<Uri> uris = Collections.singleton(
+                    new Uri("http://localhost:" + blockingServer.getLocalPort() + "/test.jar"));
+            engine.requestAnalysis(uris);
+            assertTrue("Timeout verdict not received within 5 s",
+                    verdictLatch.await(5, TimeUnit.SECONDS));
+            assertEquals(VerdictType.DANGEROUS, submittedVerdict.get());
+        } finally {
+            blockingServer.close();
+            executor.shutdownNow();
+        }
+    }
+
+    // =========================================================================
+    // AnalysisTaskWithTimeout — completes before timeout → correct verdict
+    // =========================================================================
+
+    /**
+     * When the analysis completes normally (before the timeout), the engine
+     * must submit the actual verdict — {@link VerdictType#SAFE} for an empty
+     * JAR that contains no dangerous patterns — not a spurious DANGEROUS.
+     */
+    @Test
+    public void testAnalysisTask_CompletesBeforeTimeout_SubmitsSafeVerdict() throws Exception {
+        // Build an empty JAR (no class files → no dangerous patterns → SAFE).
+        java.io.File safeTestJar = java.io.File.createTempFile("bae-safe-test", ".jar");
+        safeTestJar.deleteOnExit();
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(safeTestJar))) {
+            // intentionally empty
+        }
+
+        final AtomicReference<VerdictType> submittedVerdict = new AtomicReference<>();
+        final CountDownLatch verdictLatch = new CountDownLatch(1);
+        VerdictRegistry trackingRegistry = createTrackingRegistry(submittedVerdict, verdictLatch);
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+        // Generous 10 s timeout — analysis should finish almost instantly.
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", trackingRegistry,
+                executor, 10_000L);
+        try {
+            Set<Uri> uris = Collections.singleton(new Uri(safeTestJar.toURI().toString()));
+            engine.requestAnalysis(uris);
+            assertTrue("Safe verdict not received within 5 s",
+                    verdictLatch.await(5, TimeUnit.SECONDS));
+            assertEquals(VerdictType.SAFE, submittedVerdict.get());
+        } finally {
+            safeTestJar.delete();
+            executor.shutdownNow();
+        }
+    }
+
+    // =========================================================================
+    // AnalysisTaskWithTimeout — timeout releases the executor thread
+    // =========================================================================
+
+    /**
+     * After a timeout fires, the executor thread that was waiting on
+     * {@code FutureTask.get()} must be released and available to process
+     * subsequent tasks.  This test verifies that the engine is not deadlocked
+     * after a timeout by submitting a second (fast) task and confirming it
+     * also produces a verdict.
+     */
+    @Test
+    public void testAnalysisTask_TimeoutInterrupts_Thread() throws Exception {
+        // First server: blocks the initial analysis task.
+        final ServerSocket blockingServer = new ServerSocket(0);
+        Thread blockingServerThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Socket client = blockingServer.accept();
+                    Thread.sleep(30_000L);
+                    client.close();
+                } catch (Exception ignored) {}
+            }
+        });
+        blockingServerThread.setDaemon(true);
+        blockingServerThread.start();
+
+        // Second task: an empty JAR served from the local file system.
+        java.io.File fastCompletionJar = java.io.File.createTempFile("bae-timeout-interrupt", ".jar");
+        fastCompletionJar.deleteOnExit();
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(fastCompletionJar))) {
+            // intentionally empty
+        }
+
+        // Registry that counts how many verdicts arrive.
+        final CountDownLatch twoVerdicts = new CountDownLatch(2);
+        VerdictRegistry countingRegistry = new VerdictRegistry() {
+            @Override
+            public void registerAnalysisEngine(String id,
+                    java.security.PublicKey k, String alg) {}
+            @Override
+            public void revokeAnalysisEngine(String id) {}
+            @Override
+            public void submitVerdict(String id, SignedVerdict v) {
+                twoVerdicts.countDown();
+            }
+            @Override
+            public void reportCrash(
+                    au.net.zeus.jgdms.api.codebase.CrashReport r) {}
+            @Override
+            public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdict(
+                    Set<Uri> u) { return null; }
+            @Override
+            public net.jini.core.event.EventRegistration registerVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    Set<Uri> u,
+                    net.jini.io.MarshalledInstance h,
+                    long d) { return null; }
+            @Override
+            public long renewEventLease(net.jini.id.Uuid id, long d)
+                    throws net.jini.core.lease.UnknownLeaseException { return d; }
+            @Override
+            public void cancelEventLease(net.jini.id.Uuid id)
+                    throws net.jini.core.lease.UnknownLeaseException {}
+        };
+
+        // Two-thread pool; 400 ms timeout.
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                2, 2, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", countingRegistry,
+                executor, 400L);
+        try {
+            // Submit the blocking task first.
+            Set<Uri> blockingUris = Collections.singleton(
+                    new Uri("http://localhost:" + blockingServer.getLocalPort() + "/test.jar"));
+            engine.requestAnalysis(blockingUris);
+
+            // Submit the fast (safe-JAR) task immediately after.
+            Set<Uri> safeUris = Collections.singleton(new Uri(fastCompletionJar.toURI().toString()));
+            engine.requestAnalysis(safeUris);
+
+            // Both tasks must produce a verdict within a reasonable window.
+            // The first times out (→ DANGEROUS), the second completes fast (→ SAFE).
+            assertTrue("Both verdicts not received within 6 s",
+                    twoVerdicts.await(6, TimeUnit.SECONDS));
+        } finally {
+            blockingServer.close();
+            fastCompletionJar.delete();
+            executor.shutdownNow();
+        }
+    }
+
+    // =========================================================================
+    // Private helpers
+    // =========================================================================
+
+
+    /**
+     * Returns a minimal {@link VerdictRegistry} that stores the last verdict
+     * type passed to {@link VerdictRegistry#submitVerdict} in
+     * {@code verdictRef} and counts down {@code latch} once.
+     */
+    private static VerdictRegistry createTrackingRegistry(
+            final AtomicReference<VerdictType> verdictRef,
+            final CountDownLatch latch) {
+        return new VerdictRegistry() {
+            @Override
+            public void registerAnalysisEngine(String id,
+                    java.security.PublicKey k, String alg) {}
+            @Override
+            public void revokeAnalysisEngine(String id) {}
+            @Override
+            public void submitVerdict(String id, SignedVerdict v) {
+                verdictRef.set(v.getVerdict());
+                latch.countDown();
+            }
+            @Override
+            public void reportCrash(
+                    au.net.zeus.jgdms.api.codebase.CrashReport r) {}
+            @Override
+            public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdict(
+                    Set<Uri> u) { return null; }
+            @Override
+            public net.jini.core.event.EventRegistration registerVerdictListener(
+                    net.jini.core.event.RemoteEventListener l,
+                    Set<Uri> u,
+                    net.jini.io.MarshalledInstance h,
+                    long d) { return null; }
+            @Override
+            public long renewEventLease(net.jini.id.Uuid id, long d)
+                    throws net.jini.core.lease.UnknownLeaseException { return d; }
+            @Override
+            public void cancelEventLease(net.jini.id.Uuid id)
+                    throws net.jini.core.lease.UnknownLeaseException {}
+        };
     }
 
     /**
