@@ -59,6 +59,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Unit tests for {@link BytecodeAnalysisEngineImpl}.
@@ -713,6 +714,168 @@ public class BytecodeAnalysisEngineImplTest {
             fastCompletionJar.delete();
             executor.shutdownNow();
         }
+    }
+
+    // =========================================================================
+    // Shutdown tests
+    // =========================================================================
+
+    /**
+     * After {@link BytecodeAnalysisEngineImpl#shutdown(long)}, new calls to
+     * {@link BytecodeAnalysisEngineImpl#requestAnalysis} must throw
+     * {@link IllegalStateException}.
+     */
+    @Test(expected = IllegalStateException.class)
+    public void testShutdown_StopsAcceptingNewRequests() throws Exception {
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry);
+        engine.shutdown(5000);
+        Set<Uri> uris = Collections.singleton(new Uri("http://example.com/c.jar"));
+        engine.requestAnalysis(uris);
+    }
+
+    /**
+     * {@link BytecodeAnalysisEngineImpl#isShutdown()} must return {@code true}
+     * after {@link BytecodeAnalysisEngineImpl#shutdown(long)} is called.
+     */
+    @Test
+    public void testShutdown_IsShutdown_ReturnsTrue() throws Exception {
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry);
+        assertFalse(engine.isShutdown());
+        engine.shutdown(5000);
+        assertTrue(engine.isShutdown());
+    }
+
+    /**
+     * {@link BytecodeAnalysisEngineImpl#isTerminated()} must return {@code true}
+     * after a complete shutdown.
+     */
+    @Test
+    public void testShutdown_IsTerminated_AfterShutdown() throws Exception {
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry);
+        assertFalse(engine.isTerminated());
+        engine.shutdown(5000);
+        assertTrue(engine.isTerminated());
+    }
+
+    /**
+     * Calling {@link BytecodeAnalysisEngineImpl#shutdown(long)} twice must not
+     * throw and must be idempotent.
+     */
+    @Test
+    public void testShutdown_DoubleShutdown_Idempotent() throws Exception {
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry);
+        engine.shutdown(5000);
+        // Second call should not throw.
+        engine.shutdown(5000);
+        assertTrue(engine.isShutdown());
+    }
+
+    /**
+     * {@link BytecodeAnalysisEngineImpl#shutdownNow()} must set the shutdown
+     * flag and cancel pending (unexecuted) tasks.
+     */
+    @Test
+    public void testShutdown_ShutdownNow_CancelsUnexecutedTasks() throws Exception {
+        final CountDownLatch taskStarted = new CountDownLatch(1);
+        final CountDownLatch releaseTask = new CountDownLatch(1);
+
+        // 1 thread, large queue so tasks can be queued without being executed.
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry,
+                executor);
+
+        // Occupy the single worker thread.
+        executor.execute(() -> {
+            taskStarted.countDown();
+            try { releaseTask.await(); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+
+        // Queue an analysis task while the thread is busy — it will be pending.
+        Set<Uri> uris = Collections.singleton(new Uri("http://example.com/d.jar"));
+        engine.requestAnalysis(uris);
+
+        // shutdownNow() should return the pending analysis task.
+        releaseTask.countDown();
+        List<Runnable> cancelled = engine.shutdownNow();
+        assertNotNull(cancelled);
+        assertTrue(engine.isShutdown());
+    }
+
+    /**
+     * {@link BytecodeAnalysisEngineImpl#awaitTermination} must return
+     * {@code true} when the executor has already terminated.
+     */
+    @Test
+    public void testShutdown_AwaitTermination_ReturnsTrue() throws Exception {
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry);
+        engine.shutdown(5000);
+        boolean terminated = engine.awaitTermination(5, TimeUnit.SECONDS);
+        assertTrue(terminated);
+    }
+
+    /**
+     * {@link BytecodeAnalysisEngineImpl#shutdown(long)} must wait for an
+     * in-flight task to complete before returning.
+     */
+    @Test
+    public void testShutdown_WaitsForInFlightTasks() throws Exception {
+        final CountDownLatch taskStarted  = new CountDownLatch(1);
+        final CountDownLatch releaseTask  = new CountDownLatch(1);
+        final CountDownLatch taskFinished = new CountDownLatch(1);
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(10),
+                new ThreadPoolExecutor.AbortPolicy());
+
+        BytecodeAnalysisEngineImpl engine = new BytecodeAnalysisEngineImpl(
+                engineKeyPair.getPrivate(), SIG_ALGORITHM, "e1", mockRegistry,
+                executor);
+
+        // Submit a long-running task.
+        executor.execute(() -> {
+            taskStarted.countDown();
+            try {
+                releaseTask.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                taskFinished.countDown();
+            }
+        });
+        taskStarted.await();
+
+        // Start shutdown in a background thread.
+        Thread shutdownThread = new Thread(() -> {
+            try {
+                engine.shutdown(10_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        shutdownThread.start();
+
+        // Let the in-flight task finish.
+        releaseTask.countDown();
+        taskFinished.await();
+
+        // Shutdown should now complete.
+        shutdownThread.join(5_000);
+        assertFalse("Shutdown thread should have completed", shutdownThread.isAlive());
+        assertTrue(engine.isShutdown());
     }
 
     // =========================================================================

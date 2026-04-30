@@ -30,13 +30,16 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
@@ -46,8 +49,10 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.logging.Level;
@@ -184,11 +189,41 @@ import org.apache.river.api.net.Uri;
  * {@link #requestAnalysis} is safe for concurrent use.  Each analysis request
  * is executed asynchronously on a shared daemon thread pool.
  *
+ * <h2>Graceful Shutdown</h2>
+ * Call {@link #shutdown(long)} to initiate graceful shutdown. This method:
+ * <ol>
+ *   <li>Stops accepting new analysis requests</li>
+ *   <li>Waits for all in-flight tasks to complete (with timeout)</li>
+ *   <li>Terminates the thread pool</li>
+ * </ol>
+ *
+ * <p>For forced termination, use {@link #shutdownNow()}, but note that this may
+ * leave verdicts unpublished and pending tasks cancelled.
+ *
+ * <p>The shutdown state can be queried via {@link #isShutdown()} and
+ * {@link #isTerminated()}.
+ *
  * @see BytecodeAnalysisEngine
  * @see VerdictRegistry
  * @since 3.1.1
  */
 public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
+
+    // -------------------------------------------------------------------------
+    // Shutdown state machine
+    // -------------------------------------------------------------------------
+
+    /**
+     * Lifecycle states for this engine instance.
+     */
+    enum ShutdownState {
+        /** The engine is running normally and accepts new analysis requests. */
+        RUNNING,
+        /** Shutdown has been requested; new requests are rejected. */
+        SHUTDOWN_REQUESTED,
+        /** Shutdown is complete; the thread pool has terminated. */
+        SHUTDOWN_COMPLETE
+    }
 
     private static final Logger logger =
             Logger.getLogger(BytecodeAnalysisEngineImpl.class.getName());
@@ -327,7 +362,6 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     private final ThreadPoolExecutor poolExecutor;
 
     /**
-    /**
      * The set of constant-pool patterns treated as dangerous for this engine
      * instance.  Defaults to {@link #DANGEROUS_CP_ENTRIES}; may be overridden
      * via the constructor that accepts a custom {@code String[]} argument.
@@ -383,6 +417,35 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     private final AtomicLong submissionLatency_100_500ms  = new AtomicLong();
     private final AtomicLong submissionLatency_500_1000ms = new AtomicLong();
     private final AtomicLong submissionLatency_1000ms_plus = new AtomicLong();
+
+    // -------------------------------------------------------------------------
+    // Shutdown fields
+    // -------------------------------------------------------------------------
+
+    /** Current lifecycle state of this engine. */
+    private final AtomicReference<ShutdownState> shutdownState =
+            new AtomicReference<>(ShutdownState.RUNNING);
+
+    /**
+     * Fast flag checked by {@link #requestAnalysis} to reject new requests
+     * once shutdown has been requested, without needing to read the full
+     * {@link #shutdownState}.
+     */
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+
+    /**
+     * Count of analysis tasks currently executing (started but not yet
+     * finished).  Incremented at the start of each task, decremented in the
+     * task's {@code finally} block.
+     */
+    private final AtomicInteger inFlightTaskCount = new AtomicInteger(0);
+
+    /**
+     * Latch used during shutdown to block until all in-flight tasks complete.
+     * Created in {@link #shutdown(long)} with a count equal to the number of
+     * in-flight tasks at that moment; {@code null} at all other times.
+     */
+    private volatile CountDownLatch allTasksComplete;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -557,6 +620,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      *                     must be non-null and non-empty
      * @throws NullPointerException       if {@code codebaseUrls} is {@code null}
      * @throws IllegalArgumentException   if {@code codebaseUrls} is empty
+     * @throws IllegalStateException      if the engine is shutting down
      * @throws RejectedExecutionException if the analysis task queue is full
      * @throws RemoteException            never thrown directly; declared for the
      *                                    remote interface contract
@@ -565,6 +629,11 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
         if (codebaseUrls == null)   throw new NullPointerException("codebaseUrls");
         if (codebaseUrls.isEmpty()) throw new IllegalArgumentException("codebaseUrls must not be empty");
+        if (shutdownRequested.get()) {
+            throw new IllegalStateException(
+                    "BytecodeAnalysisEngine is shutting down; "
+                    + "new analysis requests are not accepted");
+        }
 
         // Snapshot the set so the task is independent of caller mutations.
         Set<Uri> snapshot = new LinkedHashSet<Uri>(codebaseUrls);
@@ -582,7 +651,142 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     }
 
     // -------------------------------------------------------------------------
-    // Private inner class: VerdictRecord
+    // Shutdown methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Initiates graceful shutdown of this engine.
+     *
+     * <p>After this method is called:
+     * <ol>
+     *   <li>New analysis requests are rejected with {@link IllegalStateException}.</li>
+     *   <li>All in-flight analysis tasks are allowed to complete.</li>
+     *   <li>The method blocks until all in-flight tasks finish or
+     *       {@code timeoutMs} milliseconds elapse.</li>
+     *   <li>The internal thread pool is shut down.</li>
+     * </ol>
+     *
+     * <p>This method is idempotent: calling it more than once is safe.
+     *
+     * @param timeoutMs maximum time in milliseconds to wait for in-flight
+     *                  tasks to complete; use {@code 0} to wait indefinitely.
+     *                  Milliseconds are used here (rather than a {@link TimeUnit}
+     *                  pair) to match the Jini/JGDMS configuration convention
+     *                  where timeouts are expressed as plain {@code long} values
+     *                  in configuration files (e.g. {@code shutdownTimeoutMs}).
+     * @throws InterruptedException if the calling thread is interrupted while
+     *                              waiting for tasks to complete
+     */
+    public void shutdown(long timeoutMs) throws InterruptedException {
+        CountDownLatch latch;
+        synchronized (this) {
+            if (!shutdownRequested.compareAndSet(false, true)) {
+                return; // already shutting down or shut down
+            }
+            shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
+
+            // Read inFlightTaskCount and install the latch under the same lock
+            // that AnalysisTask.run() holds when it decrements the count and
+            // checks the latch.  This ensures no task can "escape" between our
+            // read and the latch installation.
+            int inFlight = inFlightTaskCount.get();
+            if (inFlight > 0) {
+                allTasksComplete = new CountDownLatch(inFlight);
+            }
+            latch = allTasksComplete;
+
+            analysisExecutor.shutdown();
+        }
+
+        // Await OUTSIDE the synchronized block so tasks can enter it to
+        // decrement inFlightTaskCount and count down the latch.
+        if (latch != null) {
+            boolean completed;
+            if (timeoutMs <= 0) {
+                latch.await();
+                completed = true;
+            } else {
+                completed = latch.await(timeoutMs, TimeUnit.MILLISECONDS);
+            }
+            if (!completed) {
+                logger.log(Level.WARNING,
+                        "Shutdown timeout: {0} tasks did not complete within {1}ms",
+                        new Object[]{inFlightTaskCount.get(), timeoutMs});
+            }
+        }
+
+        synchronized (this) {
+            shutdownState.set(ShutdownState.SHUTDOWN_COMPLETE);
+        }
+    }
+
+    /**
+     * Blocks until all in-flight analysis tasks have completed after a
+     * {@link #shutdown(long)} call, or the timeout expires.
+     *
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the {@code timeout} argument
+     * @return {@code true} if all tasks completed before the timeout;
+     *         {@code false} if the timeout elapsed
+     * @throws InterruptedException if the calling thread is interrupted while
+     *                              waiting
+     */
+    public boolean awaitTermination(long timeout, TimeUnit unit)
+            throws InterruptedException {
+        return analysisExecutor.awaitTermination(timeout, unit);
+    }
+
+    /**
+     * Attempts to stop all actively executing analysis tasks and halts the
+     * processing of waiting tasks.
+     *
+     * <p>There are no guarantees beyond best-effort attempts to stop processing
+     * actively executing tasks.  For example, typical implementations will
+     * cancel via {@link Thread#interrupt}, so any task that fails to respond to
+     * interrupts may never terminate.
+     *
+     * <p>Note: after this method returns, in-flight tasks that are already
+     * executing may still be running until they respond to interruption.  Use
+     * {@link #isTerminated()} (which delegates to the underlying executor) to
+     * determine when all threads have actually stopped.
+     *
+     * @return list of tasks that were awaiting execution but never started
+     */
+    public synchronized List<Runnable> shutdownNow() {
+        shutdownRequested.set(true);
+        shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
+        List<Runnable> pending = analysisExecutor.shutdownNow();
+        // Do not set SHUTDOWN_COMPLETE here: in-flight tasks may still be
+        // running and will complete asynchronously.  isTerminated() delegates
+        // to analysisExecutor.isTerminated() which accurately reflects when
+        // all threads have finished.
+        return pending;
+    }
+
+    /**
+     * Returns {@code true} if shutdown has been initiated on this engine
+     * (either {@link #shutdown(long)} or {@link #shutdownNow()} has been
+     * called).
+     *
+     * @return {@code true} if shutdown has been requested
+     */
+    public boolean isShutdown() {
+        return shutdownRequested.get();
+    }
+
+    /**
+     * Returns {@code true} if all tasks have completed following a shutdown
+     * request.  Note that {@code isTerminated} is never {@code true} unless
+     * {@link #shutdown(long)} or {@link #shutdownNow()} was called first.
+     *
+     * @return {@code true} if the executor has terminated
+     */
+    public boolean isTerminated() {
+        return analysisExecutor.isTerminated();
+    }
+
+    // -------------------------------------------------------------------------
+    // Private inner class: AnalysisTask
     // -------------------------------------------------------------------------
 
     /**
@@ -631,66 +835,82 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
         @Override
         public void run() {
-            totalAnalysisAttempts.incrementAndGet();
-            long startNanos = System.nanoTime();
-            final Set<Uri> urls = codebaseUrls;
-            final String[] patterns = dangerousPatterns;
-            FutureTask<VerdictType> analysisWork = new FutureTask<VerdictType>(
-                    new Callable<VerdictType>() {
-                        @Override
-                        public VerdictType call() {
-                            return analyzeCodebase(urls, patterns);
-                        }
-                    });
-            Thread worker = new Thread(analysisWork, "BAE-analysis-worker");
-            worker.setDaemon(true);
-            worker.start();
-
-            VerdictType verdict;
+            inFlightTaskCount.incrementAndGet();
             try {
-                verdict = analysisWork.get(taskTimeoutMillis, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException e) {
-                analysisTimeouts.incrementAndGet();
-                long elapsedMs =
+                totalAnalysisAttempts.incrementAndGet();
+                long startNanos = System.nanoTime();
+                final Set<Uri> urls = codebaseUrls;
+                final String[] patterns = dangerousPatterns;
+                FutureTask<VerdictType> analysisWork = new FutureTask<VerdictType>(
+                        new Callable<VerdictType>() {
+                            @Override
+                            public VerdictType call() {
+                                return analyzeCodebase(urls, patterns);
+                            }
+                        });
+                Thread worker = new Thread(analysisWork, "BAE-analysis-worker");
+                worker.setDaemon(true);
+                worker.start();
+
+                VerdictType verdict;
+                try {
+                    verdict = analysisWork.get(taskTimeoutMillis, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException e) {
+                    analysisTimeouts.incrementAndGet();
+                    long elapsedMs =
+                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+                    logger.log(Level.WARNING,
+                            "Analysis task timed out after {0} ms for codebase {1}; "
+                            + "submitting DANGEROUS verdict as fail-safe",
+                            new Object[]{elapsedMs, codebaseUrls});
+                    analysisWork.cancel(true);
+                    worker.interrupt();  // belt-and-suspenders
+                    verdict = VerdictType.DANGEROUS;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    analysisWork.cancel(true);
+                    worker.interrupt();
+                    verdict = VerdictType.DANGEROUS;
+                } catch (ExecutionException e) {
+                    analysisErrors.incrementAndGet();
+                    logger.log(Level.SEVERE,
+                            "Unexpected analysis failure for " + codebaseUrls,
+                            e.getCause());
+                    verdict = VerdictType.DANGEROUS;
+                }
+
+                long analysisDurationMs =
                         TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-                logger.log(Level.WARNING,
-                        "Analysis task timed out after {0} ms for codebase {1}; "
-                        + "submitting DANGEROUS verdict as fail-safe",
-                        new Object[]{elapsedMs, codebaseUrls});
-                analysisWork.cancel(true);
-                worker.interrupt();  // belt-and-suspenders
-                verdict = VerdictType.DANGEROUS;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                analysisWork.cancel(true);
-                worker.interrupt();
-                verdict = VerdictType.DANGEROUS;
-            } catch (ExecutionException e) {
-                analysisErrors.incrementAndGet();
-                logger.log(Level.SEVERE,
-                        "Unexpected analysis failure for " + codebaseUrls,
-                        e.getCause());
-                verdict = VerdictType.DANGEROUS;
+                totalAnalysisCompleted.incrementAndGet();
+                recordAnalysisDuration(analysisDurationMs);
+
+                // Count verdict type.
+                if (verdict == VerdictType.SAFE) {
+                    safeVerdicts.incrementAndGet();
+                } else {
+                    dangerousVerdicts.incrementAndGet();
+                }
+
+                // Record in the recent-verdicts circular buffer.
+                int idx = Math.floorMod(recentVerdictIndex.getAndIncrement(), 100);
+                recentVerdicts[idx] = new VerdictRecord(
+                        System.currentTimeMillis(), codebaseUrls, verdict, analysisDurationMs);
+
+                signAndSubmit(verdict);
+            } finally {
+                // Decrement and check the latch atomically under the same
+                // monitor used by shutdown() to read inFlightTaskCount and
+                // install allTasksComplete.  This eliminates the race where a
+                // task completes between shutdown()'s count-read and latch-
+                // creation, leaving the latch count permanently stuck above zero.
+                synchronized (BytecodeAnalysisEngineImpl.this) {
+                    inFlightTaskCount.decrementAndGet();
+                    CountDownLatch latch = allTasksComplete;
+                    if (latch != null) {
+                        latch.countDown();
+                    }
+                }
             }
-
-            long analysisDurationMs =
-                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-            totalAnalysisCompleted.incrementAndGet();
-            recordAnalysisDuration(analysisDurationMs);
-
-            // Count verdict type.
-            if (verdict == VerdictType.SAFE) {
-                safeVerdicts.incrementAndGet();
-            } else {
-                dangerousVerdicts.incrementAndGet();
-            }
-
-            // Record in the recent-verdicts circular buffer.
-            int idx = Math.floorMod(recentVerdictIndex.getAndIncrement(), 100);
-            recentVerdicts[idx] = new VerdictRecord(
-                    System.currentTimeMillis(), codebaseUrls, verdict, analysisDurationMs);
-
-            signAndSubmit(verdict);
         }
 
         private void signAndSubmit(VerdictType verdict) {
