@@ -114,9 +114,11 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
     /**
      * Cumulative count of analysis tasks that have been rejected because the
-     * bounded work queue was full.  Useful for operational monitoring.
+     * bounded work queue was full.  Instance-level so each engine instance
+     * tracks its own rejection count independently.  Useful for operational
+     * monitoring.
      */
-    private static final AtomicLong rejectedTaskCount = new AtomicLong();
+    private final AtomicLong rejectedTaskCount = new AtomicLong();
 
     // -------------------------------------------------------------------------
     // Dangerous constant-pool patterns
@@ -194,7 +196,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.sigAlgorithm     = sigAlgorithm;
         this.engineId         = engineId;
         this.registry         = registry;
-        this.analysisExecutor = createAnalysisExecutor();
+        this.analysisExecutor = createAnalysisExecutor(this.rejectedTaskCount);
     }
 
     /**
@@ -450,15 +452,43 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     // -------------------------------------------------------------------------
 
     /**
+     * {@link RejectedExecutionHandler} that logs a WARNING, increments the
+     * per-engine rejection counter, and throws {@link RejectedExecutionException}
+     * when the bounded analysis work queue is full.
+     */
+    private static final class LoggingAbortPolicy implements RejectedExecutionHandler {
+
+        private final AtomicLong rejectedTaskCount;
+
+        LoggingAbortPolicy(AtomicLong rejectedTaskCount) {
+            this.rejectedTaskCount = rejectedTaskCount;
+        }
+
+        @Override
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+            long count = rejectedTaskCount.incrementAndGet();
+            logger.log(Level.WARNING,
+                    "Analysis task rejected: queue is full "
+                    + "(limit={0}, total rejections={1}). Task: {2}",
+                    new Object[]{ANALYSIS_QUEUE_MAX_SIZE, count, r});
+            throw new RejectedExecutionException(
+                    "Analysis queue full (limit=" + ANALYSIS_QUEUE_MAX_SIZE + ")");
+        }
+    }
+
+    /**
      * Creates the daemon thread pool used for asynchronous analysis tasks.
      *
      * <p>The work queue is bounded to {@value #ANALYSIS_QUEUE_MAX_SIZE} entries.
-     * If the queue is full when a new task is submitted, the custom
-     * {@link RejectedExecutionHandler} logs a WARNING, increments the
-     * {@link #rejectedTaskCount} counter, and re-throws a
+     * If the queue is full when a new task is submitted, the
+     * {@link LoggingAbortPolicy} logs a WARNING, increments the supplied
+     * {@code rejectedTaskCount} counter, and throws a
      * {@link RejectedExecutionException} to the caller.
+     *
+     * @param rejectedTaskCount per-engine counter incremented on each rejection
      */
-    private static ExecutorService createAnalysisExecutor() {
+    private static ExecutorService createAnalysisExecutor(
+            final AtomicLong rejectedTaskCount) {
         ThreadFactory daemonFactory = new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
@@ -467,24 +497,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                 return t;
             }
         };
-        RejectedExecutionHandler loggingAbortPolicy = new RejectedExecutionHandler() {
-            @Override
-            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-                long count = rejectedTaskCount.incrementAndGet();
-                logger.log(Level.WARNING,
-                        "Analysis task rejected: queue is full "
-                        + "(limit={0}, total rejections={1}). Task: {2}",
-                        new Object[]{ANALYSIS_QUEUE_MAX_SIZE, count, r});
-                throw new RejectedExecutionException(
-                        "Analysis queue full (limit=" + ANALYSIS_QUEUE_MAX_SIZE + ")");
-            }
-        };
         return new ThreadPoolExecutor(
                 0, ANALYSIS_POOL_MAX_THREADS, ANALYSIS_POOL_KEEP_ALIVE_SECONDS,
                 TimeUnit.SECONDS,
                 new ArrayBlockingQueue<Runnable>(ANALYSIS_QUEUE_MAX_SIZE),
                 daemonFactory,
-                loggingAbortPolicy);
+                new LoggingAbortPolicy(rejectedTaskCount));
     }
 
     /**
