@@ -17,6 +17,7 @@
  */
 package au.net.zeus.jgdms.vr;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -81,6 +82,10 @@ import au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy;
  *   <li>{@code phoenixSigAlgorithm} ({@link String}) — JCA algorithm used by Phoenix</li>
  *   <li>{@code quorumMinimum} ({@code int}, default {@code 1}) — minimum independent
  *       SAFE verdicts before a SAFE {@link RegistryVerdict} is issued</li>
+ *   <li>{@code persistenceEnabled} ({@code boolean}, default {@code true}) — whether to
+ *       persist state via {@link org.apache.river.reliableLog.ReliableLog}</li>
+ *   <li>{@code logDir} ({@link String}, default {@code ${java.io.tmpdir}/jgdms-verdict-registry/})
+ *       — directory for persistent log storage</li>
  * </ul>
  *
  * @author Peter Firmstone
@@ -154,14 +159,24 @@ public class ActivatableVerdictRegistryImpl
      * assignments are unconditionally safe.
      */
     private ActivatableVerdictRegistryImpl(VrServiceParameters params,
-                                           LifeCycle lifeCycle) {
+                                           LifeCycle lifeCycle) throws IOException {
         super(params, lifeCycle);
-        this.impl = new VerdictRegistryImpl(
-                params.registryPrivateKey,
-                params.registrySigAlgorithm,
-                params.phoenixPublicKey,
-                params.phoenixSigAlgorithm,
-                params.quorumMinimum);
+        if (params.persistenceEnabled) {
+            this.impl = new VerdictRegistryImpl(
+                    params.registryPrivateKey,
+                    params.registrySigAlgorithm,
+                    params.phoenixPublicKey,
+                    params.phoenixSigAlgorithm,
+                    params.quorumMinimum,
+                    params.logDir);
+        } else {
+            this.impl = new VerdictRegistryImpl(
+                    params.registryPrivateKey,
+                    params.registrySigAlgorithm,
+                    params.phoenixPublicKey,
+                    params.phoenixSigAlgorithm,
+                    params.quorumMinimum);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -277,6 +292,18 @@ public class ActivatableVerdictRegistryImpl
         public final int quorumMinimum;
 
         /**
+         * Whether to enable persistent storage via {@link org.apache.river.reliableLog.ReliableLog}.
+         * Defaults to {@code true} for activatable deployments.
+         */
+        public final boolean persistenceEnabled;
+
+        /**
+         * Path to the directory used for persistent log storage.
+         * Defaults to {@code ${java.io.tmpdir}/jgdms-verdict-registry/}.
+         */
+        public final String logDir;
+
+        /**
          * Reads VR-specific configuration entries after delegating common
          * entries to {@link JiniServiceParameters}.
          *
@@ -305,6 +332,15 @@ public class ActivatableVerdictRegistryImpl
 
             this.quorumMinimum = Config.getIntEntry(
                     config, COMPONENT, "quorumMinimum", 1, 1, Integer.MAX_VALUE);
+
+            this.persistenceEnabled = (Boolean) config.getEntry(
+                    COMPONENT, "persistenceEnabled", Boolean.class, Boolean.TRUE);
+
+            String defaultLogDir = System.getProperty("java.io.tmpdir")
+                    + java.io.File.separator + "jgdms-verdict-registry";
+            Object logDirEntry = config.getEntry(
+                    COMPONENT, "logDir", String.class, defaultLogDir);
+            this.logDir = (String) logDirEntry;
         }
     }
 }

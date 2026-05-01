@@ -3394,31 +3394,42 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
    	            }
    	            snapshotter.interrupt();
 		}
-   
+
+                // Capture thread references before releasing the lock for joins
+                final Thread localNotifier = notifier;
+                final Thread localExpirer = expirer;
+                final Thread localSnapshotter = snapshotter;
+
+            } // end synchronized(destroyLock) — release lock before joining threads
+
+            // Join threads outside the synchronized block to prevent virtual thread pinning
    	        try {
 //TODO - Use individual try-catch blocks		
    	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                         ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Notifier ...");
    	            }
-   	            notifier.join();
+   	            localNotifier.join();
    
    	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                         ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Expirer ...");
    	            }
-   	            expirer.join();	        
+   	            localExpirer.join();	        
    
-                    if (snapshotter != null) { // == null in non-persistent case
+                    if (localSnapshotter != null) { // == null in non-persistent case
    	                if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                             ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Snapshotter ...");
    	                }
-   	                snapshotter.join();
+   	                localSnapshotter.join();
 		    }
    	        } catch (InterruptedException e) {
 //TODO - Debug		
+   	            Thread.currentThread().interrupt();
    	        }
+
+            synchronized (destroyLock) { // re-acquire lock for post-join cleanup
    
 
                 // Note: blocking getNextBatchDo() threads might still be active

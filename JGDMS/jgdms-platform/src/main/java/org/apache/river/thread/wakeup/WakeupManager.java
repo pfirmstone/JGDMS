@@ -621,6 +621,11 @@ public class WakeupManager {
 				// ignore
 			    }
 
+			    if (dead) {
+				Thread.currentThread().interrupt();
+				return;
+			    }
+
 			    /* This loop already deals with wait returning
 			     * early for no reason, so going to the top
 			     * of the loop is ok here - if there are no

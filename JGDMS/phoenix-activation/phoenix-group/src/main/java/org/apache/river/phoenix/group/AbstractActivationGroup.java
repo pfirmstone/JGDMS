@@ -579,6 +579,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		try {
 		    id.wait();
 		} catch (InterruptedException ignore) {
+		    Thread.currentThread().interrupt();
+		    break;
 		}
 	    }
 	}
@@ -886,6 +888,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 			try {
 			    Thread.sleep(Math.min(rem, unexportWait));
 			} catch (InterruptedException e) {
+			    Thread.currentThread().interrupt();
+			    force = true;
 			}
 		    }
 		}
