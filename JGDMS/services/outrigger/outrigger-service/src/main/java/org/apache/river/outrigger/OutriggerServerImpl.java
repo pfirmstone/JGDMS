@@ -1821,8 +1821,8 @@ public class OutriggerServerImpl
 		    try {
 			handle.waitOnCompleteRemoval();
 		    } catch (InterruptedException e) {
-			// should never happen
-			throw new AssertionError(e);
+			Thread.currentThread().interrupt();
+			throw new RuntimeException("interrupted waiting on entry removal", e);
 		    }
 		    throw throwNewUnknownLeaseException(cookie);
 		}
@@ -2097,8 +2097,8 @@ public class OutriggerServerImpl
 	    try {
 		waitOnProvisionallyRemovedEntries(provisionallyRemovedEntrySet);
 	    } catch (InterruptedException e) {
-		// should never happen
-		throw new AssertionError(e);
+		Thread.currentThread().interrupt();
+		throw new RemoteException("interrupted waiting on entry removal", e);
 	    }
 
 	    return queryCookie;
@@ -2162,8 +2162,8 @@ public class OutriggerServerImpl
 	try {
 	    watcher.waitOnResolution();
 	} catch (InterruptedException e) {
-	    // should never happen
-	    throw new AssertionError(e);
+	    Thread.currentThread().interrupt();
+	    throw new RemoteException("interrupted waiting for take resolution", e);
 	}
 
 	handles = watcher.resolvedWithEntries();
@@ -2198,8 +2198,8 @@ public class OutriggerServerImpl
 	try {
 	    waitOnProvisionallyRemovedEntries(provisionallyRemovedEntrySet);
 	} catch (InterruptedException e) {
-	    // should never happen
-	    throw new AssertionError(e);
+	    Thread.currentThread().interrupt();
+	    throw new RemoteException("interrupted waiting on entry removal", e);
 	}
 
 	return queryCookie;
@@ -2903,8 +2903,8 @@ public class OutriggerServerImpl
 			    waitOnProvisionallyRemovedEntries(
 				provisionallyRemovedEntrySet);
 			} catch (InterruptedException e) {
-			    // should never happen
-			    throw new AssertionError(e);
+			    Thread.currentThread().interrupt();
+			    throw new TransactionException("interrupted waiting on entry removal");
 			}
 			return new EntryRep[1];
 		    }
@@ -3233,6 +3233,7 @@ public class OutriggerServerImpl
 		operationJournal.join();
 	    } catch (InterruptedException ie) {
 		logDestroyProblem("joining operation journal", ie);
+		Thread.currentThread().interrupt();
 	    }
 	
 	    joinThread(operationJournal);
@@ -3297,6 +3298,7 @@ public class OutriggerServerImpl
 	    t.join();
 	} catch (InterruptedException ie) {
 	    logDestroyProblem("joining " + t.getName(), ie);
+	    Thread.currentThread().interrupt();
 	}
     }
 

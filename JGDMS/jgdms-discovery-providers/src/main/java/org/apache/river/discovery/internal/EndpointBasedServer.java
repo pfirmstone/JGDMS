@@ -254,7 +254,10 @@ public abstract class EndpointBasedServer
 
 	synchronized ServerConnection getServerConnection() {
 	    while (conn == null) {
-		try { wait(); } catch (InterruptedException e) {}
+		try { wait(); } catch (InterruptedException e) {
+		    Thread.currentThread().interrupt();
+		    throw new IllegalStateException("interrupted waiting for server connection");
+		}
 	    }
 	    return conn;
 	}
@@ -304,7 +307,10 @@ public abstract class EndpointBasedServer
 		return s;
 	    }
 	    while (!closed) {
-		try { wait(); } catch (InterruptedException e) {}
+		try { wait(); } catch (InterruptedException e) {
+		    Thread.currentThread().interrupt();
+		    throw new SocketException("accept interrupted");
+		}
 	    }
 	    throw new SocketException("socket closed");
 	}

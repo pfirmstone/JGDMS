@@ -669,6 +669,17 @@ abstract class AbstractDgcClient {
 			phantom = (RefEntry.PhantomLiveRef)
 			    refQueue.remove(timeToWait);
 		    } catch (InterruptedException e) {
+			/*
+			 * Intentionally not restoring interrupt status here.
+			 * This thread cycles between an interruptible phase
+			 * (waiting on refQueue.remove()) and a non-interruptible
+			 * I/O phase. An interrupt during the interruptible phase
+			 * signals that a new or earlier lease renewal has been
+			 * scheduled. The interrupt is consumed here; any residual
+			 * interrupted flag is cleared below before entering the
+			 * non-interruptible I/O phase. See also the 'interruptible'
+			 * flag management in this class.
+			 */
 		    }
                     AccessControlContext cont = null;
 		    synchronized (EndpointEntry.this) {

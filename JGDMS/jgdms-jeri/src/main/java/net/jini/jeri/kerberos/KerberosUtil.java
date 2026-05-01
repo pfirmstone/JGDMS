@@ -37,6 +37,7 @@ import java.util.logging.Logger;
 import java.util.logging.LogRecord;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.Set;
 import javax.security.auth.AuthPermission;
 import javax.security.auth.kerberos.KerberosPrincipal;
@@ -679,6 +680,8 @@ class KerberosUtil {
 	 * initialized in child class
 	 */
 	protected GSSContext gssContext;
+	/** Lock protecting gssContext to avoid synchronized + native-call carrier pinning */
+	protected final ReentrantLock gssContextLock = new ReentrantLock();
 
 	/** Boolean to indicate whether traffic will be encrypted */
 	protected boolean doEncryption;
@@ -732,8 +735,11 @@ class KerberosUtil {
 	    byte[] token = null;
 	    try {
 		try {
-		    synchronized (gssContext) {
+		    gssContextLock.lock();
+		    try {
 			token = gssContext.wrap(buf, offset, len, prop);
+		    } finally {
+			gssContextLock.unlock();
 		    }
 		} catch (GSSException ge) {
 		    IOException ioe = new IOException(
@@ -791,9 +797,12 @@ class KerberosUtil {
 		
 		byte[] bytes;
 		try {
-		    synchronized (gssContext) {
+		    gssContextLock.lock();
+		    try {
 			bytes = gssContext.unwrap(
 			    token, 0, token.length, prop);
+		    } finally {
+			gssContextLock.unlock();
 		    }
 		} catch (GSSException e) {
 		    IOException ioe = new IOException(
@@ -835,6 +844,7 @@ class KerberosUtil {
 	private byte[] buf;
 	private int offset; // point to the byte for next read
 	private final Connection connection;
+	private final ReentrantLock lock = new ReentrantLock();
 
 	/** Construct the input stream */
 	ConnectionInputStream(Connection connection) {
@@ -844,19 +854,24 @@ class KerberosUtil {
 	}
 
 	// This method's javadoc is inherited from InputStream
-	public synchronized int read() throws IOException {
-	    if (offset == buf.length) {
-		do {
-		    buf = connection.read();
-		} while (buf.length == 0);
-		offset = 0;
+	public int read() throws IOException {
+	    lock.lock();
+	    try {
+		if (offset == buf.length) {
+		    do {
+			buf = connection.read();
+		    } while (buf.length == 0);
+		    offset = 0;
+		}
+		return buf[offset++];
+	    } finally {
+		lock.unlock();
 	    }
-	    return buf[offset++];
 	}
 
 	// This method's javadoc is inherited from InputStream
 	@Override
-	public synchronized int read(byte b[], int off, int len)
+	public int read(byte b[], int off, int len)
 	    throws IOException
 	{
 	    if (b == null) {
@@ -864,24 +879,33 @@ class KerberosUtil {
 	    } else if (off < 0 || len < 0 || (off + len) > b.length) {
 		throw new IndexOutOfBoundsException();
 	    }
+	    lock.lock();
+	    try {
+		if (offset == buf.length) {
+		    do {
+			buf = connection.read();
+		    } while (buf.length == 0);
+		    offset = 0;
+		}
 
-	    if (offset == buf.length) {
-		do {
-		    buf = connection.read();
-		} while (buf.length == 0);
-		offset = 0;
+		int bytes = Math.min(buf.length - offset, len);
+		System.arraycopy(buf, offset, b, off, bytes);
+		offset += bytes;
+		return bytes;
+	    } finally {
+		lock.unlock();
 	    }
-
-	    int bytes = Math.min(buf.length - offset, len);
-	    System.arraycopy(buf, offset, b, off, bytes);
-	    offset += bytes;
-	    return bytes;
 	}
 
 	// This method's javadoc is inherited from InputStream
 	@Override
-	public synchronized int available() throws IOException {
-	    return buf.length - offset;
+	public int available() throws IOException {
+	    lock.lock();
+	    try {
+		return buf.length - offset;
+	    } finally {
+		lock.unlock();
+	    }
 	}
 
 	/** Close the DataInputStream of the enclosed connection */
@@ -901,6 +925,7 @@ class KerberosUtil {
 	private final byte[] buf;
 	private int curLen; // current content length of the internal buffer
 	private final Connection connection;
+	private final ReentrantLock lock = new ReentrantLock();
 
 	/** Construct an instance of ConnectionOutputStream */
 	ConnectionOutputStream(Connection connection) {
@@ -910,17 +935,22 @@ class KerberosUtil {
 	}
 
 	// This method's javadoc is inherited from OutStream
-	public synchronized void write(int b) throws IOException {
-	    if (curLen == bufSize) {
-		connection.write(buf, 0, curLen);
-		curLen = 0;
+	public void write(int b) throws IOException {
+	    lock.lock();
+	    try {
+		if (curLen == bufSize) {
+		    connection.write(buf, 0, curLen);
+		    curLen = 0;
+		}
+		buf[curLen++] = (byte) b;
+	    } finally {
+		lock.unlock();
 	    }
-	    buf[curLen++] = (byte) b;
 	}
 
 	// This method's javadoc is inherited from OutStream
 	@Override
-	public synchronized void write(byte[] b, int off, int len)
+	public void write(byte[] b, int off, int len)
 	    throws IOException
 	{
 	    if (b == null) {
@@ -928,34 +958,43 @@ class KerberosUtil {
 	    } else if (off < 0 || len < 0 || (off + len) > b.length) {
 		throw new IndexOutOfBoundsException();
 	    }
+	    lock.lock();
+	    try {
+		if ((curLen + len) >= bufSize) {
+		    int count = bufSize - curLen;
+		    System.arraycopy(b, off, buf, curLen, count);
+		    off += count;
+		    len -= count;
+		    connection.write(buf, 0, bufSize);
+		    curLen = 0;
+		}
 
-	    if ((curLen + len) >= bufSize) {
-		int count = bufSize - curLen;
-		System.arraycopy(b, off, buf, curLen, count);
-		off += count;
-		len -= count;
-		connection.write(buf, 0, bufSize);
-		curLen = 0;
+		while (len > bufSize) {
+		    connection.write(b, off, bufSize);
+		    off += bufSize;
+		    len -= bufSize;
+		}
+
+		System.arraycopy(b, off, buf, curLen, len);
+		curLen += len;
+	    } finally {
+		lock.unlock();
 	    }
-
-	    while (len > bufSize) {
-		connection.write(b, off, bufSize);
-		off += bufSize;
-		len -= bufSize;
-	    }
-
-	    System.arraycopy(b, off, buf, curLen, len);
-	    curLen += len;
 	}
 
 	// This method's javadoc is inherited from OutStream
 	@Override
-	public synchronized void flush() throws IOException {
-	    if (curLen > 0) {
-		connection.write(buf, 0, curLen);
-		curLen = 0;
+	public void flush() throws IOException {
+	    lock.lock();
+	    try {
+		if (curLen > 0) {
+		    connection.write(buf, 0, curLen);
+		    curLen = 0;
+		}
+		connection.flush();
+	    } finally {
+		lock.unlock();
 	    }
-	    connection.flush();
 	}
 
 	/**

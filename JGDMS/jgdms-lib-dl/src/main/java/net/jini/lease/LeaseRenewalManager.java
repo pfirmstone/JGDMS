@@ -1633,6 +1633,7 @@ public class LeaseRenewalManager {
 			}
 		    }
 		} catch (InterruptedException ex) {
+		    Thread.currentThread().interrupt();
 		}
 		queuer = null;
 	    }
