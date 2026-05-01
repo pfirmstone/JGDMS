@@ -30,10 +30,16 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.FutureTask;
@@ -43,7 +49,10 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.logging.Level;
@@ -180,11 +189,41 @@ import org.apache.river.api.net.Uri;
  * {@link #requestAnalysis} is safe for concurrent use.  Each analysis request
  * is executed asynchronously on a shared daemon thread pool.
  *
+ * <h2>Graceful Shutdown</h2>
+ * Call {@link #shutdown(long)} to initiate graceful shutdown. This method:
+ * <ol>
+ *   <li>Stops accepting new analysis requests</li>
+ *   <li>Waits for all in-flight tasks to complete (with timeout)</li>
+ *   <li>Terminates the thread pool</li>
+ * </ol>
+ *
+ * <p>For forced termination, use {@link #shutdownNow()}, but note that this may
+ * leave verdicts unpublished and pending tasks cancelled.
+ *
+ * <p>The shutdown state can be queried via {@link #isShutdown()} and
+ * {@link #isTerminated()}.
+ *
  * @see BytecodeAnalysisEngine
  * @see VerdictRegistry
  * @since 3.1.1
  */
 public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
+
+    // -------------------------------------------------------------------------
+    // Shutdown state machine
+    // -------------------------------------------------------------------------
+
+    /**
+     * Lifecycle states for this engine instance.
+     */
+    enum ShutdownState {
+        /** The engine is running normally and accepts new analysis requests. */
+        RUNNING,
+        /** Shutdown has been requested; new requests are rejected. */
+        SHUTDOWN_REQUESTED,
+        /** Shutdown is complete; the thread pool has terminated. */
+        SHUTDOWN_COMPLETE
+    }
 
     private static final Logger logger =
             Logger.getLogger(BytecodeAnalysisEngineImpl.class.getName());
@@ -220,8 +259,11 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * bounded work queue was full.  Instance-level so each engine instance
      * tracks its own rejection count independently.  Useful for operational
      * monitoring.
+     *
+     * <p>Package-private to allow the {@link LoggingAbortPolicy} (constructed
+     * by tests) and the metrics test harness to access it directly.
      */
-    private final AtomicLong rejectedTaskCount = new AtomicLong();
+    final AtomicLong rejectedTaskCount = new AtomicLong();
 
     // -------------------------------------------------------------------------
     // Dangerous constant-pool patterns
@@ -313,6 +355,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     private final ExecutorService analysisExecutor;
 
     /**
+     * Reference to the {@link ThreadPoolExecutor} used for analysis, or
+     * {@code null} if a custom {@link ExecutorService} was supplied via the
+     * package-private test constructor.  Used to compute the live queue depth.
+     */
+    private final ThreadPoolExecutor poolExecutor;
+
     /**
      * The set of constant-pool patterns treated as dangerous for this engine
      * instance.  Defaults to {@link #DANGEROUS_CP_ENTRIES}; may be overridden
@@ -326,6 +374,78 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * package-private constructor for testing or per-deployment tuning.
      */
     private final long taskTimeoutMillis;
+
+    // -------------------------------------------------------------------------
+    // Metrics fields
+    // -------------------------------------------------------------------------
+
+    // -- Queue metrics
+    /** Approximate peak queue depth; updated on each successful {@link #requestAnalysis} call. */
+    final AtomicLong peakQueueDepth = new AtomicLong(0);
+
+    // -- Analysis task metrics
+    private final AtomicLong totalAnalysisAttempts  = new AtomicLong();
+    private final AtomicLong totalAnalysisCompleted = new AtomicLong();
+    private final AtomicLong analysisTimeouts        = new AtomicLong();
+    private final AtomicLong classParseErrors        = new AtomicLong();
+
+    // -- Analysis duration histogram (milliseconds)
+    private final AtomicLong analysisDuration_0_100ms    = new AtomicLong();
+    private final AtomicLong analysisDuration_100_500ms  = new AtomicLong();
+    private final AtomicLong analysisDuration_500_1000ms = new AtomicLong();
+    private final AtomicLong analysisDuration_1_5s       = new AtomicLong();
+    private final AtomicLong analysisDuration_5_10s      = new AtomicLong();
+    private final AtomicLong analysisDuration_10s_plus   = new AtomicLong();
+
+    // -- Verdict distribution
+    private final AtomicLong safeVerdicts      = new AtomicLong();
+    private final AtomicLong dangerousVerdicts = new AtomicLong();
+    private final AtomicLong analysisErrors    = new AtomicLong();
+
+    // -- Recent verdicts circular buffer (last 100)
+    final VerdictRecord[] recentVerdicts     = new VerdictRecord[100];
+    private final AtomicInteger   recentVerdictIndex = new AtomicInteger(0);
+
+    // -- Registry submission metrics
+    private final AtomicLong successfulSubmissions = new AtomicLong();
+    private final AtomicLong failedSubmissions     = new AtomicLong();
+    private final ConcurrentHashMap<String, AtomicLong> submissionErrorTypes
+            = new ConcurrentHashMap<>();
+
+    // -- Submission latency histogram (milliseconds)
+    private final AtomicLong submissionLatency_0_100ms    = new AtomicLong();
+    private final AtomicLong submissionLatency_100_500ms  = new AtomicLong();
+    private final AtomicLong submissionLatency_500_1000ms = new AtomicLong();
+    private final AtomicLong submissionLatency_1000ms_plus = new AtomicLong();
+
+    // -------------------------------------------------------------------------
+    // Shutdown fields
+    // -------------------------------------------------------------------------
+
+    /** Current lifecycle state of this engine. */
+    private final AtomicReference<ShutdownState> shutdownState =
+            new AtomicReference<>(ShutdownState.RUNNING);
+
+    /**
+     * Fast flag checked by {@link #requestAnalysis} to reject new requests
+     * once shutdown has been requested, without needing to read the full
+     * {@link #shutdownState}.
+     */
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+
+    /**
+     * Count of analysis tasks currently executing (started but not yet
+     * finished).  Incremented at the start of each task, decremented in the
+     * task's {@code finally} block.
+     */
+    private final AtomicInteger inFlightTaskCount = new AtomicInteger(0);
+
+    /**
+     * Latch used during shutdown to block until all in-flight tasks complete.
+     * Created in {@link #shutdown(long)} with a count equal to the number of
+     * in-flight tasks at that moment; {@code null} at all other times.
+     */
+    private volatile CountDownLatch allTasksComplete;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -365,7 +485,9 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.engineId          = engineId;
         this.registry          = registry;
         this.dangerousPatterns = DANGEROUS_CP_ENTRIES.clone();
-        this.analysisExecutor  = createAnalysisExecutor(this.rejectedTaskCount);
+        ThreadPoolExecutor tpe = createAnalysisExecutor(this.rejectedTaskCount);
+        this.analysisExecutor  = tpe;
+        this.poolExecutor      = tpe;
         this.taskTimeoutMillis = ANALYSIS_TASK_TIMEOUT_MILLIS;
     }
 
@@ -418,7 +540,9 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.engineId          = engineId;
         this.registry          = registry;
         this.dangerousPatterns = dangerousPatterns.clone();
-        this.analysisExecutor  = createAnalysisExecutor(this.rejectedTaskCount);
+        ThreadPoolExecutor tpe = createAnalysisExecutor(this.rejectedTaskCount);
+        this.analysisExecutor  = tpe;
+        this.poolExecutor      = tpe;
         this.taskTimeoutMillis = ANALYSIS_TASK_TIMEOUT_MILLIS;
     }
 
@@ -465,6 +589,8 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.registry          = registry;
         this.dangerousPatterns = DANGEROUS_CP_ENTRIES.clone();
         this.analysisExecutor  = executor;
+        this.poolExecutor      = (executor instanceof ThreadPoolExecutor)
+                ? (ThreadPoolExecutor) executor : null;
         this.taskTimeoutMillis = taskTimeoutMillis;
     }
 
@@ -494,6 +620,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      *                     must be non-null and non-empty
      * @throws NullPointerException       if {@code codebaseUrls} is {@code null}
      * @throws IllegalArgumentException   if {@code codebaseUrls} is empty
+     * @throws IllegalStateException      if the engine is shutting down
      * @throws RejectedExecutionException if the analysis task queue is full
      * @throws RemoteException            never thrown directly; declared for the
      *                                    remote interface contract
@@ -502,10 +629,183 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
         if (codebaseUrls == null)   throw new NullPointerException("codebaseUrls");
         if (codebaseUrls.isEmpty()) throw new IllegalArgumentException("codebaseUrls must not be empty");
+        if (shutdownRequested.get()) {
+            throw new IllegalStateException(
+                    "BytecodeAnalysisEngine is shutting down; "
+                    + "new analysis requests are not accepted");
+        }
 
         // Snapshot the set so the task is independent of caller mutations.
         Set<Uri> snapshot = new LinkedHashSet<Uri>(codebaseUrls);
         analysisExecutor.execute(new AnalysisTaskWithTimeout(snapshot));
+
+        // Update peak queue depth after successfully enqueuing.
+        if (poolExecutor != null) {
+            long depth = poolExecutor.getQueue().size() + poolExecutor.getActiveCount();
+            long current = peakQueueDepth.get();
+            while (depth > current) {
+                if (peakQueueDepth.compareAndSet(current, depth)) break;
+                current = peakQueueDepth.get();
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Shutdown methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Initiates graceful shutdown of this engine.
+     *
+     * <p>After this method is called:
+     * <ol>
+     *   <li>New analysis requests are rejected with {@link IllegalStateException}.</li>
+     *   <li>All in-flight analysis tasks are allowed to complete.</li>
+     *   <li>The method blocks until all in-flight tasks finish or
+     *       {@code timeoutMs} milliseconds elapse.</li>
+     *   <li>The internal thread pool is shut down.</li>
+     * </ol>
+     *
+     * <p>This method is idempotent: calling it more than once is safe.
+     *
+     * @param timeoutMs maximum time in milliseconds to wait for in-flight
+     *                  tasks to complete; use {@code 0} to wait indefinitely.
+     *                  Milliseconds are used here (rather than a {@link TimeUnit}
+     *                  pair) to match the Jini/JGDMS configuration convention
+     *                  where timeouts are expressed as plain {@code long} values
+     *                  in configuration files (e.g. {@code shutdownTimeoutMs}).
+     * @throws InterruptedException if the calling thread is interrupted while
+     *                              waiting for tasks to complete
+     */
+    public void shutdown(long timeoutMs) throws InterruptedException {
+        CountDownLatch latch;
+        synchronized (this) {
+            if (!shutdownRequested.compareAndSet(false, true)) {
+                return; // already shutting down or shut down
+            }
+            shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
+
+            // Read inFlightTaskCount and install the latch under the same lock
+            // that AnalysisTask.run() holds when it decrements the count and
+            // checks the latch.  This ensures no task can "escape" between our
+            // read and the latch installation.
+            int inFlight = inFlightTaskCount.get();
+            if (inFlight > 0) {
+                allTasksComplete = new CountDownLatch(inFlight);
+            }
+            latch = allTasksComplete;
+
+            analysisExecutor.shutdown();
+        }
+
+        // Await OUTSIDE the synchronized block so tasks can enter it to
+        // decrement inFlightTaskCount and count down the latch.
+        if (latch != null) {
+            boolean completed;
+            if (timeoutMs <= 0) {
+                latch.await();
+                completed = true;
+            } else {
+                completed = latch.await(timeoutMs, TimeUnit.MILLISECONDS);
+            }
+            if (!completed) {
+                logger.log(Level.WARNING,
+                        "Shutdown timeout: {0} tasks did not complete within {1}ms",
+                        new Object[]{inFlightTaskCount.get(), timeoutMs});
+            }
+        }
+
+        synchronized (this) {
+            shutdownState.set(ShutdownState.SHUTDOWN_COMPLETE);
+        }
+    }
+
+    /**
+     * Blocks until all in-flight analysis tasks have completed after a
+     * {@link #shutdown(long)} call, or the timeout expires.
+     *
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the {@code timeout} argument
+     * @return {@code true} if all tasks completed before the timeout;
+     *         {@code false} if the timeout elapsed
+     * @throws InterruptedException if the calling thread is interrupted while
+     *                              waiting
+     */
+    public boolean awaitTermination(long timeout, TimeUnit unit)
+            throws InterruptedException {
+        return analysisExecutor.awaitTermination(timeout, unit);
+    }
+
+    /**
+     * Attempts to stop all actively executing analysis tasks and halts the
+     * processing of waiting tasks.
+     *
+     * <p>There are no guarantees beyond best-effort attempts to stop processing
+     * actively executing tasks.  For example, typical implementations will
+     * cancel via {@link Thread#interrupt}, so any task that fails to respond to
+     * interrupts may never terminate.
+     *
+     * <p>Note: after this method returns, in-flight tasks that are already
+     * executing may still be running until they respond to interruption.  Use
+     * {@link #isTerminated()} (which delegates to the underlying executor) to
+     * determine when all threads have actually stopped.
+     *
+     * @return list of tasks that were awaiting execution but never started
+     */
+    public synchronized List<Runnable> shutdownNow() {
+        shutdownRequested.set(true);
+        shutdownState.set(ShutdownState.SHUTDOWN_REQUESTED);
+        List<Runnable> pending = analysisExecutor.shutdownNow();
+        // Do not set SHUTDOWN_COMPLETE here: in-flight tasks may still be
+        // running and will complete asynchronously.  isTerminated() delegates
+        // to analysisExecutor.isTerminated() which accurately reflects when
+        // all threads have finished.
+        return pending;
+    }
+
+    /**
+     * Returns {@code true} if shutdown has been initiated on this engine
+     * (either {@link #shutdown(long)} or {@link #shutdownNow()} has been
+     * called).
+     *
+     * @return {@code true} if shutdown has been requested
+     */
+    public boolean isShutdown() {
+        return shutdownRequested.get();
+    }
+
+    /**
+     * Returns {@code true} if all tasks have completed following a shutdown
+     * request.  Note that {@code isTerminated} is never {@code true} unless
+     * {@link #shutdown(long)} or {@link #shutdownNow()} was called first.
+     *
+     * @return {@code true} if the executor has terminated
+     */
+    public boolean isTerminated() {
+        return analysisExecutor.isTerminated();
+    }
+
+    // -------------------------------------------------------------------------
+    // Private inner class: AnalysisTask
+    // -------------------------------------------------------------------------
+
+    /**
+     * Snapshot of a single analysis verdict, stored in the
+     * {@link #recentVerdicts} circular buffer for debugging.
+     */
+    static final class VerdictRecord {
+        final long        timestamp;
+        final Set<Uri>    codebaseUrls;
+        final VerdictType verdict;
+        final long        durationMs;
+
+        VerdictRecord(long timestamp, Set<Uri> codebaseUrls,
+                      VerdictType verdict, long durationMs) {
+            this.timestamp    = timestamp;
+            this.codebaseUrls = codebaseUrls;
+            this.verdict      = verdict;
+            this.durationMs   = durationMs;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -535,60 +835,105 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
 
         @Override
         public void run() {
-            long startNanos = System.nanoTime();
-            final Set<Uri> urls = codebaseUrls;
-            final String[] patterns = dangerousPatterns;
-            FutureTask<VerdictType> analysisWork = new FutureTask<VerdictType>(
-                    new Callable<VerdictType>() {
-                        @Override
-                        public VerdictType call() {
-                            return analyzeCodebase(urls, patterns);
-                        }
-                    });
-            Thread worker = new Thread(analysisWork, "BAE-analysis-worker");
-            worker.setDaemon(true);
-            worker.start();
-
-            VerdictType verdict;
+            inFlightTaskCount.incrementAndGet();
             try {
-                verdict = analysisWork.get(taskTimeoutMillis, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException e) {
-                long elapsedMs =
-                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-                logger.log(Level.WARNING,
-                        "Analysis task timed out after {0} ms for codebase {1}; "
-                        + "submitting DANGEROUS verdict as fail-safe",
-                        new Object[]{elapsedMs, codebaseUrls});
-                analysisWork.cancel(true);
-                worker.interrupt();  // belt-and-suspenders
-                verdict = VerdictType.DANGEROUS;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                analysisWork.cancel(true);
-                worker.interrupt();
-                verdict = VerdictType.DANGEROUS;
-            } catch (ExecutionException e) {
-                logger.log(Level.SEVERE,
-                        "Unexpected analysis failure for " + codebaseUrls,
-                        e.getCause());
-                verdict = VerdictType.DANGEROUS;
-            }
+                totalAnalysisAttempts.incrementAndGet();
+                long startNanos = System.nanoTime();
+                final Set<Uri> urls = codebaseUrls;
+                final String[] patterns = dangerousPatterns;
+                FutureTask<VerdictType> analysisWork = new FutureTask<VerdictType>(
+                        new Callable<VerdictType>() {
+                            @Override
+                            public VerdictType call() {
+                                return analyzeCodebase(urls, patterns);
+                            }
+                        });
+                Thread worker = new Thread(analysisWork, "BAE-analysis-worker");
+                worker.setDaemon(true);
+                worker.start();
 
-            signAndSubmit(verdict);
+                VerdictType verdict;
+                try {
+                    verdict = analysisWork.get(taskTimeoutMillis, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException e) {
+                    analysisTimeouts.incrementAndGet();
+                    long elapsedMs =
+                            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+                    logger.log(Level.WARNING,
+                            "Analysis task timed out after {0} ms for codebase {1}; "
+                            + "submitting DANGEROUS verdict as fail-safe",
+                            new Object[]{elapsedMs, codebaseUrls});
+                    analysisWork.cancel(true);
+                    worker.interrupt();  // belt-and-suspenders
+                    verdict = VerdictType.DANGEROUS;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    analysisWork.cancel(true);
+                    worker.interrupt();
+                    verdict = VerdictType.DANGEROUS;
+                } catch (ExecutionException e) {
+                    analysisErrors.incrementAndGet();
+                    logger.log(Level.SEVERE,
+                            "Unexpected analysis failure for " + codebaseUrls,
+                            e.getCause());
+                    verdict = VerdictType.DANGEROUS;
+                }
+
+                long analysisDurationMs =
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+                totalAnalysisCompleted.incrementAndGet();
+                recordAnalysisDuration(analysisDurationMs);
+
+                // Count verdict type.
+                if (verdict == VerdictType.SAFE) {
+                    safeVerdicts.incrementAndGet();
+                } else {
+                    dangerousVerdicts.incrementAndGet();
+                }
+
+                // Record in the recent-verdicts circular buffer.
+                int idx = Math.floorMod(recentVerdictIndex.getAndIncrement(), 100);
+                recentVerdicts[idx] = new VerdictRecord(
+                        System.currentTimeMillis(), codebaseUrls, verdict, analysisDurationMs);
+
+                signAndSubmit(verdict);
+            } finally {
+                // Decrement and check the latch atomically under the same
+                // monitor used by shutdown() to read inFlightTaskCount and
+                // install allTasksComplete.  This eliminates the race where a
+                // task completes between shutdown()'s count-read and latch-
+                // creation, leaving the latch count permanently stuck above zero.
+                synchronized (BytecodeAnalysisEngineImpl.this) {
+                    inFlightTaskCount.decrementAndGet();
+                    CountDownLatch latch = allTasksComplete;
+                    if (latch != null) {
+                        latch.countDown();
+                    }
+                }
+            }
         }
 
         private void signAndSubmit(VerdictType verdict) {
             long timestamp = System.currentTimeMillis();
+            long submitStart = System.nanoTime();
             try {
                 Uri[] sortedUrls = sortedUriArray(codebaseUrls);
                 byte[] canonical = canonicalBytes(sortedUrls, verdict, timestamp);
                 byte[] sig       = sign(enginePrivateKey, sigAlgorithm, canonical);
                 SignedVerdict sv = new SignedVerdict(sortedUrls, verdict, timestamp, sig);
                 registry.submitVerdict(engineId, sv);
+                long submitDurationMs =
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - submitStart);
+                successfulSubmissions.incrementAndGet();
+                recordSubmissionLatency(submitDurationMs);
                 logger.log(Level.INFO,
                         "Submitted {0} verdict for {1} to registry",
                         new Object[]{verdict, codebaseUrls});
             } catch (Exception e) {
+                failedSubmissions.incrementAndGet();
+                String errType = e.getClass().getName();
+                submissionErrorTypes.computeIfAbsent(errType, k -> new AtomicLong())
+                        .incrementAndGet();
                 logger.log(Level.SEVERE,
                         "Failed to sign or submit verdict for " + codebaseUrls, e);
             }
@@ -608,7 +953,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * @param codebaseUrls the set of codebase URIs to analyse
      * @param patterns     the constant-pool patterns to treat as dangerous
      */
-    private static VerdictType analyzeCodebase(Set<Uri> codebaseUrls,
+    private VerdictType analyzeCodebase(Set<Uri> codebaseUrls,
                                                String[] patterns) {
         for (Uri uri : codebaseUrls) {
             URL url;
@@ -627,7 +972,11 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                         while ((entry = jis.getNextJarEntry()) != null) {
                             if (!entry.getName().endsWith(".class")) continue;
                             byte[] classBytes = readFully(jis);
-                            if (classBytes != null && containsDangerousCode(classBytes, patterns)) {
+                            if (classBytes == null) {
+                                classParseErrors.incrementAndGet();
+                                return VerdictType.DANGEROUS;
+                            }
+                            if (containsDangerousCode(classBytes, patterns)) {
                                 logger.log(Level.INFO,
                                         "Dangerous class found: {0} in {1}",
                                         new Object[]{entry.getName(), uri});
@@ -643,6 +992,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
             } catch (IOException e) {
                 logger.log(Level.WARNING, "Failed to read JAR at " + uri
                         + " - treating as DANGEROUS", e);
+                classParseErrors.incrementAndGet();
                 return VerdictType.DANGEROUS;
             }
         }
@@ -1603,7 +1953,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      * per-engine rejection counter, and throws {@link RejectedExecutionException}
      * when the bounded analysis work queue is full.
      */
-    private static final class LoggingAbortPolicy implements RejectedExecutionHandler {
+    static final class LoggingAbortPolicy implements RejectedExecutionHandler {
 
         private final AtomicLong rejectedTaskCount;
 
@@ -1634,7 +1984,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
      *
      * @param rejectedTaskCount per-engine counter incremented on each rejection
      */
-    private static ExecutorService createAnalysisExecutor(
+    private static ThreadPoolExecutor createAnalysisExecutor(
             final AtomicLong rejectedTaskCount) {
         ThreadFactory daemonFactory = new ThreadFactory() {
             @Override
@@ -1737,5 +2087,179 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
             return null;
         }
         return baos.toByteArray();
+    }
+
+    // -------------------------------------------------------------------------
+    // Metrics helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Records an analysis duration observation in the duration histogram.
+     *
+     * @param ms duration in milliseconds
+     */
+    private void recordAnalysisDuration(long ms) {
+        if      (ms <    100) analysisDuration_0_100ms.incrementAndGet();
+        else if (ms <    500) analysisDuration_100_500ms.incrementAndGet();
+        else if (ms <   1000) analysisDuration_500_1000ms.incrementAndGet();
+        else if (ms <   5000) analysisDuration_1_5s.incrementAndGet();
+        else if (ms <  10000) analysisDuration_5_10s.incrementAndGet();
+        else                  analysisDuration_10s_plus.incrementAndGet();
+    }
+
+    /**
+     * Records a registry submission latency observation in the latency
+     * histogram.
+     *
+     * @param ms latency in milliseconds
+     */
+    private void recordSubmissionLatency(long ms) {
+        if      (ms <   100) submissionLatency_0_100ms.incrementAndGet();
+        else if (ms <   500) submissionLatency_100_500ms.incrementAndGet();
+        else if (ms <  1000) submissionLatency_500_1000ms.incrementAndGet();
+        else                 submissionLatency_1000ms_plus.incrementAndGet();
+    }
+
+    // -------------------------------------------------------------------------
+    // Metrics API
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns an approximate current analysis-queue depth: the sum of tasks
+     * that are queued and tasks that are actively executing.
+     *
+     * <p>The queue size and active-count are read non-atomically; the sum may
+     * therefore transiently over- or under-count by a small number of tasks in
+     * a concurrent environment.  This is acceptable for operational monitoring
+     * where approximate values are sufficient.
+     *
+     * @return approximate current queue depth, or {@code -1} if depth cannot
+     *         be determined (e.g. when a custom executor was injected for
+     *         testing)
+     */
+    public long queueDepth() {
+        if (poolExecutor != null) {
+            return poolExecutor.getQueue().size() + poolExecutor.getActiveCount();
+        }
+        return -1L;
+    }
+
+    /**
+     * Returns the cumulative count of analysis tasks that have been rejected
+     * because the bounded work queue was full.
+     *
+     * @return total rejection count since the engine was created (or since
+     *         the last {@link #resetMetrics()} call)
+     */
+    public long totalRejections() {
+        return rejectedTaskCount.get();
+    }
+
+    /**
+     * Records a timeout event for an in-progress analysis task.
+     *
+     * <p>This method is called by the analysis timeout handler and is also
+     * package-private to enable direct invocation from unit tests.
+     */
+    void recordAnalysisTimeout() {
+        analysisTimeouts.incrementAndGet();
+    }
+
+    /**
+     * Returns a point-in-time snapshot of all operational metrics.
+     *
+     * <p>The returned map has four top-level keys: {@code "queue"},
+     * {@code "analysis"}, {@code "verdict"}, and {@code "submission"}, each
+     * mapping to a nested {@link Map}.  All values are read atomically but
+     * the snapshot is not globally consistent (individual counters may
+     * advance between reads in a concurrent environment).
+     *
+     * @return snapshot of current metrics; never {@code null}
+     */
+    public Map<String, Object> getMetrics() {
+        Map<String, Object> metrics = new LinkedHashMap<>();
+
+        // Queue section.
+        Map<String, Object> queue = new LinkedHashMap<>();
+        queue.put("currentDepth",    queueDepth());
+        queue.put("peakDepth",       peakQueueDepth.get());
+        queue.put("totalRejections", rejectedTaskCount.get());
+        metrics.put("queue", queue);
+
+        // Analysis section.
+        Map<String, Object> analysis = new LinkedHashMap<>();
+        analysis.put("totalAttempts",    totalAnalysisAttempts.get());
+        analysis.put("totalCompleted",   totalAnalysisCompleted.get());
+        analysis.put("totalTimeouts",    analysisTimeouts.get());
+        analysis.put("classParseErrors", classParseErrors.get());
+        Map<String, Object> durationBuckets = new LinkedHashMap<>();
+        durationBuckets.put("0_100ms",    analysisDuration_0_100ms.get());
+        durationBuckets.put("100_500ms",  analysisDuration_100_500ms.get());
+        durationBuckets.put("500_1000ms", analysisDuration_500_1000ms.get());
+        durationBuckets.put("1_5s",       analysisDuration_1_5s.get());
+        durationBuckets.put("5_10s",      analysisDuration_5_10s.get());
+        durationBuckets.put("10s_plus",   analysisDuration_10s_plus.get());
+        analysis.put("durationBuckets", durationBuckets);
+        metrics.put("analysis", analysis);
+
+        // Verdict section.
+        Map<String, Object> verdict = new LinkedHashMap<>();
+        verdict.put("safe",      safeVerdicts.get());
+        verdict.put("dangerous", dangerousVerdicts.get());
+        verdict.put("errors",    analysisErrors.get());
+        metrics.put("verdict", verdict);
+
+        // Submission section.
+        Map<String, Object> submission = new LinkedHashMap<>();
+        submission.put("successful", successfulSubmissions.get());
+        submission.put("failed",     failedSubmissions.get());
+        Map<String, Long> errorsByType = new LinkedHashMap<>();
+        for (Map.Entry<String, AtomicLong> entry : submissionErrorTypes.entrySet()) {
+            errorsByType.put(entry.getKey(), entry.getValue().get());
+        }
+        submission.put("errorsByType", errorsByType);
+        Map<String, Object> latencyBuckets = new LinkedHashMap<>();
+        latencyBuckets.put("0_100ms",    submissionLatency_0_100ms.get());
+        latencyBuckets.put("100_500ms",  submissionLatency_100_500ms.get());
+        latencyBuckets.put("500_1000ms", submissionLatency_500_1000ms.get());
+        latencyBuckets.put("1000ms_plus", submissionLatency_1000ms_plus.get());
+        submission.put("latencyBuckets", latencyBuckets);
+        metrics.put("submission", submission);
+
+        return metrics;
+    }
+
+    /**
+     * Resets all metrics counters to zero and clears the recent-verdicts
+     * circular buffer.
+     *
+     * <p>Intended for testing and baselining.  This method is not
+     * atomic — counters are reset individually.
+     */
+    public void resetMetrics() {
+        rejectedTaskCount.set(0);
+        peakQueueDepth.set(0);
+        totalAnalysisAttempts.set(0);
+        totalAnalysisCompleted.set(0);
+        analysisTimeouts.set(0);
+        classParseErrors.set(0);
+        analysisDuration_0_100ms.set(0);
+        analysisDuration_100_500ms.set(0);
+        analysisDuration_500_1000ms.set(0);
+        analysisDuration_1_5s.set(0);
+        analysisDuration_5_10s.set(0);
+        analysisDuration_10s_plus.set(0);
+        safeVerdicts.set(0);
+        dangerousVerdicts.set(0);
+        analysisErrors.set(0);
+        recentVerdictIndex.set(0);
+        Arrays.fill(recentVerdicts, null);
+        successfulSubmissions.set(0);
+        failedSubmissions.set(0);
+        submissionErrorTypes.clear();
+        submissionLatency_0_100ms.set(0);
+        submissionLatency_100_500ms.set(0);
+        submissionLatency_500_1000ms.set(0);
+        submissionLatency_1000ms_plus.set(0);
     }
 }
