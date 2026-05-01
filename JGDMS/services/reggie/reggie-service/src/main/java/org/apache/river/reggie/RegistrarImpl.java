@@ -80,6 +80,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
@@ -351,6 +352,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private final Thread multicaster;
     /** Multicast discovery announcement sending thread */
     private final Thread announcer;
+    /** Announce runnable (needed to access its lock for signaling) */
+    private final Announce announceRunnable;
     /** Snapshot-taking thread */
     private final Thread snapshotter;
 
@@ -577,9 +580,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         Thread multicaster = null;
         Thread announcer = null;
         Thread snapshotter = null;
+        Announce announceRunnable = null;
         
         try {
             // Create threads with correct login context.
+            final Announce[] announceHolder = new Announce[1];
             List<Thread> threads = AccessController.doPrivileged(new PrivilegedExceptionAction<List<Thread>>(){
 
                         @Override
@@ -591,7 +596,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                             unicast = new Unicast(RegistrarImpl.this, unicastPort);
                             list.add(newInterruptStatusThread(unicast, "unicast request"));
                             list.add(newInterruptStatusThread(new Multicast(RegistrarImpl.this), "multicast request"));
-                            list.add(newThread(new Announce(RegistrarImpl.this),"discovery announcement"));
+                            announceHolder[0] = new Announce(RegistrarImpl.this);
+                            list.add(newThread(announceHolder[0],"discovery announcement"));
                             list.add(newThread(new Snapshot(RegistrarImpl.this),"snapshot thread"));
                             return list;
                         }
@@ -615,6 +621,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             multicaster = threads.get(3);
             announcer = threads.get(4);
             snapshotter = threads.get(5);
+            announceRunnable = announceHolder[0];
             if (init.persistent){
                 log = new ReliableLog(init.persistenceDirectory, new LocalLogHandler(this));
                 if (SNAPSHOT_LOGGER.isLoggable(Level.CONFIG)) {
@@ -637,6 +644,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             this.unicaster = unicaster;
             this.multicaster = multicaster;
             this.announcer = announcer;
+            this.announceRunnable = announceRunnable;
             this.snapshotter = snapshotter;
         }
         multicastRequestSubjectChecker = init.multicastRequestSubjectChecker;
@@ -2718,6 +2726,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		reggie.announcer.join();
 		reggie.snapshotter.join();
 	    } catch (InterruptedException e) {
+		Thread.currentThread().interrupt();
 	    }
 	    reggie.closeRequestSockets(cancelledTasks);
 	    if (reggie.log != null) {
@@ -3047,6 +3056,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	private LookupLocator lastLocator;
 	/** Groups associated with cached datagram packets */
 	private String[] lastGroups;
+        /** Lock and condition used instead of synchronized(thread) to avoid virtual thread pinning */
+        final ReentrantLock announceLock = new ReentrantLock();
+        final Condition announceCondition = announceLock.newCondition();
 
 	/**
 	 * Create a daemon thread.  Set up the socket now rather than in run,
@@ -3074,14 +3086,15 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
 	public void run() {
             Thread currentThread = Thread.currentThread();
-            synchronized (currentThread){
+            announceLock.lock();
+            try {
                 if (reggie.multicastInterfaces != null && reggie.multicastInterfaces.length == 0)
                 {
                     return;
                 }
                 try {
                     while (!currentThread.isInterrupted() && announce(reggie.memberGroups)) {
-                        currentThread.wait(reggie.multicastAnnouncementInterval);
+                        announceCondition.await(reggie.multicastAnnouncementInterval, TimeUnit.MILLISECONDS);
                     }
                 } catch (InterruptedException e) {
                     currentThread.interrupt(); //restore
@@ -3091,6 +3104,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                         announce(new String[0]);//send NO_GROUPS just before shutdown
                     socket.close();
                 }
+            } finally {
+                announceLock.unlock();
             }
 	}
 
@@ -3875,8 +3890,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	        if (indexOf(memberGroups, groups[i]) < 0)
 		    memberGroups = (String[])arrayAdd(memberGroups, groups[i]);
 	    }
-	    synchronized (announcer) {
-		announcer.notify();
+	    announceRunnable.announceLock.lock();
+	    try {
+		announceRunnable.announceCondition.signal();
+	    } finally {
+		announceRunnable.announceLock.unlock();
 	    }
 	    addLogRecord(new MemberGroupsChangedLogObj(memberGroups));
 	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
@@ -3901,8 +3919,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	        if (j >= 0)
 		    memberGroups = (String[])arrayDel(memberGroups, j);
 	    }
-	    synchronized (announcer) {
-		announcer.notify();
+	    announceRunnable.announceLock.lock();
+	    try {
+		announceRunnable.announceCondition.signal();
+	    } finally {
+		announceRunnable.announceLock.unlock();
 	    }
 	    addLogRecord(new MemberGroupsChangedLogObj(memberGroups));
 	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
@@ -3933,8 +3954,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	try {
 	    memberGroups = (String[])removeDups(groups);
 	    addLogRecord(new MemberGroupsChangedLogObj(memberGroups));
-	    synchronized (announcer) {
-		announcer.notify();
+	    announceRunnable.announceLock.lock();
+	    try {
+		announceRunnable.announceCondition.signal();
+	    } finally {
+		announceRunnable.announceLock.unlock();
 	    }
 	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {
 		DISCOVERY_LOGGER.log(
@@ -3989,8 +4013,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		new ConstrainableLookupLocator(
 		    myLocator.getHost(), unicast.port, null) :
 		new LookupLocator(myLocator.getHost(), unicast.port);
-	    synchronized (announcer) {
-		announcer.notify();
+	    announceRunnable.announceLock.lock();
+	    try {
+		announceRunnable.announceCondition.signal();
+	    } finally {
+		announceRunnable.announceLock.unlock();
 	    }
 	    addLogRecord(new UnicastPortSetLogObj(port));
 	    if (DISCOVERY_LOGGER.isLoggable(Level.CONFIG)) {

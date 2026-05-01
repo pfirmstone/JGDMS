@@ -289,7 +289,9 @@ class BackEnd implements Observer {
                     //
                     consumeLogs(false);
 		}
-	    } catch (InterruptedException exit) {}
+	    } catch (InterruptedException exit) {
+		Thread.currentThread().interrupt();
+	    }
 	}
 
 	// Cause the thread to consume a log file.
@@ -334,6 +336,7 @@ class BackEnd implements Observer {
 	    consumer.join(WAIT_FOR_THREAD);
 
 	} catch (InterruptedException ignore) {
+	    Thread.currentThread().interrupt();
 	} finally {
 	    try {
 		if (snapshotFile != null)
@@ -356,7 +359,7 @@ class BackEnd implements Observer {
 	try {
 	    consumer.join();
 	} catch (InterruptedException e) {
-	    // never happens
+	    Thread.currentThread().interrupt();
 	}
 	if (snapshotFile != null) {
 	    try {

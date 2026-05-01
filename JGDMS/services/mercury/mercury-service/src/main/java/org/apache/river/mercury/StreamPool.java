@@ -236,7 +236,10 @@ class StreamPool {
             while(freeList.size() < 1) {
                 try {
 		    wait();
-		} catch (InterruptedException ie) { ; }
+		} catch (InterruptedException ie) {
+		    Thread.currentThread().interrupt();
+		    throw new IOException("Stream pool wait interrupted", ie);
+		}
 	    }
 	    StreamKey key = (StreamKey)freeList.removeFirst();
 	    LogStream els = (LogStream)pool.remove(key);

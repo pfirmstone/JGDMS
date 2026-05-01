@@ -1419,6 +1419,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	            destroyLogger.log(Levels.HANDLED, 
 		        "Problem stopping settleThread", ie);
 		}
+		Thread.currentThread().interrupt();
             }
 
             if(destroyLogger.isLoggable(Level.FINEST)) {

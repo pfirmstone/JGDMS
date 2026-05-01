@@ -325,6 +325,7 @@ public class TaskManager {
 			try {
 			    TaskManager.this.wait(timeout);
 			} catch (InterruptedException e) {
+			    Thread.currentThread().interrupt();
 			}
 			if (terminated || !takeTask()) {
 			    threads.remove(this);

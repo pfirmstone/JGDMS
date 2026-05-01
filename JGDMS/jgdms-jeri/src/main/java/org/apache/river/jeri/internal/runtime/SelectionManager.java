@@ -315,6 +315,8 @@ public final class SelectionManager {
 		    try {
 			Thread.sleep(10000);
 		    } catch (InterruptedException ignore) {
+			Thread.currentThread().interrupt();
+			return;
 		    }
 		}
 	    }
@@ -375,13 +377,25 @@ public final class SelectionManager {
 		    } else {
 			throw e;
 		    }
-		} catch (CancelledKeyException e) {
+		    } catch (CancelledKeyException e) {
+		    try { Thread.sleep(1L); } catch (InterruptedException ie) {
+			Thread.currentThread().interrupt();
+			return null;
+		    }
 		    continue;			// work around 4458268
 		} catch (NullPointerException e) {
+		    try { Thread.sleep(1L); } catch (InterruptedException ie) {
+			Thread.currentThread().interrupt();
+			return null;
+		    }
 		    continue;			// work around 4729342
 		} catch (IOException e) {
 		    logger.log(Levels.HANDLED,
 			       "thrown by select, continuing", e);
+		    try { Thread.sleep(1L); } catch (InterruptedException ie) {
+			Thread.currentThread().interrupt();
+			return null;
+		    }
 		    continue;			// work around 4504001
 		}
 
