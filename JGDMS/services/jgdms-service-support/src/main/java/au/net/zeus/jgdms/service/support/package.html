@@ -23,7 +23,7 @@
 
 <h2>Abstract Jini Service Infrastructure</h2>
 
-<p>Reusable server-side base classes for building JGDMS services.  Code in
+<p>Reusable server-side base classes for building Jini services.  Code in
 this package runs only in the service JVM and must <em>not</em> appear on the
 service codebase.</p>
 
@@ -80,7 +80,12 @@ mirroring the pattern used by {@code FiddlerImpl} and {@code MailboxImpl}.</p>
 
 <p>When {@code persistenceDirectory} is non-null, service state is persisted
 using {@code org.apache.river.reliableLog.ReliableLog} — the same
-write-ahead log used by existing JGDMS services.  The
+write-ahead log used by existing Jini services such as Reggie 
+(Service Registrar / Lookup Service),
+Fiddler (Discovery Service to find Lookup Services), 
+Mahalo (Transaction Service), 
+Mercury (Event Mailbox Service), 
+Norm (Lease Renewal Service) and Outrigger (Javaspaces).  The
 {@code ServiceID} is stored in every snapshot and recovered on restart so the
 service re-advertises under its original identity.  Subclasses may override
 the protected template methods {@code snapshot(ObjectOutputStream)},

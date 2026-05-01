@@ -160,7 +160,7 @@ public class AdminProxy
     }
 
     /** AtomicSerial deserialization constructor. */
-    AdminProxy(GetArg arg) throws IOException {
+    AdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
         this(checkFields(arg), (Uuid) arg.get("proxyID", null), false);
     }
 
@@ -176,7 +176,7 @@ public class AdminProxy
         return server;
     }
 
-    private static Remote checkFields(GetArg arg) throws IOException {
+    private static Remote checkFields(GetArg arg) throws IOException, ClassNotFoundException {
         Remote server = (Remote) arg.get("server", null);
         if (server == null) {
             throw new InvalidObjectException("server cannot be null");
@@ -313,68 +313,7 @@ public class AdminProxy
             implements RemoteMethodControl {
 
         private static final long serialVersionUID = 1L;
-
-        /**
-         * Array of (proxy-method, server-method) pairs used by
-         * {@link ConstrainableProxyUtil} to translate client-visible
-         * constraints into the constraints that should be set on the server
-         * stub.
-         *
-         * <p>Each pair of elements maps:
-         * <ul>
-         *   <li>element 2k   — the public, remote method invocable through
-         *       this proxy</li>
-         *   <li>element 2k+1 — the method ultimately executed on the
-         *       server backend</li>
-         * </ul>
-         * Because the proxy and server interfaces are the same here (the
-         * service directly implements {@link JoinAdmin} and
-         * {@link DestroyAdmin}), every proxy method maps to itself (the first
-         * and second element of each pair are identical).  This is the
-         * standard pattern used by services where the proxy's remote interface
-         * is the same as the server's remote interface — see
-         * {@code ConstrainableFiddlerAdminProxy} for a prior art example.
-         */
-        private static final Method[] methodMapArray = {
-            getMethod(JoinAdmin.class, "getLookupAttributes"),
-            getMethod(JoinAdmin.class, "getLookupAttributes"),
-
-            getMethod(JoinAdmin.class, "addLookupAttributes", Entry[].class),
-            getMethod(JoinAdmin.class, "addLookupAttributes", Entry[].class),
-
-            getMethod(JoinAdmin.class, "modifyLookupAttributes",
-                      Entry[].class, Entry[].class),
-            getMethod(JoinAdmin.class, "modifyLookupAttributes",
-                      Entry[].class, Entry[].class),
-
-            getMethod(JoinAdmin.class, "getLookupGroups"),
-            getMethod(JoinAdmin.class, "getLookupGroups"),
-
-            getMethod(JoinAdmin.class, "addLookupGroups", String[].class),
-            getMethod(JoinAdmin.class, "addLookupGroups", String[].class),
-
-            getMethod(JoinAdmin.class, "removeLookupGroups", String[].class),
-            getMethod(JoinAdmin.class, "removeLookupGroups", String[].class),
-
-            getMethod(JoinAdmin.class, "setLookupGroups", String[].class),
-            getMethod(JoinAdmin.class, "setLookupGroups", String[].class),
-
-            getMethod(JoinAdmin.class, "getLookupLocators"),
-            getMethod(JoinAdmin.class, "getLookupLocators"),
-
-            getMethod(JoinAdmin.class, "addLookupLocators", LookupLocator[].class),
-            getMethod(JoinAdmin.class, "addLookupLocators", LookupLocator[].class),
-
-            getMethod(JoinAdmin.class, "removeLookupLocators", LookupLocator[].class),
-            getMethod(JoinAdmin.class, "removeLookupLocators", LookupLocator[].class),
-
-            getMethod(JoinAdmin.class, "setLookupLocators", LookupLocator[].class),
-            getMethod(JoinAdmin.class, "setLookupLocators", LookupLocator[].class),
-
-            getMethod(DestroyAdmin.class, "destroy"),
-            getMethod(DestroyAdmin.class, "destroy"),
-        };
-
+        
         /**
          * The client-visible method constraints placed on this proxy.
          * May be {@code null}, meaning all methods have empty constraints.
@@ -399,12 +338,12 @@ public class AdminProxy
         }
 
         /** AtomicSerial deserialization constructor. */
-        ConstrainableAdminProxy(GetArg arg) throws IOException {
+        ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
             this(arg, checkConstrainable(arg));
         }
 
         private ConstrainableAdminProxy(GetArg arg, MethodConstraints mc)
-                throws IOException {
+                throws IOException, ClassNotFoundException {
             super(arg);
             this.methodConstraints = mc;
         }
@@ -414,26 +353,13 @@ public class AdminProxy
          * method constraints.  Called before any field assignment.
          */
         private static MethodConstraints checkConstrainable(GetArg arg)
-                throws IOException {
+                throws IOException, ClassNotFoundException {
             Remote server = (Remote) arg.get("server", null);
             if (!(server instanceof RemoteMethodControl)) {
                 throw new InvalidObjectException(
                         "server must implement RemoteMethodControl");
             }
-            MethodConstraints methodConstraints =
-                    (MethodConstraints) arg.get("methodConstraints", null);
-            MethodConstraints proxyCon =
-                    ((RemoteMethodControl) server).getConstraints();
-            if (proxyCon != null) {
-                // Server constraints were baked in during serialization;
-                // reverse-translate them to recover the logical constraints.
-                return ConstrainableProxyUtil.reverseTranslateConstraints(
-                        proxyCon, methodMapArray);
-            }
-            // Verify that the stored logical constraints match the server stub.
-            ConstrainableProxyUtil.verifyConsistentConstraints(
-                    methodConstraints, server, methodMapArray);
-            return methodConstraints;
+            return ((RemoteMethodControl) server).getConstraints();
         }
 
         /** Pre-construction validation for direct (non-deserialization) path. */
@@ -451,10 +377,7 @@ public class AdminProxy
          */
         private static Remote constrainServer(Remote server,
                                               MethodConstraints constraints) {
-            MethodConstraints translated =
-                    ConstrainableProxyUtil.translateConstraints(constraints,
-                                                                methodMapArray);
-            return (Remote) ((RemoteMethodControl) server).setConstraints(translated);
+            return (Remote) ((RemoteMethodControl) server).setConstraints(constraints);
         }
 
         /**

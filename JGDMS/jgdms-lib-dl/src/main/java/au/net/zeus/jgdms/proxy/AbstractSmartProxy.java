@@ -223,7 +223,7 @@ public abstract class AbstractSmartProxy
      *                     or {@code server} does not implement all service
      *                     interfaces declared by the concrete proxy class
      */
-    protected AbstractSmartProxy(GetArg arg) throws IOException {
+    protected AbstractSmartProxy(GetArg arg) throws IOException, ClassNotFoundException {
         this(checkServer(arg), (Uuid) arg.get("proxyID", null));
     }
 
@@ -250,7 +250,7 @@ public abstract class AbstractSmartProxy
      * exposes: {@link CodebaseAccessor}, {@link ServiceProxyAccessor},
      * {@link ServiceAttributesAccessor}, and {@link ServiceIDAccessor}.
      */
-    private static Object checkServer(GetArg arg) throws IOException {
+    private static Object checkServer(GetArg arg) throws IOException, ClassNotFoundException {
         Object server  = arg.get("server",  null);
         Uuid   proxyID = (Uuid) arg.get("proxyID", null);
         if (server == null) {
@@ -417,6 +417,35 @@ public abstract class AbstractSmartProxy
      *   <li>Provide a {@code (GetArg)} constructor that calls
      *       {@code super(arg)}.</li>
      * </ol>
+     * <p>
+     * Implementers Note: it is strongly encouraged for the server to implement the
+     * same interfaces as the proxy, to avoid needing to map methods
+     * from the proxy, to the server when applying constraints.
+     * <p>
+     * However in the case that the user needs to use different methods, all
+     * methods will need to be mapped, including those that are identical.
+     * Usually a final static array of (proxy-method, server-method) pairs
+     * used by
+     * {@link ConstrainableProxyUtil} to translate client-visible
+     * constraints into the constraints to set on the server
+     * stub, since an array is mutable and static, it's important that it not be
+     * shared, the class can be made preferred and added to a preferred list 
+     * to ensure it is not shared and resolves to the proxy's private ClassLoader.
+     * However if there's a risk the class will be shared, consider using an
+     * immutable list, with a final field reference and convert this to an
+     * array on each invocation.
+     *
+     * <p>Each pair of elements maps:
+     * <ul>
+     *   <li>element 2k   — the public, remote method invocable through
+     *       this proxy</li>
+     *   <li>element 2k+1 — the method ultimately executed on the
+     *       server backend</li>
+     * </ul>
+     * This is the
+     * standard pattern used by services where the proxy's remote interface
+     * differ from the server's remote interface — see
+     * {@code ConstrainableFiddlerAdminProxy} for a prior art example.
      *
      * @author Peter Firmstone
      * @author GitHub Copilot
@@ -474,7 +503,7 @@ public abstract class AbstractSmartProxy
          *                     {@link RemoteMethodControl}, or if any of the
          *                     superclass validations fail
          */
-        protected ConstrainableSmartProxy(GetArg arg) throws IOException {
+        protected ConstrainableSmartProxy(GetArg arg) throws IOException, ClassNotFoundException {
             super(checkConstrainable(arg));
         }
 
@@ -514,7 +543,7 @@ public abstract class AbstractSmartProxy
          * @throws InvalidObjectException if the server does not implement
          *                                {@link RemoteMethodControl}
          */
-        private static GetArg checkConstrainable(GetArg arg) throws IOException {
+        private static GetArg checkConstrainable(GetArg arg) throws IOException, ClassNotFoundException {
             Object server = arg.get("server", null);
             if (!(server instanceof RemoteMethodControl)) {
                 throw new InvalidObjectException(
@@ -574,23 +603,5 @@ public abstract class AbstractSmartProxy
         @Override
         public abstract RemoteMethodControl setConstraints(
                 MethodConstraints constraints);
-
-        // -------------------------------------------------------------------------
-        // ProxyTrust support
-        // -------------------------------------------------------------------------
-
-        /**
-         * Returns a {@link ProxyTrustIterator} containing the server stub.
-         *
-         * <p>This method is called reflectively by
-         * {@code BasicJeriTrustVerifier} to obtain the trust verifier for this
-         * proxy.  It must remain {@code private} so that it is found via
-         * reflection but cannot be called directly by client code.
-         *
-         * @return a singleton iterator wrapping the server stub
-         */
-        private ProxyTrustIterator getProxyTrustIterator() {
-            return new SingletonProxyTrustIterator(server);
-        }
     }
 }
