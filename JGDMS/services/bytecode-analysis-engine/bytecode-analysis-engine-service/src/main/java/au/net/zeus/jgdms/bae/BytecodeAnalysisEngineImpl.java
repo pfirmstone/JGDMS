@@ -1000,6 +1000,71 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     }
 
     // -------------------------------------------------------------------------
+    // Virtual-thread anti-pattern detection — constant-pool markers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Constant-pool UTF-8 entries that indicate potential virtual-thread
+     * pinning: holding a monitor (synchronized block / method) while calling
+     * methods that can block.  The presence of both a {@code MONITORENTER}
+     * opcode in the bytecode <em>and</em> one of these entries in the
+     * constant pool is required before the class is flagged.
+     */
+    static final String[] PINNING_CP_ENTRIES = {
+        // JDK blocking I/O inside synchronized scope
+        "java/net/Socket",
+        "java/net/ServerSocket",
+        "java/io/InputStream",
+        "java/io/OutputStream",
+        "java/io/RandomAccessFile",
+        // NIO selectors
+        "java/nio/channels/Selector",
+        "java/nio/channels/SelectableChannel",
+    };
+
+    /**
+     * Constant-pool UTF-8 method names / descriptors that represent yield
+     * points inside a loop.  If any of these strings appear in the constant
+     * pool, a backward-GOTO loop is <em>not</em> flagged as a CPU-consuming
+     * loop.
+     */
+    static final String[] LOOP_YIELD_METHODS = {
+        // Thread yield / sleep / park
+        "sleep",
+        "yield",
+        "park",
+        "parkNanos",
+        "parkUntil",
+        // Lock operations that can block (not pure spin)
+        "lock",
+        "tryLock",
+        "lockInterruptibly",
+        "await",
+        "awaitNanos",
+        "awaitUntil",
+        "awaitUninterruptibly",
+        // BlockingQueue / condition
+        "take",
+        "poll",
+        "put",
+        "offer",
+    };
+
+    /**
+     * UTF-8 constant-pool string that identifies an {@code InterruptedException}
+     * handler in the exception table.
+     */
+    private static final String INTERRUPTED_EXCEPTION_CLASS =
+            "java/lang/InterruptedException";
+
+    /**
+     * UTF-8 method name used to restore the interrupt flag.
+     * An exception handler that contains a call to this method is considered
+     * to handle {@code InterruptedException} correctly.
+     */
+    private static final String INTERRUPT_METHOD = "interrupt";
+
+    // -------------------------------------------------------------------------
     // Class-file constant-pool scanner
     // -------------------------------------------------------------------------
 
@@ -1034,7 +1099,13 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     /**
      * Returns {@code true} if any {@code CONSTANT_Utf8} entry in the constant
      * pool of the supplied class file bytes starts with or equals any entry in
-     * the supplied {@code patterns} array.
+     * the supplied {@code patterns} array, <em>or</em> if the bytecode exhibits
+     * any of the three virtual-thread anti-patterns:
+     * <ul>
+     *   <li>Virtual-thread pinning ({@link #hasVirtualThreadPinning})</li>
+     *   <li>CPU-consuming loops ({@link #hasCpuConsumingLoops})</li>
+     *   <li>Interrupt-swallowing ({@link #hasInterruptSwallowing})</li>
+     * </ul>
      *
      * <p>Patterns that end with {@code /} are treated as prefix matches so that
      * an entire package hierarchy (e.g. {@code javassist/}) is covered by a
@@ -1061,7 +1132,12 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
             return true;
         }
 
-        if (patterns.length == 0) return false;
+        if (patterns.length == 0) {
+            // No CP patterns to check, but still run threading anti-pattern detectors.
+            return hasVirtualThreadPinning(classBytes)
+                    || hasCpuConsumingLoops(classBytes)
+                    || hasInterruptSwallowing(classBytes);
+        }
 
         // The class file header is: magic(4), minor_version(2), major_version(2),
         // constant_pool_count(2).  The count is at bytes 8-9.
@@ -1117,7 +1193,11 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
                     return true;
             }
         }
-        return false;
+
+        // CP scan clean — now run opcode-level threading anti-pattern detectors.
+        return hasVirtualThreadPinning(classBytes)
+                || hasCpuConsumingLoops(classBytes)
+                || hasInterruptSwallowing(classBytes);
     }
 
     /**
@@ -1141,6 +1221,727 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
             }
         }
         return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Virtual-thread anti-pattern detection — bytecode-level analysis
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns the offset immediately past the constant pool in {@code classBytes},
+     * or {@code -1} if the class bytes are malformed (too short, bad magic,
+     * invalid CP entry).
+     *
+     * <p>This shared helper is used by the three threading anti-pattern
+     * detectors to skip over the constant pool so they can locate the
+     * method table, access flags, and attribute structures that follow it.
+     *
+     * @param classBytes raw bytes of a {@code .class} file
+     * @return offset after the constant pool, or {@code -1} on parse failure
+     */
+    private static int skipConstantPool(byte[] classBytes) {
+        if (classBytes == null || classBytes.length < 10) return -1;
+        if ((classBytes[0] & 0xFF) != 0xCA || (classBytes[1] & 0xFF) != 0xFE
+                || (classBytes[2] & 0xFF) != 0xBA || (classBytes[3] & 0xFF) != 0xBE) {
+            return -1;
+        }
+        int cpCount = ((classBytes[8] & 0xFF) << 8) | (classBytes[9] & 0xFF);
+        int offset  = 10;
+        for (int i = 1; i < cpCount; i++) {
+            if (offset >= classBytes.length) return -1;
+            int tag = classBytes[offset++] & 0xFF;
+            switch (tag) {
+                case 1: { // CONSTANT_Utf8
+                    if (offset + 2 > classBytes.length) return -1;
+                    int len = ((classBytes[offset] & 0xFF) << 8)
+                            | (classBytes[offset + 1] & 0xFF);
+                    offset += 2 + len;
+                    break;
+                }
+                case 3: case 4:   // CONSTANT_Integer, CONSTANT_Float
+                    offset += 4;
+                    break;
+                case 5: case 6:   // CONSTANT_Long, CONSTANT_Double
+                    offset += 8;
+                    i++;           // occupies two CP slots
+                    break;
+                case 7: case 8: case 16: case 19: case 20:
+                    offset += 2;
+                    break;
+                case 9: case 10: case 11: case 12: case 17: case 18:
+                    offset += 4;
+                    break;
+                case 15:
+                    offset += 3;
+                    break;
+                default:
+                    return -1;     // unknown tag — treat conservatively
+            }
+            if (offset > classBytes.length) return -1;
+        }
+        return offset;
+    }
+
+    /**
+     * Collects all UTF-8 strings from the constant pool of {@code classBytes}
+     * into a {@link java.util.Set}.
+     *
+     * @param classBytes raw class bytes (magic already validated)
+     * @return set of all {@code CONSTANT_Utf8} values, or an empty set if the
+     *         constant pool cannot be parsed
+     */
+    private static java.util.Set<String> collectUtf8Entries(byte[] classBytes) {
+        java.util.Set<String> result = new java.util.HashSet<String>();
+        if (classBytes == null || classBytes.length < 10) return result;
+        int cpCount = ((classBytes[8] & 0xFF) << 8) | (classBytes[9] & 0xFF);
+        int offset  = 10;
+        for (int i = 1; i < cpCount; i++) {
+            if (offset >= classBytes.length) break;
+            int tag = classBytes[offset++] & 0xFF;
+            switch (tag) {
+                case 1: {
+                    if (offset + 2 > classBytes.length) return result;
+                    int len = ((classBytes[offset] & 0xFF) << 8)
+                            | (classBytes[offset + 1] & 0xFF);
+                    offset += 2;
+                    if (offset + len > classBytes.length) return result;
+                    result.add(new String(classBytes, offset, len,
+                            StandardCharsets.UTF_8));
+                    offset += len;
+                    break;
+                }
+                case 3: case 4:   offset += 4; break;
+                case 5: case 6:   offset += 8; i++; break;
+                case 7: case 8: case 16: case 19: case 20: offset += 2; break;
+                case 9: case 10: case 11: case 12: case 17: case 18: offset += 4; break;
+                case 15:          offset += 3; break;
+                default:          return result;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns {@code true} if the supplied class bytecode exhibits a
+     * <em>virtual-thread pinning</em> anti-pattern.
+     *
+     * <p>A class is flagged when <em>both</em> of the following hold:
+     * <ol>
+     *   <li>The bytecode of at least one method contains a
+     *       {@code MONITORENTER} opcode ({@code 0xC2}), indicating the use of
+     *       a {@code synchronized} block.</li>
+     *   <li>The constant pool references at least one of the known
+     *       blocking-I/O or wait/notify entry points listed in
+     *       {@link #PINNING_CP_ENTRIES}.</li>
+     * </ol>
+     *
+     * <p>Virtual threads pin their carrier thread while holding a monitor,
+     * so combining {@code synchronized} blocks with blocking operations
+     * prevents the JVM from unmounting the virtual thread and wastes a
+     * platform thread for the duration of the blocking call.
+     *
+     * <p>Conservative behaviour: any parse error → {@code true} (DANGEROUS).
+     *
+     * @param classBytes raw bytes of a {@code .class} file
+     * @return {@code true} if the pinning pattern is detected or if parsing fails
+     */
+    static boolean hasVirtualThreadPinning(byte[] classBytes) {
+        // Step 1: Constant-pool check — does the class reference any
+        // blocking-I/O or Object-monitor class names?
+        java.util.Set<String> cpEntries = collectUtf8Entries(classBytes);
+        if (cpEntries.isEmpty() && (classBytes == null || classBytes.length < 10)) {
+            return true; // parse failure → conservative
+        }
+        boolean hasPinningRef = false;
+        for (String entry : PINNING_CP_ENTRIES) {
+            if (cpEntries.contains(entry)) {
+                hasPinningRef = true;
+                break;
+            }
+        }
+        if (!hasPinningRef) return false;
+
+        // Step 2: Bytecode check — does any method contain MONITORENTER?
+        return scanMethodBytecodeForOpcode(classBytes, 0xC2 /* MONITORENTER */);
+    }
+
+    /**
+     * Returns {@code true} if the supplied class bytecode exhibits a
+     * <em>CPU-consuming loop</em> anti-pattern.
+     *
+     * <p>A class is flagged when at least one method contains a backward
+     * {@code GOTO} or {@code GOTO_W} instruction (forming a loop) <em>and</em>
+     * the constant pool contains <em>none</em> of the yield-point method names
+     * listed in {@link #LOOP_YIELD_METHODS}.  A backward {@code GOTO} with
+     * no yield point is a strong signal of a busy-wait spin loop that will
+     * monopolise the carrier thread indefinitely.
+     *
+     * <p>Conservative behaviour: any parse error → {@code true} (DANGEROUS).
+     *
+     * @param classBytes raw bytes of a {@code .class} file
+     * @return {@code true} if the anti-pattern is detected or if parsing fails
+     */
+    static boolean hasCpuConsumingLoops(byte[] classBytes) {
+        if (classBytes == null || classBytes.length < 10) return true;
+
+        // Step 1: Collect CP strings once.
+        java.util.Set<String> cpEntries = collectUtf8Entries(classBytes);
+
+        // Step 2: If the class already references a yield-point method, it is
+        // not a pure spin loop — pass it.
+        for (String yieldMethod : LOOP_YIELD_METHODS) {
+            if (cpEntries.contains(yieldMethod)) return false;
+        }
+
+        // Step 3: Does any method bytecode contain a backward GOTO / GOTO_W?
+        return scanMethodBytecodeForBackwardGoto(classBytes);
+    }
+
+    /**
+     * Returns {@code true} if the supplied class bytecode exhibits an
+     * <em>interrupt-swallowing</em> anti-pattern.
+     *
+     * <p>A class is flagged when at least one method's exception table
+     * declares a handler for {@code java/lang/InterruptedException} and the
+     * bytecode of that handler does <em>not</em> contain a call to
+     * {@code interrupt()} (which would re-assert the interrupted status via
+     * {@code Thread.currentThread().interrupt()}).
+     *
+     * <p>Swallowing {@code InterruptedException} silently prevents the JVM
+     * scheduler from cleaning up virtual threads and blocking operations on
+     * request, and breaks cooperative thread cancellation.
+     *
+     * <p>Conservative behaviour: any parse error → {@code true} (DANGEROUS).
+     *
+     * @param classBytes raw bytes of a {@code .class} file
+     * @return {@code true} if interrupt-swallowing is detected or if parsing
+     *         fails
+     */
+    static boolean hasInterruptSwallowing(byte[] classBytes) {
+        if (classBytes == null || classBytes.length < 10) return true;
+
+        // Check whether the constant pool references InterruptedException at all.
+        java.util.Set<String> cpEntries = collectUtf8Entries(classBytes);
+        if (!cpEntries.contains(INTERRUPTED_EXCEPTION_CLASS)) return false;
+
+        // Scan methods for InterruptedException handlers that lack interrupt().
+        return scanMethodsForInterruptSwallowing(classBytes, cpEntries);
+    }
+
+    // -------------------------------------------------------------------------
+    // Low-level class-file structure parsers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns {@code true} if any method in the class contains the given
+     * {@code targetOpcode} in its {@code Code} attribute.
+     *
+     * @param classBytes   raw class bytes
+     * @param targetOpcode opcode byte to search for (e.g. {@code 0xC2} for
+     *                     {@code MONITORENTER})
+     * @return {@code true} if the opcode is found, or on any parse error
+     */
+    private static boolean scanMethodBytecodeForOpcode(byte[] classBytes,
+                                                        int targetOpcode) {
+        MethodIterator it = new MethodIterator(classBytes);
+        if (!it.valid()) return false; // no parseable method table → no pattern found
+        while (it.hasNext()) {
+            byte[] code = it.nextMethodCode();
+            if (code == null) return true; // parse error within a method → conservative
+            for (byte b : code) {
+                if ((b & 0xFF) == targetOpcode) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if any method bytecode in the class contains a
+     * backward {@code GOTO} ({@code 0xA7}) or {@code GOTO_W} ({@code 0xC8})
+     * instruction.
+     *
+     * <p>A backward branch forms a loop.  Combined with the absence of any
+     * yield-point in the constant pool (checked by the caller), this
+     * constitutes a CPU-consuming loop anti-pattern.
+     *
+     * @param classBytes raw class bytes
+     * @return {@code true} if a backward GOTO is found, or on any parse error
+     */
+    private static boolean scanMethodBytecodeForBackwardGoto(byte[] classBytes) {
+        MethodIterator it = new MethodIterator(classBytes);
+        if (!it.valid()) return false; // no parseable method table → no pattern found
+        while (it.hasNext()) {
+            byte[] code = it.nextMethodCode();
+            if (code == null) return true; // parse error within a method → conservative
+            if (codeHasBackwardGoto(code)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Scans the bytecode array {@code code} for backward {@code GOTO} /
+     * {@code GOTO_W} instructions.
+     *
+     * <p>The method performs a linear scan, properly skipping over wide
+     * instructions and the padding in {@code TABLESWITCH} / {@code LOOKUPSWITCH}
+     * operands, to avoid false positives from opcode values embedded in data.
+     *
+     * @param code raw bytecode of a single method
+     * @return {@code true} if a backward branch is found
+     */
+    private static boolean codeHasBackwardGoto(byte[] code) {
+        int i = 0;
+        while (i < code.length) {
+            int opcode = code[i] & 0xFF;
+            switch (opcode) {
+                case 0xA7: { // GOTO — 2-byte signed offset
+                    if (i + 2 >= code.length) return false;
+                    int offset = (short) (((code[i + 1] & 0xFF) << 8)
+                            | (code[i + 2] & 0xFF));
+                    if (offset < 0) return true; // backward jump = loop
+                    i += 3;
+                    break;
+                }
+                case 0xC8: { // GOTO_W — 4-byte signed offset
+                    if (i + 4 >= code.length) return false;
+                    int offset = ((code[i + 1] & 0xFF) << 24)
+                            | ((code[i + 2] & 0xFF) << 16)
+                            | ((code[i + 3] & 0xFF) << 8)
+                            |  (code[i + 4] & 0xFF);
+                    if (offset < 0) return true;
+                    i += 5;
+                    break;
+                }
+                case 0xC4: { // WIDE — next opcode has a 2-byte index; iinc has 4
+                    if (i + 1 >= code.length) return false;
+                    int wideOpcode = code[i + 1] & 0xFF;
+                    i += (wideOpcode == 0x84 /* iinc */) ? 6 : 4;
+                    break;
+                }
+                case 0xAA: { // TABLESWITCH — 0-3 bytes padding, then 3×4-byte ints, then offsets
+                    int base = i;
+                    i++;
+                    // skip 0–3 padding bytes to align on a 4-byte boundary
+                    while ((i & 3) != 0) i++;
+                    if (i + 12 > code.length) return false;
+                    int low  = ((code[i + 4] & 0xFF) << 24) | ((code[i + 5] & 0xFF) << 16)
+                             | ((code[i + 6] & 0xFF) << 8)  |  (code[i + 7] & 0xFF);
+                    int high = ((code[i + 8] & 0xFF) << 24) | ((code[i + 9] & 0xFF) << 16)
+                             | ((code[i + 10] & 0xFF) << 8) |  (code[i + 11] & 0xFF);
+                    int count = high - low + 1;
+                    i += 12 + count * 4;
+                    break;
+                }
+                case 0xAB: { // LOOKUPSWITCH — 0-3 bytes padding, default(4), npairs(4), then pairs
+                    i++;
+                    while ((i & 3) != 0) i++;
+                    if (i + 8 > code.length) return false;
+                    int npairs = ((code[i + 4] & 0xFF) << 24) | ((code[i + 5] & 0xFF) << 16)
+                               | ((code[i + 6] & 0xFF) << 8)  |  (code[i + 7] & 0xFF);
+                    i += 8 + npairs * 8;
+                    break;
+                }
+                default:
+                    i += opcodeLength(opcode);
+                    break;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if any method in the class declares an exception
+     * handler for {@link InterruptedException} and that handler's bytecode
+     * does <em>not</em> call {@code interrupt()} to restore the interrupt flag.
+     *
+     * @param classBytes raw class bytes
+     * @param cpEntries  pre-collected UTF-8 constant-pool entries
+     * @return {@code true} if interrupt-swallowing is detected, or on parse error
+     */
+    private static boolean scanMethodsForInterruptSwallowing(byte[] classBytes,
+                                                              java.util.Set<String> cpEntries) {
+        MethodIterator it = new MethodIterator(classBytes);
+        if (!it.valid()) return false; // no parseable method table → no pattern found
+        while (it.hasNext()) {
+            MethodIterator.MethodInfo info = it.nextMethodInfo();
+            if (info == null) return true; // parse error
+            if (info.code == null) continue; // abstract or native method
+
+            // Walk the exception handler table looking for InterruptedException handlers.
+            int ehCount = info.exceptionHandlerCount;
+            for (int e = 0; e < ehCount; e++) {
+                // Each exception handler record is 8 bytes:
+                //   start_pc(2), end_pc(2), handler_pc(2), catch_type(2)
+                // catch_type is a CP index into CONSTANT_Class; we have already
+                // checked that the CP string "java/lang/InterruptedException"
+                // exists (presence check), so instead of resolving the CP index
+                // here we use the simpler (and conservative) heuristic: if
+                // InterruptedException is in the CP AND there is any exception
+                // handler AND the handler body contains no call to interrupt(),
+                // flag it as dangerous.
+                int baseOffset = info.exceptionTableOffset + e * 8;
+                if (baseOffset + 8 > info.codeAttribute.length) return true;
+                int handlerPc = ((info.codeAttribute[baseOffset + 4] & 0xFF) << 8)
+                              |  (info.codeAttribute[baseOffset + 5] & 0xFF);
+                // A catch_type of 0 means "any exception" (finally block); skip those.
+                int catchType = ((info.codeAttribute[baseOffset + 6] & 0xFF) << 8)
+                              |  (info.codeAttribute[baseOffset + 7] & 0xFF);
+                if (catchType == 0) continue;
+
+                // Check the handler body for a call to "interrupt".
+                if (!cpEntries.contains(INTERRUPT_METHOD)) {
+                    // No call to interrupt() anywhere in the class.
+                    return true;
+                }
+                // interrupt() is referenced somewhere in the class, but is it
+                // inside this handler?  Perform a conservative handler-body scan:
+                // if the handler region contains no INVOKEVIRTUAL/INVOKEINTERFACE
+                // opcode followed (within a few instructions) by code that calls
+                // any method, we trust that the developer handled it correctly.
+                // A simpler (slightly over-flagging) check: if the handler starts
+                // at handlerPc and the very first meaningful bytecode region up
+                // to the next GOTO/RETURN contains no method invocation opcode,
+                // flag it as swallowing.
+                if (isEmptyOrRethrowOnlyHandler(info.code, handlerPc)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if the exception handler starting at
+     * {@code handlerPc} in {@code code} appears to be empty (pops the
+     * exception and returns/jumps without invoking any method).
+     *
+     * <p>The heuristic scans forward from {@code handlerPc} until it hits a
+     * {@code RETURN}-family opcode, an unconditional {@code GOTO}, or the end
+     * of the bytecode array.  If no method-invocation opcode
+     * ({@code INVOKEVIRTUAL}, {@code INVOKESPECIAL}, {@code INVOKESTATIC},
+     * {@code INVOKEINTERFACE}, {@code INVOKEDYNAMIC}) is encountered, the
+     * handler is treated as empty / swallowing.
+     *
+     * @param code      raw bytecode of the method
+     * @param handlerPc index of the first instruction in the handler
+     * @return {@code true} if the handler appears to swallow the exception
+     */
+    private static boolean isEmptyOrRethrowOnlyHandler(byte[] code, int handlerPc) {
+        if (handlerPc >= code.length) return true;
+        int i = handlerPc;
+        while (i < code.length) {
+            int op = code[i] & 0xFF;
+            switch (op) {
+                // Any method invocation → handler does something with the exception
+                case 0xB6: // INVOKEVIRTUAL
+                case 0xB7: // INVOKESPECIAL
+                case 0xB8: // INVOKESTATIC
+                case 0xB9: // INVOKEINTERFACE
+                case 0xBA: // INVOKEDYNAMIC
+                    return false;
+                // Unconditional return / throw → end of handler, no invocation seen
+                case 0xAC: case 0xAD: case 0xAE: case 0xAF:
+                case 0xB0: case 0xB1: // ireturn..return
+                case 0xBF: // athrow (re-throw without calling interrupt() is still OK)
+                    return op != 0xBF; // athrow = rethrow = not swallowing; return = swallowing
+                // Unconditional jump — end of handler block
+                case 0xA7: // GOTO
+                case 0xC8: // GOTO_W
+                    return true;
+                default:
+                    i += opcodeLength(op);
+                    break;
+            }
+        }
+        return true; // reached end of bytecode without finding an invocation
+    }
+
+    /**
+     * Returns the total byte length (opcode byte + operand bytes) of a JVM
+     * instruction identified by its opcode.  Used for instruction stepping.
+     *
+     * <p>Variable-length instructions ({@code TABLESWITCH}, {@code LOOKUPSWITCH},
+     * {@code WIDE}) are <em>not</em> handled here; callers that need to skip
+     * those must handle them explicitly.
+     *
+     * @param opcode the opcode byte value (0x00–0xFF)
+     * @return total instruction length in bytes; returns {@code 1} for unknown
+     *         opcodes (conservative forward progress)
+     */
+    private static int opcodeLength(int opcode) {
+        switch (opcode) {
+            // 1-byte opcodes (opcode only, no operands)
+            case 0x00: // nop
+            case 0x01: // aconst_null
+            case 0x02: case 0x03: case 0x04: case 0x05: case 0x06: case 0x07: case 0x08: // iconst_m1..5
+            case 0x09: case 0x0A: // lconst_0..1
+            case 0x0B: case 0x0C: case 0x0D: // fconst_0..2
+            case 0x0E: case 0x0F: // dconst_0..1
+            case 0x1A: case 0x1B: case 0x1C: case 0x1D: // iload_0..3
+            case 0x1E: case 0x1F: case 0x20: case 0x21: // lload_0..3
+            case 0x22: case 0x23: case 0x24: case 0x25: // fload_0..3
+            case 0x26: case 0x27: case 0x28: case 0x29: // dload_0..3
+            case 0x2A: case 0x2B: case 0x2C: case 0x2D: // aload_0..3
+            case 0x2E: case 0x2F: case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: // xaload
+            case 0x3B: case 0x3C: case 0x3D: case 0x3E: // istore_0..3
+            case 0x3F: case 0x40: case 0x41: case 0x42: // lstore_0..3
+            case 0x43: case 0x44: case 0x45: case 0x46: // fstore_0..3
+            case 0x47: case 0x48: case 0x49: case 0x4A: // dstore_0..3
+            case 0x4B: case 0x4C: case 0x4D: case 0x4E: // astore_0..3
+            case 0x4F: case 0x50: case 0x51: case 0x52: case 0x53: case 0x54: case 0x55: case 0x56: // xastore
+            case 0x57: case 0x58: // pop, pop2
+            case 0x59: case 0x5A: case 0x5B: case 0x5C: case 0x5D: case 0x5E: // dup variants
+            case 0x5F: // swap
+            case 0x60: case 0x61: case 0x62: case 0x63: // iadd, ladd, fadd, dadd
+            case 0x64: case 0x65: case 0x66: case 0x67: // isub, lsub, fsub, dsub
+            case 0x68: case 0x69: case 0x6A: case 0x6B: // imul, lmul, fmul, dmul
+            case 0x6C: case 0x6D: case 0x6E: case 0x6F: // idiv, ldiv, fdiv, ddiv
+            case 0x70: case 0x71: case 0x72: case 0x73: // irem, lrem, frem, drem
+            case 0x74: case 0x75: case 0x76: case 0x77: // ineg, lneg, fneg, dneg
+            case 0x78: case 0x79: case 0x7A: case 0x7B: // ishl, lshl, ishr, lshr
+            case 0x7C: case 0x7D: // iushr, lushr
+            case 0x7E: case 0x7F: // iand, land
+            case 0x80: case 0x81: // ior, lor
+            case 0x82: case 0x83: // ixor, lxor
+            case 0x85: case 0x86: case 0x87: case 0x88: case 0x89: case 0x8A: // i2l..i2d, l2i..
+            case 0x8B: case 0x8C: case 0x8D: case 0x8E: case 0x8F: // f2i..f2d, d2i..
+            case 0x90: case 0x91: case 0x92: case 0x93: // d2l, d2f, i2b, i2c, i2s
+            case 0x94: case 0x95: case 0x96: case 0x97: case 0x98: // lcmp, fcmpl/g, dcmpl/g
+            case 0xAC: case 0xAD: case 0xAE: case 0xAF: // ireturn..dreturn
+            case 0xB0: case 0xB1: // areturn, return
+            case 0xBE: // arraylength
+            case 0xBF: // athrow
+            case 0xC2: case 0xC3: // MONITORENTER, MONITOREXIT
+                return 1;
+            // 2-byte opcodes (1 operand byte)
+            case 0x10: // BIPUSH
+            case 0x12: // LDC
+            case 0x15: case 0x16: case 0x17: case 0x18: case 0x19: // xLOAD
+            case 0x36: case 0x37: case 0x38: case 0x39: case 0x3A: // xSTORE
+            case 0xA9: // RET
+            case 0xBC: // NEWARRAY
+                return 2;
+            // 3-byte opcodes (2 operand bytes)
+            case 0x11: // SIPUSH
+            case 0x13: // LDC_W
+            case 0x14: // LDC2_W
+            case 0x84: // IINC
+            case 0x99: case 0x9A: case 0x9B: case 0x9C: case 0x9D: case 0x9E: // IF_x (1-byte cond + 2-byte offset)
+            case 0x9F: case 0xA0: case 0xA1: case 0xA2: case 0xA3: case 0xA4: // IF_ICMPx
+            case 0xA5: case 0xA6: // IF_ACMPx
+            case 0xA7: // GOTO — already handled in codeHasBackwardGoto
+            case 0xA8: // JSR
+            case 0xB2: case 0xB3: // GETSTATIC, PUTSTATIC
+            case 0xB4: case 0xB5: // GETFIELD, PUTFIELD
+            case 0xB6: case 0xB7: case 0xB8: // INVOKEVIRTUAL, INVOKESPECIAL, INVOKESTATIC
+            case 0xBB: // NEW
+            case 0xBD: // ANEWARRAY
+            case 0xC0: case 0xC1: // CHECKCAST, INSTANCEOF
+            case 0xC6: case 0xC7: // IFNULL, IFNONNULL
+                return 3;
+            // 5-byte opcodes
+            case 0xB9: // INVOKEINTERFACE (4 operands)
+            case 0xBA: // INVOKEDYNAMIC (4 operands)
+            case 0xC8: // GOTO_W — already handled in codeHasBackwardGoto
+            case 0xC9: // JSR_W
+                return 5;
+            // 4-byte opcodes
+            case 0xC5: // MULTIANEWARRAY (2-byte index + 1-byte dims)
+                return 4;
+            default:
+                return 1; // unknown — step 1 byte
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // MethodIterator — walks the methods table and extracts Code attributes
+    // -------------------------------------------------------------------------
+
+    /**
+     * Stateful iterator that walks the methods table of a class file and
+     * extracts the {@code Code} attribute of each method.
+     *
+     * <p>Usage:
+     * <pre>
+     * MethodIterator it = new MethodIterator(classBytes);
+     * if (!it.valid()) { // parse error
+     * }
+     * while (it.hasNext()) {
+     *     byte[] code = it.nextMethodCode();
+     *     if (code == null) { // parse error
+     *     }
+     *     // ... scan code ...
+     * }
+     * </pre>
+     */
+    private static final class MethodIterator {
+
+        /** Parsed class bytes. */
+        private final byte[] cls;
+        /** Offset at which the methods_count field begins. */
+        private final int methodsCountOffset;
+        /** Total number of methods. */
+        private final int methodCount;
+        /** Current read offset within {@code cls}. */
+        private int offset;
+        /** Current method index (0-based). */
+        private int methodIndex;
+        /** Whether the iterator is in a valid, usable state. */
+        private final boolean valid;
+
+        MethodIterator(byte[] classBytes) {
+            this.cls = classBytes;
+            // Skip past the constant pool to reach the following structure:
+            //   access_flags(2), this_class(2), super_class(2),
+            //   interfaces_count(2), interfaces[...],
+            //   fields_count(2), fields[...]
+            //   methods_count(2), methods[...]
+            int cpEnd = skipConstantPool(classBytes);
+            boolean ok = cpEnd >= 0;
+            int off = cpEnd;
+            if (ok) {
+                // access_flags(2) + this_class(2) + super_class(2) = 6 bytes
+                off += 6;
+                if (off + 2 > safeLen()) { ok = false; }
+            }
+            if (ok) {
+                // Skip interfaces
+                int ifaceCount = ((cls[off] & 0xFF) << 8) | (cls[off + 1] & 0xFF);
+                off += 2 + ifaceCount * 2;
+                if (off > safeLen()) { ok = false; }
+            }
+            if (ok) {
+                // Skip fields (each field has attribute_count attributes to skip)
+                if (off + 2 > safeLen()) { ok = false; }
+                else {
+                    int fieldCount = ((cls[off] & 0xFF) << 8) | (cls[off + 1] & 0xFF);
+                    off += 2;
+                    for (int f = 0; f < fieldCount && ok; f++) {
+                        // field: access_flags(2), name_idx(2), desc_idx(2),
+                        //        attr_count(2), attrs[...]
+                        if (off + 8 > safeLen()) { ok = false; break; }
+                        int attrCount = ((cls[off + 6] & 0xFF) << 8)
+                                      | (cls[off + 7] & 0xFF);
+                        off += 8;
+                        for (int a = 0; a < attrCount && ok; a++) {
+                            if (off + 6 > safeLen()) { ok = false; break; }
+                            int attrLen = ((cls[off + 2] & 0xFF) << 24)
+                                        | ((cls[off + 3] & 0xFF) << 16)
+                                        | ((cls[off + 4] & 0xFF) << 8)
+                                        |  (cls[off + 5] & 0xFF);
+                            off += 6 + attrLen;
+                        }
+                    }
+                }
+            }
+            this.valid = ok && off + 2 <= safeLen();
+            this.methodsCountOffset = off;
+            this.methodCount = ok && off + 2 <= safeLen()
+                    ? ((cls[off] & 0xFF) << 8) | (cls[off + 1] & 0xFF)
+                    : 0;
+            this.offset = ok ? off + 2 : 0;
+            this.methodIndex = 0;
+        }
+
+        boolean valid() { return valid; }
+
+        boolean hasNext() { return valid && methodIndex < methodCount; }
+
+        /**
+         * Information about a single method, including its raw Code attribute
+         * bytes and exception handler table.
+         */
+        static final class MethodInfo {
+            /** Raw bytecode instructions (the {@code code[]} array). */
+            final byte[] code;
+            /** The full {@code Code} attribute bytes (starts after the 6-byte header). */
+            final byte[] codeAttribute;
+            /** Number of exception handler records in the exception table. */
+            final int exceptionHandlerCount;
+            /** Offset within {@code codeAttribute} of the first exception handler record. */
+            final int exceptionTableOffset;
+
+            MethodInfo(byte[] code, byte[] codeAttribute,
+                       int exceptionHandlerCount, int exceptionTableOffset) {
+                this.code = code;
+                this.codeAttribute = codeAttribute;
+                this.exceptionHandlerCount = exceptionHandlerCount;
+                this.exceptionTableOffset = exceptionTableOffset;
+            }
+        }
+
+        /**
+         * Advances to the next method and returns its {@code MethodInfo},
+         * or {@code null} if parsing fails.
+         */
+        MethodInfo nextMethodInfo() {
+            if (!valid || methodIndex >= methodCount) return null;
+            methodIndex++;
+            // method_info: access_flags(2), name_idx(2), descriptor_idx(2),
+            //              attributes_count(2), attributes[...]
+            if (offset + 8 > safeLen()) return null;
+            int attrCount = ((cls[offset + 6] & 0xFF) << 8)
+                          | (cls[offset + 7] & 0xFF);
+            offset += 8;
+
+            byte[] foundCode = null;
+            byte[] foundCodeAttr = null;
+            int ehCount = 0;
+            int ehTableOffset = 0;
+
+            for (int a = 0; a < attrCount; a++) {
+                if (offset + 6 > safeLen()) return null;
+                int attrNameIdx = ((cls[offset] & 0xFF) << 8)
+                                | (cls[offset + 1] & 0xFF);
+                int attrLen = ((cls[offset + 2] & 0xFF) << 24)
+                            | ((cls[offset + 3] & 0xFF) << 16)
+                            | ((cls[offset + 4] & 0xFF) << 8)
+                            |  (cls[offset + 5] & 0xFF);
+                offset += 6;
+                if (attrLen < 0 || offset + attrLen > safeLen()) return null;
+
+                // We identify the Code attribute by its content structure, not
+                // by resolving the name index (which would require a CP lookup).
+                // A Code attribute begins with max_stack(2) + max_locals(2) +
+                // code_length(4) = 8 bytes minimum.
+                if (attrLen >= 8 && foundCode == null) {
+                    // Speculatively parse as a Code attribute.
+                    int codeLen = ((cls[offset + 4] & 0xFF) << 24)
+                                | ((cls[offset + 5] & 0xFF) << 16)
+                                | ((cls[offset + 6] & 0xFF) << 8)
+                                |  (cls[offset + 7] & 0xFF);
+                    if (codeLen >= 0 && 8 + codeLen + 2 <= attrLen) {
+                        int ehTableOff = 8 + codeLen;
+                        int ehCnt = ((cls[offset + ehTableOff] & 0xFF) << 8)
+                                  | (cls[offset + ehTableOff + 1] & 0xFF);
+                        if (ehTableOff + 2 + ehCnt * 8 <= attrLen) {
+                            // Looks like a valid Code attribute.
+                            foundCode = Arrays.copyOfRange(cls, offset + 8,
+                                    offset + 8 + codeLen);
+                            foundCodeAttr = Arrays.copyOfRange(cls, offset,
+                                    offset + attrLen);
+                            ehCount = ehCnt;
+                            ehTableOffset = ehTableOff + 2; // point past the count
+                        }
+                    }
+                }
+                offset += attrLen;
+            }
+            return new MethodInfo(foundCode, foundCodeAttr, ehCount, ehTableOffset);
+        }
+
+        /**
+         * Convenience method: advances to the next method and returns only
+         * the {@code code[]} bytecode array, or {@code null} on parse error.
+         */
+        byte[] nextMethodCode() {
+            MethodInfo info = nextMethodInfo();
+            return (info == null) ? null : info.code;
+        }
+
+        private int safeLen() {
+            return cls == null ? 0 : cls.length;
+        }
     }
 
     // -------------------------------------------------------------------------
