@@ -1310,6 +1310,7 @@ class Activation implements Serializable {
 			    try {
 				activation.signal.await(waitTime - now, TimeUnit.MILLISECONDS);
 			    } catch (InterruptedException ee) {
+				Thread.currentThread().interrupt();
 			    }
 			    continue;
 			}

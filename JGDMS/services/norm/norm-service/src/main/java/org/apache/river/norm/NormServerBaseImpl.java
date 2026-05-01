@@ -373,6 +373,8 @@ abstract class NormServerBaseImpl
 		      try {
 			  wait();
 		      } catch (InterruptedException e) {
+			  Thread.currentThread().interrupt();
+			  throw new IllegalStateException("Norm service initialization interrupted");
 		      }
 		      break;
 		case READY:

@@ -1,0 +1,86 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head></head>
+<body bgcolor="white">
+
+<h2>Codebase Safety API — BAE and Verdict Registry</h2>
+
+<p>Public API interfaces and value types for the two services that together
+enforce the JGDMS <em>safe-codebase</em> guarantee: the
+{@link au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine} (BAE) and the
+{@link au.net.zeus.jgdms.api.codebase.VerdictRegistry} (VR).</p>
+
+<h3>Services</h3>
+
+<dl>
+  <dt>{@link au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine}</dt>
+  <dd>Remote interface for the BAE service.  Clients pass a set of codebase
+      {@link org.apache.river.api.net.Uri URIs} and receive a signed
+      {@link au.net.zeus.jgdms.api.codebase.SignedVerdict} that records
+      whether the bytecode at those URLs was judged safe, unsafe, or
+      indeterminate.  The BAE runs in a dedicated Phoenix activation group
+      with restrictive security permissions so that analysing malicious
+      bytecode cannot compromise the broader system.</dd>
+
+  <dt>{@link au.net.zeus.jgdms.api.codebase.VerdictRegistry}</dt>
+  <dd>Remote interface for the VR service.  Clients submit
+      {@link au.net.zeus.jgdms.api.codebase.SignedVerdict} records produced
+      by registered BAE instances.  When a configurable quorum of independent
+      BAEs agree, the registry stores a
+      {@link au.net.zeus.jgdms.api.codebase.RegistryVerdict} that downstream
+      consumers can retrieve and trust.  The VR holds the registry signing
+      key and is completely isolated from BAE instances at the process and
+      network level.</dd>
+</dl>
+
+<h3>Value types</h3>
+
+<dl>
+  <dt>{@link au.net.zeus.jgdms.api.codebase.VerdictType}</dt>
+  <dd>Enumeration of possible analysis outcomes: {@code SAFE},
+      {@code UNSAFE}, and {@code INDETERMINATE}.</dd>
+
+  <dt>{@link au.net.zeus.jgdms.api.codebase.SignedVerdict}</dt>
+  <dd>A BAE-signed verdict for a specific codebase, carrying the codebase
+      URIs, verdict type, analysis timestamp, and the BAE's digital
+      signature.</dd>
+
+  <dt>{@link au.net.zeus.jgdms.api.codebase.RegistryVerdict}</dt>
+  <dd>A registry-countersigned verdict stored by the VR after a quorum of
+      BAEs agree.  This is the artifact that clients ultimately retrieve and
+      verify.</dd>
+
+  <dt>{@link au.net.zeus.jgdms.api.codebase.CrashReport}</dt>
+  <dd>Submitted by a BAE when it encounters a fatal error during analysis,
+      so that the registry can track engine reliability.</dd>
+</dl>
+
+<h3>URI handling</h3>
+
+<p>All codebase URLs are carried as {@link org.apache.river.api.net.Uri}
+instances (RFC 3986 strict syntax) throughout this API.  {@code java.net.URL}
+is used only at the point of making a network connection, preventing SSRF and
+DNS-rebinding attacks that arise from premature URL resolution.</p>
+
+@since 3.1
+
+</body>
+</html>

@@ -1067,27 +1067,30 @@ class SslServerEndpointImpl extends Utilities {
 	}
 
 	/* inherit javadoc */
-	public synchronized void close() {
-	    if (!closed) {
+	public void close() {
+	    List<SslServerConnection> toClose;
+	    synchronized (this) {
+		if (closed) {
+		    return;
+		}
 		logger.log(Level.FINE, "closing {0}", this);
 		closed = true;
+		toClose = new ArrayList<SslServerConnection>(connections);
+		connections.clear();
+	    }
+	    try {
+		serverSocket.close();
+	    } catch (IOException e) {
+	    }
+	    for (SslServerConnection connection : toClose) {
 		try {
-		    serverSocket.close();
+		    /*
+		     * Call closeInternal because close would call back to
+		     * remove the connection; we've already cleared connections.
+		     */
+		    connection.closeInternal(
+			false /* removeFromListener */);
 		} catch (IOException e) {
-		}
-		for (Iterator i = connections.iterator(); i.hasNext(); ) {
-		    SslServerConnection connection =
-			(SslServerConnection) i.next();
-		    try {
-			/*
-			 * Call closeInternal because close would call back to
-			 * remove the connection and invalidate the iterator.
-			 */
-			connection.closeInternal(
-			    false /* removeFromListener */);
-		    } catch (IOException e) {
-		    }
-		    i.remove();
 		}
 	    }
 	}
@@ -1464,8 +1467,8 @@ class SslServerEndpointImpl extends Utilities {
 		}
 		logger.log(Level.FINE, "closing {0}", this);
 		closed = true;
-		sslSocket.close();
 	    }
+	    sslSocket.close();
 	    if (removeFromListener) {
 		listenHandle.noteConnectionClosed(this);
 	    }

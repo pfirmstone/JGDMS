@@ -1,0 +1,68 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head></head>
+<body bgcolor="white">
+
+<h2>Bytecode Analysis Engine — Service Implementation</h2>
+
+<p>Server-side implementation of the
+{@link au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine} (BAE) service.
+Code in this package runs inside the BAE Phoenix activation group and must
+<em>not</em> appear on the service codebase.</p>
+
+<h3>{@link au.net.zeus.jgdms.bae.BytecodeAnalysisEngineImpl}</h3>
+
+<p>The non-activatable implementation of the BAE service.  Extends
+{@link au.net.zeus.jgdms.service.support.AbstractJiniService} and provides
+the core {@code containsDangerousCode()} analysis logic:</p>
+<ul>
+  <li>Scans bytecode for reflective invocations ({@code Method.invoke},
+      {@code Constructor.newInstance}), object-graph construction
+      ({@code ObjectInputStream.readObject}, {@code Unsafe.allocateInstance}),
+      and process-execution calls ({@code Runtime.exec},
+      {@code ProcessBuilder.start}).</li>
+  <li>Provides a canonical byte-array helper that sorts and deduplicates
+      evidence entries before signing, ensuring deterministic signatures
+      across BAE instances.</li>
+</ul>
+
+<h3>{@link au.net.zeus.jgdms.bae.ActivatableBytecodeAnalysisEngineImpl}</h3>
+
+<p>Phoenix-activatable variant of the BAE service.  Wraps
+{@code BytecodeAnalysisEngineImpl} with the standard JGDMS activatable
+lifecycle and is started by an activation descriptor rather than
+{@link net.jini.config.Configuration} directly.</p>
+
+<h3>Security model</h3>
+
+<p>The BAE must be deployed in a dedicated Phoenix activation group with a
+restrictive security policy.  In particular:</p>
+<ul>
+  <li>The BAE must <em>not</em> hold the VR's signing key-pair.</li>
+  <li>Outbound network connections are restricted to codebase HTTP(S) servers
+      only; the BAE must not be able to reach clients or the VR directly.</li>
+  <li>Write-back to external services is prohibited.</li>
+</ul>
+
+@since 3.1
+
+</body>
+</html>

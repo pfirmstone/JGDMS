@@ -1,0 +1,77 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head></head>
+<body bgcolor="white">
+
+<h2>Verdict Registry — Service Implementation</h2>
+
+<p>Server-side implementation of the
+{@link au.net.zeus.jgdms.api.codebase.VerdictRegistry} (VR) service.  Code
+in this package runs inside the VR process and must <em>not</em> appear on the
+service codebase.</p>
+
+<h3>{@link au.net.zeus.jgdms.vr.VerdictRegistryImpl}</h3>
+
+<p>The non-activatable implementation of the VR service.  Extends
+{@link au.net.zeus.jgdms.service.support.AbstractJiniService} and provides:</p>
+<ul>
+  <li><strong>Engine registration / revocation</strong> — BAE instances
+      register their public key with the VR to participate in quorum
+      voting.</li>
+  <li><strong>Verdict submission and quorum logic</strong> — incoming
+      {@link au.net.zeus.jgdms.api.codebase.SignedVerdict} records are
+      verified against the submitting BAE's registered key.  When the
+      configured quorum of independent BAEs agree on an outcome, the VR
+      signs and stores a
+      {@link au.net.zeus.jgdms.api.codebase.RegistryVerdict}.</li>
+  <li><strong>Crash reporting</strong> — BAEs can submit
+      {@link au.net.zeus.jgdms.api.codebase.CrashReport} records so the
+      registry can track engine reliability and exclude unreliable engines
+      from quorum calculations.</li>
+  <li><strong>Event notification</strong> — registered subscribers receive
+      a {@link au.net.zeus.jgdms.vr.proxy.VerdictEvent} whenever a new
+      {@code RegistryVerdict} is stored.</li>
+  <li><strong>Lease management</strong> — event subscriptions are managed
+      via {@link au.net.zeus.jgdms.vr.proxy.VerdictEventLease} so that
+      stale subscriptions are automatically reclaimed.</li>
+</ul>
+
+<h3>{@link au.net.zeus.jgdms.vr.ActivatableVerdictRegistryImpl}</h3>
+
+<p>Phoenix-activatable variant of the VR service.  Wraps
+{@code VerdictRegistryImpl} with the standard JGDMS activatable lifecycle
+and is started by an activation descriptor rather than
+{@link net.jini.config.Configuration} directly.</p>
+
+<h3>Security model</h3>
+
+<p>The VR holds the registry signing key-pair and is the only component that
+can produce {@link au.net.zeus.jgdms.api.codebase.RegistryVerdict} objects
+trusted by clients.  It must therefore be completely isolated from BAE
+instances at the process and network level: the VR must <em>not</em> accept
+inbound connections from sources other than registered BAEs and authorised
+clients, and it must <em>not</em> initiate outbound connections to arbitrary
+hosts.</p>
+
+@since 3.1
+
+</body>
+</html>

@@ -91,7 +91,7 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
             comparison = name1.compareTo(name2);
             if ( comparison != 0 ) return comparison;
             // names equal.
-            String action1 = u1.getUnresolvedName(), action2 = u2.getUnresolvedName();
+            String action1 = u1.getUnresolvedActions(), action2 = u2.getUnresolvedActions();
             if ( action1 == null ){
                 if (action2 == null) return 0;
                 return -1; // o1 is less
@@ -154,7 +154,7 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
 		int l1 = pr1.length;
 		int l2 = pr2.length;
 		if (l1 < l2) return -1;
-		if (l1 > l2) return 2;
+		if (l1 > l2) return 1;
 		// length equal
 		for (int j=0; j<l1; j++){
 		    comparison = pr1[j].compareTo(pr2[j]);

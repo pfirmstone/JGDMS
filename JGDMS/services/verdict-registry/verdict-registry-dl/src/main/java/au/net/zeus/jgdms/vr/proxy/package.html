@@ -1,0 +1,58 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head></head>
+<body bgcolor="white">
+
+<h2>Verdict Registry — Client-Side Proxy and Event Types</h2>
+
+<p>Download-safe proxy and event classes for the Verdict Registry (VR) service.
+These classes appear on the VR service's codebase and are downloaded by
+clients; they must not reference any server-side implementation classes.</p>
+
+<h3>{@link au.net.zeus.jgdms.vr.proxy.VerdictRegistryProxy}</h3>
+
+<p>Concrete smart proxy for the VR service.  Extends
+{@link au.net.zeus.jgdms.proxy.AbstractSmartProxy} and implements
+{@link au.net.zeus.jgdms.api.codebase.VerdictRegistry}.  All remote method
+calls are forwarded to the inner server stub which is validated on
+construction and during {@link org.apache.river.api.io.AtomicSerial}
+deserialization.</p>
+
+<p>The static {@code create(server, proxyID)} factory automatically returns
+the nested {@code ConstrainableVerdictRegistryProxy} variant when the server
+stub implements {@link net.jini.core.constraint.RemoteMethodControl}, enabling
+full constraint propagation for JERI-based deployments.</p>
+
+<h3>{@link au.net.zeus.jgdms.vr.proxy.VerdictEvent}</h3>
+
+<p>Remote event delivered to subscribers when the registry stores a new
+{@link au.net.zeus.jgdms.api.codebase.RegistryVerdict}.  Carries the
+affected codebase URI set and the new verdict type.</p>
+
+<h3>{@link au.net.zeus.jgdms.vr.proxy.VerdictEventLease}</h3>
+
+<p>Lease for a {@code VerdictEvent} subscription.  Clients must renew this
+lease periodically or the subscription will be cancelled by the registry.</p>
+
+@since 3.1
+
+</body>
+</html>

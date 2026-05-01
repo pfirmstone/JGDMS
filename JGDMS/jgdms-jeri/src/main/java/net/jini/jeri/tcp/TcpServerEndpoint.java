@@ -928,6 +928,8 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 		    try {
 			Thread.sleep(10000);
 		    } catch (InterruptedException ignore) {
+			Thread.currentThread().interrupt();
+			return false;
 		    }
 		    // no need to reset counter/timer
 		}

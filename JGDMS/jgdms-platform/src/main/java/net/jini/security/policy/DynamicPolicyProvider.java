@@ -389,6 +389,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
          */
         Class permClass = permission instanceof GrantPermission ? null : permission.getClass();
         if (!(basePolicy instanceof ScalableNestedPolicy)) {
+            if (basePolicy.implies(domain, permission)) return true;
             PermissionCollection pc = basePolicy.getPermissions(domain);
             Enumeration<Permission> enu = pc.elements();
             while (enu.hasMoreElements()){
@@ -430,7 +431,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         }   
         PermissionCollection pc = null;
         if (permClass != null){
-            pc =convert(permissions, 4, 0.75F, 1, 2);
+            pc = convert(permissions, 4, 0.75F, 1, 2);
         } else {
             // GrantPermission
             pc = convert(permissions, 4, 0.75F, 1, 2);

@@ -1,0 +1,108 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head></head>
+<body bgcolor="white">
+
+<h2>Abstract Jini Service Infrastructure</h2>
+
+<p>Reusable server-side base classes for building Jini services.  Code in
+this package runs only in the service JVM and must <em>not</em> appear on the
+service codebase.</p>
+
+<h3>{@link au.net.zeus.jgdms.service.support.JiniServiceParameters}</h3>
+
+<p>Abstract parameter object whose constructor reads and validates all common
+Jini service configuration entries from a
+{@link net.jini.config.Configuration}:</p>
+<ul>
+  <li>Mandatory: {@code exporter}, lookup {@code groups} / {@code locators} /
+      {@code attributes}, and codebase fields
+      ({@code certFactoryType}, {@code certPathEncoding},
+      {@code encodedCerts}).</li>
+  <li>Optional: {@code loginContext} (type {@link javax.security.auth.login.LoginContext},
+      default {@code null}) and {@code persistenceDirectory} (type
+      {@link java.lang.String}, default {@code null}).</li>
+</ul>
+<p>A {@link net.jini.config.ConfigurationException} is thrown immediately if
+any mandatory entry is missing or has the wrong type, so service constructors
+always receive a fully-validated parameter object.  Service-specific
+subclasses add their own mandatory entries in the same way.</p>
+
+<h3>{@link au.net.zeus.jgdms.service.support.AbstractJiniService}</h3>
+
+<p>Abstract base class providing the complete Jini service lifecycle.
+Implements {@link net.jini.admin.JoinAdmin},
+{@link org.apache.river.admin.DestroyAdmin}, and {@link java.rmi.Remote}
+directly so that every exported server stub automatically carries the admin
+interfaces without requiring a combined marker interface.</p>
+
+<p>The {@code start()} method is {@code final} and performs, in order:</p>
+<ol>
+  <li>Export the service via the configured {@link net.jini.export.Exporter}.</li>
+  <li>Call the protected {@code onExported()} hook.</li>
+  <li>Recover persistent state (if a {@code persistenceDirectory} was
+      configured) or generate a fresh {@link net.jini.core.lookup.ServiceID}.</li>
+  <li>Create the smart proxy via {@code createProxy()}.</li>
+  <li>Start a {@link net.jini.lookup.JoinManager} to advertise in all
+      configured lookup services.</li>
+  <li>Call the protected {@code onStart(Subject)} hook inside the login
+      {@link javax.security.auth.Subject}'s security context (or with
+      {@code null} when no login context is configured), allowing subclasses
+      to initialise Subject-aware thread pools or executors.</li>
+  <li>Transition to the ready state.</li>
+</ol>
+
+<p>When a {@code loginContext} is configured, {@code start()} calls
+{@link javax.security.auth.login.LoginContext#login()} and wraps the entire
+start sequence in
+{@link javax.security.auth.Subject#doAsPrivileged(Subject, PrivilegedExceptionAction, AccessControlContext)},
+mirroring the pattern used by {@code FiddlerImpl} and {@code MailboxImpl}.</p>
+
+<h4>Persistence</h4>
+
+<p>When {@code persistenceDirectory} is non-null, service state is persisted
+using {@code org.apache.river.reliableLog.ReliableLog} — the same
+write-ahead log used by existing Jini services such as Reggie 
+(Service Registrar / Lookup Service),
+Fiddler (Discovery Service to find Lookup Services), 
+Mahalo (Transaction Service), 
+Mercury (Event Mailbox Service), 
+Norm (Lease Renewal Service) and Outrigger (Javaspaces).  The
+{@code ServiceID} is stored in every snapshot and recovered on restart so the
+service re-advertises under its original identity.  Subclasses may override
+the protected template methods {@code snapshot(ObjectOutputStream)},
+{@code recover(ObjectInputStream)}, and {@code applyUpdate(Object)} to persist
+service-specific state alongside the {@code ServiceID}.  Incremental state
+changes can be recorded between snapshots using the protected
+{@code logUpdate(Object)} utility.</p>
+
+<h4>Administration</h4>
+
+<p>{@code getAdmin()} returns an
+{@link au.net.zeus.jgdms.proxy.AdminProxy} (or its inner
+{@code ConstrainableAdminProxy} variant) backed by the exported server stub.
+Service developers do not need to implement any administration logic; it is
+all handled by the base class.</p>
+
+@since 3.1
+
+</body>
+</html>

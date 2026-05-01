@@ -1,0 +1,86 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head></head>
+<body bgcolor="white">
+
+<h2>JGDMS Shared Smart-Proxy Infrastructure</h2>
+
+<p>Reusable, download-safe proxy base classes for Jini services.
+Classes in this package are placed on the service's <em>codebase</em> and are
+therefore downloaded by clients; they must not reference any server-side
+implementation classes.</p>
+
+<h3>{@link au.net.zeus.jgdms.proxy.AbstractSmartProxy}</h3>
+
+<p>Abstract base class for every JGDMS smart proxy.  Implements
+{@link java.io.Serializable}, {@link org.apache.river.api.io.AtomicSerial},
+{@link net.jini.export.ProxyAccessor}, {@link net.jini.id.ReferentUuid}, and
+{@link net.jini.admin.Administrable}.  Subclasses need only supply:</p>
+<ul>
+  <li>A no-extra-state {@link org.apache.river.api.io.AtomicSerial.GetArg} constructor that
+      calls {@code super(args)}.</li>
+  <li>A direct constructor that calls the protected two-argument constructor
+      {@code AbstractSmartProxy(server, proxyID)}.</li>
+</ul>
+
+<p>Before any field is assigned the static {@code checkServer()} helper
+validates that the deserialized server stub implements every interface
+declared by the concrete proxy class <em>plus</em> the mandatory
+infrastructure interfaces
+({@link net.jini.export.CodebaseAccessor},
+{@link net.jini.lookup.ServiceProxyAccessor},
+{@link net.jini.lookup.ServiceAttributesAccessor},
+{@link net.jini.lookup.ServiceIDAccessor},
+{@link net.jini.admin.Administrable},
+{@link net.jini.admin.JoinAdmin},
+{@link org.apache.river.admin.DestroyAdmin}).
+This ensures that a maliciously crafted serialization stream cannot inject a
+stub that lacks the expected remote interface set.</p>
+
+<p>The nested abstract class
+{@link au.net.zeus.jgdms.proxy.AbstractSmartProxy.ConstrainableSmartProxy}
+extends {@code AbstractSmartProxy} and additionally implements
+{@link net.jini.core.constraint.RemoteMethodControl}.  Concrete constrainable
+proxies extend this class and obtain full constraint-propagation boilerplate
+for free.</p>
+
+<h3>{@link au.net.zeus.jgdms.proxy.AdminProxy}</h3>
+
+<p>Concrete, ready-to-use administration proxy returned by
+{@link au.net.zeus.jgdms.service.support.AbstractJiniService#getAdmin()}.
+Implements both {@link net.jini.admin.JoinAdmin} (controlling lookup-service
+registration) and {@link org.apache.river.admin.DestroyAdmin} (shutting the
+service down).  All eleven delegation methods use typed transient fields
+({@code joinAdmin}, {@code destroyAdmin}) that are populated and validated in
+every constructor path, eliminating runtime casts at call sites.</p>
+
+<p>The static {@code AdminProxy.create(server, proxyID)} factory automatically
+returns the inner {@code ConstrainableAdminProxy} variant when the server stub
+implements {@link net.jini.core.constraint.RemoteMethodControl}.
+{@code ConstrainableAdminProxy} carries a full {@code methodMapArray} and
+uses {@link org.apache.river.proxy.ConstrainableProxyUtil} to translate and
+verify {@link net.jini.core.constraint.MethodConstraints} across the
+proxy&hairsp;→&hairsp;server boundary.</p>
+
+@since 3.1
+
+</body>
+</html>

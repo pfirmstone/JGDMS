@@ -78,6 +78,9 @@
     <module>services/norm</module>
     <module>services/group</module>
     <module>services/fiddler</module>
+    <module>services/jgdms-service-support</module>
+    <module>services/bytecode-analysis-engine</module>
+    <module>services/verdict-registry</module>
     <module>tools</module>
     <module>phoenix-activation</module>
     <module>groovy-config</module>
@@ -115,17 +118,36 @@
 
   <properties>
     <github.repo.basename>pfirmstone</github.repo.basename>
-    <groovy.version>2.4.21</groovy.version>
+    <groovy.version>4.0.21</groovy.version>
     <gmaven.version>1.5</gmaven.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
-    <junit.version>4.8.2</junit.version>
-    <tychoExtrasVersion>1.2.0</tychoExtrasVersion>
-    <tychoVersion>1.2.0</tychoVersion>
+    <junit.version>4.13.2</junit.version>
+    <pack200.version>1.26.0</pack200.version>
     <maven.Jarsigner.version>1.4</maven.Jarsigner.version>
     <osgi.annotation.version>8.1.0</osgi.annotation.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.codehaus.groovy</groupId>
+        <artifactId>groovy-all</artifactId>
+        <version>${groovy.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.groovy.maven</groupId>
+        <artifactId>gmaven-plugin</artifactId>
+        <version>${gmaven.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+        <artifactId>Pack200-ex-openjdk</artifactId>
+        <version>${pack200.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <!--
     <distributionManagement>
@@ -143,27 +165,25 @@
         </pluginRepository>
     </pluginRepositories>
 -->
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.codehaus.groovy</groupId>
-        <artifactId>groovy-all</artifactId>
-        <version>${groovy.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.codehaus.groovy.maven</groupId>
-        <artifactId>gmaven-plugin</artifactId>
-        <version>${gmaven.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
+  <repositories>
+    <repository>
+      <id>ossrh-snapshots</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 
   <build>
     <pluginManagement>
       <plugins>
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.3.2</version>
           <configuration>
               <!-- For releasing from Windows platforms, ignores problems with file handles -->
             <failOnError>false</failOnError>
@@ -172,10 +192,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>2.6</version>
-          <configuration>
-              <useDefaultManifestFile>true</useDefaultManifestFile>
-          </configuration>
+          <version>3.3.0</version>
         </plugin>
         <!--<plugin>
             <groupId>org.owasp</groupId>
@@ -189,22 +206,22 @@
         <plugin>
             <groupId>biz.aQute.bnd</groupId>
             <artifactId>bnd-maven-plugin</artifactId>
-            <version>6.4.0</version>
+            <version>7.0.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.22.2</version>
+          <version>3.1.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>2.22.2</version>
+          <version>3.1.2</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.3.0</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.gmaven</groupId>
@@ -216,66 +233,67 @@
           <artifactId>tidy-maven-plugin</artifactId>
           <version>1.1.0</version>
         </plugin>
-        <!-- https://wiki.eclipse.org/Tycho/Pack200 -->
+        <!-- Pack200 via Pack200-ex-openjdk (replaces Eclipse Tycho pack200 plugins, works on Java 14+) -->
         <plugin>
-            <groupId>org.eclipse.tycho.extras</groupId>
-            <artifactId>tycho-pack200a-plugin</artifactId>
-            <version>${tychoExtrasVersion}</version>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>3.1.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+                    <artifactId>Pack200-ex-openjdk</artifactId>
+                    <version>${pack200.version}</version>
+                </dependency>
+            </dependencies>
         </plugin>
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-jarsigner-plugin</artifactId>
             <version>${maven.Jarsigner.version}</version>
         </plugin>
-        <plugin>
-            <groupId>org.eclipse.tycho.extras</groupId>
-            <artifactId>tycho-pack200b-plugin</artifactId>
-            <version>${tychoExtrasVersion}</version>
-        </plugin>
-        <plugin>
-            <groupId>org.eclipse.tycho</groupId>
-            <artifactId>tycho-p2-plugin</artifactId>
-            <version>${tychoVersion}</version>
-        </plugin>
         <!-- reporting plugins : begin -->
         <plugin>
           <artifactId>maven-surefire-report-plugin</artifactId>
-          <version>2.22.2</version>
+          <version>3.1.2</version>
         </plugin>
         <plugin>
           <groupId>com.github.spotbugs</groupId>
           <artifactId>spotbugs-maven-plugin</artifactId>
-          <version>3.1.12.2</version>
+          <version>4.7.3</version>
         </plugin>
         <plugin>
           <artifactId>maven-jxr-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.3.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-project-info-reports-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.5.0</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>versions-maven-plugin</artifactId>
-          <version>2.7</version>
+          <version>2.16.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-site-plugin</artifactId>
-          <version>3.8.2</version>
+          <version>3.12.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-scm-publish-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.1.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.6.3</version>
           <configuration>
             <source>8</source>
             <failOnError>false</failOnError>
             <links>
               <link>https://docs.oracle.com/javase/8/docs/api/</link>
+              <link>https://docs.oracle.com/javase/11/docs/api/</link>
+              <link>https://docs.oracle.com/javase/17/docs/api/</link>
+              <link>https://docs.oracle.com/javase/21/docs/api/</link>
+              <link>https://docs.oracle.com/javase/26/docs/api/</link>
             </links>
             <detectLinks>true</detectLinks>
             <breakiterator>true</breakiterator>
@@ -287,26 +305,23 @@
         <!-- release plugins : begin -->
         <plugin>
             <artifactId>maven-release-plugin</artifactId>
-            <version>2.5.3</version>
+            <version>3.0.1</version>
             <dependencies>
                 <dependency>
                     <groupId>org.apache.maven.scm</groupId>
                     <artifactId>maven-scm-provider-gitexe</artifactId>
-                    <!-- Latest version known to work. Newer versions (e.g. 1.11.1) may produce error like this:
-                    [ERROR] Failed to execute goal org.apache.maven.plugins:maven-release-plugin:2.5.3:prepare (default-cli) on project jgdms: Execution default-cli of goal org.apache.maven.plugins:maven-release-plugin:2.5.3:prepare failed: An API incompatibility was encountered while executing org.apache.maven.plugins:maven-release-plugin:2.5.3:prepare: java.lang.NoSuchMethodError: org.apache.maven.scm.ScmTagParameters.isSign()Z
-                    -->
-                    <version>1.9.5</version>
+                    <version>1.13.0</version>
                 </dependency>
             </dependencies>
         </plugin>
         <plugin>
             <artifactId>maven-deploy-plugin</artifactId>
-            <version>2.8.2</version>
+            <version>3.1.1</version>
         </plugin>
         <plugin>
             <groupId>org.sonatype.plugins</groupId>
             <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.6.8</version>
+            <version>1.6.13</version>
         </plugin>
         <plugin>
             <groupId>org.apache.aries</groupId>
@@ -319,10 +334,9 @@
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.11.0</version>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
+          <release>8</release>
           <optimize>true</optimize>
           <encoding>UTF-8</encoding>
           <meminitial>128m</meminitial>
@@ -331,7 +345,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>3.1.0</version>
+        <version>3.3.1</version>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -477,7 +491,7 @@
               <plugins>
                   <plugin>
                       <artifactId>maven-gpg-plugin</artifactId>
-                      <version>1.6</version>
+                      <version>3.1.0</version>
                       <executions>
                           <execution>
                               <id>sign-artifacts</id>

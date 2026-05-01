@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Project-local Maven settings for JGDMS.
+
+  Provides the GitHub Packages repository that hosts Pack200-ex-openjdk
+  releases (https://maven.pkg.github.com/pfirmstone/Pack200-ex-openjdk).
+
+  The GITHUB_TOKEN environment variable must be set to a token with the
+  read:packages scope for the repository lookup to succeed.  In GitHub
+  Actions this is available automatically as the built-in GITHUB_TOKEN
+  secret.  For local developer builds, export a personal access token:
+
+      export GITHUB_TOKEN=<your PAT with read:packages>
+
+  This file is loaded by Maven automatically because .mvn/maven.config
+  passes "-s .mvn/settings.xml".
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <servers>
+    <server>
+      <id>github-pfirmstone-pack200</id>
+      <username>token</username>
+      <password>${env.GITHUB_TOKEN}</password>
+    </server>
+  </servers>
+
+  <profiles>
+    <profile>
+      <id>github-pack200</id>
+      <repositories>
+        <repository>
+          <id>github-pfirmstone-pack200</id>
+          <name>GitHub pfirmstone Pack200-ex-openjdk Packages</name>
+          <url>https://maven.pkg.github.com/pfirmstone/Pack200-ex-openjdk</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>github-pfirmstone-pack200</id>
+          <name>GitHub pfirmstone Pack200-ex-openjdk Packages</name>
+          <url>https://maven.pkg.github.com/pfirmstone/Pack200-ex-openjdk</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>github-pack200</activeProfile>
+  </activeProfiles>
+
+</settings>
