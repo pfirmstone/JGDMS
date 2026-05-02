@@ -89,10 +89,12 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
@@ -393,7 +395,7 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
     /** Object for coordinating actions with the expire thread */
     private final Object expirationNotifier = new Object();
     /** Object for coordinating the destroy process */
-    private final Object destroyLock = new Object();
+    private final ReentrantLock destroyLock = new ReentrantLock();
     /** 
      * Flag that denotes whether or not destroy has already been called.
      * The variable is guarded by <code>destroyLock</code>.
@@ -3257,9 +3259,9 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        OPERATIONS_LOGGER.entering(DESTROY_THREAD_SOURCE_CLASS, 
 	            "run");
 	    }
-
-            synchronized (destroyLock) {
-
+            
+            destroyLock.lock();
+            try {
                 if (destroySucceeded == true) { // someone got here first
 	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                         ADMIN_LOGGER.log(Level.FINEST,
@@ -3395,43 +3397,32 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
    	            snapshotter.interrupt();
 		}
 
-                // Capture thread references before releasing the lock for joins
-                final Thread localNotifier = notifier;
-                final Thread localExpirer = expirer;
-                final Thread localSnapshotter = snapshotter;
-
-            } // end synchronized(destroyLock) — release lock before joining threads
-
-            // Join threads outside the synchronized block to prevent virtual thread pinning
    	        try {
 //TODO - Use individual try-catch blocks		
    	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                         ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Notifier ...");
    	            }
-   	            localNotifier.join();
+   	            notifier.join();
    
    	            if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                         ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Expirer ...");
    	            }
-   	            localExpirer.join();	        
+   	            expirer.join();	        
    
-                    if (localSnapshotter != null) { // == null in non-persistent case
+                    if (snapshotter != null) { // == null in non-persistent case
    	                if (ADMIN_LOGGER.isLoggable(Level.FINEST)) {
                             ADMIN_LOGGER.log(Level.FINEST,
 		            "Waiting for Snapshotter ...");
    	                }
-   	                localSnapshotter.join();
+   	                snapshotter.join();
 		    }
    	        } catch (InterruptedException e) {
-//TODO - Debug		
-   	            Thread.currentThread().interrupt();
+                    Thread.currentThread().interrupt();
    	        }
 
-            synchronized (destroyLock) { // re-acquire lock for post-join cleanup
    
-
                 // Note: blocking getNextBatchDo() threads might still be active
                 // so we need to guard against concurrent access to shared state.
                 
@@ -3526,7 +3517,9 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 
                 readyState.shutdown();
 
-	    }
+	    } finally {
+                destroyLock.unlock();
+            }
             if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
 	        OPERATIONS_LOGGER.exiting(DESTROY_THREAD_SOURCE_CLASS, 
 	            "run");
