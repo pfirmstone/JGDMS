@@ -5,7 +5,7 @@
    role="img"
    version="1.1"
    id="svg87"
-   sodipodi:docname="bae_five_host_topology_rev1.svg"
+   sodipodi:docname="bae_five_host_topology_rev2.svg"
    height="1400"
    inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
@@ -625,7 +625,7 @@
   <g
      style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#000000;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
      id="g39"
-     transform="translate(-322.80703,-1.4035088)">
+     transform="translate(-261.05264,-2.8070176)">
     <rect
        x="460"
        y="502"
@@ -768,12 +768,12 @@
      id="text46">JERI · mutual auth · no direct path Host 2 ↔ Host 3 · no direct path Host 1 ↔ Host 2</text>
   <!-- Host4 BAE proxy → Host2 -->
   <line
-     x1="194.87128"
-     y1="562.94977"
-     x2="193.9565"
-     y2="727.21167"
+     x1="175.8694"
+     y1="486.83176"
+     x2="175.01099"
+     y2="726.52869"
      marker-end="url(#arrow)"
-     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:none;stroke:#73726c;stroke-width:1.51381;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none"
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:none;stroke:#73726c;stroke-width:1.77142;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none"
      id="line46" />
   <text
      x="419.82455"
@@ -783,13 +783,13 @@
      style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:middle;opacity:1;fill:#3d3d3a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
      id="text47">AnalysisRequest (bytes + hash)</text>
   <line
-     x1="181.53189"
-     y1="727.25916"
-     x2="182.47801"
-     y2="562.81879"
+     x1="157.02728"
+     y1="726.88672"
+     x2="157.91469"
+     y2="486.30869"
      marker-end="url(#arrow)"
      stroke="#1D9E75"
-     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:none;stroke:#73726c;stroke-width:1.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none"
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:none;stroke:#73726c;stroke-width:1.75712;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none"
      id="line47" />
   <text
      x="410.70175"
