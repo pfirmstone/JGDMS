@@ -83,7 +83,7 @@
     <module>services/verdict-registry</module>
     <module>tools</module>
     <module>phoenix-activation</module>
-    <module>groovy-config</module>
+    <!--<module>groovy-config</module>-->
     <module>dist</module>
     <module>browser</module>
     <module>extra</module>
@@ -122,7 +122,7 @@
     <gmaven.version>1.5</gmaven.version>
     <gmavenProviderSelection>2.0</gmavenProviderSelection>
     <junit.version>4.13.2</junit.version>
-    <pack200.version>1.26.0</pack200.version>
+    <pack200.version>1.26.1</pack200.version>
     <maven.Jarsigner.version>1.4</maven.Jarsigner.version>
     <osgi.annotation.version>8.1.0</osgi.annotation.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -131,6 +131,7 @@
 
   <dependencyManagement>
     <dependencies>
+	<!--
       <dependency>
         <groupId>org.codehaus.groovy</groupId>
         <artifactId>groovy-all</artifactId>
@@ -141,6 +142,7 @@
         <artifactId>gmaven-plugin</artifactId>
         <version>${gmaven.version}</version>
       </dependency>
+	  -->
       <dependency>
         <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
         <artifactId>Pack200-ex-openjdk</artifactId>
@@ -206,7 +208,7 @@
         <plugin>
             <groupId>biz.aQute.bnd</groupId>
             <artifactId>bnd-maven-plugin</artifactId>
-            <version>7.0.0</version>
+            <version>6.4.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

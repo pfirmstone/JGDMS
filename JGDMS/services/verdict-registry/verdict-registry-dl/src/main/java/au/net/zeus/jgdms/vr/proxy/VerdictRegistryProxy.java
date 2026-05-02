@@ -36,6 +36,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
+import java.io.InvalidObjectException;
 
 /**
  * Client-side smart proxy for the {@link VerdictRegistry} service.
@@ -91,7 +92,7 @@ public class VerdictRegistryProxy
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
      */
-    VerdictRegistryProxy(VerdictRegistry server, Uuid proxyID) {
+    public VerdictRegistryProxy(VerdictRegistry server, Uuid proxyID) {
         super(server, proxyID);
     }
 
@@ -101,8 +102,19 @@ public class VerdictRegistryProxy
      * @param arg the deserialization argument bag
      * @throws IOException if deserialization validation fails
      */
-    VerdictRegistryProxy(GetArg arg) throws IOException {
+    public VerdictRegistryProxy(GetArg arg) throws IOException, ClassNotFoundException {
+        this(arg, check(arg));
+    }
+    
+    private VerdictRegistryProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
         super(arg);
+    }
+    
+    private static boolean check(GetArg arg)throws IOException, ClassNotFoundException {
+        VerdictRegistryProxy sup = new VerdictRegistryProxy(arg, true);
+        if (sup.server instanceof VerdictRegistryProxy && VerdictRegistryProxy.class.equals(sup.server.getClass()))
+            return true;
+        throw new InvalidObjectException("server not VerdictRegistryProxy");
     }
 
     @Override
@@ -182,7 +194,7 @@ public class VerdictRegistryProxy
          * @param proxyID     the service's stable unique identifier
          * @param constraints the client method constraints; may be {@code null}
          */
-        ConstrainableVerdictRegistryProxy(VerdictRegistry server,
+        public ConstrainableVerdictRegistryProxy(VerdictRegistry server,
                                           Uuid proxyID,
                                           MethodConstraints constraints) {
             super(server, proxyID, constraints);
@@ -194,8 +206,19 @@ public class VerdictRegistryProxy
          * @param arg the deserialization argument bag
          * @throws IOException if deserialization validation fails
          */
-        ConstrainableVerdictRegistryProxy(GetArg arg) throws IOException {
+        public ConstrainableVerdictRegistryProxy(GetArg arg) throws IOException, ClassNotFoundException {
             super(arg);
+        }
+        
+        private ConstrainableVerdictRegistryProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
+            super(arg);
+        }
+        
+        private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
+            ConstrainableVerdictRegistryProxy sup = new ConstrainableVerdictRegistryProxy(arg, true);
+            if (sup.server instanceof ConstrainableVerdictRegistryProxy && ConstrainableVerdictRegistryProxy.class.equals(sup.server.getClass()))
+                return true;
+            throw new InvalidObjectException("server not ConstrainableVerdictRegistryProxy");
         }
 
         @Override

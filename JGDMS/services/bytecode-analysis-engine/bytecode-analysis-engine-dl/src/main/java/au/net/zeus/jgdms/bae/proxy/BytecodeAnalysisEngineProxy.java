@@ -28,6 +28,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
+import java.io.InvalidObjectException;
 
 /**
  * Client-side smart proxy for the {@link BytecodeAnalysisEngine} service.
@@ -84,7 +85,7 @@ public class BytecodeAnalysisEngineProxy
      * @param server  the remote server stub; must be non-null
      * @param proxyID the service's stable unique identifier; must be non-null
      */
-    BytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server, Uuid proxyID) {
+    public BytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server, Uuid proxyID) {
         super(server, proxyID);
     }
 
@@ -94,8 +95,19 @@ public class BytecodeAnalysisEngineProxy
      * @param arg the deserialization argument bag
      * @throws IOException if deserialization validation fails
      */
-    BytecodeAnalysisEngineProxy(GetArg arg) throws IOException {
+    public BytecodeAnalysisEngineProxy(GetArg arg) throws IOException, ClassNotFoundException {
+         this(arg, check(arg));
+    }
+    
+    private BytecodeAnalysisEngineProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException {
         super(arg);
+    }
+    
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
+        BytecodeAnalysisEngineProxy sup = new BytecodeAnalysisEngineProxy(arg, true);
+        if (sup.server instanceof BytecodeAnalysisEngine && 
+                BytecodeAnalysisEngine.class.equals(sup.server.getClass())) return true;
+        throw new InvalidObjectException("Server not an instance of BytecodeAnalysisEngine");
     }
 
     @Override
@@ -131,7 +143,7 @@ public class BytecodeAnalysisEngineProxy
          * @param proxyID     the service's stable unique identifier
          * @param constraints the client method constraints; may be {@code null}
          */
-        ConstrainableBytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server,
+        public ConstrainableBytecodeAnalysisEngineProxy(BytecodeAnalysisEngine server,
                                                   Uuid proxyID,
                                                   MethodConstraints constraints) {
             super(server, proxyID, constraints);
@@ -143,8 +155,19 @@ public class BytecodeAnalysisEngineProxy
          * @param arg the deserialization argument bag
          * @throws IOException if deserialization validation fails
          */
-        ConstrainableBytecodeAnalysisEngineProxy(GetArg arg) throws IOException {
+        public ConstrainableBytecodeAnalysisEngineProxy(GetArg arg) throws IOException, ClassNotFoundException  {
+            this(arg, check(arg));
+        }
+        
+        private ConstrainableBytecodeAnalysisEngineProxy(GetArg arg, boolean check) throws IOException, ClassNotFoundException  {
             super(arg);
+        }
+        
+        private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
+            ConstrainableBytecodeAnalysisEngineProxy sup = new ConstrainableBytecodeAnalysisEngineProxy(arg, true);
+            if (sup.server instanceof BytecodeAnalysisEngine && 
+                    BytecodeAnalysisEngine.class.equals(sup.server.getClass())) return true;
+            throw new InvalidObjectException("Server not an instance of BytecodeAnalysisEngine");
         }
 
         @Override
