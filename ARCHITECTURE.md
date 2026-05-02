@@ -343,7 +343,8 @@ its invariant check.
 
 ---
 
-### 4.7 Bytecode Analysis Engine and Verdict Registry - Under Development
+### 4.7 Bytecode Analysis Engine and Verdict Registry
+#### Under Development
 
 **Interfaces:** `JGDMS/jgdms-platform/src/main/java/au/net/zeus/jgdms/api/codebase/`  
 **Implementations:** `JGDMS/services/bytecode-analysis-engine/`,
