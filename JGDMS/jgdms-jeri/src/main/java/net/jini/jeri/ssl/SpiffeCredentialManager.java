@@ -662,8 +662,9 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         Date notAfter  = svid.leafCertificate().getNotAfter();
         long expireMs  = notAfter.getTime();
         long nowMs     = System.currentTimeMillis();
-        // Guard against overflow: clamp renewalLeadSeconds to avoid Long.MIN_VALUE
-        // when multiplied by 1_000.  Valid SVID lifetimes are always < Long.MAX_VALUE/1000.
+        // Guard against overflow when multiplying renewalLeadSeconds by 1_000.
+        // Valid SVID lifetimes are always < Long.MAX_VALUE / 1000, so this
+        // clamp only applies to pathologically large configured lead times.
         long leadMs    = Math.min(renewalLeadSeconds, Long.MAX_VALUE / 1_000L) * 1_000L;
         long renewAt   = expireMs - leadMs;
         long delayMs   = Math.max(0L, renewAt - nowMs);

@@ -244,7 +244,11 @@ final class JarAnalyzer {
      * binary class name (e.g. {@code "com.example.Foo"}).
      */
     private static String entryNameToClassName(String entryName) {
-        return entryName.replace('/', '.').replaceAll("\\.class$", "");
+        String slashFixed = entryName.replace('/', '.');
+        if (slashFixed.endsWith(".class")) {
+            return slashFixed.substring(0, slashFixed.length() - ".class".length());
+        }
+        return slashFixed;
     }
 
     /**

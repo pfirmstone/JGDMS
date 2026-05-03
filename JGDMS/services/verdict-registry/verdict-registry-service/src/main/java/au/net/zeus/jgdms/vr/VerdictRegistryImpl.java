@@ -275,10 +275,13 @@ public class VerdictRegistryImpl implements VerdictRegistry {
 
     /**
      * Mutable per-content-hash vote accumulator for the push model.
-     * All fields are accessed only while {@code synchronized (this)}.
+     *
+     * <p>All fields must be accessed only while {@code synchronized (this)}.
+     * Separate from {@link VerdictState} (which is URL-set keyed) to avoid
+     * mixing the two accumulation paths.
      */
     private static final class HashVerdictState {
-        /** Per-engine votes: engineId → VerdictType. */
+        /** Per-engine votes for this content hash: engineId → VerdictType. */
         final Map<String, VerdictType> votes = new HashMap<String, VerdictType>();
 
         /** True once a DANGEROUS RegistryVerdict has been published. Permanent. */
