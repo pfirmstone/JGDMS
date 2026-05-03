@@ -68,7 +68,7 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * 
  * @see org.apache.river.api.security.DefaultPolicyParser
  */
-class DefaultPolicyScanner {
+public class DefaultPolicyScanner {
     
     /**
      * Specific exception class to signal policy file syntax error.
@@ -468,7 +468,7 @@ class DefaultPolicyScanner {
      * @see org.apache.river.api.security.DefaultPolicyParser
      * @see org.apache.river.api.security.DefaultPolicyScanner
      */
-    static class GrantEntry {
+    public static class GrantEntry {
 
         /**
          * The signers part of grant clause. This is a comma-separated list of
@@ -492,7 +492,7 @@ class DefaultPolicyScanner {
          */
         private final Collection<PermissionEntry> permissions;
         
-        GrantEntry(String signers, String codebase, 
+        public GrantEntry(String signers, String codebase, 
                     Collection<PrincipalEntry> pe,
                     Collection<PermissionEntry> perms){
             this.signers = signers;
@@ -611,7 +611,7 @@ class DefaultPolicyScanner {
      * @see org.apache.river.api.security.DefaultPolicyParser
      * @see org.apache.river.api.security.DefaultPolicyScanner
      */
-    static class PermissionEntry {
+    public static class PermissionEntry {
 
         /**
          * The classname part of permission clause.
@@ -634,7 +634,7 @@ class DefaultPolicyScanner {
          */
         private final String signers;
         
-        PermissionEntry(String klass, String name, String actions, String signers){
+        public PermissionEntry(String klass, String name, String actions, String signers){
             if (klass == null) throw new NullPointerException();
             this.klass= klass;
             this.name= name == null ? "" : name;

@@ -53,12 +53,12 @@ class FailingLocalLease extends LocalLease {
 	untilFailure = count;
     }
     
-    FailingLocalLease(GetArg arg) throws IOException{
+    FailingLocalLease(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	untilFailure = arg.get("untilFailure", 0L);
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	arg.get("untilFailure", 0L);
 	return arg;
     }

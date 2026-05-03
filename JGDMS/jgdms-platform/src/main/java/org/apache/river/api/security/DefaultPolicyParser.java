@@ -349,7 +349,7 @@ public class DefaultPolicyParser implements PolicyParser {
      * or to get a Certificate, 
      * or to newBuilder an instance of a successfully found class 
      */
-    Permission resolvePermission(
+    public Permission resolvePermission(
             DefaultPolicyScanner.PermissionEntry pe,
             DefaultPolicyScanner.GrantEntry ge, KeyStore ks, Properties system,
             boolean resolve) throws Exception {

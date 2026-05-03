@@ -1,0 +1,2263 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="100%"
+   viewBox="0 0 780 1326.42"
+   role="img"
+   style=""
+   version="1.1"
+   id="svg196"
+   sodipodi:docname="bae_five_host_final_topology.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview196"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.2891844"
+     inkscape:cx="389.39349"
+     inkscape:cy="600.76744"
+     inkscape:window-width="1858"
+     inkscape:window-height="1057"
+     inkscape:window-x="54"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg196" />
+  <title
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="title1">JGDMS five-host topology — Host 5 dedicated JFR telemetry service</title>
+  <desc
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="desc1">Five-host topology. Host 1 is the Jini lookup service. Host 2 is the SELinux bytecode analysis engine. Host 3 is the VerdictRegistry. Host 4 is the codebase downloader and pipeline orchestrator, proactive, triggered by ServiceRegistrar events from Host 1. Host 5 is the new JFR telemetry service, reactive, receives jdk.VirtualThreadPinned events from any number of client hosts via JERI, deduplicates and rate-limits, correlates content hash, and submits reanalysis requests to Host 2 via BAE proxy, then submits updated signed reports to Host 3 via VerdictRegistry proxy. Host 4 and Host 5 share no direct connection — they communicate independently with Host 2 and Host 3. Clients report JFR events to Host 5 and perform verdict lookups directly against Host 3.</desc>
+  <defs
+     id="defs95">
+    <marker
+       id="arrow"
+       viewBox="0 0 10 10"
+       refX="8"
+       refY="5"
+       markerWidth="6"
+       markerHeight="6"
+       orient="auto-start-reverse">
+      <path
+         d="M2 1L8 5L2 9"
+         fill="none"
+         stroke="context-stroke"
+         stroke-width="1.5"
+         stroke-linecap="round"
+         stroke-linejoin="round"
+         id="path1" />
+    </marker>
+    <mask
+       id="imagine-text-gaps-3or3so"
+       maskUnits="userSpaceOnUse">
+      <rect
+         x="0"
+         y="0"
+         width="780"
+         height="1326.42"
+         fill="white"
+         id="rect1" />
+      <rect
+         x="235.5222930908203"
+         y="8.342365264892578"
+         width="269.31365966796875"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect2" />
+      <rect
+         x="55.29139709472656"
+         y="39.52172088623047"
+         width="124.64867401123047"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect3" />
+      <rect
+         x="53.88386917114258"
+         y="56.581504821777344"
+         width="127.26815795898438"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect4" />
+      <rect
+         x="260.88751220703125"
+         y="39.52172088623047"
+         width="122.52910614013672"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect5" />
+      <rect
+         x="258.8838806152344"
+         y="56.581504821777344"
+         width="127.26815795898438"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect6" />
+      <rect
+         x="465.142333984375"
+         y="39.52172088623047"
+         width="124.64864349365234"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect7" />
+      <rect
+         x="463.88385009765625"
+         y="56.581504821777344"
+         width="127.26815795898438"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect8" />
+      <rect
+         x="140.25782775878906"
+         y="92.34236145019531"
+         width="359.9610290527344"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect9" />
+      <rect
+         x="199.0833282470703"
+         y="137.52171325683594"
+         width="251.8332977294922"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect10" />
+      <rect
+         x="33.54991149902344"
+         y="156.5814971923828"
+         width="583.0963745117188"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect11" />
+      <rect
+         x="98.41473388671875"
+         y="181.52171325683594"
+         width="133.4657211303711"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect12" />
+      <rect
+         x="43.08238220214844"
+         y="198.58151245117188"
+         width="243.0247039794922"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect13" />
+      <rect
+         x="353.8558349609375"
+         y="181.52171325683594"
+         width="202.28836059570312"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect14" />
+      <rect
+         x="312.1930236816406"
+         y="198.58151245117188"
+         width="287.24468994140625"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect15" />
+      <rect
+         x="269.3768615722656"
+         y="256.3423767089844"
+         width="110.4427490234375"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect16" />
+      <rect
+         x="234.94020080566406"
+         y="272.5815124511719"
+         width="231.45779418945312"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect17" />
+      <rect
+         x="117.85247802734375"
+         y="319.5216979980469"
+         width="415.64166259765625"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect18" />
+      <rect
+         x="23.953893661499023"
+         y="338.5815124511719"
+         width="601.691162109375"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect19" />
+      <rect
+         x="53.796451568603516"
+         y="369.5216979980469"
+         width="123.01065826416016"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect20" />
+      <rect
+         x="66.6297836303711"
+         y="388.58148193359375"
+         width="97.99808502197266"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect21" />
+      <rect
+         x="73.31967163085938"
+         y="404.5815124511719"
+         width="83.83806610107422"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect22" />
+      <rect
+         x="66.5801010131836"
+         y="420.58148193359375"
+         width="97.412353515625"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect23" />
+      <rect
+         x="205.31988525390625"
+         y="369.5216979980469"
+         width="118.9045639038086"
+         height="20.95655632019043"
+         fill="black"
+         rx="2"
+         id="rect24" />
+      <rect
+         x="214.8910675048828"
+         y="388.58148193359375"
+         width="100.40150451660156"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect25" />
+      <rect
+         x="209.3603057861328"
+         y="404.5815124511719"
+         width="112.30823516845703"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect26" />
+      <rect
+         x="220.50460815429688"
+         y="420.58148193359375"
+         width="88.18283081054688"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect27" />
+      <rect
+         x="354.9141845703125"
+         y="369.5216979980469"
+         width="121.57012939453125"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect28" />
+      <rect
+         x="373.66741943359375"
+         y="388.58148193359375"
+         width="83.99378967285156"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect29" />
+      <rect
+         x="370.496337890625"
+         y="404.5815124511719"
+         width="89.44650268554688"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect30" />
+      <rect
+         x="359.1533203125"
+         y="420.58148193359375"
+         width="113.0199203491211"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect31" />
+      <rect
+         x="497.3078308105469"
+         y="369.5216979980469"
+         width="106.786376953125"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect32" />
+      <rect
+         x="526.9818115234375"
+         y="388.58148193359375"
+         width="47.0639762878418"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect33" />
+      <rect
+         x="506.0510559082031"
+         y="404.5815124511719"
+         width="88.17274475097656"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect34" />
+      <rect
+         x="520.7720947265625"
+         y="420.58148193359375"
+         width="58.13692855834961"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect35" />
+      <rect
+         x="-16.550597190856934"
+         y="460.5815124511719"
+         width="693.7560424804688"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect36" />
+      <rect
+         x="233.88438415527344"
+         y="602.521728515625"
+         width="63.654579162597656"
+         height="20.95655632019043"
+         fill="black"
+         rx="2"
+         id="rect37" />
+      <rect
+         x="203.37417602539062"
+         y="619.5814819335938"
+         width="123.44722747802734"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect38" />
+      <rect
+         x="148.78494262695312"
+         y="663.5216674804688"
+         width="353.7698059082031"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect39" />
+      <rect
+         x="-0.4377155303955078"
+         y="682.5814819335938"
+         width="650.9478149414062"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect40" />
+      <rect
+         x="62.545379638671875"
+         y="713.5216674804688"
+         width="134.4442901611328"
+         height="20.95655632019043"
+         fill="black"
+         rx="2"
+         id="rect41" />
+      <rect
+         x="85.38043212890625"
+         y="734.5814819335938"
+         width="89.51036071777344"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect42" />
+      <rect
+         x="59.89591979980469"
+         y="752.5814819335938"
+         width="140.4046173095703"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect43" />
+      <rect
+         x="69.76516723632812"
+         y="770.5814819335938"
+         width="120.65196990966797"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect44" />
+      <rect
+         x="72.26559448242188"
+         y="788.5814819335938"
+         width="116.80486297607422"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect45" />
+      <rect
+         x="245.91514587402344"
+         y="713.5216674804688"
+         width="129.5149917602539"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect46" />
+      <rect
+         x="253.88836669921875"
+         y="734.5814819335938"
+         width="112.69019317626953"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect47" />
+      <rect
+         x="262.7640686035156"
+         y="752.5814819335938"
+         width="93.66529846191406"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect48" />
+      <rect
+         x="246.73483276367188"
+         y="770.5814819335938"
+         width="125.71460723876953"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect49" />
+      <rect
+         x="269.495361328125"
+         y="788.5814819335938"
+         width="82.52633666992188"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect50" />
+      <rect
+         x="420.9194641113281"
+         y="713.5216674804688"
+         width="79.5499267578125"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect51" />
+      <rect
+         x="435.97998046875"
+         y="736.5814819335938"
+         width="47.44573974609375"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect52" />
+      <rect
+         x="427.501708984375"
+         y="754.5814819335938"
+         width="66.24867248535156"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect53" />
+      <rect
+         x="430.62310791015625"
+         y="772.5814208984375"
+         width="59.19674301147461"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect54" />
+      <rect
+         x="424.2147216796875"
+         y="790.5814819335938"
+         width="72.90279388427734"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect55" />
+      <rect
+         x="512.3078002929688"
+         y="713.5216674804688"
+         width="106.786376953125"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect56" />
+      <rect
+         x="540.3424072265625"
+         y="738.5814819335938"
+         width="49.57921600341797"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect57" />
+      <rect
+         x="537.2127685546875"
+         y="756.5814819335938"
+         width="56.60740661621094"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect58" />
+      <rect
+         x="539.7545776367188"
+         y="774.5814819335938"
+         width="50.760868072509766"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect59" />
+      <rect
+         x="535.7720947265625"
+         y="792.5814819335938"
+         width="58.13692855834961"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect60" />
+      <rect
+         x="35.54444885253906"
+         y="826.5814208984375"
+         width="590.0422973632812"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect61" />
+      <rect
+         x="92.00366973876953"
+         y="866.3423461914062"
+         width="465.1759033203125"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect62" />
+      <rect
+         x="140.22193908691406"
+         y="686.3423461914062"
+         width="105.1121597290039"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect63" />
+      <rect
+         x="126.7681884765625"
+         y="706.34228515625"
+         width="86.5651626586914"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect64" />
+      <rect
+         x="314.17816162109375"
+         y="878.3423461914062"
+         width="112.971923828125"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect65" />
+      <rect
+         x="604.940185546875"
+         y="878.3423461914062"
+         width="142.59596252441406"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect66" />
+      <rect
+         x="69.47020721435547"
+         y="933.521728515625"
+         width="182.26316833496094"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect67" />
+      <rect
+         x="74.17300415039062"
+         y="952.5814819335938"
+         width="173.28163146972656"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect68" />
+      <rect
+         x="106.43021392822266"
+         y="983.5216674804688"
+         width="107.4822006225586"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect69" />
+      <rect
+         x="66"
+         y="1004.5814819335938"
+         width="203.73129272460938"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect70" />
+      <rect
+         x="64.94021606445312"
+         y="1022.5814208984375"
+         width="169.37261962890625"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect71" />
+      <rect
+         x="86.88214111328125"
+         y="1065.521728515625"
+         width="146.23348999023438"
+         height="20.95655632019043"
+         fill="black"
+         rx="2"
+         id="rect72" />
+      <rect
+         x="58.56601333618164"
+         y="1117.521728515625"
+         width="203.4826202392578"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect73" />
+      <rect
+         x="72.51708984375"
+         y="1134.58154296875"
+         width="174.34732055664062"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect74" />
+      <rect
+         x="69.66634368896484"
+         y="1179.521728515625"
+         width="56.66730499267578"
+         height="20.95655632019043"
+         fill="black"
+         rx="2"
+         id="rect75" />
+      <rect
+         x="62.752906799316406"
+         y="1196.58154296875"
+         width="71.06154251098633"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect76" />
+      <rect
+         x="192.2587890625"
+         y="1179.521728515625"
+         width="60.790252685546875"
+         height="20.95655632019043"
+         fill="black"
+         rx="2"
+         id="rect77" />
+      <rect
+         x="184.96449279785156"
+         y="1196.58154296875"
+         width="75.3242416381836"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect78" />
+      <rect
+         x="39.75483703613281"
+         y="1235.5216064453125"
+         width="239.4304962158203"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect79" />
+      <rect
+         x="392.3100891113281"
+         y="933.521728515625"
+         width="176.7711181640625"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect80" />
+      <rect
+         x="382.19244384765625"
+         y="952.5814819335938"
+         width="196.85714721679688"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect81" />
+      <rect
+         x="425.31243896484375"
+         y="983.5216674804688"
+         width="110.76933288574219"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect82" />
+      <rect
+         x="375.9999694824219"
+         y="1004.5814819335938"
+         width="196.9569549560547"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect83" />
+      <rect
+         x="375.9999694824219"
+         y="1022.5814208984375"
+         width="163.2821044921875"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect84" />
+      <rect
+         x="406.88214111328125"
+         y="1065.521728515625"
+         width="146.2334747314453"
+         height="20.95655632019043"
+         fill="black"
+         rx="2"
+         id="rect85" />
+      <rect
+         x="408.0495300292969"
+         y="1119.5216064453125"
+         width="143.4545135498047"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect86" />
+      <rect
+         x="369.13555908203125"
+         y="1138.5814208984375"
+         width="222.17413330078125"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect87" />
+      <rect
+         x="363.066650390625"
+         y="1189.5216064453125"
+         width="234.2301483154297"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect88" />
+      <rect
+         x="352.89935302734375"
+         y="1237.5216064453125"
+         width="255.68063354492188"
+         height="22.016340255737305"
+         fill="black"
+         rx="2"
+         id="rect89" />
+      <rect
+         x="157.98355102539062"
+         y="1280.34228515625"
+         width="334.60595703125"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect90" />
+      <rect
+         x="-21.78496551513672"
+         y="1299.5814208984375"
+         width="722.9581909179688"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect91" />
+      <rect
+         x="642.940185546875"
+         y="1076.34228515625"
+         width="32.21417999267578"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect92" />
+      <rect
+         x="642.940185546875"
+         y="1092.34228515625"
+         width="48.557594299316406"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect93" />
+      <rect
+         x="642.940185546875"
+         y="1108.34228515625"
+         width="35.63086128234863"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect94" />
+      <rect
+         x="642.940185546875"
+         y="1124.34228515625"
+         width="50.31318664550781"
+         height="18.836986541748047"
+         fill="black"
+         rx="2"
+         id="rect95" />
+    </mask>
+  </defs>
+  <!-- ═══════════════════════════════════════════════════
+     FOREIGN SERVICE PROVIDERS
+     ═══════════════════════════════════════════════════ -->
+  <text
+     x="370"
+     y="22"
+     text-anchor="middle"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto"
+     id="text95">foreign service providers — untrusted, any OS</text>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g97">
+    <rect
+       x="30"
+       y="30"
+       width="175"
+       height="46"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect96" />
+    <text
+       x="117"
+       y="50"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text96">Foreign service A</text>
+    <text
+       x="117"
+       y="66"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(95, 94, 90);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text97">registers with lookup</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g99">
+    <rect
+       x="235"
+       y="30"
+       width="175"
+       height="46"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect97" />
+    <text
+       x="322"
+       y="50"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text98">Foreign service B</text>
+    <text
+       x="322"
+       y="66"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(95, 94, 90);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text99">registers with lookup</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g101">
+    <rect
+       x="440"
+       y="30"
+       width="175"
+       height="46"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect99" />
+    <text
+       x="527"
+       y="50"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text100">Foreign service C</text>
+    <text
+       x="527"
+       y="66"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(95, 94, 90);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text101">registers with lookup</text>
+  </g>
+  <line
+     x1="117"
+     y1="76"
+     x2="200"
+     y2="120"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line101" />
+  <line
+     x1="322"
+     y1="76"
+     x2="300"
+     y2="120"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line102" />
+  <line
+     x1="527"
+     y1="76"
+     x2="410"
+     y2="120"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line103" />
+  <text
+     x="320"
+     y="106"
+     text-anchor="middle"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto"
+     id="text103">JERI · authenticated · marshalled service item + codebase URL</text>
+  <!-- ═══════════════════════════════════════════════════
+     HOST 1 — LOOKUP SERVICE
+     ═══════════════════════════════════════════════════ -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g105">
+    <rect
+       x="30"
+       y="124"
+       width="590"
+       height="106"
+       rx="16"
+       stroke-width="0.5"
+       style="fill:rgb(225, 245, 238);stroke:rgb(15, 110, 86);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect103" />
+    <text
+       x="325"
+       y="148"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(8, 80, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text104">Host 1 — Jini lookup service (any OS)</text>
+    <text
+       x="325"
+       y="166"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(15, 110, 86);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text105">stores marshalled service items opaquely · does NOT unmarshal proxies · fires ServiceRegistrar events</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g107">
+    <rect
+       x="50"
+       y="180"
+       width="230"
+       height="36"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(225, 245, 238);stroke:rgb(15, 110, 86);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect105" />
+    <text
+       x="165"
+       y="192"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(8, 80, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text106">Jini lookup service</text>
+    <text
+       x="165"
+       y="208"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(15, 110, 86);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text107">opaque store · fires events on registration</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g109">
+    <rect
+       x="310"
+       y="180"
+       width="290"
+       height="36"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect107" />
+    <text
+       x="455"
+       y="192"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text108">No analysis pipeline on Host 1</text>
+    <text
+       x="455"
+       y="208"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(95, 94, 90);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text109">no BAE proxy · no registry proxy · no URL fetching</text>
+  </g>
+  <!-- ═══════════════════════════════════════════════════
+     NETWORK — Host1 events
+     ═══════════════════════════════════════════════════ -->
+  <line
+     x1="30"
+     y1="258"
+     x2="650"
+     y2="258"
+     stroke="var(--color-border-secondary)"
+     stroke-width="1.5"
+     stroke-dasharray="8 5"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-dasharray:8px, 5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line109" />
+  <text
+     x="325"
+     y="270"
+     text-anchor="middle"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto"
+     id="text110">JERI · mutual auth</text>
+  <line
+     x1="165"
+     y1="258"
+     x2="165"
+     y2="302"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line110" />
+  <text
+     x="240"
+     y="282"
+     dominant-baseline="central"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central"
+     id="text111">ServiceRegistrar event (codebase URL)</text>
+  <!-- ═══════════════════════════════════════════════════
+     HOST 4 — CODEBASE DOWNLOADER (proactive)
+     ═══════════════════════════════════════════════════ -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g113">
+    <rect
+       x="30"
+       y="306"
+       width="590"
+       height="196"
+       rx="16"
+       stroke-width="0.5"
+       style="fill:rgb(250, 238, 218);stroke:rgb(133, 79, 11);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect111" />
+    <text
+       x="325"
+       y="330"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(99, 56, 6);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text112">Host 4 — codebase downloader service (any OS) — proactive</text>
+    <text
+       x="325"
+       y="348"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(133, 79, 11);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text113">triggered by lookup registration events · only component with outbound internet · no connection to Host 5</text>
+  </g>
+  <g
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#000000;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="g117"
+     transform="translate(0,-6.2054739)">
+    <rect
+       x="50"
+       y="366.20547"
+       width="130"
+       height="74"
+       rx="8"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#faeeda;stroke:#854f0b;stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect113" />
+    <text
+       x="115"
+       y="380"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:500;font-size:14px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#633806;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text114">Registrar listener</text>
+    <text
+       x="115"
+       y="398"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#854f0b;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text115">receives events</text>
+    <text
+       x="115"
+       y="414"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#854f0b;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text116">extracts URL</text>
+    <text
+       x="115"
+       y="430"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#854f0b;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text117">checks registry</text>
+  </g>
+  <g
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#000000;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="g121"
+     transform="translate(0,-6.9811581)">
+    <rect
+       x="200"
+       y="366.20547"
+       width="130"
+       height="74"
+       rx="8"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#faeeda;stroke:#854f0b;stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect117" />
+    <text
+       x="265"
+       y="380"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:500;font-size:14px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#633806;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text118">JAR downloader</text>
+    <text
+       x="265"
+       y="398"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#854f0b;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text119">fetch JAR bytes</text>
+    <text
+       x="265"
+       y="414"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#854f0b;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text120">internet outbound</text>
+    <text
+       x="265"
+       y="430"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#854f0b;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text121">SHA-256 hash</text>
+  </g>
+  <g
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#000000;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="g125"
+     transform="translate(-0.77568424,-7.7568424)">
+    <rect
+       x="350"
+       y="366.20547"
+       width="130"
+       height="74"
+       rx="8"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#eeedfe;stroke:#534ab7;stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect121" />
+    <text
+       x="415"
+       y="380"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:500;font-size:14px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#3c3489;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text122">BAE smart proxy</text>
+    <text
+       x="415"
+       y="398"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#534ab7;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text123">build request</text>
+    <text
+       x="415"
+       y="414"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#534ab7;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text124">send → Host 2</text>
+    <text
+       x="415"
+       y="430"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#534ab7;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text125">recv signed report</text>
+  </g>
+  <g
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#000000;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="g129"
+     transform="translate(-0.77568424,-7.7568424)">
+    <rect
+       x="500"
+       y="365.42978"
+       width="100"
+       height="74"
+       rx="8"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#e6f1fb;stroke:#185fa5;stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect125" />
+    <text
+       x="550"
+       y="380"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:500;font-size:14px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#0c447c;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text126">Registry proxy</text>
+    <text
+       x="550"
+       y="398"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#185fa5;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text127">lookup</text>
+    <text
+       x="550"
+       y="414"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#185fa5;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text128">submit report</text>
+    <text
+       x="550"
+       y="430"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#185fa5;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text129">→ Host 3</text>
+  </g>
+  <!-- Network policy Host 4 -->
+  <g
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#000000;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="g130"
+     transform="translate(0,-6.9811581)">
+    <rect
+       x="110.48337"
+       y="456.63409"
+       width="435.93054"
+       height="39.142738"
+       rx="6.2275791"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#faeeda;stroke:#854f0b;stroke-width:0.460002px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect129" />
+    <text
+       x="330"
+       y="470"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#854f0b;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text130"><tspan
+         sodipodi:role="line"
+         id="tspan196"
+         x="330"
+         y="470">network policy: outbound internet (JAR URLs) · inbound JERI from Host 1 ·</tspan><tspan
+         sodipodi:role="line"
+         id="tspan197"
+         x="330"
+         y="485">JERI to Host 2 + Host 3 · no connection to Host 5</tspan></text>
+  </g>
+  <!-- internal arrows Host 4 -->
+  <line
+     x1="180"
+     y1="397"
+     x2="198"
+     y2="397"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line130" />
+  <line
+     x1="330"
+     y1="397"
+     x2="348"
+     y2="397"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line131" />
+  <line
+     x1="480"
+     y1="397"
+     x2="498"
+     y2="397"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line132" />
+  <!-- internet fetch -->
+  <line
+     x1="265"
+     y1="434"
+     x2="265"
+     y2="596"
+     stroke="var(--color-text-secondary)"
+     stroke-width="1"
+     stroke-dasharray="4 3"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:rgb(0, 0, 0);stroke:rgb(61, 61, 58);color:rgb(0, 0, 0);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line133" />
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g134">
+    <rect
+       x="200"
+       y="598"
+       width="130"
+       height="38"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect133" />
+    <text
+       x="265"
+       y="613"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text133">Internet</text>
+    <text
+       x="265"
+       y="629"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(95, 94, 90);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text134">codebase JAR URLs</text>
+  </g>
+  <line
+     x1="265"
+     y1="598"
+     x2="265"
+     y2="582"
+     marker-end="url(#arrow)"
+     stroke="#1D9E75"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line134" />
+  <!-- ═══════════════════════════════════════════════════
+     HOST 5 — JFR TELEMETRY SERVICE (reactive)
+     ═══════════════════════════════════════════════════ -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g136">
+    <rect
+       x="19.920818"
+       y="650.0047"
+       width="612.48541"
+       height="209.99057"
+       rx="16.609774"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#eeedfe;stroke:#534ab7;stroke-width:0.509427px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect134" />
+    <text
+       x="325"
+       y="674"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text135">Host 5 — JFR telemetry service (any OS) — reactive</text>
+    <text
+       x="325"
+       y="692"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text136">dedicated · independently scalable · receives pinning events from arbitrarily many clients · no connection to Host 4</text>
+  </g>
+  <!-- JFR receiver -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g141">
+    <rect
+       x="50"
+       y="707.87842"
+       width="160"
+       height="100"
+       rx="8"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#eeedfe;stroke:#534ab7;stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect136" />
+    <text
+       x="130"
+       y="724"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text137">JFR event receiver</text>
+    <text
+       x="130"
+       y="744"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text138">JERI endpoint</text>
+    <text
+       x="130"
+       y="762"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text139">accepts pinning events</text>
+    <text
+       x="130"
+       y="780"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text140">from authed clients</text>
+    <text
+       x="130"
+       y="798"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text141">rate-limit per client</text>
+  </g>
+  <!-- Dedup + correlate -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g146">
+    <rect
+       x="230"
+       y="708.65411"
+       width="160"
+       height="100"
+       rx="8"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#eeedfe;stroke:#534ab7;stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect141" />
+    <text
+       x="310"
+       y="724"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text142">Dedup + correlate</text>
+    <text
+       x="310"
+       y="744"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text143">collapse duplicate</text>
+    <text
+       x="310"
+       y="762"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text144">events by hash</text>
+    <text
+       x="310"
+       y="780"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text145">extract contentHash</text>
+    <text
+       x="310"
+       y="798"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text146">+ stack trace</text>
+  </g>
+  <!-- BAE proxy Host 5 -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g151">
+    <rect
+       x="410"
+       y="707.87842"
+       width="100"
+       height="100"
+       rx="8"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#eeedfe;stroke:#534ab7;stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect146" />
+    <text
+       x="460"
+       y="724"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text147">BAE proxy</text>
+    <text
+       x="460"
+       y="746"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text148">trigger</text>
+    <text
+       x="460"
+       y="764"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text149">reanalysis</text>
+    <text
+       x="460"
+       y="782"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text150">→ Host 2</text>
+    <text
+       x="460"
+       y="800"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text151">recv report</text>
+  </g>
+  <!-- Registry proxy Host 5 -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g156">
+    <rect
+       x="530.01495"
+       y="702.46362"
+       width="69.970062"
+       height="112.38101"
+       rx="7.9965787"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#e6f1fb;stroke:#185fa5;stroke-width:0.529936px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect151" />
+    <text
+       x="564.2243"
+       y="716.24316"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:500;font-size:14px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#0c447c;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text152"><tspan
+         sodipodi:role="line"
+         id="tspan198"
+         x="564.2243"
+         y="716.24316">Registry</tspan><tspan
+         sodipodi:role="line"
+         id="tspan199"
+         x="564.2243"
+         y="733.74316">proxy</tspan></text>
+    <text
+       x="565"
+       y="748"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text153">submit</text>
+    <text
+       x="565"
+       y="766"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text154">updated</text>
+    <text
+       x="565"
+       y="784"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text155">verdict</text>
+    <text
+       x="565"
+       y="802"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text156">→ Host 3</text>
+  </g>
+  <!-- Network policy Host 5 -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g157">
+    <rect
+       x="50"
+       y="822"
+       width="560"
+       height="28"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(238, 237, 254);stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect156" />
+    <text
+       x="330"
+       y="836"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text157">network policy: inbound JERI from clients · JERI to Host 2 + Host 3 · no internet · no connection to Host 4</text>
+  </g>
+  <!-- internal arrows Host 5 -->
+  <line
+     x1="210"
+     y1="754"
+     x2="228"
+     y2="754"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line157" />
+  <line
+     x1="390"
+     y1="754"
+     x2="408"
+     y2="754"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line158" />
+  <line
+     x1="510"
+     y1="754"
+     x2="528"
+     y2="754"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line159" />
+  <!-- ═══════════════════════════════════════════════════
+     NETWORK — Host4+5 ↔ Host2+3
+     ═══════════════════════════════════════════════════ -->
+  <line
+     x1="30"
+     y1="868"
+     x2="660"
+     y2="868"
+     stroke="var(--color-border-secondary)"
+     stroke-width="1.5"
+     stroke-dasharray="8 5"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-dasharray:8px, 5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line160" />
+  <text
+     x="325"
+     y="880"
+     text-anchor="middle"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto"
+     id="text160">JERI · mutual auth · Host 2 ↔ Host 3 no direct path · Host 4 ↔ Host 5 no direct path</text>
+  <!-- Host4 BAE → Host2 -->
+  <line
+     x1="390"
+     y1="502"
+     x2="185"
+     y2="916"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line161" />
+  <text
+     x="240"
+     y="705.42981"
+     text-anchor="end"
+     fill="var(--color-text-secondary)"
+     style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:end;opacity:1;fill:#3d3d3a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="text161">AnalysisRequest</text>
+  <line
+     x1="165"
+     y1="916"
+     x2="370"
+     y2="502"
+     marker-end="url(#arrow)"
+     stroke="#1D9E75"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line162" />
+  <text
+     x="204.12158"
+     y="716.89728"
+     text-anchor="end"
+     fill="#0F6E56"
+     style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:end;opacity:1;fill:#3d3d3a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="text162">signed report</text>
+  <!-- Host4 registry → Host3 -->
+  <line
+     x1="540"
+     y1="502"
+     x2="530"
+     y2="916"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line163" />
+  <!-- Host5 BAE → Host2 -->
+  <line
+     x1="450"
+     y1="868"
+     x2="210"
+     y2="916"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line164" />
+  <text
+     x="370"
+     y="892"
+     text-anchor="middle"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto"
+     id="text164">reanalysis request</text>
+  <line
+     x1="190"
+     y1="916"
+     x2="430"
+     y2="868"
+     marker-end="url(#arrow)"
+     stroke="#1D9E75"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line165" />
+  <!-- Host5 registry → Host3 -->
+  <line
+     x1="560"
+     y1="868"
+     x2="548"
+     y2="916"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line166" />
+  <text
+     x="610"
+     y="892"
+     text-anchor="start"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="text166">submit updated verdict</text>
+  <!-- ═══════════════════════════════════════════════════
+     HOST 2 — SELinux ANALYSIS HOST
+     ═══════════════════════════════════════════════════ -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g168">
+    <rect
+       x="30"
+       y="920"
+       width="260"
+       height="320"
+       rx="16"
+       stroke-width="0.5"
+       style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect166" />
+    <text
+       x="160"
+       y="944"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(113, 43, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text167">Host 2 — SELinux analysis</text>
+    <text
+       x="160"
+       y="962"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(153, 60, 29);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text168">inbound: Host 4 + Host 5 only</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g171">
+    <rect
+       x="50"
+       y="974"
+       width="220"
+       height="72"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(250, 236, 231);stroke:rgb(153, 60, 29);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect168" />
+    <text
+       x="160"
+       y="994"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(113, 43, 19);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text169">SELinux policy</text>
+    <text
+       x="70"
+       y="1014"
+       dominant-baseline="central"
+       style="fill:rgb(153, 60, 29);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central"
+       id="text170">inbound: JERI from Host 4 + Host 5</text>
+    <text
+       x="70"
+       y="1032"
+       dominant-baseline="central"
+       style="fill:rgb(153, 60, 29);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central"
+       id="text171">outbound: none · no internet</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g172">
+    <rect
+       x="50"
+       y="1060"
+       width="220"
+       height="32"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect171" />
+    <text
+       x="160"
+       y="1076"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text172">JERI server skeleton</text>
+  </g>
+  <line
+     x1="160"
+     y1="1092"
+     x2="160"
+     y2="1108"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line172" />
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g174">
+    <rect
+       x="50"
+       y="1110"
+       width="220"
+       height="44"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(238, 237, 254);stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect172" />
+    <text
+       x="160"
+       y="1128"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text173">BytecodeAnalysisEngineImpl</text>
+    <text
+       x="160"
+       y="1144"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(83, 74, 183);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text174">analyzeJar(AnalysisRequest)</text>
+  </g>
+  <line
+     x1="160"
+     y1="1154"
+     x2="160"
+     y2="1170"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line174" />
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g176">
+    <rect
+       x="50"
+       y="1172"
+       width="96"
+       height="44"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect174" />
+    <text
+       x="98"
+       y="1190"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text175">Phase 1</text>
+    <text
+       x="98"
+       y="1206"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(95, 94, 90);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text176">ASM index</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g178">
+    <rect
+       x="174"
+       y="1172"
+       width="96"
+       height="44"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect176" />
+    <text
+       x="222"
+       y="1190"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text177">Phase 2</text>
+    <text
+       x="222"
+       y="1206"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(95, 94, 90);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text178">BFS visitors</text>
+  </g>
+  <line
+     x1="146"
+     y1="1194"
+     x2="172"
+     y2="1194"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line178" />
+  <line
+     x1="160"
+     y1="1216"
+     x2="160"
+     y2="1230"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line179" />
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g179">
+    <rect
+       x="50"
+       y="1232"
+       width="220"
+       height="32"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(238, 237, 254);stroke:rgb(83, 74, 183);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect179" />
+    <text
+       x="160"
+       y="1246"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(60, 52, 137);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text179">JarAnalysisReport (engine signed)</text>
+  </g>
+  <!-- ═══════════════════════════════════════════════════
+     HOST 3 — VERDICT REGISTRY
+     ═══════════════════════════════════════════════════ -->
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g181">
+    <rect
+       x="340"
+       y="920"
+       width="280"
+       height="320"
+       rx="16"
+       stroke-width="0.5"
+       style="fill:rgb(230, 241, 251);stroke:rgb(24, 95, 165);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect180" />
+    <text
+       x="480"
+       y="944"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(12, 68, 124);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text180">Host 3 — VerdictRegistry</text>
+    <text
+       x="480"
+       y="962"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text181">inbound: Host 4 + Host 5 + clients</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g184">
+    <rect
+       x="360"
+       y="974"
+       width="240"
+       height="72"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(230, 241, 251);stroke:rgb(24, 95, 165);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect181" />
+    <text
+       x="480"
+       y="994"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(12, 68, 124);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text182">Network policy</text>
+    <text
+       x="380"
+       y="1014"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central"
+       id="text183">inbound: Host 4 + Host 5 (submit)</text>
+    <text
+       x="380"
+       y="1032"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:central"
+       id="text184">inbound: all clients (lookup)</text>
+  </g>
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g185">
+    <rect
+       x="360"
+       y="1060"
+       width="240"
+       height="32"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect184" />
+    <text
+       x="480"
+       y="1076"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text185">JERI server skeleton</text>
+  </g>
+  <line
+     x1="480"
+     y1="1092"
+     x2="480"
+     y2="1108"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line185" />
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g187">
+    <rect
+       x="360"
+       y="1110"
+       width="240"
+       height="56"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(230, 241, 251);stroke:rgb(24, 95, 165);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect185" />
+    <text
+       x="480"
+       y="1130"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(12, 68, 124);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text186">VerdictRegistryImpl</text>
+    <text
+       x="480"
+       y="1148"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(24, 95, 165);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:central"
+       id="text187">lookup(contentHash) · submit(report)</text>
+  </g>
+  <line
+     x1="480"
+     y1="1166"
+     x2="480"
+     y2="1182"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line187" />
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g188">
+    <rect
+       x="360"
+       y="1184"
+       width="240"
+       height="32"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(241, 239, 232);stroke:rgb(95, 94, 90);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect187" />
+    <text
+       x="480"
+       y="1200"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(68, 68, 65);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text188">Verify engine signature on submit</text>
+  </g>
+  <line
+     x1="480"
+     y1="1216"
+     x2="480"
+     y2="1232"
+     marker-end="url(#arrow)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line188" />
+  <g
+     style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="g189">
+    <rect
+       x="360"
+       y="1234"
+       width="240"
+       height="32"
+       rx="8"
+       stroke-width="0.5"
+       style="fill:rgb(230, 241, 251);stroke:rgb(24, 95, 165);color:rgb(0, 0, 0);stroke-width:0.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+       id="rect188" />
+    <text
+       x="480"
+       y="1248"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="fill:rgb(12, 68, 124);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:14px;font-weight:500;text-anchor:middle;dominant-baseline:central"
+       id="text189">Persistent store — keyed by SHA-256</text>
+  </g>
+  <!-- ═══════════════════════════════════════════════════
+     CLIENTS
+     ═══════════════════════════════════════════════════ -->
+  <line
+     x1="30"
+     y1="1282"
+     x2="660"
+     y2="1282"
+     stroke="var(--color-border-secondary)"
+     stroke-width="1"
+     stroke-dasharray="6 4"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:rgb(0, 0, 0);stroke:rgba(31, 30, 29, 0.3);color:rgb(0, 0, 0);stroke-width:1px;stroke-dasharray:6px, 4px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line189" />
+  <text
+     x="325"
+     y="1294"
+     text-anchor="middle"
+     fill="var(--color-text-secondary)"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto"
+     id="text190">clients — ProxyCodebaseSPI · JFR · VerdictRegistry proxy</text>
+  <g
+     style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#000000;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+     id="g191"
+     transform="translate(12.410948,-0.77568424)">
+    <rect
+       x="-4.8919139"
+       y="1302.0138"
+       width="692.11084"
+       height="13.972246"
+       rx="6.6978469"
+       stroke-width="0.5"
+       style="color:#000000;font-weight:400;font-size:16px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:auto;text-anchor:start;opacity:1;fill:#f1efe8;stroke:#5f5e5a;stroke-width:0.527754px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="rect190" />
+    <text
+       x="340"
+       y="1309"
+       text-anchor="middle"
+       dominant-baseline="central"
+       style="color:#000000;font-weight:400;font-size:12px;font-family:'Anthropic Sans', '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;dominant-baseline:central;text-anchor:middle;opacity:1;fill:#5f5e5a;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter"
+       id="text191">discover Host 1 → ProxyCodebaseSPI lookup Host 3 → unmarshal or refuse · JFR pinning event → report to Host 5 (advisory only)</text>
+  </g>
+  <!-- client → Host1 -->
+  <line
+     x1="150"
+     y1="1302"
+     x2="165"
+     y2="232"
+     marker-end="url(#arrow)"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line191" />
+  <!-- client → Host3 lookup -->
+  <line
+     x1="470"
+     y1="1302"
+     x2="470"
+     y2="1270"
+     marker-end="url(#arrow)"
+     stroke="#185FA5"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(115, 114, 108);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line192" />
+  <!-- client → Host5 JFR -->
+  <line
+     x1="630"
+     y1="1302"
+     x2="630"
+     y2="860"
+     stroke="#7B52AB"
+     stroke-width="1"
+     stroke-dasharray="4 3"
+     marker-end="url(#arrow)"
+     fill="none"
+     mask="url(#imagine-text-gaps-3or3so)"
+     style="fill:none;stroke:rgb(123, 82, 171);color:rgb(0, 0, 0);stroke-width:1px;stroke-dasharray:4px, 3px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="line193" />
+  <text
+     x="648"
+     y="1090"
+     text-anchor="start"
+     fill="#7B52AB"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="text193">JFR</text>
+  <text
+     x="648"
+     y="1106"
+     text-anchor="start"
+     fill="#7B52AB"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="text194">events</text>
+  <text
+     x="648"
+     y="1122"
+     text-anchor="start"
+     fill="#7B52AB"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="text195">JERI</text>
+  <text
+     x="648"
+     y="1138"
+     text-anchor="start"
+     fill="#7B52AB"
+     style="fill:rgb(61, 61, 58);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:start;dominant-baseline:auto"
+     id="text196">authed</text>
+  <metadata
+     id="metadata199">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>JGDMS five-host topology — Host 5 dedicated JFR telemetry service</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

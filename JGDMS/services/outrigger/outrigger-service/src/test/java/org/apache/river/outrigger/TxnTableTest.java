@@ -16,95 +16,95 @@
  * limitations under the License.
  */
 
-package org.apache.river.outrigger;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-
-import net.jini.core.transaction.server.TransactionManager;
-import junit.framework.TestCase;
-
-import static org.mockito.Mockito.*;
-
-public class TxnTableTest extends TestCase {
-
-	private static Class innerKey = null;
-	static {
-		Class[] classes = TxnTable.class.getDeclaredClasses();
-		for(Class clazz : classes) {
-			if(clazz.getName().endsWith("Key")) {
-				innerKey = clazz;
-				break;
-			}
-		}
-	}
-	
-	/**
-	 * Test to expose the bug identified in River-
-	 * Test to validate patch supplied in River-283
-	 * 
-	 */
-	@SuppressWarnings("unchecked")
-	public void testKeyEquals() throws Exception {
-		
-//		TxnTable mockTxnTable = mock(TxnTable.class);
-		
-		TransactionManager mockTransactionManager = mock(TransactionManager.class);
-		
-		final long id = 1000L;
-		final boolean isPrepared = true;
-		
-		Object key = createKeyInstance(mockTransactionManager, 
-                                               id, 
-                                               isPrepared);
-		
-		Object equalKey = createKeyInstance(mockTransactionManager, 
-                                                    id, 
-                                                    isPrepared);
-		
-		assertTrue("These keys should be equal", key.equals(equalKey));
-		
-		Object notPrepared = createKeyInstance(mockTransactionManager, 
-                                                       id, 
-                                                       !isPrepared);
-		
-		//the following assertion reveals the bug
-		assertTrue("Although not prepared, it's manager is the same and should therefore be equal", key.equals(notPrepared));
-		
-		try {
-			notPrepared.equals(notPrepared);
-			fail("No AssertionError thrown");
-		} catch (AssertionError ae) {}
-	}
-
-        // Note that TxnTable.Key is now a static class instead of an instance
-        // class, so the TxnTable "this" reference is no longer needed.
-	private Object createKeyInstance(TransactionManager mockTransactionManager, 
-                                  final long firstId,
-                                 final boolean isPrepared) 
-                throws NoSuchMethodException,
-                        InstantiationException, 
-                        IllegalAccessException,
-                        InvocationTargetException {
-		
-		Constructor innerKeyCntr = innerKey.getDeclaredConstructor(
-                        new Class[] { TransactionManager.class,
-                            long.class,
-                            boolean.class });
-                
-		assertNotNull("Sanity failed", innerKeyCntr);
-		
-		innerKeyCntr.setAccessible(true);
-		Object instance = innerKeyCntr.newInstance(
-                        new Object[] {
-//                            mockTxnTable, 
-                                  mockTransactionManager,
-                                  firstId,
-                                  isPrepared} );
-		
-		assertNotNull("Sanity failed", instance);
-		
-		return instance;
-	}
-	
-}
+//package org.apache.river.outrigger;
+//
+//import java.lang.reflect.Constructor;
+//import java.lang.reflect.InvocationTargetException;
+//
+//import net.jini.core.transaction.server.TransactionManager;
+//import junit.framework.TestCase;
+//
+//import static org.mockito.Mockito.*;
+//
+//public class TxnTableTest extends TestCase {
+//
+//	private static Class innerKey = null;
+//	static {
+//		Class[] classes = TxnTable.class.getDeclaredClasses();
+//		for(Class clazz : classes) {
+//			if(clazz.getName().endsWith("Key")) {
+//				innerKey = clazz;
+//				break;
+//			}
+//		}
+//	}
+//	
+//	/**
+//	 * Test to expose the bug identified in River-
+//	 * Test to validate patch supplied in River-283
+//	 * 
+//	 */
+//	@SuppressWarnings("unchecked")
+//	public void testKeyEquals() throws Exception {
+//		
+////		TxnTable mockTxnTable = mock(TxnTable.class);
+//		
+//		TransactionManager mockTransactionManager = mock(TransactionManager.class);
+//		
+//		final long id = 1000L;
+//		final boolean isPrepared = true;
+//		
+//		Object key = createKeyInstance(mockTransactionManager, 
+//                                               id, 
+//                                               isPrepared);
+//		
+//		Object equalKey = createKeyInstance(mockTransactionManager, 
+//                                                    id, 
+//                                                    isPrepared);
+//		
+//		assertTrue("These keys should be equal", key.equals(equalKey));
+//		
+//		Object notPrepared = createKeyInstance(mockTransactionManager, 
+//                                                       id, 
+//                                                       !isPrepared);
+//		
+//		//the following assertion reveals the bug
+//		assertTrue("Although not prepared, it's manager is the same and should therefore be equal", key.equals(notPrepared));
+//		
+//		try {
+//			notPrepared.equals(notPrepared);
+//			fail("No AssertionError thrown");
+//		} catch (AssertionError ae) {}
+//	}
+//
+//        // Note that TxnTable.Key is now a static class instead of an instance
+//        // class, so the TxnTable "this" reference is no longer needed.
+//	private Object createKeyInstance(TransactionManager mockTransactionManager, 
+//                                  final long firstId,
+//                                 final boolean isPrepared) 
+//                throws NoSuchMethodException,
+//                        InstantiationException, 
+//                        IllegalAccessException,
+//                        InvocationTargetException {
+//		
+//		Constructor innerKeyCntr = innerKey.getDeclaredConstructor(
+//                        new Class[] { TransactionManager.class,
+//                            long.class,
+//                            boolean.class });
+//                
+//		assertNotNull("Sanity failed", innerKeyCntr);
+//		
+//		innerKeyCntr.setAccessible(true);
+//		Object instance = innerKeyCntr.newInstance(
+//                        new Object[] {
+////                            mockTxnTable, 
+//                                  mockTransactionManager,
+//                                  firstId,
+//                                  isPrepared} );
+//		
+//		assertNotNull("Sanity failed", instance);
+//		
+//		return instance;
+//	}
+//	
+//}

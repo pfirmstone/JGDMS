@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package org.apache.river.api.security.test;
 
 import java.net.URL;
 import java.security.PermissionCollection;

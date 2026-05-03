@@ -51,7 +51,7 @@ import org.apache.river.api.net.Uri;
  * for various policy and configuration providers. 
  * 
  */
- class PolicyUtils {
+ public class PolicyUtils {
 
     // No reason to instantiate
     private PolicyUtils() {}
@@ -113,7 +113,7 @@ import org.apache.river.api.net.Uri;
      * Specific exception to signal that property expansion failed 
      * due to unknown key. 
      */
-    static class ExpansionFailedException extends Exception {
+    public static class ExpansionFailedException extends Exception {
 
         /**
          * @serial
@@ -123,7 +123,7 @@ import org.apache.river.api.net.Uri;
         /** 
          * Constructor with user-friendly message parameter. 
          */
-        ExpansionFailedException(String message) {
+        public ExpansionFailedException(String message) {
             super(message);
         }
 
@@ -186,7 +186,7 @@ import org.apache.river.api.net.Uri;
      * <code>expand(str, properties).replace(File.separatorChar, '/')</code>.
      * @see #expand(String, Properties)
      */
-    static String expandURL(String str, Properties properties)
+    public static String expandURL(String str, Properties properties)
             throws ExpansionFailedException {
         return expand(str, properties).replace(File.separatorChar, '/');
     }
@@ -251,7 +251,7 @@ import org.apache.river.api.net.Uri;
      * Such functionality is applicable to security policy files, for example.
      * @see org.apache.river.api.security.PolicyUtils#expandGeneral(String, GeneralExpansionHandler)
      */
-    static interface GeneralExpansionHandler {
+    public static interface GeneralExpansionHandler {
 
         /**
          * Resolves general expansion expressions of the form ${{protocol:data}}.
@@ -275,7 +275,7 @@ import org.apache.river.api.net.Uri;
      * @return expanded string
      * @throws ExpansionFailedException
      */
-    static String expandGeneral(String str,
+    public static String expandGeneral(String str,
             GeneralExpansionHandler handler) throws ExpansionFailedException {
         final String START_MARK = "${{"; //$NON-NLS-1$
         final String END_MARK = "}}"; //$NON-NLS-1$
@@ -332,7 +332,7 @@ import org.apache.river.api.net.Uri;
      * properties expansion, true otherwise.
      * @see #expand(String, Properties)  
      */
-    static boolean canExpandProperties() {
+    public static boolean canExpandProperties() {
         return !Util.equalsIgnoreCase(FALSE,AccessController
                 .doPrivileged(new SecurityPropertyAccessor(POLICY_EXPAND)));
     }
@@ -369,7 +369,7 @@ import org.apache.river.api.net.Uri;
      * @param securityUrlPrefix prefix to numbered locations in security properties
      * @return array of URLs to provider's configuration files, may be empty.
      */
-    static URL[] getPolicyURLs(final Properties system,
+    public static URL[] getPolicyURLs(final Properties system,
             final String systemUrlKey, final String securityUrlPrefix) {
 
         final List<URL> urls = new ArrayList<URL>();
@@ -451,7 +451,7 @@ import org.apache.river.api.net.Uri;
      * @throws IllegalArgumentException if no suitable constructor found
      * @throws InstantiationException any exception thrown by Constructor.newInstance()
      */
-    static Permission instantiatePermission(Class<?> targetType,
+    public static Permission instantiatePermission(Class<?> targetType,
             String targetName, String targetActions)
             throws InstantiationException, IllegalAccessException, 
             IllegalArgumentException, InvocationTargetException 

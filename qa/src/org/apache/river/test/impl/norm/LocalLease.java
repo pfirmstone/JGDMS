@@ -194,7 +194,7 @@ class LocalLease implements Lease, Serializable, ProxyAccessor {
 	this.proxy = proxy;
     }
     
-    LocalLease(GetArg arg) throws IOException {
+    LocalLease(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("renewLimit", 0L),
 	    arg.get("bundle", 0L),
 	    arg.get("serialFormat", 0),

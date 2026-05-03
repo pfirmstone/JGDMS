@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package org.apache.river.api.security.test;
 
 import java.net.MalformedURLException;
 import java.security.CodeSource;
@@ -33,14 +33,15 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import tests.support.MyPrincipal;
+import org.apache.river.api.security.*;
 
 /**
  *
  * @author peter
  */
 public class URIGrantTest {
-    URIGrant instance;
-    URIGrant instance1;
+    PermissionGrant instance;
+    PermissionGrant instance1;
     ProtectionDomain pd;
     ProtectionDomain pd1;
     public URIGrantTest() {
@@ -59,15 +60,22 @@ public class URIGrantTest {
         String [] u = new String[2];
         u[0] = "file:/foo/*";
         u[1] = "file:/C:/FOO/*";
-        instance = new URIGrant(u, new Certificate[0], new String[0], new Principal[0], new Permission[0]);
+        PermissionGrantBuilder b = PermissionGrantBuilder.newBuilder();
+        instance = b.uri(u[0]).uri(u[1]).certificates(new Certificate[0], new String[0])
+                .principals(new Principal[0]).permissions(new Permission[0]).context(PermissionGrantBuilder.URI).build();
+        instance1 = b.reset().uri("file:/home/lib/harness-killer.jar")
+                .certificates(new Certificate[0], new String[0])
+                .principals(new Principal[]{new MyPrincipal("CN=Phoenix")})
+                .permissions(new Permission[0]).context(PermissionGrantBuilder.URI).build();
+        //instance = new URIGrant(u, new Certificate[0], new String[0], new Principal[0], new Permission[0]);
         pd = new ProtectionDomain( new CodeSource(new URL("file:/foo/bar"), (Certificate []) null), null);
-        instance1 = new URIGrant(
-                new String[]{"file:/home/lib/harness-killer.jar"},
-                new Certificate[0],
-                new String[0],
-                new Principal[]{new MyPrincipal("CN=Phoenix")},
-                new Permission[0]
-        );
+//        instance1 = new URIGrant(
+//                new String[]{"file:/home/lib/harness-killer.jar"},
+//                new Certificate[0],
+//                new String[0],
+//                new Principal[]{new MyPrincipal("CN=Phoenix")},
+//                new Permission[0]
+//        );
         pd1 = new ProtectionDomain(
                 new CodeSource(new URL("file:/home/lib/harness-killer.jar"), (Certificate[]) null),
                 null,

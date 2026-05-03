@@ -44,7 +44,7 @@ import java.util.Properties;
  * @author Peter Firmstone.
  * @since 3.0.0
  */
-class Segment {
+public class Segment {
     private Segment previous;
     private Segment [] divisions;
     private String original;

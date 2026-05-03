@@ -76,7 +76,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 3.0.0
  * @serial permsMap
  */
-final class ConcurrentPermissions extends PermissionCollection {
+public final class ConcurrentPermissions extends PermissionCollection {
 
     /* unresolved is never returned or allowed to escape, it's elements() method
      * isn't used to return an Enumeration yet 
@@ -97,7 +97,7 @@ final class ConcurrentPermissions extends PermissionCollection {
      * a Permissions object instance to handle all UnresolvedPermissions.
      */    
     
-    ConcurrentPermissions(){
+    public ConcurrentPermissions(){
         permsMap = new ConcurrentHashMap<Class<?>, PermissionCollection>();
         // Bite the bullet, get the pain out of the way in the beginning!
         unresolved = new PermissionPendingResolutionCollection();

@@ -51,12 +51,12 @@ class DestructingLocalLease extends LocalLease {
 	untilDestruction = count;
     }
     
-    private static GetArg check(GetArg arg) throws IOException {
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	arg.get("untilDestruction", 0L );
 	return arg;
     }
     
-    DestructingLocalLease(GetArg arg) throws IOException{
+    DestructingLocalLease(GetArg arg) throws IOException, ClassNotFoundException {
 	super(check(arg));
 	untilDestruction = arg.get("untilDestruction", 0L);
 	if (untilDestruction > 0) {

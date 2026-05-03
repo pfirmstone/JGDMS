@@ -39,12 +39,12 @@ import java.security.Principal;
  * @see PermissionGrant
  * @see org.apache.river.api.security.ConcurrentPolicyFile
  */
-final class UnresolvedPrincipal implements Principal {
+public final class UnresolvedPrincipal implements Principal {
 
     /** 
      * Wildcard value denotes any class and/or any name. 
      */
-    static final String WILDCARD = DefaultPolicyScanner.PrincipalEntry.WILDCARD;
+    public static final String WILDCARD = DefaultPolicyScanner.PrincipalEntry.WILDCARD;
 
     // Class name
     private final String klass;
@@ -60,7 +60,7 @@ final class UnresolvedPrincipal implements Principal {
      * @throws IllegalArgumentException if <code>klass</code> value 
      * is <code>null </code> or is empty string 
      */
-    UnresolvedPrincipal(String klass, String name) {
+    public UnresolvedPrincipal(String klass, String name) {
         if (klass == null || klass.length() == 0) {
             throw new IllegalArgumentException(Messages.getString("security.91")); //$NON-NLS-1$
         }

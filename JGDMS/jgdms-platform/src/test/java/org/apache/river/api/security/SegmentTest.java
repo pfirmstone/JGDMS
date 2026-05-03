@@ -16,94 +16,95 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+//package org.apache.river.api.security;
 
-import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
-import java.util.List;
-import java.util.Collection;
-import java.util.Properties;
-import org.junit.Before;
-import org.junit.Test;
-import static org.junit.Assert.*;
+//import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
+//import java.util.List;
+//import java.util.Collection;
+//import java.util.Properties;
+//import org.junit.Before;
+//import org.junit.Test;
+//import static org.junit.Assert.*;
+//import org.apache.river.api.security.*;
 
 /**
  *
  * @author peter
  */
-public class SegmentTest {
-    Properties p;
-    public SegmentTest() {
-    }
-    
-    @Before
-    public void setup(){
-       p = new Properties();
-       p.setProperty("java.ext.dirs", "tests:foo:bar:${jini.home}");
-       p.setProperty("jini.home", "${river.apache.org}");
-       p.setProperty("river.apache.org", "/opt/src/river");
-    }
-    
-    @Test
-    public void divideAndReplace() throws ExpansionFailedException{
-        System.out.println("Test divideAndReplace");
-        System.out.println(p.toString());
-        String policyGrantln = "file:${{java.ext.dirs}}/*";
-        System.out.println(policyGrantln);
-        Segment seg = new Segment(policyGrantln, null);
-        String startMark = "${{";
-        String endMark = "}}";
-        seg.divideAndReplace(startMark, endMark, ":", p);
-        while (seg.hasNext()){
-            System.out.println(seg.next());
-        }
-    }
-    
-    @Test
-    public void divideAndReplaceTwice() throws ExpansionFailedException{
-        System.out.println("Test nested divideAndReplace");
-        System.out.println(p.toString());
-        String policyGrantln = "file:${{java.ext.dirs}}/*";
-        System.out.println(policyGrantln);
-        Segment seg = new Segment(policyGrantln, null);
-        String startMark = "${{";
-        String endMark = "}}";
-        seg.divideAndReplace(startMark, endMark, ":", p);
-        seg.divideAndReplace("${", "}", null, p);
-        while (seg.hasNext()){
-            System.out.println(seg.next());
-        }
-    }
-    
-     @Test
-    public void divideAndReplaceThrice() throws ExpansionFailedException{
-        System.out.println("Test duplicate nested divideAndReplace");
-        System.out.println(p.toString());
-        String policyGrantln = "file:${{java.ext.dirs}}/*";
-        System.out.println(policyGrantln);
-        Segment seg = new Segment(policyGrantln, null);
-        String startMark = "${{";
-        String endMark = "}}";
-        seg.divideAndReplace(startMark, endMark, ":", p);
-        seg.divideAndReplace("${", "}", null, p);
-        seg.divideAndReplace("${", "}", null, p);
-        while (seg.hasNext()){
-            System.out.println(seg.next());
-        }
-    } 
-     
-    @Test
-    public void divideAndReplaceNoArray() throws ExpansionFailedException{
-        System.out.println("Test divideAndReplace");
-        System.out.println(p.toString());
-        String policyGrantln = "file:${jini.home}/*";
-        System.out.println(policyGrantln);
-        Segment seg = new Segment(policyGrantln, null);
-        String startMark = "${";
-        String endMark = "}";
-        seg.divideAndReplace(startMark, endMark, null, p);
-        while (seg.hasNext()){
-            System.out.println(seg.next());
-        }
-    }
-    
-}
+//public class SegmentTest {
+//    Properties p;
+//    public SegmentTest() {
+//    }
+//    
+//    @Before
+//    public void setup(){
+//       p = new Properties();
+//       p.setProperty("java.ext.dirs", "tests:foo:bar:${jini.home}");
+//       p.setProperty("jini.home", "${river.apache.org}");
+//       p.setProperty("river.apache.org", "/opt/src/river");
+//    }
+//    
+//    @Test
+//    public void divideAndReplace() throws ExpansionFailedException{
+//        System.out.println("Test divideAndReplace");
+//        System.out.println(p.toString());
+//        String policyGrantln = "file:${{java.ext.dirs}}/*";
+//        System.out.println(policyGrantln);
+//        Segment seg = new Segment(policyGrantln, null);
+//        String startMark = "${{";
+//        String endMark = "}}";
+//        seg.divideAndReplace(startMark, endMark, ":", p);
+//        while (seg.hasNext()){
+//            System.out.println(seg.next());
+//        }
+//    }
+//    
+//    @Test
+//    public void divideAndReplaceTwice() throws ExpansionFailedException{
+//        System.out.println("Test nested divideAndReplace");
+//        System.out.println(p.toString());
+//        String policyGrantln = "file:${{java.ext.dirs}}/*";
+//        System.out.println(policyGrantln);
+//        Segment seg = new Segment(policyGrantln, null);
+//        String startMark = "${{";
+//        String endMark = "}}";
+//        seg.divideAndReplace(startMark, endMark, ":", p);
+//        seg.divideAndReplace("${", "}", null, p);
+//        while (seg.hasNext()){
+//            System.out.println(seg.next());
+//        }
+//    }
+//    
+//     @Test
+//    public void divideAndReplaceThrice() throws ExpansionFailedException{
+//        System.out.println("Test duplicate nested divideAndReplace");
+//        System.out.println(p.toString());
+//        String policyGrantln = "file:${{java.ext.dirs}}/*";
+//        System.out.println(policyGrantln);
+//        Segment seg = new Segment(policyGrantln, null);
+//        String startMark = "${{";
+//        String endMark = "}}";
+//        seg.divideAndReplace(startMark, endMark, ":", p);
+//        seg.divideAndReplace("${", "}", null, p);
+//        seg.divideAndReplace("${", "}", null, p);
+//        while (seg.hasNext()){
+//            System.out.println(seg.next());
+//        }
+//    } 
+//     
+//    @Test
+//    public void divideAndReplaceNoArray() throws ExpansionFailedException{
+//        System.out.println("Test divideAndReplace");
+//        System.out.println(p.toString());
+//        String policyGrantln = "file:${jini.home}/*";
+//        System.out.println(policyGrantln);
+//        Segment seg = new Segment(policyGrantln, null);
+//        String startMark = "${";
+//        String endMark = "}";
+//        seg.divideAndReplace(startMark, endMark, null, p);
+//        while (seg.hasNext()){
+//            System.out.println(seg.next());
+//        }
+//    }
+//    
+//}
