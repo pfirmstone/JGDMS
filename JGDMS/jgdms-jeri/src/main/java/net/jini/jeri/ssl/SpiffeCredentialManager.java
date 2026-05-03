@@ -323,16 +323,22 @@ public final class SpiffeCredentialManager implements AutoCloseable {
             String pem = new String(Files.readAllBytes(svidKeyPem), StandardCharsets.US_ASCII);
 
             if (pem.contains(BEGIN_PRIVATE_KEY)) {
-                // PKCS#8 — algorithm-agnostic
+                // PKCS#8 — algorithm-agnostic.  Try RSA and EC first (most common
+                // for SPIFFE SVIDs), then fall back to all registered KeyFactory
+                // providers.
                 byte[] der = decodePemBlock(pem, BEGIN_PRIVATE_KEY, END_PRIVATE_KEY);
                 try {
                     return KeyFactory.getInstance(RSA_KEY_ALGORITHM)
                             .generatePrivate(new PKCS8EncodedKeySpec(der));
-                } catch (GeneralSecurityException ignored) { }
+                } catch (GeneralSecurityException e) {
+                    logger.log(Level.FINE, "RSA KeyFactory rejected PKCS#8 key; trying EC", e);
+                }
                 try {
                     return KeyFactory.getInstance(EC_KEY_ALGORITHM)
                             .generatePrivate(new PKCS8EncodedKeySpec(der));
-                } catch (GeneralSecurityException ignored) { }
+                } catch (GeneralSecurityException e) {
+                    logger.log(Level.FINE, "EC KeyFactory rejected PKCS#8 key; trying other providers", e);
+                }
                 // Try other registered KeyFactory providers
                 for (java.security.Provider p : java.security.Security.getProviders()) {
                     for (java.security.Provider.Service svc : p.getServices()) {
@@ -340,7 +346,11 @@ public final class SpiffeCredentialManager implements AutoCloseable {
                             try {
                                 return KeyFactory.getInstance(svc.getAlgorithm())
                                         .generatePrivate(new PKCS8EncodedKeySpec(der));
-                            } catch (GeneralSecurityException ignored2) { }
+                            } catch (GeneralSecurityException e) {
+                                logger.log(Level.FINE,
+                                        "KeyFactory {0} rejected PKCS#8 key",
+                                        svc.getAlgorithm());
+                            }
                         }
                     }
                 }
@@ -410,7 +420,12 @@ public final class SpiffeCredentialManager implements AutoCloseable {
          * Wraps a PKCS#1 RSA private key DER blob in a minimal PKCS#8
          * ({@code PrivateKeyInfo}) DER envelope.
          *
-         * <p>PKCS#8 structure:
+         * <p>Java's {@link java.security.KeyFactory} for RSA only accepts
+         * PKCS#8 ({@code PrivateKeyInfo}) DER; it does not accept the
+         * legacy PKCS#1 / SEC1 format directly.  This method constructs
+         * the minimal DER wrapper described in RFC 5208 §5.
+         *
+         * <p>PKCS#8 / RFC 5208 {@code PrivateKeyInfo} structure:
          * <pre>
          * SEQUENCE {
          *   INTEGER { 0 }             -- version
@@ -421,6 +436,10 @@ public final class SpiffeCredentialManager implements AutoCloseable {
          *   OCTET_STRING { &lt;pkcs1DER&gt; }
          * }
          * </pre>
+         *
+         * @param pkcs1 PKCS#1 RSA private key DER bytes
+         * @return PKCS#8 {@code PrivateKeyInfo} DER bytes ready for
+         *         {@link PKCS8EncodedKeySpec}
          */
         static byte[] wrapRsaPkcs1InPkcs8(byte[] pkcs1) {
             // RSA OID: 1.2.840.113549.1.1.1 in DER
@@ -643,7 +662,10 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         Date notAfter  = svid.leafCertificate().getNotAfter();
         long expireMs  = notAfter.getTime();
         long nowMs     = System.currentTimeMillis();
-        long renewAt   = expireMs - renewalLeadSeconds * 1_000L;
+        // Guard against overflow: clamp renewalLeadSeconds to avoid Long.MIN_VALUE
+        // when multiplied by 1_000.  Valid SVID lifetimes are always < Long.MAX_VALUE/1000.
+        long leadMs    = Math.min(renewalLeadSeconds, Long.MAX_VALUE / 1_000L) * 1_000L;
+        long renewAt   = expireMs - leadMs;
         long delayMs   = Math.max(0L, renewAt - nowMs);
 
         logger.log(Level.FINE, "SVID renewal scheduled in {0} s",

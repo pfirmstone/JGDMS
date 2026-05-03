@@ -144,10 +144,7 @@ final class JarAnalyzer {
                     byte[] classBytes = readEntry(jis);
                     if (classBytes == null) {
                         // Read failure — treat as parse failure
-                        String entryName = entry.getName()
-                                .replace('/', '.')
-                                .replaceAll("\\.class$", "");
-                        parseFailures.add(entryName);
+                        parseFailures.add(entryNameToClassName(entry.getName()));
                         continue;
                     }
                     String[] clinitOwner = new String[1];
@@ -156,10 +153,7 @@ final class JarAnalyzer {
                     String className = clinitOwner[0];
                     if (className == null || className.isEmpty()) {
                         // ASM could not determine the class name (parse failure)
-                        String entryName = entry.getName()
-                                .replace('/', '.')
-                                .replaceAll("\\.class$", "");
-                        parseFailures.add(entryName);
+                        parseFailures.add(entryNameToClassName(entry.getName()));
                     } else {
                         rawClasses.put(className, classBytes);
                     }
@@ -244,6 +238,14 @@ final class JarAnalyzer {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Converts a JAR entry name (e.g. {@code "com/example/Foo.class"}) to a
+     * binary class name (e.g. {@code "com.example.Foo"}).
+     */
+    private static String entryNameToClassName(String entryName) {
+        return entryName.replace('/', '.').replaceAll("\\.class$", "");
+    }
 
     /**
      * Reads all bytes from the current JAR entry stream.
