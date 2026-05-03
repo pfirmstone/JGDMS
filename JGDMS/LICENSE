@@ -206,7 +206,7 @@ JGDMS SUBCOMPONENTS:
 JGDMS includes some external software components. Your use of these
 components is subject to the terms and conditions of the following licenses:
 
-ASM libraries (tools/asm-3.2.jar and tools/asm-commons-3.2.jar)
+ASM libraries
 
    ASM: a very small and fast Java bytecode manipulation framework
    Copyright (c) 2000-2005 INRIA, France Telecom

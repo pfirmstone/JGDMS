@@ -127,6 +127,7 @@
     <osgi.annotation.version>8.1.0</osgi.annotation.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <asm.version>9.7.1</asm.version>
   </properties>
 
   <dependencyManagement>

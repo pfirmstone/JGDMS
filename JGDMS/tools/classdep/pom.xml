@@ -46,12 +46,12 @@
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
-            <version>9.7.1</version>
+            <version>${asm.version}</version>
         </dependency>
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm-commons</artifactId>
-            <version>9.7.1</version>
+            <version>${asm.version}</version>
         </dependency>
     </dependencies>
 
@@ -65,7 +65,7 @@
                         <manifestEntries>
                             <Main-Class>org.apache.river.tool.ClassDep</Main-Class>
                             <Implementation-Version>${project.version}</Implementation-Version>
-                            <Class-Path>asm-9.2.jar asm-commons-9.2.jar</Class-Path>
+                            <Class-Path>asm-${asm.version}.jar asm-commons-${asm.version}.jar</Class-Path>
                         </manifestEntries>
                     </archive>
                 </configuration>
