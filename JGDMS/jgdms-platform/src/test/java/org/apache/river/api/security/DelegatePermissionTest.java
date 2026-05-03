@@ -15,90 +15,90 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//package org.apache.river.api.security;
+package org.apache.river.api.security;
 
-//import java.net.SocketPermission;
-//import java.security.Permission;
-//import java.security.PermissionCollection;
-//import org.junit.AfterClass;
-//import org.junit.Before;
-//import org.junit.BeforeClass;
-//import org.junit.Test;
-//import static org.junit.Assert.*;
-//import org.apache.river.api.security.*;
-//
-///**
-// * Tests fail when run from IDE.
-// * 
-// * @author peter
-// */
-//public class DelegatePermissionTest {
-//   
-//    public DelegatePermissionTest() {
-//    }
-//
-//    @BeforeClass
-//    public static void setUpClass() throws Exception {
-//       
-//    }
-//
-//    @AfterClass
-//    public static void tearDownClass() throws Exception {
-//    }
-//    
-//    @Before
-//    public void setUp() {
-//    }
-//
-//    /**
-//     * Test of get method, of class DelegatePermission.
-//     */
-//    @Test
-//    public void testGet() {
-//        System.out.println("get");
-//        Permission expResult = DelegatePermission.get(new SocketPermission("Localhost", "accept"));
-//        Permission result = DelegatePermission.get(new SocketPermission("Localhost","accept"));
-//        assertTrue(expResult == result);
-//    }
-//
-//    /**
-//     * Test of implies method, of class DelegatePermission.
-//     */
-//    @Test
-//    public void testImplies() {
-//        System.out.println("implies");
-//        Permission permission = new SocketPermission("Localhost", "connect, accept");
-//        Permission instance = DelegatePermission.get(permission);
-//        boolean expResult = false;
-//        boolean result = instance.implies(permission);
-//        assertEquals(expResult, result);
-//        permission = DelegatePermission.get(new SocketPermission("Localhost", "connect"));
-//        assertTrue(instance.implies(permission));
-//    }
-//
-//    /**
-//     * Test of getPermission method, of class DelegatePermission.
-//     */
-//    @Test
-//    public void testGetPermission() {
-//        System.out.println("getPermission");
-//        Permission instance = DelegatePermission.get(new SocketPermission("Localhost", "accept"));
-//        Permission expResult = new SocketPermission("Localhost", "accept");
-//        Permission result = ((DelegatePermission)instance).getPermission();
-//        assertEquals(expResult, result);
-//    }
-//
-//    /**
-//     * Test of newPermissionCollection method, of class DelegatePermission.
-//     */
-//    @Test
-//    public void testNewPermissionCollection() {
-//        System.out.println("newPermissionCollection");
-//        DelegatePermission instance = null;
-//        PermissionCollection expResult = null;
-//        PermissionCollection result = instance.newPermissionCollection();
-//        assertEquals(expResult, result);
-//        // TODO review the generated test code and remove the default call to fail.
-//        fail("The test case is a prototype.");
-//    }
-//}
+import java.net.SocketPermission;
+import java.security.Permission;
+import java.security.PermissionCollection;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import static org.junit.Assert.*;
+import org.apache.river.api.security.*;
+
+/**
+ * Tests fail when run from IDE.
+ * 
+ * @author peter
+ */
+public class DelegatePermissionTest {
+   
+    public DelegatePermissionTest() {
+    }
+
+    @BeforeClass
+    public static void setUpClass() throws Exception {
+       
+    }
+
+    @AfterClass
+    public static void tearDownClass() throws Exception {
+    }
+    
+    @Before
+    public void setUp() {
+    }
+
+    /**
+     * Test of get method, of class DelegatePermission.
+     */
+    @Test
+    public void testGet() {
+        System.out.println("get");
+        Permission expResult = DelegatePermission.get(new SocketPermission("Localhost", "accept"));
+        Permission result = DelegatePermission.get(new SocketPermission("Localhost","accept"));
+        assertTrue(expResult == result);
+    }
+
+    /**
+     * Test of implies method, of class DelegatePermission.
+     */
+    @Test
+    public void testImplies() {
+        System.out.println("implies");
+        Permission permission = new SocketPermission("Localhost", "connect, accept");
+        Permission instance = DelegatePermission.get(permission);
+        boolean expResult = false;
+        boolean result = instance.implies(permission);
+        assertEquals(expResult, result);
+        permission = DelegatePermission.get(new SocketPermission("Localhost", "connect"));
+        assertTrue(instance.implies(permission));
+    }
+
+    /**
+     * Test of getPermission method, of class DelegatePermission.
+     */
+    @Test
+    public void testGetPermission() {
+        System.out.println("getPermission");
+        Permission instance = DelegatePermission.get(new SocketPermission("Localhost", "accept"));
+        Permission expResult = new SocketPermission("Localhost", "accept");
+        Permission result = ((DelegatePermission)instance).getPermission();
+        assertEquals(expResult, result);
+    }
+
+    /**
+     * Test of newPermissionCollection method, of class DelegatePermission.
+     */
+    @Test
+    public void testNewPermissionCollection() {
+        System.out.println("newPermissionCollection");
+        DelegatePermission instance = null;
+        PermissionCollection expResult = null;
+        PermissionCollection result = instance.newPermissionCollection();
+        assertEquals(expResult, result);
+        // TODO review the generated test code and remove the default call to fail.
+        fail("The test case is a prototype.");
+    }
+}
