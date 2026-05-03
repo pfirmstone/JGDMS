@@ -17,64 +17,64 @@
  */
 package org.apache.river.api.security;
 
-//import java.net.SocketPermission;
-//import java.security.cert.Certificate;
-//import java.net.MalformedURLException;
-//import java.net.URL;
-//import java.security.Permissions;
-//import java.security.CodeSource;
-//import java.security.Permission;
-//import java.security.ProtectionDomain;
-//import org.junit.AfterClass;
-//import org.junit.Before;
-//import org.junit.BeforeClass;
-//import org.junit.Test;
-//import static org.junit.Assert.*;
-//import org.apache.river.api.security.*;
-//
-///**
-// *
-// * @author peter
-// */
-//public class DelegateSecurityManagerTest {
-//    
-//    public DelegateSecurityManagerTest() {
-//    }
-//
-//    @BeforeClass
-//    public static void setUpClass() throws Exception {
-//    }
-//
-//    @AfterClass
-//    public static void tearDownClass() throws Exception {
-//    }
-//    
-//    @Before
-//    public void setUp() {
-//    }
-//
-//    /**
-//     * Test of checkPermission method, of class DelegateSecurityManager.
-//     * @throws MalformedURLException if the test fails.
-//     */
-//    @Test
-//    public void testCheckPermission() throws MalformedURLException {
-//        System.out.println("checkPermission");
-//        Permissions perms = new Permissions();
-//        Permission p1 = new SocketPermission("localhost", "accept" );
-//        perms.add(p1);
-//        Permission p = DelegatePermission.get(p1);
-//        ProtectionDomain pd = new ProtectionDomain(new CodeSource(new URL("file:///foo"), (Certificate[]) null), perms);
-//        DSM instance = new DSM();
-//        boolean expResult = true;
-//        boolean result = instance.checkPermission(pd, p);
-//        assertEquals(expResult, result);
-//    }
-//    
-//    private static class DSM extends DelegateSecurityManager{
-//        @Override
-//        public boolean checkPermission(ProtectionDomain pd, Permission p){
-//            return super.checkPermission(pd,p);
-//        }
-//    }
-//}
+import java.net.SocketPermission;
+import java.security.cert.Certificate;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.Permissions;
+import java.security.CodeSource;
+import java.security.Permission;
+import java.security.ProtectionDomain;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import static org.junit.Assert.*;
+import org.apache.river.api.security.*;
+
+/**
+ *
+ * @author peter
+ */
+public class DelegateSecurityManagerTest {
+    
+    public DelegateSecurityManagerTest() {
+    }
+
+    @BeforeClass
+    public static void setUpClass() throws Exception {
+    }
+
+    @AfterClass
+    public static void tearDownClass() throws Exception {
+    }
+    
+    @Before
+    public void setUp() {
+    }
+
+    /**
+     * Test of checkPermission method, of class DelegateSecurityManager.
+     * @throws MalformedURLException if the test fails.
+     */
+    @Test
+    public void testCheckPermission() throws MalformedURLException {
+        System.out.println("checkPermission");
+        Permissions perms = new Permissions();
+        Permission p1 = new SocketPermission("localhost", "accept" );
+        perms.add(p1);
+        Permission p = DelegatePermission.get(p1);
+        ProtectionDomain pd = new ProtectionDomain(new CodeSource(new URL("file:///foo"), (Certificate[]) null), perms);
+        DSM instance = new DSM();
+        boolean expResult = true;
+        boolean result = instance.checkPermission(pd, p);
+        assertEquals(expResult, result);
+    }
+    
+    private static class DSM extends DelegateSecurityManager{
+        @Override
+        public boolean checkPermission(ProtectionDomain pd, Permission p){
+            return super.checkPermission(pd,p);
+        }
+    }
+}

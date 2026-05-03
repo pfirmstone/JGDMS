@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security.test;
+package org.apache.river.api.security;
 
 import java.security.cert.CertificateException;
 import java.security.cert.Certificate;
