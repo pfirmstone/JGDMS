@@ -17,8 +17,11 @@
  */
 package au.net.zeus.jgdms.bae;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict;
@@ -39,6 +42,16 @@ import au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict;
  *       {@code INVOKESTATIC} whose return type is used as the sole argument
  *       to {@code INVOKESPECIAL <init>} — i.e. the pattern
  *       {@code this(arg, check(arg))} with a private bridge constructor.</li>
+ *   <li>The static validation method must type-check every object-type field
+ *       it retrieves from {@code GetArg}.  Specifically, calling the 2-argument
+ *       {@code GetArg.get(String, Object)} form and then immediately using the
+ *       result in an {@code IFNULL}/{@code IFNONNULL} branch without a
+ *       preceding {@code CHECKCAST} is flagged as
+ *       {@link AtomicSerialVerdict#UNTYPED_GET}: the type is only verified
+ *       in the bridge constructor, where a CCE can fire <em>during</em>
+ *       construction.  The safe patterns are either the typed 3-argument form
+ *       {@code arg.get(name, null, MyType.class)} or an explicit cast
+ *       {@code (MyType) arg.get(name, null)} within the check method.</li>
  *   <li>It must have a {@code public static SerialForm[] serialForm()} method
  *       (unless it is annotated {@code @Stateless}).</li>
  * </ol>
@@ -83,6 +96,22 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
     private boolean hasGetArgConstructor       = false;
     private boolean hasSerialFormMethod        = false;
     private boolean getArgCtorValidationOk     = false;
+
+    /**
+     * The name and descriptor of the static check method as identified by
+     * {@link GetArgCtorAnalyzer}.  Set when the (GetArg) constructor is
+     * visited, may remain {@code null} if no INVOKESTATIC was seen.
+     */
+    private String identifiedCheckMethodName = null;
+    private String identifiedCheckMethodDesc = null;
+
+    /**
+     * Results of running {@link CheckMethodAnalyzer} on every static method
+     * that looks like a check method (static, returns {@code Z}, has a
+     * {@code GetArg} parameter).  Keyed by {@code name + "\0" + descriptor}.
+     */
+    private final Map<String, CheckMethodAnalyzer> checkMethodAnalyzers =
+            new HashMap<String, CheckMethodAnalyzer>();
 
     // -------------------------------------------------------------------------
     // Public factory
@@ -148,10 +177,10 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
                                       String signature, String[] exceptions) {
         if ("<init>".equals(name) && GET_ARG_CTOR_DESC.equals(descriptor)) {
             hasGetArgConstructor = true;
-            // Analyse this constructor for validation-before-super ordering
             GetArgCtorAnalyzer ctorAnalyzer = new GetArgCtorAnalyzer(ASM_API);
             return ctorAnalyzer;
         }
+
         // Check for: public static SerialForm[] serialForm()
         if ("serialForm".equals(name)
                 && "()[Lorg/apache/river/api/io/AtomicSerial$SerialForm;".equals(descriptor)
@@ -159,13 +188,22 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
                 && (access & Opcodes.ACC_PUBLIC) != 0) {
             hasSerialFormMethod = true;
         }
+
+        // Collect check-method candidates: static methods whose descriptor
+        // includes a GetArg parameter and returns boolean (Z).
+        if ((access & Opcodes.ACC_STATIC) != 0
+                && descriptor.contains("Lorg/apache/river/api/io/AtomicSerial$GetArg;")
+                && descriptor.endsWith(")Z")) {
+            CheckMethodAnalyzer cma = new CheckMethodAnalyzer(ASM_API);
+            checkMethodAnalyzers.put(name + "\0" + descriptor, cma);
+            return cma;
+        }
+
         return super.visitMethod(access, name, descriptor, signature, exceptions);
     }
 
     @Override
     public void visitEnd() {
-        // Collect getArgCtorValidationOk from any pending GetArgCtorAnalyzer.
-        // (We set it when visitEnd() on the ctor analyzer is called.)
         super.visitEnd();
     }
 
@@ -179,7 +217,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             return AtomicSerialVerdict.NOT_ANNOTATED;
         }
 
-        // Not serializable and not annotated @AtomicSerial → N/A
+        // Not serializable and not annotated @AtomicSerial -> N/A
         if (!implementsSerializable && !hasAtomicSerialAnnotation) {
             return AtomicSerialVerdict.NA;
         }
@@ -189,9 +227,19 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             return AtomicSerialVerdict.MISSING_CONSTRUCTOR;
         }
 
-        // GetArg constructor exists — check validation ordering
+        // GetArg constructor exists -- check validation ordering
         if (hasGetArgConstructor && !getArgCtorValidationOk) {
             return AtomicSerialVerdict.VALIDATION_ORDER;
+        }
+
+        // Check the identified check method for untyped GetArg access.
+        // identifiedCheckMethodName is set by GetArgCtorAnalyzer.
+        if (identifiedCheckMethodName != null) {
+            String key = identifiedCheckMethodName + "\0" + identifiedCheckMethodDesc;
+            CheckMethodAnalyzer cma = checkMethodAnalyzers.get(key);
+            if (cma != null && cma.untypedGetFound) {
+                return AtomicSerialVerdict.UNTYPED_GET;
+            }
         }
 
         // Check serialForm() unless @Stateless
@@ -205,7 +253,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             return AtomicSerialVerdict.COMPLIANT;
         }
 
-        // Serializable but no @AtomicSerial annotation → N/A
+        // Serializable but no @AtomicSerial annotation -> N/A
         return AtomicSerialVerdict.NA;
     }
 
@@ -216,13 +264,15 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
     /**
      * Analyses the {@code (GetArg)} constructor body to confirm that a
      * static method call (the validation check) appears before the
-     * {@code INVOKESPECIAL <init>} super-constructor call.
+     * {@code INVOKESPECIAL <init>} super-constructor call, and records the
+     * name and descriptor of that static method so it can be analysed for
+     * type safety by {@link CheckMethodAnalyzer}.
      *
      * <p>The expected bytecode pattern for {@code this(arg, check(arg))} is:
      * <pre>
      *   ALOAD_0
      *   ALOAD_1            // arg
-     *   INVOKESTATIC       // check(GetArg) — validation
+     *   INVOKESTATIC       // check(GetArg) -- validation
      *   INVOKESPECIAL      // this(GetArg, boolean) bridge ctor
      * </pre>
      *
@@ -231,8 +281,12 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
      */
     private final class GetArgCtorAnalyzer extends MethodVisitor {
 
-        private boolean seenInvokeStatic    = false;
-        private boolean seenInvokeSpecial   = false;
+        private boolean seenInvokeStatic  = false;
+        private boolean seenInvokeSpecial = false;
+
+        // Name and descriptor of the last INVOKESTATIC seen before INVOKESPECIAL
+        private String lastStaticName = null;
+        private String lastStaticDesc = null;
 
         GetArgCtorAnalyzer(int api) {
             super(api);
@@ -243,6 +297,8 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
                                      String descriptor, boolean isInterface) {
             if (opcode == Opcodes.INVOKESTATIC && !seenInvokeSpecial) {
                 seenInvokeStatic = true;
+                lastStaticName   = name;
+                lastStaticDesc   = descriptor;
             }
             if (opcode == Opcodes.INVOKESPECIAL && "<init>".equals(name)
                     && !seenInvokeSpecial) {
@@ -250,7 +306,138 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
                 // Record the ordering result back in the enclosing visitor
                 AtomicSerialComplianceVisitor.this.getArgCtorValidationOk =
                         seenInvokeStatic;
+                // Record the identified check method for later type analysis
+                AtomicSerialComplianceVisitor.this.identifiedCheckMethodName =
+                        lastStaticName;
+                AtomicSerialComplianceVisitor.this.identifiedCheckMethodDesc =
+                        lastStaticDesc;
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Inner method visitor: checks check-method for untyped GetArg access
+    // -------------------------------------------------------------------------
+
+    /**
+     * Analyses a static check method for the anti-pattern: calling
+     * {@code GetArg.get(String, Object)} (the 2-argument, untyped form) and
+     * then using the returned {@code Object} directly in an
+     * {@code IFNULL}/{@code IFNONNULL} branch without a preceding
+     * {@code CHECKCAST}.
+     *
+     * <p>This pattern defers the type-check to the bridge constructor, where
+     * a {@code ClassCastException} can fire <em>during</em> object construction
+     * rather than safely in the static check method before construction begins.
+     *
+     * <p>Safe alternatives that this detector accepts:
+     * <ul>
+     *   <li>The typed 3-argument form
+     *       {@code arg.get(name, null, MyType.class)} — performs the type
+     *       check inside {@code GetArg} before returning.</li>
+     *   <li>An immediate {@code CHECKCAST} after the 2-argument form —
+     *       {@code (MyType) arg.get(name, null)} — type exception fires in
+     *       the check method.</li>
+     * </ul>
+     */
+    static final class CheckMethodAnalyzer extends MethodVisitor {
+
+        // JVM descriptor of the 2-argument (untyped) GetArg.get form
+        private static final String UNTYPED_GET_DESC =
+                "(Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/Object;";
+
+        // JVM descriptor of the 3-argument (typed) GetArg.get form
+        private static final String TYPED_GET_DESC =
+                "(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;";
+
+        // JVM descriptor of GetArg.validateInvariants
+        private static final String VALIDATE_INVARIANTS_DESC =
+                "([Ljava/lang/String;[Ljava/lang/Class;[Z)" +
+                "Lorg/apache/river/api/io/AtomicSerial$GetArg;";
+
+        /**
+         * {@code true} if the last instruction was a 2-argument
+         * {@code GetArg.get} call whose result has not yet been type-verified
+         * by a {@code CHECKCAST} in this method.
+         */
+        private boolean pendingUntypedGet = false;
+
+        /**
+         * {@code true} if at least one 2-argument {@code GetArg.get} result
+         * was used in an {@code IFNULL}/{@code IFNONNULL} branch without a
+         * preceding {@code CHECKCAST} -- i.e. the type is never verified in
+         * this check method.
+         */
+        boolean untypedGetFound = false;
+
+        CheckMethodAnalyzer(int api) {
+            super(api);
+        }
+
+        @Override
+        public void visitMethodInsn(int opcode, String owner, String name,
+                                     String descriptor, boolean isInterface) {
+            if ("get".equals(name)) {
+                if (UNTYPED_GET_DESC.equals(descriptor)) {
+                    // 2-arg form: result is raw Object, type not yet verified
+                    pendingUntypedGet = true;
+                    return;
+                }
+                if (TYPED_GET_DESC.equals(descriptor)) {
+                    // 3-arg form: GetArg performs the type check internally
+                    pendingUntypedGet = false;
+                    return;
+                }
+            }
+            if ("validateInvariants".equals(name)
+                    && VALIDATE_INVARIANTS_DESC.equals(descriptor)) {
+                // Batch type-validator; covers all fields
+                pendingUntypedGet = false;
+                return;
+            }
+            // Any other method call means the get result was consumed
+            pendingUntypedGet = false;
+        }
+
+        @Override
+        public void visitTypeInsn(int opcode, String type) {
+            if (opcode == Opcodes.CHECKCAST) {
+                // Explicit cast in the check method -- type is verified here
+                pendingUntypedGet = false;
+            }
+        }
+
+        @Override
+        public void visitJumpInsn(int opcode, Label label) {
+            if (pendingUntypedGet
+                    && (opcode == Opcodes.IFNULL
+                        || opcode == Opcodes.IFNONNULL)) {
+                // Object used as null check without any CHECKCAST -- the type
+                // of the deserialized value is never verified in this method
+                untypedGetFound = true;
+            }
+            pendingUntypedGet = false;
+        }
+
+        @Override
+        public void visitInsn(int opcode) {
+            // Any other instruction that consumes or discards the result
+            pendingUntypedGet = false;
+        }
+
+        @Override
+        public void visitVarInsn(int opcode, int var) {
+            // ASTORE/ALOAD etc. -- result consumed; no CHECKCAST seen yet.
+            // We do NOT flag here (the cast may come later in the method),
+            // but we do reset so we do not accidentally flag a later IFNULL
+            // that is unrelated to this get call.
+            pendingUntypedGet = false;
+        }
+
+        @Override
+        public void visitFieldInsn(int opcode, String owner, String name,
+                                    String descriptor) {
+            pendingUntypedGet = false;
         }
     }
 }

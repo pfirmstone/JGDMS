@@ -90,7 +90,7 @@ public final class ClassAnalysisResult implements Serializable {
     }
 
     private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
-        if (arg.get(CLASS_NAME, null) == null)
+        if (arg.get(CLASS_NAME, null, String.class) == null)
             throw new InvalidObjectException("className must not be null");
         if (arg.get(CLINIT_VERDICT, null, ClinitVerdict.class) == null)
             throw new InvalidObjectException("clinitVerdict must not be null");

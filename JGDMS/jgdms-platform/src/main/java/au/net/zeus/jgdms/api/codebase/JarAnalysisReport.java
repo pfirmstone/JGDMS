@@ -53,7 +53,7 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  *       result → {@link VerdictType#DANGEROUS}</li>
  *   <li>Any {@link AtomicSerialVerdict} violation
  *       ({@code MISSING_CONSTRUCTOR}, {@code VALIDATION_ORDER},
- *       {@code MISSING_SERIAL_FORM}) → {@link VerdictType#DANGEROUS}</li>
+ *       {@code MISSING_SERIAL_FORM}, {@code UNTYPED_GET}) → {@link VerdictType#DANGEROUS}</li>
  *   <li>Any {@link ClinitVerdict#NATIVE_OPACITY} or
  *       {@link AtomicSerialVerdict#NOT_ANNOTATED} → {@link VerdictType#INCONCLUSIVE}</li>
  *   <li>All results {@link ClinitVerdict#CLEAN} and
@@ -240,7 +240,8 @@ public final class JarAnalysisReport implements Serializable {
      *   <li>Any {@link ClinitVerdict#BLOCKING} or {@link ClinitVerdict#CYCLE}
      *       → {@link VerdictType#DANGEROUS}</li>
      *   <li>Any {@link AtomicSerialVerdict} of {@code MISSING_CONSTRUCTOR},
-     *       {@code VALIDATION_ORDER}, or {@code MISSING_SERIAL_FORM}
+     *       {@code VALIDATION_ORDER}, {@code MISSING_SERIAL_FORM}, or
+     *       {@code UNTYPED_GET}
      *       → {@link VerdictType#DANGEROUS}</li>
      *   <li>Any {@link ClinitVerdict#NATIVE_OPACITY} or
      *       {@link AtomicSerialVerdict#NOT_ANNOTATED}
@@ -261,7 +262,8 @@ public final class JarAnalysisReport implements Serializable {
             AtomicSerialVerdict av = r.getAtomicVerdict();
             if (av == AtomicSerialVerdict.MISSING_CONSTRUCTOR
                     || av == AtomicSerialVerdict.VALIDATION_ORDER
-                    || av == AtomicSerialVerdict.MISSING_SERIAL_FORM) {
+                    || av == AtomicSerialVerdict.MISSING_SERIAL_FORM
+                    || av == AtomicSerialVerdict.UNTYPED_GET) {
                 return VerdictType.DANGEROUS;
             }
             if (cv == ClinitVerdict.NATIVE_OPACITY

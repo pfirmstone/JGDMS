@@ -70,6 +70,27 @@ public enum AtomicSerialVerdict {
     MISSING_SERIAL_FORM,
 
     /**
+     * The class has the {@code (GetArg)} constructor and a static validation
+     * method, but that validation method retrieves at least one object-type
+     * field from {@code GetArg} using the 2-argument
+     * {@code get(String, Object)} form and uses the result directly in a
+     * null-check ({@code IFNULL}/{@code IFNONNULL}) <em>without</em> a
+     * preceding {@code CHECKCAST}.
+     *
+     * <p>This means the type of the deserialized object is never verified
+     * inside the static check method.  Any {@code ClassCastException} is
+     * therefore deferred to the bridge constructor, which fires <em>during</em>
+     * object construction rather than safely before it.  An adversary who can
+     * supply a manipulated byte stream can trigger a CCE inside a partially
+     * constructed object.
+     *
+     * <p>The correct pattern is to use the typed 3-argument form
+     * {@code arg.get(name, null, MyType.class)} in the static check method,
+     * or to immediately cast the result: {@code (MyType) arg.get(name, null)}.
+     */
+    UNTYPED_GET,
+
+    /**
      * The class is either not {@code Serializable}, or is annotated
      * {@code @Stateless}, so {@code @AtomicSerial} compliance analysis is
      * not applicable.
