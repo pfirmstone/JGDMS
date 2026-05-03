@@ -227,7 +227,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             return AtomicSerialVerdict.MISSING_CONSTRUCTOR;
         }
 
-        // GetArg constructor exists -- check validation ordering
+        // GetArg constructor exists — check validation ordering
         if (hasGetArgConstructor && !getArgCtorValidationOk) {
             return AtomicSerialVerdict.VALIDATION_ORDER;
         }
@@ -272,7 +272,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
      * <pre>
      *   ALOAD_0
      *   ALOAD_1            // arg
-     *   INVOKESTATIC       // check(GetArg) -- validation
+     *   INVOKESTATIC       // check(GetArg) — validation
      *   INVOKESPECIAL      // this(GetArg, boolean) bridge ctor
      * </pre>
      *
@@ -365,7 +365,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
         /**
          * {@code true} if at least one 2-argument {@code GetArg.get} result
          * was used in an {@code IFNULL}/{@code IFNONNULL} branch without a
-         * preceding {@code CHECKCAST} -- i.e. the type is never verified in
+         * preceding {@code CHECKCAST} — i.e. the type is never verified in
          * this check method.
          */
         boolean untypedGetFound = false;
@@ -402,7 +402,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
         @Override
         public void visitTypeInsn(int opcode, String type) {
             if (opcode == Opcodes.CHECKCAST) {
-                // Explicit cast in the check method -- type is verified here
+                // Explicit cast in the check method — type is verified here
                 pendingUntypedGet = false;
             }
         }
@@ -412,7 +412,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             if (pendingUntypedGet
                     && (opcode == Opcodes.IFNULL
                         || opcode == Opcodes.IFNONNULL)) {
-                // Object used as null check without any CHECKCAST -- the type
+                // Object used as null check without any CHECKCAST — the type
                 // of the deserialized value is never verified in this method
                 untypedGetFound = true;
             }
@@ -427,7 +427,7 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
 
         @Override
         public void visitVarInsn(int opcode, int var) {
-            // ASTORE/ALOAD etc. -- result consumed; no CHECKCAST seen yet.
+            // ASTORE/ALOAD etc. — result consumed; no CHECKCAST seen yet.
             // We do NOT flag here (the cast may come later in the method),
             // but we do reset so we do not accidentally flag a later IFNULL
             // that is unrelated to this get call.
