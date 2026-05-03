@@ -63,6 +63,11 @@
             <artifactId>jgdms-activation</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>${asm.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

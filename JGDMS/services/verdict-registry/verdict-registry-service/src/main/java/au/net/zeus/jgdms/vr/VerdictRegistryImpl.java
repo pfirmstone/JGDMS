@@ -55,6 +55,8 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
+import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
@@ -174,6 +176,21 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             new ConcurrentHashMap<Uuid, ListenerRegistration>();
 
     /**
+     * Per-content-hash vote accumulator (push model): SHA-256 hex string →
+     * HashVerdictState.  Access to individual values is synchronised on the
+     * {@code HashVerdictState} instance.
+     */
+    private final ConcurrentHashMap<String, HashVerdictState> hashVerdictStates =
+            new ConcurrentHashMap<String, HashVerdictState>();
+
+    /**
+     * Published hash-keyed verdicts (push model): SHA-256 hex string →
+     * RegistryVerdict.  Immutable values; reads are lock-free.
+     */
+    private final ConcurrentHashMap<String, RegistryVerdict> hashPublishedVerdicts =
+            new ConcurrentHashMap<String, RegistryVerdict>();
+
+    /**
      * Source of event IDs.  Each call to {@link #registerVerdictListener}
      * consumes one ID.
      */
@@ -249,6 +266,18 @@ public class VerdictRegistryImpl implements VerdictRegistry {
          */
         Uri[] codebaseUrls;
 
+        /** Per-engine votes: engineId → VerdictType. */
+        final Map<String, VerdictType> votes = new HashMap<String, VerdictType>();
+
+        /** True once a DANGEROUS RegistryVerdict has been published. Permanent. */
+        boolean dangerous;
+    }
+
+    /**
+     * Mutable per-content-hash vote accumulator for the push model.
+     * All fields are accessed only while {@code synchronized (this)}.
+     */
+    private static final class HashVerdictState {
         /** Per-engine votes: engineId → VerdictType. */
         final Map<String, VerdictType> votes = new HashMap<String, VerdictType>();
 
@@ -680,6 +709,95 @@ public class VerdictRegistryImpl implements VerdictRegistry {
     }
 
     @Override
+    public void submitReport(String engineId, JarAnalysisReport report)
+            throws RemoteException {
+        if (engineId == null) throw new NullPointerException("engineId");
+        if (engineId.isEmpty()) throw new IllegalArgumentException("engineId must not be empty");
+        if (report == null) throw new NullPointerException("report");
+
+        EngineRegistration reg = engines.get(engineId);
+        if (reg == null) {
+            logger.log(Level.WARNING,
+                    "Discarding report from unregistered/revoked engine: {0}", engineId);
+            return;
+        }
+
+        // Verify the engine's signature on the report.
+        try {
+            byte[] canonical = canonicalBytesForReport(report);
+            if (!verify(reg.publicKey, reg.sigAlgorithm, canonical,
+                        report.getEngineSignature())) {
+                logger.log(Level.WARNING,
+                        "Invalid signature on JarAnalysisReport from engine {0}; discarding",
+                        engineId);
+                return;
+            }
+        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException
+                | IOException e) {
+            logger.log(Level.WARNING,
+                    "Signature verification failed for JarAnalysisReport from engine "
+                    + engineId + "; discarding", e);
+            return;
+        }
+
+        String contentHash = report.getContentHash();
+        VerdictType derived = report.deriveVerdictType();
+
+        HashVerdictState state = hashVerdictStates.computeIfAbsent(
+                contentHash, k -> new HashVerdictState());
+
+        RegistryVerdict publishedRv  = null;
+        boolean         isDangerous  = false;
+
+        synchronized (state) {
+            if (state.dangerous) {
+                return;
+            }
+            state.votes.put(engineId, derived);
+
+            if (derived == VerdictType.DANGEROUS) {
+                RegistryVerdict rv = issueHashVerdict(contentHash, VerdictType.DANGEROUS);
+                if (rv != null) {
+                    state.dangerous = true;
+                    hashPublishedVerdicts.put(contentHash, rv);
+                    logger.log(Level.WARNING,
+                            "Published DANGEROUS hash verdict for content hash: {0}",
+                            contentHash);
+                    publishedRv = rv;
+                    isDangerous = true;
+                }
+            } else {
+                long safeCount = 0;
+                for (VerdictType v : state.votes.values()) {
+                    if (v == VerdictType.SAFE) safeCount++;
+                }
+                if (safeCount >= quorumMinimum) {
+                    RegistryVerdict rv = issueHashVerdict(contentHash, VerdictType.SAFE);
+                    if (rv != null) {
+                        hashPublishedVerdicts.put(contentHash, rv);
+                        logger.log(Level.INFO,
+                                "Published SAFE hash verdict for content hash: {0}",
+                                contentHash);
+                        publishedRv = rv;
+                    }
+                }
+            }
+        }
+
+        if (publishedRv != null) {
+            notifyListeners("hash:" + contentHash, publishedRv);
+        }
+    }
+
+    @Override
+    public RegistryVerdict getVerdictByHash(String contentHash) throws RemoteException {
+        if (contentHash == null) throw new NullPointerException("contentHash");
+        if (contentHash.isEmpty())
+            throw new IllegalArgumentException("contentHash must not be empty");
+        return hashPublishedVerdicts.get(contentHash);
+    }
+
+    @Override
     public EventRegistration registerVerdictListener(RemoteEventListener listener,
                                                      Set<Uri> codebaseUrls,
                                                      MarshalledInstance handback,
@@ -824,6 +942,55 @@ public class VerdictRegistryImpl implements VerdictRegistry {
             logger.log(Level.SEVERE, "Failed to sign RegistryVerdict", e);
             return null;
         }
+    }
+
+    /**
+     * Issues a hash-keyed {@link RegistryVerdict} for the given content hash.
+     * The verdict uses a synthetic {@code urn:sha256:<hash>} URI as the single
+     * codebase URL, which is a valid RFC 3986 URN.
+     */
+    private RegistryVerdict issueHashVerdict(String contentHash, VerdictType type) {
+        try {
+            Uri urn = new Uri("urn:sha256:" + contentHash);
+            return issueVerdict(new Uri[]{ urn }, type);
+        } catch (java.net.URISyntaxException e) {
+            logger.log(Level.SEVERE, "Failed to construct URN for content hash", e);
+            return null;
+        }
+    }
+
+    /**
+     * Produces the canonical bytes of a {@link JarAnalysisReport} for
+     * verification against the submitting engine's public key.
+     *
+     * <p>Format matches {@link au.net.zeus.jgdms.bae.JarAnalyzer#sign}:
+     * <ol>
+     *   <li>contentHash (UTF-8) + NUL byte.</li>
+     *   <li>For each className in sorted order:
+     *       className (UTF-8) + NUL + clinitVerdict.name() (UTF-8) + NUL +
+     *       atomicVerdict.name() (UTF-8) + NUL.</li>
+     * </ol>
+     */
+    static byte[] canonicalBytesForReport(JarAnalysisReport report) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+        byte nul = 0;
+        byte[] hashBytes = report.getContentHash().getBytes(StandardCharsets.UTF_8);
+        baos.write(hashBytes);
+        baos.write(nul);
+
+        java.util.List<String> sortedNames =
+                new java.util.ArrayList<String>(report.getResults().keySet());
+        java.util.Collections.sort(sortedNames);
+        for (String name : sortedNames) {
+            ClassAnalysisResult cr = report.getResults().get(name);
+            baos.write(name.getBytes(StandardCharsets.UTF_8));
+            baos.write(nul);
+            baos.write(cr.getClinitVerdict().name().getBytes(StandardCharsets.UTF_8));
+            baos.write(nul);
+            baos.write(cr.getAtomicVerdict().name().getBytes(StandardCharsets.UTF_8));
+            baos.write(nul);
+        }
+        return baos.toByteArray();
     }
 
     /**
