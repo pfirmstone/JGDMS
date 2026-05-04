@@ -178,6 +178,16 @@ final class BlockingSinkRegistry {
             // ---- DatagramSocket ----
             "java/net/DatagramSocket/receive/(Ljava/net/DatagramPacket;)V",
 
+            // ---- DNS resolution (SM.checkConnect(host, -1) → SocketPermission "resolve") ----
+            "java/net/InetAddress/getByName/(Ljava/lang/String;)Ljava/net/InetAddress;",
+            "java/net/InetAddress/getAllByName/(Ljava/lang/String;)[Ljava/net/InetAddress;",
+            "java/net/InetAddress/getLocalHost/()Ljava/net/InetAddress;",
+
+            // ---- Blocking deserialization / URL I/O (no direct per-call SM guard) ----
+            "java/io/ObjectInputStream/readObject/()Ljava/lang/Object;",
+            "java/net/URL/openStream/()Ljava/io/InputStream;",
+            "java/net/URLConnection/getInputStream/()Ljava/io/InputStream;",
+
             // ---- NIO Selector ----
             "java/nio/channels/Selector/select/()I",
             "java/nio/channels/Selector/select/(J)I",
@@ -186,6 +196,10 @@ final class BlockingSinkRegistry {
             "java/nio/channels/Selector/selectNow/()I",
 
             // ---- NIO SocketChannel / ServerSocketChannel ----
+            // connect() blocks during TCP handshake; for UnixDomainSocketAddress
+            // the JDK additionally calls NetPermission("accessUnixDomainSocket").
+            "java/nio/channels/SocketChannel/connect/(Ljava/net/SocketAddress;)Z",
+            "java/nio/channels/SocketChannel/open/(Ljava/net/SocketAddress;)Ljava/nio/channels/SocketChannel;",
             "java/nio/channels/SocketChannel/read/(Ljava/nio/ByteBuffer;)I",
             "java/nio/channels/SocketChannel/read/([Ljava/nio/ByteBuffer;)J",
             "java/nio/channels/SocketChannel/read/([Ljava/nio/ByteBuffer;IJ)J",
@@ -193,6 +207,10 @@ final class BlockingSinkRegistry {
             "java/nio/channels/SocketChannel/write/([Ljava/nio/ByteBuffer;)J",
             "java/nio/channels/SocketChannel/write/([Ljava/nio/ByteBuffer;IJ)J",
             "java/nio/channels/ServerSocketChannel/accept/()Ljava/nio/channels/SocketChannel;",
+
+            // ---- NIO DatagramChannel (SM.checkAccept on receive; SM.checkConnect on send) ----
+            "java/nio/channels/DatagramChannel/receive/(Ljava/nio/ByteBuffer;)Ljava/net/SocketAddress;",
+            "java/nio/channels/DatagramChannel/send/(Ljava/nio/ByteBuffer;Ljava/net/SocketAddress;)I",
 
             // ---- NIO FileChannel ----
             "java/nio/channels/FileChannel/read/(Ljava/nio/ByteBuffer;)I",
@@ -206,9 +224,19 @@ final class BlockingSinkRegistry {
             "java/nio/channels/FileChannel/lock/()Ljava/nio/channels/FileLock;",
             "java/nio/channels/FileChannel/lock/(JJZ)Ljava/nio/channels/FileLock;",
 
-            // ---- Process ----
+            // ---- Process (wait for completion) ----
             "java/lang/Process/waitFor/()I",
             "java/lang/Process/waitFor/(JLjava/util/concurrent/TimeUnit;)Z",
+
+            // ---- Process spawn (SM.checkExec(cmd) → FilePermission(cmd, "execute")) ----
+            "java/lang/ProcessBuilder/start/()Ljava/lang/Process;",
+            "java/lang/ProcessBuilder/startPipeline/(Ljava/util/List;)Ljava/util/List;",
+            "java/lang/Runtime/exec/(Ljava/lang/String;)Ljava/lang/Process;",
+            "java/lang/Runtime/exec/([Ljava/lang/String;)Ljava/lang/Process;",
+            "java/lang/Runtime/exec/(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Process;",
+            "java/lang/Runtime/exec/(Ljava/lang/String;[Ljava/lang/String;Ljava/io/File;)Ljava/lang/Process;",
+            "java/lang/Runtime/exec/([Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Process;",
+            "java/lang/Runtime/exec/([Ljava/lang/String;[Ljava/lang/String;Ljava/io/File;)Ljava/lang/Process;",
 
             // ---- CountDownLatch ----
             "java/util/concurrent/CountDownLatch/await/()V",
@@ -388,6 +416,58 @@ final class BlockingSinkRegistry {
                 "java.io.FilePermission");
         sinkPerms.put("java/nio/channels/FileChannel/lock/(JJZ)Ljava/nio/channels/FileLock;",
                 "java.io.FilePermission");
+
+        // --- NIO: SocketChannel.connect / open(SocketAddress) ---
+        // SM.checkConnect(host, port) guards the InetSocketAddress path (TCP).
+        // For UnixDomainSocketAddress the JDK guard is instead
+        // SM.checkPermission(new NetPermission("accessUnixDomainSocket")).
+        // The map only holds one value per key; SocketPermission covers the
+        // dominant TCP case.  A JAR that declares only NetPermission
+        // "accessUnixDomainSocket" (Unix-domain only) will remain
+        // BLOCKING_GUARDED rather than BLOCKING_DECLARED.
+        sinkPerms.put("java/nio/channels/SocketChannel/connect/(Ljava/net/SocketAddress;)Z",
+                "java.net.SocketPermission");
+        sinkPerms.put(
+                "java/nio/channels/SocketChannel/open/(Ljava/net/SocketAddress;)Ljava/nio/channels/SocketChannel;",
+                "java.net.SocketPermission");
+
+        // --- NIO: DatagramChannel (SM.checkAccept on receive; SM.checkConnect on send) ---
+        sinkPerms.put(
+                "java/nio/channels/DatagramChannel/receive/(Ljava/nio/ByteBuffer;)Ljava/net/SocketAddress;",
+                "java.net.SocketPermission");
+        sinkPerms.put(
+                "java/nio/channels/DatagramChannel/send/(Ljava/nio/ByteBuffer;Ljava/net/SocketAddress;)I",
+                "java.net.SocketPermission");
+
+        // --- DNS resolution: InetAddress (SM.checkConnect(host, -1) → SocketPermission "resolve") ---
+        sinkPerms.put("java/net/InetAddress/getByName/(Ljava/lang/String;)Ljava/net/InetAddress;",
+                "java.net.SocketPermission");
+        sinkPerms.put("java/net/InetAddress/getAllByName/(Ljava/lang/String;)[Ljava/net/InetAddress;",
+                "java.net.SocketPermission");
+        sinkPerms.put("java/net/InetAddress/getLocalHost/()Ljava/net/InetAddress;",
+                "java.net.SocketPermission");
+
+        // --- Process spawn: SM.checkExec(cmd) → FilePermission(cmd, "execute") ---
+        // "className#action" encoding: both "java.io.FilePermission" and the
+        // quoted action "execute" must appear on the same PERMISSIONS.LIST line.
+        // This prevents false promotion from JARs that declare FilePermission
+        // with only "read" or "write" actions (unrelated to process execution).
+        sinkPerms.put("java/lang/ProcessBuilder/start/()Ljava/lang/Process;",
+                "java.io.FilePermission#execute");
+        sinkPerms.put("java/lang/ProcessBuilder/startPipeline/(Ljava/util/List;)Ljava/util/List;",
+                "java.io.FilePermission#execute");
+        sinkPerms.put("java/lang/Runtime/exec/(Ljava/lang/String;)Ljava/lang/Process;",
+                "java.io.FilePermission#execute");
+        sinkPerms.put("java/lang/Runtime/exec/([Ljava/lang/String;)Ljava/lang/Process;",
+                "java.io.FilePermission#execute");
+        sinkPerms.put("java/lang/Runtime/exec/(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Process;",
+                "java.io.FilePermission#execute");
+        sinkPerms.put("java/lang/Runtime/exec/(Ljava/lang/String;[Ljava/lang/String;Ljava/io/File;)Ljava/lang/Process;",
+                "java.io.FilePermission#execute");
+        sinkPerms.put("java/lang/Runtime/exec/([Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Process;",
+                "java.io.FilePermission#execute");
+        sinkPerms.put("java/lang/Runtime/exec/([Ljava/lang/String;[Ljava/lang/String;Ljava/io/File;)Ljava/lang/Process;",
+                "java.io.FilePermission#execute");
 
         // --- Native library loading: DirtyChai NativeInvocationPermission ---
         // Standard JDK's SM.checkLink() also guards these; DirtyChai adds
