@@ -44,19 +44,7 @@
           </snapshots>
         </repository>
       </repositories>
-      <pluginRepositories>
-        <pluginRepository>
-          <id>github-pfirmstone-pack200</id>
-          <name>GitHub pfirmstone Pack200-ex-openjdk Packages</name>
-          <url>https://maven.pkg.github.com/pfirmstone/Pack200-ex-openjdk</url>
-          <releases>
-            <enabled>true</enabled>
-          </releases>
-          <snapshots>
-            <enabled>false</enabled>
-          </snapshots>
-        </pluginRepository>
-      </pluginRepositories>
+
     </profile>
   </profiles>
 
