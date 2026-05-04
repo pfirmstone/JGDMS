@@ -153,8 +153,9 @@ The `InvocationHandler` encodes the authenticated remote endpoint identity. Ther
 
 **GC chain:** proxy abandoned → ClassLoader weakly reachable (CACHE uses `Ref.WEAK` +
 60s TTL) → ProtectionDomain weakly reachable → `DynamicPolicyProvider` grant becomes
-void → lazy `it.remove()` eviction on next iterator pass. Fully GC-driven, no
-coordination needed.
+void → swept by single background daemon thread (`JGDMS-DynamicPolicyProvider-VoidGrantSweeper`,
+default period 60 s). Fully GC-driven; eviction is asynchronous and never on the
+`checkPermission` hot path.
 
 ---
 
@@ -178,34 +179,63 @@ cache entry is already gone. `clearCache()` would be a no-op.
 The `ReferenceQueue` approach described in `AI_Agent_JGDMS-RemotePolicyService-context.md`
 Section 3 is **superseded and confirmed unnecessary**.
 
-### 3.2 Lazy Void Eviction — Agreed, Not Yet Implemented
+### 3.2 Void Eviction — Single Background Sweeper
 
-**Decision:** All iterators over `dynamicPolicyGrants` must call `it.remove()` on void
-grants as encountered. The `ConcurrentHashMap` iterator is weakly consistent and
-supports `remove()` — safe for concurrent access. Benign race: two threads removing
-the same void grant — one remove is a no-op.
+**Rejected design — `it.remove()` on `checkPermission` hot path:**
+The original plan was to call `it.remove()` on every iterator over `dynamicPolicyGrants`
+as void grants were encountered.  This was explicitly rejected for the following reason:
+`ConcurrentHashMap.KeySetView.iterator().remove()` calls `map.remove(key)`, which
+acquires the `synchronized` bin-head monitor for the duration of the unlink operation.
+That makes it a *blocking* write on the `SecurityManager.checkPermission` hot path.
+Under high `checkPermission` concurrency, multiple threads encountering the same void
+grant race to remove it.  Each such removal invalidates the cache line on every CPU
+that iterated past the entry.  The contention is proportional to
+`checkPermission rate × void grants present`.  On JDK ≤ 23 (pre-JEP 491) the
+`synchronized` bin-head monitor also pins virtual-thread carriers for the duration.
+Accepting this trade violates the non-blocking, write-free `checkPermission` invariant
+that the rest of the architecture depends on (§6.2 recursion budget, §6.2 virtual-thread
+story).
 
-**Four sites to update:**
-1. `getPermissionGrants(ProtectionDomain)` — both privileged and non-privileged passes
-2. `implies(ProtectionDomain, Permission)` — iterator pass over `dynamicPolicyGrants`
-3. `getGrants(Class, Principal[])` — iterator pass
-4. `refresh()` — simplify to `it.remove()`, eliminating the `LinkedList` accumulator
+**Chosen design — single background daemon thread:**
+A single daemon thread named `JGDMS-DynamicPolicyProvider-VoidGrantSweeper` wakes
+every 60 seconds (configurable) and iterates `dynamicPolicyGrants` once, calling
+`it.remove()` on any grant for which `isVoid()` returns true.
 
-**Updated iterator pattern:**
-```java
-Iterator<PermissionGrant> it = dynamicPolicyGrants.iterator();
-while (it.hasNext()){
-    PermissionGrant pg = it.next();
-    if (pg.isVoid()) {
-        it.remove();
-        continue;
-    }
-    // ... existing logic
-}
-```
+- **Hot path (`implies()`, `getPermissionGrants()`, `getGrants()`) remains purely
+  read-only** — no `it.remove()`, no writes, no bin-lock acquisition.
+- **One write source** — all void-grant removals are concentrated in a single thread.
+  No contention; cache lines are invalidated at most once per 60-second sweep regardless
+  of `checkPermission` throughput.
+- **Period is configurable** via the Security property
+  `net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds`.
+  If unset or unparseable the default is 60 s.  Setting to `<= 0` disables the sweeper
+  entirely (useful for tests or specialised deployments).
+- **Fault isolation** — the sweeper catches `Throwable` around the loop body so a
+  misbehaving `PermissionGrant.isVoid()` implementation cannot kill the sweeper thread.
+  Caught exceptions are logged at `Level.WARNING`.  The eviction count per sweep is
+  logged at `Level.FINE` when non-zero.
 
-**Status: Agreed, not yet implemented.** Producing the complete updated
-`DynamicPolicyProvider.java` remains an immediate next task.
+**Alignment with §2.5 GC chain:**
+The 60-second default period is deliberately aligned with the `PreferredProxyCodebaseProvider`
+ClassLoader CACHE TTL (also 60 s, `Ref.WEAK`).  A ClassLoader that has been GC-eligible
+for 60 s will have been evicted from the CACHE; the ProtectionDomain it backs is then
+weakly reachable; the PermissionGrant for that domain returns `isVoid() == true`.  The
+sweeper fires at the same cadence, ensuring the eviction lag is at most one TTL cycle.
+
+**`refresh()` one-shot eviction retained:**
+`refresh()` retains its existing `LinkedList` accumulator + `removeAll` pattern
+(current source lines 563–571) for administrator-triggered cleanup.  The sweeper handles
+steady-state eviction; `refresh()` handles explicit operator-driven cleanup.
+
+**Invariants preserved:**
+
+| Invariant | Maintained by |
+|---|---|
+| `SecurityManager.checkPermission` non-blocking | No writes in `implies()`, `getPermissionGrants()`, `getGrants()` |
+| Linear-scaling hot path | Iteration remains two read-only passes over `dynamicPolicyGrants` |
+| Write-free hot path | All `it.remove()` calls in sweeper thread only |
+| `CombinerSecurityManager` recursion budget (§6.3) | No additional recursion on the hot path |
+| Virtual-thread compatibility (§6.2) | No `synchronized` on the hot path |
 
 ---
 
@@ -578,11 +608,14 @@ All four diagrams are committed alongside this document in the same directory:
 
 ## 12. Remaining Work Items (in order)
 
-1. **✅ `DynamicPolicyProvider.java` — lazy void eviction** *(completed)*
-   `it.remove()` pattern applied to all four iterator sites (Section 3.2).
-   The old `LinkedList` accumulator + `removeAll()` approach in `refresh()` and
-   equivalent iterator loops elsewhere has been replaced with inline `it.remove()`
-   calls so void grants are evicted as discovered.
+1. **✅ `DynamicPolicyProvider.java` — single background sweeper for void eviction** *(completed)*
+   A single daemon thread (`JGDMS-DynamicPolicyProvider-VoidGrantSweeper`) wakes every
+   60 s and removes void grants. Hot path (`implies()`, `getPermissionGrants()`,
+   `getGrants()`) remains read-only — no `it.remove()` on the security-check path.
+   Period configurable via the
+   `net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds` Security
+   property; `<= 0` disables. Existing `refresh()` one-shot eviction retained.
+   See revised §3.2.
 
 2. **✅ `DefaultPolicyParser.scanner` — `private` → `protected`** *(completed, both repos)*
    Prerequisite for `HttpsClientAuthPolicyParser` and `InMemoryPolicyService` string
@@ -634,8 +667,8 @@ All four diagrams are committed alongside this document in the same directory:
 |---|---|
 | No `ReferenceQueue` in `DynamicPolicyProvider` | ACC is collected before or concurrent with PD weak ref enqueue; `clearCache()` would be a no-op |
 | No `clearCache()` on dynamic grant GC | ACC self-evicts; no stale entries remain by the time void is detected |
-| Lazy void eviction via `it.remove()` on all iterators | Void grants evicted as discovered; no separate cleanup pass |
-| `refresh()` simplified to `it.remove()` | Eliminates `LinkedList` accumulator; same correctness guarantee |
+| Single background sweeper for void grant eviction | Keeps `implies()` and other hot-path iteration purely read-only; one write source ⇒ no contention; aligns with 60 s ClassLoader CACHE TTL |
+| `it.remove()` on `checkPermission` hot path explicitly rejected | `ConcurrentHashMap.remove()` acquires bin-head monitor and writes; would invalidate cache lines under load; would violate the non-blocking, write-free `checkPermission` invariant the rest of the architecture depends on |
 | `RemotePolicy` wire format is `String[]` | DirtyChai cannot implement `@AtomicSerial`; `String[]` needs no `@AtomicSerial` at either end |
 | Policy file syntax as wire format | `PermissionGrant.toString()` already emits it; `DefaultPolicyScanner` already parses it |
 | Validation is server-side after parsing | Client smart proxy cannot be trusted; `InMemoryPolicyService` validates `GrantPermission` after parse |
@@ -691,7 +724,7 @@ All other authenticated JERI clients may call `getCurrentGrants()` and
 
 *Hand this document (along with source files as needed) to a future AI agent to
 continue without loss of context. The two previous context documents are superseded
-by this one for all topics covered here. This is version 4, updated to add:
+by this one for all topics covered here. This is version 5, updated to add:
 Section 7 (VerifyingProxyPreparer constructor detail), Section 8 (authentication model),
 Section 9 (ServiceUI deferred design), Section 10 (diagrams produced), and additional
 entries in the key design decisions table (Sections 7, 8, 9) — in version 2; and
@@ -699,4 +732,8 @@ in version 3: `JarAnalysisReport.declaredPermissions` implementation (Section 2.
 Section 5.6 "Implemented", Section 9, Section 12 item 10 marked ✅, Section 13 new rows);
 and in version 4: `BLOCKING_DECLARED` verdict (Section 2.1 BAE analyses, Section 5.7
 risk categorisation updated — `SocketPermission` moved to DoS-risk tier, Section 13 new
-rows for `BLOCKING_DECLARED`, `BLOCKING_GUARDED` distinction, and `SINK_TO_PERMISSION_CLASS`).*
+rows for `BLOCKING_DECLARED`, `BLOCKING_GUARDED` distinction, and `SINK_TO_PERMISSION_CLASS`);
+and in version 5: §3.2 rewritten — void eviction via single background sweeper thread
+instead of `it.remove()` on iterators; hot path stays read-only; §2.5 GC-chain note
+updated; §12 item 1 wording updated; §13 cumulative decisions table updated (one row
+replaced with two; one row deleted).*
