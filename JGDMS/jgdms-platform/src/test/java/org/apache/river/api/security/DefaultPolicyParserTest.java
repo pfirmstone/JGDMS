@@ -22,7 +22,6 @@
 
 package org.apache.river.api.security;
 
-import org.apache.river.start.SharedActivationPolicyPermission;
 import java.security.KeyStore;
 import java.security.Permission;
 import java.security.Principal;
