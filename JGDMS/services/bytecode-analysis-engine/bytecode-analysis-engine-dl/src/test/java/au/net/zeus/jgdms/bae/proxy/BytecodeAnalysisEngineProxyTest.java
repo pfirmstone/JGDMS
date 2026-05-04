@@ -25,7 +25,10 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import au.net.zeus.jgdms.api.codebase.AnalysisException;
+import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import org.apache.river.api.net.Uri;
 import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
 import org.junit.Before;
@@ -68,6 +71,12 @@ public class BytecodeAnalysisEngineProxyTest {
 
         MockBaeServer(Object adminObject) {
             this.adminObject = adminObject;
+        }
+
+        @Override
+        public JarAnalysisReport analyzeJar(AnalysisRequest request)
+                throws AnalysisException, RemoteException {
+            return null;
         }
 
         @Override
