@@ -25,6 +25,8 @@ context. It supersedes and extends the two previous context documents:
 | `AdvisoryDynamicPermissions.java` | JGDMS source | Interface: ClassLoader-implemented; META-INF/PERMISSIONS.LIST; advisory permission declaration |
 | `VerifyingProxyPreparer.java` | JGDMS source | ProxyPreparer implementation: explicit vs advisory grant paths, Security.grant() call site |
 | `PreferredProxyCodebaseProvider.java` | JGDMS source | ProxyCodebaseSpi implementation: ClassLoader cache keyed by (InvocationHandler, codebase[], parent) |
+| `JarAnalysisReport.java` | JGDMS source | `serialVersionUID=2L`; new `String[] declaredPermissions` field from `META-INF/PERMISSIONS.LIST`; backward-compat 3-arg constructor delegates to 4-arg; `getDeclaredPermissions()` returns defensive copy; declared permissions included in canonical signing bytes |
+| `JarAnalyzer.java` | JGDMS source | Phase 1 JAR scan now detects `META-INF/PERMISSIONS.LIST`; `parsePermissionsList()` helper strips blank and `#`-comment lines; sorted permissions fed into engine signature |
 
 ---
 
@@ -53,6 +55,7 @@ immediately condemns the codebase. A quorum of `SAFE` verdicts is required to pr
 - `ClinitBlockingVisitor` — BFS from `<clinit>` to blocking sinks
 - `AtomicSerialComplianceVisitor` — @AtomicSerial protocol adherence
 - Cycle detector — circular `<clinit>` dependencies
+- `JarAnalyzer` reads `META-INF/PERMISSIONS.LIST` — non-blank, non-comment lines stored in `JarAnalysisReport.getDeclaredPermissions()` and included in the engine signature
 
 ### 2.2 @AtomicSerial Compliance (JGDMS-STD-001)
 
@@ -329,9 +332,14 @@ A JAR can be SCAP-`SAFE` but still be granted too much authority at the
 `RemotePolicyProvider` layer. A JAR can pass SCAP but have its permissions tightly
 scoped. SCAP validates *code safety*; policy validates *runtime authority*.
 
-**Future opportunity:** The BAE already parses every class in the JAR. It could also
-parse `META-INF/PERMISSIONS.LIST` and include declared permissions in the
-`JarAnalysisReport`. The Verdict Registry (Host 3) could surface them to administrators
+**Implemented (v3):** The BAE now parses `META-INF/PERMISSIONS.LIST` during Phase 1
+JAR scanning and includes the declared permissions in `JarAnalysisReport` (field
+`String[] declaredPermissions`, `serialVersionUID=2L`).  Declared permissions are
+also included in the canonical signing bytes so that a compromised pipeline cannot
+strip or alter the declared set without invalidating the engine signature.  The
+`JarAnalysisReport.getDeclaredPermissions()` accessor returns a defensive copy.
+
+The Verdict Registry (Host 3) can surface these declared permissions to administrators
 in DirtyChai, enabling cross-referencing: "this service declares `createVirtualThread`
 in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission` for it?"
 
@@ -478,6 +486,9 @@ JAR. It goes through the full SCAP pipeline independently — its own BAE audit,
 display-related permissions (`AWTPermission`, etc.) that proxy code does not — keeping
 codebases separate ensures independent `PERMISSIONS.LIST` declarations and independent
 verdicts. A `DANGEROUS` verdict on the UI JAR does not condemn the service proxy JAR.
+**`META-INF/PERMISSIONS.LIST` parsing by the BAE is now implemented** — `JarAnalysisReport`
+carries the declared permissions for every JAR the BAE processes, including ServiceUI JARs
+(see Section 5.6 and Section 12 item 10).
 
 **GrantPermission and the UI ClassLoader:** The ServiceUI runs in its own `ClassLoader`
 keyed by its own `(InvocationHandler, codebase[], parent)` triple — independent from the
@@ -561,9 +572,13 @@ They are rendered inline in the conversation and are not file artefacts.
 9. **Client-side `RemoteEventListener`**
    Sequence number tracking, gap detection, pull-on-notification, lease renewal.
 
-10. **`PERMISSIONS.LIST` BAE integration** *(future / optional)*
-    Parse `META-INF/PERMISSIONS.LIST` in `JarAnalysisReport`; surface declared
-    permissions in Verdict Registry for administrator review in DirtyChai.
+10. **✅ `PERMISSIONS.LIST` BAE integration** *(completed v3)*
+    `JarAnalyzer` now detects `META-INF/PERMISSIONS.LIST` during Phase 1 JAR scanning.
+    Non-blank, non-`#`-comment lines are stored in `JarAnalysisReport.getDeclaredPermissions()`
+    (`String[]`, `serialVersionUID=2L`).  Declared permissions are sorted and included in the
+    canonical signing bytes.  Old v1 reports remain deserializable (null-tolerant `check()`).
+    **Remaining:** surface declared permissions through `VerdictRegistry` to DirtyChai UI
+    for administrator cross-referencing against `GrantPermission` policy.
 
 ---
 
@@ -593,6 +608,9 @@ They are rendered inline in the conversation and are not file artefacts.
 | `createVirtualThread` in `GrantPermission` requires care | Once granted, carrier saturation is containment-only; process isolation is the backstop |
 | `PolicyPermission("Remote")` and `GrantPermission` itself must never be delegatable | Would allow proxies to participate in policy machinery or expand their own delegation rights |
 | SCAP validates code safety; policy validates runtime authority | Complementary controls at different phases; SCAP-SAFE does not imply well-scoped grants |
+| `JarAnalysisReport` carries `String[] declaredPermissions` from `META-INF/PERMISSIONS.LIST` (`serialVersionUID=2L`) | Enables cross-referencing declared needs against `GrantPermission` ceiling without re-downloading the JAR; sorted permissions included in signing bytes so the declared set cannot be silently stripped by a compromised pipeline |
+| `parsePermissionsList()` strips blank lines and `#`-comments | Matches the de-facto convention used in existing JGDMS `PERMISSIONS.LIST` files; comment support allows copyright/authorship headers in the file |
+| Old 3-arg `JarAnalysisReport` constructor delegates to 4-arg with empty array | Backward compatible — all existing callers continue to compile and run; v1 serialized reports also deserialize cleanly (null-tolerant `check()`) |
 | Explicit preparer path → hard `SecurityException` on grant failure | Administrator made a positive decision; failure = deployment misconfiguration, not graceful degradation |
 | Advisory preparer path → soft failure (logged only) | Grant is best-effort; proxy still usable without it; graceful degradation is correct |
 | Authentication is SPIFFE/SPIRE workload identity; no traditional login | Identity is ambient — provisioned by SPIRE at workload startup; no interactive credential step at JGDMS layer |
@@ -623,7 +641,9 @@ All other authenticated JERI clients may call `getCurrentGrants()` and
 
 *Hand this document (along with source files as needed) to a future AI agent to
 continue without loss of context. The two previous context documents are superseded
-by this one for all topics covered here. This is version 2, updated to add:
+by this one for all topics covered here. This is version 3, updated to add:
 Section 7 (VerifyingProxyPreparer constructor detail), Section 8 (authentication model),
 Section 9 (ServiceUI deferred design), Section 10 (diagrams produced), and additional
-entries in the key design decisions table (Sections 7, 8, 9).*
+entries in the key design decisions table (Sections 7, 8, 9) — in version 2; and
+in version 3: `JarAnalysisReport.declaredPermissions` implementation (Section 2.1,
+Section 5.6 "Implemented", Section 9, Section 12 item 10 marked ✅, Section 13 new rows).*
