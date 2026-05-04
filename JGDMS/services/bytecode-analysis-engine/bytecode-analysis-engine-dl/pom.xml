@@ -71,9 +71,7 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>8</source>
-                    <target>8</target>
-                    <optimize>true</optimize>
+                    <release>8</release>
                     <encoding>UTF-8</encoding>
                     <meminitial>128m</meminitial>
                     <maxmem>1024m</maxmem>
