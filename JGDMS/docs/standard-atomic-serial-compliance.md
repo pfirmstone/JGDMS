@@ -299,16 +299,28 @@ public final class ServiceDescriptor implements Serializable {
 The following table shows real JGDMS classes and the specific patterns they exemplify.
 AI agents and developers can use them as authoritative references.
 
+**COMPLIANT classes:**
+
 | Class | Pattern exercised |
 |-------|-------------------|
 | `au.net.zeus.jgdms.api.codebase.AnalysisRequest` | Pack200-compressed serial field; `check(GetArg)` returns `byte[]` (not `boolean`) and is passed directly to bridge ctor |
 | `au.net.zeus.jgdms.api.codebase.SignedVerdict` | `(String[]) arg.get(2-arg)` with explicit CHECKCAST; typed 3-arg for `VerdictType` |
 | `au.net.zeus.jgdms.api.codebase.CrashReport` | Multiple typed fields; `byte[]` signature retrieved with explicit cast |
+| `au.net.zeus.jgdms.vr.proxy.VerdictEvent` | `super(check(arg))` where `check` returns `GetArg`; extends `RemoteEvent` |
 | `net.jini.id.Uuid` | Check method reads only primitive `long` fields; standard `(GetArg, boolean)` bridge |
 | `net.jini.core.lookup.ServiceID` | Two private static helpers (`mostSig`, `leastSig`) each return `long`; no object-type access |
 | `net.jini.core.event.EventRegistration` | `arg.get("source", null)` stored to local via `ASTORE` before null-check — `pendingUntypedGet` reset |
 | `net.jini.core.lookup.ServiceEvent` | `check(GetArg)` returns `GetArg` (not `boolean`); `super(check(arg))` pattern |
+| `net.jini.core.constraint.ConstraintAlternatives` | `this(validate(arg.get(..., TypedClass.class)), false)` — INVOKESTATIC validate before INVOKESPECIAL this |
 | `au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy` | `instanceof` check on inherited `Object server` field before any branch |
+
+**VALIDATION_ORDER classes (require remediation):**
+
+| Class | Why VALIDATION_ORDER |
+|-------|----------------------|
+| `net.jini.core.constraint.InvocationConstraints` | `this(arg.get("reqs",...), arg.get("prefs",...), true)` — no INVOKESTATIC in `(GetArg)` ctor; validation in deeper private ctor |
+| `net.jini.core.lookup.ServiceItem` | `this(arg == null ? null : arg.get(...), ...)` — no static check method called before `this(...)` |
+| `org.apache.river.discovery.MulticastTimeToLive` | `this(arg.get("ttl",-1))` — INVOKEVIRTUAL-only primitive getter chain; no INVOKESTATIC |
 
 ---
 

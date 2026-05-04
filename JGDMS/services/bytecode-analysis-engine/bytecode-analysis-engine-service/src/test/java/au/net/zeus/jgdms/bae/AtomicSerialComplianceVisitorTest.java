@@ -33,11 +33,15 @@ import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
+import au.net.zeus.jgdms.vr.proxy.VerdictEvent;
+import net.jini.core.constraint.ConstraintAlternatives;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceID;
+import net.jini.core.lookup.ServiceItem;
 import net.jini.id.Uuid;
 import org.apache.river.discovery.MulticastTimeToLive;
 
@@ -310,6 +314,88 @@ public class AtomicSerialComplianceVisitorTest {
     @Test
     public void testRealClass_MulticastTimeToLive_isValidationOrder() throws Exception {
         byte[] classBytes = loadClassBytes(MulticastTimeToLive.class);
+        assertEquals(AtomicSerialVerdict.VALIDATION_ORDER,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link VerdictEvent} extends {@link RemoteEvent} and uses
+     * {@code static GetArg check(GetArg)} (returning {@code GetArg}) in the
+     * pattern {@code super(check(arg))}.
+     *
+     * <p>Because {@code INVOKESTATIC check} precedes the {@code INVOKESPECIAL
+     * super.<init>(GetArg)}, {@code getArgCtorValidationOk} is {@code true}.
+     * The check method descriptor ends with {@code )Lorg/apache/river/api/io/AtomicSerial$GetArg;}
+     * (not {@code )Z}), so no {@link CheckMethodAnalyzer} is applied —
+     * {@code UNTYPED_GET} detection is skipped.
+     * The class declares {@code serialForm()} and has one non-transient field.
+     * Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_VerdictEvent_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(VerdictEvent.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link ConstraintAlternatives} uses
+     * {@code this(validate(arg.get("constraints", null, InvocationConstraint[].class)), false)}
+     * in the {@code (GetArg)} constructor.  The static {@code validate} method
+     * is called via {@code INVOKESTATIC} before {@code INVOKESPECIAL this(...)},
+     * satisfying the validation-before-construction ordering requirement.
+     * The 3-arg typed form of {@code arg.get} is used, so no {@code UNTYPED_GET}
+     * issue arises.
+     * Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_ConstraintAlternatives_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(ConstraintAlternatives.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link InvocationConstraints} uses the two-step constructor chain:
+     * <pre>
+     * public InvocationConstraints(GetArg arg) {
+     *     this(arg.get("reqs", null, ...), arg.get("prefs", null, ...), true);
+     * }
+     * </pre>
+     * No {@code INVOKESTATIC} call appears before {@code INVOKESPECIAL this(...)}
+     * in the {@code (GetArg)} constructor body.  Validation ({@code check(reqs, prefs)})
+     * occurs one level deeper in the private {@code (InvocationConstraint[],
+     * InvocationConstraint[], boolean)} constructor, not at the {@code GetArg}
+     * constructor level.  The {@link GetArgCtorAnalyzer} therefore sets
+     * {@code getArgCtorValidationOk = false}.
+     * Expected result: {@link AtomicSerialVerdict#VALIDATION_ORDER}.
+     */
+    @Test
+    public void testRealClass_InvocationConstraints_isValidationOrder() throws Exception {
+        byte[] classBytes = loadClassBytes(InvocationConstraints.class);
+        assertEquals(AtomicSerialVerdict.VALIDATION_ORDER,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link ServiceItem} uses the pattern:
+     * <pre>
+     * public ServiceItem(GetArg arg) {
+     *     this(arg == null ? null : arg.get(SERVICE_ID, null, ServiceID.class),
+     *          arg == null ? null : arg.get(SERVICE, null),
+     *          arg == null ? null : arg.get(ATTRIBUTE_SETS, null, Entry[].class));
+     * }
+     * </pre>
+     * No static check method is called before {@code this(...)}.  The class
+     * relies on the three-argument delegating constructor for null handling.
+     * {@code INVOKESTATIC} is absent before {@code INVOKESPECIAL this(...)}
+     * in the {@code (GetArg)} constructor, so {@code getArgCtorValidationOk}
+     * is {@code false}.
+     * Expected result: {@link AtomicSerialVerdict#VALIDATION_ORDER}.
+     */
+    @Test
+    public void testRealClass_ServiceItem_isValidationOrder() throws Exception {
+        byte[] classBytes = loadClassBytes(ServiceItem.class);
         assertEquals(AtomicSerialVerdict.VALIDATION_ORDER,
                      AtomicSerialComplianceVisitor.analyze(classBytes));
     }

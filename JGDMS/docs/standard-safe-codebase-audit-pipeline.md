@@ -1,6 +1,6 @@
-# JGDMS-STD-002 — Safe Codebase Audit Architecture Standard
+# JGDMS-STD-002 — Safe Codebase Audit Pipeline Standard
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Status:** Active  
 **Scope:** Deployment topology, trust boundaries, data flow, and service contracts for
 the JGDMS dynamic static-analysis pipeline that audits bytecode before it is unmarshalled
@@ -26,7 +26,9 @@ The architecture is formally named:
 
 A distributed Java system that loads remote code (via Jini / RMI codebase annotation)
 is exposed to a **supply-chain attack**: an attacker replaces a legitimate JAR with one
-that contains malicious or denial-of-service bytecode.
+that contains malicious or denial-of-service bytecode.  Virtual-thread carrier pinning
+caused by blocking `<clinit>` paths is a related liveness attack that can stall a JVM
+with as few as `Runtime.availableProcessors()` concurrent class-load triggers.
 
 SCAP defends against this by ensuring that:
 
@@ -41,6 +43,10 @@ SCAP defends against this by ensuring that:
    codebase that caused the crash is condemned automatically.
 5. **Virtual-thread carrier pinning** caused by blocking `<clinit>` paths is detected
    and classified, protecting liveness as well as integrity.
+6. Host 2 and Host 3 have **no direct connection**: a compromised analysis engine
+   cannot write verdicts to the registry directly.
+7. Host 4 and Host 5 have **no direct connection**: a flood of client JFR events
+   cannot DOS the proactive analysis pipeline.
 
 ---
 
@@ -48,134 +54,123 @@ SCAP defends against this by ensuring that:
 
 | Term | Meaning |
 |------|---------|
-| BAE | Bytecode Analysis Engine — a Phoenix-activated service that parses bytecode and emits signed `JarAnalysisReport` objects. |
-| VR | Verdict Registry — the authoritative, low-risk aggregation service that clients trust. |
-| Codebase Downloader (CD) | Host 4 — fetches JARs, hashes them, pushes `AnalysisRequest` objects to BAEs, and forwards signed reports to the VR. |
-| JFR Telemetry Service (JTS) | Host 5 — consumes JDK Flight Recorder events (particularly `jdk.VirtualThreadPinned`) and triggers re-analysis of suspicious codebases. |
-| `SignedVerdict` | A per-engine, per-codebase opinion signed with the engine's private key. |
-| `JarAnalysisReport` | A detailed per-class breakdown signed by the BAE. |
-| `RegistryVerdict` | The authoritative, registry-signed verdict that clients use to gate unmarshalling. |
-| `CrashReport` | A Phoenix-signed record of an abnormal JVM exit, treated as an implicit `DANGEROUS` verdict. |
-| Quorum | The minimum number of independent BAE verdicts of `SAFE` that the VR requires before issuing a `SAFE` `RegistryVerdict`. |
+| BAE | Bytecode Analysis Engine — a Phoenix-activated service that parses bytecode and emits signed `JarAnalysisReport` objects. Runs on Host 2. |
+| VR | Verdict Registry — the authoritative, low-risk aggregation service that clients and Hosts 4/5 submit reports to. Runs on Host 3. |
+| Lookup Service | Jini Lookup Service. The central service registry that stores opaque marshalled proxy items and fires discovery events. Runs on Host 1. |
+| CD | Codebase Downloader — proactive service on Host 4 triggered by Host 1 events. The only component with outbound internet access. |
+| JTS | JFR Telemetry Service — reactive service on Host 5 that receives `jdk.VirtualThreadPinned` events from client JVMs and triggers re-analysis. |
+| `AnalysisRequest` | Self-contained request carrying Pack200-compressed JAR bytes + SHA-256 hash pushed by Host 4 to a BAE instance on Host 2. |
+| `JarAnalysisReport` | Detailed per-class analysis result signed by a BAE instance's private key. Produced by Host 2. |
+| `SignedVerdict` | A summarised per-engine verdict (URL set + `VerdictType` + timestamp + engine signature). Derived from a `JarAnalysisReport`. |
+| `RegistryVerdict` | The authoritative, Host-3-signed verdict that clients use to gate unmarshalling. |
+| `CrashReport` | A Phoenix-signed record of an abnormal JVM exit, submitted directly to Host 3. Treated as an implicit `DANGEROUS` verdict. |
+| Quorum | The minimum number of independent BAE verdicts of `SAFE` that the VR (Host 3) requires before issuing a `SAFE` `RegistryVerdict`. |
 | JERI | Jini Extensible Remote Invocation — the transport layer used for all inter-service communication. |
+| SPIFFE ID | SPIRE-managed X.509 SVID identity used for JERI TLS on all five hosts and all clients. |
 
 ---
 
 ## The Five Hosts
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│  Host 1 — Verdict Registry (VR)                           │
-│  Trust level : HIGH (holds clients' signing key)          │
-│  Network     : inbound from Host 2, Host 3, Host 4, Host 5│
-│                outbound to clients (event notifications)  │
-└───────────────────────────────────────────────────────────┘
-         ▲                       ▲
- submitReport / reportCrash    event
-         │                       │
-┌────────┴──────────┐   ┌────────┴──────────┐
-│ Host 2 — BAE #1   │   │ Host 3 — BAE #N   │
-│ Trust : UNTRUSTED │   │ Trust : UNTRUSTED │
-│ Phoenix-activated │   │ Phoenix-activated │
-└────────▲──────────┘   └────────▲──────────┘
-         │  analyzeJar           │  analyzeJar
-         │                       │
-┌────────┴───────────────────────┴──────────┐
-│  Host 4 — Codebase Downloader (CD)         │
-│  Trust level : MEDIUM                      │
-│  Fetches JARs, hashes them, pushes to BAEs │
-│  Forwards JarAnalysisReport to VR          │
-└───────────────────────────────────────────┘
-         ▲
- requestReanalysis (on VirtualThreadPinned events)
-         │
-┌────────┴──────────────────────┐
-│  Host 5 — JFR Telemetry (JTS) │
-│  Trust level : LOW (observer) │
-│  Listens to JFR streams        │
-└───────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Host 1 — Jini Lookup Service (any OS)                          │
+│  Trust level : LOW for analysis; HIGH for discovery             │
+│  Stores opaque marshalled service items; fires discovery events  │
+│  BAE pool (Host 2) instances register here for discovery        │
+│  DOES NOT unmarshal proxies; DOES NOT fetch URLs                 │
+└─────────────────────────────────────────────────────────────────┘
+         ▲ ServiceRegistrar events            ▲ Jini lookup
+         │                                    │
+┌────────┴──────────┐              ┌──────────┴──────────────────┐
+│ Host 4 — Codebase │              │ Host 5 — JFR Telemetry      │
+│ Downloader (CD)   │              │ Service (JTS)               │
+│ Trust : MEDIUM    │              │ Trust : LOW (observer)      │
+│ Only host with    │              │ Receives VirtualThreadPinned│
+│ outbound internet │              │ events from clients (JERI)  │
+└────────┬──────────┘              └──────────┬──────────────────┘
+         │  analyzeJar(AnalysisRequest)        │  requestAnalysis
+         │  (round-robin pool)                 │  (BAE proxy pool)
+         ▼                                     ▼
+┌────────────────────────────────────────────────────────────────┐
+│  Host 2 — SELinux Analysis Engine Pool (BAE)                   │
+│  Replicated N times, completely stateless                       │
+│  Trust level : UNTRUSTED (treated as potentially compromised)   │
+│  SELinux: inbound JERI from Host 4 + Host 5 only               │
+│  No outbound network; no internet; no exec; no JNI; no FFM     │
+│  Each instance has its own key pair for signing JarAnalysisReport│
+│  Discovered by Hosts 4 and 5 via Jini lookup at Host 1          │
+└────────────────────────────────────────────────────────────────┘
+         ▲                                      (NO direct path to Host 3)
+         │  JarAnalysisReport returned to Host 4 / Host 5
+         │  Host 4/5 submit reports to Host 3:
+         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Host 3 — Verdict Registry (VR) (any OS)                        │
+│  Trust level : HIGH (holds clients' signing key)                │
+│  Persistent store keyed by SHA-256 content hash                 │
+│  Maintains set of trusted engine public keys (one per instance) │
+│  Inbound JERI from Host 4, Host 5, all clients                  │
+│  No connection to Host 2; no bytecode parsing                   │
+└─────────────────────────────────────────────────────────────────┘
+         │  RegistryVerdict (push/pull)
+         ▼
+    Clients (query Host 3 directly; report JFR events to Host 5)
 ```
 
-> **Implementation note:** BAE instances 1..N may be deployed on separate hosts or in
-> separate Phoenix activation groups on the same host.  Each BAE **must** have its own
-> asymmetric key-pair.  What is mandatory is **network-level isolation**: a compromised
-> BAE must not be able to reach Host 1 directly except via the documented JERI
-> interface.
+> **AI-agent note:** The SVG `bae_replicated_host2.svg` in the repository root is the
+> authoritative topology diagram.  Its description field reads: *"Same five-host topology
+> as before but Host 2 is now shown as a pool of N replicated SELinux analysis nodes,
+> all stateless. Host 4 and Host 5 each hold a pool of BAE smart proxy stubs, one per
+> engine instance, discovered via Jini lookup. Requests are distributed across available
+> engine instances. Each instance signs its report with its own engine private key.
+> Host 3 maintains a set of trusted engine public keys and accepts signed reports from
+> any registered engine instance. No coordination is needed between engine instances
+> because each AnalysisRequest is fully self-contained."*
 
 ---
 
-## Host 1 — Verdict Registry (VR)
+## Host Roles in Detail
 
-### Role
+### Host 1 — Jini Lookup Service
 
-The single source of truth for codebase safety.  Clients only trust `RegistryVerdict`
-objects signed by this host's private key.
+**Role.** Service registry.  Stores marshalled service items **opaquely** — it does NOT
+unmarshal proxies, does NOT perform analysis, does NOT fetch URLs.
 
-### Trust level
+**Key behaviours:**
+- Fires `ServiceRegistrar` discovery events when new services register.  Host 4 (CD)
+  listens for these events to know when to download and analyse a new codebase.
+- BAE instances (Host 2 pool) **register** their proxy stubs here so that Hosts 4
+  and 5 can discover the pool via standard Jini lookup.
+- Hosts 4 and 5 hold a **BAE smart proxy pool** (one proxy stub per engine instance)
+  discovered from Host 1 and used for round-robin dispatch of `analyzeJar` calls.
+- The VerdictRegistry proxy (Host 3) is also registered here for client discovery.
 
-**HIGH.**  This host:
-- Holds the registry private signing key (the only key clients trust).
-- Never parses bytecode.
-- Receives only well-typed, signed data objects over authenticated JERI connections.
+**Trust level.** LOW with respect to the analysis pipeline.  Host 1 never validates
+content; it is a passive registry.
 
-### Inputs
-
-| Method | Caller | What it does |
-|--------|--------|--------------|
-| `registerAnalysisEngine(engineId, engineKey, sigAlgorithm)` | Operator | Registers a BAE public key |
-| `revokeAnalysisEngine(engineId)` | Operator | Removes a BAE from the registry |
-| `submitReport(engineId, JarAnalysisReport)` | Host 4 (CD) | Submits a detailed signed report; VR derives `VerdictType` |
-| `submitVerdict(engineId, SignedVerdict)` | Host 4 (CD) | Submits a pre-aggregated verdict (legacy path) |
-| `reportCrash(CrashReport)` | Host 4 or Host 5 | Immediately condemns the affected codebase |
-| `registerVerdictListener(...)` | Clients | Subscribe to verdict events |
-| `getVerdictByHash(contentHash)` | Clients | Poll for current verdict by SHA-256 hash |
-| `getVerdict(codebaseUrls)` | Clients | Poll for current verdict by URL set |
-
-### Outputs
-
-- `RegistryVerdict` — signed authoritative result.  Published via event notification
-  (push) or returned via `getVerdict` / `getVerdictByHash` (pull).
-
-### Quorum policy
-
-Before issuing a `SAFE` `RegistryVerdict`:
-- Verdicts from at least **K of N** registered BAEs must be `SAFE` (operator-configured
-  K and N).
-- A single `DANGEROUS` verdict from **any** engine immediately issues a `DANGEROUS`
-  `RegistryVerdict` regardless of quorum state.
-- A `CrashReport` is treated as an implicit `DANGEROUS` vote.
-- `INCONCLUSIVE` verdicts do not count toward the `SAFE` quorum.
-
-### Security invariants
-
-1. The VR private key never leaves Host 1.
-2. The VR never fetches URLs or parses bytecode.
-3. A revoked engine's past verdicts are re-evaluated; any `RegistryVerdict` that relied
-   solely on revoked engines is invalidated.
+**SPIFFE ID:** `spiffe://jgdms.example.org/host/lookup`
 
 ---
 
-## Host 2 / Host 3 — Bytecode Analysis Engines (BAE)
+### Host 2 — SELinux Analysis Engine Pool (BAE)
 
-> Hosts 2 and 3 represent **N ≥ 2 independent BAE instances**.  The following applies
-> to each one.
+**Role.** Deep-parses untrusted bytecode and produces a signed `JarAnalysisReport`.
+Deployed as N **completely stateless** replicated instances.
 
-### Role
+**Trust level.** **UNTRUSTED.**  A BAE must be treated as **potentially compromised
+at all times**:
+- Runs in a Phoenix activation group with restrictive SELinux policy.
+- **No outbound network access** — JAR bytes are pushed to it by Host 4 or Host 5 via
+  `analyzeJar(AnalysisRequest)`.  The `AnalysisRequest` is self-contained (bytes +
+  SHA-256 hash).
+- Inbound JERI connections accepted only from Host 4 and Host 5.
+- **No direct connection to Host 3** (VerdictRegistry).  This is the key isolation
+  invariant: a compromised engine cannot write verdicts to the registry directly.
+- Each instance holds its own asymmetric key-pair.  Individual revocation without
+  taking down the pool.
 
-Deep-parses untrusted bytecode and produces a signed `JarAnalysisReport`.
-
-### Trust level
-
-**UNTRUSTED.**  A BAE must be treated as **potentially compromised at all times**:
-- It runs in a Phoenix activation group with restrictive security permissions.
-- It **never** holds the registry's private signing key.
-- It **never** makes outbound network requests; JAR bytes are pushed to it by Host 4.
-- Inbound JERI connections accepted only from Host 4 (Codebase Downloader) and
-  Host 5 (JFR Telemetry Service).
-
-### Analysis performed on each JAR
-
-For every `.class` entry:
+**Analysis performed on each JAR:**
 
 | Visitor | What it checks | Verdict type |
 |---------|---------------|-------------|
@@ -186,10 +181,196 @@ For every `.class` entry:
 Any class file that cannot be parsed by ASM is assigned
 `ClinitVerdict.BLOCKING` + `AtomicSerialVerdict.MISSING_CONSTRUCTOR` (fail-secure).
 
-### Verdict derivation
+**Scalability.** Add instances to the pool as load requires.  No inter-instance
+coordination is needed.
 
-The `JarAnalysisReport.deriveVerdictType()` method maps per-class results to an
-aggregate `VerdictType` using the following priority order:
+**Crash signal.** If a BAE's Phoenix activation group exits abnormally while analysing
+a JAR, Phoenix submits a `CrashReport` to Host 3 for the codebase under analysis.
+
+**SPIFFE ID pattern:** `spiffe://jgdms.example.org/host/bae/engine-N`  
+(Each instance has its own SPIFFE ID and own engine signing key-pair.)
+
+---
+
+### Host 3 — Verdict Registry (VR)
+
+**Role.** The single source of truth for codebase safety.  Clients only trust
+`RegistryVerdict` objects signed by this host's private key.
+
+**Trust level.** **HIGH.**  This host:
+- Holds the registry private signing key (the only key clients trust).
+- Never parses bytecode; never fetches URLs.
+- Receives only well-typed, signed data objects over authenticated JERI connections.
+- Has **no connection to Host 2** (BAE pool).
+
+**Inputs:**
+
+| Method | Caller | What it does |
+|--------|--------|--------------|
+| `registerAnalysisEngine(engineId, engineKey, sigAlgorithm)` | Operator | Registers a BAE instance public key |
+| `revokeAnalysisEngine(engineId)` | Operator | Removes a BAE instance from the registry |
+| `submitReport(engineId, JarAnalysisReport)` | Host 4 or Host 5 | Submits a detailed signed report; VR derives `VerdictType` and applies quorum policy |
+| `submitVerdict(engineId, SignedVerdict)` | Host 4 or Host 5 | Submits a pre-aggregated verdict (legacy path) |
+| `reportCrash(CrashReport)` | Phoenix (via Host 4 or direct) | Immediately condemns the affected codebase |
+| `registerVerdictListener(...)` | Clients | Subscribe to verdict push events |
+| `getVerdictByHash(contentHash)` | Clients | Poll for verdict by SHA-256 hash |
+| `getVerdict(codebaseUrls)` | Clients | Poll for verdict by URL set |
+
+**Quorum policy:**
+- Verdicts from at least **K of N** registered BAE instances must be `SAFE`
+  (operator-configured K and N).
+- A single `DANGEROUS` verdict from **any** engine immediately issues a `DANGEROUS`
+  `RegistryVerdict`.
+- A `CrashReport` is treated as an implicit `DANGEROUS` vote.
+- `INCONCLUSIVE` verdicts do not count toward the `SAFE` quorum.
+
+**SPIFFE ID:** `spiffe://jgdms.example.org/host/registry`
+
+---
+
+### Host 4 — Codebase Downloader (CD)
+
+**Role.** **Proactive** mediator between the Jini lookup infrastructure and the
+analysis pipeline.
+
+**Trust level.** **MEDIUM.**  Trusted Jini participant; not on the critical signing
+path.
+
+**Trigger:** `ServiceRegistrar` discovery events from Host 1.
+
+**Workflow for a new JAR:**
+```
+Host 1 fires ServiceRegistrar event (new codebase URL discovered)
+  → CD checks VR (Host 3): getVerdictByHash(H) — skip if already known
+  → CD downloads JAR bytes B over TLS (only host with outbound internet)
+  → CD computes SHA-256 hash H of B
+  → CD builds AnalysisRequest(Pack200-compressed(B), H, bfsDepth, codebaseUrls)
+  → For each BAE instance in pool (Host 2):
+       report = BAE.analyzeJar(request)          // round-robin dispatch
+       VR.submitReport(engineId, report)          // CD submits to Host 3
+  → Wait for RegistryVerdict via event or poll
+  → Gate client access on RegistryVerdict.getVerdictType()
+```
+
+**Key properties:**
+- **Only** component with outbound internet access.
+- Discovers BAE instances from Host 1 (standard Jini lookup); holds pool of proxy stubs.
+- Does **not** trust the `JarAnalysisReport` itself — it forwards it to Host 3 for
+  signature verification.  Host 3 is the sole interpreter of verdicts.
+- Has **no connection to Host 5**.
+
+**SPIFFE ID:** `spiffe://jgdms.example.org/host/downloader`
+
+---
+
+### Host 5 — JFR Telemetry Service (JTS)
+
+**Role.** **Reactive** runtime cross-check.  Receives `jdk.VirtualThreadPinned` JFR
+events from client JVMs and triggers re-analysis of suspicious codebases.
+
+**Trust level.** **LOW (observer only).**  The JTS:
+- Never submits verdicts to Host 3 directly — all verdict updates must pass through
+  the signed analysis pipeline (Host 2 → Host 4 or Host 5 → Host 3).
+- Receives JFR events from client JVMs via authenticated JERI.
+- Rate-limits and deduplicates per client identity.
+- Correlates pinning events with content hash; triggers re-analysis on Host 2.
+- After re-analysis, submits the updated `JarAnalysisReport` to Host 3.
+- Has **no connection to Host 4**.
+
+**Rationale for separation from Host 4:** A flood of client JFR events cannot cause a
+denial of service on the proactive analysis pipeline.
+
+**SPIFFE ID:** `spiffe://jgdms.example.org/host/telemetry`
+
+---
+
+### Client Hosts
+
+- `ProxyCodebaseSPI` is present on every client.
+- Discovers services from Host 1 (marshalled, opaque).
+- `ProxyCodebaseSPI` fires **before unmarshal**: hashes the JAR, queries Host 3
+  directly for a `RegistryVerdict`.
+- Clean verdict (`SAFE`) → unmarshal proxy; absent or `DANGEROUS` → refuse, log, alert.
+- Reports `jdk.VirtualThreadPinned` JFR events to Host 5 (advisory, authenticated).
+- After unmarshal, connects directly to services over IPv6 (no relay).
+
+**SPIFFE ID pattern:** `spiffe://jgdms.example.org/client/<id>`
+
+---
+
+## Connection Matrix
+
+The following connections are the **only** permitted inter-host paths.  All others
+are explicitly forbidden.
+
+| From | To | Protocol | Purpose |
+|------|----|----------|---------|
+| Host 4 (CD) | Host 1 (Lookup) | JERI | Listen for `ServiceRegistrar` events; discover BAE pool |
+| Host 5 (JTS) | Host 1 (Lookup) | JERI | Discover BAE pool |
+| Host 4 (CD) | Host 2 (BAE pool) | JERI | Push `AnalysisRequest`; receive `JarAnalysisReport` |
+| Host 5 (JTS) | Host 2 (BAE pool) | JERI | Trigger re-analysis |
+| Host 4 (CD) | Host 3 (VR) | JERI | Submit `JarAnalysisReport`; check verdict cache |
+| Host 5 (JTS) | Host 3 (VR) | JERI | Submit re-analysis `JarAnalysisReport` |
+| Clients | Host 1 (Lookup) | JERI | Discover registered services |
+| Clients | Host 3 (VR) | JERI | Query `RegistryVerdict` by hash or URL |
+| Clients | Host 5 (JTS) | JERI | Report `jdk.VirtualThreadPinned` events |
+
+### Explicitly forbidden connections (key isolation invariants)
+
+| Forbidden path | Rationale |
+|---------------|-----------|
+| Host 2 (BAE) → Host 3 (VR) | Compromised engine cannot write verdicts directly |
+| Host 4 (CD) ↔ Host 5 (JTS) | JFR flood from clients cannot DOS proactive pipeline |
+| Host 1 (Lookup) ↔ Host 2 (BAE) | Lookup service does not trigger analysis |
+| Clients ↔ Host 2 (BAE) | Clients never interact with analysis engines |
+| Clients ↔ Host 4 (CD) | Clients do not drive the download pipeline |
+
+---
+
+## Data Objects
+
+### `AnalysisRequest` (`@AtomicSerial`)
+
+Carries JAR bytes from Host 4 or Host 5 to a BAE instance on Host 2.
+
+| Field | Wire form | Notes |
+|-------|-----------|-------|
+| `packedJarBytes` | `byte[]` | Pack200-compressed JAR bytes (serial form only) |
+| `jarBytes` (in-memory) | `byte[]` | Decompressed in `check(GetArg)` — never serialized |
+| `contentHash` | `String` | SHA-256 hex digest of the **raw** bytes, computed by Host 4/5 |
+| `originalUri` | `URI` | Primary codebase URL (traceability only) |
+| `maxBfsDepth` | `int` | Maximum BFS depth for `<clinit>` analysis |
+
+Decompression happens exactly once inside `AnalysisRequest.check(GetArg)`.  The
+bridge constructor receives the raw bytes directly — no double unpacking.
+
+### `JarAnalysisReport` (`@AtomicSerial`)
+
+Produced by a BAE instance.  Contains per-class `ClassAnalysisResult` records and is
+signed with the BAE instance's private key.  The aggregate `VerdictType` is derived
+via `JarAnalysisReport.deriveVerdictType()`.
+
+### `SignedVerdict` (`@AtomicSerial`)
+
+A summary verdict (URL set + `VerdictType` + timestamp + BAE instance signature).
+Used by the legacy submission path.
+
+### `RegistryVerdict` (`@AtomicSerial`)
+
+The sole artefact clients trust.  Contains URL set + `VerdictType` + timestamp +
+Host-3 signature.
+
+### `CrashReport` (`@AtomicSerial`)
+
+Submitted by Phoenix on an abnormal group exit.  Contains URL set + exit code +
+incarnation number + sanitised stderr excerpt + Phoenix signature.
+
+---
+
+## Verdict Derivation
+
+`JarAnalysisReport.deriveVerdictType()` maps per-class results to an aggregate
+`VerdictType` using the following priority order:
 
 1. Any `ClinitVerdict.BLOCKING`, `ClinitVerdict.CYCLE`, or any
    `AtomicSerialVerdict` of `MISSING_CONSTRUCTOR`, `VALIDATION_ORDER`,
@@ -198,151 +379,75 @@ aggregate `VerdictType` using the following priority order:
    `AtomicSerialVerdict.NOT_ANNOTATED` → **`INCONCLUSIVE`** (unless already `DANGEROUS`)
 3. All results `CLEAN` / (`COMPLIANT` or `NA`) → **`SAFE`**
 
-### Crash signal
-
-If a BAE's Phoenix activation group exits abnormally **while analysing a JAR**, Phoenix
-must submit a `CrashReport` to the VR for the codebase that was under analysis.  The
-VR treats it as an implicit `DANGEROUS` verdict.
-
-### Key material
-
-Each BAE holds:
-- Its own asymmetric key-pair (private key used to sign `JarAnalysisReport`).
-- The VR's public key (to verify that its own JERI connection target is genuine).
-
-The BAE does **not** hold the VR private signing key.
+`BLOCKING_GUARDED` means the blocking path is only reachable when the caller holds a
+specific Java permission (guard precedes the blocking sink in the call graph).  This
+is `INCONCLUSIVE` because granting that permission implicitly accepts the pinning risk.
 
 ---
 
-## Host 4 — Codebase Downloader (CD)
+## SPIFFE Identity Scheme
 
-### Role
-
-Mediates between the Jini lookup infrastructure and the analysis pipeline.  It:
-1. Intercepts codebase URLs discovered via Jini / RMI annotation.
-2. Downloads the JAR bytes over TLS (or from a local cache).
-3. Computes the SHA-256 hash of the raw bytes.
-4. Wraps the bytes in an `AnalysisRequest` (Pack200-compressed) and pushes it to
-   each registered BAE via `BytecodeAnalysisEngine.analyzeJar(AnalysisRequest)`.
-5. Receives the signed `JarAnalysisReport` from each BAE and forwards it to the VR via
-   `VerdictRegistry.submitReport(engineId, report)`.
-6. Polls or subscribes to `RegistryVerdict` events from the VR to determine when a
-   codebase has been cleared (or condemned).
-
-### Trust level
-
-**MEDIUM.**  The CD is a trusted Jini participant but it is not on the critical signing
-path; it never constructs `RegistryVerdict` objects.
-
-### Key data flow for a new JAR
+All JERI connections use SPIRE-managed X.509 SVIDs (~1 hour lifetime, automatic
+rotation).  Engine signing keys are distinct from JERI SVIDs (different rotation
+cadence; hardware backing recommended).
 
 ```
-CD fetches JAR bytes (B)
-  → compute SHA-256 hash H
-  → build AnalysisRequest(B, H, bfsDepth, codebaseUrls)
-  → for each BAE:
-       report = BAE.analyzeJar(request)          // Pack200 compressed in transit
-       VR.submitReport(engineId, report)
-  → poll VR.getVerdictByHash(H)  or  await VerdictEvent
-  → gate client unmarshalling on RegistryVerdict.getVerdictType()
+spiffe://jgdms.example.org/host/lookup          → Host 1
+spiffe://jgdms.example.org/host/bae/engine-N    → Host 2 instance N
+spiffe://jgdms.example.org/host/registry        → Host 3
+spiffe://jgdms.example.org/host/downloader      → Host 4
+spiffe://jgdms.example.org/host/telemetry       → Host 5
+spiffe://jgdms.example.org/client/<id>          → clients
 ```
-
-### Security invariants
-
-1. The CD verifies the BAE's JERI server authentication before sending JAR bytes.
-2. The CD verifies the VR's JERI server authentication before submitting reports.
-3. The CD does not trust the `JarAnalysisReport` itself — it forwards it to the VR
-   for signature verification.  The VR is the sole interpreter of verdicts.
 
 ---
 
-## Host 5 — JFR Telemetry Service (JTS)
-
-### Role
-
-Listens to JDK Flight Recorder (JFR) event streams from running JVMs in the cluster.
-When a `jdk.VirtualThreadPinned` event is observed for a class that originates from a
-known codebase URL, the JTS calls:
-
-```java
-BAE.requestAnalysis(codebaseUrls)
-```
-
-This is a **fire-and-forget** re-analysis trigger that does not supply JAR bytes; it
-relies on the BAE (or the CD on the BAE's behalf) to obtain the bytes and re-submit to
-the VR.
-
-> **Rationale for re-analysis:** A codebase that previously received a `SAFE` verdict
-> may have been silently replaced by a new JAR with a blocking `<clinit>`.  The JFR
-> signal provides a runtime cross-check on the static analysis.
-
-### Trust level
-
-**LOW (observer only).**  The JTS:
-- Never submits verdicts to the VR directly.
-- Never holds analysis or registry key material.
-- Can only trigger re-analysis requests.
-
----
-
-## Data Objects
-
-### `AnalysisRequest`
-
-Carries the JAR bytes from the Codebase Downloader to a BAE.
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `jarBytes` (in-memory) | `byte[]` | Raw, uncompressed JAR |
-| `packedJarBytes` (serial) | `byte[]` | Pack200-compressed — only exists in transit |
-| `contentHash` | `String` | SHA-256 hex digest of the **raw** bytes, computed by the CD |
-| `originalUri` | `URI` | The primary codebase URL |
-| `maxBfsDepth` | `int` | Maximum BFS depth for `<clinit>` analysis |
-
-Decompression happens exactly once, inside `AnalysisRequest.check(GetArg)`, and the raw
-bytes are passed directly to the bridge constructor.
-
-### `JarAnalysisReport`
-
-Produced by the BAE.  Contains per-class `ClassAnalysisResult` records and is signed
-with the BAE's private key.
-
-### `SignedVerdict`
-
-A summary verdict (URL set + `VerdictType` + timestamp + BAE signature).  Derived from
-a `JarAnalysisReport` when the report-based submission path is not used.
-
-### `RegistryVerdict`
-
-The sole artefact clients trust.  Contains URL set + `VerdictType` + timestamp + **VR
-signature**.
-
-### `CrashReport`
-
-Submitted by Phoenix on an abnormal group exit.  Contains URL set + exit code +
-incarnation number + sanitised stderr excerpt + Phoenix signature.
-
----
-
-## Trust Hierarchy
+## Full Verdict Flow
 
 ```
-Client (trusts VR certificate)
-    │
-    └─▶ VerdictRegistry (Host 1)
-            │ registers / revokes / aggregates
-            └─▶ BytecodeAnalysisEngine × N (Hosts 2..3)
-                    │ receives AnalysisRequest from
-                    └─▶ Codebase Downloader (Host 4)
-                                │ triggered by
-                                └─▶ JFR Telemetry Service (Host 5)
-```
+Host 1 fires ServiceRegistrar event (new codebase detected)
+     │
+     ▼
+Host 4 (CD): check Host 3 cache by hash — skip if already known
+     │
+     ▼
+Host 4: download JAR bytes B; compute SHA-256 hash H
+     │
+     ▼
+AnalysisRequest (Pack200-compressed B, H, bfsDepth, codebaseUrls)
+     │ pushed to each BAE instance in pool via proxy stub
+     ▼
+BAE #1 analyzeJar()     BAE #2 analyzeJar()  ...  BAE #N analyzeJar()
+     │                        │                         │
+  JarAnalysisReport        JarAnalysisReport         JarAnalysisReport
+  (BAE-1-signed)           (BAE-2-signed)            (BAE-N-signed)
+     │                        │                         │
+     └──────── Host 4 → VR.submitReport(engineId, report) ──────────┘
+                              │  (Host 3)
+                        verifySignature()
+                        deriveVerdictType()
+                        applyQuorumPolicy()
+                              │
+                        RegistryVerdict (Host-3-signed)
+                              │
+                  ┌───────────┴──────────────┐
+                  │                          │
+            Event push                getVerdictByHash(H)
+            to clients                (client poll)
 
-A client's security policy must:
-1. Apply `Integrity` + `ServerAuthentication` constraints to all calls to the VR.
-2. Refuse to unmarshal from a codebase unless `RegistryVerdict.getVerdictType() == SAFE`.
-3. Be indifferent to which BAEs produced the constituent `SignedVerdict` objects —
-   the VR is the sole authority.
+
+Separately — reactive path (Host 5):
+Client JVM fires jdk.VirtualThreadPinned event
+     │
+     ▼
+Host 5 (JTS): rate-limit + deduplicate; correlate with content hash
+     │
+     ▼
+Host 5 → BAE pool: requestAnalysis(codebaseUrls) [fire-and-forget]
+     │
+     ▼
+BAE re-analyses; Host 5 submits updated report to Host 3
+```
 
 ---
 
@@ -350,52 +455,20 @@ A client's security policy must:
 
 | Event | System response |
 |-------|----------------|
-| BAE crashes while analysing a JAR | Phoenix submits `CrashReport` → VR immediately issues `DANGEROUS` |
-| BAE is compromised and submits a false `SAFE` report | Quorum requires K of N; a single compromised engine cannot reach quorum alone |
-| BAE is compromised and submits `DANGEROUS` | The false negative is safe — the codebase is condemned, which is conservative |
-| VR receives a report signed by an unknown engine key | Report silently discarded |
-| Operator revokes a BAE | All `RegistryVerdict` objects that relied solely on that engine are re-evaluated |
-| Network partition between CD and BAE | CD cannot submit new analyses; existing verdicts remain valid; clients block on new codebases |
-| JFR Telemetry Service fails | Re-analysis triggers stop; existing verdicts remain; runtime cross-check unavailable (degraded mode) |
-
----
-
-## Verdict Flow Diagram
-
-```
-New JAR detected by CD
-     │
-     ▼
-CD fetches bytes, computes SHA-256 hash H
-     │
-     ▼
-AnalysisRequest(Pack200-compressed bytes, H, ...)
-     │ pushed to each BAE
-     ▼
-BAE #1 analyzeJar()     BAE #2 analyzeJar()     BAE #N analyzeJar()
-     │                        │                        │
-  JarAnalysisReport        JarAnalysisReport        JarAnalysisReport
-  (BAE-signed)             (BAE-signed)             (BAE-signed)
-     │                        │                        │
-     └──────────────▶ VR.submitReport() ◀──────────────┘
-                          │
-                    verifySignature()
-                    deriveVerdictType()
-                    applyQuorumPolicy()
-                          │
-                    RegistryVerdict (VR-signed)
-                          │
-                ┌─────────┴──────────┐
-                │                    │
-          EventPush            getVerdictByHash(H)
-          to listeners         (client poll)
-```
+| BAE instance crashes while analysing a JAR | Phoenix submits `CrashReport` to Host 3 → immediate `DANGEROUS` verdict |
+| BAE instance compromised; submits false `SAFE` | Quorum requires K of N; single compromised instance cannot satisfy quorum alone |
+| BAE instance compromised; submits false `DANGEROUS` | Conservative false negative — codebase condemned; operationally safe |
+| Host 3 receives report with unknown engine key | Report silently discarded |
+| Operator revokes a BAE instance | Re-evaluate any `RegistryVerdict` that relied solely on that instance |
+| Network partition between Host 4 and BAE pool | New codebases cannot be analysed; existing verdicts remain valid |
+| Host 5 (JTS) fails | Re-analysis triggers from JFR events stop; existing verdicts remain; runtime cross-check unavailable (degraded mode) |
+| Client JFR event flood | Host 5 rate-limits per client identity; no impact on Host 4 proactive pipeline |
 
 ---
 
 ## Interface Contract Summary
 
-### `BytecodeAnalysisEngine` (Hosts 2..N)
+### `BytecodeAnalysisEngine` (Host 2 — each pool instance)
 
 ```java
 JarAnalysisReport analyzeJar(AnalysisRequest request)
@@ -405,29 +478,45 @@ void requestAnalysis(Set<Uri> codebaseUrls)
         throws RemoteException;
 ```
 
-### `VerdictRegistry` (Host 1)
+### `VerdictRegistry` (Host 3)
 
 ```java
-// BAE lifecycle
+// BAE lifecycle (operator)
 void registerAnalysisEngine(String engineId, PublicKey engineKey, String sigAlgorithm);
 void revokeAnalysisEngine(String engineId);
 
-// Verdict submission (preferred path)
-void submitReport(String engineId, JarAnalysisReport report);
-// Verdict submission (legacy path)
-void submitVerdict(String engineId, SignedVerdict verdict);
-// Crash signal
+// Verdict submission (Host 4 and Host 5)
+void submitReport(String engineId, JarAnalysisReport report);    // preferred
+void submitVerdict(String engineId, SignedVerdict verdict);       // legacy
 void reportCrash(CrashReport report);
 
 // Client access
-RegistryVerdict getVerdictByHash(String contentHash);   // hash-keyed (push model)
-RegistryVerdict getVerdict(Set<Uri> codebaseUrls);       // URL-keyed (legacy)
+RegistryVerdict getVerdictByHash(String contentHash);            // hash-keyed
+RegistryVerdict getVerdict(Set<Uri> codebaseUrls);               // URL-keyed
 
-// Event subscription
-EventRegistration registerVerdictListener(RemoteEventListener, Set<Uri>, MarshalledInstance, long);
+// Event subscription (clients)
+EventRegistration registerVerdictListener(RemoteEventListener, Set<Uri>,
+                                          MarshalledInstance, long);
 long renewEventLease(Uuid leaseId, long duration);
 void cancelEventLease(Uuid leaseId);
 ```
+
+---
+
+## Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| BAE receives pushed bytes, not URLs | SELinux-isolated process must not initiate outbound network |
+| Host 2 → Host 3: no direct connection | Compromised engine cannot write verdicts to registry |
+| Host 4 and Host 5 separated | Client JFR flood cannot DOS proactive analysis pipeline |
+| Each BAE instance has its own key pair | Individual revocation without pool disruption |
+| JFR events are advisory only | Clients less trusted than engines; verdicts must pass engine-signing pipeline |
+| VerdictRegistry keyed by content hash | Same JAR at different URLs analysed once; URL changes don't invalidate verdicts |
+| SPIRE SVIDs ~1 hour lifetime | Short-lived limits breach blast radius; passive revocation |
+| Engine signing key separate from TLS SVID | Different rotation cadences; signing key warrants hardware backing |
+| Fail-secure on BAE parse failure | Unparseable class file treated as `BLOCKING` + `MISSING_CONSTRUCTOR` |
+| `LoadClassPermission` on DirtyChai | Most important guard against carrier-pin DOS post-JEP 491 |
 
 ---
 
@@ -435,11 +524,12 @@ void cancelEventLease(Uuid leaseId);
 
 Every `@AtomicSerial` class serialized and transmitted within SCAP (including
 `AnalysisRequest`, `JarAnalysisReport`, `SignedVerdict`, `RegistryVerdict`,
-`CrashReport`) **must** comply with JGDMS-STD-001.  The BAE validates all inbound
-serialized classes from external JARs against that standard.
+`CrashReport`, `VerdictEvent`) **must** comply with JGDMS-STD-001.  The BAE on
+Host 2 validates all inbound serialized classes from external JARs against that
+standard.
 
 ---
 
 *Document maintained alongside `BytecodeAnalysisEngine.java`, `VerdictRegistry.java`,
-`JarAnalysisReport.java`, `AnalysisRequest.java`, and related API classes in the
-`au.net.zeus.jgdms.api.codebase` package.*
+`JarAnalysisReport.java`, `AnalysisRequest.java`, and the topology diagram
+`bae_replicated_host2.svg` in the repository root.*
