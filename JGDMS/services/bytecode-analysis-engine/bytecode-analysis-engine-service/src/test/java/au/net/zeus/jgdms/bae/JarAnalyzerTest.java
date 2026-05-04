@@ -28,6 +28,8 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import au.net.zeus.jgdms.api.codebase.AnalysisException;
 import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
+import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
+import au.net.zeus.jgdms.api.codebase.ClinitVerdict;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
 import org.objectweb.asm.ClassWriter;
@@ -260,6 +262,101 @@ public class JarAnalyzerTest {
     }
 
     // =========================================================================
+    // BLOCKING_DECLARED — guarded blocking sink + permission declared
+    // =========================================================================
+
+    /**
+     * When a class's {@code <clinit>} contains a permission guard (e.g.
+     * {@code SecurityManager.checkPermission}) before a blocking
+     * {@code Socket.connect} call, <em>and</em> the JAR's
+     * {@code PERMISSIONS.LIST} declares {@code java.net.SocketPermission},
+     * the per-class verdict must be
+     * {@link ClinitVerdict#BLOCKING_DECLARED} and the aggregate
+     * {@link VerdictType} must be {@link VerdictType#DANGEROUS}.
+     *
+     * <p>The rationale: the declaration signals that the developer intends
+     * {@code SocketPermission} to be granted.  Granting it allows the JDK's
+     * internal {@code SecurityManager.checkConnect()} to pass, enabling the
+     * blocking {@code Socket.connect} to execute during {@code <clinit>} and
+     * pin the virtual-thread carrier — a potential Denial of Service (DoS).
+     */
+    @Test
+    public void testBlockingDeclared_SocketConnectGuarded_SocketPermDeclared_isDangerous()
+            throws IOException, AnalysisException {
+        byte[] classBytes = buildGuardedClinitCallingMethod(
+                "java/net/Socket", "connect",
+                "(Ljava/net/SocketAddress;)V",
+                Opcodes.INVOKEVIRTUAL);
+        String permContent =
+                "permission java.net.SocketPermission \"*\", \"connect\";\n";
+        byte[] jarBytes = buildJar(classBytes,
+                "au/net/zeus/jgdms/bae/test/Synthetic.class", permContent);
+        JarAnalysisReport report = analyzer.analyze(
+                new AnalysisRequest(jarBytes, HASH, null));
+
+        ClassAnalysisResult car =
+                report.getResults().get("au/net/zeus/jgdms/bae/test/Synthetic");
+        assertNotNull("Expected result for Synthetic class", car);
+        assertEquals(ClinitVerdict.BLOCKING_DECLARED, car.getClinitVerdict());
+        assertEquals(VerdictType.DANGEROUS, report.deriveVerdictType());
+    }
+
+    /**
+     * When a class's {@code <clinit>} is {@link ClinitVerdict#BLOCKING_GUARDED}
+     * for {@code Socket.connect} but the JAR declares <em>no</em>
+     * {@code META-INF/PERMISSIONS.LIST}, the verdict must remain
+     * {@link ClinitVerdict#BLOCKING_GUARDED} and the aggregate type must be
+     * {@link VerdictType#INCONCLUSIVE}.
+     */
+    @Test
+    public void testBlockingGuarded_SocketConnectGuarded_NoPermDeclared_isInconclusive()
+            throws IOException, AnalysisException {
+        byte[] classBytes = buildGuardedClinitCallingMethod(
+                "java/net/Socket", "connect",
+                "(Ljava/net/SocketAddress;)V",
+                Opcodes.INVOKEVIRTUAL);
+        byte[] jarBytes = buildJar(classBytes,
+                "au/net/zeus/jgdms/bae/test/Synthetic.class", null);
+        JarAnalysisReport report = analyzer.analyze(
+                new AnalysisRequest(jarBytes, HASH, null));
+
+        ClassAnalysisResult car =
+                report.getResults().get("au/net/zeus/jgdms/bae/test/Synthetic");
+        assertNotNull("Expected result for Synthetic class", car);
+        assertEquals(ClinitVerdict.BLOCKING_GUARDED, car.getClinitVerdict());
+        assertEquals(VerdictType.INCONCLUSIVE, report.deriveVerdictType());
+    }
+
+    /**
+     * {@code Thread.sleep} has no JDK-internal per-call
+     * {@code SecurityManager.checkXxx()}, so it has no entry in
+     * {@link BlockingSinkRegistry#SINK_TO_PERMISSION_CLASS}.  Even if a
+     * {@code RuntimePermission} is declared in {@code PERMISSIONS.LIST}, the
+     * verdict must remain {@link ClinitVerdict#BLOCKING_GUARDED} (not
+     * {@code BLOCKING_DECLARED}) and the aggregate type
+     * {@link VerdictType#INCONCLUSIVE}.
+     */
+    @Test
+    public void testBlockingGuarded_ThreadSleepGuarded_AnyPermDeclared_staysInconclusive()
+            throws IOException, AnalysisException {
+        byte[] classBytes = buildGuardedClinitCallingMethod(
+                "java/lang/Thread", "sleep", "(J)V",
+                Opcodes.INVOKESTATIC);
+        String permContent =
+                "permission java.lang.RuntimePermission \"modifyThread\";\n";
+        byte[] jarBytes = buildJar(classBytes,
+                "au/net/zeus/jgdms/bae/test/Synthetic.class", permContent);
+        JarAnalysisReport report = analyzer.analyze(
+                new AnalysisRequest(jarBytes, HASH, null));
+
+        ClassAnalysisResult car =
+                report.getResults().get("au/net/zeus/jgdms/bae/test/Synthetic");
+        assertNotNull("Expected result for Synthetic class", car);
+        assertEquals(ClinitVerdict.BLOCKING_GUARDED, car.getClinitVerdict());
+        assertEquals(VerdictType.INCONCLUSIVE, report.deriveVerdictType());
+    }
+
+    // =========================================================================
     // Private helpers
     // =========================================================================
 
@@ -300,6 +397,27 @@ public class JarAnalyzerTest {
      */
     private static byte[] buildJar(byte[] classBytes, String permissionsContent)
             throws IOException {
+        return buildJar(classBytes,
+                "au/net/zeus/jgdms/bae/test/MinimalClass.class",
+                permissionsContent);
+    }
+
+    /**
+     * Builds an in-memory JAR containing the supplied class bytes under the
+     * given entry name, and optionally a {@code META-INF/PERMISSIONS.LIST}
+     * entry.
+     *
+     * @param classBytes        bytes of the compiled class to include
+     * @param classEntryName    JAR entry name for the class (e.g.
+     *                          {@code "com/example/Foo.class"})
+     * @param permissionsContent text content of PERMISSIONS.LIST, or
+     *                           {@code null} to omit the entry
+     * @return raw JAR bytes
+     */
+    private static byte[] buildJar(byte[] classBytes,
+                                   String classEntryName,
+                                   String permissionsContent)
+            throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (JarOutputStream jos = new JarOutputStream(baos)) {
             if (permissionsContent != null) {
@@ -308,12 +426,67 @@ public class JarAnalyzerTest {
                 jos.write(permissionsContent.getBytes(StandardCharsets.UTF_8));
                 jos.closeEntry();
             }
-            JarEntry classEntry = new JarEntry(
-                    "au/net/zeus/jgdms/bae/test/MinimalClass.class");
+            JarEntry classEntry = new JarEntry(classEntryName);
             jos.putNextEntry(classEntry);
             jos.write(classBytes);
             jos.closeEntry();
         }
         return baos.toByteArray();
+    }
+
+    /**
+     * Builds a class named {@code au/net/zeus/jgdms/bae/test/Synthetic} whose
+     * {@code <clinit>} calls {@code SecurityManager.checkPermission} (a
+     * permission guard) and then calls the specified blocking method.
+     *
+     * <p>The generated bytecode is structurally equivalent to:
+     * <pre>
+     *   static {
+     *       new SecurityManager().checkPermission(new RuntimePermission("test"));
+     *       blockingMethod(...);
+     *   }
+     * </pre>
+     *
+     * <p>The bytecode is intentionally minimal (arguments are omitted) because
+     * it is analysed statically — not executed.
+     */
+    private static byte[] buildGuardedClinitCallingMethod(
+            String blockingOwner, String blockingName, String blockingDescriptor,
+            int invokeOpcode) {
+
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        cw.visit(Opcodes.V11,
+                 Opcodes.ACC_PUBLIC | Opcodes.ACC_SUPER,
+                 "au/net/zeus/jgdms/bae/test/Synthetic",
+                 null, "java/lang/Object", null);
+
+        MethodVisitor mv = cw.visitMethod(
+                Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
+        mv.visitCode();
+
+        // Emit: new SecurityManager().checkPermission(new RuntimePermission("test"))
+        mv.visitTypeInsn(Opcodes.NEW, "java/lang/SecurityManager");
+        mv.visitInsn(Opcodes.DUP);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "java/lang/SecurityManager", "<init>", "()V", false);
+        mv.visitTypeInsn(Opcodes.NEW, "java/lang/RuntimePermission");
+        mv.visitInsn(Opcodes.DUP);
+        mv.visitLdcInsn("test");
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "java/lang/RuntimePermission", "<init>",
+                "(Ljava/lang/String;)V", false);
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "java/lang/SecurityManager", "checkPermission",
+                "(Ljava/security/Permission;)V", false);
+
+        // Emit the blocking call
+        mv.visitMethodInsn(invokeOpcode,
+                blockingOwner, blockingName, blockingDescriptor, false);
+
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(4, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        return cw.toByteArray();
     }
 }

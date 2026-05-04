@@ -222,6 +222,27 @@ final class JarAnalyzer {
                         className, callGraph, isNativeMap, maxDepth);
             }
 
+            // Upgrade BLOCKING_GUARDED to BLOCKING_DECLARED when the blocking
+            // sink's required permission is explicitly declared in PERMISSIONS.LIST.
+            // Such a declaration signals that the developer intends the permission
+            // to be granted; granting it enables the blocking path and creates a
+            // potential Denial of Service (DoS) via virtual-thread carrier pinning.
+            if (clinitResult.verdict == ClinitVerdict.BLOCKING_GUARDED
+                    && declaredPermissions.length > 0) {
+                List<String> path = clinitResult.callPath;
+                if (!path.isEmpty()) {
+                    String sinkKey = path.get(path.size() - 1);
+                    String requiredPermClass =
+                            BlockingSinkRegistry.getRequiredPermissionClass(sinkKey);
+                    if (requiredPermClass != null
+                            && declaresPermissionClass(
+                                    declaredPermissions, requiredPermClass)) {
+                        clinitResult = new ClinitBlockingVisitor.ClinitAnalysisResult(
+                                ClinitVerdict.BLOCKING_DECLARED, path);
+                    }
+                }
+            }
+
             // AtomicSerial compliance
             AtomicSerialVerdict atomicVerdict =
                     AtomicSerialComplianceVisitor.analyze(classBytes);
@@ -341,6 +362,39 @@ final class JarAnalyzer {
         }
 
         return signer.sign();
+    }
+
+    /**
+     * Returns {@code true} if any line in {@code declaredPermissions}
+     * declares the given permission class.
+     *
+     * <p>A line is considered to declare {@code permClass} if it starts with
+     * {@code "permission <permClass>"} followed by a non-identifier character
+     * (space, tab, {@code "}, or end-of-line).  This prevents a class name
+     * that is a prefix of another (e.g. {@code java.net.Socket} matching
+     * {@code java.net.SocketPermission}) from producing a false positive.
+     *
+     * @param declaredPermissions lines from {@code META-INF/PERMISSIONS.LIST}
+     *                            (already trimmed, non-blank, non-comment)
+     * @param permClass           the fully qualified permission class name to
+     *                            search for (e.g.
+     *                            {@code "java.net.SocketPermission"})
+     * @return {@code true} if at least one line declares {@code permClass}
+     */
+    private static boolean declaresPermissionClass(String[] declaredPermissions,
+                                                   String permClass) {
+        String prefix = "permission " + permClass;
+        for (String line : declaredPermissions) {
+            if (line.startsWith(prefix)) {
+                int len = prefix.length();
+                if (len >= line.length()) return true;
+                char next = line.charAt(len);
+                if (next == ' ' || next == '\t' || next == '"' || next == ';') {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

@@ -49,7 +49,8 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
  * {@code JarAnalysisReport} to a {@link SignedVerdict} before submitting
  * to the {@link VerdictRegistry}.  The mapping is:
  * <ul>
- *   <li>Any {@link ClinitVerdict#BLOCKING} or {@link ClinitVerdict#CYCLE}
+ *   <li>Any {@link ClinitVerdict#BLOCKING}, {@link ClinitVerdict#CYCLE},
+ *       or {@link ClinitVerdict#BLOCKING_DECLARED}
  *       result → {@link VerdictType#DANGEROUS}</li>
  *   <li>Any {@link AtomicSerialVerdict} violation
  *       ({@code MISSING_CONSTRUCTOR}, {@code VALIDATION_ORDER},
@@ -311,8 +312,14 @@ public final class JarAnalysisReport implements Serializable {
      *
      * <p>The derivation rules are:
      * <ol>
-     *   <li>Any {@link ClinitVerdict#BLOCKING} or {@link ClinitVerdict#CYCLE}
-     *       → {@link VerdictType#DANGEROUS}</li>
+     *   <li>Any {@link ClinitVerdict#BLOCKING}, {@link ClinitVerdict#CYCLE},
+     *       or {@link ClinitVerdict#BLOCKING_DECLARED}
+     *       → {@link VerdictType#DANGEROUS}.
+     *       {@code BLOCKING_DECLARED} is dangerous because the JAR's
+     *       {@code META-INF/PERMISSIONS.LIST} declares the permission that
+     *       guards the blocking path, signalling that the permission is
+     *       intended to be granted; granting it enables virtual-thread
+     *       carrier-pinning, a potential Denial of Service (DoS).</li>
      *   <li>Any {@link AtomicSerialVerdict} of {@code MISSING_CONSTRUCTOR},
      *       {@code VALIDATION_ORDER}, {@code MISSING_SERIAL_FORM}, or
      *       {@code UNTYPED_GET}
@@ -334,7 +341,9 @@ public final class JarAnalysisReport implements Serializable {
         boolean inconclusive = false;
         for (ClassAnalysisResult r : results.values()) {
             ClinitVerdict cv = r.getClinitVerdict();
-            if (cv == ClinitVerdict.BLOCKING || cv == ClinitVerdict.CYCLE) {
+            if (cv == ClinitVerdict.BLOCKING
+                    || cv == ClinitVerdict.CYCLE
+                    || cv == ClinitVerdict.BLOCKING_DECLARED) {
                 return VerdictType.DANGEROUS;
             }
             AtomicSerialVerdict av = r.getAtomicVerdict();

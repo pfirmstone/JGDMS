@@ -68,8 +68,52 @@ public enum ClinitVerdict {
      * that this class may block a virtual-thread carrier during static
      * initialisation.  The call chain is reported in
      * {@link ClassAnalysisResult#getBlockingCallPath()}.
+     *
+     * <p><strong>Note:</strong> if the permission guarding this blocking path
+     * is also declared in the JAR's {@code META-INF/PERMISSIONS.LIST}, the
+     * verdict is upgraded to {@link #BLOCKING_DECLARED} (which maps to
+     * {@link VerdictType#DANGEROUS}) because the declaration signals that the
+     * developer intends the permission to be granted, making the blocking path
+     * reachable and creating a potential Denial of Service (DoS) vector.
      */
     BLOCKING_GUARDED,
+
+    /**
+     * A call path was found from {@code <clinit>} to a known I/O blocking
+     * sink that carries a JDK-internal {@code SecurityManager.checkXxx()}
+     * guard (e.g. {@code Socket.connect} internally calls
+     * {@code SecurityManager.checkConnect}), <em>and</em> the corresponding
+     * permission class is explicitly declared in the JAR's
+     * {@code META-INF/PERMISSIONS.LIST}.
+     *
+     * <p><strong>Security warning — potential Denial of Service (DoS)
+     * vector:</strong> because the JAR advertises that it requires the
+     * guarding permission, an administrator who follows the declarations in
+     * {@code PERMISSIONS.LIST} will grant that permission to the proxy.
+     * Granting the permission allows the JDK's internal check to pass,
+     * enabling the blocking call to proceed during {@code <clinit>}
+     * execution.  When a proxy class is loaded on a virtual thread, this
+     * blocks the underlying carrier thread.  If an attacker can repeatedly
+     * trigger class loading (e.g. by causing cache misses), the carrier
+     * thread pool can be exhausted, causing a <em>Denial of Service</em>
+     * against all virtual threads on the JVM.
+     *
+     * <p>Unlike {@link #BLOCKING_GUARDED}, which is treated as
+     * {@link VerdictType#INCONCLUSIVE} because the blocking path may never
+     * be reached if the permission is withheld, {@code BLOCKING_DECLARED}
+     * is treated as {@link VerdictType#DANGEROUS} because the JAR's own
+     * {@code PERMISSIONS.LIST} makes it evident that the permission is
+     * intended to be granted.
+     *
+     * <p><strong>Administrators:</strong> do <em>not</em> grant this proxy
+     * the permission identified in the blocking call path.  Contact the
+     * service provider and request a fix that removes or defers the blocking
+     * network or file I/O from the static initializer.
+     *
+     * <p>The call chain is reported in
+     * {@link ClassAnalysisResult#getBlockingCallPath()}.
+     */
+    BLOCKING_DECLARED,
 
     /**
      * A call path from {@code <clinit>} reaches a <em>native</em> method that

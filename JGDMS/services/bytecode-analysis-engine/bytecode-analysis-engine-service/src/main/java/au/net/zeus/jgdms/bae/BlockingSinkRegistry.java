@@ -19,7 +19,9 @@ package au.net.zeus.jgdms.bae;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -71,6 +73,25 @@ final class BlockingSinkRegistry {
      * set.
      */
     static final Set<String> PERMISSION_GUARD_SINKS;
+
+    /**
+     * Maps a blocking-sink key ({@code "owner/name/descriptor"}) to the fully
+     * qualified Java permission class name that the JDK checks internally
+     * immediately before the blocking operation is performed.
+     *
+     * <p>Only sinks that carry a <em>direct, per-call</em> JDK-internal
+     * {@code SecurityManager.checkXxx()} are listed here.  Sinks whose
+     * permission check occurred at construction time (e.g.
+     * {@code FileInputStream.<init>}) are intentionally excluded because the
+     * link between "declaring the permission" and "the blocking call being
+     * reachable" is indirect for such cases.
+     *
+     * <p>This map is used by {@link JarAnalyzer} to detect the
+     * {@link au.net.zeus.jgdms.api.codebase.ClinitVerdict#BLOCKING_DECLARED}
+     * condition: a blocking I/O path that is guarded by a permission that the
+     * JAR itself declares in {@code META-INF/PERMISSIONS.LIST}.
+     */
+    static final Map<String, String> SINK_TO_PERMISSION_CLASS;
 
     static {
         Set<String> blocking = new HashSet<String>(Arrays.asList(
@@ -295,6 +316,31 @@ final class BlockingSinkRegistry {
             "java/security/AccessController/checkPermission/(Ljava/security/Permission;)V"
         ));
         PERMISSION_GUARD_SINKS = Collections.unmodifiableSet(guards);
+
+        // Blocking sinks that carry a direct, per-call JDK-internal
+        // SecurityManager.checkXxx() immediately before the blocking
+        // operation.  Maps the full "owner/name/descriptor" key to the
+        // Java permission class name that guards the call.
+        Map<String, String> sinkPerms = new HashMap<String, String>();
+        // --- Network: Socket / ServerSocket (SM.checkConnect / checkAccept) ---
+        sinkPerms.put("java/net/Socket/connect/(Ljava/net/SocketAddress;)V",
+                "java.net.SocketPermission");
+        sinkPerms.put("java/net/Socket/connect/(Ljava/net/SocketAddress;I)V",
+                "java.net.SocketPermission");
+        sinkPerms.put("java/net/ServerSocket/accept/()Ljava/net/Socket;",
+                "java.net.SocketPermission");
+        sinkPerms.put("java/net/DatagramSocket/receive/(Ljava/net/DatagramPacket;)V",
+                "java.net.SocketPermission");
+        // --- NIO: ServerSocketChannel (SM.checkAccept inside accept()) ---
+        sinkPerms.put(
+                "java/nio/channels/ServerSocketChannel/accept/()Ljava/nio/channels/SocketChannel;",
+                "java.net.SocketPermission");
+        // --- NIO: FileChannel.lock (SM.checkWrite / checkRead inside lock()) ---
+        sinkPerms.put("java/nio/channels/FileChannel/lock/()Ljava/nio/channels/FileLock;",
+                "java.io.FilePermission");
+        sinkPerms.put("java/nio/channels/FileChannel/lock/(JJZ)Ljava/nio/channels/FileLock;",
+                "java.io.FilePermission");
+        SINK_TO_PERMISSION_CLASS = Collections.unmodifiableMap(sinkPerms);
     }
 
     /**
@@ -322,6 +368,24 @@ final class BlockingSinkRegistry {
      */
     static boolean isSafeNative(String owner, String name, String descriptor) {
         return SAFE_NATIVES.contains(owner + "/" + name + "/" + descriptor);
+    }
+
+    /**
+     * Returns the fully qualified Java permission class name that the JDK
+     * checks internally (via {@code SecurityManager.checkXxx()}) immediately
+     * before executing the blocking operation identified by {@code sinkKey},
+     * or {@code null} if the sink carries no such per-call JDK guard.
+     *
+     * <p>This is used by {@link JarAnalyzer} to detect the
+     * {@link au.net.zeus.jgdms.api.codebase.ClinitVerdict#BLOCKING_DECLARED}
+     * condition.
+     *
+     * @param sinkKey the composite key {@code "owner/name/descriptor"}
+     * @return the permission class name (e.g. {@code "java.net.SocketPermission"}),
+     *         or {@code null} if no JDK-internal permission guard is mapped
+     */
+    static String getRequiredPermissionClass(String sinkKey) {
+        return SINK_TO_PERMISSION_CLASS.get(sinkKey);
     }
 
     /**
