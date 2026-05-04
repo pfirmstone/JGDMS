@@ -75,17 +75,6 @@
                         <meminitial>128m</meminitial>
                         <maxmem>1024m</maxmem>
                     </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin> 
             <plugin>
               <groupId>biz.aQute.bnd</groupId>

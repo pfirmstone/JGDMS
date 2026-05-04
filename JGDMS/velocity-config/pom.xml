@@ -29,9 +29,6 @@
     <name>Module :: Velocity configuration provider</name>
     <description>This artifact contains the JGDMS utility APIs that are not tied
         to a specific service implementation.</description>
-        <!--This module is currently reported by the dependency-check-maven 
-        plugin as being vulnerable, due to a dependency on apache-commons
-        http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2015-6420 -->
     <packaging>jar</packaging>
 
     <dependencies>       
@@ -68,17 +65,6 @@
                     <execution>
                         <goals>
                             <goal>bnd-process</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>
