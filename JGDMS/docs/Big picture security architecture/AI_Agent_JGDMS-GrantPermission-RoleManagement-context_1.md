@@ -475,7 +475,9 @@ JGDMS has no username/password login. Authentication is entirely **SPIFFE/SPIRE 
 **How a workload establishes identity:**
 1. SPIRE is deployed in the environment; each node runs a SPIRE agent.
 2. Workload connects to local SPIRE agent via Unix domain socket (the one the bootstrap
-   policy grants `UnixDomainSocketPermission` for).
+   policy grants `java.net.NetPermission "accessUnixDomainSocket"` for; note: there is
+   no `UnixDomainSocketPermission` class in the JDK — the JDK uses `NetPermission` with
+   action `"accessUnixDomainSocket"` for this guard).
 3. SPIRE attests workload identity via OS-level signals (process ID, UID, Kubernetes pod
    metadata, etc.) and issues an X.509 SVID with SPIFFE ID in the SAN field.
 4. `SpiffeCredentialManager` (Issue #205, not yet implemented) manages the current
