@@ -114,8 +114,9 @@ public final class ClassAnalysisResult implements Serializable {
 
     /**
      * Call chain from {@code <clinit>} to the blocking sink, expressed as
-     * {@code "owner/name/descriptor"} triples.  Non-empty only when
-     * {@link #clinitVerdict} is {@link ClinitVerdict#BLOCKING}.
+     * {@code "owner/name/descriptor"} triples.  Non-empty when
+     * {@link #clinitVerdict} is {@link ClinitVerdict#BLOCKING} or
+     * {@link ClinitVerdict#BLOCKING_GUARDED}.
      */
     private final List<String> blockingCallPath;
 

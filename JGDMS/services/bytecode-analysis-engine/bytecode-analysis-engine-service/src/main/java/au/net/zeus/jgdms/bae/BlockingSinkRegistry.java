@@ -49,9 +49,7 @@ final class BlockingSinkRegistry {
      * Method call sites that are statically known to block the calling thread.
      *
      * <p>Each entry is {@code "owner/name/descriptor"} using the full JVM
-     * descriptor.  We use {@code *} as a wildcard for the descriptor to match
-     * all overloads of a method with a given name.  The {@link #isBlocking}
-     * lookup applies wildcard matching.
+     * descriptor.  Exact string match is used; see {@link #isBlocking}.
      */
     static final Set<String> BLOCKING_SINKS;
 
@@ -60,6 +58,19 @@ final class BlockingSinkRegistry {
      * The same {@code "owner/name/descriptor"} format applies.
      */
     static final Set<String> SAFE_NATIVES;
+
+    /**
+     * Well-known permission-guard call sites: methods that perform a
+     * {@code SecurityManager.checkXxx()} check or an explicit
+     * {@code AccessController.checkPermission()} before the caller proceeds.
+     *
+     * <p>In addition to this exact-match set, {@link #isPermissionGuard}
+     * applies a prefix check for <em>any</em> method on
+     * {@code java/lang/SecurityManager} whose name starts with {@code "check"},
+     * so new SM check methods are automatically covered without updating this
+     * set.
+     */
+    static final Set<String> PERMISSION_GUARD_SINKS;
 
     static {
         Set<String> blocking = new HashSet<String>(Arrays.asList(
@@ -91,6 +102,32 @@ final class BlockingSinkRegistry {
             "java/io/OutputStream/write/([B)V",
             "java/io/OutputStream/write/([BII)V",
 
+            // ---- FileInputStream / FileOutputStream ----
+            "java/io/FileInputStream/read/()I",
+            "java/io/FileInputStream/read/([B)I",
+            "java/io/FileInputStream/read/([BII)I",
+            "java/io/FileOutputStream/write/(I)V",
+            "java/io/FileOutputStream/write/([B)V",
+            "java/io/FileOutputStream/write/([BII)V",
+
+            // ---- PipedInputStream / PipedOutputStream ----
+            "java/io/PipedInputStream/read/()I",
+            "java/io/PipedInputStream/read/([B)I",
+            "java/io/PipedInputStream/read/([BII)I",
+            "java/io/PipedOutputStream/write/(I)V",
+            "java/io/PipedOutputStream/write/([B)V",
+            "java/io/PipedOutputStream/write/([BII)V",
+
+            // ---- Reader / Writer ----
+            "java/io/Reader/read/()I",
+            "java/io/Reader/read/([C)I",
+            "java/io/Reader/read/([CII)I",
+            "java/io/Writer/write/(I)V",
+            "java/io/Writer/write/([C)V",
+            "java/io/Writer/write/([CII)V",
+            "java/io/Writer/write/(Ljava/lang/String;)V",
+            "java/io/Writer/write/(Ljava/lang/String;II)V",
+
             // ---- RandomAccessFile ----
             "java/io/RandomAccessFile/read/()I",
             "java/io/RandomAccessFile/read/([B)I",
@@ -103,6 +140,41 @@ final class BlockingSinkRegistry {
             "java/net/Socket/connect/(Ljava/net/SocketAddress;)V",
             "java/net/Socket/connect/(Ljava/net/SocketAddress;I)V",
             "java/net/ServerSocket/accept/()Ljava/net/Socket;",
+
+            // ---- DatagramSocket ----
+            "java/net/DatagramSocket/receive/(Ljava/net/DatagramPacket;)V",
+
+            // ---- NIO Selector ----
+            "java/nio/channels/Selector/select/()I",
+            "java/nio/channels/Selector/select/(J)I",
+            "java/nio/channels/Selector/select/(Ljava/util/function/Consumer;)I",
+            "java/nio/channels/Selector/select/(Ljava/util/function/Consumer;J)I",
+            "java/nio/channels/Selector/selectNow/()I",
+
+            // ---- NIO SocketChannel / ServerSocketChannel ----
+            "java/nio/channels/SocketChannel/read/(Ljava/nio/ByteBuffer;)I",
+            "java/nio/channels/SocketChannel/read/([Ljava/nio/ByteBuffer;)J",
+            "java/nio/channels/SocketChannel/read/([Ljava/nio/ByteBuffer;IJ)J",
+            "java/nio/channels/SocketChannel/write/(Ljava/nio/ByteBuffer;)I",
+            "java/nio/channels/SocketChannel/write/([Ljava/nio/ByteBuffer;)J",
+            "java/nio/channels/SocketChannel/write/([Ljava/nio/ByteBuffer;IJ)J",
+            "java/nio/channels/ServerSocketChannel/accept/()Ljava/nio/channels/SocketChannel;",
+
+            // ---- NIO FileChannel ----
+            "java/nio/channels/FileChannel/read/(Ljava/nio/ByteBuffer;)I",
+            "java/nio/channels/FileChannel/read/([Ljava/nio/ByteBuffer;)J",
+            "java/nio/channels/FileChannel/read/([Ljava/nio/ByteBuffer;IJ)J",
+            "java/nio/channels/FileChannel/read/(Ljava/nio/ByteBuffer;J)I",
+            "java/nio/channels/FileChannel/write/(Ljava/nio/ByteBuffer;)I",
+            "java/nio/channels/FileChannel/write/([Ljava/nio/ByteBuffer;)J",
+            "java/nio/channels/FileChannel/write/([Ljava/nio/ByteBuffer;IJ)J",
+            "java/nio/channels/FileChannel/write/(Ljava/nio/ByteBuffer;J)I",
+            "java/nio/channels/FileChannel/lock/()Ljava/nio/channels/FileLock;",
+            "java/nio/channels/FileChannel/lock/(JJZ)Ljava/nio/channels/FileLock;",
+
+            // ---- Process ----
+            "java/lang/Process/waitFor/()I",
+            "java/lang/Process/waitFor/(JLjava/util/concurrent/TimeUnit;)Z",
 
             // ---- CountDownLatch ----
             "java/util/concurrent/CountDownLatch/await/()V",
@@ -127,6 +199,10 @@ final class BlockingSinkRegistry {
             "java/util/concurrent/PriorityBlockingQueue/put/(Ljava/lang/Object;)V",
             "java/util/concurrent/DelayQueue/take/()Ljava/lang/Delayed;",
             "java/util/concurrent/DelayQueue/put/(Ljava/lang/Delayed;)V",
+            "java/util/concurrent/LinkedTransferQueue/take/()Ljava/lang/Object;",
+            "java/util/concurrent/LinkedTransferQueue/put/(Ljava/lang/Object;)V",
+            "java/util/concurrent/LinkedTransferQueue/transfer/(Ljava/lang/Object;)V",
+            "java/util/concurrent/LinkedTransferQueue/tryTransfer/(Ljava/lang/Object;JLjava/util/concurrent/TimeUnit;)Z",
 
             // ---- Condition ----
             "java/util/concurrent/locks/Condition/await/()V",
@@ -143,6 +219,12 @@ final class BlockingSinkRegistry {
             "java/util/concurrent/locks/ReentrantReadWriteLock$WriteLock/lock/()V",
             "java/util/concurrent/locks/ReentrantReadWriteLock$WriteLock/lockInterruptibly/()V",
 
+            // ---- StampedLock ----
+            "java/util/concurrent/locks/StampedLock/readLock/()J",
+            "java/util/concurrent/locks/StampedLock/writeLock/()J",
+            "java/util/concurrent/locks/StampedLock/readLockInterruptibly/()J",
+            "java/util/concurrent/locks/StampedLock/writeLockInterruptibly/()J",
+
             // ---- Phaser ----
             "java/util/concurrent/Phaser/arriveAndAwaitAdvance/()I",
             "java/util/concurrent/Phaser/awaitAdvance/(I)I",
@@ -157,11 +239,22 @@ final class BlockingSinkRegistry {
             "java/util/concurrent/Exchanger/exchange/(Ljava/lang/Object;)Ljava/lang/Object;",
             "java/util/concurrent/Exchanger/exchange/(Ljava/lang/Object;JLjava/util/concurrent/TimeUnit;)Ljava/lang/Object;",
 
-            // ---- Future ----
+            // ---- Future / CompletableFuture ----
             "java/util/concurrent/Future/get/()Ljava/lang/Object;",
             "java/util/concurrent/Future/get/(JLjava/util/concurrent/TimeUnit;)Ljava/lang/Object;",
             "java/util/concurrent/FutureTask/get/()Ljava/lang/Object;",
-            "java/util/concurrent/FutureTask/get/(JLjava/util/concurrent/TimeUnit;)Ljava/lang/Object;"
+            "java/util/concurrent/FutureTask/get/(JLjava/util/concurrent/TimeUnit;)Ljava/lang/Object;",
+            "java/util/concurrent/CompletableFuture/get/()Ljava/lang/Object;",
+            "java/util/concurrent/CompletableFuture/get/(JLjava/util/concurrent/TimeUnit;)Ljava/lang/Object;",
+            "java/util/concurrent/CompletableFuture/join/()Ljava/lang/Object;",
+
+            // ---- DirtyChai: sun.nio.ch.Poller ----
+            // These static methods park the calling thread (a virtual thread running
+            // this <clinit> would have its carrier pinned if called inside a
+            // synchronized block; either way the call blocks without any
+            // SecurityManager guard).
+            "sun/nio/ch/Poller/poll/(IIJLjava/util/function/BooleanSupplier;)V",
+            "sun/nio/ch/Poller/pollSelector/(IJ)V"
         ));
         BLOCKING_SINKS = Collections.unmodifiableSet(blocking);
 
@@ -194,6 +287,14 @@ final class BlockingSinkRegistry {
             "java/lang/String/intern/()Ljava/lang/String;"
         ));
         SAFE_NATIVES = Collections.unmodifiableSet(safe);
+
+        // Permission-guard sinks: explicit checkPermission calls.
+        // SecurityManager.check* methods are matched by prefix in
+        // isPermissionGuard(), so only AccessController needs to be listed here.
+        Set<String> guards = new HashSet<String>(Arrays.asList(
+            "java/security/AccessController/checkPermission/(Ljava/security/Permission;)V"
+        ));
+        PERMISSION_GUARD_SINKS = Collections.unmodifiableSet(guards);
     }
 
     /**
@@ -221,5 +322,65 @@ final class BlockingSinkRegistry {
      */
     static boolean isSafeNative(String owner, String name, String descriptor) {
         return SAFE_NATIVES.contains(owner + "/" + name + "/" + descriptor);
+    }
+
+    /**
+     * Returns {@code true} if the given call site constitutes a
+     * <em>permission guard</em> — a check that, if failed, throws
+     * {@code SecurityException} before any blocking operation can be reached.
+     *
+     * <p>Two categories are recognised:
+     * <ol>
+     *   <li>Any method on {@code java.lang.SecurityManager} whose name starts
+     *       with {@code "check"} (e.g. {@code checkPermission},
+     *       {@code checkConnect}, {@code checkRead}, {@code checkAccess},
+     *       …).</li>
+     *   <li>{@code java.security.AccessController.checkPermission(Permission)}
+     *       listed explicitly in {@link #PERMISSION_GUARD_SINKS}.</li>
+     * </ol>
+     *
+     * <p>Note: {@code AccessController.doPrivileged()} is intentionally
+     * <em>not</em> treated as a permission guard — it elevates privilege but
+     * does not prevent the call from proceeding.
+     *
+     * @param owner      the internal class name of the called method's owner
+     * @param name       the method name
+     * @param descriptor the method descriptor (unused for the prefix match)
+     * @return {@code true} if the call site is a permission guard
+     */
+    static boolean isPermissionGuard(String owner, String name, String descriptor) {
+        // Any SecurityManager.check* method
+        if ("java/lang/SecurityManager".equals(owner) && name.startsWith("check")) {
+            return true;
+        }
+        // Explicit AccessController.checkPermission
+        return PERMISSION_GUARD_SINKS.contains(owner + "/" + name + "/" + descriptor);
+    }
+
+    /**
+     * Returns {@code true} if the given <em>full callee key</em>
+     * ({@code "owner/name/descriptor"}) constitutes a permission guard.
+     *
+     * <p>This variant is used internally when the key has not yet been
+     * decomposed.  Because method descriptors can themselves contain {@code /}
+     * characters (for object-type parameters), decomposition is performed by
+     * locating the {@code "/("}  boundary that separates the {@code name}
+     * component from the descriptor.
+     *
+     * @param calleeKey the composite key {@code "owner/name/descriptor"}
+     * @return {@code true} if the call site is a permission guard
+     */
+    static boolean isPermissionGuardKey(String calleeKey) {
+        // Method descriptors always start with '(', so the separator between
+        // "name" and "descriptor" in the key is the last "/(" sequence.
+        int descSlash = calleeKey.indexOf("/(");
+        if (descSlash < 0) return false;
+        String ownerAndName = calleeKey.substring(0, descSlash);
+        int lastSep = ownerAndName.lastIndexOf('/');
+        if (lastSep < 0) return false;
+        String owner = ownerAndName.substring(0, lastSep);
+        String name  = ownerAndName.substring(lastSep + 1);
+        String descriptor = calleeKey.substring(descSlash + 1); // includes the '('
+        return isPermissionGuard(owner, name, descriptor);
     }
 }

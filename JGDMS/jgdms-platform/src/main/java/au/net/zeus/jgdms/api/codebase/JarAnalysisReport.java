@@ -243,10 +243,14 @@ public final class JarAnalysisReport implements Serializable {
      *       {@code VALIDATION_ORDER}, {@code MISSING_SERIAL_FORM}, or
      *       {@code UNTYPED_GET}
      *       → {@link VerdictType#DANGEROUS}</li>
-     *   <li>Any {@link ClinitVerdict#NATIVE_OPACITY} or
+     *   <li>Any {@link ClinitVerdict#NATIVE_OPACITY},
+     *       {@link ClinitVerdict#BLOCKING_GUARDED}, or
      *       {@link AtomicSerialVerdict#NOT_ANNOTATED}
      *       → {@link VerdictType#INCONCLUSIVE} (unless a DANGEROUS signal was
-     *       already found)</li>
+     *       already found). {@code BLOCKING_GUARDED} is inconclusive because
+     *       the blocking path is only reachable when the caller holds the
+     *       guarding permission; a policy that denies that permission prevents
+     *       the block.</li>
      *   <li>Otherwise → {@link VerdictType#SAFE}</li>
      * </ol>
      *
@@ -267,6 +271,7 @@ public final class JarAnalysisReport implements Serializable {
                 return VerdictType.DANGEROUS;
             }
             if (cv == ClinitVerdict.NATIVE_OPACITY
+                    || cv == ClinitVerdict.BLOCKING_GUARDED
                     || av == AtomicSerialVerdict.NOT_ANNOTATED) {
                 inconclusive = true;
             }

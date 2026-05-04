@@ -180,9 +180,14 @@ final class ClinitBlockingVisitor {
                 List<String> newPath = new ArrayList<String>(current.path);
                 newPath.add(callee);
 
-                // Check blocking sink
+                // Check blocking sink — determine if the path to this blocker
+                // is defended by a permission guard (BLOCKING_GUARDED) or not
+                // (BLOCKING).
                 if (BlockingSinkRegistry.isBlocking(owner, name, descriptor)) {
-                    return new ClinitAnalysisResult(ClinitVerdict.BLOCKING, newPath);
+                    ClinitVerdict v = hasPermissionGuardOnPath(newPath, callGraph)
+                            ? ClinitVerdict.BLOCKING_GUARDED
+                            : ClinitVerdict.BLOCKING;
+                    return new ClinitAnalysisResult(v, newPath);
                 }
 
                 // Check unregistered native
@@ -201,6 +206,40 @@ final class ClinitBlockingVisitor {
 
         return new ClinitAnalysisResult(ClinitVerdict.CLEAN,
                 Collections.<String>emptyList());
+    }
+
+    /**
+     * Returns {@code true} if any method on the given call path (excluding the
+     * final element, which is the blocking sink itself) has at least one
+     * direct callee that is a permission guard — a {@code SecurityManager}
+     * {@code check*} method or {@code AccessController.checkPermission}.
+     *
+     * <p>This is a conservative <em>sibling-call</em> heuristic: if method M
+     * on the path calls {@code sm.checkFoo()} <em>and</em> eventually reaches
+     * a blocking sink, the blocking path is considered guarded regardless of
+     * whether the check appears before or after the blocking call in execution
+     * order (which cannot be determined statically from a call graph alone).
+     *
+     * @param path      the BFS path from {@code <clinit>} to the blocking sink
+     * @param callGraph the indexed call graph
+     * @return {@code true} if a permission guard is present on the path
+     */
+    private static boolean hasPermissionGuardOnPath(
+            List<String> path,
+            Map<String, Set<String>> callGraph) {
+
+        // Skip the last element (the blocking sink itself).
+        int limit = path.size() - 1;
+        for (int i = 0; i < limit; i++) {
+            Set<String> siblings = callGraph.get(path.get(i));
+            if (siblings == null) continue;
+            for (String sibling : siblings) {
+                if (BlockingSinkRegistry.isPermissionGuardKey(sibling)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------------

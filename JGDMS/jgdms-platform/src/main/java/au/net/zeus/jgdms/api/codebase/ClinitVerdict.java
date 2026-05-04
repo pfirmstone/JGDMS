@@ -41,10 +41,35 @@ public enum ClinitVerdict {
     /**
      * A call path was found from {@code <clinit>} to at least one known
      * blocking sink (e.g. {@code Thread.sleep}, {@code Object.wait},
-     * {@code LockSupport.park}, blocking I/O).  The call chain is reported in
+     * {@code LockSupport.park}, blocking I/O) with <em>no</em> intervening
+     * permission check.  An attacker can trigger this path without holding
+     * any special Java permission.  The call chain is reported in
      * {@link ClassAnalysisResult#getBlockingCallPath()}.
      */
     BLOCKING,
+
+    /**
+     * A call path was found from {@code <clinit>} to at least one known
+     * blocking sink, but every such path passes through a
+     * {@code SecurityManager.checkXxx()} or
+     * {@code AccessController.checkPermission()} call before reaching the
+     * blocking operation.
+     *
+     * <p>This means:
+     * <ul>
+     *   <li>With no {@code SecurityManager} installed the blocking path is
+     *       still reachable and behaves like {@link #BLOCKING}.</li>
+     *   <li>With a {@code SecurityManager} that denies the guarding
+     *       permission, a {@code SecurityException} is thrown before the
+     *       blocking call is reached, preventing carrier-thread pinning.</li>
+     * </ul>
+     *
+     * <p>Policy decision: granting the guarding permission implicitly accepts
+     * that this class may block a virtual-thread carrier during static
+     * initialisation.  The call chain is reported in
+     * {@link ClassAnalysisResult#getBlockingCallPath()}.
+     */
+    BLOCKING_GUARDED,
 
     /**
      * A call path from {@code <clinit>} reaches a <em>native</em> method that
