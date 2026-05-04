@@ -578,12 +578,15 @@ All four diagrams are committed alongside this document in the same directory:
 
 ## 12. Remaining Work Items (in order)
 
-1. **`DynamicPolicyProvider.java` — lazy void eviction** *(immediate)*
-   Apply `it.remove()` pattern to all four iterator sites (Section 3.2).
-   Produce complete updated file.
+1. **✅ `DynamicPolicyProvider.java` — lazy void eviction** *(completed)*
+   `it.remove()` pattern applied to all four iterator sites (Section 3.2).
+   The old `LinkedList` accumulator + `removeAll()` approach in `refresh()` and
+   equivalent iterator loops elsewhere has been replaced with inline `it.remove()`
+   calls so void grants are evicted as discovered.
 
-2. **`DefaultPolicyParser.scanner` — `private` → `protected`** (one line, both repos)
-   Prerequisite for `HttpsClientAuthPolicyParser` and `InMemoryPolicyService` string parsing.
+2. **✅ `DefaultPolicyParser.scanner` — `private` → `protected`** *(completed, both repos)*
+   Prerequisite for `HttpsClientAuthPolicyParser` and `InMemoryPolicyService` string
+   parsing now satisfied; subclasses can access the scanner directly.
 
 3. **`HttpsClientAuthPolicyParser`** — HTTPS + SPIFFE client cert URL opening.
    Subclass of `DefaultPolicyParser`. Depends on `SpiffeCredentialManager` interface.
