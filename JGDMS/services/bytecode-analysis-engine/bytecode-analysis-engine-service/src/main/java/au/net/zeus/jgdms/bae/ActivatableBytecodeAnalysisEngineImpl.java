@@ -17,6 +17,9 @@
  */
 package au.net.zeus.jgdms.bae;
 
+import au.net.zeus.jgdms.api.codebase.AnalysisException;
+import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import java.rmi.RemoteException;
 import java.security.PrivateKey;
 import java.util.Set;
@@ -195,6 +198,13 @@ public class ActivatableBytecodeAnalysisEngineImpl
     // -------------------------------------------------------------------------
     // BytecodeAnalysisEngine -- delegated to core impl
     // -------------------------------------------------------------------------
+
+    @Override
+    public JarAnalysisReport analyzeJar(AnalysisRequest request)
+            throws AnalysisException, RemoteException {
+        getReadyState().check();
+        return impl.analyzeJar(request);
+    }
 
     @Override
     public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
