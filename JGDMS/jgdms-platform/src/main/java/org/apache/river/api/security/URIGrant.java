@@ -148,6 +148,7 @@ class URIGrant extends CertificateGrant {
         } catch (URISyntaxException ex) {
             Logger.getLogger(URIGrant.class.getName()).log(Level.SEVERE, null, ex);
         }
+        if (implied == null) return false;
         for (int i = 0; i<l ; i++){
             if (uris[i].implies(implied)) return true;
         }

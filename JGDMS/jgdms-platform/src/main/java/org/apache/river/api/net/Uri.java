@@ -1133,9 +1133,9 @@ public final class Uri implements Comparable<Uri> {
         // The info was taken from the 1.5 final API spec
 
         // javadoc:1
-//        if (cs == null) {
-//            return false;
-//        }
+        if (implied == null) {
+            return false;
+        }
 
         
         // javadoc:2
