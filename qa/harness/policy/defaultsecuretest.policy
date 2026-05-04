@@ -679,6 +679,7 @@ grant codebase "file:/${qa.home}/lib/jiniharness.jar"
     permission java.util.logging.LoggingPermission "control";
     permission java.io.FilePermission "${qa.home}${/}harness${/}configs${/}jsse${/}test.config", "read";
     permission java.io.FilePermission "${qa.home}${/}soul${/}-", "read";
+    permission java.security.SecurityPermission "createAccessControlContext";
     permission java.security.SecurityPermission "createPolicy.JiniPolicy";
     permission java.security.SecurityPermission "getPolicy";
     permission java.security.SecurityPermission "setPolicy";
