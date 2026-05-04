@@ -368,9 +368,17 @@ Put the policy providers and all referenced classes in the bootstrap class loade
             return null;
         }
         ThreadFactory tf = new ThreadFactory() {
+            @Override
             public Thread newThread(Runnable r) {
                 Thread t = new Thread(r, "JGDMS-DynamicPolicyProvider-VoidGrantSweeper");
                 t.setDaemon(true);
+                t.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                    @Override
+                    public void uncaughtException(Thread th, Throwable e) {
+                        logger.log(Level.WARNING,
+                            "Uncaught exception in void grant sweeper thread", e);
+                    }
+                });
                 return t;
             }
         };
