@@ -84,17 +84,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>    
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>   
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
