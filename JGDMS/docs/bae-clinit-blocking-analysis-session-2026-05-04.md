@@ -132,6 +132,71 @@ All 43 BAE tests pass.
 
 ---
 
+## Session 2 — AtomicSerial Superclass-Field Type-Safety (2026-05-04)
+
+### 7. `CheckMethodAnalyzer` — second anti-pattern: superclass `Object`-typed fields
+
+**Commit:** `13e1eef`
+
+`CheckMethodAnalyzer` previously only detected one anti-pattern (2-arg `GetArg.get` +
+`IFNULL` without `CHECKCAST`).  A second anti-pattern was identified and implemented:
+
+> A child class whose static `check(GetArg)` method **constructs a private copy of
+> itself** (via a bridge constructor that calls `super(arg)`) and then reads an
+> inherited `Object`-typed protected field via `GETFIELD` — without a subsequent
+> `instanceof` or `CHECKCAST` before using the value in an `IFNULL`/`IFNONNULL`
+> branch — leaves the actual runtime type of the deserialized field completely
+> unverified before the object is fully constructed.
+
+Example of the **correct** pattern (used in `BytecodeAnalysisEngineProxy.check()`):
+```java
+BytecodeAnalysisEngineProxy sup = new BytecodeAnalysisEngineProxy(arg, true);
+if (sup.server instanceof BytecodeAnalysisEngine && ...) return true;
+// GETFIELD sup.server → INSTANCEOF → IFEQ   (type verified, flag cleared → COMPLIANT)
+```
+
+Example of the **anti-pattern** (now detected as `UNTYPED_GET`):
+```java
+BytecodeAnalysisEngineProxy sup = new BytecodeAnalysisEngineProxy(arg, true);
+if (sup.server == null) throw new InvalidObjectException("null server");
+// GETFIELD sup.server → IFNONNULL           (no type check → UNTYPED_GET)
+```
+
+**New flag: `pendingUntypedField`** — set by `visitFieldInsn(GETFIELD, ..., "Ljava/lang/Object;")`,
+cleared by `visitTypeInsn(INSTANCEOF, ...)` or `visitTypeInsn(CHECKCAST, ...)`.
+`visitJumpInsn(IFNULL/IFNONNULL)` fires `untypedGetFound = true` if either
+`pendingUntypedGet` **or** `pendingUntypedField` is set.
+
+### 8. `AtomicSerialComplianceVisitor` — `serialForm()` only required when needed
+
+The `MISSING_SERIAL_FORM` verdict was previously issued for any `@AtomicSerial` class
+that lacked a `serialForm()` method, including delegation-only proxy subclasses (e.g.
+`BytecodeAnalysisEngineProxy`) that add **no** new serialized state beyond their
+superclass.
+
+A new `visitField` override now tracks `hasNonStaticInstanceFields`.
+`serialForm()` is only required when the class declares at least one non-static,
+non-transient instance field — i.e., when it actually has new serialized state to
+describe.  Classes with only static or transient fields are not flagged.
+
+### 9. New test cases — 4 added (47 total)
+
+`AtomicSerialComplianceVisitorTest` now has **17 tests** (was 13):
+
+| Test | Expected | What it exercises |
+|------|----------|-------------------|
+| `testRealClass_BytecodeAnalysisEngineProxy_isCompliant` | `COMPLIANT` | Real class with `instanceof` guard on inherited `Object server` field |
+| `testCompliant_superclassObjectField_instanceofCheck` | `COMPLIANT` | Synthetic: GETFIELD + INSTANCEOF — pendingUntypedField cleared |
+| `testCompliant_superclassObjectField_checkcastInCheckMethod` | `COMPLIANT` | Synthetic: GETFIELD + CHECKCAST — both pending flags cleared |
+| `testUntypedField_superclassObjectField_nullCheckOnly` | `UNTYPED_GET` | Synthetic: GETFIELD + IFNONNULL without any type check |
+
+`buildMissingSerialFormClass` was updated to add a non-static field so that
+`MISSING_SERIAL_FORM` is still triggered correctly under the new rule.
+
+All **47 BAE tests** pass (17 AtomicSerial + 30 Clinit).
+
+---
+
 ## What Is Still Open / Next Steps
 
 ### A. Deeper DirtyChai API audit
@@ -185,47 +250,74 @@ generate a more informative warning: "class X blocks only if permission Y is gra
 | `jgdms-platform/…/ClassAnalysisResult.java` | Javadoc: `blockingCallPath` populated for both BLOCKING and BLOCKING_GUARDED |
 | `bae/…/BlockingSinkRegistry.java` | Sink list + guard list + `isPermissionGuard` / `isPermissionGuardKey` |
 | `bae/…/ClinitBlockingVisitor.java` | BFS + `hasPermissionGuardOnPath` heuristic |
-| `bae/…/ClinitBlockingVisitorTest.java` | 30 new unit tests |
+| `bae/…/ClinitBlockingVisitorTest.java` | 30 unit tests (blocking / guarded / guard-method checks) |
+| `bae/…/AtomicSerialComplianceVisitor.java` | `CheckMethodAnalyzer` — detects untyped GetArg.get and untyped GETFIELD on Object-typed superclass fields; `visitField` tracks `hasNonStaticInstanceFields` |
+| `bae/…/AtomicSerialComplianceVisitorTest.java` | 17 unit tests (real classes + synthetic patterns including superclass-field checks) |
+| `bae-dl/…/BytecodeAnalysisEngineProxy.java` | Example of the correct `instanceof` pattern for superclass `Object server` field |
 
 ---
 
 ## Build & Test Quick-Reference
 
+The sandbox does not carry a full Maven local repository, so the manual classpath
+approach is used instead of `mvn test`.
+
 ```bash
-# From JGDMS/ directory
+# ── Prerequisites ──────────────────────────────────────────────────────────
+# Download ASM 9.7.1 (if not already present)
+curl -fsSL https://repo1.maven.org/maven2/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar \
+     -o /tmp/asm-9.7.1.jar
+# Download JUnit 4 + Hamcrest (if not already present)
+curl -fsSL https://repo1.maven.org/maven2/junit/junit/4.13.2/junit-4.13.2.jar \
+     -o /tmp/junit.jar
+curl -fsSL https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar \
+     -o /tmp/hamcrest.jar
 
-# 1. Build platform module (needed first — ClinitVerdict lives here)
-mvn install -pl jgdms-collections,jgdms-activation-parameters,jgdms-platform \
-  -Ddependency-check.skip=true -DskipTests -am -q
+# ── Variables ──────────────────────────────────────────────────────────────
+JGDMS=/home/runner/work/JGDMS/JGDMS/JGDMS
+PLATFORM=$JGDMS/jgdms-platform/target/classes     # pre-built by earlier mvn compile
+COLLECTIONS=$JGDMS/jgdms-collections/target/classes
+JERI=$JGDMS/jgdms-jeri/target/classes
+ACTIVATION_PARAMS=$JGDMS/jgdms-activation-parameters/target/classes
+OUT=/tmp/bae-out
+ASM=/tmp/asm-9.7.1.jar; JUNIT=/tmp/junit.jar; HAMCREST=/tmp/hamcrest.jar
+mkdir -p $OUT/step1 $OUT/step2 $OUT/step3 $OUT/tests
 
-# 2. Download ASM 9.7.1 if not already cached
-ASM_JAR=~/.m2/repository/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar
-mkdir -p $(dirname $ASM_JAR)
-[ -f $ASM_JAR ] || curl -fsSL \
-  https://repo1.maven.org/maven2/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar \
-  -o $ASM_JAR
+# ── Step 1: minimal jgdms-lib-dl classes needed by BytecodeAnalysisEngineProxy ──
+javac -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS" \
+  -d $OUT/step1 \
+  $JGDMS/jgdms-lib-dl/src/main/java/net/jini/admin/Administrable.java \
+  $JGDMS/jgdms-lib-dl/src/main/java/net/jini/admin/JoinAdmin.java \
+  $JGDMS/jgdms-lib-dl/src/main/java/org/apache/river/admin/DestroyAdmin.java \
+  $JGDMS/jgdms-lib-dl/src/main/java/net/jini/lookup/ServiceAttributesAccessor.java \
+  $JGDMS/jgdms-lib-dl/src/main/java/net/jini/lookup/ServiceIDAccessor.java \
+  $JGDMS/jgdms-lib-dl/src/main/java/net/jini/lookup/ServiceProxyAccessor.java \
+  $JGDMS/jgdms-lib-dl/src/main/java/au/net/zeus/jgdms/proxy/AbstractSmartProxy.java
 
-# 3. Compile & run BAE tests
-PLATFORM_JAR=~/.m2/repository/au/net/zeus/jgdms/jgdms-platform/3.1.1-SNAPSHOT/jgdms-platform-3.1.1-SNAPSHOT.jar
-JUNIT_JAR=~/.m2/repository/junit/junit/4.13.2/junit-4.13.2.jar
-HAMCREST_JAR=$(find ~/.m2/repository -name "hamcrest-core-*.jar" | head -1)
-BAE_SRC=services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/main/java
-BAE_TEST=services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/test/java
+# ── Step 2: BAE DL (BytecodeAnalysisEngineProxy) ──────────────────────────
+BAE_DL=$JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-dl/src/main/java
+javac -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1" \
+  -d $OUT/step2 $(find $BAE_DL -name "*.java")
 
-mkdir -p /tmp/bae-out
-javac -cp "$PLATFORM_JAR:$ASM_JAR" -d /tmp/bae-out \
-  $BAE_SRC/au/net/zeus/jgdms/bae/BlockingSinkRegistry.java \
-  $BAE_SRC/au/net/zeus/jgdms/bae/ClinitBlockingVisitor.java \
-  $BAE_SRC/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitor.java
+# ── Step 3: BAE service production sources ────────────────────────────────
+BAE_SVC=$JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/main/java
+javac -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2:$ASM" \
+  -d $OUT/step3 \
+  $BAE_SVC/au/net/zeus/jgdms/bae/BlockingSinkRegistry.java \
+  $BAE_SVC/au/net/zeus/jgdms/bae/ClinitBlockingVisitor.java \
+  $BAE_SVC/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitor.java
 
-javac -cp "$PLATFORM_JAR:$ASM_JAR:$JUNIT_JAR:$HAMCREST_JAR:/tmp/bae-out" \
-  -d /tmp/bae-out \
+# ── Step 4: BAE test sources ──────────────────────────────────────────────
+BAE_TEST=$JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/test/java
+javac -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2:$OUT/step3:$ASM:$JUNIT:$HAMCREST" \
+  -d $OUT/tests \
   $BAE_TEST/au/net/zeus/jgdms/bae/ClinitBlockingVisitorTest.java \
   $BAE_TEST/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitorTest.java
 
-java -cp "$PLATFORM_JAR:$ASM_JAR:$JUNIT_JAR:$HAMCREST_JAR:/tmp/bae-out" \
+# ── Step 5: run tests ─────────────────────────────────────────────────────
+java -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2:$OUT/step3:$OUT/tests:$ASM:$JUNIT:$HAMCREST" \
   org.junit.runner.JUnitCore \
   au.net.zeus.jgdms.bae.ClinitBlockingVisitorTest \
   au.net.zeus.jgdms.bae.AtomicSerialComplianceVisitorTest
-# Expected: OK (43 tests)
+# Expected: OK (47 tests)
 ```
