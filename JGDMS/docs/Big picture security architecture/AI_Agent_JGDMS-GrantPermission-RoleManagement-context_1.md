@@ -350,7 +350,7 @@ in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission`
 |---|---|---|
 | Safe to delegate | `FilePermission` to specific data directories | Include in djinn-session `GrantPermission` grants; advisory path appropriate |
 | Requires care | `createVirtualThread` | Include only for specific SPIFFE identities; once granted, carrier saturation is a containment problem (see Section 6.2) |
-| **DoS risk if declared in `PERMISSIONS.LIST`** | `SocketPermission`, `NativeInvocationPermission`, `NativeMemoryPermission`, `RuntimePermission("createPlatformThread")`, `RuntimePermission("createVirtualThread")` — any permission that directly guards a known blocking sink | If a JAR declares this in `PERMISSIONS.LIST` **and** has a `<clinit>` path guarded by that permission, granting it pins virtual-thread carriers — the BAE will flag this as `BLOCKING_DECLARED` / `DANGEROUS`; do **not** grant unless the `<clinit>` has been audited and the blocking call is intentional and bounded |
+| **DoS risk if declared in `PERMISSIONS.LIST`** | `SocketPermission`, `NativeInvocationPermission`, `NativeMemoryPermission`, `RuntimePermission("createPlatformThread")`, `RuntimePermission("createVirtualThread")` — any permission that directly guards a known blocking sink | If a JAR declares this in `PERMISSIONS.LIST` **and** has a `<clinit>` path guarded by that permission, granting it makes the blocking path reachable — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held, serialising all threads loading the same class — the BAE will flag this as `BLOCKING_DECLARED` / `DANGEROUS`; do **not** grant unless the `<clinit>` has been audited |
 | Requires care — scoped only | `SocketPermission` to specific known internal hosts (no `<clinit>` blocking path) | Include only if the BAE verdict is `SAFE` or `INCONCLUSIVE`; never grant if verdict is `DANGEROUS` |
 | Never delegate | `PolicyPermission("Remote")`, `GrantPermission` itself, `AllPermission` | Must not appear in dynamically delegatable grants |
 | Structurally unsafe | `LoadClassPermission`, `DefineClassPermission`, `NativeMemoryPermission` | SCAP gate is necessary but not sufficient; tight `GrantPermission` scoping required |
@@ -371,23 +371,36 @@ in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission`
 | `RuntimePermission("createPlatformThread")` | `ThreadBuilders` + all `Thread` constructors | Thread-bomb DoS prevention |
 | `RuntimePermission("createVirtualThread")` | `ThreadBuilders` | Virtual thread-bomb DoS prevention |
 
-### 6.2 Virtual Thread Pinning — Process Isolation Boundary
+### 6.2 Virtual Thread Blocking in `<clinit>` — Process Isolation Boundary
 
-Once a virtual thread is **running** inside a `synchronized` block, no JVM mechanism
-can forcibly terminate or unpin it. The `createVirtualThread` permission check fires
-at creation — this is the correct defence boundary. After creation, carrier saturation
-is an availability threat, not a confidentiality/integrity threat.
+**JDK 21–23 (pre-JEP 491):** When a virtual thread blocked inside a `synchronized`
+block (including the JVM-internal class-loading lock held during `<clinit>` execution),
+the carrier platform thread was pinned and could not be reused for other virtual threads.
+Exhausting `Runtime.availableProcessors()` carriers with blocked class-loads was a
+realistic Denial of Service.
+
+**JDK 24+ (JEP 491 — "Synchronize Virtual Threads without Pinning"):** The JVM now
+*can* unmount virtual threads from their carriers even when they are blocked inside
+`synchronized` blocks — carrier pinning from `synchronized` is eliminated.  However,
+a blocking `<clinit>` still holds the **class-loading lock** (monitor), serialising
+every other thread that attempts to load the same class until the blocking call
+returns.  This is a class-loading starvation / deadlock risk that JEP 491 does not
+address.
+
+The `createVirtualThread` permission check fires at creation — this remains the correct
+prevention boundary.  After creation, the residual availability threat is class-loading
+starvation rather than carrier saturation on JDK 24+ runtimes.
 
 **Layered defence:**
 1. **Prevention** — deny `createVirtualThread` to untrusted code via policy
 2. **Containment** — route trusted-but-suspicious code through a bounded, isolated
    `ForkJoinPool` with a caller-side deadline
-3. **Acceptance** — document that a stuck thread consumes its carrier slot until JVM exit
+3. **Acceptance** — on pre-JEP 491 JVMs a stuck thread consumes its carrier slot
+   until JVM exit; on JDK 24+ it serialises class loading of the affected class
 
 **Impact on GrantPermission design:** `GrantPermission(RuntimePermission("createVirtualThread"))`
 should only appear in djinn-session grants for SPIFFE identities whose codebase has
-been carefully reviewed and whose service design does not rely on `synchronized` in
-virtual thread contexts.
+been carefully reviewed and whose `<clinit>` paths contain no blocking operations.
 
 ### 6.3 CombinerSecurityManager — Recursion Depth
 
@@ -608,7 +621,7 @@ They are rendered inline in the conversation and are not file artefacts.
 | Intersection enforced in `DynamicPolicyProvider.grant()` | Preparer is not security-critical; `Security.grant()` enforces `GrantPermission` ceiling regardless of what advisory path requests |
 | Advisory grants are best-effort | `UnsupportedOperationException` in advisory path → logged, not rethrown; proxy still usable with reduced permissions |
 | Explicit permissions in preparer override advisory | Administrator can lock grant to specific list regardless of `PERMISSIONS.LIST` |
-| `createVirtualThread` in `GrantPermission` requires care | Once granted, carrier saturation is containment-only; process isolation is the backstop |
+| `createVirtualThread` in `GrantPermission` requires care | Once granted, blocking `<clinit>` paths become reachable — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held; either way it is a Denial of Service risk; process isolation is the backstop |
 | `PolicyPermission("Remote")` and `GrantPermission` itself must never be delegatable | Would allow proxies to participate in policy machinery or expand their own delegation rights |
 | SCAP validates code safety; policy validates runtime authority | Complementary controls at different phases; SCAP-SAFE does not imply well-scoped grants |
 | `JarAnalysisReport` carries `String[] declaredPermissions` from `META-INF/PERMISSIONS.LIST` (`serialVersionUID=2L`) | Enables cross-referencing declared needs against `GrantPermission` ceiling without re-downloading the JAR; sorted permissions included in signing bytes so the declared set cannot be silently stripped by a compromised pipeline |
@@ -620,7 +633,7 @@ They are rendered inline in the conversation and are not file artefacts.
 | ServiceUI JAR is a separate codebase from service proxy JAR | Independent SCAP audit, verdict, ClassLoader, and dynamic grants; UI grants should be scoped more narrowly than proxy grants |
 | Human identity threading into ServiceUI grants is an open design question | SPIFFE workload identity and human user identity namespaces need a bridging strategy before ServiceUI GrantPermission design can be finalised |
 | `BLOCKING_GUARDED` is `INCONCLUSIVE`, not `DANGEROUS` | The blocking path is only reachable if the guarding permission is granted; policy authors can choose not to grant it |
-| `BLOCKING_DECLARED` is `DANGEROUS` | The JAR's own `PERMISSIONS.LIST` declares the guarding permission, signalling developer intent to request it; if a client grants it, the blocking `<clinit>` path becomes reachable on a virtual thread, pinning the carrier and enabling a Denial of Service attack; administrators must treat any `BLOCKING_DECLARED` verdict as a strong signal **not to grant** the declared permission |
+| `BLOCKING_DECLARED` is `DANGEROUS` | The JAR's own `PERMISSIONS.LIST` declares the guarding permission, signalling developer intent to request it; if a client grants it, the blocking `<clinit>` path becomes reachable on a virtual thread — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held — either way a Denial of Service; administrators must treat any `BLOCKING_DECLARED` verdict as a strong signal **not to grant** the declared permission |
 | `SINK_TO_PERMISSION_CLASS` maps direct per-call guards (JDK + DirtyChai) | Sinks guarded at construction time only are excluded. Covered: network I/O (`SocketPermission`), file locking (`FilePermission`), native library loading (`NativeInvocationPermission`), FFM arena allocation (`NativeMemoryPermission`), thread creation (`RuntimePermission#createPlatformThread` / `#createVirtualThread`) |
 | `className#action` in `SINK_TO_PERMISSION_CLASS` values | Used for broad permission classes (e.g. `RuntimePermission`) to avoid false positives: a JAR declaring `RuntimePermission "getenv"` must not trigger `BLOCKING_DECLARED` for thread-creation sinks; both class name and quoted action must appear on the same `PERMISSIONS.LIST` line |
 

@@ -9,13 +9,16 @@
 
 This session extended the **Bytecode Analysis Engine (BAE)** to detect and classify
 blocking call paths reachable from `<clinit>` (static initialisers) that an attacker
-could exploit to pin virtual-thread carrier threads.
+could exploit to cause a Denial of Service via virtual threads.
 
 The threat model:
 > An attacker ships a class whose `<clinit>` calls a blocking Java or DirtyChai API.
-> When a virtual thread first loads that class, its OS carrier thread is pinned for
-> the duration of the blocking call.  If the call blocks indefinitely the carrier
-> thread is permanently occupied, degrading throughput or enabling a DoS.
+> When a virtual thread loads that class, the blocking call runs while holding the
+> JVM-internal class-loading lock.  On pre-JEP 491 JVMs (JDK ≤ 23) the carrier thread
+> is also pinned for the duration.  On JDK 24+ (JEP 491) carrier pinning inside
+> `synchronized` is eliminated, but the class-loading lock stalls every other thread
+> that attempts to load the same class until the call returns.  Either way the result
+> is a Denial of Service.
 
 ---
 
@@ -43,8 +46,9 @@ The threat model:
 
 `BLOCKING_DECLARED` is `DANGEROUS` because the JAR's own `PERMISSIONS.LIST` signals that
 the developer *intends* the guarding permission to be granted.  Granting it makes the
-blocking `<clinit>` path reachable on a virtual thread, pinning the carrier thread and
-enabling a Denial of Service attack by exhausting all carrier threads.
+blocking `<clinit>` path reachable on a virtual thread — on pre-JEP 491 JVMs (JDK ≤ 23)
+the carrier thread is pinned; on JDK 24+ (JEP 491) the class-loading lock is held,
+stalling all threads loading the same class — Denial of Service either way.
 
 ### 2. `BlockingSinkRegistry` — expanded sink list
 
@@ -433,7 +437,8 @@ java -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2:
 the guarding permission has *not* been declared.  But if the JAR's own `PERMISSIONS.LIST`
 declares the exact permission that guards the blocking call, the developer is signalling
 intent to request that grant.  A client that honours that request makes the blocking path
-reachable on a virtual thread, pinning the carrier and enabling a Denial of Service attack.
+reachable on a virtual thread — on pre-JEP 491 JVMs (JDK ≤ 23) pinning the carrier; on
+JDK 24+ (JEP 491) holding the class-loading lock — Denial of Service either way.
 
 | Verdict | Condition | `deriveVerdictType()` |
 |---------|-----------|----------------------|

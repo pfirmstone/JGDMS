@@ -26,9 +26,10 @@ The architecture is formally named:
 
 A distributed Java system that loads remote code (via Jini / RMI codebase annotation)
 is exposed to a **supply-chain attack**: an attacker replaces a legitimate JAR with one
-that contains malicious or denial-of-service bytecode.  Virtual-thread carrier pinning
-caused by blocking `<clinit>` paths is a related liveness attack that can stall a JVM
-with as few as `Runtime.availableProcessors()` concurrent class-load triggers.
+that contains malicious or denial-of-service bytecode.  Blocking `<clinit>` paths are a
+related liveness attack: on pre-JEP 491 JVMs (JDK ≤ 23) they pin virtual-thread carrier
+threads; on JDK 24+ (JEP 491) they hold the JVM-internal class-loading lock and stall
+every thread loading the same class — either way a Denial of Service.
 
 SCAP defends against this by ensuring that:
 
@@ -41,8 +42,8 @@ SCAP defends against this by ensuring that:
    themselves.
 4. An **abnormal JVM exit** (Phoenix crash) is itself treated as a safety signal — the
    codebase that caused the crash is condemned automatically.
-5. **Virtual-thread carrier pinning** caused by blocking `<clinit>` paths is detected
-   and classified, protecting liveness as well as integrity.
+5. **Blocking `<clinit>` paths** are detected and classified, protecting liveness:
+   carrier pinning (pre-JEP 491) or class-loading lock starvation (JDK 24+).
 6. Host 2 and Host 3 have **no direct connection**: a compromised analysis engine
    cannot write verdicts to the registry directly.
 7. Host 4 and Host 5 have **no direct connection**: a flood of client JFR events
@@ -388,11 +389,18 @@ is `INCONCLUSIVE` because granting that permission implicitly accepts the pinnin
 `META-INF/PERMISSIONS.LIST` declares the guarding permission class.  The declaration
 signals that the developer intends the permission to be granted.  If a client honours
 that intent and grants the permission, the blocking `<clinit>` path becomes reachable
-on a virtual thread, pinning the carrier thread for the duration of the I/O call.
-This is a potential **Denial of Service** attack vector — exhausting all carrier threads
-with as few as `Runtime.availableProcessors()` concurrent class-load triggers —
-and is therefore classified `DANGEROUS`.  **Administrators should not grant any
-permission that would upgrade a `BLOCKING_GUARDED` verdict to `BLOCKING_DECLARED`.**
+on a virtual thread.
+
+- **JDK 21–23 (pre-JEP 491):** the virtual thread pins its carrier platform thread for
+  the duration of the I/O call.  Exhausting all `Runtime.availableProcessors()` carriers
+  with concurrent class-load triggers is a practical Denial of Service.
+- **JDK 24+ (JEP 491):** carrier pinning inside `synchronized` is eliminated, but the
+  `<clinit>` still holds the JVM-internal class-loading lock, serialising every thread
+  that attempts to load the same class — a class-loading starvation / deadlock risk.
+
+In both cases the result is a **Denial of Service** and the verdict is therefore
+classified `DANGEROUS`.  **Administrators should not grant any permission that would
+upgrade a `BLOCKING_GUARDED` verdict to `BLOCKING_DECLARED`.**
 
 ---
 
@@ -529,7 +537,7 @@ void cancelEventLease(Uuid leaseId);
 | Fail-secure on BAE parse failure | Unparseable class file treated as `BLOCKING` + `MISSING_CONSTRUCTOR` |
 | `LoadClassPermission` on DirtyChai | Most important guard against carrier-pin DOS post-JEP 491 |
 | `BLOCKING_GUARDED` is `INCONCLUSIVE`, not `DANGEROUS` | The blocking path is only reachable if the guarding permission is granted; policy authors can choose not to grant it |
-| `BLOCKING_DECLARED` is `DANGEROUS`, not `INCONCLUSIVE` | The JAR's own `PERMISSIONS.LIST` signals developer intent to request the guarding permission; if granted, the blocking `<clinit>` path becomes reachable, enabling a virtual-thread carrier-pinning Denial of Service attack |
+| `BLOCKING_DECLARED` is `DANGEROUS`, not `INCONCLUSIVE` | The JAR's own `PERMISSIONS.LIST` signals developer intent to request the guarding permission; if granted, the blocking `<clinit>` path becomes reachable — on pre-JEP 491 JVMs (JDK ≤ 23) the virtual thread pins its carrier; on JDK 24+ (JEP 491) the class-loading lock is held, stalling all threads loading the same class — Denial of Service either way |
 | `SINK_TO_PERMISSION_CLASS` covers direct per-call guards (JDK + DirtyChai) | Sinks whose guard fires at construction time are excluded — the link between "declared permission → reachable block" would be indirect. Covered sinks: network I/O (`SocketPermission`), file locking (`FilePermission`), native library loading (`NativeInvocationPermission`), FFM arena allocation (`NativeMemoryPermission`), thread creation (`RuntimePermission#createPlatformThread` / `#createVirtualThread`) |
 | `className#action` encoding in `SINK_TO_PERMISSION_CLASS` | Used for broad permission classes (e.g. `RuntimePermission`) where different action names have unrelated semantics — prevents a JAR declaring `RuntimePermission "getenv"` from falsely triggering `BLOCKING_DECLARED` for thread-creation sinks |
 
