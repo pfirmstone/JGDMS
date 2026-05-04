@@ -44,6 +44,10 @@ import java.util.List;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
@@ -149,6 +153,8 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
 //	});
     private static final String revocationSupported = 
             "net.jini.security.policy.DynamicPolicyProvider.revocation";
+    private static final String voidGrantSweepPeriodProperty =
+            "net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds";
     private static final Logger logger = Logger.getLogger("net.jini.security.policy");
     
     private static final ProtectionDomain policyDomain = 
@@ -168,6 +174,15 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
     // do something about some domain permissions for this domain so we can 
     // avoid dead locks due to bug 4911907
     private final PermissionCollection policyPermissions;
+    /**
+     * Single background daemon thread that periodically removes void
+     * {@link PermissionGrant}s from {@link #dynamicPolicyGrants}.  May be
+     * {@code null} when the sweep period is configured to {@code <= 0}
+     * (sweeper disabled).  Hot-path methods ({@code implies},
+     * {@code getPermissionGrants}, {@code getGrants}) are never modified —
+     * all writes for void eviction are concentrated here.
+     */
+    private final ScheduledExecutorService voidGrantSweeper;
     
     /**
      * Creates a new <code>DynamicPolicyProvider</code> instance that wraps a
@@ -232,6 +247,12 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
         }
         policyPermissions = basePolicy.getPermissions(policyDomain);
         policyPermissions.setReadOnly();
+        try {
+            voidGrantSweeper = createSweeper();
+        } catch (Exception e) {
+            throw new PolicyInitializationException(
+                "unable to create void grant sweeper", e);
+        }
     }
     
     /**
@@ -260,6 +281,7 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
         }
         policyPermissions = basePolicy.getPermissions(policyDomain);
         policyPermissions.setReadOnly();
+        voidGrantSweeper = createSweeper();
     }
 
     /*
@@ -319,6 +341,99 @@ Put the policy providers and all referenced classes in the bootstrap class loade
 
     public boolean revokeSupported() {
         return revocable;
+    }
+
+    /**
+     * Creates and starts the background void-grant sweeper, or returns
+     * {@code null} if the configured period is {@code <= 0} (disabled).
+     *
+     * <p>The sweep period is read from the
+     * {@code net.jini.security.policy.DynamicPolicyProvider.voidGrantSweepPeriodSeconds}
+     * Security property.  If unset or unparseable, the default is 60 seconds.
+     * A value of {@code <= 0} disables the sweeper entirely.
+     */
+    private ScheduledExecutorService createSweeper() {
+        long period = 60L;
+        String periodStr = Security.getProperty(voidGrantSweepPeriodProperty);
+        if (periodStr != null) {
+            try {
+                period = Long.parseLong(periodStr.trim());
+            } catch (NumberFormatException e) {
+                logger.log(Level.WARNING,
+                    "Unparseable value for " + voidGrantSweepPeriodProperty
+                    + "; using default of 60 s", e);
+            }
+        }
+        if (period <= 0) {
+            return null;
+        }
+        ThreadFactory tf = new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "JGDMS-DynamicPolicyProvider-VoidGrantSweeper");
+                t.setDaemon(true);
+                t.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                    @Override
+                    public void uncaughtException(Thread th, Throwable e) {
+                        logger.log(Level.WARNING,
+                            "Uncaught exception in void grant sweeper thread", e);
+                    }
+                });
+                return t;
+            }
+        };
+        ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor(tf);
+        exec.scheduleWithFixedDelay(new Runnable() {
+            public void run() {
+                sweepVoidGrants();
+            }
+        }, period, period, TimeUnit.SECONDS);
+        return exec;
+    }
+
+    /**
+     * Iterates {@link #dynamicPolicyGrants} once and removes any grant for
+     * which {@link PermissionGrant#isVoid()} returns {@code true}.
+     *
+     * <p>Called exclusively by the single background sweeper thread — never
+     * on the {@code checkPermission} hot path.  Any {@link Throwable} thrown
+     * by {@code isVoid()} is caught and logged at {@link Level#WARNING} so
+     * that a misbehaving implementation cannot kill the sweeper thread.
+     */
+    private void sweepVoidGrants() {
+        int evicted = 0;
+        Iterator<PermissionGrant> it = dynamicPolicyGrants.iterator();
+        while (it.hasNext()) {
+            try {
+                PermissionGrant pg = it.next();
+                if (pg.isVoid()) {
+                    it.remove();
+                    evicted++;
+                }
+            } catch (Throwable t) {
+                logger.log(Level.WARNING,
+                    "Exception during void grant sweep; continuing", t);
+            }
+        }
+        if (evicted > 0 && logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE,
+                "VoidGrantSweeper evicted {0} void grant(s)", evicted);
+        }
+    }
+
+    /**
+     * Shuts down the background void-grant sweeper thread.  After this call
+     * the policy remains fully functional for {@code implies()} queries;
+     * only the periodic background eviction of void grants is stopped.
+     *
+     * <p>Intended for orderly teardown in tests and embedded deployments.
+     * On normal JVM exit the sweeper daemon thread is reaped automatically
+     * and calling this method is not required.
+     */
+    public void shutdown() {
+        if (voidGrantSweeper != null) {
+            voidGrantSweeper.shutdownNow();
+        }
     }
 
     @Override
