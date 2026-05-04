@@ -32,6 +32,7 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
@@ -261,6 +262,19 @@ public class ActivatableVerdictRegistryImpl
             throws UnknownLeaseException, RemoteException {
         getReadyState().check();
         impl.cancelEventLease(leaseId);
+    }
+
+    @Override
+    public void submitReport(String engineId,
+                             JarAnalysisReport report) throws RemoteException {
+        getReadyState().check();
+        impl.submitReport(engineId, report);
+    }
+
+    @Override
+    public RegistryVerdict getVerdictByHash(String contentHash) throws RemoteException {
+        getReadyState().check();
+        return impl.getVerdictByHash(contentHash);
     }
 
     // -------------------------------------------------------------------------
