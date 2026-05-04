@@ -373,7 +373,8 @@ final class BlockingSinkRegistry {
     static boolean isPermissionGuardKey(String calleeKey) {
         // Method descriptors always start with '(', so the separator between
         // "name" and "descriptor" in the key is the last "/(" sequence.
-        int descSlash = calleeKey.indexOf("/(");
+        // Using lastIndexOf handles any edge-cases in malformed keys.
+        int descSlash = calleeKey.lastIndexOf("/(");
         if (descSlash < 0) return false;
         String ownerAndName = calleeKey.substring(0, descSlash);
         int lastSep = ownerAndName.lastIndexOf('/');
