@@ -58,6 +58,22 @@ immediately condemns the codebase. A quorum of `SAFE` verdicts is required to pr
 - `JarAnalyzer` post-processing — upgrades `BLOCKING_GUARDED` → `BLOCKING_DECLARED` (`DANGEROUS`) when the guarding permission class is declared in `PERMISSIONS.LIST`; this represents a **Denial of Service** risk via virtual-thread carrier pinning
 - `JarAnalyzer` reads `META-INF/PERMISSIONS.LIST` — non-blank, non-comment lines stored in `JarAnalysisReport.getDeclaredPermissions()` and included in the engine signature
 
+**`SINK_TO_PERMISSION_CLASS` and the `className#action` syntax:** The upgrade from
+`BLOCKING_GUARDED` to `BLOCKING_DECLARED` is driven by
+`BlockingSinkRegistry.SINK_TO_PERMISSION_CLASS`, which maps each blocking sink to the
+permission class (or `className#action`-qualified permission) that guards it.  The
+`#action` suffix restricts matching to a specific permission action, preventing false
+positives for broad permission classes — a JAR declaring `RuntimePermission "getenv"`
+must not trigger `BLOCKING_DECLARED` for thread-creation sinks.  Example: the map key
+`RuntimePermission#createVirtualThread` matches a `PERMISSIONS.LIST` line such as:
+
+```
+RuntimePermission "createVirtualThread"
+```
+
+and triggers `BLOCKING_DECLARED` only for virtual-thread-creation sinks.  The full
+`SINK_TO_PERMISSION_CLASS` mapping table is in §13.
+
 ### 2.2 @AtomicSerial Compliance (JGDMS-STD-001)
 
 Every `Serializable` class crossing a JERI wire must comply:
@@ -350,8 +366,8 @@ in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission`
 |---|---|---|
 | Safe to delegate | `FilePermission` to specific data directories | Include in djinn-session `GrantPermission` grants; advisory path appropriate |
 | Requires care | `createVirtualThread` | Include only for specific SPIFFE identities; once granted, carrier saturation is a containment problem (see Section 6.2) |
-| **DoS risk if declared in `PERMISSIONS.LIST`** | `SocketPermission`, `NativeInvocationPermission`, `NativeMemoryPermission`, `RuntimePermission("createPlatformThread")`, `RuntimePermission("createVirtualThread")` — any permission that directly guards a known blocking sink | If a JAR declares this in `PERMISSIONS.LIST` **and** has a `<clinit>` path guarded by that permission, granting it makes the blocking path reachable — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held, serialising all threads loading the same class — the BAE will flag this as `BLOCKING_DECLARED` / `DANGEROUS`; do **not** grant unless the `<clinit>` has been audited |
-| Requires care — scoped only | `SocketPermission` to specific known internal hosts (no `<clinit>` blocking path) | Include only if the BAE verdict is `SAFE` or `INCONCLUSIVE`; never grant if verdict is `DANGEROUS` |
+| **DoS risk if declared in `PERMISSIONS.LIST`** | `SocketPermission`, `NativeInvocationPermission`, `NativeMemoryPermission`, `RuntimePermission("createPlatformThread")`, `RuntimePermission("createVirtualThread")` — any permission that directly guards a known blocking sink | If a JAR declares this in `PERMISSIONS.LIST` **and** has a `<clinit>` path guarded by that permission, granting it makes the blocking path reachable — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held, serialising all threads loading the same class — the BAE will flag this as `BLOCKING_DECLARED` / `DANGEROUS`; do **not** grant unless the `<clinit>` has been audited (→ `BLOCKING_DECLARED` verdict, see §2.1 and §13) |
+| Requires care — scoped only | `SocketPermission` to specific known internal hosts (no `<clinit>` blocking path) | Include only if the BAE verdict is `SAFE` or `INCONCLUSIVE`; never grant if verdict is `DANGEROUS` (→ `BLOCKING_GUARDED` verdict, see §2.1 and §13) |
 | Never delegate | `PolicyPermission("Remote")`, `GrantPermission` itself, `AllPermission` | Must not appear in dynamically delegatable grants |
 | Structurally unsafe | `LoadClassPermission`, `DefineClassPermission`, `NativeMemoryPermission` | SCAP gate is necessary but not sufficient; tight `GrantPermission` scoping required |
 
@@ -528,37 +544,49 @@ clear bridging strategy before ServiceUI grants can be fully specified.
 ## 10. Architecture Diagrams Produced
 
 Four detailed SVG diagrams were produced this session, each clickable for elaboration.
-They are rendered inline in the conversation and are not file artefacts.
+All four diagrams are committed alongside this document in the same directory:
 
 | Diagram | Focus | Key content |
 |---|---|---|
-| Diagram 1 | SCAP five-host pipeline | Host roles, trust levels, permitted/forbidden connections, data objects, SPIFFE IDs, quorum policy |
-| Diagram 2 | Three-layer policy stack | Nested layers with implementation detail, IMS wire format, ACC/PD chain callout, recursion guard, bootstrap prereqs |
-| Diagram 3 | Proxy lifecycle | Six phases top-to-bottom with method-level detail, four-path ClassLoader resolution, GC eviction chain |
-| Diagram 4 | GrantPermission & role management | Three-way intersection, delegation chain by role, three administrator levers, risk categorisation table, full SPIFFE scheme |
+| [Diagram 1 — SCAP five-host pipeline](./diagram1_scap_five_hosts.svg) | SCAP five-host pipeline | Host roles, trust levels, permitted/forbidden connections, data objects, SPIFFE IDs, quorum policy |
+| [Diagram 2 — Three-layer policy stack](./diagram2_three_layer_policy_stack.svg) | Three-layer policy stack | Nested layers with implementation detail, IMS wire format, ACC/PD chain callout, recursion guard, bootstrap prereqs |
+| [Diagram 3 — Proxy lifecycle](./diagram3_proxy_lifecycle.svg) | Proxy lifecycle | Six phases top-to-bottom with method-level detail, four-path ClassLoader resolution, GC eviction chain |
+| [Diagram 4 — GrantPermission & role management](./diagram4_grantpermission_role_management.svg) | GrantPermission & role management | Three-way intersection, delegation chain by role, three administrator levers, risk categorisation table, full SPIFFE scheme |
 
 ---
 
 ## 11. Files Still To Read Before Implementing
 
+> **Note:** This list reflects the state at the time of writing (context v4). A fresh
+> agent should re-verify which files have since been read; citations elsewhere in this
+> document are a reliable indicator.
+
 | File | Reason |
 |---|---|
 | `DynamicPolicy.java` (interface) | Confirm interface contract before finalising `DynamicPolicyProvider` update |
 | `PolicyParser.java` (interface) | Confirm `parse(URL, Properties)` signature before implementing `HttpsClientAuthPolicyParser` |
-| `DefaultPolicyScanner.java` | Confirm `scanStream()` signature for server-side `String[]` parsing in `InMemoryPolicyService` |
 | `LandlordLease` / lease infrastructure | Review before implementing `InMemoryPolicyService` lease management |
-| `Security.java` (`grant()` methods) | Confirm how `Security.grant()` delegates to `DynamicPolicyProvider` and enforces `GrantPermission` intersection |
+
+### 11.1 Files Already Read
+
+| File | Where cited in this document |
+|---|---|
+| `DefaultPolicyScanner.java` | §4 (wire format diagram), §12 item 7 (`scanStream()` call site), §13 ("Policy file syntax as wire format", "Server-side parsing via `scanStream()`") |
+| `Security.java` (`grant()` methods) | §3.3 (`Security.grant()` intersection enforcement, code examples), §7 (VerifyingProxyPreparer call sites), §13 ("Intersection enforced in `DynamicPolicyProvider.grant()`") |
 
 ---
 
 ## 12. Remaining Work Items (in order)
 
-1. **`DynamicPolicyProvider.java` — lazy void eviction** *(immediate)*
-   Apply `it.remove()` pattern to all four iterator sites (Section 3.2).
-   Produce complete updated file.
+1. **✅ `DynamicPolicyProvider.java` — lazy void eviction** *(completed)*
+   `it.remove()` pattern applied to all four iterator sites (Section 3.2).
+   The old `LinkedList` accumulator + `removeAll()` approach in `refresh()` and
+   equivalent iterator loops elsewhere has been replaced with inline `it.remove()`
+   calls so void grants are evicted as discovered.
 
-2. **`DefaultPolicyParser.scanner` — `private` → `protected`** (one line, both repos)
-   Prerequisite for `HttpsClientAuthPolicyParser` and `InMemoryPolicyService` string parsing.
+2. **✅ `DefaultPolicyParser.scanner` — `private` → `protected`** *(completed, both repos)*
+   Prerequisite for `HttpsClientAuthPolicyParser` and `InMemoryPolicyService` string
+   parsing now satisfied; subclasses can access the scanner directly.
 
 3. **`HttpsClientAuthPolicyParser`** — HTTPS + SPIFFE client cert URL opening.
    Subclass of `DefaultPolicyParser`. Depends on `SpiffeCredentialManager` interface.
