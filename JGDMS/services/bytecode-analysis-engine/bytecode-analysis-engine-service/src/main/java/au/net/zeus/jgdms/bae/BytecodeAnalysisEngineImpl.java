@@ -61,6 +61,9 @@ import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
+import au.net.zeus.jgdms.api.codebase.AnalysisException;
+import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -351,6 +354,9 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
     /** The registry to which {@link SignedVerdict} objects are submitted. */
     private final VerdictRegistry registry;
 
+    /** ASM-based JAR analyzer that implements the new push-model analysis. */
+    private final JarAnalyzer jarAnalyzer;
+
     /** Thread pool for asynchronous analysis tasks. */
     private final ExecutorService analysisExecutor;
 
@@ -489,6 +495,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.analysisExecutor  = tpe;
         this.poolExecutor      = tpe;
         this.taskTimeoutMillis = ANALYSIS_TASK_TIMEOUT_MILLIS;
+        this.jarAnalyzer       = new JarAnalyzer(enginePrivateKey, sigAlgorithm);
     }
 
     /**
@@ -544,6 +551,7 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.analysisExecutor  = tpe;
         this.poolExecutor      = tpe;
         this.taskTimeoutMillis = ANALYSIS_TASK_TIMEOUT_MILLIS;
+        this.jarAnalyzer       = new JarAnalyzer(enginePrivateKey, sigAlgorithm);
     }
 
     /**
@@ -592,10 +600,41 @@ public class BytecodeAnalysisEngineImpl implements BytecodeAnalysisEngine {
         this.poolExecutor      = (executor instanceof ThreadPoolExecutor)
                 ? (ThreadPoolExecutor) executor : null;
         this.taskTimeoutMillis = taskTimeoutMillis;
+        this.jarAnalyzer       = new JarAnalyzer(enginePrivateKey, sigAlgorithm);
     }
 
     // -------------------------------------------------------------------------
-    // BytecodeAnalysisEngine
+    // BytecodeAnalysisEngine — push model (new)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Analyses the JAR described by {@code request} synchronously using the
+     * ASM-based {@link JarAnalyzer} and returns a signed
+     * {@link JarAnalysisReport}.
+     *
+     * <p>This is the preferred method for new deployments.  The caller
+     * (Codebase Downloader, Host 4) supplies the JAR bytes directly; the
+     * engine never makes outbound network connections.
+     *
+     * @param request the analysis request; must be non-null
+     * @return the signed report; never {@code null}
+     * @throws AnalysisException   if a non-transient failure occurs
+     * @throws NullPointerException if {@code request} is {@code null}
+     */
+    @Override
+    public JarAnalysisReport analyzeJar(AnalysisRequest request)
+            throws AnalysisException {
+        if (request == null) throw new NullPointerException("request");
+        if (shutdownRequested.get()) {
+            throw new IllegalStateException(
+                    "BytecodeAnalysisEngine is shutting down; "
+                    + "new analysis requests are not accepted");
+        }
+        return jarAnalyzer.analyze(request);
+    }
+
+    // -------------------------------------------------------------------------
+    // BytecodeAnalysisEngine — legacy pull model
     // -------------------------------------------------------------------------
 
     /**

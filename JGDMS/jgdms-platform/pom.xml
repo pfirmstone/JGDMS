@@ -53,6 +53,11 @@
           <version>${high.scale.lib.version}</version>
         </dependency>-->
         <dependency>
+            <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+            <artifactId>Pack200-ex-openjdk</artifactId>
+            <version>${pack200.version}</version>
+        </dependency>
+        <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-collections</artifactId>
             <version>${project.version}</version>

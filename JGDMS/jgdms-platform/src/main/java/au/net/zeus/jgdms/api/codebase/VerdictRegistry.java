@@ -231,6 +231,53 @@ public interface VerdictRegistry extends Remote {
             throws UnknownLeaseException, RemoteException;
 
     /**
+     * Submits a {@link JarAnalysisReport} from a registered
+     * {@link BytecodeAnalysisEngine} to this registry.
+     *
+     * <p>This is the preferred submission method for deployments that use the
+     * push model ({@link BytecodeAnalysisEngine#analyzeJar}).  The registry:
+     * <ol>
+     *   <li>Verifies the engine signature embedded in the report against the
+     *       engine's registered public key.</li>
+     *   <li>Derives the aggregate {@link VerdictType} from the report using
+     *       {@link JarAnalysisReport#deriveVerdictType()}.</li>
+     *   <li>Applies the quorum policy and publishes a {@link RegistryVerdict}
+     *       keyed by the report's content hash.</li>
+     * </ol>
+     *
+     * @param engineId the identifier of the submitting engine; must be
+     *                 non-null and non-empty
+     * @param report   the signed analysis report to submit; must be non-null
+     * @throws IllegalArgumentException if any argument fails a precondition
+     * @throws NullPointerException     if any argument is {@code null}
+     * @throws RemoteException          if a communication failure occurs
+     */
+    void submitReport(String engineId, JarAnalysisReport report) throws RemoteException;
+
+    /**
+     * Returns the current authoritative {@link RegistryVerdict} for the JAR
+     * identified by its SHA-256 content hash.
+     *
+     * <p>This hash-keyed lookup is the primary client access method for
+     * deployments that use the push-model pipeline.  The
+     * {@code ProxyCodebaseSPI} on each client computes the hash of the JAR
+     * before unmarshalling and calls this method to check for a verdict.
+     *
+     * <p>Returns {@code null} if the registry has not yet accumulated
+     * sufficient reports from registered engines to issue an authoritative
+     * result.
+     *
+     * @param contentHash the SHA-256 hex digest of the JAR to query;
+     *                    must be non-null and non-empty
+     * @return the current {@link RegistryVerdict}, or {@code null} if no
+     *         authoritative verdict is available yet
+     * @throws IllegalArgumentException if {@code contentHash} is empty
+     * @throws NullPointerException     if {@code contentHash} is {@code null}
+     * @throws RemoteException          if a communication failure occurs
+     */
+    RegistryVerdict getVerdictByHash(String contentHash) throws RemoteException;
+
+    /**
      * Returns the current authoritative {@link RegistryVerdict} for the
      * given set of codebase URLs.
      *

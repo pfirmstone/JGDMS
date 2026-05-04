@@ -23,7 +23,10 @@ import java.util.Set;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.Uuid;
+import au.net.zeus.jgdms.api.codebase.AnalysisException;
+import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.BytecodeAnalysisEngine;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
@@ -115,6 +118,12 @@ public class BytecodeAnalysisEngineProxy
         ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
     }
 
+    @Override
+    public JarAnalysisReport analyzeJar(AnalysisRequest request)
+            throws AnalysisException, RemoteException {
+        return ((BytecodeAnalysisEngine) server).analyzeJar(request);
+    }
+
     // =========================================================================
     // Nested class: ConstrainableBytecodeAnalysisEngineProxy
     // =========================================================================
@@ -179,6 +188,12 @@ public class BytecodeAnalysisEngineProxy
         @Override
         public void requestAnalysis(Set<Uri> codebaseUrls) throws RemoteException {
             ((BytecodeAnalysisEngine) server).requestAnalysis(codebaseUrls);
+        }
+
+        @Override
+        public JarAnalysisReport analyzeJar(AnalysisRequest request)
+                throws AnalysisException, RemoteException {
+            return ((BytecodeAnalysisEngine) server).analyzeJar(request);
         }
     }
 }

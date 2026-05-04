@@ -29,6 +29,7 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import au.net.zeus.jgdms.api.codebase.CrashReport;
+import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
@@ -135,6 +136,11 @@ public class VerdictRegistryProxy
     }
 
     @Override
+    public void submitReport(String engineId, JarAnalysisReport report) throws RemoteException {
+        ((VerdictRegistry) server).submitReport(engineId, report);
+    }
+
+    @Override
     public void reportCrash(CrashReport report) throws RemoteException {
         ((VerdictRegistry) server).reportCrash(report);
     }
@@ -142,6 +148,11 @@ public class VerdictRegistryProxy
     @Override
     public RegistryVerdict getVerdict(Set<Uri> codebaseUrls) throws RemoteException {
         return ((VerdictRegistry) server).getVerdict(codebaseUrls);
+    }
+
+    @Override
+    public RegistryVerdict getVerdictByHash(String contentHash) throws RemoteException {
+        return ((VerdictRegistry) server).getVerdictByHash(contentHash);
     }
 
     @Override
@@ -245,6 +256,11 @@ public class VerdictRegistryProxy
         }
 
         @Override
+        public void submitReport(String engineId, JarAnalysisReport report) throws RemoteException {
+            ((VerdictRegistry) server).submitReport(engineId, report);
+        }
+
+        @Override
         public void reportCrash(CrashReport report) throws RemoteException {
             ((VerdictRegistry) server).reportCrash(report);
         }
@@ -252,6 +268,11 @@ public class VerdictRegistryProxy
         @Override
         public RegistryVerdict getVerdict(Set<Uri> codebaseUrls) throws RemoteException {
             return ((VerdictRegistry) server).getVerdict(codebaseUrls);
+        }
+
+        @Override
+        public RegistryVerdict getVerdictByHash(String contentHash) throws RemoteException {
+            return ((VerdictRegistry) server).getVerdictByHash(contentHash);
         }
 
         @Override
