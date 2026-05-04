@@ -71,7 +71,7 @@ public class AbstractSmartProxyTest {
             super(server, proxyID);
         }
 
-        ConcreteProxy(GetArg arg) throws IOException {
+        ConcreteProxy(GetArg arg) throws IOException, ClassNotFoundException {
             super(arg);
         }
 
@@ -97,7 +97,7 @@ public class AbstractSmartProxyTest {
             super(server, proxyID, constraints);
         }
 
-        ConcreteConstrainableProxy(GetArg arg) throws IOException {
+        ConcreteConstrainableProxy(GetArg arg) throws IOException, ClassNotFoundException {
             super(arg);
         }
 
