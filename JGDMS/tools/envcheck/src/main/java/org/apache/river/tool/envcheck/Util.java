@@ -201,7 +201,7 @@ public class Util {
      * @param bundle the bundle to retrieve the format string from
      */
     public static String getString(String key, ResourceBundle bundle) {
-	return MessageFormat.format(getFormat(key, bundle), null);
+	return MessageFormat.format(getFormat(key, bundle), (Object[]) null);
     }
 
     /**

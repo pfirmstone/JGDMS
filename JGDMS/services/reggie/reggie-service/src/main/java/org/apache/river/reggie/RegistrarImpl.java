@@ -3169,7 +3169,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 * network interfaces.
 	 */
 	private void send(DatagramPacket[] packets)
-	    throws InterruptedIOException
+	    throws IOException
 	{
 	    if (reggie.multicastInterfaces != null) {
 		Level failureLogLevel = reggie.multicastInterfacesSpecified ?

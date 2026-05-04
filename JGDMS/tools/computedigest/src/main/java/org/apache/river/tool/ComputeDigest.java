@@ -104,6 +104,6 @@ public class ComputeDigest {
 	String fmt = getString(key);
 	if (fmt == null)
 	    fmt = "no text found: \"" + key + "\" {0}";
-	System.err.println(MessageFormat.format(fmt, new String[]{val}));
+	System.err.println(MessageFormat.format(fmt, (Object[]) new String[]{val}));
     }
 }

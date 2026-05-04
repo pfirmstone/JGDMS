@@ -761,14 +761,14 @@ public class ClassServer extends Thread implements Startable {
 	String fmt = getString(key);
 	if (fmt == null)
 	    fmt = "no text found: \"" + key + "\" {0}";
-	System.out.println(MessageFormat.format(fmt, new String[]{val}));
+	System.out.println(MessageFormat.format(fmt, (Object[]) new String[]{val}));
     }
 
     private static void print(String key, String[] vals) {
 	String fmt = getString(key);
 	if (fmt == null)
 	    fmt = "no text found: \"" + key + "\" {0} {1} {2}";
-	System.out.println(MessageFormat.format(fmt, vals));
+	System.out.println(MessageFormat.format(fmt, (Object[]) vals));
     }
 
     /**
