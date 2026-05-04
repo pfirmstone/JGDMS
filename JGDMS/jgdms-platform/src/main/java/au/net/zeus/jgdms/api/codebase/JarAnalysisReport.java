@@ -78,22 +78,24 @@ import org.apache.river.api.io.AtomicSerial.SerialForm;
 @AtomicSerial
 public final class JarAnalysisReport implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
-    private static final String CONTENT_HASH      = "contentHash";
-    private static final String CLASS_NAMES        = "classNames";
-    private static final String CLASS_RESULTS      = "classResults";
-    private static final String ENGINE_SIGNATURE   = "engineSignature";
+    private static final String CONTENT_HASH         = "contentHash";
+    private static final String CLASS_NAMES           = "classNames";
+    private static final String CLASS_RESULTS         = "classResults";
+    private static final String ENGINE_SIGNATURE      = "engineSignature";
+    private static final String DECLARED_PERMISSIONS  = "declaredPermissions";
 
     @SuppressWarnings("unused")
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
         return new SerialForm[] {
-            new SerialForm(CONTENT_HASH,    String.class),
-            new SerialForm(CLASS_NAMES,     String[].class),
-            new SerialForm(CLASS_RESULTS,   ClassAnalysisResult[].class),
-            new SerialForm(ENGINE_SIGNATURE, byte[].class)
+            new SerialForm(CONTENT_HASH,        String.class),
+            new SerialForm(CLASS_NAMES,         String[].class),
+            new SerialForm(CLASS_RESULTS,       ClassAnalysisResult[].class),
+            new SerialForm(ENGINE_SIGNATURE,    byte[].class),
+            new SerialForm(DECLARED_PERMISSIONS, String[].class)
         };
     }
 
@@ -107,10 +109,11 @@ public final class JarAnalysisReport implements Serializable {
             classResults[i] = e.getValue();
             i++;
         }
-        arg.put(CONTENT_HASH,     r.contentHash);
-        arg.put(CLASS_NAMES,      classNames);
-        arg.put(CLASS_RESULTS,    classResults);
-        arg.put(ENGINE_SIGNATURE, r.engineSignature.clone());
+        arg.put(CONTENT_HASH,         r.contentHash);
+        arg.put(CLASS_NAMES,          classNames);
+        arg.put(CLASS_RESULTS,        classResults);
+        arg.put(ENGINE_SIGNATURE,     r.engineSignature.clone());
+        arg.put(DECLARED_PERMISSIONS, r.declaredPermissions.clone());
         arg.writeArgs();
     }
 
@@ -139,6 +142,15 @@ public final class JarAnalysisReport implements Serializable {
         byte[] sig = (byte[]) arg.get(ENGINE_SIGNATURE, null);
         if (sig == null || sig.length == 0)
             throw new InvalidObjectException("engineSignature must not be null or empty");
+        // declaredPermissions may be absent (old reports) or null → treated as empty
+        String[] dp = (String[]) arg.get(DECLARED_PERMISSIONS, null);
+        if (dp != null) {
+            for (String s : dp) {
+                if (s == null)
+                    throw new InvalidObjectException(
+                            "declaredPermissions must not contain null elements");
+            }
+        }
         return true;
     }
 
@@ -153,9 +165,22 @@ public final class JarAnalysisReport implements Serializable {
 
     /**
      * DER-encoded signature produced by the engine's private key over the
-     * canonical serialized form of {@link #contentHash} and {@link #results}.
+     * canonical serialized form of {@link #contentHash}, {@link #results},
+     * and {@link #declaredPermissions}.
      */
     private final byte[] engineSignature;
+
+    /**
+     * Lines read verbatim from {@code META-INF/PERMISSIONS.LIST} inside the
+     * analysed JAR.  Each element is a trimmed, non-blank, non-comment line
+     * from the file — typically a standard Java security policy permission
+     * declaration (e.g.
+     * {@code permission java.awt.AWTPermission "showWindowWithoutWarningBanner";}).
+     *
+     * <p>Empty when the JAR contains no {@code META-INF/PERMISSIONS.LIST} entry.
+     * Never {@code null}.
+     */
+    private final String[] declaredPermissions;
 
     /**
      * {@link AtomicSerial} deserialization constructor.
@@ -180,10 +205,16 @@ public final class JarAnalysisReport implements Serializable {
         }
         results          = Collections.unmodifiableMap(map);
         engineSignature  = ((byte[]) arg.get(ENGINE_SIGNATURE, null)).clone();
+        // declaredPermissions may be absent in older reports → treat as empty
+        String[] dp = (String[]) arg.get(DECLARED_PERMISSIONS, null);
+        declaredPermissions = (dp != null) ? dp.clone() : new String[0];
     }
 
     /**
-     * Constructs a {@code JarAnalysisReport}.
+     * Constructs a {@code JarAnalysisReport} with no declared permissions.
+     *
+     * <p>Equivalent to calling the four-argument constructor with an empty
+     * {@code declaredPermissions} array.
      *
      * @param contentHash     SHA-256 hex digest of the analysed JAR; must be
      *                        non-null and non-empty
@@ -196,17 +227,44 @@ public final class JarAnalysisReport implements Serializable {
     public JarAnalysisReport(String contentHash,
                               Map<String, ClassAnalysisResult> results,
                               byte[] engineSignature) {
-        if (contentHash == null)      throw new NullPointerException("contentHash");
-        if (contentHash.isEmpty())    throw new IllegalArgumentException("contentHash must not be empty");
-        if (results == null)          throw new NullPointerException("results");
-        if (engineSignature == null)  throw new NullPointerException("engineSignature");
+        this(contentHash, results, engineSignature, new String[0]);
+    }
+
+    /**
+     * Constructs a {@code JarAnalysisReport} with declared permissions.
+     *
+     * @param contentHash          SHA-256 hex digest of the analysed JAR; must
+     *                             be non-null and non-empty
+     * @param results              per-class analysis results; must be non-null
+     * @param engineSignature      DER-encoded engine signature; must be non-null
+     *                             and non-empty
+     * @param declaredPermissions  lines from {@code META-INF/PERMISSIONS.LIST};
+     *                             must be non-null; individual elements must be
+     *                             non-null
+     * @throws IllegalArgumentException if any argument fails a precondition
+     * @throws NullPointerException     if any argument is {@code null}
+     */
+    public JarAnalysisReport(String contentHash,
+                              Map<String, ClassAnalysisResult> results,
+                              byte[] engineSignature,
+                              String[] declaredPermissions) {
+        if (contentHash == null)          throw new NullPointerException("contentHash");
+        if (contentHash.isEmpty())        throw new IllegalArgumentException("contentHash must not be empty");
+        if (results == null)              throw new NullPointerException("results");
+        if (engineSignature == null)      throw new NullPointerException("engineSignature");
         if (engineSignature.length == 0)
             throw new IllegalArgumentException("engineSignature must not be empty");
+        if (declaredPermissions == null)  throw new NullPointerException("declaredPermissions");
+        for (int i = 0; i < declaredPermissions.length; i++) {
+            if (declaredPermissions[i] == null)
+                throw new NullPointerException("declaredPermissions[" + i + "]");
+        }
 
-        this.contentHash     = contentHash;
-        this.results         = Collections.unmodifiableMap(
+        this.contentHash          = contentHash;
+        this.results              = Collections.unmodifiableMap(
                 new LinkedHashMap<String, ClassAnalysisResult>(results));
-        this.engineSignature = engineSignature.clone();
+        this.engineSignature      = engineSignature.clone();
+        this.declaredPermissions  = declaredPermissions.clone();
     }
 
     /**
@@ -231,6 +289,22 @@ public final class JarAnalysisReport implements Serializable {
      * @return non-null, non-empty byte array
      */
     public byte[] getEngineSignature() { return engineSignature.clone(); }
+
+    /**
+     * Returns a copy of the permission declarations read from
+     * {@code META-INF/PERMISSIONS.LIST} in the analysed JAR.
+     *
+     * <p>Each element is a trimmed, non-blank, non-comment line from that
+     * file — typically a standard Java security policy permission declaration
+     * (e.g.
+     * {@code permission java.awt.AWTPermission "showWindowWithoutWarningBanner";}).
+     *
+     * <p>Returns an empty array when the JAR contains no
+     * {@code META-INF/PERMISSIONS.LIST} entry.
+     *
+     * @return non-null copy of the declared-permission lines
+     */
+    public String[] getDeclaredPermissions() { return declaredPermissions.clone(); }
 
     /**
      * Derives the aggregate {@link VerdictType} from all per-class results.
@@ -283,6 +357,7 @@ public final class JarAnalysisReport implements Serializable {
     public String toString() {
         return "JarAnalysisReport{contentHash='" + contentHash
                 + "', classCount=" + results.size()
-                + ", verdict=" + deriveVerdictType() + '}';
+                + ", verdict=" + deriveVerdictType()
+                + ", declaredPermissions=" + declaredPermissions.length + '}';
     }
 }
