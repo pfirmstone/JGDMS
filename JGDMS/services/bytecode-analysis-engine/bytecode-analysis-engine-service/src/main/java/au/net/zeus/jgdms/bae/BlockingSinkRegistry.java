@@ -607,7 +607,7 @@ final class BlockingSinkRegistry {
 
     /** Builds an immutable two-element permission-guard set (dual-guard sinks). */
     private static Set<String> dual(String first, String second) {
-        Set<String> s = new LinkedHashSet<String>(4);
+        Set<String> s = new LinkedHashSet<String>(2);
         s.add(first);
         s.add(second);
         return Collections.unmodifiableSet(s);
