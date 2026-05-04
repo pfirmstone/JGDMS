@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.LinkedHashSet;
 
 /**
  * Registry of known-blocking and known-safe native/blocking JVM methods.
@@ -76,8 +77,8 @@ final class BlockingSinkRegistry {
 
     /**
      * Maps a blocking-sink key ({@code "owner/name/descriptor"}) to the
-     * permission entry that the JDK (or DirtyChai) checks internally
-     * immediately before the blocking operation is performed.
+     * <em>set</em> of permission entries that the JDK (or DirtyChai) checks
+     * internally immediately before the blocking operation is performed.
      *
      * <p>Only sinks that carry a <em>direct, per-call</em>
      * {@code SecurityManager.checkXxx()} or DirtyChai permission guard
@@ -86,7 +87,19 @@ final class BlockingSinkRegistry {
      * because the link between "declaring the permission" and "the blocking
      * call being reachable" is indirect for such cases.
      *
-     * <p><b>Value encoding</b>
+     * <p>Most sinks carry a <em>single</em> guard, so their entry is a
+     * singleton set.  Sinks with <em>dual guards</em> — where the JDK selects
+     * one of two permission checks depending on the address family (e.g.
+     * {@code SocketChannel.connect} uses {@code SM.checkConnect} for
+     * {@code InetSocketAddress} and
+     * {@code SM.checkPermission(new NetPermission("accessUnixDomainSocket"))}
+     * for {@code UnixDomainSocketAddress}) — carry a two-element set.
+     * {@link JarAnalyzer} promotes {@link au.net.zeus.jgdms.api.codebase.ClinitVerdict#BLOCKING_GUARDED}
+     * to {@link au.net.zeus.jgdms.api.codebase.ClinitVerdict#BLOCKING_DECLARED}
+     * when <em>any</em> entry in the set is declared in
+     * {@code META-INF/PERMISSIONS.LIST}.
+     *
+     * <p><b>Value encoding</b> — each string in the set uses one of:
      * <ul>
      *   <li><em>{@code "className"}</em> — any declaration of the named
      *       permission class in {@code META-INF/PERMISSIONS.LIST} qualifies.
@@ -104,7 +117,7 @@ final class BlockingSinkRegistry {
      * condition: a blocking I/O path that is guarded by a permission that the
      * JAR itself declares in {@code META-INF/PERMISSIONS.LIST}.
      */
-    static final Map<String, String> SINK_TO_PERMISSION_CLASS;
+    static final Map<String, Set<String>> SINK_TO_PERMISSION_CLASS;
 
     static {
         Set<String> blocking = new HashSet<String>(Arrays.asList(
@@ -393,59 +406,64 @@ final class BlockingSinkRegistry {
 
         // Blocking sinks that carry a direct, per-call JDK-internal or
         // DirtyChai permission guard immediately before the blocking operation.
-        // Maps the full "owner/name/descriptor" key to either:
-        //   "className"         — any declaration of that class qualifies, or
-        //   "className#action"  — both class AND quoted action must be present
-        //                         on the same PERMISSIONS.LIST line.
-        Map<String, String> sinkPerms = new HashMap<String, String>();
+        // Maps the full "owner/name/descriptor" key to the set of permission
+        // entries that guard it.  Most sinks have one guard (singleton set).
+        // Dual-guard sinks (address-family-dependent JDK checks) carry two
+        // entries; JarAnalyzer promotes to BLOCKING_DECLARED when ANY entry
+        // in the set is declared in PERMISSIONS.LIST.
+        Map<String, Set<String>> sinkPerms = new HashMap<String, Set<String>>();
         // --- Network: Socket / ServerSocket (SM.checkConnect / checkAccept) ---
         sinkPerms.put("java/net/Socket/connect/(Ljava/net/SocketAddress;)V",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
         sinkPerms.put("java/net/Socket/connect/(Ljava/net/SocketAddress;I)V",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
         sinkPerms.put("java/net/ServerSocket/accept/()Ljava/net/Socket;",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
         sinkPerms.put("java/net/DatagramSocket/receive/(Ljava/net/DatagramPacket;)V",
-                "java.net.SocketPermission");
-        // --- NIO: ServerSocketChannel (SM.checkAccept inside accept()) ---
+                singleton("java.net.SocketPermission"));
+        // --- NIO: ServerSocketChannel ---
+        // InetSocketAddress path: SM.checkAccept → SocketPermission.
+        // UnixDomainSocketAddress path: SM.checkPermission(new
+        //   NetPermission("accessUnixDomainSocket")) → NetPermission.
+        // Dual-guard: either permission declaration promotes to BLOCKING_DECLARED.
         sinkPerms.put(
                 "java/nio/channels/ServerSocketChannel/accept/()Ljava/nio/channels/SocketChannel;",
-                "java.net.SocketPermission");
+                dual("java.net.SocketPermission",
+                     "java.net.NetPermission#accessUnixDomainSocket"));
         // --- NIO: FileChannel.lock (SM.checkWrite / checkRead inside lock()) ---
         sinkPerms.put("java/nio/channels/FileChannel/lock/()Ljava/nio/channels/FileLock;",
-                "java.io.FilePermission");
+                singleton("java.io.FilePermission"));
         sinkPerms.put("java/nio/channels/FileChannel/lock/(JJZ)Ljava/nio/channels/FileLock;",
-                "java.io.FilePermission");
+                singleton("java.io.FilePermission"));
 
         // --- NIO: SocketChannel.connect / open(SocketAddress) ---
-        // SM.checkConnect(host, port) guards the InetSocketAddress path (TCP).
-        // For UnixDomainSocketAddress the JDK guard is instead
-        // SM.checkPermission(new NetPermission("accessUnixDomainSocket")).
-        // The map only holds one value per key; SocketPermission covers the
-        // dominant TCP case.  A JAR that declares only NetPermission
-        // "accessUnixDomainSocket" (Unix-domain only) will remain
-        // BLOCKING_GUARDED rather than BLOCKING_DECLARED.
+        // InetSocketAddress path: SM.checkConnect(host, port) → SocketPermission.
+        // UnixDomainSocketAddress path: SM.checkPermission(new
+        //   NetPermission("accessUnixDomainSocket")) → NetPermission.
+        // Dual-guard: either permission declaration promotes to BLOCKING_DECLARED.
         sinkPerms.put("java/nio/channels/SocketChannel/connect/(Ljava/net/SocketAddress;)Z",
-                "java.net.SocketPermission");
+                dual("java.net.SocketPermission",
+                     "java.net.NetPermission#accessUnixDomainSocket"));
         sinkPerms.put(
                 "java/nio/channels/SocketChannel/open/(Ljava/net/SocketAddress;)Ljava/nio/channels/SocketChannel;",
-                "java.net.SocketPermission");
+                dual("java.net.SocketPermission",
+                     "java.net.NetPermission#accessUnixDomainSocket"));
 
         // --- NIO: DatagramChannel (SM.checkAccept on receive; SM.checkConnect on send) ---
         sinkPerms.put(
                 "java/nio/channels/DatagramChannel/receive/(Ljava/nio/ByteBuffer;)Ljava/net/SocketAddress;",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
         sinkPerms.put(
                 "java/nio/channels/DatagramChannel/send/(Ljava/nio/ByteBuffer;Ljava/net/SocketAddress;)I",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
 
         // --- DNS resolution: InetAddress (SM.checkConnect(host, -1) → SocketPermission "resolve") ---
         sinkPerms.put("java/net/InetAddress/getByName/(Ljava/lang/String;)Ljava/net/InetAddress;",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
         sinkPerms.put("java/net/InetAddress/getAllByName/(Ljava/lang/String;)[Ljava/net/InetAddress;",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
         sinkPerms.put("java/net/InetAddress/getLocalHost/()Ljava/net/InetAddress;",
-                "java.net.SocketPermission");
+                singleton("java.net.SocketPermission"));
 
         // --- Process spawn: SM.checkExec(cmd) → FilePermission(cmd, "execute") ---
         // "className#action" encoding: both "java.io.FilePermission" and the
@@ -453,50 +471,50 @@ final class BlockingSinkRegistry {
         // This prevents false promotion from JARs that declare FilePermission
         // with only "read" or "write" actions (unrelated to process execution).
         sinkPerms.put("java/lang/ProcessBuilder/start/()Ljava/lang/Process;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
         sinkPerms.put("java/lang/ProcessBuilder/startPipeline/(Ljava/util/List;)Ljava/util/List;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
         sinkPerms.put("java/lang/Runtime/exec/(Ljava/lang/String;)Ljava/lang/Process;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
         sinkPerms.put("java/lang/Runtime/exec/([Ljava/lang/String;)Ljava/lang/Process;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
         sinkPerms.put("java/lang/Runtime/exec/(Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Process;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
         sinkPerms.put("java/lang/Runtime/exec/(Ljava/lang/String;[Ljava/lang/String;Ljava/io/File;)Ljava/lang/Process;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
         sinkPerms.put("java/lang/Runtime/exec/([Ljava/lang/String;[Ljava/lang/String;)Ljava/lang/Process;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
         sinkPerms.put("java/lang/Runtime/exec/([Ljava/lang/String;[Ljava/lang/String;Ljava/io/File;)Ljava/lang/Process;",
-                "java.io.FilePermission#execute");
+                singleton("java.io.FilePermission#execute"));
 
         // --- Native library loading: DirtyChai NativeInvocationPermission ---
         // Standard JDK's SM.checkLink() also guards these; DirtyChai adds
         // NativeInvocationPermission on top.
         sinkPerms.put("java/lang/System/loadLibrary/(Ljava/lang/String;)V",
-                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeInvocationPermission"));
         sinkPerms.put("java/lang/System/load/(Ljava/lang/String;)V",
-                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeInvocationPermission"));
         sinkPerms.put("java/lang/Runtime/loadLibrary/(Ljava/lang/String;)V",
-                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeInvocationPermission"));
         sinkPerms.put("java/lang/Runtime/load/(Ljava/lang/String;)V",
-                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeInvocationPermission"));
         // FFM SymbolLookup.libraryLookup also loads a native library from disk.
         sinkPerms.put(
                 "java/lang/foreign/SymbolLookup/libraryLookup/(Ljava/lang/String;Ljava/lang/foreign/Arena;)Ljava/lang/foreign/SymbolLookup;",
-                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeInvocationPermission"));
         sinkPerms.put(
                 "java/lang/foreign/SymbolLookup/libraryLookup/(Ljava/nio/file/Path;Ljava/lang/foreign/Arena;)Ljava/lang/foreign/SymbolLookup;",
-                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeInvocationPermission"));
 
         // --- FFM Arena factories: DirtyChai NativeMemoryPermission ---
         sinkPerms.put("java/lang/foreign/Arena/global/()Ljava/lang/foreign/Arena;",
-                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeMemoryPermission"));
         sinkPerms.put("java/lang/foreign/Arena/ofShared/()Ljava/lang/foreign/Arena;",
-                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeMemoryPermission"));
         sinkPerms.put("java/lang/foreign/Arena/ofConfined/()Ljava/lang/foreign/Arena;",
-                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeMemoryPermission"));
         sinkPerms.put("java/lang/foreign/Arena/ofAuto/()Ljava/lang/foreign/Arena;",
-                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+                singleton("au.zeus.jdk.authorization.guards.NativeMemoryPermission"));
 
         // --- DirtyChai ThreadBuilders: RuntimePermission (class#action format) ---
         // "className#action" encoding: declaresPermissionClass() requires both
@@ -505,16 +523,16 @@ final class BlockingSinkRegistry {
         // RuntimePermission grants (e.g. "getenv", "shutdownHooks").
         sinkPerms.put(
                 "jdk/internal/misc/ThreadBuilders$PlatformThreadBuilder/unstarted/(Ljava/lang/Runnable;)Ljava/lang/Thread;",
-                "java.lang.RuntimePermission#createPlatformThread");
+                singleton("java.lang.RuntimePermission#createPlatformThread"));
         sinkPerms.put(
                 "jdk/internal/misc/ThreadBuilders$PlatformThreadBuilder/factory/()Ljava/util/concurrent/ThreadFactory;",
-                "java.lang.RuntimePermission#createPlatformThread");
+                singleton("java.lang.RuntimePermission#createPlatformThread"));
         sinkPerms.put(
                 "jdk/internal/misc/ThreadBuilders$VirtualThreadBuilder/unstarted/(Ljava/lang/Runnable;)Ljava/lang/Thread;",
-                "java.lang.RuntimePermission#createVirtualThread");
+                singleton("java.lang.RuntimePermission#createVirtualThread"));
         sinkPerms.put(
                 "jdk/internal/misc/ThreadBuilders$VirtualThreadBuilder/factory/()Ljava/util/concurrent/ThreadFactory;",
-                "java.lang.RuntimePermission#createVirtualThread");
+                singleton("java.lang.RuntimePermission#createVirtualThread"));
         SINK_TO_PERMISSION_CLASS = Collections.unmodifiableMap(sinkPerms);
     }
 
@@ -546,12 +564,17 @@ final class BlockingSinkRegistry {
     }
 
     /**
-     * Returns the permission entry that the JDK (or DirtyChai) checks
-     * internally immediately before executing the blocking operation
-     * identified by {@code sinkKey}, or {@code null} if the sink carries no
-     * such per-call guard.
+     * Returns the set of permission entries that the JDK (or DirtyChai) checks
+     * internally immediately before executing the blocking operation identified
+     * by {@code sinkKey}, or {@code null} if the sink carries no such per-call
+     * guard.
      *
-     * <p>The returned string uses one of two encodings:
+     * <p>Most sinks return a singleton set.  Sinks with dual guards (e.g.
+     * {@code SocketChannel.connect}, which checks {@code SocketPermission} for
+     * TCP addresses and {@code NetPermission("accessUnixDomainSocket")} for
+     * Unix-domain addresses) return a two-element set.
+     *
+     * <p>Each string in the returned set uses one of two encodings:
      * <ul>
      *   <li><em>{@code "className"}</em> — any declaration of that permission
      *       class in {@code META-INF/PERMISSIONS.LIST} qualifies (e.g.
@@ -566,14 +589,28 @@ final class BlockingSinkRegistry {
      *
      * <p>This is used by {@link JarAnalyzer} to detect the
      * {@link au.net.zeus.jgdms.api.codebase.ClinitVerdict#BLOCKING_DECLARED}
-     * condition.
+     * condition: the verdict is promoted when <em>any</em> entry in the
+     * returned set is declared in {@code META-INF/PERMISSIONS.LIST}.
      *
      * @param sinkKey the composite key {@code "owner/name/descriptor"}
-     * @return the permission entry (see encoding above),
+     * @return the set of permission entries (see encoding above),
      *         or {@code null} if no guard is mapped
      */
-    static String getRequiredPermissionClass(String sinkKey) {
+    static Set<String> getRequiredPermissionClasses(String sinkKey) {
         return SINK_TO_PERMISSION_CLASS.get(sinkKey);
+    }
+
+    /** Builds an immutable singleton permission-guard set. */
+    private static Set<String> singleton(String permEntry) {
+        return Collections.singleton(permEntry);
+    }
+
+    /** Builds an immutable two-element permission-guard set (dual-guard sinks). */
+    private static Set<String> dual(String first, String second) {
+        Set<String> s = new LinkedHashSet<String>(4);
+        s.add(first);
+        s.add(second);
+        return Collections.unmodifiableSet(s);
     }
 
     /**

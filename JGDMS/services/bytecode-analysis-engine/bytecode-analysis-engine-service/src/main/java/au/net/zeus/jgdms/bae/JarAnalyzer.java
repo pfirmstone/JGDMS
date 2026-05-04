@@ -227,18 +227,23 @@ final class JarAnalyzer {
             // Such a declaration signals that the developer intends the permission
             // to be granted; granting it enables the blocking path and creates a
             // potential Denial of Service (DoS) via virtual-thread carrier pinning.
+            // For dual-guard sinks (e.g. SocketChannel.connect) the verdict is
+            // promoted when ANY of the sink's guards is declared.
             if (clinitResult.verdict == ClinitVerdict.BLOCKING_GUARDED
                     && declaredPermissions.length > 0) {
                 List<String> path = clinitResult.callPath;
                 if (!path.isEmpty()) {
                     String sinkKey = path.get(path.size() - 1);
-                    String requiredPermClass =
-                            BlockingSinkRegistry.getRequiredPermissionClass(sinkKey);
-                    if (requiredPermClass != null
-                            && declaresPermissionClass(
-                                    declaredPermissions, requiredPermClass)) {
-                        clinitResult = new ClinitBlockingVisitor.ClinitAnalysisResult(
-                                ClinitVerdict.BLOCKING_DECLARED, path);
+                    Set<String> requiredPermClasses =
+                            BlockingSinkRegistry.getRequiredPermissionClasses(sinkKey);
+                    if (requiredPermClasses != null) {
+                        for (String permEntry : requiredPermClasses) {
+                            if (declaresPermissionClass(declaredPermissions, permEntry)) {
+                                clinitResult = new ClinitBlockingVisitor.ClinitAnalysisResult(
+                                        ClinitVerdict.BLOCKING_DECLARED, path);
+                                break;
+                            }
+                        }
                     }
                 }
             }
