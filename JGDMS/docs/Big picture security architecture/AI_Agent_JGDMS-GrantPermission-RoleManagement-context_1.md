@@ -52,9 +52,10 @@ Host 3 for a `RegistryVerdict`. A single `DANGEROUS` verdict from any BAE instan
 immediately condemns the codebase. A quorum of `SAFE` verdicts is required to proceed.
 
 **BAE analyses per JAR:**
-- `ClinitBlockingVisitor` — BFS from `<clinit>` to blocking sinks
+- `ClinitBlockingVisitor` — BFS from `<clinit>` to blocking sinks; produces `BLOCKING`, `BLOCKING_GUARDED`, `BLOCKING_DECLARED`, `NATIVE_OPACITY`, `CLEAN`, or `CYCLE`
 - `AtomicSerialComplianceVisitor` — @AtomicSerial protocol adherence
 - Cycle detector — circular `<clinit>` dependencies
+- `JarAnalyzer` post-processing — upgrades `BLOCKING_GUARDED` → `BLOCKING_DECLARED` (`DANGEROUS`) when the guarding permission class is declared in `PERMISSIONS.LIST`; this represents a **Denial of Service** risk via virtual-thread carrier pinning
 - `JarAnalyzer` reads `META-INF/PERMISSIONS.LIST` — non-blank, non-comment lines stored in `JarAnalysisReport.getDeclaredPermissions()` and included in the engine signature
 
 ### 2.2 @AtomicSerial Compliance (JGDMS-STD-001)
@@ -347,8 +348,10 @@ in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission`
 
 | Category | Examples | Recommendation |
 |---|---|---|
-| Safe to delegate | `SocketPermission` to specific known internal hosts; `FilePermission` to specific data directories | Include in djinn-session `GrantPermission` grants; advisory path appropriate |
+| Safe to delegate | `FilePermission` to specific data directories | Include in djinn-session `GrantPermission` grants; advisory path appropriate |
 | Requires care | `createVirtualThread` | Include only for specific SPIFFE identities; once granted, carrier saturation is a containment problem (see Section 6.2) |
+| **DoS risk if declared in `PERMISSIONS.LIST`** | `SocketPermission` (and any permission whose JDK `SecurityManager.checkXxx()` guards a known blocking sink) | If a JAR declares this in `PERMISSIONS.LIST` **and** has a `<clinit>` path guarded by that permission, granting it pins virtual-thread carriers — the BAE will flag this as `BLOCKING_DECLARED` / `DANGEROUS`; do **not** grant unless the `<clinit>` has been audited and the blocking call is intentional and bounded |
+| Requires care — scoped only | `SocketPermission` to specific known internal hosts (no `<clinit>` blocking path) | Include only if the BAE verdict is `SAFE` or `INCONCLUSIVE`; never grant if verdict is `DANGEROUS` |
 | Never delegate | `PolicyPermission("Remote")`, `GrantPermission` itself, `AllPermission` | Must not appear in dynamically delegatable grants |
 | Structurally unsafe | `LoadClassPermission`, `DefineClassPermission`, `NativeMemoryPermission` | SCAP gate is necessary but not sufficient; tight `GrantPermission` scoping required |
 
@@ -616,6 +619,9 @@ They are rendered inline in the conversation and are not file artefacts.
 | Authentication is SPIFFE/SPIRE workload identity; no traditional login | Identity is ambient — provisioned by SPIRE at workload startup; no interactive credential step at JGDMS layer |
 | ServiceUI JAR is a separate codebase from service proxy JAR | Independent SCAP audit, verdict, ClassLoader, and dynamic grants; UI grants should be scoped more narrowly than proxy grants |
 | Human identity threading into ServiceUI grants is an open design question | SPIFFE workload identity and human user identity namespaces need a bridging strategy before ServiceUI GrantPermission design can be finalised |
+| `BLOCKING_GUARDED` is `INCONCLUSIVE`, not `DANGEROUS` | The blocking path is only reachable if the guarding permission is granted; policy authors can choose not to grant it |
+| `BLOCKING_DECLARED` is `DANGEROUS` | The JAR's own `PERMISSIONS.LIST` declares the guarding permission, signalling developer intent to request it; if a client grants it, the blocking `<clinit>` path becomes reachable on a virtual thread, pinning the carrier and enabling a Denial of Service attack; administrators must treat any `BLOCKING_DECLARED` verdict as a strong signal **not to grant** the declared permission |
+| `SINK_TO_PERMISSION_CLASS` maps only direct per-call JDK SM-guarded sinks | Sinks guarded at construction time only are excluded — the link between the declared permission and the reachable blocking call would be indirect and cause false positives |
 
 ---
 
@@ -641,9 +647,12 @@ All other authenticated JERI clients may call `getCurrentGrants()` and
 
 *Hand this document (along with source files as needed) to a future AI agent to
 continue without loss of context. The two previous context documents are superseded
-by this one for all topics covered here. This is version 3, updated to add:
+by this one for all topics covered here. This is version 4, updated to add:
 Section 7 (VerifyingProxyPreparer constructor detail), Section 8 (authentication model),
 Section 9 (ServiceUI deferred design), Section 10 (diagrams produced), and additional
 entries in the key design decisions table (Sections 7, 8, 9) — in version 2; and
 in version 3: `JarAnalysisReport.declaredPermissions` implementation (Section 2.1,
-Section 5.6 "Implemented", Section 9, Section 12 item 10 marked ✅, Section 13 new rows).*
+Section 5.6 "Implemented", Section 9, Section 12 item 10 marked ✅, Section 13 new rows);
+and in version 4: `BLOCKING_DECLARED` verdict (Section 2.1 BAE analyses, Section 5.7
+risk categorisation updated — `SocketPermission` moved to DoS-risk tier, Section 13 new
+rows for `BLOCKING_DECLARED`, `BLOCKING_GUARDED` distinction, and `SINK_TO_PERMISSION_CLASS`).*

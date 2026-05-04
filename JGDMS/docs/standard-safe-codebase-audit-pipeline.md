@@ -172,11 +172,12 @@ at all times**:
 
 **Analysis performed on each JAR:**
 
-| Visitor | What it checks | Verdict type |
+| Visitor / Phase | What it checks | Verdict type |
 |---------|---------------|-------------|
 | `ClinitBlockingVisitor` | BFS from `<clinit>` to blocking sinks | `ClinitVerdict` |
 | `AtomicSerialComplianceVisitor` | `@AtomicSerial` protocol adherence | `AtomicSerialVerdict` |
 | Cycle detector | Circular `<clinit>` dependency | `ClinitVerdict.CYCLE` |
+| Post-processing in `JarAnalyzer` | Upgrades `BLOCKING_GUARDED` to `BLOCKING_DECLARED` when the guarding permission class is declared in `PERMISSIONS.LIST` — a **Denial of Service** risk; results in `DANGEROUS` verdict | `ClinitVerdict.BLOCKING_DECLARED` |
 
 Any class file that cannot be parsed by ASM is assigned
 `ClinitVerdict.BLOCKING` + `AtomicSerialVerdict.MISSING_CONSTRUCTOR` (fail-secure).
@@ -372,7 +373,7 @@ incarnation number + sanitised stderr excerpt + Phoenix signature.
 `JarAnalysisReport.deriveVerdictType()` maps per-class results to an aggregate
 `VerdictType` using the following priority order:
 
-1. Any `ClinitVerdict.BLOCKING`, `ClinitVerdict.CYCLE`, or any
+1. Any `ClinitVerdict.BLOCKING`, `ClinitVerdict.BLOCKING_DECLARED`, `ClinitVerdict.CYCLE`, or any
    `AtomicSerialVerdict` of `MISSING_CONSTRUCTOR`, `VALIDATION_ORDER`,
    `MISSING_SERIAL_FORM`, or `UNTYPED_GET` → **`DANGEROUS`**
 2. Any `ClinitVerdict.NATIVE_OPACITY`, `ClinitVerdict.BLOCKING_GUARDED`, or
@@ -382,6 +383,16 @@ incarnation number + sanitised stderr excerpt + Phoenix signature.
 `BLOCKING_GUARDED` means the blocking path is only reachable when the caller holds a
 specific Java permission (guard precedes the blocking sink in the call graph).  This
 is `INCONCLUSIVE` because granting that permission implicitly accepts the pinning risk.
+
+`BLOCKING_DECLARED` means the blocking path is guarded **and** the JAR's own
+`META-INF/PERMISSIONS.LIST` declares the guarding permission class.  The declaration
+signals that the developer intends the permission to be granted.  If a client honours
+that intent and grants the permission, the blocking `<clinit>` path becomes reachable
+on a virtual thread, pinning the carrier thread for the duration of the I/O call.
+This is a potential **Denial of Service** attack vector — exhausting all carrier threads
+with as few as `Runtime.availableProcessors()` concurrent class-load triggers —
+and is therefore classified `DANGEROUS`.  **Administrators should not grant any
+permission that would upgrade a `BLOCKING_GUARDED` verdict to `BLOCKING_DECLARED`.**
 
 ---
 
@@ -517,6 +528,9 @@ void cancelEventLease(Uuid leaseId);
 | Engine signing key separate from TLS SVID | Different rotation cadences; signing key warrants hardware backing |
 | Fail-secure on BAE parse failure | Unparseable class file treated as `BLOCKING` + `MISSING_CONSTRUCTOR` |
 | `LoadClassPermission` on DirtyChai | Most important guard against carrier-pin DOS post-JEP 491 |
+| `BLOCKING_GUARDED` is `INCONCLUSIVE`, not `DANGEROUS` | The blocking path is only reachable if the guarding permission is granted; policy authors can choose not to grant it |
+| `BLOCKING_DECLARED` is `DANGEROUS`, not `INCONCLUSIVE` | The JAR's own `PERMISSIONS.LIST` signals developer intent to request the guarding permission; if granted, the blocking `<clinit>` path becomes reachable, enabling a virtual-thread carrier-pinning Denial of Service attack |
+| `SINK_TO_PERMISSION_CLASS` covers only direct per-call JDK SM checks | Sinks whose SM check fires at construction time (not at the blocking call site) are excluded — the link between "declared permission → reachable block" is indirect and would produce false positives |
 
 ---
 
