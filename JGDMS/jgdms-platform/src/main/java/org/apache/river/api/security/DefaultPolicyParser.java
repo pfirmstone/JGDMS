@@ -89,7 +89,7 @@ import org.apache.river.thread.NamedThreadFactory;
  */
 public class DefaultPolicyParser implements PolicyParser {
     // Delay logging until after the policy and security manager are constructed.
-    final ExecutorService logExec;
+    protected final ExecutorService logExec;
     // Pluggable scanner for a specific file format
     private final DefaultPolicyScanner scanner;
 
