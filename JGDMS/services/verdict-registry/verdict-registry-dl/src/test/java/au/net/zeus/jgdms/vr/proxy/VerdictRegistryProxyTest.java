@@ -133,6 +133,17 @@ public class VerdictRegistryProxyTest {
         }
 
         @Override
+        public void submitReport(String engineId,
+                                 au.net.zeus.jgdms.api.codebase.JarAnalysisReport report)
+                throws RemoteException {
+        }
+
+        @Override
+        public RegistryVerdict getVerdictByHash(String contentHash) throws RemoteException {
+            return null;
+        }
+
+        @Override
         public Object getAdmin() throws RemoteException {
             return adminObject;
         }
