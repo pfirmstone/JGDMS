@@ -30,27 +30,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Attempt to install the latest DirtyChai JDK release (linux-x64).
+      # Install the pre-built DirtyChai JDK (linux-x64) published as the
+      # rolling `dirty-chai-latest` release by pfirmstone/DirtyChai.
       # DirtyChai is a community OpenJDK fork that re-enables SecurityManager /
       # AccessController functionality required by JGDMS tests.
       #
-      # This step is a no-op when no release exists yet in pfirmstone/DirtyChai,
-      # so the workflow will still succeed and use the runner's system JDK instead.
+      # The stable download URLs are documented in DirtyChai JGDMS_COMPATIBILITY.md:
+      #   https://github.com/pfirmstone/DirtyChai/releases/download/dirty-chai-latest/jdk-linux-x64.tar.gz
+      #
+      # This step degrades gracefully (installed=false) when the release does not
+      # yet exist, so the workflow still succeeds using the runner's system JDK.
       - name: Install DirtyChai JDK
         id: dirtychai
         run: |
           INSTALL_DIR="/opt/dirtychai"
+          DL_DIR="/tmp/dirtychai-dl"
           sudo mkdir -p "$INSTALL_DIR"
+          mkdir -p "$DL_DIR"
 
+          # Download both the bundle and its checksum file.
           # gh release download exits non-zero when no matching release is found;
-          # the `|| true` ensures we continue gracefully in that case.
-          if gh release download \
+          # the surrounding `if` ensures we continue gracefully in that case.
+          if gh release download dirty-chai-latest \
                --repo pfirmstone/DirtyChai \
                --pattern 'jdk-linux-x64.tar.gz' \
-               --dir /tmp/dirtychai-dl 2>/dev/null; then
+               --pattern 'jdk-linux-x64.tar.gz.sha256' \
+               --dir "$DL_DIR" 2>/dev/null; then
 
-            echo "DirtyChai release bundle found; installing..."
-            sudo tar -xzf /tmp/dirtychai-dl/jdk-linux-x64.tar.gz -C "$INSTALL_DIR"
+            echo "DirtyChai release bundle found; verifying checksum..."
+            (cd "$DL_DIR" && sha256sum -c jdk-linux-x64.tar.gz.sha256)
+
+            echo "Checksum OK; installing..."
+            sudo tar -xzf "$DL_DIR/jdk-linux-x64.tar.gz" -C "$INSTALL_DIR"
 
             # The tarball expands into a versioned sub-directory (e.g. jdk-24.0.1+7).
             # Walk the tree to find the real JAVA_HOME regardless of the version string.
