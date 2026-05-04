@@ -585,7 +585,7 @@ public class CheckConfigurationFile  {
 						  new Class[]{String.class,
 							      String.class});
 	    Method getNames = config.getClass().getMethod("getEntryNames",
-							  null);
+							  (Class[]) null);
 	    Set entrySet = (Set) getNames.invoke(config, new Object[0]);
 	    entryNames =
 		(String[]) entrySet.toArray(new String[entrySet.size()]);
@@ -790,6 +790,6 @@ public class CheckConfigurationFile  {
 	String fmt = getString(key, err);
 	if (fmt == null)
 	    fmt = "no text found: \"" + key + "\" {0}";
-	err.println(MessageFormat.format(fmt, vals));
+	err.println(MessageFormat.format(fmt, (Object[]) vals));
     }
 }

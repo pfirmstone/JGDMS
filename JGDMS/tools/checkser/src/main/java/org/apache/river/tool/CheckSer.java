@@ -140,6 +140,6 @@ public class CheckSer {
 	String fmt = getString(key);
 	if (fmt == null)
 	    fmt = "no text found: \"" + key + "\" {0}";
-	System.out.println(MessageFormat.format(fmt, new String[]{val}));
+	System.out.println(MessageFormat.format(fmt, (Object[]) new String[]{val}));
     }
 }

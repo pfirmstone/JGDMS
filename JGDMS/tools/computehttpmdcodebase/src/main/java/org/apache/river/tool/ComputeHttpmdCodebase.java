@@ -181,6 +181,6 @@ public class ComputeHttpmdCodebase {
 	String fmt = getString(key);
 	if (fmt == null)
 	    fmt = "no text found: \"" + key + "\" {0}";
-	System.err.println(MessageFormat.format(fmt, vals));
+	System.err.println(MessageFormat.format(fmt, (Object[]) vals));
     }
 }
