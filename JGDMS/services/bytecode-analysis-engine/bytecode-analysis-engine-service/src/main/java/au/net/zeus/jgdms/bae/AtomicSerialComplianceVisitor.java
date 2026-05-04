@@ -90,12 +90,19 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
     // State accumulated during visiting
     // -------------------------------------------------------------------------
 
-    private boolean hasAtomicSerialAnnotation = false;
-    private boolean hasStatelessAnnotation     = false;
-    private boolean implementsSerializable     = false;
-    private boolean hasGetArgConstructor       = false;
-    private boolean hasSerialFormMethod        = false;
-    private boolean getArgCtorValidationOk     = false;
+    private boolean hasAtomicSerialAnnotation      = false;
+    private boolean hasStatelessAnnotation          = false;
+    private boolean implementsSerializable          = false;
+    private boolean hasGetArgConstructor            = false;
+    private boolean hasSerialFormMethod             = false;
+    private boolean getArgCtorValidationOk          = false;
+    /**
+     * {@code true} if the class declares at least one non-static,
+     * non-transient instance field.  A class with no such fields does not
+     * need its own {@code serialForm()} method because it contributes no
+     * new serialized state beyond what its superclass(es) already describe.
+     */
+    private boolean hasNonStaticInstanceFields      = false;
 
     /**
      * The name and descriptor of the static check method as identified by
@@ -173,6 +180,24 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
     }
 
     @Override
+    public org.objectweb.asm.FieldVisitor visitField(int access, String name,
+                                                      String descriptor,
+                                                      String signature,
+                                                      Object value) {
+        // Track whether this class declares any non-static, non-transient
+        // instance fields.  Such a class is expected to supply its own
+        // serialForm() to declare the serial form of those fields.  A class
+        // with no non-static fields (e.g. a delegation-only proxy subclass)
+        // inherits its serial form entirely from the superclass and does not
+        // need its own serialForm().
+        if ((access & Opcodes.ACC_STATIC)    == 0
+                && (access & Opcodes.ACC_TRANSIENT) == 0) {
+            hasNonStaticInstanceFields = true;
+        }
+        return super.visitField(access, name, descriptor, signature, value);
+    }
+
+    @Override
     public MethodVisitor visitMethod(int access, String name, String descriptor,
                                       String signature, String[] exceptions) {
         if ("<init>".equals(name) && GET_ARG_CTOR_DESC.equals(descriptor)) {
@@ -242,9 +267,13 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             }
         }
 
-        // Check serialForm() unless @Stateless
+        // Check serialForm() unless @Stateless or the class has no non-static
+        // instance fields.  A class with no non-static fields (e.g. a
+        // delegation-only proxy subclass that adds no new serialized state)
+        // inherits its serial form entirely from the superclass and is not
+        // required to supply its own serialForm().
         if (hasAtomicSerialAnnotation && !hasStatelessAnnotation
-                && !hasSerialFormMethod) {
+                && !hasSerialFormMethod && hasNonStaticInstanceFields) {
             return AtomicSerialVerdict.MISSING_SERIAL_FORM;
         }
 
@@ -320,15 +349,16 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
     // -------------------------------------------------------------------------
 
     /**
-     * Analyses a static check method for the anti-pattern: calling
-     * {@code GetArg.get(String, Object)} (the 2-argument, untyped form) and
-     * then using the returned {@code Object} directly in an
-     * {@code IFNULL}/{@code IFNONNULL} branch without a preceding
-     * {@code CHECKCAST}.
+     * Analyses a static check method for two anti-patterns:
      *
-     * <p>This pattern defers the type-check to the bridge constructor, where
-     * a {@code ClassCastException} can fire <em>during</em> object construction
-     * rather than safely in the static check method before construction begins.
+     * <h3>1. Untyped {@code GetArg.get}</h3>
+     * <p>Calling {@code GetArg.get(String, Object)} (the 2-argument, untyped
+     * form) and then using the returned {@code Object} directly in an
+     * {@code IFNULL}/{@code IFNONNULL} branch without a preceding
+     * {@code CHECKCAST}.  This defers the type-check to the bridge
+     * constructor, where a {@code ClassCastException} can fire <em>during</em>
+     * object construction rather than safely in the static check method
+     * before construction begins.
      *
      * <p>Safe alternatives that this detector accepts:
      * <ul>
@@ -339,6 +369,29 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
      *       {@code (MyType) arg.get(name, null)} — type exception fires in
      *       the check method.</li>
      * </ul>
+     *
+     * <h3>2. Untyped access to superclass {@code Object}-typed fields</h3>
+     * <p>When a child class's static check method constructs a private copy
+     * of itself (via a private bridge constructor that calls {@code super(arg)})
+     * in order to read and verify protected {@code Object}-typed fields
+     * inherited from a superclass, it must type-check those fields with
+     * {@code instanceof} or {@code CHECKCAST} before accepting them.  Reading
+     * the field with a {@code GETFIELD} and then immediately checking
+     * {@code == null} (IFNULL/IFNONNULL) <em>without</em> a preceding
+     * {@code instanceof} or {@code CHECKCAST} is flagged because the actual
+     * runtime type of the deserialized value is never verified before the
+     * object is fully constructed.
+     *
+     * <p>Example of the correct pattern (from
+     * {@code BytecodeAnalysisEngineProxy.check()}):
+     * <pre>
+     *   BytecodeAnalysisEngineProxy sup = new BytecodeAnalysisEngineProxy(arg, true);
+     *   if (sup.server instanceof BytecodeAnalysisEngine ...) return true;
+     * </pre>
+     * <p>An {@code instanceof} check (or explicit {@code CHECKCAST}) makes
+     * the type exception fire in the static check method — before construction
+     * — which is safe.  A bare null-check with no type verification is
+     * flagged as {@link AtomicSerialVerdict#UNTYPED_GET}.
      */
     static final class CheckMethodAnalyzer extends MethodVisitor {
 
@@ -363,10 +416,26 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
         private boolean pendingUntypedGet = false;
 
         /**
+         * {@code true} if the last instruction was a {@code GETFIELD} whose
+         * declared field descriptor is {@code Ljava/lang/Object;} and the
+         * loaded value has not yet been type-verified by a {@code CHECKCAST}
+         * or {@code instanceof} in this method.
+         *
+         * <p>This flag is used to detect the pattern where a child class's
+         * static check method constructs a private copy of itself (via a
+         * private bridge constructor that calls {@code super(arg)}) and then
+         * reads a protected {@code Object}-typed field from the superclass
+         * using {@code GETFIELD} without subsequently type-checking the
+         * deserialized value.
+         */
+        private boolean pendingUntypedField = false;
+
+        /**
          * {@code true} if at least one 2-argument {@code GetArg.get} result
-         * was used in an {@code IFNULL}/{@code IFNONNULL} branch without a
-         * preceding {@code CHECKCAST} — i.e. the type is never verified in
-         * this check method.
+         * (or a {@code GETFIELD} on an {@code Object}-typed field) was used
+         * in an {@code IFNULL}/{@code IFNONNULL} branch without a preceding
+         * {@code CHECKCAST} or {@code instanceof} — i.e. the type is never
+         * verified in this check method.
          */
         boolean untypedGetFound = false;
 
@@ -381,11 +450,13 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
                 if (UNTYPED_GET_DESC.equals(descriptor)) {
                     // 2-arg form: result is raw Object, type not yet verified
                     pendingUntypedGet = true;
+                    pendingUntypedField = false;
                     return;
                 }
                 if (TYPED_GET_DESC.equals(descriptor)) {
                     // 3-arg form: GetArg performs the type check internally
                     pendingUntypedGet = false;
+                    pendingUntypedField = false;
                     return;
                 }
             }
@@ -393,36 +464,48 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
                     && VALIDATE_INVARIANTS_DESC.equals(descriptor)) {
                 // Batch type-validator; covers all fields
                 pendingUntypedGet = false;
+                pendingUntypedField = false;
                 return;
             }
             // Any other method call means the get result was consumed
             pendingUntypedGet = false;
+            pendingUntypedField = false;
         }
 
         @Override
         public void visitTypeInsn(int opcode, String type) {
             if (opcode == Opcodes.CHECKCAST) {
                 // Explicit cast in the check method — type is verified here
+                // (fires before construction, so safe for both patterns)
                 pendingUntypedGet = false;
+                pendingUntypedField = false;
+            } else if (opcode == Opcodes.INSTANCEOF) {
+                // instanceof check in the check method — type is safely verified
+                // (no ClassCastException can result from instanceof)
+                pendingUntypedField = false;
             }
         }
 
         @Override
         public void visitJumpInsn(int opcode, Label label) {
-            if (pendingUntypedGet
+            if ((pendingUntypedGet || pendingUntypedField)
                     && (opcode == Opcodes.IFNULL
                         || opcode == Opcodes.IFNONNULL)) {
-                // Object used as null check without any CHECKCAST — the type
-                // of the deserialized value is never verified in this method
+                // Object used as null check without any CHECKCAST or instanceof —
+                // the type of the deserialized value is never verified in this
+                // method (applies to both GetArg.get results and GETFIELD access
+                // on Object-typed superclass fields)
                 untypedGetFound = true;
             }
             pendingUntypedGet = false;
+            pendingUntypedField = false;
         }
 
         @Override
         public void visitInsn(int opcode) {
             // Any other instruction that consumes or discards the result
             pendingUntypedGet = false;
+            pendingUntypedField = false;
         }
 
         @Override
@@ -432,12 +515,23 @@ final class AtomicSerialComplianceVisitor extends ClassVisitor {
             // but we do reset so we do not accidentally flag a later IFNULL
             // that is unrelated to this get call.
             pendingUntypedGet = false;
+            pendingUntypedField = false;
         }
 
         @Override
         public void visitFieldInsn(int opcode, String owner, String name,
                                     String descriptor) {
+            // GETFIELD on an Object-typed field: the loaded value has no
+            // type information at the bytecode level and must be verified
+            // by INSTANCEOF or CHECKCAST before being used in a null-check.
+            // Any other field access clears the pending flags.
             pendingUntypedGet = false;
+            if (opcode == Opcodes.GETFIELD
+                    && "Ljava/lang/Object;".equals(descriptor)) {
+                pendingUntypedField = true;
+            } else {
+                pendingUntypedField = false;
+            }
         }
     }
 }
