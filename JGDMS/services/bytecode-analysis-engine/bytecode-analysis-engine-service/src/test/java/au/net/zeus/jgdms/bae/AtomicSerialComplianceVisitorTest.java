@@ -34,7 +34,12 @@ import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
+import net.jini.core.lookup.ServiceEvent;
+import net.jini.core.lookup.ServiceID;
+import net.jini.id.Uuid;
+import org.apache.river.discovery.MulticastTimeToLive;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -215,6 +220,97 @@ public class AtomicSerialComplianceVisitorTest {
     public void testRealClass_LookupLocator_isCompliant() throws Exception {
         byte[] classBytes = loadClassBytes(LookupLocator.class);
         assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link Uuid} uses the standard {@code check(GetArg) boolean} pattern with
+     * a bridge constructor {@code Uuid(GetArg, boolean)}.  Its {@code check}
+     * method reads only primitive {@code long} fields — no 2-argument
+     * {@code GetArg.get(String, Object)} form is used at all.  The class also
+     * has a {@code serialForm()} method.
+     * Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_Uuid_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(Uuid.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link ServiceID} uses a pair of private static helper methods
+     * ({@code mostSig(GetArg)} and {@code leastSig(GetArg)}) that return
+     * {@code long} primitives, chaining to {@code this(long, long)}.
+     * Because {@code INVOKESTATIC} calls precede the {@code INVOKESPECIAL} in
+     * the {@code (GetArg)} constructor, {@code getArgCtorValidationOk} is
+     * {@code true}.  The identified "check" method ({@code leastSig}) returns
+     * {@code long}, not {@code boolean}, so no {@link CheckMethodAnalyzer} is
+     * applied.  The class declares {@code serialForm()} and has only primitive
+     * fields.
+     * Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_ServiceID_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(ServiceID.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link EventRegistration} has a standard {@code check(GetArg) boolean}
+     * pattern with bridge constructor {@code EventRegistration(boolean, GetArg)}.
+     *
+     * <p>In the check method, {@code Object source = arg.get("source", null)}
+     * stores to a local via {@code ASTORE} before the {@code IFNONNULL} null
+     * check — the {@code ASTORE} resets {@code pendingUntypedGet} so the
+     * conditional is never flagged.  Similarly, {@code arg.get("lease", null)}
+     * is stored to a local before the {@code instanceof Lease} check, which
+     * uses {@code IFEQ} (not {@code IFNULL}/{@code IFNONNULL}).
+     * Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_EventRegistration_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(EventRegistration.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link ServiceEvent} uses {@code static GetArg check(GetArg)} — the
+     * check method returns {@code GetArg}, not {@code boolean}.  Because the
+     * descriptor does not end with {@code )Z}, no {@link CheckMethodAnalyzer}
+     * is created for it; the UNTYPED_GET detector is not applied.
+     * Validation ordering is confirmed: {@code INVOKESTATIC check} precedes
+     * {@code INVOKESPECIAL super.<init>(GetArg)} in the public constructor.
+     * The class has {@code serialForm()} and declares non-transient instance
+     * fields.
+     * Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_ServiceEvent_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(ServiceEvent.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link MulticastTimeToLive} has a package-private {@code (GetArg)}
+     * constructor that chains directly to {@code this(arg.get("ttl", -1))}
+     * using an {@code INVOKEVIRTUAL} primitive getter — there is no
+     * {@code INVOKESTATIC} call before the {@code INVOKESPECIAL this(int)}.
+     * Validation (the {@code check(int)} range guard) happens deeper in the
+     * constructor chain, not at the {@code GetArg} constructor level.
+     *
+     * <p>The analyzer therefore sets {@code getArgCtorValidationOk = false},
+     * indicating that the static validation is not confirmed to precede the
+     * bridge constructor call in the {@code (GetArg)} constructor itself.
+     * Expected result: {@link AtomicSerialVerdict#VALIDATION_ORDER}.
+     */
+    @Test
+    public void testRealClass_MulticastTimeToLive_isValidationOrder() throws Exception {
+        byte[] classBytes = loadClassBytes(MulticastTimeToLive.class);
+        assertEquals(AtomicSerialVerdict.VALIDATION_ORDER,
                      AtomicSerialComplianceVisitor.analyze(classBytes));
     }
 

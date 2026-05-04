@@ -304,6 +304,31 @@ Total: **52 BAE tests** (22 AtomicSerial + 30 Clinit).
 
 ---
 
+## Session 4 — Expanded real-class test coverage (2026-05-04)
+
+### 12. `AtomicSerialComplianceVisitorTest` — 5 additional real JGDMS class tests (57 total)
+
+Five new real-class tests covering a wider range of `@AtomicSerial` patterns found in
+the existing JGDMS codebase:
+
+| Test | Class | Expected | Pattern exercised |
+|------|-------|----------|-------------------|
+| `testRealClass_Uuid_isCompliant` | `net.jini.id.Uuid` | `COMPLIANT` | Standard `check(GetArg)Z` bridge ctor; check() reads only primitive `long` fields — no Object-type untyped-get possible |
+| `testRealClass_ServiceID_isCompliant` | `net.jini.core.lookup.ServiceID` | `COMPLIANT` | Two private static helper methods (`mostSig`/`leastSig` returning `long`) precede `this(long,long)`; identified "check" returns `long` so no `CheckMethodAnalyzer` applied |
+| `testRealClass_EventRegistration_isCompliant` | `net.jini.core.event.EventRegistration` | `COMPLIANT` | `arg.get("source",null)` stored to local via `ASTORE` before `IFNONNULL` — `pendingUntypedGet` reset by `visitVarInsn`; `lease instanceof Lease` uses `IFEQ` not `IFNULL/IFNONNULL` |
+| `testRealClass_ServiceEvent_isCompliant` | `net.jini.core.lookup.ServiceEvent` | `COMPLIANT` | `check()` returns `GetArg` (descriptor ends with `)LGetArg;`), so no `CheckMethodAnalyzer` created; `super(check(arg))` pattern confirms ordering |
+| `testRealClass_MulticastTimeToLive_isValidationOrder` | `org.apache.river.discovery.MulticastTimeToLive` | `VALIDATION_ORDER` | `(GetArg)` ctor calls `this(arg.get("ttl",-1))` via `INVOKEVIRTUAL` primitive getter — no `INVOKESTATIC` before `INVOKESPECIAL this(int)`, so `getArgCtorValidationOk = false` |
+
+The `MulticastTimeToLive` test is noteworthy: it shows an existing JGDMS class where
+validation happens deeper in the constructor chain (`check(int)` inside `this(int,
+boolean)`), not visible to the `GetArgCtorAnalyzer` at the `(GetArg)` constructor level.
+The validator could be improved in future to trace the full constructor chain, but the
+current fail-cautious behaviour (`VALIDATION_ORDER`) is correct for a static analyser.
+
+Total: **57 BAE tests** (27 AtomicSerial + 30 Clinit).
+
+---
+
 ## Key Files
 
 | File | Purpose |
@@ -317,7 +342,7 @@ Total: **52 BAE tests** (22 AtomicSerial + 30 Clinit).
 | `bae/…/ClinitBlockingVisitor.java` | BFS + `hasPermissionGuardOnPath` heuristic |
 | `bae/…/ClinitBlockingVisitorTest.java` | 30 unit tests (blocking / guarded / guard-method checks) |
 | `bae/…/AtomicSerialComplianceVisitor.java` | `CheckMethodAnalyzer` — detects untyped GetArg.get and untyped GETFIELD on Object-typed superclass fields; `visitField` tracks `hasNonStaticInstanceFields` |
-| `bae/…/AtomicSerialComplianceVisitorTest.java` | 22 unit tests (9 real JGDMS classes: 4 from sessions 1–2 + 5 new in session 3; 13 synthetic patterns) |
+| `bae/…/AtomicSerialComplianceVisitorTest.java` | 27 unit tests (14 real JGDMS classes: 4 from sessions 1–2, 5 from session 3, 5 from session 4; 13 synthetic patterns) |
 | `bae-dl/…/BytecodeAnalysisEngineProxy.java` | Example of the correct `instanceof` pattern for superclass `Object server` field |
 
 ---
