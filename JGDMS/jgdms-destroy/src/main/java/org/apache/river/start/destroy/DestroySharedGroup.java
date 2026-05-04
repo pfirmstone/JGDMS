@@ -321,8 +321,8 @@ public class DestroySharedGroup {
 	try {
 	    Subject.doAsPrivileged(
 	        loginContext.getSubject(),
-                new PrivilegedExceptionAction() {
-                    public Object run() throws Exception
+                new PrivilegedExceptionAction<Void>() {
+                    public Void run() throws Exception
                     {
                         destroy(descs, config);
 			return null;
