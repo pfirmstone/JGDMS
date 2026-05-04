@@ -28,8 +28,13 @@ import org.objectweb.asm.Opcodes;
 import au.net.zeus.jgdms.api.codebase.AnalysisRequest;
 import au.net.zeus.jgdms.api.codebase.AtomicSerialVerdict;
 import au.net.zeus.jgdms.api.codebase.ClassAnalysisResult;
+import au.net.zeus.jgdms.api.codebase.CrashReport;
 import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
+import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
+import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.bae.proxy.BytecodeAnalysisEngineProxy;
+import net.jini.core.discovery.LookupLocator;
+import net.jini.core.event.RemoteEvent;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -39,9 +44,9 @@ import static org.junit.Assert.assertNotNull;
  *
  * <p>Each test generates a synthetic class via ASM {@link ClassWriter} that
  * exhibits a specific bytecode pattern and then verifies the expected
- * {@link AtomicSerialVerdict}.  Two real JGDMS {@code @AtomicSerial}
- * classes ({@link AnalysisRequest} and {@link JarAnalysisReport}) are
- * also loaded from the classpath and checked for {@link AtomicSerialVerdict#COMPLIANT}.
+ * {@link AtomicSerialVerdict}.  Real JGDMS {@code @AtomicSerial} classes are
+ * also loaded from the classpath and checked for
+ * {@link AtomicSerialVerdict#COMPLIANT}.
  *
  * @author Peter Firmstone
  * @author GitHub Copilot
@@ -142,6 +147,73 @@ public class AtomicSerialComplianceVisitorTest {
     @Test
     public void testRealClass_BytecodeAnalysisEngineProxy_isCompliant() throws Exception {
         byte[] classBytes = loadClassBytes(BytecodeAnalysisEngineProxy.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link SignedVerdict} uses explicit {@code CHECKCAST} for every object
+     * type it reads from {@code GetArg} (e.g.
+     * {@code (String[]) arg.get(CODEBASE_URLS, null)} and
+     * {@code (byte[]) arg.get(SIGNATURE, null)}) and the typed 3-argument
+     * form for {@code VerdictType}.  This is the safe pattern and must yield
+     * {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_SignedVerdict_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(SignedVerdict.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link CrashReport} uses explicit {@code CHECKCAST} for byte-array and
+     * String-array fields and the typed 3-argument form for {@code String}
+     * (stderr summary).  This must yield {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_CrashReport_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(CrashReport.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link RegistryVerdict} is structurally identical to
+     * {@link SignedVerdict} — CHECKCAST for arrays and typed 3-arg form for
+     * the verdict enum — and must yield {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_RegistryVerdict_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(RegistryVerdict.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link RemoteEvent} uses a non-{@code boolean}-returning check method
+     * ({@code static Object check(GetArg)}) so the {@code CheckMethodAnalyzer}
+     * does not inspect it, but the constructor still calls that static method
+     * before the bridge constructor — {@code getArgCtorValidationOk} is
+     * {@code true}.  The class also has a {@code serialForm()} method and
+     * non-static fields.  Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_RemoteEvent_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(RemoteEvent.class);
+        assertEquals(AtomicSerialVerdict.COMPLIANT,
+                     AtomicSerialComplianceVisitor.analyze(classBytes));
+    }
+
+    /**
+     * {@link LookupLocator} uses only typed 3-argument {@code GetArg.get}
+     * calls ({@code arg.get("host", null, String.class)} and
+     * {@code arg.get("port", 0)}) — no untyped 2-argument form at all.
+     * Expected result: {@link AtomicSerialVerdict#COMPLIANT}.
+     */
+    @Test
+    public void testRealClass_LookupLocator_isCompliant() throws Exception {
+        byte[] classBytes = loadClassBytes(LookupLocator.class);
         assertEquals(AtomicSerialVerdict.COMPLIANT,
                      AtomicSerialComplianceVisitor.analyze(classBytes));
     }

@@ -241,6 +241,69 @@ generate a more informative warning: "class X blocks only if permission Y is gra
 
 ---
 
+## Session 3 — Pack200 compression in `AnalysisRequest` + real-class tests (2026-05-04)
+
+### 10. `AnalysisRequest` — Pack200-compressed serialized form
+
+`JGDMS/jgdms-platform/src/main/java/au/net/zeus/jgdms/api/codebase/AnalysisRequest.java`
+
+The serialized `jarBytes` field was renamed to `packedJarBytes` and is now stored as a
+**Pack200-compressed** byte array (via `pfirmstone/pack200`, whose unpacker is hardened
+against untrusted input).
+
+Design decisions:
+- The **in-memory** `jarBytes` field always holds raw, uncompressed JAR bytes.
+- The **serialized** field `packedJarBytes` holds the Pack200-compressed transport form.
+- `serialize()` calls `packJar(rawBytes)` before writing.
+- `check(GetArg)` returns `byte[]` (the unpacked JAR bytes) rather than `boolean`.
+  The returned bytes are passed as the second argument to the bridge constructor
+  `AnalysisRequest(GetArg, byte[])` — **no second decompression is needed**.
+- Public constructors still accept raw `byte[]` jar bytes — compression is transparent.
+- `contentHash` remains the SHA-256 of the **original raw** bytes (caller-computed);
+  it is not recomputed from the decompressed bytes on the receiving side.
+- `serialVersionUID` updated from `1L` to `2L` to signal the serialized form change.
+- Named constants (`PACK_INIT_CAPACITY_MARGIN = 256`, `UNPACK_EXPANSION_FACTOR = 3`)
+  document the buffer-sizing rationale.
+- `packJar` / `unpackJar` use **try-with-resources** for `JarInputStream` /
+  `JarOutputStream` to guarantee resource cleanup even on exception.
+- `check()` also validates `originalUri` (RFC3986 URI parse) so the bridge constructor
+  never encounters an invalid URI string.
+
+Pack200 API used:
+
+| Direction | Call |
+|-----------|------|
+| Compress (sender) | `Pack200.newPacker().pack(new JarInputStream(new ByteArrayInputStream(raw)), baos)` |
+| Decompress (receiver) | `Pack200.newUnpacker().unpack(new ByteArrayInputStream(packed), jos)` |
+
+`jgdms-platform/pom.xml` now declares:
+```xml
+<dependency>
+    <groupId>au.net.zeus.pack200-ex-openjdk</groupId>
+    <artifactId>Pack200-ex-openjdk</artifactId>
+    <version>${pack200.version}</version>
+</dependency>
+```
+
+### 11. `AtomicSerialComplianceVisitorTest` — 5 more real JGDMS class tests (52 total)
+
+`JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/test/java/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitorTest.java`
+
+Five additional real-class tests now exercise the analyzer against existing JGDMS
+`@AtomicSerial` implementations:
+
+| Test | Class | Expected | Pattern exercised |
+|------|-------|----------|-------------------|
+| `testRealClass_SignedVerdict_isCompliant` | `SignedVerdict` | `COMPLIANT` | `(String[]) arg.get(2-arg)` → CHECKCAST; typed 3-arg for VerdictType |
+| `testRealClass_CrashReport_isCompliant` | `CrashReport` | `COMPLIANT` | `(String[]) arg.get(2-arg)` → CHECKCAST; `(byte[])` CHECKCAST; typed 3-arg for String |
+| `testRealClass_RegistryVerdict_isCompliant` | `RegistryVerdict` | `COMPLIANT` | Same CHECKCAST + typed 3-arg pattern as SignedVerdict |
+| `testRealClass_RemoteEvent_isCompliant` | `RemoteEvent` | `COMPLIANT` | Non-boolean `Object check(GetArg)` — not analyzed by `CheckMethodAnalyzer` (descriptor does not end with `)Z`); validation-before-construction ordering still confirmed |
+| `testRealClass_LookupLocator_isCompliant` | `LookupLocator` | `COMPLIANT` | Typed 3-arg `arg.get("host", null, String.class)` only; no untyped 2-arg form used |
+
+Total: **52 BAE tests** (22 AtomicSerial + 30 Clinit).
+
+---
+
 ## Key Files
 
 | File | Purpose |
@@ -248,11 +311,13 @@ generate a more informative warning: "class X blocks only if permission Y is gra
 | `jgdms-platform/…/ClinitVerdict.java` | Enum: CLEAN, BLOCKING, **BLOCKING_GUARDED**, NATIVE_OPACITY, CYCLE |
 | `jgdms-platform/…/JarAnalysisReport.java` | `deriveVerdictType()` — BLOCKING_GUARDED → INCONCLUSIVE |
 | `jgdms-platform/…/ClassAnalysisResult.java` | Javadoc: `blockingCallPath` populated for both BLOCKING and BLOCKING_GUARDED |
+| `jgdms-platform/…/AnalysisRequest.java` | Pack200-compressed `packedJarBytes` serial field; `packJar`/`unpackJar` helpers; `serialVersionUID = 2L` |
+| `jgdms-platform/pom.xml` | Added `au.net.zeus.pack200-ex-openjdk:Pack200-ex-openjdk` dependency |
 | `bae/…/BlockingSinkRegistry.java` | Sink list + guard list + `isPermissionGuard` / `isPermissionGuardKey` |
 | `bae/…/ClinitBlockingVisitor.java` | BFS + `hasPermissionGuardOnPath` heuristic |
 | `bae/…/ClinitBlockingVisitorTest.java` | 30 unit tests (blocking / guarded / guard-method checks) |
 | `bae/…/AtomicSerialComplianceVisitor.java` | `CheckMethodAnalyzer` — detects untyped GetArg.get and untyped GETFIELD on Object-typed superclass fields; `visitField` tracks `hasNonStaticInstanceFields` |
-| `bae/…/AtomicSerialComplianceVisitorTest.java` | 17 unit tests (real classes + synthetic patterns including superclass-field checks) |
+| `bae/…/AtomicSerialComplianceVisitorTest.java` | 22 unit tests (9 real JGDMS classes: 4 from sessions 1–2 + 5 new in session 3; 13 synthetic patterns) |
 | `bae-dl/…/BytecodeAnalysisEngineProxy.java` | Example of the correct `instanceof` pattern for superclass `Object server` field |
 
 ---
@@ -319,5 +384,5 @@ java -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2:
   org.junit.runner.JUnitCore \
   au.net.zeus.jgdms.bae.ClinitBlockingVisitorTest \
   au.net.zeus.jgdms.bae.AtomicSerialComplianceVisitorTest
-# Expected: OK (47 tests)
+# Expected: OK (52 tests) — NOTE: AnalysisRequest tests require Pack200 jar on classpath
 ```
