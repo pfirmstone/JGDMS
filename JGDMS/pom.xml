@@ -346,7 +346,6 @@
         <version>3.11.0</version>
         <configuration>
           <release>8</release>
-          <optimize>true</optimize>
           <encoding>UTF-8</encoding>
           <meminitial>128m</meminitial>
           <maxmem>1024m</maxmem>
