@@ -9,13 +9,16 @@
 
 This session extended the **Bytecode Analysis Engine (BAE)** to detect and classify
 blocking call paths reachable from `<clinit>` (static initialisers) that an attacker
-could exploit to pin virtual-thread carrier threads.
+could exploit to cause a Denial of Service via virtual threads.
 
 The threat model:
 > An attacker ships a class whose `<clinit>` calls a blocking Java or DirtyChai API.
-> When a virtual thread first loads that class, its OS carrier thread is pinned for
-> the duration of the blocking call.  If the call blocks indefinitely the carrier
-> thread is permanently occupied, degrading throughput or enabling a DoS.
+> When a virtual thread loads that class, the blocking call runs while holding the
+> JVM-internal class-loading lock.  On pre-JEP 491 JVMs (JDK ≤ 23) the carrier thread
+> is also pinned for the duration.  On JDK 24+ (JEP 491) carrier pinning inside
+> `synchronized` is eliminated, but the class-loading lock stalls every other thread
+> that attempts to load the same class until the call returns.  Either way the result
+> is a Denial of Service.
 
 ---
 
@@ -29,7 +32,8 @@ The threat model:
 |---------|---------|----------------------|
 | `CLEAN` | No blocking path found | `SAFE` |
 | `BLOCKING` | Blocking path, **no** permission guard | `DANGEROUS` |
-| `BLOCKING_GUARDED` | Blocking path, **preceded by** `SecurityManager.checkXxx` or `AccessController.checkPermission` | `INCONCLUSIVE` |
+| `BLOCKING_GUARDED` | Blocking path, **preceded by** `SecurityManager.checkXxx` or `AccessController.checkPermission`, but the guarding permission is **not** declared in `PERMISSIONS.LIST` | `INCONCLUSIVE` |
+| `BLOCKING_DECLARED` | Blocking path guarded by a permission check **and** that permission is declared in `META-INF/PERMISSIONS.LIST` — if a client grants the permission the blocking path becomes reachable | `DANGEROUS` |
 | `NATIVE_OPACITY` | Native method, cannot determine statically | `INCONCLUSIVE` |
 | `CYCLE` | Circular `<clinit>` dependency | `DANGEROUS` |
 
@@ -39,6 +43,12 @@ The threat model:
 - With no `SecurityManager` (or a permissive one) → the blocking call *is* reached →
   behaves like `BLOCKING`.
 - Policy authors can use this signal to decide whether to grant the permission.
+
+`BLOCKING_DECLARED` is `DANGEROUS` because the JAR's own `PERMISSIONS.LIST` signals that
+the developer *intends* the guarding permission to be granted.  Granting it makes the
+blocking `<clinit>` path reachable on a virtual thread — on pre-JEP 491 JVMs (JDK ≤ 23)
+the carrier thread is pinned; on JDK 24+ (JEP 491) the class-loading lock is held,
+stalling all threads loading the same class — Denial of Service either way.
 
 ### 2. `BlockingSinkRegistry` — expanded sink list
 
@@ -333,8 +343,8 @@ Total: **57 BAE tests** (27 AtomicSerial + 30 Clinit).
 
 | File | Purpose |
 |------|---------|
-| `jgdms-platform/…/ClinitVerdict.java` | Enum: CLEAN, BLOCKING, **BLOCKING_GUARDED**, NATIVE_OPACITY, CYCLE |
-| `jgdms-platform/…/JarAnalysisReport.java` | `deriveVerdictType()` — BLOCKING_GUARDED → INCONCLUSIVE |
+| `jgdms-platform/…/ClinitVerdict.java` | Enum: CLEAN, BLOCKING, **BLOCKING_GUARDED**, **BLOCKING_DECLARED**, NATIVE_OPACITY, CYCLE |
+| `jgdms-platform/…/JarAnalysisReport.java` | `deriveVerdictType()` — BLOCKING_GUARDED → INCONCLUSIVE; **BLOCKING_DECLARED → DANGEROUS** |
 | `jgdms-platform/…/ClassAnalysisResult.java` | Javadoc: `blockingCallPath` populated for both BLOCKING and BLOCKING_GUARDED |
 | `jgdms-platform/…/AnalysisRequest.java` | Pack200-compressed `packedJarBytes` serial field; `packJar`/`unpackJar` helpers; `serialVersionUID = 2L` |
 | `jgdms-platform/pom.xml` | Added `au.net.zeus.pack200-ex-openjdk:Pack200-ex-openjdk` dependency |
@@ -395,19 +405,128 @@ javac -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2
   -d $OUT/step3 \
   $BAE_SVC/au/net/zeus/jgdms/bae/BlockingSinkRegistry.java \
   $BAE_SVC/au/net/zeus/jgdms/bae/ClinitBlockingVisitor.java \
-  $BAE_SVC/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitor.java
+  $BAE_SVC/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitor.java \
+  $BAE_SVC/au/net/zeus/jgdms/bae/JarAnalyzer.java
 
 # ── Step 4: BAE test sources ──────────────────────────────────────────────
 BAE_TEST=$JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/test/java
 javac -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2:$OUT/step3:$ASM:$JUNIT:$HAMCREST" \
   -d $OUT/tests \
   $BAE_TEST/au/net/zeus/jgdms/bae/ClinitBlockingVisitorTest.java \
-  $BAE_TEST/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitorTest.java
+  $BAE_TEST/au/net/zeus/jgdms/bae/AtomicSerialComplianceVisitorTest.java \
+  $BAE_TEST/au/net/zeus/jgdms/bae/JarAnalyzerTest.java
 
 # ── Step 5: run tests ─────────────────────────────────────────────────────
 java -cp "$PLATFORM:$COLLECTIONS:$JERI:$ACTIVATION_PARAMS:$OUT/step1:$OUT/step2:$OUT/step3:$OUT/tests:$ASM:$JUNIT:$HAMCREST" \
   org.junit.runner.JUnitCore \
   au.net.zeus.jgdms.bae.ClinitBlockingVisitorTest \
-  au.net.zeus.jgdms.bae.AtomicSerialComplianceVisitorTest
-# Expected: OK (52 tests) — NOTE: AnalysisRequest tests require Pack200 jar on classpath
+  au.net.zeus.jgdms.bae.AtomicSerialComplianceVisitorTest \
+  au.net.zeus.jgdms.bae.JarAnalyzerTest
+# Expected: OK (64 tests) — NOTE: AnalysisRequest tests require Pack200 jar on classpath
 ```
+
+---
+
+## Session 5 — `BLOCKING_DECLARED` verdict: guarded blocking paths with declared permissions (2026-05-04)
+
+### 13. New `ClinitVerdict` value — `BLOCKING_DECLARED`
+
+`JGDMS/jgdms-platform/src/main/java/au/net/zeus/jgdms/api/codebase/ClinitVerdict.java`
+
+**The gap this closes:** `BLOCKING_GUARDED` (`INCONCLUSIVE`) correctly models the case where
+the guarding permission has *not* been declared.  But if the JAR's own `PERMISSIONS.LIST`
+declares the exact permission that guards the blocking call, the developer is signalling
+intent to request that grant.  A client that honours that request makes the blocking path
+reachable on a virtual thread — on pre-JEP 491 JVMs (JDK ≤ 23) pinning the carrier; on
+JDK 24+ (JEP 491) holding the class-loading lock — Denial of Service either way.
+
+| Verdict | Condition | `deriveVerdictType()` |
+|---------|-----------|----------------------|
+| `BLOCKING_GUARDED` | Guarded blocking path; permission **not** in `PERMISSIONS.LIST` | `INCONCLUSIVE` |
+| `BLOCKING_DECLARED` | Guarded blocking path; **guarding permission class is declared** in `PERMISSIONS.LIST` | **`DANGEROUS`** |
+
+The Javadoc on `BLOCKING_DECLARED` uses plain-language `DANGEROUS` and `Denial of Service`
+wording so that administrators who read the verdict name or tooltip immediately understand
+the threat level.
+
+### 14. `BlockingSinkRegistry` — `SINK_TO_PERMISSION_CLASS` map
+
+`JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/main/java/au/net/zeus/jgdms/bae/BlockingSinkRegistry.java`
+
+`Map<String,String> SINK_TO_PERMISSION_CLASS` maps each guarded blocking-sink key to a
+permission *entry* (see encoding below) whose guard fires directly and per-call at the
+sink site:
+
+| Sinks | Permission entry |
+|-------|----------------|
+| `Socket.connect`, `ServerSocket.accept`, `DatagramSocket.receive`, `ServerSocketChannel.accept` | `java.net.SocketPermission` |
+| `FileChannel.lock` | `java.io.FilePermission` |
+| `System.loadLibrary/load`, `Runtime.loadLibrary/load`, `SymbolLookup.libraryLookup` (both overloads) | `au.zeus.jdk.authorization.guards.NativeInvocationPermission` |
+| `Arena.global`, `Arena.ofShared`, `Arena.ofConfined`, `Arena.ofAuto` | `au.zeus.jdk.authorization.guards.NativeMemoryPermission` |
+| `ThreadBuilders$PlatformThreadBuilder.unstarted`, `.factory` | `java.lang.RuntimePermission#createPlatformThread` |
+| `ThreadBuilders$VirtualThreadBuilder.unstarted`, `.factory` | `java.lang.RuntimePermission#createVirtualThread` |
+
+Sinks whose `SecurityManager` check occurs only at construction time (e.g. `Socket.<init>`)
+are intentionally excluded — the link between "declared permission → reachable block" is
+indirect when the guard fires at a different point in the object's lifetime.
+
+**Value encoding** (`"className"` vs `"className#action"`):
+- Plain `"className"` — any declaration of that class in `PERMISSIONS.LIST` qualifies.
+  Safe for specific-purpose permission classes (`SocketPermission`, `NativeMemoryPermission`,
+  `NativeInvocationPermission`) where any grant of the class implies the operation.
+- `"className#action"` — both the class name AND the quoted action string must appear on the
+  same `PERMISSIONS.LIST` line.  Required for broad-purpose classes like
+  `java.lang.RuntimePermission` where different action names have entirely unrelated
+  semantics — without action matching, a JAR declaring `RuntimePermission "getenv"` would
+  falsely trigger BLOCKING_DECLARED for thread-creation sinks.
+
+New accessor:
+```java
+static String getRequiredPermissionClass(String sinkKey)
+```
+Returns the permission entry for a sink key, or `null` if the sink has no direct per-call
+guard mapped.
+
+### 15. `JarAnalyzer` — upgrade logic for `BLOCKING_GUARDED` → `BLOCKING_DECLARED`
+
+`JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/main/java/au/net/zeus/jgdms/bae/JarAnalyzer.java`
+
+After the per-class BFS produces a `BLOCKING_GUARDED` result, a post-processing step
+checks whether the upgrade to `BLOCKING_DECLARED` applies:
+
+```
+for each class result where verdict == BLOCKING_GUARDED:
+    sinkKey = result.getBlockingCallPath().getLast()
+    permEntry = BlockingSinkRegistry.getRequiredPermissionClass(sinkKey)
+    if permEntry != null AND declaresPermissionClass(declaredPermissions, permEntry):
+        upgrade verdict to BLOCKING_DECLARED
+```
+
+`declaresPermissionClass(String[] declared, String permEntry)` handles both encodings:
+- **Class-only** (`"className"`): scans lines starting with `"permission <className>"` followed
+  by a non-identifier delimiter, preventing prefix false positives.
+- **Class+action** (`"className#action"`): same class-name prefix rule, PLUS the line must
+  contain the quoted action string (`'"' + action + '"'`), preventing unrelated
+  `RuntimePermission` grants from triggering the upgrade.
+
+### 16. `JarAnalysisReport.deriveVerdictType()` update
+
+`BLOCKING_DECLARED` added to the `DANGEROUS` short-circuit branch alongside `BLOCKING` and
+`CYCLE`.
+
+### 17. New tests — `JarAnalyzerTest` (3 new tests, 12 total)
+
+`JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/test/java/au/net/zeus/jgdms/bae/JarAnalyzerTest.java`
+
+| Test | Input | Expected |
+|------|-------|----------|
+| `testBlockingDeclared_socketConnect_withPermission` | Guarded `Socket.connect` + `java.net.SocketPermission` in `PERMISSIONS.LIST` | `BLOCKING_DECLARED` / `DANGEROUS` |
+| `testBlockingGuarded_socketConnect_noPermissionDeclared` | Guarded `Socket.connect`, no `PERMISSIONS.LIST` entry | `BLOCKING_GUARDED` / `INCONCLUSIVE` |
+| `testBlockingGuarded_threadSleep_withRuntimePermission` | Guarded `Thread.sleep` + `java.lang.RuntimePermission` in `PERMISSIONS.LIST` | `BLOCKING_GUARDED` / `INCONCLUSIVE` |
+
+The third test confirms that sinks without a direct per-call JDK SM check (`Thread.sleep`)
+are never upgraded regardless of what is declared.
+
+All **64 BAE tests** pass (27 AtomicSerial + 30 Clinit + 4 legacy JarAnalyzer + 3 new
+JarAnalyzer).
+

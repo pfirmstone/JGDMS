@@ -17,9 +17,11 @@
  */
 package au.net.zeus.jgdms.bae;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -54,6 +56,10 @@ import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
  * Classes that ASM cannot parse are recorded as parse failures; they will
  * receive a fail-secure verdict of {@link ClinitVerdict#BLOCKING} +
  * {@link AtomicSerialVerdict#MISSING_CONSTRUCTOR}.
+ * The optional {@code META-INF/PERMISSIONS.LIST} entry is also read during
+ * this phase; its non-blank, non-comment lines are collected and included in
+ * the {@link JarAnalysisReport} as {@link JarAnalysisReport#getDeclaredPermissions()
+ * declared permissions}.
  *
  * <h2>Phase 2 — Analysis</h2>
  * <p>For each class:
@@ -128,11 +134,13 @@ final class JarAnalyzer {
         // isNativeMap: methodKey → true  (only for native methods)
         // rawClasses:  className → raw class bytes (for Phase 2 AtomicSerial check)
         // parseFailures: set of className strings that ASM could not parse
+        // permissionLines: lines from META-INF/PERMISSIONS.LIST (if present)
 
         Map<String, Set<String>> callGraph    = new HashMap<String, Set<String>>();
         Map<String, Boolean>     isNativeMap  = new HashMap<String, Boolean>();
         Map<String, byte[]>      rawClasses   = new LinkedHashMap<String, byte[]>();
         Set<String>              parseFailures = new HashSet<String>();
+        List<String>             permissionLines = new ArrayList<String>();
 
         try {
             JarInputStream jis = new JarInputStream(
@@ -140,11 +148,19 @@ final class JarAnalyzer {
             try {
                 JarEntry entry;
                 while ((entry = jis.getNextJarEntry()) != null) {
-                    if (!entry.getName().endsWith(".class")) continue;
+                    String entryName = entry.getName();
+                    if ("META-INF/PERMISSIONS.LIST".equals(entryName)) {
+                        byte[] data = readEntry(jis);
+                        if (data != null) {
+                            parsePermissionsList(data, permissionLines);
+                        }
+                        continue;
+                    }
+                    if (!entryName.endsWith(".class")) continue;
                     byte[] classBytes = readEntry(jis);
                     if (classBytes == null) {
                         // Read failure — treat as parse failure
-                        parseFailures.add(entryNameToClassName(entry.getName()));
+                        parseFailures.add(entryNameToClassName(entryName));
                         continue;
                     }
                     String[] clinitOwner = new String[1];
@@ -153,7 +169,7 @@ final class JarAnalyzer {
                     String className = clinitOwner[0];
                     if (className == null || className.isEmpty()) {
                         // ASM could not determine the class name (parse failure)
-                        parseFailures.add(entryNameToClassName(entry.getName()));
+                        parseFailures.add(entryNameToClassName(entryName));
                     } else {
                         rawClasses.put(className, classBytes);
                     }
@@ -164,6 +180,8 @@ final class JarAnalyzer {
         } catch (IOException e) {
             throw new AnalysisException("Cannot read JAR bytes as a JAR stream", e);
         }
+
+        String[] declaredPermissions = permissionLines.toArray(new String[0]);
 
         if (rawClasses.isEmpty() && parseFailures.isEmpty()) {
             throw new AnalysisException("JAR contains no class entries");
@@ -204,6 +222,32 @@ final class JarAnalyzer {
                         className, callGraph, isNativeMap, maxDepth);
             }
 
+            // Upgrade BLOCKING_GUARDED to BLOCKING_DECLARED when the blocking
+            // sink's required permission is explicitly declared in PERMISSIONS.LIST.
+            // Such a declaration signals that the developer intends the permission
+            // to be granted; granting it enables the blocking path and creates a
+            // potential Denial of Service (DoS) via virtual-thread carrier pinning.
+            // For dual-guard sinks (e.g. SocketChannel.connect) the verdict is
+            // promoted when ANY of the sink's guards is declared.
+            if (clinitResult.verdict == ClinitVerdict.BLOCKING_GUARDED
+                    && declaredPermissions.length > 0) {
+                List<String> path = clinitResult.callPath;
+                if (!path.isEmpty()) {
+                    String sinkKey = path.get(path.size() - 1);
+                    Set<String> requiredPermClasses =
+                            BlockingSinkRegistry.getRequiredPermissionClasses(sinkKey);
+                    if (requiredPermClasses != null) {
+                        for (String permEntry : requiredPermClasses) {
+                            if (declaresPermissionClass(declaredPermissions, permEntry)) {
+                                clinitResult = new ClinitBlockingVisitor.ClinitAnalysisResult(
+                                        ClinitVerdict.BLOCKING_DECLARED, path);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             // AtomicSerial compliance
             AtomicSerialVerdict atomicVerdict =
                     AtomicSerialComplianceVisitor.analyze(classBytes);
@@ -227,12 +271,12 @@ final class JarAnalyzer {
         // ---- Sign the report ------------------------------------------------
         byte[] signature;
         try {
-            signature = sign(contentHash, results);
+            signature = sign(contentHash, results, declaredPermissions);
         } catch (Exception ex) {
             throw new AnalysisException("Failed to sign JarAnalysisReport", ex);
         }
 
-        return new JarAnalysisReport(contentHash, results, signature);
+        return new JarAnalysisReport(contentHash, results, signature, declaredPermissions);
     }
 
     // -------------------------------------------------------------------------
@@ -282,10 +326,13 @@ final class JarAnalyzer {
      *     className (UTF-8) + NUL
      *     clinitVerdict.name() (UTF-8) + NUL
      *     atomicVerdict.name() (UTF-8) + NUL
+     *   for each declaredPermission (sorted):
+     *     permission (UTF-8) + NUL
      * </pre>
      */
     private byte[] sign(String contentHash,
-                        Map<String, ClassAnalysisResult> results)
+                        Map<String, ClassAnalysisResult> results,
+                        String[] declaredPermissions)
             throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         Signature signer = Signature.getInstance(sigAlgorithm);
         signer.initSign(enginePrivateKey);
@@ -309,6 +356,114 @@ final class JarAnalyzer {
                     .getBytes(StandardCharsets.UTF_8));
             signer.update(nul);
         }
+
+        // Sort declared permissions for determinism before including in signature
+        List<String> sortedPerms = new ArrayList<String>(declaredPermissions.length);
+        for (String p : declaredPermissions) sortedPerms.add(p);
+        Collections.sort(sortedPerms);
+        for (String perm : sortedPerms) {
+            signer.update(perm.getBytes(StandardCharsets.UTF_8));
+            signer.update(nul);
+        }
+
         return signer.sign();
+    }
+
+    /**
+     * Returns {@code true} if any line in {@code declaredPermissions}
+     * declares the given permission entry.
+     *
+     * <p>The {@code permEntry} parameter uses one of two encodings:
+     * <ul>
+     *   <li><em>{@code "className"}</em> — a line is considered a match if
+     *       it starts with {@code "permission <className>"} followed by a
+     *       non-identifier character (space, tab, {@code "}, or
+     *       end-of-line).  This prevents a class name that is a prefix of
+     *       another (e.g. {@code java.net.Socket} matching
+     *       {@code java.net.SocketPermission}) from producing a false
+     *       positive.</li>
+     *   <li><em>{@code "className#action"}</em> — a line must both start
+     *       with {@code "permission <className>"} (same prefix rule as above)
+     *       <em>and</em> contain the quoted action string
+     *       ({@code '"' + action + '"'}).  Used for broad permission classes
+     *       such as {@code java.lang.RuntimePermission} where different action
+     *       names have unrelated security semantics, preventing false
+     *       positives from unrelated grants of the same class.</li>
+     * </ul>
+     *
+     * @param declaredPermissions lines from {@code META-INF/PERMISSIONS.LIST}
+     *                            (already trimmed, non-blank, non-comment)
+     * @param permEntry           either a fully qualified permission class name
+     *                            (e.g. {@code "java.net.SocketPermission"}) or
+     *                            a {@code "className#action"} pair (e.g.
+     *                            {@code "java.lang.RuntimePermission#createVirtualThread"})
+     * @return {@code true} if at least one line satisfies the match criteria
+     */
+    private static boolean declaresPermissionClass(String[] declaredPermissions,
+                                                   String permEntry) {
+        int hashIdx = permEntry.indexOf('#');
+        if (hashIdx < 0) {
+            // class-only match (original behaviour)
+            String prefix = "permission " + permEntry;
+            for (String line : declaredPermissions) {
+                if (line.startsWith(prefix)) {
+                    int len = prefix.length();
+                    if (len >= line.length()) return true;
+                    char next = line.charAt(len);
+                    if (next == ' ' || next == '\t' || next == '"' || next == ';') {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        // class#action match: the class name AND the quoted action must both
+        // appear on the same PERMISSIONS.LIST line.
+        String className    = permEntry.substring(0, hashIdx);
+        String action       = permEntry.substring(hashIdx + 1);
+        String classPrefix  = "permission " + className;
+        String quotedAction = "\"" + action + "\"";
+        for (String line : declaredPermissions) {
+            if (line.startsWith(classPrefix)) {
+                int len = classPrefix.length();
+                if (len < line.length()) {
+                    char next = line.charAt(len);
+                    if ((next == ' ' || next == '\t' || next == '"' || next == ';')
+                            && line.contains(quotedAction)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Reads and parses the content of a {@code META-INF/PERMISSIONS.LIST}
+     * JAR entry into {@code target}.
+     *
+     * <p>Each line is trimmed; blank lines and lines whose first non-whitespace
+     * character is {@code #} (comments) are discarded.  All other lines are
+     * added to {@code target} in the order they appear in the file.
+     *
+     * @param data   raw bytes of the entry; must be non-null
+     * @param target list to which non-blank, non-comment lines are appended
+     */
+    private static void parsePermissionsList(byte[] data, List<String> target) {
+        BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new ByteArrayInputStream(data),
+                        StandardCharsets.UTF_8));
+        try {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (!line.isEmpty() && !line.startsWith("#")) {
+                    target.add(line);
+                }
+            }
+        } catch (IOException e) {
+            // ByteArrayInputStream never throws — this branch is unreachable
+            logger.log(Level.WARNING, "Unexpected I/O error reading PERMISSIONS.LIST", e);
+        }
     }
 }

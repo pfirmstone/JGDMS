@@ -25,6 +25,8 @@ context. It supersedes and extends the two previous context documents:
 | `AdvisoryDynamicPermissions.java` | JGDMS source | Interface: ClassLoader-implemented; META-INF/PERMISSIONS.LIST; advisory permission declaration |
 | `VerifyingProxyPreparer.java` | JGDMS source | ProxyPreparer implementation: explicit vs advisory grant paths, Security.grant() call site |
 | `PreferredProxyCodebaseProvider.java` | JGDMS source | ProxyCodebaseSpi implementation: ClassLoader cache keyed by (InvocationHandler, codebase[], parent) |
+| `JarAnalysisReport.java` | JGDMS source | `serialVersionUID=2L`; new `String[] declaredPermissions` field from `META-INF/PERMISSIONS.LIST`; backward-compat 3-arg constructor delegates to 4-arg; `getDeclaredPermissions()` returns defensive copy; declared permissions included in canonical signing bytes |
+| `JarAnalyzer.java` | JGDMS source | Phase 1 JAR scan now detects `META-INF/PERMISSIONS.LIST`; `parsePermissionsList()` helper strips blank and `#`-comment lines; sorted permissions fed into engine signature |
 
 ---
 
@@ -50,9 +52,11 @@ Host 3 for a `RegistryVerdict`. A single `DANGEROUS` verdict from any BAE instan
 immediately condemns the codebase. A quorum of `SAFE` verdicts is required to proceed.
 
 **BAE analyses per JAR:**
-- `ClinitBlockingVisitor` — BFS from `<clinit>` to blocking sinks
+- `ClinitBlockingVisitor` — BFS from `<clinit>` to blocking sinks; produces `BLOCKING`, `BLOCKING_GUARDED`, `BLOCKING_DECLARED`, `NATIVE_OPACITY`, `CLEAN`, or `CYCLE`
 - `AtomicSerialComplianceVisitor` — @AtomicSerial protocol adherence
 - Cycle detector — circular `<clinit>` dependencies
+- `JarAnalyzer` post-processing — upgrades `BLOCKING_GUARDED` → `BLOCKING_DECLARED` (`DANGEROUS`) when the guarding permission class is declared in `PERMISSIONS.LIST`; this represents a **Denial of Service** risk via virtual-thread carrier pinning
+- `JarAnalyzer` reads `META-INF/PERMISSIONS.LIST` — non-blank, non-comment lines stored in `JarAnalysisReport.getDeclaredPermissions()` and included in the engine signature
 
 ### 2.2 @AtomicSerial Compliance (JGDMS-STD-001)
 
@@ -329,9 +333,14 @@ A JAR can be SCAP-`SAFE` but still be granted too much authority at the
 `RemotePolicyProvider` layer. A JAR can pass SCAP but have its permissions tightly
 scoped. SCAP validates *code safety*; policy validates *runtime authority*.
 
-**Future opportunity:** The BAE already parses every class in the JAR. It could also
-parse `META-INF/PERMISSIONS.LIST` and include declared permissions in the
-`JarAnalysisReport`. The Verdict Registry (Host 3) could surface them to administrators
+**Implemented (v3):** The BAE now parses `META-INF/PERMISSIONS.LIST` during Phase 1
+JAR scanning and includes the declared permissions in `JarAnalysisReport` (field
+`String[] declaredPermissions`, `serialVersionUID=2L`).  Declared permissions are
+also included in the canonical signing bytes so that a compromised pipeline cannot
+strip or alter the declared set without invalidating the engine signature.  The
+`JarAnalysisReport.getDeclaredPermissions()` accessor returns a defensive copy.
+
+The Verdict Registry (Host 3) can surface these declared permissions to administrators
 in DirtyChai, enabling cross-referencing: "this service declares `createVirtualThread`
 in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission` for it?"
 
@@ -339,8 +348,10 @@ in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission`
 
 | Category | Examples | Recommendation |
 |---|---|---|
-| Safe to delegate | `SocketPermission` to specific known internal hosts; `FilePermission` to specific data directories | Include in djinn-session `GrantPermission` grants; advisory path appropriate |
+| Safe to delegate | `FilePermission` to specific data directories | Include in djinn-session `GrantPermission` grants; advisory path appropriate |
 | Requires care | `createVirtualThread` | Include only for specific SPIFFE identities; once granted, carrier saturation is a containment problem (see Section 6.2) |
+| **DoS risk if declared in `PERMISSIONS.LIST`** | `SocketPermission`, `NativeInvocationPermission`, `NativeMemoryPermission`, `RuntimePermission("createPlatformThread")`, `RuntimePermission("createVirtualThread")` — any permission that directly guards a known blocking sink | If a JAR declares this in `PERMISSIONS.LIST` **and** has a `<clinit>` path guarded by that permission, granting it makes the blocking path reachable — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held, serialising all threads loading the same class — the BAE will flag this as `BLOCKING_DECLARED` / `DANGEROUS`; do **not** grant unless the `<clinit>` has been audited |
+| Requires care — scoped only | `SocketPermission` to specific known internal hosts (no `<clinit>` blocking path) | Include only if the BAE verdict is `SAFE` or `INCONCLUSIVE`; never grant if verdict is `DANGEROUS` |
 | Never delegate | `PolicyPermission("Remote")`, `GrantPermission` itself, `AllPermission` | Must not appear in dynamically delegatable grants |
 | Structurally unsafe | `LoadClassPermission`, `DefineClassPermission`, `NativeMemoryPermission` | SCAP gate is necessary but not sufficient; tight `GrantPermission` scoping required |
 
@@ -360,23 +371,36 @@ in PERMISSIONS.LIST — do your djinn-session grants include a `GrantPermission`
 | `RuntimePermission("createPlatformThread")` | `ThreadBuilders` + all `Thread` constructors | Thread-bomb DoS prevention |
 | `RuntimePermission("createVirtualThread")` | `ThreadBuilders` | Virtual thread-bomb DoS prevention |
 
-### 6.2 Virtual Thread Pinning — Process Isolation Boundary
+### 6.2 Virtual Thread Blocking in `<clinit>` — Process Isolation Boundary
 
-Once a virtual thread is **running** inside a `synchronized` block, no JVM mechanism
-can forcibly terminate or unpin it. The `createVirtualThread` permission check fires
-at creation — this is the correct defence boundary. After creation, carrier saturation
-is an availability threat, not a confidentiality/integrity threat.
+**JDK 21–23 (pre-JEP 491):** When a virtual thread blocked inside a `synchronized`
+block (including the JVM-internal class-loading lock held during `<clinit>` execution),
+the carrier platform thread was pinned and could not be reused for other virtual threads.
+Exhausting `Runtime.availableProcessors()` carriers with blocked class-loads was a
+realistic Denial of Service.
+
+**JDK 24+ (JEP 491 — "Synchronize Virtual Threads without Pinning"):** The JVM now
+*can* unmount virtual threads from their carriers even when they are blocked inside
+`synchronized` blocks — carrier pinning from `synchronized` is eliminated.  However,
+a blocking `<clinit>` still holds the **class-loading lock** (monitor), serialising
+every other thread that attempts to load the same class until the blocking call
+returns.  This is a class-loading starvation / deadlock risk that JEP 491 does not
+address.
+
+The `createVirtualThread` permission check fires at creation — this remains the correct
+prevention boundary.  After creation, the residual availability threat is class-loading
+starvation rather than carrier saturation on JDK 24+ runtimes.
 
 **Layered defence:**
 1. **Prevention** — deny `createVirtualThread` to untrusted code via policy
 2. **Containment** — route trusted-but-suspicious code through a bounded, isolated
    `ForkJoinPool` with a caller-side deadline
-3. **Acceptance** — document that a stuck thread consumes its carrier slot until JVM exit
+3. **Acceptance** — on pre-JEP 491 JVMs a stuck thread consumes its carrier slot
+   until JVM exit; on JDK 24+ it serialises class loading of the affected class
 
 **Impact on GrantPermission design:** `GrantPermission(RuntimePermission("createVirtualThread"))`
 should only appear in djinn-session grants for SPIFFE identities whose codebase has
-been carefully reviewed and whose service design does not rely on `synchronized` in
-virtual thread contexts.
+been carefully reviewed and whose `<clinit>` paths contain no blocking operations.
 
 ### 6.3 CombinerSecurityManager — Recursion Depth
 
@@ -451,7 +475,9 @@ JGDMS has no username/password login. Authentication is entirely **SPIFFE/SPIRE 
 **How a workload establishes identity:**
 1. SPIRE is deployed in the environment; each node runs a SPIRE agent.
 2. Workload connects to local SPIRE agent via Unix domain socket (the one the bootstrap
-   policy grants `UnixDomainSocketPermission` for).
+   policy grants `java.net.NetPermission "accessUnixDomainSocket"` for; note: there is
+   no `UnixDomainSocketPermission` class in the JDK — the JDK uses `NetPermission` with
+   action `"accessUnixDomainSocket"` for this guard).
 3. SPIRE attests workload identity via OS-level signals (process ID, UID, Kubernetes pod
    metadata, etc.) and issues an X.509 SVID with SPIFFE ID in the SAN field.
 4. `SpiffeCredentialManager` (Issue #205, not yet implemented) manages the current
@@ -478,6 +504,9 @@ JAR. It goes through the full SCAP pipeline independently — its own BAE audit,
 display-related permissions (`AWTPermission`, etc.) that proxy code does not — keeping
 codebases separate ensures independent `PERMISSIONS.LIST` declarations and independent
 verdicts. A `DANGEROUS` verdict on the UI JAR does not condemn the service proxy JAR.
+**`META-INF/PERMISSIONS.LIST` parsing by the BAE is now implemented** — `JarAnalysisReport`
+carries the declared permissions for every JAR the BAE processes, including ServiceUI JARs
+(see Section 5.6 and Section 12 item 10).
 
 **GrantPermission and the UI ClassLoader:** The ServiceUI runs in its own `ClassLoader`
 keyed by its own `(InvocationHandler, codebase[], parent)` triple — independent from the
@@ -561,9 +590,13 @@ They are rendered inline in the conversation and are not file artefacts.
 9. **Client-side `RemoteEventListener`**
    Sequence number tracking, gap detection, pull-on-notification, lease renewal.
 
-10. **`PERMISSIONS.LIST` BAE integration** *(future / optional)*
-    Parse `META-INF/PERMISSIONS.LIST` in `JarAnalysisReport`; surface declared
-    permissions in Verdict Registry for administrator review in DirtyChai.
+10. **✅ `PERMISSIONS.LIST` BAE integration** *(completed v3)*
+    `JarAnalyzer` now detects `META-INF/PERMISSIONS.LIST` during Phase 1 JAR scanning.
+    Non-blank, non-`#`-comment lines are stored in `JarAnalysisReport.getDeclaredPermissions()`
+    (`String[]`, `serialVersionUID=2L`).  Declared permissions are sorted and included in the
+    canonical signing bytes.  Old v1 reports remain deserializable (null-tolerant `check()`).
+    **Remaining:** surface declared permissions through `VerdictRegistry` to DirtyChai UI
+    for administrator cross-referencing against `GrantPermission` policy.
 
 ---
 
@@ -590,14 +623,21 @@ They are rendered inline in the conversation and are not file artefacts.
 | Intersection enforced in `DynamicPolicyProvider.grant()` | Preparer is not security-critical; `Security.grant()` enforces `GrantPermission` ceiling regardless of what advisory path requests |
 | Advisory grants are best-effort | `UnsupportedOperationException` in advisory path → logged, not rethrown; proxy still usable with reduced permissions |
 | Explicit permissions in preparer override advisory | Administrator can lock grant to specific list regardless of `PERMISSIONS.LIST` |
-| `createVirtualThread` in `GrantPermission` requires care | Once granted, carrier saturation is containment-only; process isolation is the backstop |
+| `createVirtualThread` in `GrantPermission` requires care | Once granted, blocking `<clinit>` paths become reachable — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held; either way it is a Denial of Service risk; process isolation is the backstop |
 | `PolicyPermission("Remote")` and `GrantPermission` itself must never be delegatable | Would allow proxies to participate in policy machinery or expand their own delegation rights |
 | SCAP validates code safety; policy validates runtime authority | Complementary controls at different phases; SCAP-SAFE does not imply well-scoped grants |
+| `JarAnalysisReport` carries `String[] declaredPermissions` from `META-INF/PERMISSIONS.LIST` (`serialVersionUID=2L`) | Enables cross-referencing declared needs against `GrantPermission` ceiling without re-downloading the JAR; sorted permissions included in signing bytes so the declared set cannot be silently stripped by a compromised pipeline |
+| `parsePermissionsList()` strips blank lines and `#`-comments | Matches the de-facto convention used in existing JGDMS `PERMISSIONS.LIST` files; comment support allows copyright/authorship headers in the file |
+| Old 3-arg `JarAnalysisReport` constructor delegates to 4-arg with empty array | Backward compatible — all existing callers continue to compile and run; v1 serialized reports also deserialize cleanly (null-tolerant `check()`) |
 | Explicit preparer path → hard `SecurityException` on grant failure | Administrator made a positive decision; failure = deployment misconfiguration, not graceful degradation |
 | Advisory preparer path → soft failure (logged only) | Grant is best-effort; proxy still usable without it; graceful degradation is correct |
 | Authentication is SPIFFE/SPIRE workload identity; no traditional login | Identity is ambient — provisioned by SPIRE at workload startup; no interactive credential step at JGDMS layer |
 | ServiceUI JAR is a separate codebase from service proxy JAR | Independent SCAP audit, verdict, ClassLoader, and dynamic grants; UI grants should be scoped more narrowly than proxy grants |
 | Human identity threading into ServiceUI grants is an open design question | SPIFFE workload identity and human user identity namespaces need a bridging strategy before ServiceUI GrantPermission design can be finalised |
+| `BLOCKING_GUARDED` is `INCONCLUSIVE`, not `DANGEROUS` | The blocking path is only reachable if the guarding permission is granted; policy authors can choose not to grant it |
+| `BLOCKING_DECLARED` is `DANGEROUS` | The JAR's own `PERMISSIONS.LIST` declares the guarding permission, signalling developer intent to request it; if a client grants it, the blocking `<clinit>` path becomes reachable on a virtual thread — on pre-JEP 491 JVMs (JDK ≤ 23) the carrier is pinned; on JDK 24+ the class-loading lock is held — either way a Denial of Service; administrators must treat any `BLOCKING_DECLARED` verdict as a strong signal **not to grant** the declared permission |
+| `SINK_TO_PERMISSION_CLASS` maps direct per-call guards (JDK + DirtyChai) | Sinks guarded at construction time only are excluded. Covered: network I/O (`SocketPermission`), file locking (`FilePermission`), native library loading (`NativeInvocationPermission`), FFM arena allocation (`NativeMemoryPermission`), thread creation (`RuntimePermission#createPlatformThread` / `#createVirtualThread`) |
+| `className#action` in `SINK_TO_PERMISSION_CLASS` values | Used for broad permission classes (e.g. `RuntimePermission`) to avoid false positives: a JAR declaring `RuntimePermission "getenv"` must not trigger `BLOCKING_DECLARED` for thread-creation sinks; both class name and quoted action must appear on the same `PERMISSIONS.LIST` line |
 
 ---
 
@@ -623,7 +663,12 @@ All other authenticated JERI clients may call `getCurrentGrants()` and
 
 *Hand this document (along with source files as needed) to a future AI agent to
 continue without loss of context. The two previous context documents are superseded
-by this one for all topics covered here. This is version 2, updated to add:
+by this one for all topics covered here. This is version 4, updated to add:
 Section 7 (VerifyingProxyPreparer constructor detail), Section 8 (authentication model),
 Section 9 (ServiceUI deferred design), Section 10 (diagrams produced), and additional
-entries in the key design decisions table (Sections 7, 8, 9).*
+entries in the key design decisions table (Sections 7, 8, 9) — in version 2; and
+in version 3: `JarAnalysisReport.declaredPermissions` implementation (Section 2.1,
+Section 5.6 "Implemented", Section 9, Section 12 item 10 marked ✅, Section 13 new rows);
+and in version 4: `BLOCKING_DECLARED` verdict (Section 2.1 BAE analyses, Section 5.7
+risk categorisation updated — `SocketPermission` moved to DoS-risk tier, Section 13 new
+rows for `BLOCKING_DECLARED`, `BLOCKING_GUARDED` distinction, and `SINK_TO_PERMISSION_CLASS`).*
