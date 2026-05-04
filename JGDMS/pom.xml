@@ -128,6 +128,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <asm.version>9.7.1</asm.version>
+    <dependency-check-maven.version>10.0.4</dependency-check-maven.version>
   </properties>
 
   <dependencyManagement>
@@ -518,6 +519,32 @@
                           <execution>
                               <id>scm-publish</id> <!-- must be same identifier defined in <build><plugins> section -->
                               <phase>none</phase> <!-- this disables plugin -->
+                          </execution>
+                      </executions>
+                  </plugin>
+              </plugins>
+          </build>
+      </profile>
+      <!--
+        OWASP NVD dependency vulnerability check.
+        Run with:  mvn verify -Powasp-check
+        Requires org.owasp:dependency-check-maven to be present in the local
+        Maven repository (install it separately; it is not fetched as part of
+        the normal build).
+      -->
+      <profile>
+          <id>owasp-check</id>
+          <build>
+              <plugins>
+                  <plugin>
+                      <groupId>org.owasp</groupId>
+                      <artifactId>dependency-check-maven</artifactId>
+                      <version>${dependency-check-maven.version}</version>
+                      <executions>
+                          <execution>
+                              <goals>
+                                  <goal>check</goal>
+                              </goals>
                           </execution>
                       </executions>
                   </plugin>
