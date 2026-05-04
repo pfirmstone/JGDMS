@@ -120,6 +120,12 @@ public class BytecodeAnalysisEngineImplTest {
             @Override
             public void cancelEventLease(net.jini.id.Uuid id)
                     throws net.jini.core.lease.UnknownLeaseException {}
+            @Override
+            public void submitReport(String id,
+                    au.net.zeus.jgdms.api.codebase.JarAnalysisReport r) {}
+            @Override
+            public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
+                    String hash) { return null; }
         };
     }
 
@@ -685,6 +691,12 @@ public class BytecodeAnalysisEngineImplTest {
             @Override
             public void cancelEventLease(net.jini.id.Uuid id)
                     throws net.jini.core.lease.UnknownLeaseException {}
+            @Override
+            public void submitReport(String id,
+                    au.net.zeus.jgdms.api.codebase.JarAnalysisReport r) {}
+            @Override
+            public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
+                    String hash) { return null; }
         };
 
         // Two-thread pool; 400 ms timeout.
@@ -920,6 +932,12 @@ public class BytecodeAnalysisEngineImplTest {
             @Override
             public void cancelEventLease(net.jini.id.Uuid id)
                     throws net.jini.core.lease.UnknownLeaseException {}
+            @Override
+            public void submitReport(String id,
+                    au.net.zeus.jgdms.api.codebase.JarAnalysisReport r) {}
+            @Override
+            public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
+                    String hash) { return null; }
         };
     }
 
@@ -1855,6 +1873,10 @@ public class BytecodeAnalysisEngineImplTest {
                     throws net.jini.core.lease.UnknownLeaseException { return d; }
             @Override public void cancelEventLease(net.jini.id.Uuid id)
                     throws net.jini.core.lease.UnknownLeaseException {}
+            @Override public void submitReport(String id,
+                    au.net.zeus.jgdms.api.codebase.JarAnalysisReport r) {}
+            @Override public au.net.zeus.jgdms.api.codebase.RegistryVerdict getVerdictByHash(
+                    String hash) { return null; }
         };
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
