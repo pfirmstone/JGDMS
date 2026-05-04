@@ -75,16 +75,29 @@ final class BlockingSinkRegistry {
     static final Set<String> PERMISSION_GUARD_SINKS;
 
     /**
-     * Maps a blocking-sink key ({@code "owner/name/descriptor"}) to the fully
-     * qualified Java permission class name that the JDK checks internally
+     * Maps a blocking-sink key ({@code "owner/name/descriptor"}) to the
+     * permission entry that the JDK (or DirtyChai) checks internally
      * immediately before the blocking operation is performed.
      *
-     * <p>Only sinks that carry a <em>direct, per-call</em> JDK-internal
-     * {@code SecurityManager.checkXxx()} are listed here.  Sinks whose
-     * permission check occurred at construction time (e.g.
-     * {@code FileInputStream.<init>}) are intentionally excluded because the
-     * link between "declaring the permission" and "the blocking call being
-     * reachable" is indirect for such cases.
+     * <p>Only sinks that carry a <em>direct, per-call</em>
+     * {@code SecurityManager.checkXxx()} or DirtyChai permission guard
+     * are listed here.  Sinks whose permission check occurred at construction
+     * time (e.g. {@code FileInputStream.<init>}) are intentionally excluded
+     * because the link between "declaring the permission" and "the blocking
+     * call being reachable" is indirect for such cases.
+     *
+     * <p><b>Value encoding</b>
+     * <ul>
+     *   <li><em>{@code "className"}</em> — any declaration of the named
+     *       permission class in {@code META-INF/PERMISSIONS.LIST} qualifies.
+     *       Used for permissions with a single meaning (e.g.
+     *       {@code "java.net.SocketPermission"}).</li>
+     *   <li><em>{@code "className#action"}</em> — both the class name
+     *       <em>and</em> the quoted action string must appear on the same
+     *       {@code PERMISSIONS.LIST} line.  Used for broad permission classes
+     *       (such as {@code java.lang.RuntimePermission}) where different
+     *       action names have unrelated security semantics.</li>
+     * </ul>
      *
      * <p>This map is used by {@link JarAnalyzer} to detect the
      * {@link au.net.zeus.jgdms.api.codebase.ClinitVerdict#BLOCKING_DECLARED}
@@ -275,7 +288,40 @@ final class BlockingSinkRegistry {
             // synchronized block; either way the call blocks without any
             // SecurityManager guard).
             "sun/nio/ch/Poller/poll/(IIJLjava/util/function/BooleanSupplier;)V",
-            "sun/nio/ch/Poller/pollSelector/(IJ)V"
+            "sun/nio/ch/Poller/pollSelector/(IJ)V",
+
+            // ---- Native library loading (file I/O — can block on slow/network FS) ----
+            // Guarded by NativeInvocationPermission in DirtyChai; also matched by
+            // the standard JDK's SecurityManager.checkLink() for BLOCKING_GUARDED.
+            "java/lang/System/loadLibrary/(Ljava/lang/String;)V",
+            "java/lang/System/load/(Ljava/lang/String;)V",
+            "java/lang/Runtime/loadLibrary/(Ljava/lang/String;)V",
+            "java/lang/Runtime/load/(Ljava/lang/String;)V",
+
+            // ---- FFM: SymbolLookup.libraryLookup (native library file I/O) ----
+            // Guarded by NativeInvocationPermission in DirtyChai.
+            "java/lang/foreign/SymbolLookup/libraryLookup/(Ljava/lang/String;Ljava/lang/foreign/Arena;)Ljava/lang/foreign/SymbolLookup;",
+            "java/lang/foreign/SymbolLookup/libraryLookup/(Ljava/nio/file/Path;Ljava/lang/foreign/Arena;)Ljava/lang/foreign/SymbolLookup;",
+
+            // ---- FFM: Arena factory methods (OS off-heap memory allocation) ----
+            // mmap/malloc with large allocations, huge pages, or NUMA pinning can
+            // block the calling thread.  All four are guarded by
+            // NativeMemoryPermission in DirtyChai.
+            "java/lang/foreign/Arena/global/()Ljava/lang/foreign/Arena;",
+            "java/lang/foreign/Arena/ofShared/()Ljava/lang/foreign/Arena;",
+            "java/lang/foreign/Arena/ofConfined/()Ljava/lang/foreign/Arena;",
+            "java/lang/foreign/Arena/ofAuto/()Ljava/lang/foreign/Arena;",
+
+            // ---- DirtyChai: ThreadBuilders (platform / virtual thread creation) ----
+            // Creating a platform thread involves OS-level resource allocation
+            // (pthread_create or equivalent) which can block under thread-count
+            // pressure.  Both unstarted() and factory() are guarded by
+            // RuntimePermission("createPlatformThread") /
+            // RuntimePermission("createVirtualThread") in DirtyChai.
+            "jdk/internal/misc/ThreadBuilders$PlatformThreadBuilder/unstarted/(Ljava/lang/Runnable;)Ljava/lang/Thread;",
+            "jdk/internal/misc/ThreadBuilders$PlatformThreadBuilder/factory/()Ljava/util/concurrent/ThreadFactory;",
+            "jdk/internal/misc/ThreadBuilders$VirtualThreadBuilder/unstarted/(Ljava/lang/Runnable;)Ljava/lang/Thread;",
+            "jdk/internal/misc/ThreadBuilders$VirtualThreadBuilder/factory/()Ljava/util/concurrent/ThreadFactory;"
         ));
         BLOCKING_SINKS = Collections.unmodifiableSet(blocking);
 
@@ -317,10 +363,12 @@ final class BlockingSinkRegistry {
         ));
         PERMISSION_GUARD_SINKS = Collections.unmodifiableSet(guards);
 
-        // Blocking sinks that carry a direct, per-call JDK-internal
-        // SecurityManager.checkXxx() immediately before the blocking
-        // operation.  Maps the full "owner/name/descriptor" key to the
-        // Java permission class name that guards the call.
+        // Blocking sinks that carry a direct, per-call JDK-internal or
+        // DirtyChai permission guard immediately before the blocking operation.
+        // Maps the full "owner/name/descriptor" key to either:
+        //   "className"         — any declaration of that class qualifies, or
+        //   "className#action"  — both class AND quoted action must be present
+        //                         on the same PERMISSIONS.LIST line.
         Map<String, String> sinkPerms = new HashMap<String, String>();
         // --- Network: Socket / ServerSocket (SM.checkConnect / checkAccept) ---
         sinkPerms.put("java/net/Socket/connect/(Ljava/net/SocketAddress;)V",
@@ -340,6 +388,53 @@ final class BlockingSinkRegistry {
                 "java.io.FilePermission");
         sinkPerms.put("java/nio/channels/FileChannel/lock/(JJZ)Ljava/nio/channels/FileLock;",
                 "java.io.FilePermission");
+
+        // --- Native library loading: DirtyChai NativeInvocationPermission ---
+        // Standard JDK's SM.checkLink() also guards these; DirtyChai adds
+        // NativeInvocationPermission on top.
+        sinkPerms.put("java/lang/System/loadLibrary/(Ljava/lang/String;)V",
+                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+        sinkPerms.put("java/lang/System/load/(Ljava/lang/String;)V",
+                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+        sinkPerms.put("java/lang/Runtime/loadLibrary/(Ljava/lang/String;)V",
+                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+        sinkPerms.put("java/lang/Runtime/load/(Ljava/lang/String;)V",
+                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+        // FFM SymbolLookup.libraryLookup also loads a native library from disk.
+        sinkPerms.put(
+                "java/lang/foreign/SymbolLookup/libraryLookup/(Ljava/lang/String;Ljava/lang/foreign/Arena;)Ljava/lang/foreign/SymbolLookup;",
+                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+        sinkPerms.put(
+                "java/lang/foreign/SymbolLookup/libraryLookup/(Ljava/nio/file/Path;Ljava/lang/foreign/Arena;)Ljava/lang/foreign/SymbolLookup;",
+                "au.zeus.jdk.authorization.guards.NativeInvocationPermission");
+
+        // --- FFM Arena factories: DirtyChai NativeMemoryPermission ---
+        sinkPerms.put("java/lang/foreign/Arena/global/()Ljava/lang/foreign/Arena;",
+                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+        sinkPerms.put("java/lang/foreign/Arena/ofShared/()Ljava/lang/foreign/Arena;",
+                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+        sinkPerms.put("java/lang/foreign/Arena/ofConfined/()Ljava/lang/foreign/Arena;",
+                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+        sinkPerms.put("java/lang/foreign/Arena/ofAuto/()Ljava/lang/foreign/Arena;",
+                "au.zeus.jdk.authorization.guards.NativeMemoryPermission");
+
+        // --- DirtyChai ThreadBuilders: RuntimePermission (class#action format) ---
+        // "className#action" encoding: declaresPermissionClass() requires both
+        // "java.lang.RuntimePermission" AND the quoted action to appear on the
+        // same PERMISSIONS.LIST line, preventing false positives from unrelated
+        // RuntimePermission grants (e.g. "getenv", "shutdownHooks").
+        sinkPerms.put(
+                "jdk/internal/misc/ThreadBuilders$PlatformThreadBuilder/unstarted/(Ljava/lang/Runnable;)Ljava/lang/Thread;",
+                "java.lang.RuntimePermission#createPlatformThread");
+        sinkPerms.put(
+                "jdk/internal/misc/ThreadBuilders$PlatformThreadBuilder/factory/()Ljava/util/concurrent/ThreadFactory;",
+                "java.lang.RuntimePermission#createPlatformThread");
+        sinkPerms.put(
+                "jdk/internal/misc/ThreadBuilders$VirtualThreadBuilder/unstarted/(Ljava/lang/Runnable;)Ljava/lang/Thread;",
+                "java.lang.RuntimePermission#createVirtualThread");
+        sinkPerms.put(
+                "jdk/internal/misc/ThreadBuilders$VirtualThreadBuilder/factory/()Ljava/util/concurrent/ThreadFactory;",
+                "java.lang.RuntimePermission#createVirtualThread");
         SINK_TO_PERMISSION_CLASS = Collections.unmodifiableMap(sinkPerms);
     }
 
@@ -371,18 +466,31 @@ final class BlockingSinkRegistry {
     }
 
     /**
-     * Returns the fully qualified Java permission class name that the JDK
-     * checks internally (via {@code SecurityManager.checkXxx()}) immediately
-     * before executing the blocking operation identified by {@code sinkKey},
-     * or {@code null} if the sink carries no such per-call JDK guard.
+     * Returns the permission entry that the JDK (or DirtyChai) checks
+     * internally immediately before executing the blocking operation
+     * identified by {@code sinkKey}, or {@code null} if the sink carries no
+     * such per-call guard.
+     *
+     * <p>The returned string uses one of two encodings:
+     * <ul>
+     *   <li><em>{@code "className"}</em> — any declaration of that permission
+     *       class in {@code META-INF/PERMISSIONS.LIST} qualifies (e.g.
+     *       {@code "java.net.SocketPermission"}).</li>
+     *   <li><em>{@code "className#action"}</em> — both the class name
+     *       <em>and</em> the quoted action string must appear on the same
+     *       {@code PERMISSIONS.LIST} line (e.g.
+     *       {@code "java.lang.RuntimePermission#createVirtualThread"}).
+     *       This prevents false positives from unrelated grants of the same
+     *       broad permission class.</li>
+     * </ul>
      *
      * <p>This is used by {@link JarAnalyzer} to detect the
      * {@link au.net.zeus.jgdms.api.codebase.ClinitVerdict#BLOCKING_DECLARED}
      * condition.
      *
      * @param sinkKey the composite key {@code "owner/name/descriptor"}
-     * @return the permission class name (e.g. {@code "java.net.SocketPermission"}),
-     *         or {@code null} if no JDK-internal permission guard is mapped
+     * @return the permission entry (see encoding above),
+     *         or {@code null} if no guard is mapped
      */
     static String getRequiredPermissionClass(String sinkKey) {
         return SINK_TO_PERMISSION_CLASS.get(sinkKey);

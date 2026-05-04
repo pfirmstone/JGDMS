@@ -366,31 +366,67 @@ final class JarAnalyzer {
 
     /**
      * Returns {@code true} if any line in {@code declaredPermissions}
-     * declares the given permission class.
+     * declares the given permission entry.
      *
-     * <p>A line is considered to declare {@code permClass} if it starts with
-     * {@code "permission <permClass>"} followed by a non-identifier character
-     * (space, tab, {@code "}, or end-of-line).  This prevents a class name
-     * that is a prefix of another (e.g. {@code java.net.Socket} matching
-     * {@code java.net.SocketPermission}) from producing a false positive.
+     * <p>The {@code permEntry} parameter uses one of two encodings:
+     * <ul>
+     *   <li><em>{@code "className"}</em> — a line is considered a match if
+     *       it starts with {@code "permission <className>"} followed by a
+     *       non-identifier character (space, tab, {@code "}, or
+     *       end-of-line).  This prevents a class name that is a prefix of
+     *       another (e.g. {@code java.net.Socket} matching
+     *       {@code java.net.SocketPermission}) from producing a false
+     *       positive.</li>
+     *   <li><em>{@code "className#action"}</em> — a line must both start
+     *       with {@code "permission <className>"} (same prefix rule as above)
+     *       <em>and</em> contain the quoted action string
+     *       ({@code '"' + action + '"'}).  Used for broad permission classes
+     *       such as {@code java.lang.RuntimePermission} where different action
+     *       names have unrelated security semantics, preventing false
+     *       positives from unrelated grants of the same class.</li>
+     * </ul>
      *
      * @param declaredPermissions lines from {@code META-INF/PERMISSIONS.LIST}
      *                            (already trimmed, non-blank, non-comment)
-     * @param permClass           the fully qualified permission class name to
-     *                            search for (e.g.
-     *                            {@code "java.net.SocketPermission"})
-     * @return {@code true} if at least one line declares {@code permClass}
+     * @param permEntry           either a fully qualified permission class name
+     *                            (e.g. {@code "java.net.SocketPermission"}) or
+     *                            a {@code "className#action"} pair (e.g.
+     *                            {@code "java.lang.RuntimePermission#createVirtualThread"})
+     * @return {@code true} if at least one line satisfies the match criteria
      */
     private static boolean declaresPermissionClass(String[] declaredPermissions,
-                                                   String permClass) {
-        String prefix = "permission " + permClass;
+                                                   String permEntry) {
+        int hashIdx = permEntry.indexOf('#');
+        if (hashIdx < 0) {
+            // class-only match (original behaviour)
+            String prefix = "permission " + permEntry;
+            for (String line : declaredPermissions) {
+                if (line.startsWith(prefix)) {
+                    int len = prefix.length();
+                    if (len >= line.length()) return true;
+                    char next = line.charAt(len);
+                    if (next == ' ' || next == '\t' || next == '"' || next == ';') {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        // class#action match: the class name AND the quoted action must both
+        // appear on the same PERMISSIONS.LIST line.
+        String className    = permEntry.substring(0, hashIdx);
+        String action       = permEntry.substring(hashIdx + 1);
+        String classPrefix  = "permission " + className;
+        String quotedAction = "\"" + action + "\"";
         for (String line : declaredPermissions) {
-            if (line.startsWith(prefix)) {
-                int len = prefix.length();
-                if (len >= line.length()) return true;
-                char next = line.charAt(len);
-                if (next == ' ' || next == '\t' || next == '"' || next == ';') {
-                    return true;
+            if (line.startsWith(classPrefix)) {
+                int len = classPrefix.length();
+                if (len < line.length()) {
+                    char next = line.charAt(len);
+                    if ((next == ' ' || next == '\t' || next == '"' || next == ';')
+                            && line.contains(quotedAction)) {
+                        return true;
+                    }
                 }
             }
         }

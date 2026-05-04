@@ -530,7 +530,8 @@ void cancelEventLease(Uuid leaseId);
 | `LoadClassPermission` on DirtyChai | Most important guard against carrier-pin DOS post-JEP 491 |
 | `BLOCKING_GUARDED` is `INCONCLUSIVE`, not `DANGEROUS` | The blocking path is only reachable if the guarding permission is granted; policy authors can choose not to grant it |
 | `BLOCKING_DECLARED` is `DANGEROUS`, not `INCONCLUSIVE` | The JAR's own `PERMISSIONS.LIST` signals developer intent to request the guarding permission; if granted, the blocking `<clinit>` path becomes reachable, enabling a virtual-thread carrier-pinning Denial of Service attack |
-| `SINK_TO_PERMISSION_CLASS` covers only direct per-call JDK SM checks | Sinks whose SM check fires at construction time (not at the blocking call site) are excluded — the link between "declared permission → reachable block" is indirect and would produce false positives |
+| `SINK_TO_PERMISSION_CLASS` covers direct per-call guards (JDK + DirtyChai) | Sinks whose guard fires at construction time are excluded — the link between "declared permission → reachable block" would be indirect. Covered sinks: network I/O (`SocketPermission`), file locking (`FilePermission`), native library loading (`NativeInvocationPermission`), FFM arena allocation (`NativeMemoryPermission`), thread creation (`RuntimePermission#createPlatformThread` / `#createVirtualThread`) |
+| `className#action` encoding in `SINK_TO_PERMISSION_CLASS` | Used for broad permission classes (e.g. `RuntimePermission`) where different action names have unrelated semantics — prevents a JAR declaring `RuntimePermission "getenv"` from falsely triggering `BLOCKING_DECLARED` for thread-creation sinks |
 
 ---
 

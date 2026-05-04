@@ -448,25 +448,39 @@ the threat level.
 
 `JGDMS/services/bytecode-analysis-engine/bytecode-analysis-engine-service/src/main/java/au/net/zeus/jgdms/bae/BlockingSinkRegistry.java`
 
-A new `Map<String,String> SINK_TO_PERMISSION_CLASS` maps each network and file-lock sink key
-to the Java permission class name whose JDK-internal `SecurityManager.checkXxx()` call guards
-it directly and per-call:
+`Map<String,String> SINK_TO_PERMISSION_CLASS` maps each guarded blocking-sink key to a
+permission *entry* (see encoding below) whose guard fires directly and per-call at the
+sink site:
 
-| Sinks | Permission class |
+| Sinks | Permission entry |
 |-------|----------------|
 | `Socket.connect`, `ServerSocket.accept`, `DatagramSocket.receive`, `ServerSocketChannel.accept` | `java.net.SocketPermission` |
 | `FileChannel.lock` | `java.io.FilePermission` |
+| `System.loadLibrary/load`, `Runtime.loadLibrary/load`, `SymbolLookup.libraryLookup` (both overloads) | `au.zeus.jdk.authorization.guards.NativeInvocationPermission` |
+| `Arena.global`, `Arena.ofShared`, `Arena.ofConfined`, `Arena.ofAuto` | `au.zeus.jdk.authorization.guards.NativeMemoryPermission` |
+| `ThreadBuilders$PlatformThreadBuilder.unstarted`, `.factory` | `java.lang.RuntimePermission#createPlatformThread` |
+| `ThreadBuilders$VirtualThreadBuilder.unstarted`, `.factory` | `java.lang.RuntimePermission#createVirtualThread` |
 
 Sinks whose `SecurityManager` check occurs only at construction time (e.g. `Socket.<init>`)
 are intentionally excluded — the link between "declared permission → reachable block" is
 indirect when the guard fires at a different point in the object's lifetime.
 
+**Value encoding** (`"className"` vs `"className#action"`):
+- Plain `"className"` — any declaration of that class in `PERMISSIONS.LIST` qualifies.
+  Safe for specific-purpose permission classes (`SocketPermission`, `NativeMemoryPermission`,
+  `NativeInvocationPermission`) where any grant of the class implies the operation.
+- `"className#action"` — both the class name AND the quoted action string must appear on the
+  same `PERMISSIONS.LIST` line.  Required for broad-purpose classes like
+  `java.lang.RuntimePermission` where different action names have entirely unrelated
+  semantics — without action matching, a JAR declaring `RuntimePermission "getenv"` would
+  falsely trigger BLOCKING_DECLARED for thread-creation sinks.
+
 New accessor:
 ```java
 static String getRequiredPermissionClass(String sinkKey)
 ```
-Returns the permission class name for a sink key, or `null` if the sink has no direct
-per-call JDK-internal permission check.
+Returns the permission entry for a sink key, or `null` if the sink has no direct per-call
+guard mapped.
 
 ### 15. `JarAnalyzer` — upgrade logic for `BLOCKING_GUARDED` → `BLOCKING_DECLARED`
 
@@ -478,16 +492,17 @@ checks whether the upgrade to `BLOCKING_DECLARED` applies:
 ```
 for each class result where verdict == BLOCKING_GUARDED:
     sinkKey = result.getBlockingCallPath().getLast()
-    permClass = BlockingSinkRegistry.getRequiredPermissionClass(sinkKey)
-    if permClass != null AND declaresPermissionClass(declaredPermissions, permClass):
+    permEntry = BlockingSinkRegistry.getRequiredPermissionClass(sinkKey)
+    if permEntry != null AND declaresPermissionClass(declaredPermissions, permEntry):
         upgrade verdict to BLOCKING_DECLARED
 ```
 
-`declaresPermissionClass(String[] declared, String permClass)` scans the lines of
-`PERMISSIONS.LIST` looking for a token that starts with `"permission "` followed by the
-permission class name and then a delimiter (space or comma) — preventing false positives
-from shared prefixes (e.g., `java.net.SocketPermissionCollection` would not match
-`java.net.SocketPermission`).
+`declaresPermissionClass(String[] declared, String permEntry)` handles both encodings:
+- **Class-only** (`"className"`): scans lines starting with `"permission <className>"` followed
+  by a non-identifier delimiter, preventing prefix false positives.
+- **Class+action** (`"className#action"`): same class-name prefix rule, PLUS the line must
+  contain the quoted action string (`'"' + action + '"'`), preventing unrelated
+  `RuntimePermission` grants from triggering the upgrade.
 
 ### 16. `JarAnalysisReport.deriveVerdictType()` update
 
