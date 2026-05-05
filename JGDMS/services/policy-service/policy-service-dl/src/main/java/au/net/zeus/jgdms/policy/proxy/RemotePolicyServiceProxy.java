@@ -18,7 +18,6 @@
 package au.net.zeus.jgdms.policy.proxy;
 
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.event.EventRegistration;
@@ -82,27 +81,17 @@ public class RemotePolicyServiceProxy
     /**
      * {@link AtomicSerial} deserialization constructor.
      *
+     * <p>{@link AbstractSmartProxy} validates that the deserialized
+     * {@code server} stub implements every interface declared on this concrete
+     * proxy class; no additional check is needed here.
+     *
      * @param arg the deserialization argument bag
      * @throws IOException if deserialization validation fails
      * @throws ClassNotFoundException if a required class cannot be found
      */
     public RemotePolicyServiceProxy(GetArg arg)
             throws IOException, ClassNotFoundException {
-        this(arg, check(arg));
-    }
-
-    private RemotePolicyServiceProxy(GetArg arg, boolean ignored)
-            throws IOException, ClassNotFoundException {
         super(arg);
-    }
-
-    private static boolean check(GetArg arg)
-            throws IOException, ClassNotFoundException {
-        RemotePolicyServiceProxy sup = new RemotePolicyServiceProxy(arg, true);
-        if (sup.server instanceof RemotePolicyService
-                && RemotePolicyServiceProxy.class.equals(sup.server.getClass()))
-            return true;
-        throw new InvalidObjectException("server not RemotePolicyServiceProxy");
     }
 
     @Override

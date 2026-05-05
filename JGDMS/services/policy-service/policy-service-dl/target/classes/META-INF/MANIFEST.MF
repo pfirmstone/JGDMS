@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1778007383347
+Bnd-LastModified: 1778007519400
 Bundle-Description: Infrastructure for providing secured micro service
  s, that are dynamically discoverable and searchable over ipv6 network
  s.
@@ -17,7 +17,7 @@ Bundle-SCM: url="https://github.com/pfirmstone/JGDMS/services/policy-s
  onnection="scm:git:git@github.com:pfirmstone/JGDMS.git/services/polic
  y-service/policy-service-dl",tag="jgdms-3.1.0"
 Bundle-SymbolicName: policy-service-dl
-Bundle-Version: 3.1.1.202605051856
+Bundle-Version: 3.1.1.202605051858
 Created-By: 17.0.18 (Eclipse Adoptium)
 Import-Package: au.net.zeus.jgdms.proxy,net.jini.core.constraint,net.j
  ini.core.event,net.jini.core.lease,net.jini.id,net.jini.io,org.apache
