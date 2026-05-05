@@ -115,6 +115,31 @@ jobs:
             ${{ runner.os }}-maven-
 
       # -----------------------------------------------------------------------
+      # Pre-install Pack200-ex-openjdk from GitHub Releases into the local
+      # Maven repository.  The artifact is published as a release binary at
+      # github.com/pfirmstone/Pack200-ex-openjdk, not via GitHub Packages.
+      # -----------------------------------------------------------------------
+      - name: Install Pack200-ex-openjdk into local Maven repository
+        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
+        working-directory: JGDMS
+        run: |
+          PACK_VER=$(grep -m1 '<pack200.version>' pom.xml | sed 's|.*<pack200.version>\(.*\)</pack200.version>.*|\1|')
+          mkdir -p /tmp/pack200-dl
+          gh release download "${PACK_VER}" \
+            --repo pfirmstone/Pack200-ex-openjdk \
+            --pattern "Pack200-ex-openjdk-${PACK_VER}.jar" \
+            --dir /tmp/pack200-dl
+          mvn install:install-file \
+            -Dfile="/tmp/pack200-dl/Pack200-ex-openjdk-${PACK_VER}.jar" \
+            -DgroupId=au.net.zeus.pack200-ex-openjdk \
+            -DartifactId=Pack200-ex-openjdk \
+            -Dversion="${PACK_VER}" \
+            -Dpackaging=jar \
+            --no-transfer-progress -q
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
       # Build dependencies (jgdms-platform + jgdms-jeri) — skip tests here.
       # -----------------------------------------------------------------------
       - name: Build dependencies
