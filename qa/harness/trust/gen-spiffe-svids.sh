@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="${SCRIPT_DIR}/spiffe"
 
 TRUST_DOMAIN="test.jgdms.local"
-VALIDITY_DAYS=3650       # 10 years — for CI/test use only
+VALIDITY_DAYS=3650       # WARNING: 10-year validity — FOR CI/TEST USE ONLY; never use in production
 CA_KEY_BITS=""           # unused for EC
 CA_KEY_CURVE="P-256"
 TRUSTSTORE_PASSWORD="spiffetrustpw"
