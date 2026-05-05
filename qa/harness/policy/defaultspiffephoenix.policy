@@ -610,4 +610,3 @@ grant codebase "file:/${jsk.home}/lib/${loader.jar}",
     permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
 };
 
-;

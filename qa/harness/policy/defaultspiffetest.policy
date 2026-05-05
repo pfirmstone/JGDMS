@@ -2169,8 +2169,6 @@ grant codebase "file:/${qa.home}/lib/jinitests.jar",
     permission javax.security.auth.AuthPermission "doAs";
 };
 
-;
-
 grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
 {

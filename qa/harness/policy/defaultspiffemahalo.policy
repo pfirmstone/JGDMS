@@ -68,7 +68,8 @@ grant codebase "httpmd://${HOST}/*" {
 grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
 {
       permission net.jini.security.AccessPermission "*";
-      permission java.io.FilePermission "${jsk.home}
+      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
+};
 
 grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/mahalo"
 {
@@ -94,7 +95,7 @@ grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc
 grant codebase "httpmd://${HOST}/*" {
     permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
     permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
-    permission org.apache.river.api.io.DeSerializationPermission "ENTRY
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 

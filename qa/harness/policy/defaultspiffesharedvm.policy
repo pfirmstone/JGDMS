@@ -92,7 +92,8 @@ grant principal javax.security.auth.x500.X500Principal "CN=Tester"
     permission net.jini.security.AccessPermission "org.apache.river.admin.DestroyAdmin.destroy";
     permission net.jini.security.AccessPermission "org.apache.river.start.group.SharedGroup.destroyVM";
     permission net.jini.security.AccessPermission "org.apache.river.test.services.lookupsimulator.LookupSimulator.getLocator";
-    permission java.io.FilePermission "${java.io.tmpdir}
+    permission java.io.FilePermission "${java.io.tmpdir}-", "delete";
+};
 
 grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester"
 {
