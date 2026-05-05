@@ -1,0 +1,14 @@
+/*
+ * Unit-test security policy for jgdms-jeri SPIFFE tests.
+ *
+ * Used when tests are executed with the SecurityManager enabled (e.g. on
+ * DirtyChai). Grants all permissions to the test codebase so that the SPIFFE
+ * unit tests (which are pure white-box unit tests, not integration tests) can
+ * run without SecurityManager interference.
+ *
+ * The QA integration tests use the more restrictive defaultspiffe*.policy
+ * files in qa/harness/policy/ instead.
+ */
+grant {
+    permission java.security.AllPermission;
+};
