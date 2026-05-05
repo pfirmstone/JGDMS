@@ -1,0 +1,231 @@
+// SPIFFE-equivalent policy: X500Principal grants retained for JERI constraint
+// matching; SpiffePrincipal grants added for fine-grained SPIFFE-based policy.
+
+grant codebase "file:${jsk.home}${/}lib${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${jsk.home}${/}lib-dl${/}*
+{
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.auth" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.cryptoki" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.smartcardio" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.xml.crypto" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/java.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.ec" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.crypto.mscapi" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.localedata" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/jdk.security.jgss" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "jrt:/org.openjsse" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "httpmd://${HOST}:9080/${phoenix-dl.jar}"
+{
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
+grant codebase "httpmd://${HOST}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+      permission net.jini.security.AccessPermission "*";
+      permission java.io.FilePermission "${jsk.home}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/mahalo"
+{
+      permission net.jini.security.AccessPermission "*";
+      permission java.io.FilePermission "${jsk.home}${/}lib${/}jgdms-rmi-tls-${jgdms.version}.jar", "read";
+      permission java.net.SocketPermission "[0:0:0:0:0:0:0:1]:1098", "connect,resolve";
+      permission java.net.SocketPermission "${HOST}", "resolve";
+      permission javax.security.auth.AuthPermission "getSubject";
+      permission java.lang.RuntimePermission "modifyThread";
+      permission java.lang.RuntimePermission "modifyThreadGroup";
+      permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Phoenix\"",
+        "connect";
+      permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Tester\"",
+        "connect";
+      permission net.jini.security.AuthenticationPermission 
+        "javax.security.auth.x500.X500Principal \"CN=Mahalo\" peer javax.security.auth.x500.X500Principal \"CN=Outrigger\"",
+        "connect";
+};
+
+
+grant codebase "httpmd://${HOST}/*" {
+    permission org.apache.river.api.io.DeSerializationPermission "ATOMIC";
+    permission org.apache.river.api.io.DeSerializationPermission "MARSHALL";
+    permission org.apache.river.api.io.DeSerializationPermission "ENTRY
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+};
+
+grant {
+        permission java.lang.RuntimePermission
+              "accessClassInPackage.sun.util.logging.resources";
+        permission java.util.PropertyPermission "*", "read";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/fiddler"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/mahalo"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/mercury"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/outrigger"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/reggie"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Norm"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/norm"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/group"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+      permission net.jini.security.AccessPermission "*";
+}
+
+grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+//Kerberos Principals
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${group}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+
+
+
+

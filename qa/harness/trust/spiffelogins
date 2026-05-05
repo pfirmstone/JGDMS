@@ -1,0 +1,57 @@
+/* JAAS login configurations for SPIFFE SVID-based authentication.
+ *
+ * Each login context maps to SpiffeLoginModule, which reads SVID credentials
+ * from PEM files located under:
+ *
+ *   ${net.jini.jeri.ssl.spiffe.dir}/<serviceRole>/svid.pem
+ *   ${net.jini.jeri.ssl.spiffe.dir}/<serviceRole>/svid_key.pem
+ *
+ * Set the system property net.jini.jeri.ssl.spiffe.dir to the directory
+ * produced by qa/harness/trust/gen-spiffe-svids.sh before starting any JVM
+ * using this login configuration.
+ */
+
+org.apache.river.Reggie {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="reggie";
+};
+
+org.apache.river.Mahalo {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="mahalo";
+};
+
+org.apache.river.Outrigger {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="outrigger";
+};
+
+org.apache.river.Mercury {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="mercury";
+};
+
+org.apache.river.Norm {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="norm";
+};
+
+org.apache.river.Fiddler {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="fiddler";
+};
+
+org.apache.river.Phoenix {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="phoenix";
+};
+
+org.apache.river.Test {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="tester";
+};
+
+org.apache.river.Group {
+    net.jini.jeri.ssl.SpiffeLoginModule required
+        serviceRole="group";
+};
