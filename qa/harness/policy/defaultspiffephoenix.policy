@@ -610,12 +610,4 @@ grant codebase "file:/${jsk.home}/lib/${loader.jar}",
     permission java.util.PropertyPermission "java.util.concurrent.ForkJoinPool.common.maximumSpares", "read";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Tester"
-{
-    permission java.io.FilePermission "C:\Users\peter\Documents\NetBeansProjects\JGDMS\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" "read";
-}
-
-grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester"
-{
-    permission java.io.FilePermission "C:\Users\peter\Documents\NetBeansProjects\JGDMS\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" "read";
-};
+;

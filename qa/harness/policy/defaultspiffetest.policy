@@ -2169,15 +2169,7 @@ grant codebase "file:/${qa.home}/lib/jinitests.jar",
     permission javax.security.auth.AuthPermission "doAs";
 };
 
-grant principal javax.security.auth.x500.X500Principal "CN=Tester"
-{
-    permission java.io.FilePermission "C:\Users\peter\Documents\NetBeansProjects\JGDMS\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" "read";
-}
-
-grant principal net.jini.jeri.ssl.SpiffePrincipal "spiffe://test.jgdms.local/svc/tester"
-{
-    permission java.io.FilePermission "C:\Users\peter\Documents\NetBeansProjects\JGDMS\JGDMS\dist\target\JGDMS-3.1.1-SNAPSHOT\lib\jgdms-rmi-tls-3.1.1-SNAPSHOT.jar" "read";
-};
+;
 
 grant codebase "file:/${jsk.home}/lib/${jeri.jar}",
     principal javax.security.auth.x500.X500Principal "CN=Tester"
