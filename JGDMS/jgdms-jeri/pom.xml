@@ -148,4 +148,30 @@
             </plugin>
         </plugins>
     </reporting>
+
+    <!--
+      Profile activated when running under DirtyChai JDK with SecurityManager
+      re-enabled.  Pass -Pdirtychai on the Maven command line (or set the
+      dirtychai property) to run SPIFFE unit tests with SecurityManager active.
+      This profile is only useful with a JDK that supports SecurityManager
+      (e.g. DirtyChai); it has no effect on standard JDK 17+ builds.
+    -->
+    <profiles>
+        <profile>
+            <id>dirtychai</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <argLine>
+                                -Djava.security.manager=default
+                                -Djava.security.policy=${project.build.testOutputDirectory}/test.policy
+                            </argLine>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -1,0 +1,203 @@
+name: "SPIFFE Unit Tests"
+
+# Runs the four-stage SPIFFE JUnit tests on every push / PR that touches the
+# JERI module or the SPIFFE test resources, and can be triggered manually.
+#
+# Two Java variants are exercised:
+#   1. System JDK (Temurin 17) — always runs.
+#   2. DirtyChai JDK           — runs only when the dirty-chai-latest release
+#                                is available at pfirmstone/DirtyChai.
+#      DirtyChai is a community OpenJDK fork that re-enables SecurityManager /
+#      AccessController, which is required for full JGDMS security testing.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'JGDMS/jgdms-jeri/**'
+      - 'JGDMS/jgdms-platform/**'
+      - 'JGDMS/jgdms-collections/**'
+      - 'JGDMS/jgdms-activation-parameters/**'
+      - 'qa/harness/trust/spiffe/**'
+      - 'qa/harness/trust/spiffelogins'
+      - '.github/workflows/spiffe-unit-tests.yml'
+  pull_request:
+    paths:
+      - 'JGDMS/jgdms-jeri/**'
+      - 'JGDMS/jgdms-platform/**'
+      - 'JGDMS/jgdms-collections/**'
+      - 'JGDMS/jgdms-activation-parameters/**'
+      - 'qa/harness/trust/spiffe/**'
+      - 'qa/harness/trust/spiffelogins'
+      - '.github/workflows/spiffe-unit-tests.yml'
+
+jobs:
+  spiffe-tests:
+    name: "SPIFFE tests (${{ matrix.jdk-label }})"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - jdk-label: "Temurin-17 (system)"
+            use-dirtychai: false
+          - jdk-label: "DirtyChai (if available)"
+            use-dirtychai: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Install DirtyChai JDK (only for the DirtyChai matrix variant).
+      # Degrades gracefully when the dirty-chai-latest release is absent.
+      # -----------------------------------------------------------------------
+      - name: Install DirtyChai JDK
+        id: dirtychai
+        if: matrix.use-dirtychai
+        run: |
+          INSTALL_DIR="/opt/dirtychai"
+          DL_DIR="/tmp/dirtychai-dl"
+          sudo mkdir -p "$INSTALL_DIR"
+          mkdir -p "$DL_DIR"
+
+          if gh release download dirty-chai-latest \
+               --repo pfirmstone/DirtyChai \
+               --pattern 'jdk-linux-x64.tar.gz' \
+               --pattern 'jdk-linux-x64.tar.gz.sha256' \
+               --dir "$DL_DIR" 2>/dev/null; then
+
+            echo "DirtyChai release bundle found; verifying checksum..."
+            (cd "$DL_DIR" && sha256sum -c jdk-linux-x64.tar.gz.sha256)
+
+            echo "Checksum OK; installing..."
+            sudo tar -xzf "$DL_DIR/jdk-linux-x64.tar.gz" -C "$INSTALL_DIR"
+
+            JDK_DIR="$(dirname "$(find "$INSTALL_DIR" -name 'javac' -type f | head -1)")"
+            JDK_DIR="${JDK_DIR%/bin}"
+
+            echo "JAVA_HOME=$JDK_DIR" >> "$GITHUB_ENV"
+            echo "$JDK_DIR/bin"       >> "$GITHUB_PATH"
+            echo "installed=true"     >> "$GITHUB_OUTPUT"
+
+            echo "DirtyChai JDK installed at $JDK_DIR"
+            "$JDK_DIR/bin/java" -version
+          else
+            echo "No DirtyChai release available; skipping DirtyChai matrix run."
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Skip remaining steps when DirtyChai was requested but unavailable.
+      - name: Check DirtyChai availability
+        id: check
+        if: matrix.use-dirtychai
+        run: |
+          if [ "${{ steps.dirtychai.outputs.installed }}" != "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Maven dependency cache
+      # -----------------------------------------------------------------------
+      - name: Cache Maven local repository
+        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-spiffe-${{ hashFiles('JGDMS/**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-spiffe-
+            ${{ runner.os }}-maven-
+
+      # -----------------------------------------------------------------------
+      # Build dependencies (jgdms-platform + jgdms-jeri) — skip tests here.
+      # -----------------------------------------------------------------------
+      - name: Build dependencies
+        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
+        working-directory: JGDMS
+        run: |
+          mvn install -DskipTests \
+            -pl jgdms-platform,jgdms-jeri --also-make \
+            --no-transfer-progress -q
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      # -----------------------------------------------------------------------
+      # Stage 1 — SpiffePrincipalTest
+      # -----------------------------------------------------------------------
+      - name: "Stage 1: SpiffePrincipalTest"
+        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
+        working-directory: JGDMS
+        run: |
+          PROFILE_FLAG=""
+          [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
+          mvn test -pl jgdms-jeri \
+            -Dtest=SpiffePrincipalTest \
+            $PROFILE_FLAG \
+            --no-transfer-progress
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      # -----------------------------------------------------------------------
+      # Stage 2 — FileSvidSourceTest
+      # -----------------------------------------------------------------------
+      - name: "Stage 2: FileSvidSourceTest"
+        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
+        working-directory: JGDMS
+        run: |
+          PROFILE_FLAG=""
+          [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
+          mvn test -pl jgdms-jeri \
+            -Dtest=FileSvidSourceTest \
+            $PROFILE_FLAG \
+            --no-transfer-progress
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      # -----------------------------------------------------------------------
+      # Stage 3 — SpiffeLoginModuleTest
+      # -----------------------------------------------------------------------
+      - name: "Stage 3: SpiffeLoginModuleTest"
+        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
+        working-directory: JGDMS
+        run: |
+          PROFILE_FLAG=""
+          [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
+          mvn test -pl jgdms-jeri \
+            -Dtest=SpiffeLoginModuleTest \
+            $PROFILE_FLAG \
+            --no-transfer-progress
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      # -----------------------------------------------------------------------
+      # Stage 4 — SpiffeCredentialManagerTest
+      # -----------------------------------------------------------------------
+      - name: "Stage 4: SpiffeCredentialManagerTest"
+        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
+        working-directory: JGDMS
+        run: |
+          PROFILE_FLAG=""
+          [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
+          mvn test -pl jgdms-jeri \
+            -Dtest=SpiffeCredentialManagerTest \
+            $PROFILE_FLAG \
+            --no-transfer-progress
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      # -----------------------------------------------------------------------
+      # Summary — upload Surefire reports as an artifact for inspection
+      # -----------------------------------------------------------------------
+      - name: Upload Surefire reports
+        if: ${{ always() && (!matrix.use-dirtychai || steps.check.outputs.skip == 'false') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ matrix.jdk-label }}
+          path: JGDMS/jgdms-jeri/target/surefire-reports/
+          if-no-files-found: ignore
