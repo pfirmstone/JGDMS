@@ -40,7 +40,7 @@ import java.util.Arrays;
  */
 class ProtectionDomainGrant extends PrincipalGrant {
     private static final long serialVersionUID = 1L;
-    protected final WeakReference<ProtectionDomain> domain;
+    protected final transient WeakReference<ProtectionDomain> domain;
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
