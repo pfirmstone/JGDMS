@@ -587,6 +587,8 @@ class SslServerEndpointImpl extends Utilities {
                             return Subject.getSubject(acc);
                         }
                     });
+                if (serverSubject == null)
+                    serverSubject = SpiffeSubjectHolder.get();
             }
             this.serverPrincipals = (serverPrincipals == null)
                 ? computePrincipals(serverSubject)

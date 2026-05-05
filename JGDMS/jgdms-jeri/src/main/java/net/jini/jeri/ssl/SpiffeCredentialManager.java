@@ -570,6 +570,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
             throw new IllegalStateException("SpiffeCredentialManager is closed");
         Svid svid = svidSource.fetch();
         updateSubjectCredentials(svid);
+        SpiffeSubjectHolder.set(subject);
         scheduleRenewal(svid);
         logger.log(Level.INFO, "SpiffeCredentialManager started; SVID expires at {0}",
                 svid.leafCertificate().getNotAfter());
@@ -609,6 +610,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         if (closed.compareAndSet(false, true)) {
             scheduler.shutdownNow();
             clearSubjectCredentials();
+            SpiffeSubjectHolder.set(null);
             logger.log(Level.INFO, "SpiffeCredentialManager closed");
         }
     }

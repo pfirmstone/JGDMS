@@ -288,7 +288,13 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	/*
 	 * Fail early, not a security risk, as it doesn't provide any information
 	 * about the logged in Subject, as there isn't one.
+	 *
+	 * Fall back to the process-wide SPIFFE Subject registered by
+	 * SpiffeCredentialManager.start() when no Subject.doAs() wraps the
+	 * current call stack.
 	 */
+	if (clientSubject == null)
+	    clientSubject = SpiffeSubjectHolder.get();
 	if (clientSubject == null) 
 	    throw new UnsupportedConstraintException(
 			    "Client must be logged on and caller must do as");
