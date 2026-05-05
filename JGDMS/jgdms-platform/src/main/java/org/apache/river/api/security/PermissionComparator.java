@@ -161,7 +161,7 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
 		    if (comparison != 0) return comparison;
 		}
 	    }
-	    return -1;
+	    return 0;
 	}
         String name1 = o1.getName();
         String name2 = o2.getName();
