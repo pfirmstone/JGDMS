@@ -91,7 +91,7 @@ public class DefaultPolicyParser implements PolicyParser {
     // Delay logging until after the policy and security manager are constructed.
     protected final ExecutorService logExec;
     // Pluggable scanner for a specific file format
-    private final DefaultPolicyScanner scanner;
+    protected final DefaultPolicyScanner scanner;
 
     /** 
      * Default constructor, 
