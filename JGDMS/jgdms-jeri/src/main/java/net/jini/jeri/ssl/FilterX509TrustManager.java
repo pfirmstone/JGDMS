@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509TrustManager;
+import javax.security.auth.x500.X500Principal;
 import net.jini.security.Security;
 
 /**

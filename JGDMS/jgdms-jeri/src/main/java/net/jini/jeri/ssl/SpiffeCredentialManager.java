@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -677,8 +677,10 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         X500PrivateCredential privateCredential =
                 new X500PrivateCredential(leaf, svid.privateKey);
 
-        // Build the set of principals derived from this SVID.
-        Set<Principal> newPrincipals = new HashSet<>();
+        // Build the set of principals derived from this SVID, preserving
+        // insertion order (X500Principal first, then SpiffePrincipals in
+        // SAN order) so that iteration order is stable across rotations.
+        Set<Principal> newPrincipals = new LinkedHashSet<>();
         newPrincipals.add(leaf.getSubjectX500Principal());
         newPrincipals.addAll(SpiffePrincipal.fromCertificate(leaf));
 
