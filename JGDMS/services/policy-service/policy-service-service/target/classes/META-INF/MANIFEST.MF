@@ -1,0 +1,30 @@
+Manifest-Version: 1.0
+Bnd-LastModified: 1778007383490
+Bundle-Description: Infrastructure for providing secured micro service
+ s, that are dynamically discoverable and searchable over ipv6 network
+ s.
+Bundle-Developers: peter_firmstone;name="Peter Firmstone";roles=Develo
+ per;timezone="+10"
+Bundle-DocURL: https://pfirmstone.github.io/JGDMS/services/policy-serv
+ ice/policy-service-service/
+Bundle-License: "Apache Software License 2.0";link="http://www.apache.
+ org/licenses/LICENSE-2.0.txt"
+Bundle-ManifestVersion: 2
+Bundle-Name: Module :: Policy Service Implementation
+Bundle-SCM: url="https://github.com/pfirmstone/JGDMS/services/policy-s
+ ervice/policy-service-service",connection="scm:git:git://github.com/p
+ firmstone/JGDMS.git/services/policy-service/policy-service-service",d
+ eveloper-connection="scm:git:git@github.com:pfirmstone/JGDMS.git/serv
+ ices/policy-service/policy-service-service",tag="jgdms-3.1.0"
+Bundle-SymbolicName: policy-service-service
+Bundle-Version: 3.1.1.202605051856
+Created-By: 17.0.18 (Eclipse Adoptium)
+Import-Package: au.net.zeus.jgdms.policy.proxy,au.net.zeus.jgdms.proxy
+ ,au.net.zeus.jgdms.service.support,net.jini.activation.arg,net.jini.c
+ onfig,net.jini.core.event,net.jini.core.lease,net.jini.id,net.jini.io
+ ,net.jini.security,org.apache.river.api.security,org.apache.river.con
+ stants,org.apache.river.start.lifecycle,org.apache.river.thread
+Private-Package: au.net.zeus.jgdms.policy
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=1.8))"
+Tool: Bnd-6.4.0.202211291949
+
