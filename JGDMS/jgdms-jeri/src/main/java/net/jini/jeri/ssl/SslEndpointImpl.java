@@ -315,7 +315,9 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	     */
 	    synchronized (clientSubject.getPrincipals()) {
 		clientPrincipals =
-		    clientSubject.getPrincipals(X500Principal.class);
+		    new HashSet(clientSubject.getPrincipals(X500Principal.class));
+		clientPrincipals.addAll(
+		    clientSubject.getPrincipals(SpiffePrincipal.class));
 	    }
 	    
 	    if (clientPrincipals.isEmpty()) {
@@ -694,6 +696,16 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 			publicCreds.put(p, certs);
 		    }
 		    certs.add(cert);
+		}
+		// Also index by SpiffePrincipal (URI SAN) so that constraints
+		// expressed as SpiffePrincipal can locate the certificate.
+		for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(cert)) {
+		    Collection spiffeCerts = (Collection) publicCreds.get(sp);
+		    if (spiffeCerts == null) {
+			spiffeCerts = new ArrayList(1);
+			publicCreds.put(sp, spiffeCerts);
+		    }
+		    spiffeCerts.add(cert);
 		}
 	    }
 	}

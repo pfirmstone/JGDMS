@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -652,18 +652,35 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     /**
      * Replaces the SVID credentials in the managed {@link Subject}.
      *
-     * <p>Operations on the Subject's public and private credential sets are
-     * synchronised on the Subject so that concurrent JERI SSL handshakes
-     * observe a consistent state — either the old credentials or the new
-     * ones, never a mixture.
+     * <p>Operations on the Subject's principal, public, and private credential
+     * sets are synchronised on the Subject so that concurrent JERI SSL
+     * handshakes observe a consistent state — either the old credentials or
+     * the new ones, never a mixture.
+     *
+     * <p>In addition to the credential sets, this method maintains the
+     * Subject's principal set:
+     * <ul>
+     *   <li>The {@link X500Principal} derived from the SVID leaf certificate's
+     *       Subject DN is added, enabling the existing JERI credential-
+     *       selection machinery ({@link SubjectCredentials#getPrincipal}) to
+     *       locate the certificate.</li>
+     *   <li>The {@link SpiffePrincipal} derived from the SVID's URI Subject
+     *       Alternative Name (if present) is added, enabling constraint
+     *       matching via {@link net.jini.core.constraint.ClientMinPrincipal}
+     *       and {@link net.jini.core.constraint.ServerMinPrincipal}.</li>
+     * </ul>
+     * <p>Previously managed principals are removed before the new ones are
+     * added, so that stale identities from a rotated SVID do not persist.
      */
     private void updateSubjectCredentials(Svid svid) {
         X509Certificate leaf = svid.leafCertificate();
         X500PrivateCredential privateCredential =
                 new X500PrivateCredential(leaf, svid.privateKey);
 
-        // Build the set of principals derived from this SVID.
-        Set<Principal> newPrincipals = new HashSet<>();
+        // Build the set of principals derived from this SVID, preserving
+        // insertion order (X500Principal first, then SpiffePrincipals in
+        // SAN order) so that iteration order is stable across rotations.
+        Set<Principal> newPrincipals = new LinkedHashSet<>();
         newPrincipals.add(leaf.getSubjectX500Principal());
         newPrincipals.addAll(SpiffePrincipal.fromCertificate(leaf));
 

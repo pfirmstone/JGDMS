@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509TrustManager;
+import javax.security.auth.x500.X500Principal;
 import net.jini.security.Security;
 
 /**
@@ -164,15 +165,19 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
 
     /**
      * Make sure the subject of the leaf certificate is one of the permitted
-     * principals.
+     * principals.  Matches against both {@link X500Principal} (via Subject DN)
+     * and {@link SpiffePrincipal} (via URI Subject Alternative Name).
      */
     private void check(X509Certificate[] chain) throws CertificateException {
-	Object principal = chain[0].getSubjectX500Principal();
+	X500Principal x500 = chain[0].getSubjectX500Principal();
 	synchronized(principals){
-	    if (!principals.isEmpty() && !principals.contains(principal))
-	    {
-		throw new CertificateException("Remote principal is not trusted");
+	    if (principals.isEmpty()) return;
+	    if (principals.contains(x500)) return;
+	    // Check URI SANs against any SpiffePrincipal entries.
+	    for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(chain[0])) {
+		if (principals.contains(sp)) return;
 	    }
+	    throw new CertificateException("Remote principal is not trusted");
 	}
     }
 
