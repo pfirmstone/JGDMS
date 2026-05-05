@@ -145,6 +145,23 @@ public final class SpiffeCredentialManager implements AutoCloseable {
      */
     private Set<Principal> managedPrincipals = Collections.emptySet();
 
+    /**
+     * The {@link CertPath} most recently added to the Subject's public
+     * credentials by this manager.  Tracked by reference so it can be removed
+     * without relying on {@link java.util.Set#clear()} on the typed filtered
+     * view (which is a no-op on JDK 17+).
+     * Guarded by synchronization on {@link #subject}.
+     */
+    private CertPath managedCertPath;
+
+    /**
+     * The {@link X500PrivateCredential} most recently added to the Subject's
+     * private credentials by this manager.  Tracked by reference for the same
+     * reason as {@link #managedCertPath}.
+     * Guarded by synchronization on {@link #subject}.
+     */
+    private X500PrivateCredential managedPrivateCredential;
+
     // -------------------------------------------------------------------------
     // SvidSource SPI
     // -------------------------------------------------------------------------
@@ -650,21 +667,36 @@ public final class SpiffeCredentialManager implements AutoCloseable {
 
         synchronized (subject) {
             // Remove credentials and principals added by the previous SVID.
-            subject.getPublicCredentials(CertPath.class).clear();
-            subject.getPrivateCredentials(X500PrivateCredential.class).clear();
+            // Use reference-based removal on the untyped Set: the typed filtered
+            // view's clear() method is a no-op on JDK 17+.
+            if (managedCertPath != null) {
+                subject.getPublicCredentials().remove(managedCertPath);
+            }
+            if (managedPrivateCredential != null) {
+                subject.getPrivateCredentials().remove(managedPrivateCredential);
+            }
             subject.getPrincipals().removeAll(managedPrincipals);
 
             subject.getPublicCredentials().add(svid.certPath);
             subject.getPrivateCredentials().add(privateCredential);
             subject.getPrincipals().addAll(newPrincipals);
-            managedPrincipals = newPrincipals;
+
+            managedCertPath          = svid.certPath;
+            managedPrivateCredential = privateCredential;
+            managedPrincipals        = newPrincipals;
         }
     }
 
     private void clearSubjectCredentials() {
         synchronized (subject) {
-            subject.getPublicCredentials(CertPath.class).clear();
-            subject.getPrivateCredentials(X500PrivateCredential.class).clear();
+            if (managedCertPath != null) {
+                subject.getPublicCredentials().remove(managedCertPath);
+                managedCertPath = null;
+            }
+            if (managedPrivateCredential != null) {
+                subject.getPrivateCredentials().remove(managedPrivateCredential);
+                managedPrivateCredential = null;
+            }
             subject.getPrincipals().removeAll(managedPrincipals);
             managedPrincipals = Collections.emptySet();
         }
