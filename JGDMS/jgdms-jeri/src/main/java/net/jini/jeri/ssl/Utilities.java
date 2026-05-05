@@ -460,7 +460,7 @@ abstract class Utilities
 	Set result = new HashSet(principals.size());
 	for (Iterator i = principals.iterator(); i.hasNext(); ) {
 	    Object elt = i.next();
-	    if (elt instanceof X500Principal) {
+	    if (elt instanceof X500Principal || elt instanceof SpiffePrincipal) {
 		result.add(elt);
 	    }
 	}

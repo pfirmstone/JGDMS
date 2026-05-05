@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
+import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateFactory;
@@ -32,7 +33,9 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -41,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
+import javax.security.auth.x500.X500Principal;
 import javax.security.auth.x500.X500PrivateCredential;
 
 /**
@@ -131,6 +135,13 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     private final ScheduledExecutorService scheduler;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private volatile ScheduledFuture<?> scheduledTask;
+
+    /**
+     * The {@link X500Principal} and {@link SpiffePrincipal} instances most
+     * recently added to {@link #subject}'s principal set by this manager.
+     * Guarded by {@code subject}.
+     */
+    private final Set<Principal> managedPrincipals = new HashSet<Principal>();
 
     // -------------------------------------------------------------------------
     // SvidSource SPI
@@ -620,23 +631,53 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     /**
      * Replaces the SVID credentials in the managed {@link Subject}.
      *
-     * <p>Operations on the Subject's public and private credential sets are
-     * synchronised on the Subject so that concurrent JERI SSL handshakes
-     * observe a consistent state — either the old credentials or the new
-     * ones, never a mixture.
+     * <p>Operations on the Subject's principal, public, and private credential
+     * sets are synchronised on the Subject so that concurrent JERI SSL
+     * handshakes observe a consistent state — either the old credentials or
+     * the new ones, never a mixture.
+     *
+     * <p>In addition to the credential sets, this method maintains the
+     * Subject's principal set:
+     * <ul>
+     *   <li>The {@link X500Principal} derived from the SVID leaf certificate's
+     *       Subject DN is added, enabling the existing JERI credential-
+     *       selection machinery ({@link SubjectCredentials#getPrincipal}) to
+     *       locate the certificate.</li>
+     *   <li>The {@link SpiffePrincipal} derived from the SVID's URI Subject
+     *       Alternative Name (if present) is added, enabling constraint
+     *       matching via {@link net.jini.core.constraint.ClientMinPrincipal}
+     *       and {@link net.jini.core.constraint.ServerMinPrincipal}.</li>
+     * </ul>
+     * <p>Previously managed principals are removed before the new ones are
+     * added, so that stale identities from a rotated SVID do not persist.
      */
     private void updateSubjectCredentials(Svid svid) {
         X509Certificate leaf = svid.leafCertificate();
         X500PrivateCredential privateCredential =
                 new X500PrivateCredential(leaf, svid.privateKey);
 
+        X500Principal x500 = leaf.getSubjectX500Principal();
+        SpiffePrincipal spiffe = SpiffePrincipal.fromCertificate(leaf);
+
         synchronized (subject) {
+            // Remove previously managed principals before adding the new ones.
+            subject.getPrincipals().removeAll(managedPrincipals);
+            managedPrincipals.clear();
+
             // Remove any existing SVID credentials before adding new ones.
             subject.getPublicCredentials(CertPath.class).clear();
             subject.getPrivateCredentials(X500PrivateCredential.class).clear();
 
             subject.getPublicCredentials().add(svid.certPath);
             subject.getPrivateCredentials().add(privateCredential);
+
+            // Add principals derived from the new SVID.
+            subject.getPrincipals().add(x500);
+            managedPrincipals.add(x500);
+            if (spiffe != null) {
+                subject.getPrincipals().add(spiffe);
+                managedPrincipals.add(spiffe);
+            }
         }
     }
 
@@ -644,6 +685,8 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         synchronized (subject) {
             subject.getPublicCredentials(CertPath.class).clear();
             subject.getPrivateCredentials(X500PrivateCredential.class).clear();
+            subject.getPrincipals().removeAll(managedPrincipals);
+            managedPrincipals.clear();
         }
     }
 
