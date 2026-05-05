@@ -15,149 +15,162 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package net.jini.jeri.ssl;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.security.Principal;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * A {@link Principal} whose name is a
- * <a href="https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE-ID.md">SPIFFE ID</a>
- * URI (e.g. {@code spiffe://trust-domain/path}).
+ * A {@link Principal} representing a SPIFFE workload identity, identified by
+ * a SPIFFE ID URI of the form {@code spiffe://<trust-domain>/<path>}.
  *
- * <h2>Usage in Jini Configuration</h2>
- * <p>A deployer using {@link net.jini.jeri.ssl.SslServerEndpoint} can refer to
- * SPIFFE-authenticated services in the source for a
- * {@link net.jini.config.ConfigurationFile}:
+ * <p>SPIFFE IDs are carried as URI SubjectAlternativeNames (type 6) in the
+ * leaf certificate of an X.509 SVID (SPIFFE Verifiable Identity Document).
+ * This class provides a typed Java principal for use in:
+ * <ul>
+ *   <li>JGDMS {@link javax.security.auth.Subject} principal sets, populated
+ *       by {@link SpiffeCredentialManager} when loading SVIDs.</li>
+ *   <li>Java security policy {@code principal} clauses:
+ *       {@code grant principal net.jini.jeri.ssl.SpiffePrincipal
+ *       "spiffe://example.org/svc/name" { ... }}.</li>
+ *   <li>JERI constraint {@link net.jini.core.constraint.ServerMinPrincipal}
+ *       and {@link net.jini.core.constraint.ClientMinPrincipal}.</li>
+ * </ul>
  *
+ * <h2>SPIFFE ID format</h2>
+ * <p>A SPIFFE ID is a URI in the form {@code spiffe://<trust-domain>/<path>}
+ * where {@code <trust-domain>} is a DNS name identifying the trust domain and
+ * {@code <path>} is a workload-specific path segment.  Example:
  * <pre>
- *  import net.jini.jeri.ssl.SpiffePrincipal;
- *  import net.jini.core.constraint.ServerMinPrincipal;
- *
- *  principal {
- *      static reggie = new SpiffePrincipal("spiffe://example.org/host/lookup");
- *      static tester = new SpiffePrincipal("spiffe://example.org/client/tester");
- *  }
- *
- *  org.apache.river.reggie {
- *      // LoginContext omitted: SpiffeCredentialManager is started at service boot
- *      private reggieConstraints = new StringMethodConstraints(
- *          new InvocationConstraints(
- *              new InvocationConstraint[] {
- *                  Integrity.YES,
- *                  ServerAuthentication.YES,
- *                  new ServerMinPrincipal(principal.reggie)
- *              }, null));
- *  }
+ *   spiffe://test.jgdms.local/svc/reggie
+ *   spiffe://jgdms.example.org/host/lookup
  * </pre>
  *
- * <h2>Thread safety</h2>
- * <p>Instances of this class are immutable and therefore safe for concurrent
- * use by multiple threads.
+ * <h2>Serialization</h2>
+ * <p>{@code SpiffePrincipal} is serializable for use in distributed policy
+ * decisions.  Deserialization validates the SPIFFE ID format.
  *
- * @since JGDMS 3.1
  * @see SpiffeCredentialManager
+ * @see SpiffeLoginModule
+ * @since 3.1.1
+ * @author Peter Firmstone
+ * @author GitHub Copilot
  */
 public final class SpiffePrincipal implements Principal, Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** The SPIFFE URI scheme prefix. */
-    private static final String SPIFFE_SCHEME = "spiffe://";
-
-    /** The X.509 Subject Alternative Name type value for URI entries. */
-    private static final int URI_SAN_TYPE = 6;
-
-    /** The SPIFFE ID URI, e.g. {@code spiffe://trust-domain/path}. */
-    private final String uri;
+    /** The SPIFFE ID URI, e.g. {@code spiffe://example.org/svc/name}. */
+    private final String spiffeId;
 
     /**
-     * Creates a {@code SpiffePrincipal} with the given SPIFFE ID URI.
+     * Creates a {@code SpiffePrincipal} for the given SPIFFE ID.
      *
-     * @param uri the SPIFFE ID URI; must be non-null and start with
-     *            {@code spiffe://}
-     * @throws NullPointerException     if {@code uri} is {@code null}
-     * @throws IllegalArgumentException if {@code uri} does not start with
+     * @param spiffeId the SPIFFE ID URI; must start with {@code spiffe://}
+     * @throws NullPointerException     if {@code spiffeId} is null
+     * @throws IllegalArgumentException if {@code spiffeId} does not start with
      *                                  {@code spiffe://}
      */
-    public SpiffePrincipal(String uri) {
-        if (uri == null) throw new NullPointerException("uri");
-        if (!uri.startsWith(SPIFFE_SCHEME))
+    public SpiffePrincipal(String spiffeId) {
+        if (spiffeId == null)
+            throw new NullPointerException("spiffeId must not be null");
+        if (!spiffeId.startsWith("spiffe://"))
             throw new IllegalArgumentException(
-                    "SPIFFE ID URI must start with \"spiffe://\": " + uri);
-        this.uri = uri;
+                    "SPIFFE ID must start with 'spiffe://': " + spiffeId);
+        this.spiffeId = spiffeId;
     }
 
     /**
-     * Returns the SPIFFE ID URI, e.g. {@code spiffe://trust-domain/path}.
+     * Returns the SPIFFE ID URI.
      *
-     * @return the SPIFFE ID URI; never {@code null}
+     * @return the SPIFFE ID; never {@code null}
      */
     @Override
     public String getName() {
-        return uri;
+        return spiffeId;
     }
 
     /**
-     * Attempts to extract a {@code SpiffePrincipal} from the URI Subject
-     * Alternative Name extension of an X.509 certificate.
-     *
-     * <p>Returns the first URI SAN whose value starts with {@code spiffe://},
-     * or {@code null} if the certificate contains no such SAN.
-     *
-     * @param cert the X.509 certificate to inspect; must be non-null
-     * @return the extracted {@code SpiffePrincipal}, or {@code null}
-     */
-    static SpiffePrincipal fromCertificate(X509Certificate cert) {
-        Collection<List<?>> sans;
-        try {
-            sans = cert.getSubjectAlternativeNames();
-        } catch (java.security.cert.CertificateParsingException e) {
-            return null;
-        }
-        if (sans == null) return null;
-        for (List<?> san : sans) {
-            if (san.size() < 2) continue;
-            Object typeObj = san.get(0);
-            if (!(typeObj instanceof Integer)) continue;
-            if ((Integer) typeObj != URI_SAN_TYPE) continue;
-            Object value = san.get(1);
-            if (value instanceof String) {
-                String candidate = (String) value;
-                if (candidate.startsWith(SPIFFE_SCHEME)) {
-                    return new SpiffePrincipal(candidate);
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Returns {@code true} if {@code obj} is a {@code SpiffePrincipal} whose
-     * URI equals this principal's URI (case-sensitive).
+     * Returns {@code true} if {@code obj} is a {@code SpiffePrincipal} with
+     * the same SPIFFE ID URI.
      */
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (!(obj instanceof SpiffePrincipal)) return false;
-        return uri.equals(((SpiffePrincipal) obj).uri);
+        return spiffeId.equals(((SpiffePrincipal) obj).spiffeId);
     }
 
     @Override
     public int hashCode() {
-        return uri.hashCode();
+        return spiffeId.hashCode();
     }
 
     /**
-     * Returns a string representation of this principal, including the class
-     * name and SPIFFE URI.
+     * Returns a string of the form {@code SpiffePrincipal(spiffe://...)}.
      */
     @Override
     public String toString() {
-        return "SpiffePrincipal[" + uri + "]";
+        return "SpiffePrincipal(" + spiffeId + ")";
+    }
+
+    private void readObject(ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        if (spiffeId == null)
+            throw new IOException("spiffeId must not be null");
+        if (!spiffeId.startsWith("spiffe://"))
+            throw new IOException(
+                    "Invalid SPIFFE ID on deserialization: " + spiffeId);
+    }
+
+    /**
+     * Extracts SPIFFE IDs from the URI SubjectAlternativeNames of the given
+     * X.509 certificate and returns them as {@code SpiffePrincipal} instances.
+     *
+     * <p>Per the SPIFFE X.509-SVID specification, a valid SVID leaf contains
+     * exactly one URI SAN with the {@code spiffe://} scheme.  This method
+     * returns all URI SANs that start with {@code spiffe://}, which may be
+     * zero or more.
+     *
+     * @param cert the X.509 certificate to inspect; must be non-null
+     * @return unmodifiable list of {@code SpiffePrincipal} objects, one per
+     *         {@code spiffe://} URI SAN; empty if none are present
+     * @throws NullPointerException     if {@code cert} is null
+     * @throws IllegalArgumentException if the SAN extension cannot be parsed
+     */
+    public static List<SpiffePrincipal> fromCertificate(X509Certificate cert) {
+        if (cert == null) throw new NullPointerException("cert must not be null");
+        List<SpiffePrincipal> result = new ArrayList<>();
+        Collection<List<?>> sans;
+        try {
+            sans = cert.getSubjectAlternativeNames();
+        } catch (CertificateParsingException e) {
+            throw new IllegalArgumentException(
+                    "Cannot parse SubjectAlternativeNames from certificate: "
+                    + cert.getSubjectX500Principal(), e);
+        }
+        if (sans == null) return Collections.unmodifiableList(result);
+        for (List<?> san : sans) {
+            // SAN type 6 = uniformResourceIdentifier
+            if (san.size() >= 2 && Integer.valueOf(6).equals(san.get(0))) {
+                Object value = san.get(1);
+                if (value instanceof String) {
+                    String uri = (String) value;
+                    if (uri.startsWith("spiffe://")) {
+                        result.add(new SpiffePrincipal(uri));
+                    }
+                }
+            }
+        }
+        return Collections.unmodifiableList(result);
     }
 }

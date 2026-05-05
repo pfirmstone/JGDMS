@@ -333,8 +333,10 @@ abstract class AuthManager extends FilterX509TrustManager
     private static boolean permittedViaSan(Set permittedLocalPrincipals,
 					   X509Certificate cert)
     {
-	SpiffePrincipal spiffe = SpiffePrincipal.fromCertificate(cert);
-	return spiffe != null && permittedLocalPrincipals.contains(spiffe);
+	for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(cert)) {
+	    if (permittedLocalPrincipals.contains(sp)) return true;
+	}
+	return false;
     }
 
     /**

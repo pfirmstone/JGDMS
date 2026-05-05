@@ -32,6 +32,7 @@ import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -137,11 +138,29 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     private volatile ScheduledFuture<?> scheduledTask;
 
     /**
-     * The {@link X500Principal} and {@link SpiffePrincipal} instances most
-     * recently added to {@link #subject}'s principal set by this manager.
-     * Guarded by {@code subject}.
+     * The set of {@link Principal} objects most recently added to the Subject
+     * by this manager (X500Principal + SpiffePrincipal from the SVID leaf).
+     * Tracked so they can be removed cleanly on SVID rotation or close.
+     * Guarded by synchronization on {@link #subject}.
      */
-    private final Set<Principal> managedPrincipals = new HashSet<Principal>();
+    private Set<Principal> managedPrincipals = Collections.emptySet();
+
+    /**
+     * The {@link CertPath} most recently added to the Subject's public
+     * credentials by this manager.  Tracked by reference so it can be removed
+     * without relying on {@link java.util.Set#clear()} on the typed filtered
+     * view (which is a no-op on JDK 17+).
+     * Guarded by synchronization on {@link #subject}.
+     */
+    private CertPath managedCertPath;
+
+    /**
+     * The {@link X500PrivateCredential} most recently added to the Subject's
+     * private credentials by this manager.  Tracked by reference for the same
+     * reason as {@link #managedCertPath}.
+     * Guarded by synchronization on {@link #subject}.
+     */
+    private X500PrivateCredential managedPrivateCredential;
 
     // -------------------------------------------------------------------------
     // SvidSource SPI
@@ -581,6 +600,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
             throw new IllegalStateException("SpiffeCredentialManager is closed");
         Svid svid = svidSource.fetch();
         updateSubjectCredentials(svid);
+        SpiffeSubjectHolder.set(subject);
         scheduleRenewal(svid);
         logger.log(Level.INFO, "SpiffeCredentialManager started; SVID expires at {0}",
                 svid.leafCertificate().getNotAfter());
@@ -620,6 +640,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         if (closed.compareAndSet(false, true)) {
             scheduler.shutdownNow();
             clearSubjectCredentials();
+            SpiffeSubjectHolder.set(null);
             logger.log(Level.INFO, "SpiffeCredentialManager closed");
         }
     }
@@ -656,37 +677,45 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         X500PrivateCredential privateCredential =
                 new X500PrivateCredential(leaf, svid.privateKey);
 
-        X500Principal x500 = leaf.getSubjectX500Principal();
-        SpiffePrincipal spiffe = SpiffePrincipal.fromCertificate(leaf);
+        // Build the set of principals derived from this SVID.
+        Set<Principal> newPrincipals = new HashSet<>();
+        newPrincipals.add(leaf.getSubjectX500Principal());
+        newPrincipals.addAll(SpiffePrincipal.fromCertificate(leaf));
 
         synchronized (subject) {
-            // Remove previously managed principals before adding the new ones.
+            // Remove credentials and principals added by the previous SVID.
+            // Use reference-based removal on the untyped Set: the typed filtered
+            // view's clear() method is a no-op on JDK 17+.
+            if (managedCertPath != null) {
+                subject.getPublicCredentials().remove(managedCertPath);
+            }
+            if (managedPrivateCredential != null) {
+                subject.getPrivateCredentials().remove(managedPrivateCredential);
+            }
             subject.getPrincipals().removeAll(managedPrincipals);
-            managedPrincipals.clear();
-
-            // Remove any existing SVID credentials before adding new ones.
-            subject.getPublicCredentials(CertPath.class).clear();
-            subject.getPrivateCredentials(X500PrivateCredential.class).clear();
 
             subject.getPublicCredentials().add(svid.certPath);
             subject.getPrivateCredentials().add(privateCredential);
+            subject.getPrincipals().addAll(newPrincipals);
 
-            // Add principals derived from the new SVID.
-            subject.getPrincipals().add(x500);
-            managedPrincipals.add(x500);
-            if (spiffe != null) {
-                subject.getPrincipals().add(spiffe);
-                managedPrincipals.add(spiffe);
-            }
+            managedCertPath          = svid.certPath;
+            managedPrivateCredential = privateCredential;
+            managedPrincipals        = newPrincipals;
         }
     }
 
     private void clearSubjectCredentials() {
         synchronized (subject) {
-            subject.getPublicCredentials(CertPath.class).clear();
-            subject.getPrivateCredentials(X500PrivateCredential.class).clear();
+            if (managedCertPath != null) {
+                subject.getPublicCredentials().remove(managedCertPath);
+                managedCertPath = null;
+            }
+            if (managedPrivateCredential != null) {
+                subject.getPrivateCredentials().remove(managedPrivateCredential);
+                managedPrivateCredential = null;
+            }
             subject.getPrincipals().removeAll(managedPrincipals);
-            managedPrincipals.clear();
+            managedPrincipals = Collections.emptySet();
         }
     }
 

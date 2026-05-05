@@ -173,8 +173,9 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
 	    if (principals.isEmpty()) return;
 	    if (principals.contains(x500)) return;
 	    // Check URI SANs against any SpiffePrincipal entries.
-	    SpiffePrincipal spiffe = SpiffePrincipal.fromCertificate(chain[0]);
-	    if (spiffe != null && principals.contains(spiffe)) return;
+	    for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(chain[0])) {
+		if (principals.contains(sp)) return;
+	    }
 	    throw new CertificateException("Remote principal is not trusted");
 	}
     }
