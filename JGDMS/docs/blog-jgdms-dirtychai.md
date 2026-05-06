@@ -12,8 +12,8 @@ take a different path. They embed security deep into the infrastructure itself �
 the serialization mechanism, the policy engine, and the codebase loading pipeline — while
 simultaneously delivering the performance and scalability needed for production distributed systems.
 
-Improvements made by OpenJDK, such as TLSv1.3, Virtual threads, JPMS Modules and ScopedObject's have opened 
-up opportunites to significantly improve support for high performance security infrastructure.  Innovation happens
+Improvements made by OpenJDK, such as TLSv1.3, Virtual threads, JPMS Modules and ScopedValues have opened
+up opportunities to significantly improve support for high performance security infrastructure. Innovation happens
 elsewhere too, such as SPIFFE|SPIRE.
 
 **DirtyChai** Scales vertically, **JGDMS** Scales horizontally.
@@ -121,12 +121,22 @@ JGDMS distinguishes clearly between two kinds of JAAS `Subject`:
 
 **User Subject** — represents a human user authenticated at login time. The user's client JVM
 performs a JAAS login (e.g., Kerberos, X.509 certificate, or username/password) and wraps the
-result in a `Subject` containing that user's `Principal` set and credentials. All outbound remote
-calls made inside a `Subject.doAs(userSubject, ...)` block carry this identity: the constraint
-system uses it to select the right client certificate and to satisfy `ClientAuthentication.YES`
-requirements. The server sees the authenticated user `Principal` on its dispatch thread and can
-make fine-grained authorization decisions against it — for example, permitting a `Principal` with
-role `"auditor"` to read but not write.
+result in a `Subject` containing that user's `Principal` set and credentials.
+
+On JDK 18+ (and DirtyChai), user identity is established via `Subject.callAs(userSubject, callable)`,
+which binds the user Subject to the thread's `ScopedValue` for the duration of the callable.
+JGDMS's JERI layer reads this via `Subject.current()` and transmits the user's `Principal` set to
+the server in JERI wire protocol version 0x02 — an in-band channel that is distinct from and
+independent of the TLS handshake. On the server side, the dispatcher merges the received user
+principals into the server context, where service code can inspect both *which process* is calling
+(from the TLS certificate) and *which human* is acting (from the transmitted user principals).
+
+DirtyChai enforces a strict separation: `Subject.callAs()` (user identity) and
+`Subject.doAs()`/`Subject.doAsPrivileged()` (worker/TLS identity) use completely independent
+channels. `Subject.current()` returns only what was explicitly bound via `callAs` — it never falls
+back to the `AccessControlContext`. This separation prevents worker credentials from accidentally
+appearing in user-principal checks and ensures that the server can trust which principals came from
+TLS mutual authentication and which came from the human user session.
 
 **Process Worker Subject** — represents the JVM process itself, not any particular end user. With
 SPIFFE/SPIRE, `SpiffeCredentialManager` populates a process-wide `Subject` held in
