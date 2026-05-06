@@ -134,7 +134,8 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     private final SvidSource svidSource;
     private final long renewalLeadSeconds;
     private final ScheduledExecutorService scheduler;
-    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean closed  = new AtomicBoolean(false);
+    private final AtomicBoolean started = new AtomicBoolean(false);
     private volatile ScheduledFuture<?> scheduledTask;
 
     /**
@@ -378,8 +379,8 @@ public final class SpiffeCredentialManager implements AutoCloseable {
                                         .generatePrivate(new PKCS8EncodedKeySpec(der));
                             } catch (GeneralSecurityException e) {
                                 logger.log(Level.FINE,
-                                        "KeyFactory {0} rejected PKCS#8 key",
-                                        svc.getAlgorithm());
+                                        "KeyFactory {0} rejected PKCS#8 key: {1}",
+                                        new Object[]{svc.getAlgorithm(), e.getMessage()});
                             }
                         }
                     }
@@ -388,22 +389,16 @@ public final class SpiffeCredentialManager implements AutoCloseable {
                         "Cannot load PKCS#8 key from " + svidKeyPem);
 
             } else if (pem.contains(BEGIN_EC_KEY)) {
-                // SEC 1 EC private key — wrap in PKCS#8 envelope
-                byte[] sec1 = decodePemBlock(pem, BEGIN_EC_KEY, END_EC_KEY);
-                // SEC 1 DER → PKCS#8 wrapper using Java's ECKeyFactory
-                // Note: Java's EC KeyFactory accepts SEC1 DER directly via
-                // PKCS8EncodedKeySpec only in some JVMs.  Use a brute-force
-                // approach: try raw PKCS8EncodedKeySpec first, then fail with
-                // a helpful message.
-                try {
-                    return KeyFactory.getInstance(EC_KEY_ALGORITHM)
-                            .generatePrivate(new PKCS8EncodedKeySpec(sec1));
-                } catch (GeneralSecurityException e) {
-                    throw new GeneralSecurityException(
-                            "Cannot load EC private key from " + svidKeyPem
-                            + ": use PKCS#8 format (BEGIN PRIVATE KEY) for "
-                            + "maximum compatibility", e);
-                }
+                // SEC1 / "BEGIN EC PRIVATE KEY" format.  Java's KeyFactory
+                // for EC does not accept raw SEC1 DER via PKCS8EncodedKeySpec;
+                // it requires a PKCS#8 PrivateKeyInfo envelope.  Rather than
+                // silently producing a corrupt key, fail immediately with an
+                // actionable message.
+                throw new GeneralSecurityException(
+                        "Found legacy SEC1 EC private key (BEGIN EC PRIVATE KEY) in "
+                        + svidKeyPem + ". Java's EC KeyFactory requires PKCS#8 format"
+                        + " (BEGIN PRIVATE KEY). Convert with: openssl pkcs8 -topk8"
+                        + " -nocrypt -in svid_key.pem -out svid_key_pkcs8.pem");
 
             } else if (pem.contains(BEGIN_RSA_KEY)) {
                 // PKCS#1 RSA private key — re-wrap in PKCS#8 envelope
@@ -434,6 +429,10 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         /**
          * Strips the PEM header/footer from a single-block PEM string and
          * decodes the base64 content.
+         *
+         * <p>Only the <em>first</em> occurrence of {@code header} in
+         * {@code pem} is decoded.  If a file erroneously contains multiple
+         * blocks with the same header, only the first is used.
          */
         static byte[] decodePemBlock(String pem, String header, String footer) {
             int begin = pem.indexOf(header);
@@ -466,6 +465,12 @@ public final class SpiffeCredentialManager implements AutoCloseable {
          *   OCTET_STRING { &lt;pkcs1DER&gt; }
          * }
          * </pre>
+         *
+         * <p><b>Size limit:</b> {@link #encodeLength} encodes lengths up to
+         * 65535 bytes using the two-byte definite DER form.  RSA-4096 PKCS#1
+         * keys are approximately 2.3 KB in DER form, well within this limit.
+         * Keys larger than 65535 bytes are not produced by any standard JDK
+         * key-pair generator and are not expected in practice.
          *
          * @param pkcs1 PKCS#1 RSA private key DER bytes
          * @return PKCS#8 {@code PrivateKeyInfo} DER bytes ready for
@@ -588,16 +593,37 @@ public final class SpiffeCredentialManager implements AutoCloseable {
      * Performs an initial synchronous SVID load and starts the background
      * renewal scheduler.
      *
-     * <p>This method must be called once after construction.  It blocks until
-     * the first successful SVID load.
+     * <p>This method must be called exactly once after construction.
+     * It blocks until the first successful SVID load.
+     *
+     * <p><b>One SVID per JVM:</b> SPIFFE maps one SVID to one process.  Only a
+     * single {@code SpiffeCredentialManager} may be active per JVM at any time.
+     * Calling {@code start()} a second time — whether on this instance or by
+     * starting a second manager while this one is still active — is rejected
+     * with a {@link IllegalStateException} and a WARNING log entry.  This
+     * mirrors the SPIFFE workload-identity model: each JVM/process corresponds
+     * to exactly one workload identity.
+     *
+     * <p>Calling {@code start()} concurrently with {@link #close()} is not
+     * safe; external synchronisation is required if these lifecycle methods
+     * may be invoked from different threads.
      *
      * @throws IOException              if the initial SVID load fails
      * @throws GeneralSecurityException if the initial SVID cannot be parsed
-     * @throws IllegalStateException    if this manager has been closed
+     * @throws IllegalStateException    if this manager has already been started
+     *                                  or has been closed
      */
     public void start() throws IOException, GeneralSecurityException {
         if (closed.get())
             throw new IllegalStateException("SpiffeCredentialManager is closed");
+        if (!started.compareAndSet(false, true)) {
+            logger.warning("SpiffeCredentialManager.start() called more than once "
+                    + "on the same instance.  Each JVM maps to exactly one SPIFFE "
+                    + "workload identity; create a new manager if you need to change "
+                    + "the managed Subject.");
+            throw new IllegalStateException(
+                    "SpiffeCredentialManager has already been started");
+        }
         Svid svid = svidSource.fetch();
         updateSubjectCredentials(svid);
         SpiffeSubjectHolder.set(subject);
@@ -640,7 +666,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         if (closed.compareAndSet(false, true)) {
             scheduler.shutdownNow();
             clearSubjectCredentials();
-            SpiffeSubjectHolder.set(null);
+            SpiffeSubjectHolder.clear(subject);
             logger.log(Level.INFO, "SpiffeCredentialManager closed");
         }
     }

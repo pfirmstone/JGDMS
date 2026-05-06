@@ -43,6 +43,9 @@ import static org.junit.Assert.fail;
  */
 public class SpiffePrincipalTest {
 
+    /** Java Object Serialization stream tag for a short UTF-8 string. */
+    private static final byte TC_STRING = 0x74;
+
     // -----------------------------------------------------------------------
     // Construction
     // -----------------------------------------------------------------------
@@ -72,6 +75,12 @@ public class SpiffePrincipalTest {
     public void constructUpperCaseScheme() {
         // scheme matching is case-sensitive per the SPIFFE spec
         new SpiffePrincipal("SPIFFE://example.org/svc/foo");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void constructSchemeOnlyNoTrustDomain() {
+        // "spiffe://" with no trust domain must be rejected (issue #3)
+        new SpiffePrincipal("spiffe://");
     }
 
     // -----------------------------------------------------------------------
@@ -174,6 +183,42 @@ public class SpiffePrincipalTest {
         }
     }
 
+    @Test
+    public void deserializationRejectsEmptyTrustDomain() throws Exception {
+        // Build a serialized stream for SpiffePrincipal where spiffeId is
+        // exactly "spiffe://" (9 chars, empty trust domain).  Since the
+        // constructor rejects this value, we must craft the stream manually.
+        //
+        // Strategy: serialize SpiffePrincipal("spiffe://x") (10 chars), then
+        // use a variable-length byte replacement to shorten the TC_STRING
+        // in the stream from length-10 to length-9 by removing the trailing
+        // 'x' and decrementing the 2-byte length prefix.
+        SpiffePrincipal valid = new SpiffePrincipal("spiffe://x");
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(valid);
+        }
+        byte[] bytes = baos.toByteArray();
+
+        // In the serial stream, the spiffeId string is stored as:
+        //   TC_STRING (0x74) | 0x00 0x0a | "spiffe://x"
+        // We replace this with:
+        //   TC_STRING (0x74) | 0x00 0x09 | "spiffe://"
+        byte[] find    = concat(new byte[]{TC_STRING, 0x00, 0x0a},
+                "spiffe://x".getBytes("UTF-8"));
+        byte[] replace = concat(new byte[]{TC_STRING, 0x00, 0x09},
+                "spiffe://".getBytes("UTF-8"));
+        byte[] tampered = patchVariableLength(bytes, find, replace);
+
+        try (ObjectInputStream ois = new ObjectInputStream(
+                new ByteArrayInputStream(tampered))) {
+            ois.readObject();
+            fail("Expected IOException for SPIFFE ID with empty trust domain");
+        } catch (IOException e) {
+            // expected — readObject validates that trust domain is non-empty
+        }
+    }
+
     // -----------------------------------------------------------------------
     // fromCertificate
     // -----------------------------------------------------------------------
@@ -243,5 +288,34 @@ public class SpiffePrincipalTest {
             return result;
         }
         throw new IllegalStateException("Pattern not found in serialized bytes");
+    }
+
+    /**
+     * Replaces the first occurrence of {@code find} with {@code replace}
+     * (may be different lengths).
+     */
+    private static byte[] patchVariableLength(byte[] src, byte[] find,
+                                               byte[] replace) {
+        outer:
+        for (int i = 0; i <= src.length - find.length; i++) {
+            for (int j = 0; j < find.length; j++) {
+                if (src[i + j] != find[j]) continue outer;
+            }
+            byte[] result = new byte[src.length - find.length + replace.length];
+            System.arraycopy(src, 0, result, 0, i);
+            System.arraycopy(replace, 0, result, i, replace.length);
+            System.arraycopy(src, i + find.length, result,
+                    i + replace.length, src.length - i - find.length);
+            return result;
+        }
+        throw new IllegalStateException("Pattern not found in serialized bytes");
+    }
+
+    /** Concatenates two byte arrays. */
+    private static byte[] concat(byte[] a, byte[] b) {
+        byte[] result = new byte[a.length + b.length];
+        System.arraycopy(a, 0, result, 0, a.length);
+        System.arraycopy(b, 0, result, a.length, b.length);
+        return result;
     }
 }
