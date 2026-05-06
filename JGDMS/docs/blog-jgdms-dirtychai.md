@@ -24,7 +24,7 @@ elsewhere too, such as SPIFFE|SPIRE.
 
 **JGDMS** is a security-hardened fork of [Apache River](https://river.apache.org/) (née Jini), the Sun
 Microsystems framework for self-organizing, dynamically-discoverable distributed services. Where
-standard Java RMI stops at "call a remote method," Jini/JGDMS goes further: services announce
+RPC frameworks stop at "call a remote method," Jini/JGDMS goes further: services announce
 themselves on IPv6 networks, clients discover them by capability rather than by hard-wired address,
 and trust is established cryptographically before any code runs. SPIFFE provides universal identity
 control for process workflows.
