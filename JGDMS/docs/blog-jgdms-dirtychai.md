@@ -7,22 +7,29 @@ is, the harder it becomes to secure. Remote code loading, serialized objects cro
 boundaries, and third-party service proxies all expand the attack surface. Most platforms paper over
 these problems with network-level firewalls and hope for the best.
 
-**JGDMS** (*Java/Jini Global Distributed Micro Services*) and its companion JDK fork **DirtyChai**
+**JGDMS** (*Jini Global Distributed Micro Services*) and its companion OpenJDK fork **DirtyChai**
 take a different path. They embed security deep into the infrastructure itself — in the transport,
 the serialization mechanism, the policy engine, and the codebase loading pipeline — while
 simultaneously delivering the performance and scalability needed for production distributed systems.
+
+Improvements made by OpenJDK, such as TLSv1.3, Virtual threads, JPMS Modules and ScopedObject's have opened 
+up opportunites to significantly improve support for high performance security infrastructure.  Innovation happens
+elsewhere too, such as SPIFFE|SPIRE.
+
+**DirtyChai** Scales vertically, **JGDMS** Scales horizontally.
 
 ---
 
 ## What Is JGDMS?
 
-JGDMS is a security-hardened fork of [Apache River](https://river.apache.org/) (née Jini), the Sun
+**JGDMS** is a security-hardened fork of [Apache River](https://river.apache.org/) (née Jini), the Sun
 Microsystems framework for self-organizing, dynamically-discoverable distributed services. Where
 standard Java RMI stops at "call a remote method," Jini/JGDMS goes further: services announce
-themselves on the network, clients discover them by capability rather than by hard-wired address,
-and trust is established cryptographically before any code runs.
+themselves on IPv6 networks, clients discover them by capability rather than by hard-wired address,
+and trust is established cryptographically before any code runs. SPIFFE provides universal identity
+control for process workflows.
 
-JGDMS is described in its own project descriptor as:
+**JGDMS** is described in its own project descriptor as:
 
 > *"Infrastructure for providing secured micro services, that are dynamically discoverable and
 > searchable over IPv6 networks."*
@@ -44,7 +51,7 @@ Three pillars shape every design decision:
 
 JGDMS's authorization model depends on Java's `SecurityManager`, `AccessController`, and
 `ProtectionDomain` APIs — a fine-grained, code-source-and-principal-based permission system that
-Oracle deprecated in Java 17 and removed entirely in Java 24. Without these APIs, you cannot
+OpenJDK deprecated in Java 17 and removed entirely in Java 24. Without these APIs, you cannot
 restrict what code from a particular source can do once it is loaded.
 
 **DirtyChai** is a community fork of OpenJDK that restores, improves, and extends this
@@ -58,8 +65,9 @@ granted privileges. Its key design goals are:
 - Maintain and extend permission guard hooks
 - High performance and scalability
 - Community redesign of the Authorization API for potential inclusion in OpenJDK mainline
+- SpiffeX509TrustManager and SpiffeX509KeyManager - SPIFFE/SPIRE Zero Touch Certificate Management.
 
-DirtyChai completes what Oracle started and stopped. Running JGDMS on DirtyChai restores the full
+DirtyChai completes what Sun Microsystems and Bill Joy started. Running JGDMS on DirtyChai restores the full
 authorization semantics and lets the platform evolve beyond the Java 23 ceiling.
 
 ---
@@ -86,13 +94,13 @@ Any call that cannot satisfy its declared requirements throws `UnsupportedConstr
 convention.
 
 The SSL endpoint supports TLSv1.3 with X.509 certificates. Every server-side dispatch thread
-automatically carries the **fully-authenticated JAAS `Subject`** of the calling client for the
+automatically carries the **SPIFFE Worker `Subject`** of the calling client for the
 lifetime of the remote method invocation. Service implementations do not write authentication
 boilerplate — the infrastructure guarantees the authenticated identity is on the thread.
 
 ### SPIFFE/SPIRE: Zero-Touch Certificate Management
 
-In a fleet of services, long-lived keystores are a management and security liability. JGDMS
+In a fleet of services, long-lived keystores are a management and security liability. JGDMS and DirtyChai
 integrates [SPIFFE](https://spiffe.io/) workload identity via SPIRE. Each host process and client
 JVM receives a short-lived (~1 hour) X.509 SVID (SPIFFE Verifiable Identity Document) from a local
 SPIRE agent.
@@ -157,6 +165,9 @@ replaces a legitimate JAR with one containing malicious or denial-of-service byt
 class initializers (`<clinit>`) are a particularly subtle liveness attack: they can pin virtual
 thread carrier threads or hold the JVM class-loading lock, causing complete scheduler stalls with
 as few concurrent requests as `Runtime.availableProcessors()`.
+
+It's worth noting that code repositories assembled prior to runtime are also subject to 
+library vunlerabilities and transient dependency vulnerabilities.
 
 ### The Five Hosts
 
@@ -279,7 +290,7 @@ benchmarks.
 ### Virtual Thread Support
 
 DirtyChai includes full virtual thread support with `SecurityManager` enabled — a combination that
-Oracle's JDK never achieved. The SCAP architecture's `ClinitBlockingVisitor` ensures that JAR
+OpenJDK never achieved. The SCAP architecture's `ClinitBlockingVisitor` ensures that JAR
 files containing blocking class initializers — the main virtual-thread carrier-pin risk — are
 flagged before they are ever loaded, enabling confident use of virtual threads at scale.
 
@@ -324,6 +335,11 @@ The `RemotePolicyProvider` and `InMemoryPolicyService` enable live policy update
 push a new policy without restarting any service. The `DynamicPolicyProvider` handles per-proxy
 grants that are automatically cleaned up when proxies are garbage-collected.
 
+### Tools to generate policy files
+
+**JGDMS** provides tooling to generate policy files for auditing before deployment, 1,000 lines
+of policy file are far easier to audit that 1,000,000 lines of code in third party libraries.
+
 ### Verdict Registry: Content-Addressed Verdicts
 
 The Verdict Registry is keyed by SHA-256 content hash, not URL. The same JAR served from different
@@ -366,9 +382,11 @@ bytecode. Its goal is the opposite: prevent untrusted code from ever being loade
 `LoadClassPermission` as the primary gate and SCAP as the pre-analysis pipeline. If you need to
 run code you don't trust, you need a different tool (or a different approach).
 
-JGDMS **currently requires Java ≤ 23** (or DirtyChai). Oracle removed the `SecurityManager` API
+JGDMS **currently requires Java ≤ 23** (or DirtyChai). OpenJDK removed the `SecurityManager` API
 in Java 24. Running JGDMS on standard OpenJDK 24+ is not supported. DirtyChai is the path forward
-for modern JDK versions.
+for modern JDK versions.  **DirtyChai** is required for SPIFFE support and enhanced security, such
+as JarFile hardening against untrusted input and additional guards, BAE is used to cover security
+gaps that authorization cannot defend against.
 
 ---
 
