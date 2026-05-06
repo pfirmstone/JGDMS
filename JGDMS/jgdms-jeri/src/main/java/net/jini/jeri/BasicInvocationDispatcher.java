@@ -83,7 +83,7 @@ import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.io.context.MutableClientSubject;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -169,6 +169,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     
     /** Marshal stream protocol version with user principals. */
     static final byte VERSION_WITH_PRINCIPALS = 0x02;
+
+    /**
+     * Maximum number of user principals accepted from the wire in a single
+     * request (protocol version 0x02).  A real Subject rarely carries more
+     * than a handful of principals; this cap prevents a malicious peer from
+     * forcing unbounded allocation.
+     */
+    private static final int MAX_USER_PRINCIPALS = 64;
+
+    /**
+     * Maximum byte length of a single UTF-8–encoded string field (class name
+     * or principal name) accepted from the wire.  Prevents memory exhaustion
+     * from a crafted oversized field.
+     */
+    private static final int MAX_STRING_BYTES = 8192;
     
     /** Marshal stream protocol version mismatch. */
     static final byte MISMATCH = 0x0;
@@ -1539,6 +1554,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * accepted; unknown class names result in a
      * {@link RemotePrincipal} placeholder that preserves the wire data
      * without loading untrusted code.
+     *
+     * <p>To guard against malicious or malformed input, at most
+     * {@value #MAX_USER_PRINCIPALS} principals are accepted and each UTF-8
+     * string field is limited to {@value #MAX_STRING_BYTES} bytes.  Insertion
+     * order is preserved via {@link java.util.LinkedHashSet}.
+     *
+     * @throws IOException if the count or any string length exceeds the
+     *         respective limit, or if the stream ends prematurely
      */
     private static Set<Principal> readUserPrincipals(InputStream in)
 	throws IOException
@@ -1547,10 +1570,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	if (count == 0) {
 	    return Collections.emptySet();
 	}
-	Set<Principal> principals = new HashSet<>(count * 2);
+	if (count > MAX_USER_PRINCIPALS) {
+	    throw new IOException(
+		"User-principal count " + count
+		+ " exceeds limit of " + MAX_USER_PRINCIPALS);
+	}
+	Set<Principal> principals = new LinkedHashSet<>(count * 2);
 	for (int i = 0; i < count; i++) {
-	    String className = readUtf8Prefixed(in);
-	    String name      = readUtf8Prefixed(in);
+	    String className = readUtf8Prefixed(in, MAX_STRING_BYTES);
+	    String name      = readUtf8Prefixed(in, MAX_STRING_BYTES);
 	    Principal p = instantiatePrincipal(className, name);
 	    principals.add(p);
 	}
@@ -1629,9 +1657,16 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	return (hi << 8) | lo;
     }
 
-    private static String readUtf8Prefixed(InputStream in) throws IOException {
+    private static String readUtf8Prefixed(InputStream in, int maxBytes)
+	throws IOException
+    {
 	int len = readUnsignedShort(in);
 	if (len == 0) return "";
+	if (len > maxBytes) {
+	    throw new IOException(
+		"String field length " + len
+		+ " exceeds limit of " + maxBytes + " bytes");
+	}
 	byte[] bytes = new byte[len];
 	int remaining = len;
 	int offset = 0;
