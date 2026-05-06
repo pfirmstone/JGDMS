@@ -760,9 +760,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	
 	    /*
-	     * Invoke method on remote object under the authenticated client
-	     * Subject so that both Subject.getSubject(acc) and (on JDK 18+)
-	     * Subject.current() return the client Subject to server code.
+	     * Invoke method on remote object.  On JDK 18+ the authenticated
+	     * client Subject is established via Subject.callAs so that
+	     * Subject.current() returns the client Subject for the duration of
+	     * this dispatch thread only.  The server's own worker Subject
+	     * (established at service startup via Subject.doAsPrivileged) is
+	     * intentionally left untouched in the AccessControlContext so that
+	     * any virtual threads spawned during the invocation inherit the
+	     * server's identity, not the client's.
 	     */
 	    try {
 		returnValue = invokeWithClientSubject(impl, method, args, context);
@@ -1558,13 +1563,27 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 
     /**
      * Invokes the specified method under the authenticated client Subject,
-     * establishing the Subject in both the legacy {@code AccessControlContext}
-     * (via {@code Subject.doAsPrivileged}) and the JDK 18+ ScopedValue (via
-     * {@code Subject.callAs}), so that server-side code running during the
-     * invocation can observe the client Subject through either mechanism.
+     * establishing the client identity exclusively via
+     * {@code Subject.callAs} (JDK 18+) so that {@code Subject.current()}
+     * returns the client Subject for the duration of this dispatch thread.
+     *
+     * <p>The server's own worker Subject, established at service startup
+     * via {@code Subject.doAsPrivileged}, is intentionally left untouched
+     * in the {@code AccessControlContext}.  Virtual threads spawned during
+     * the invocation therefore inherit the <em>server's</em> worker Subject
+     * (not the client's) through the ACC.  If server code needs to make the
+     * client identity available across a thread boundary, it must capture
+     * {@code Subject.current()} and re-establish it with a nested
+     * {@code Subject.callAs} in the new thread.
+     *
+     * <p>On JDK versions prior to 18, {@code Subject.callAs} is not
+     * available and this method calls {@link #invoke} directly without any
+     * Subject wrapping.  Server code that needs the client identity on
+     * those JVMs should use
+     * {@code ServerContext.getServerContextElement(ClientSubject.class)}.
      *
      * <p>When no client Subject is present (e.g. unauthenticated transport),
-     * this method falls back to calling {@link #invoke} directly.</p>
+     * {@link #invoke} is called directly.</p>
      *
      * <p>All exceptions thrown by {@link #invoke} are faithfully re-thrown;
      * the Subject wrapping does not alter exception propagation.</p>
@@ -1583,63 +1602,51 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	throws Throwable
     {
 	Subject cs = getClientSubject();
-	if (cs == null) {
+	if (cs == null || SUBJECT_CALL_AS == null) {
+	    // No client Subject, or JDK < 18 (callAs not available):
+	    // invoke directly.  The server's ACC is left intact in both cases.
 	    return invoke(impl, method, args, context);
 	}
 
-	// Use single-element arrays to capture the result / throwable from
-	// within the lambdas.  The Callable lambda catches all Throwables from
-	// invoke() so it never propagates an exception to its caller (callAs);
-	// therefore neither callAs nor doAsPrivileged wraps anything in a
-	// checked-exception holder.
+	// JDK 18+: establish Subject.current() = clientSubject via callAs ONLY.
+	// The server's AccessControlContext (and therefore the server's worker
+	// Subject) is NOT replaced — virtual threads spawned during invoke()
+	// will inherit the server's ACC, not the client's Subject.
 	final Object[] result = { null };
 	final Throwable[] thrown = { null };
 
-	Subject.doAsPrivileged(cs, (PrivilegedAction<Void>) () -> {
-	    if (SUBJECT_CALL_AS != null) {
-		// JDK 18+: additionally establish Subject.current() via callAs.
-		try {
-		    SUBJECT_CALL_AS.invoke(null, cs, (Callable<Void>) () -> {
-			try {
-			    result[0] = invoke(impl, method, args, context);
-			} catch (Throwable th) {
-			    thrown[0] = th;
-			}
-			return null;
-		    });
-		} catch (Throwable th) {
-		    // Defensive: captures any unexpected reflective failure from
-		    // the Subject.callAs invocation itself (distinct from any
-		    // exception that invoke() may have thrown above).
-		    // Unwrap InvocationTargetException to get the root cause.
-		    if (th instanceof InvocationTargetException && th.getCause() != null) {
-			th = th.getCause();
-		    }
-		    if (thrown[0] == null) {
-			// invoke() succeeded (or was never reached); treat the
-			// reflective failure as the exception for this call.
-			thrown[0] = th;
-		    } else {
-			// thrown[0] was already set (by invoke() or an earlier
-			// capture); log this secondary infrastructure failure so
-			// it is not silently discarded.
-			logger.log(Level.FINE,
-				   "Subject.callAs reflective failure for method "
-				   + method.getName()
-				   + " (secondary; primary exception already captured)",
-				   th);
-		    }
-		}
-	    } else {
-		// JDK < 18: doAsPrivileged alone is sufficient.
+	try {
+	    SUBJECT_CALL_AS.invoke(null, cs, (Callable<Void>) () -> {
 		try {
 		    result[0] = invoke(impl, method, args, context);
 		} catch (Throwable th) {
 		    thrown[0] = th;
 		}
+		return null;
+	    });
+	} catch (Throwable th) {
+	    // Defensive: captures any unexpected reflective failure from the
+	    // Subject.callAs invocation itself (distinct from any exception
+	    // that invoke() may have thrown above).
+	    // Unwrap InvocationTargetException to get the root cause.
+	    if (th instanceof InvocationTargetException && th.getCause() != null) {
+		th = th.getCause();
 	    }
-	    return null;
-	}, null);
+	    if (thrown[0] == null) {
+		// invoke() succeeded (or was never reached); treat the
+		// reflective failure as the exception for this call.
+		thrown[0] = th;
+	    } else {
+		// thrown[0] was already set (by invoke() or an earlier
+		// capture); log this secondary infrastructure failure so
+		// it is not silently discarded.
+		logger.log(Level.FINE,
+			   "Subject.callAs reflective failure for method "
+			   + method.getName()
+			   + " (secondary; primary exception already captured)",
+			   th);
+	    }
+	}
 
 	if (thrown[0] != null) {
 	    throw thrown[0];
