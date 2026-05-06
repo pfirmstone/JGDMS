@@ -128,6 +128,29 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
         while (permIt.hasNext()){
 	    Permission p = permIt.next();
 	    sb.append("    permission ");
+	    if (p instanceof UnresolvedPermission) {
+		// UnresolvedPermission wraps an unknown class; reconstruct the
+		// original grant using the unresolved type, name and actions so
+		// that the output round-trips correctly through the parser.
+		UnresolvedPermission up = (UnresolvedPermission) p;
+		sb.append(up.getUnresolvedType());
+		sb.append(" \"");
+		String upName = up.getUnresolvedName();
+		if (upName == null) upName = "";
+		// Escape backslashes first, then quotes, to ensure round-trip parsing.
+		upName = upName.replace("\\", "\\\\").replace("\"", "\\\"");
+		sb.append(upName);
+		String upActions = up.getUnresolvedActions();
+		if (upActions != null && !"".equals(upActions)){
+		    sb.append("\", \"");
+		    sb.append(upActions);
+		    sb.append("\"");
+		} else {
+		    sb.append("\"");
+		}
+		sb.append(";\n");
+		continue;
+	    }
 	    sb.append(p.getClass().getCanonicalName());
 	    sb.append(" \"");
 	    if (p instanceof PrivateCredentialPermission){
@@ -149,8 +172,11 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
 		/* Some complex permissions have quoted strings embedded or
 		literal carriage returns that must be escaped.  */
 		String name = p.getName();
-		if (p instanceof FilePermission && File.separatorChar == '\\'){
-		    name = name.replace("\\", "\\\\");
+		if (p instanceof FilePermission){
+		    // Always escape backslashes in file paths to ensure
+		    // round-trip parsing on any OS (e.g., Windows paths
+		    // tested on Linux must also be escaped correctly).
+		    name = name.replace("\\", "\\\\").replace("\"", "\\\"");
 		} else {
 		    name = name.replace("\\\"", "\\\\\"").replace("\"","\\\"").replace("\r","\\\r");
 		}

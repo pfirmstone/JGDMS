@@ -82,6 +82,14 @@
                         <maxmem>1024m</maxmem>
                     </configuration>
             </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <qa.dir>${project.basedir}/../../../qa</qa.dir>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
