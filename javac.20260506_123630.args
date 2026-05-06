@@ -1,7 +1,0 @@
--source
-11
--target
-11
--cp
-/dev/null
-/home/runner/work/JGDMS/JGDMS/JGDMS/services/jfr-telemetry/jfr-telemetry-service/src/main/java/au/net/zeus/jgdms/jfr/JfrTelemetryServiceImpl.java

@@ -254,7 +254,7 @@ public class JfrTelemetryServiceImplTest {
     }
 
     @Test
-    public void testCanonicalkeyIsOrderIndependent() {
+    public void testCanonicalKeyIsOrderIndependent() {
         Set<Uri> a = makeUriSet(uri1, uri2);
         Set<Uri> b = makeUriSet(uri2, uri1);
         assertEquals(JfrTelemetryServiceImpl.codebaseKey(a),
