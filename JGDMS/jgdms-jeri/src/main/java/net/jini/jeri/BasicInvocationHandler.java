@@ -1703,54 +1703,28 @@ public class BasicInvocationHandler
     }
 
     /* ---------------------------------------------------------------------- */
-    /* User-principal helpers (Java 18+ Subject.current() via reflection)     */
+    /* User-principal helpers                                                  */
     /* ---------------------------------------------------------------------- */
 
     /**
-     * Reflective handle to {@code Subject.current()} introduced in JDK 18.
-     * Null on older JVMs.
-     */
-    private static final Method SUBJECT_CURRENT;
-
-    static {
-	Method m = null;
-	try {
-	    // Subject.current() is static, no-arg, added in JDK 18
-	    m = Subject.class.getMethod("current");
-	} catch (Exception ignored) {
-	    // JDK < 18: fall through, SUBJECT_CURRENT remains null
-	}
-	SUBJECT_CURRENT = m;
-    }
-
-    /**
      * Returns the set of principals from the user Subject bound to the current
-     * thread via {@code Subject.callAs} (JDK 18+), or an empty set if no user
-     * Subject is present or the JVM does not support {@code Subject.current()}.
+     * thread via {@code Subject.callAs}, or an empty set if no user Subject is
+     * present.
      *
-     * <p>The worker Subject established via {@code Subject.doAsPrivileged} is
-     * used for TLS authentication and must NOT be included here; its principals
-     * reach the server via the TLS certificate chain.
+     * <p>The worker Subject established via {@code Subject.doAs} is used for
+     * TLS authentication and must NOT be included here; its principals reach
+     * the server via the TLS certificate chain.
      */
     private static Set<Principal> getUserPrincipals() {
-	if (SUBJECT_CURRENT == null) {
+	Subject subject = Subject.current();
+	if (subject == null) {
 	    return Collections.emptySet();
 	}
-	try {
-	    Object subject = SUBJECT_CURRENT.invoke(null);
-	    if (subject == null) {
-		return Collections.emptySet();
-	    }
-	    // subject is javax.security.auth.Subject
-	    javax.security.auth.Subject s = (javax.security.auth.Subject) subject;
-	    Set<Principal> principals = new HashSet<>(s.getPrincipals());
-	    if (principals.isEmpty()) {
-		return Collections.emptySet();
-	    }
-	    return Collections.unmodifiableSet(principals);
-	} catch (Exception e) {
+	Set<Principal> principals = new HashSet<>(subject.getPrincipals());
+	if (principals.isEmpty()) {
 	    return Collections.emptySet();
 	}
+	return Collections.unmodifiableSet(principals);
     }
 
     /**
