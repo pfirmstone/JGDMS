@@ -134,7 +134,8 @@ public final class SpiffeCredentialManager implements AutoCloseable {
     private final SvidSource svidSource;
     private final long renewalLeadSeconds;
     private final ScheduledExecutorService scheduler;
-    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean closed  = new AtomicBoolean(false);
+    private final AtomicBoolean started = new AtomicBoolean(false);
     private volatile ScheduledFuture<?> scheduledTask;
 
     /**
@@ -592,24 +593,37 @@ public final class SpiffeCredentialManager implements AutoCloseable {
      * Performs an initial synchronous SVID load and starts the background
      * renewal scheduler.
      *
-     * <p>This method must be called once after construction.  It blocks until
-     * the first successful SVID load.
+     * <p>This method must be called exactly once after construction.
+     * It blocks until the first successful SVID load.
      *
-     * <p><b>Calling {@code start()} a second time</b> on an active (non-closed)
-     * manager is equivalent to {@link #refresh()} followed by re-registering
-     * the Subject in {@link SpiffeSubjectHolder}: credentials are atomically
-     * replaced and the renewal scheduler is restarted.  Calling {@code start()}
-     * concurrently with {@link #close()} is not safe; external synchronisation
-     * is required if these lifecycle methods may be invoked from different
-     * threads.
+     * <p><b>One SVID per JVM:</b> SPIFFE maps one SVID to one process.  Only a
+     * single {@code SpiffeCredentialManager} may be active per JVM at any time.
+     * Calling {@code start()} a second time — whether on this instance or by
+     * starting a second manager while this one is still active — is rejected
+     * with a {@link IllegalStateException} and a WARNING log entry.  This
+     * mirrors the SPIFFE workload-identity model: each JVM/process corresponds
+     * to exactly one workload identity.
+     *
+     * <p>Calling {@code start()} concurrently with {@link #close()} is not
+     * safe; external synchronisation is required if these lifecycle methods
+     * may be invoked from different threads.
      *
      * @throws IOException              if the initial SVID load fails
      * @throws GeneralSecurityException if the initial SVID cannot be parsed
-     * @throws IllegalStateException    if this manager has been closed
+     * @throws IllegalStateException    if this manager has already been started
+     *                                  or has been closed
      */
     public void start() throws IOException, GeneralSecurityException {
         if (closed.get())
             throw new IllegalStateException("SpiffeCredentialManager is closed");
+        if (!started.compareAndSet(false, true)) {
+            logger.warning("SpiffeCredentialManager.start() called more than once "
+                    + "on the same instance.  Each JVM maps to exactly one SPIFFE "
+                    + "workload identity; create a new manager if you need to change "
+                    + "the managed Subject.");
+            throw new IllegalStateException(
+                    "SpiffeCredentialManager has already been started");
+        }
         Svid svid = svidSource.fetch();
         updateSubjectCredentials(svid);
         SpiffeSubjectHolder.set(subject);
@@ -652,7 +666,7 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         if (closed.compareAndSet(false, true)) {
             scheduler.shutdownNow();
             clearSubjectCredentials();
-            SpiffeSubjectHolder.set(null);
+            SpiffeSubjectHolder.clear(subject);
             logger.log(Level.INFO, "SpiffeCredentialManager closed");
         }
     }

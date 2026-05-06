@@ -51,23 +51,47 @@ final class SpiffeSubjectHolder {
 
     /**
      * Registers {@code subject} as the process-wide SPIFFE Subject.
-     * Pass {@code null} to clear the registration.
      *
-     * <p>If a non-null Subject is already registered and {@code subject} is
-     * a different (non-null) instance, a WARNING is logged.  Only one
-     * {@link SpiffeCredentialManager} should be active per JVM.
+     * <p>SPIFFE maps one SVID to one process; only one
+     * {@link SpiffeCredentialManager} may be active per JVM.  If a
+     * non-null Subject is already registered by a different manager this
+     * method logs a WARNING and throws {@link IllegalStateException}.
      *
-     * @param subject the Subject to register, or {@code null} to deregister
+     * @param subject the Subject to register; must not be {@code null}
+     * @throws IllegalStateException if a different Subject is already registered
      */
     static void set(Subject subject) {
-        Subject previous = PROCESS_SUBJECT.getAndSet(subject);
-        if (subject != null && previous != null && previous != subject) {
-            logger.warning(
-                    "SpiffeSubjectHolder: overwriting an existing SPIFFE Subject "
-                    + "registration.  Only one SpiffeCredentialManager should be "
-                    + "active per JVM.  The previously registered Subject will no "
-                    + "longer be consulted by the SSL endpoint implementations.");
+        // Atomic check-and-set: fail if a *different* non-null Subject is
+        // already registered.  compareAndSet succeeds only when the current
+        // value is null; if it fails we re-read to check whether the current
+        // holder is the same instance (idempotent re-registration is benign).
+        if (!PROCESS_SUBJECT.compareAndSet(null, subject)) {
+            Subject current = PROCESS_SUBJECT.get();
+            if (current != subject) {
+                String msg = "SpiffeSubjectHolder: a SPIFFE Subject is already "
+                        + "registered for this JVM.  Only one SpiffeCredentialManager "
+                        + "may be active per JVM (one SPIFFE workload identity per "
+                        + "process).  Close the existing manager before starting a "
+                        + "new one.";
+                logger.warning(msg);
+                throw new IllegalStateException(msg);
+            }
+            // current == subject: same instance, nothing to do.
         }
+    }
+
+    /**
+     * Clears the registered Subject if it is the same instance as
+     * {@code owner}.  This is called by {@link SpiffeCredentialManager#close()}
+     * to release the process-wide registration.  If another manager has
+     * somehow replaced the holder in the meantime the clear is silently
+     * skipped.
+     *
+     * @param owner the Subject to deregister; the holder is only cleared if
+     *              it currently holds this exact instance
+     */
+    static void clear(Subject owner) {
+        PROCESS_SUBJECT.compareAndSet(owner, null);
     }
 
     /**
