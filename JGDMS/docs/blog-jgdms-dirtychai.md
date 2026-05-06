@@ -115,6 +115,52 @@ The `SpiffeCredentialManager` component:
 No `keytool`, no PKCS#12 files, no manual certificate renewal. Each service's identity is managed
 by the SPIRE control plane — revocation and rotation happen without JVM restarts.
 
+### User Subjects and Process Worker Subjects
+
+JGDMS distinguishes clearly between two kinds of JAAS `Subject`:
+
+**User Subject** — represents a human user authenticated at login time. The user's client JVM
+performs a JAAS login (e.g., Kerberos, X.509 certificate, or username/password) and wraps the
+result in a `Subject` containing that user's `Principal` set and credentials. All outbound remote
+calls made inside a `Subject.doAs(userSubject, ...)` block carry this identity: the constraint
+system uses it to select the right client certificate and to satisfy `ClientAuthentication.YES`
+requirements. The server sees the authenticated user `Principal` on its dispatch thread and can
+make fine-grained authorization decisions against it — for example, permitting a `Principal` with
+role `"auditor"` to read but not write.
+
+**Process Worker Subject** — represents the JVM process itself, not any particular end user. With
+SPIFFE/SPIRE, `SpiffeCredentialManager` populates a process-wide `Subject` held in
+`SpiffeSubjectHolder`. This Subject contains:
+
+- An `X500Principal` derived from the certificate's Subject Distinguished Name (e.g.,
+  `CN=bae-engine-2,O=example.org`)
+- A `SpiffePrincipal` derived from the certificate's URI Subject Alternative Name (e.g.,
+  `spiffe://jgdms.example.org/host/bae/engine-2`)
+- The short-lived X.509 credential (certificate chain + private key) — never written to disk
+
+The process worker Subject is the identity that the server presents during TLS handshake. It is
+used for outbound calls made by the service itself (not on behalf of any user). When a service
+calls another service — for example, the Codebase Downloader submitting a JAR to a BAE instance —
+it does so under its own worker Subject, not under any user's credentials.
+
+**Remote worker Subject on dispatch threads** — When a remote client connects and authenticates,
+the JERI SSL endpoint extracts the client's authenticated `Subject` from the completed TLS
+handshake and places it on the server-side dispatch thread for the entire duration of the remote
+method invocation. Service implementations receive this Subject automatically — they call
+`Subject.getSubject(AccessController.getContext())` to inspect who is calling, or simply rely on
+the `AccessController` policy check which already incorporates the client's `Principal` set.
+When the method returns, the client Subject is cleared from the thread; the thread returns to the
+pool carrying only the server's own worker Subject.
+
+This layering means a single server JVM can simultaneously hold:
+
+- Its own process worker Subject (SPIFFE SVID, used for outbound connections and TLS server
+  authentication)
+- Zero or more dispatch threads, each carrying a different remote caller's authenticated Subject
+  for the duration of their respective calls
+
+No session state, no thread-local leakage between calls, and no boilerplate in service code.
+
 ### Hardened Deserialization: `@AtomicSerial`
 
 Java object deserialization is one of the richest attack surfaces in enterprise software. JGDMS
