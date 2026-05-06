@@ -1557,7 +1557,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *
      * <p>To guard against malicious or malformed input, at most
      * {@value #MAX_USER_PRINCIPALS} principals are accepted and each UTF-8
-     * string field is limited to {@value #MAX_STRING_BYTES} bytes.  Insertion
+     * string field is limited to {@value #MAX_STRING_BYTES} bytes. Insertion
      * order is preserved via {@link java.util.LinkedHashSet}.
      *
      * @throws IOException if the count or any string length exceeds the
@@ -1575,7 +1575,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		"User-principal count " + count
 		+ " exceeds limit of " + MAX_USER_PRINCIPALS);
 	}
-	Set<Principal> principals = new LinkedHashSet<>(count * 2);
+	Set<Principal> principals = new LinkedHashSet<>((int)(count / 0.75) + 1);
 	for (int i = 0; i < count; i++) {
 	    String className = readUtf8Prefixed(in, MAX_STRING_BYTES);
 	    String name      = readUtf8Prefixed(in, MAX_STRING_BYTES);
