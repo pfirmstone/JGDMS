@@ -24,7 +24,6 @@ import java.io.PrintWriter;
 import java.security.Permission;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import org.apache.river.api.security.DefaultPolicyParser;
@@ -54,8 +53,11 @@ public class PolicyCondenserTest {
     @After
     public void tearDown() {
 	if (tempDir != null && tempDir.exists()) {
-	    for (File f : tempDir.listFiles()) {
-		f.delete();
+	    File[] files = tempDir.listFiles();
+	    if (files != null) {
+		for (File f : files) {
+		    f.delete();
+		}
 	    }
 	    tempDir.delete();
 	}
@@ -219,14 +221,13 @@ public class PolicyCondenserTest {
 	assertEquals("Should have 2 grants", 2, grants.size());
 
 	// Read the output file as text to verify ordering
-	java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(condensedFile));
-	String content;
 	StringBuilder sb = new StringBuilder();
-	String line;
-	while ((line = br.readLine()) != null) {
-	    sb.append(line).append('\n');
+	try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(condensedFile))) {
+	    String line;
+	    while ((line = br.readLine()) != null) {
+		sb.append(line).append('\n');
+	    }
 	}
-	br.close();
 	String text = sb.toString();
 
 	int aaaPos = text.indexOf("file:/aaa.jar");
