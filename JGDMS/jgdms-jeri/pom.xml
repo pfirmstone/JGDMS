@@ -108,7 +108,7 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                      <release>8</release>
+                      <release>21</release>
                         <debug>true</debug>
                         <encoding>UTF-8</encoding>
                         <meminitial>128m</meminitial>
