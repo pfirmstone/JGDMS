@@ -569,6 +569,151 @@ Jini services.
 
 ---
 
+## 11. Remaining `doAs` / `doAsPrivileged` Call Sites — Migration Audit
+
+This section inventories every call site of `Subject.doAs`, `Subject.doAsPrivileged`,
+and `Subject.getSubject(AccessControlContext)` found in the JGDMS codebase (excluding
+tests and generated code).  Each site is classified by purpose and migration priority.
+
+### 11.1 Background — The Problem
+
+`Subject.doAs` and `Subject.doAsPrivileged` install a Subject into the `AccessControlContext`
+(ACC) via `SubjectDomainCombiner`.  The ACC is inherited by child threads created from
+platform threads, but is **NOT** propagated by `ScopedValue` and is **NOT** automatically
+visible inside a `Callable` submitted to an `Executor` or `ForkJoinPool`.
+
+`Subject.callAs` (JDK 18+) binds the Subject to a `ScopedValue` (`SCOPED_SUBJECT`).
+ScopedValues are **not** propagated to new threads by default either — but they can be
+propagated explicitly via `StructuredTaskScope` (JEP 453) or captured and re-bound manually.
+
+OpenJDK has added no automatic executor propagation for user Subjects.  The risk
+identified is that services using `doAsPrivileged` for JAAS `LoginContext` subjects at
+startup time also spawn threads (for event delivery, lease renewal, etc.) that carry the
+ACC forward — but if those threads are replaced with virtual threads or executor-submitted
+tasks, the user Subject may be invisible unless actively propagated.
+
+The correct modern pattern is:
+```java
+Subject userSubject = Subject.current();   // captured on the request thread
+executor.submit(() -> Subject.callAs(userSubject, () -> { ... }));
+```
+
+### 11.2 Call Sites — Classification Table
+
+| File | Line(s) | Current API | Subject source | Purpose | Migration priority |
+|---|---|---|---|---|---|
+| `AbstractJiniService.start()` | 263 | `Subject.callAs` | `LoginContext.getSubject()` | Run `doStart()` under JAAS login Subject so `BasicInvocationHandler` detects it via `Subject.current()` | **✅ Already correct** — uses `callAs` |
+| `FiddlerImpl.initWithLogin()` | 5121 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Run service initialisation under JAAS Subject | **Medium** — init-time only; no thread crossings expected in constructor; replace with `callAs` for consistency |
+| `TxnManagerImpl` constructor | 283 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Run `TxnManagerImplInitializer` construction under JAAS Subject | **Medium** — init-time; internal `settleTxns` thread created inside; `callAs` needed if thread uses Subject |
+| `MailboxImpl.init()` | 547 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Run `MailboxImplInit` under JAAS Subject | **Medium** — init-time; event delivery threads may need propagation |
+| `NormServerBaseImpl.init()` | 1840 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Run `initAsSubject(config)` under JAAS Subject | **Medium** — init-time; lease renewal threads may need propagation |
+| `OutriggerServerImpl` constructor | 578 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Run `init(config, persistent, activationID)` under JAAS Subject | **Medium** — init-time |
+| `RegistrarImpl` constructor | 505 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Run `new Initializer(...)` under JAAS Subject | **Medium** — init-time; discovery/multicast threads spawned inside |
+| `SharedGroupImpl.createWithLogin()` | 277 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Run service group activation under JAAS Subject | **Low** — activation framework; activation threads carry ACC |
+| `ServiceStarter.createWithLogin()` | 238 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Start service descriptors under JAAS Subject | **Low** — starter is not a persistent service |
+| `DestroySharedGroup.destroyWithLogin()` | 322 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Destroy services under JAAS Subject | **Low** — destroy path; one-shot |
+| `Browser.main()` | 481, 1862 | `Subject.doAsPrivileged(..., null)` | `LoginContext.getSubject()` | Launch Browser GUI under JAAS Subject | **Low** — example application, not production service |
+| `AbstractActivationGroup.doAction()` | 998 | `Subject.doAsPrivileged(..., null)` | `login.getSubject()` | Call `monitor.activeObject()` under group Subject | **Medium** — remote call from activation system; spawns an executor task |
+| `AbstractActivationGroup` executor path | 913 | `Subject.doAsPrivileged(login.getSubject(), new GetThreadPoolAction(false), null)` | `login.getSubject()` | Obtain a thread pool running under group Subject | **High** — executor tasks submitted to this pool do NOT inherit ACC in virtual thread model |
+| `Activation.doAsPrivileged()` | 2165 | `Subject.doAsPrivileged(..., null)` | `login.getSubject()` | Run phoenix activation actions under admin Subject | **Medium** — phoenix infrastructure |
+| `KerberosUtil.getGSSCredential()` | 493 | `Subject.doAs(subj, ...)` | explicitly passed `Subject` | Acquire Kerberos GSS credential from Subject's private credential set | **Keep as `doAs`** — GSS-API requires Subject in ACC; this is workload (TLS/Kerberos) identity, not user identity |
+| `KerberosServerEndpoint` connection thread | 1794 | `Subject.doAs(serverSubject, ...)` | `serverSubject` field | Establish Kerberos GSSContext during TLS handshake | **Keep as `doAs`** — comment: "JDK1.4.2 jgss requires current subject to be set right during the whole process of context establishment"; workload identity, not user identity |
+| `SslEndpointImpl.getCallContext()` | 285 | `Subject.getSubject(acc)` | ACC | Retrieve worker Subject for outbound TLS call | **Keep** — worker Subject retrieval from ACC; falls back to `SpiffeSubjectHolder` |
+| `SslServerEndpointImpl.SslListenEndpoint` | 587 | `Subject.getSubject(acc)` | ACC | Retrieve worker Subject for inbound TLS listen | **Keep** — same reason |
+| `X500Provider` | 191 | `Subject.getSubject(acc)` | ACC | Retrieve Subject for X.500 principal matching | **Keep** — workload identity retrieval from ACC |
+| `TlsRMIClientSocketFactory` | 46 | `Subject.getSubject(acc)` | ACC | Retrieve Subject for TLS RMI client socket | **Keep** — workload identity |
+| `TlsRMIServerSocketFactory` | 39 | `Subject.getSubject(acc)` | ACC | Retrieve Subject for TLS RMI server socket | **Keep** — workload identity |
+| `AbstractDgcClient` | 402 | `Subject.getSubject(cont)` | ACC | Retrieve Subject for DGC lease management | **Medium** — DGC leases are renewed by background threads; if user Subject is relevant here it may not propagate |
+| `Security.doAs()` (two overloads) | 634, 691 | Custom `doAs` wrapper | caller-provided | JGDMS custom SubjectDomainCombiner semantics (CodeSource+Principal separation) | **Keep as custom `doAs`** — intentionally different semantics from JDK `Subject.doAs` |
+| `Security.doAsPrivileged()` (two overloads) | 723, 759 | Custom `doAsPrivileged` wrapper | caller-provided | Same as above with explicit `SecurityContext` | **Keep as custom `doAsPrivileged`** |
+
+### 11.3 Thread-Crossing Analysis — Event Delivery Pattern
+
+The classic Jini pattern for event delivery to `RemoteEventListener` is:
+
+```java
+// Old pattern (ACC-based — breaks with virtual threads / executors)
+Subject.doAsPrivileged(loginContext.getSubject(), () -> {
+    // background thread spawned here inherits ACC iff platform thread
+    eventDispatcher.submit(() -> listener.notify(event));
+    return null;
+}, null);
+```
+
+With virtual threads or unbounded executor pools the spawned thread does **not**
+automatically carry the ACC.  The JDK has added no transparent Subject propagation
+for executors (confirmed by OpenJDK, JEP 428/429, Loom design docs).
+
+**Correct migration pattern for event delivery:**
+
+```java
+// Capture user Subject before submitting to executor
+Subject userSubject = Subject.current();   // only non-null if inside callAs scope
+executor.submit(() -> {
+    if (userSubject != null) {
+        Subject.callAs(userSubject, () -> { listener.notify(event); return null; });
+    } else {
+        listener.notify(event);
+    }
+});
+```
+
+For the workload (SPIFFE/Kerberos) Subject, the executor task should be submitted
+from within the `Subject.doAs(workerSubject, ...)` scope so that the ACC is inherited
+(platform threads) or captured explicitly (virtual threads via `AccessController.getContext()`
++ `AccessController.doPrivileged(..., capturedAcc)`).
+
+### 11.4 High-Priority Sites — Detailed Notes
+
+**`AbstractActivationGroup` — executor acquisition (line 913):**
+```java
+Executor systemThreadPool = Subject.doAsPrivileged(
+    login.getSubject(),
+    new GetThreadPoolAction(false),  // returns a Executor
+    null);
+systemThreadPool.execute(action, "UnexportGroup");
+```
+The `doAsPrivileged` here retrieves an `Executor` while running as the Subject — but
+tasks *submitted* to that executor later run under the submitter's context, not the
+Subject's.  This is a silent propagation failure.  The `action` passed to `execute`
+needs to re-establish the Subject context via `callAs` or `doAs`.
+
+**`TxnManagerImpl` — `settleTxns` thread (line 291):**
+An `InterruptedStatusThread` for `settleTxns()` is constructed inside the
+`doAsPrivileged` action.  Whether it inherits the ACC depends on whether platform thread
+creation preserves the parent's ACC (it does on JDK 11–21 for platform threads only).
+On virtual threads this is not guaranteed.  The `settleTxns` method should either not
+need the Subject (preferred) or explicitly capture and re-bind it.
+
+**`RegistrarImpl` — discovery/multicast threads:**
+Discovery threads (multicast announcements, lookup) are spawned during
+`new Initializer(...)` inside the `doAsPrivileged` scope.  If these threads perform
+operations that require the JAAS Subject (e.g. constraint checking), they may silently
+use the wrong Subject after migration to virtual threads.
+
+### 11.5 Confirmed Correct / Keep As-Is
+
+The following sites use `doAs`/`doAsPrivileged`/`getSubject` for workload (TLS/Kerberos)
+identity, not user (human JAAS login) identity, and should remain unchanged:
+
+- `KerberosUtil.getGSSCredential()` — GSS-API mandate
+- `KerberosServerEndpoint` connection thread — GSS context establishment
+- `SslEndpointImpl.getCallContext()` / `SslServerEndpointImpl` — TLS worker Subject lookup
+- `X500Provider` — TLS principal matching
+- `TlsRMIClientSocketFactory` / `TlsRMIServerSocketFactory` — TLS RMI
+- `Security.doAs()` / `Security.doAsPrivileged()` — JGDMS custom SubjectDomainCombiner
+
+### 11.6 Migration Decision Matrix
+
+| If the Subject is… | And the scope is… | Use… |
+|---|---|---|
+| JAAS user Subject (human identity, `LoginContext`) | Initialisation only (no cross-thread calls) | `Subject.callAs` — makes Subject visible via `Subject.current()` |
+| JAAS user Subject | Executor-submitted background task | Capture `Subject.current()` before submit; wrap task in `Subject.callAs(captured, ...)` |
+| Workload Subject (SPIFFE/Kerberos, used by TLS/GSS) | Anywhere | Keep `Subject.doAs` — ACC inheritance by platform threads is correct; virtual-thread version requires capturing ACC with `AccessController.getContext()` |
+| Subject needed for `Subject.getSubject(acc)` check | Existing ACC-based check | Keep `Subject.getSubject(acc)` — this reads the workload Subject from the ACC |
+
+---
+
 ## 12. Remaining Work Items (in order) — Updated v8
 
 1. **✅ `DynamicPolicyProvider.java` — single background sweeper for void eviction** *(completed)*
@@ -683,4 +828,5 @@ continue without loss of context. This is version 8, updated to add:*
 - *§13 cumulative decisions table extended with 7 new rows covering all v7 fixes*
 - *§8.1 updated to document empty SVID handling behaviour*
 - *§10 (new) — complete two-Subject JERI implementation: wire protocol v0x02, `getUserPrincipals()`, `writeUserPrincipals()`, `readUserPrincipals()`, `instantiatePrincipal()`, `RemotePrincipal`, `addUserSubjectToContext()`, `invokeWithClientSubject()` nesting, `ClientUserSubject` interface, `MutableClientSubject` deprecation, `SubjectDomainCombiner` additive merge, structural rules*
+- *§11 (new) — `doAs`/`doAsPrivileged` call-site audit across all JGDMS modules; classification table, thread-crossing analysis, executor propagation pattern, migration decision matrix*
 - *§13 extended with 5 new rows covering v8 two-Subject implementation decisions*
