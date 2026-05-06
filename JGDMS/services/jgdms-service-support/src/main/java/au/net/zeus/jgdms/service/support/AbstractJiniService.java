@@ -23,10 +23,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
@@ -113,6 +115,29 @@ public abstract class AbstractJiniService
 
     private static final Logger logger =
             Logger.getLogger(AbstractJiniService.class.getName());
+
+    /**
+     * Reflective handle to {@code Subject.callAs(Subject, Callable)} introduced
+     * in JDK 18.  {@code null} on older JVMs.
+     *
+     * <p>User Subjects (those obtained from a {@link LoginContext} representing
+     * human identity) should be established via {@code callAs} so that they are
+     * bound to the thread's {@code ScopedValue} rather than the
+     * {@code AccessControlContext}.  Worker Subjects (service credentials, SPIFFE
+     * SVIDs) continue to use {@code Subject.doAsPrivileged} to place credentials
+     * on the ACC for TLS and SecurityManager checks.
+     */
+    private static final Method SUBJECT_CALL_AS;
+
+    static {
+	Method m = null;
+	try {
+	    m = Subject.class.getMethod("callAs", Subject.class, Callable.class);
+	} catch (Exception ignored) {
+	    // JDK < 18 — callAs not available
+	}
+	SUBJECT_CALL_AS = m;
+    }
 
     // -------------------------------------------------------------------------
     // Infrastructure fields — set from JiniServiceParameters in constructor
@@ -256,13 +281,43 @@ public abstract class AbstractJiniService
             loginContext.login();
             loginSubject = loginContext.getSubject();
             try {
-                Subject.doAsPrivileged(
-                        loginSubject,
-                        (PrivilegedExceptionAction<Void>) () -> {
-                            doStart();
-                            return null;
-                        },
-                        null);
+                /*
+                 * Run the start sequence under the login Subject.
+                 *
+                 * On JDK 18+: the user Subject is bound to BOTH the
+                 * AccessControlContext (via doAsPrivileged, for backward
+                 * compatibility and TLS credential lookup) AND to the
+                 * thread-local ScopedValue (via callAs), so that
+                 * BasicInvocationHandler can detect it via Subject.current()
+                 * and transmit the user principals to remote endpoints.
+                 *
+                 * On JDK < 18: only doAsPrivileged is used.
+                 */
+                final Subject userSubject = loginSubject;
+                if (SUBJECT_CALL_AS != null) {
+                    // JDK 18+: doAsPrivileged establishes the ACC; callAs
+                    // establishes the ScopedValue so the JERI layer can pick
+                    // up the user principals.
+                    Subject.doAsPrivileged(
+                            userSubject,
+                            (PrivilegedExceptionAction<Void>) () -> {
+                                SUBJECT_CALL_AS.invoke(null, userSubject,
+                                    (Callable<Void>) () -> {
+                                        doStart();
+                                        return null;
+                                    });
+                                return null;
+                            },
+                            null);
+                } else {
+                    Subject.doAsPrivileged(
+                            userSubject,
+                            (PrivilegedExceptionAction<Void>) () -> {
+                                doStart();
+                                return null;
+                            },
+                            null);
+                }
             } catch (PrivilegedActionException e) {
                 Exception cause = e.getException();
                 throw (cause != null) ? cause : new RuntimeException(e.getCause());

@@ -34,12 +34,14 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.ProtocolException;
+import java.nio.charset.StandardCharsets;
 import java.rmi.ConnectIOException;
 import java.rmi.MarshalException;
 import java.rmi.RemoteException;
 import java.rmi.UnexpectedException;
 import java.rmi.UnmarshalException;
 import java.security.AccessController;
+import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -47,10 +49,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
 import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
@@ -833,8 +838,19 @@ public class BasicInvocationHandler
 	    }
 
 	    OutputStream ros = request.getRequestOutputStream();
-	    // Use new protocol version if atomicValidation is required or preferred.
-	    if (atomicValidation){
+	    // Capture user principals (from Subject.callAs scope, JDK 18+).
+	    // These are sent separately from the TLS-authenticated worker Subject.
+	    Set<Principal> userPrincipals = getUserPrincipals();
+	    // Select marshalling protocol version.
+	    // 0x02 = with user principals (implies atomicValidation support)
+	    // 0x01 = atomicValidation, no user principals
+	    // 0x00 = legacy, no atomicValidation, no user principals
+	    if (!userPrincipals.isEmpty()) {
+		ros.write(0x02);			// marshalling protocol version
+		ros.write(integrity ? 0x01 : 0x00);	// integrity
+		ros.write(atomicValidation ? 0x01 : 0x00); // atomicValidation
+		writeUserPrincipals(ros, userPrincipals);
+	    } else if (atomicValidation){
 		ros.write(0x01);			// marshalling protocol version
 		ros.write(integrity ? 0x01 : 0x00);	// integrity
 		ros.write(atomicValidation ? 0x01 : 0x00);	// atomicValidation
@@ -1684,5 +1700,97 @@ public class BasicInvocationHandler
     private void readObjectNoData() throws InvalidObjectException {
 	throw new InvalidObjectException("no data in stream; class: " +
 					 this.getClass().getName());
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* User-principal helpers (Java 18+ Subject.current() via reflection)     */
+    /* ---------------------------------------------------------------------- */
+
+    /**
+     * Reflective handle to {@code Subject.current()} introduced in JDK 18.
+     * Null on older JVMs.
+     */
+    private static final Method SUBJECT_CURRENT;
+
+    static {
+	Method m = null;
+	try {
+	    // Subject.current() is static, no-arg, added in JDK 18
+	    m = Subject.class.getMethod("current");
+	} catch (Exception ignored) {
+	    // JDK < 18: fall through, SUBJECT_CURRENT remains null
+	}
+	SUBJECT_CURRENT = m;
+    }
+
+    /**
+     * Returns the set of principals from the user Subject bound to the current
+     * thread via {@code Subject.callAs} (JDK 18+), or an empty set if no user
+     * Subject is present or the JVM does not support {@code Subject.current()}.
+     *
+     * <p>The worker Subject established via {@code Subject.doAsPrivileged} is
+     * used for TLS authentication and must NOT be included here; its principals
+     * reach the server via the TLS certificate chain.
+     */
+    private static Set<Principal> getUserPrincipals() {
+	if (SUBJECT_CURRENT == null) {
+	    return Collections.emptySet();
+	}
+	try {
+	    Object subject = SUBJECT_CURRENT.invoke(null);
+	    if (subject == null) {
+		return Collections.emptySet();
+	    }
+	    // subject is javax.security.auth.Subject
+	    javax.security.auth.Subject s = (javax.security.auth.Subject) subject;
+	    Set<Principal> principals = new HashSet<>(s.getPrincipals());
+	    if (principals.isEmpty()) {
+		return Collections.emptySet();
+	    }
+	    return Collections.unmodifiableSet(principals);
+	} catch (Exception e) {
+	    return Collections.emptySet();
+	}
+    }
+
+    /**
+     * Writes the user principals to the request output stream using the
+     * compact wire encoding for protocol version {@code 0x02}.
+     *
+     * <p>Format (after the version/integrity/atomic bytes):
+     * <pre>
+     *   principalCount  : unsigned 16-bit big-endian (max 65535)
+     *   for each principal:
+     *     classNameLength : unsigned 16-bit big-endian
+     *     classNameBytes  : UTF-8, classNameLength bytes
+     *     nameLength      : unsigned 16-bit big-endian
+     *     nameBytes       : UTF-8, nameLength bytes
+     * </pre>
+     */
+    static void writeUserPrincipals(OutputStream out,
+				    Set<? extends Principal> principals)
+	throws IOException
+    {
+	int count = Math.min(principals.size(), 0xFFFF);
+	out.write((count >>> 8) & 0xFF);
+	out.write(count & 0xFF);
+	int written = 0;
+	for (Principal p : principals) {
+	    if (written >= count) break;
+	    writeUtf8Prefixed(out, p.getClass().getName());
+	    writeUtf8Prefixed(out, p.getName());
+	    written++;
+	}
+    }
+
+    /** Writes a UTF-8 string prefixed by a 2-byte big-endian length. */
+    private static void writeUtf8Prefixed(OutputStream out, String s)
+	throws IOException
+    {
+	byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+	int len = Math.min(bytes.length, 0xFFFF);
+	out.write((len >>> 8) & 0xFF);
+	out.write(len & 0xFF);
+	out.write(bytes, 0, len);
     }
 }

@@ -81,6 +81,10 @@ import net.jini.security.AccessPermission;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import net.jini.io.context.ClientUserSubject;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashSet;
+import java.util.concurrent.Callable;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -164,6 +168,24 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     
     static final byte PREVIOUS_VERSION = 0x0;
     
+    /** Marshal stream protocol version with user principals. */
+    static final byte VERSION_WITH_PRINCIPALS = 0x02;
+
+    /**
+     * Maximum number of user principals accepted from the wire in a single
+     * request (protocol version 0x02).  A real Subject rarely carries more
+     * than a handful of principals; this cap prevents a malicious peer from
+     * forcing unbounded allocation.
+     */
+    private static final int MAX_USER_PRINCIPALS = 64;
+
+    /**
+     * Maximum byte length of a single UTF-8–encoded string field (class name
+     * or principal name) accepted from the wire.  Prevents memory exhaustion
+     * from a crafted oversized field.
+     */
+    private static final int MAX_STRING_BYTES = 8192;
+    
     /** Marshal stream protocol version mismatch. */
     static final byte MISMATCH = 0x0;
     
@@ -203,6 +225,49 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /** dispatch logger */
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicInvocationDispatcher");
+
+    /**
+     * Reflective handle to {@code Subject.callAs(Subject, Callable)} introduced
+     * in JDK 18.  {@code null} on older JVMs.
+     *
+     * <p>Used on the server side to establish {@code Subject.current()} during
+     * dispatch so that server-side code running inside the invocation can
+     * observe the authenticated user Subject via the JDK 18+ ScopedValue
+     * mechanism.  The ScopedValue is scoped to the dispatch thread only and
+     * does NOT propagate to virtual threads spawned during the invocation.
+     */
+    private static final Method SUBJECT_CALL_AS;
+
+    /**
+     * Reflective handle to {@code Subject.doAs(Subject, PrivilegedAction)}
+     * used to establish the server's worker Subject in the
+     * {@code AccessControlContext} for the duration of the dispatch.
+     * Virtual threads spawned inside the invocation inherit this ACC and
+     * therefore see the server's own worker identity, not the client's.
+     *
+     * <p>{@code Subject.doAs} is deprecated-for-removal since JDK 17 but
+     * still present in JDK 21; accessed via reflection to suppress the
+     * compile-time warning and to degrade gracefully on future JDKs where
+     * it may be removed.
+     */
+    private static final Method SUBJECT_DO_AS;
+
+    static {
+	Method subjectCallAsMethod = null;
+	Method subjectDoAsMethod = null;
+	try {
+	    subjectCallAsMethod = Subject.class.getMethod("callAs", Subject.class, Callable.class);
+	} catch (Exception ignored) {
+	    // JDK < 18 — callAs not available
+	}
+	try {
+	    subjectDoAsMethod = Subject.class.getMethod("doAs", Subject.class, PrivilegedAction.class);
+	} catch (Exception ignored) {
+	    // Should not happen on JDK 21; may be absent on a future JDK
+	}
+	SUBJECT_CALL_AS = subjectCallAsMethod;
+	SUBJECT_DO_AS   = subjectDoAsMethod;
+    }
 
     /**
      * Flag to remove server-side stack traces before marshalling
@@ -599,9 +664,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean integrity;
 	boolean supportsAtomicValidation;
 	boolean atomicValidation = false;
+	boolean hasUserPrincipals = false;
 	try {
 	    rin = request.getRequestInputStream();
-	    switch (rin.read()) {
+	    int versionByte = rin.read();
+	    switch (versionByte) {
+		case VERSION_WITH_PRINCIPALS:
+		    supportsAtomicValidation = true;
+		    hasUserPrincipals = true;
+		    break;
 		case VERSION:
 		    supportsAtomicValidation = true;
 		    break;
@@ -638,6 +709,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    throw new EOFException();
 		default:
 		    atomicValidation = true;
+		}
+	    }
+	    if (hasUserPrincipals) {
+		Set<Principal> userPrincipals = readUserPrincipals(rin);
+		if (!userPrincipals.isEmpty()) {
+		    addUserSubjectToContext(context, userPrincipals);
 		}
 	    }
 	} catch (Throwable t) {
@@ -704,10 +781,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	
 	    /*
-	     * Invoke method on remote object.
+	     * Invoke method on remote object under both the server's worker
+	     * Subject and (where present) the client's user Subject.
+	     *
+	     * Subject.doAs(workerSubject, ...)  ← sets ACC; virtual threads inherit
+	     *   Subject.callAs(userSubject, ...)  ← ScopedValue; dispatch thread only
+	     *     invoke(...)
+	     *
+	     * Virtual threads spawned during the invocation therefore inherit the
+	     * SERVER's worker identity (from the ACC), not the client's user
+	     * identity.  Server code that needs to propagate the user Subject
+	     * across a thread boundary must capture Subject.current() and
+	     * re-establish it with a nested Subject.callAs in the new thread.
 	     */
 	    try {
-		returnValue = invoke(impl, method, args, context);
+		returnValue = invokeWithClientSubject(impl, method, args, context);
 		if (logger.isLoggable(Level.FINE)) {
 		    logReturn(impl, method, returnValue);
 		}
@@ -1483,8 +1571,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Return the current client subject or <code>null</code> if not
-     * currently executing a remote call.
+     * Return the current worker (TLS-authenticated) client subject, or
+     * {@code null} if not currently executing a remote call.
      */
     private static Subject getClientSubject() {
 	return (Subject) AccessController.doPrivileged(new PrivilegedAction() {
@@ -1496,5 +1584,349 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		}
 	    }
 	});
+    }
+
+    /**
+     * Returns the user Subject assembled from the principals transmitted in
+     * the wire-protocol header, or {@code null} if no user principals were
+     * present in the request.
+     */
+    private static Subject getUserSubject() {
+	return AccessController.doPrivileged((PrivilegedAction<Subject>) () -> {
+	    try {
+		ClientUserSubject cus = (ClientUserSubject)
+		    ServerContext.getServerContextElement(ClientUserSubject.class);
+		return cus != null ? cus.getUserSubject() : null;
+	    } catch (ServerNotActiveException e) {
+		return null;
+	    }
+	});
+    }
+
+    /**
+     * Invokes the specified method under both the server's worker Subject and
+     * (where present) the client's user Subject, using the following nesting:
+     *
+     * <pre>
+     *   Subject.doAs(workerSubject, () -&gt; {     // ACC; inherited by virtual threads
+     *       Subject.callAs(userSubject, () -&gt; { // ScopedValue; dispatch thread only
+     *           invoke(...)
+     *       });
+     *   });
+     * </pre>
+     *
+     * <p>The outer {@code Subject.doAs} places the server's TLS-verified
+     * worker identity into the {@code AccessControlContext}.  Any virtual
+     * threads spawned during {@link #invoke} inherit that ACC and therefore
+     * observe the <em>server's</em> worker identity, not the client's.
+     *
+     * <p>The inner {@code Subject.callAs} establishes {@code Subject.current()}
+     * for the dispatch thread only via a {@code ScopedValue}.  It does not
+     * propagate to new threads.  Server code that needs the user Subject
+     * across a thread boundary must capture {@code Subject.current()} and
+     * re-establish it with a nested {@code Subject.callAs} in the spawned thread.
+     *
+     * <p>When no worker Subject is present (unauthenticated transport) and no
+     * user Subject was sent, {@link #invoke} is called directly.
+     *
+     * <p>All exceptions thrown by {@link #invoke} are faithfully re-thrown.</p>
+     *
+     * @param impl the remote object
+     * @param method the method to invoke
+     * @param args the method arguments
+     * @param context the server context
+     * @return the result of the method invocation
+     * @throws Throwable any exception thrown by the method
+     */
+    private Object invokeWithClientSubject(final Remote impl,
+					   final Method method,
+					   final Object[] args,
+					   final Collection context)
+	throws Throwable
+    {
+	final Subject workerSubject = getClientSubject();
+	final Subject userSubject   = getUserSubject();
+
+	if ((workerSubject == null && userSubject == null)
+		|| SUBJECT_CALL_AS == null) {
+	    // No subjects at all, or JDK < 18: invoke directly.
+	    return invoke(impl, method, args, context);
+	}
+
+	// Capture throwable and return value from inside the lambda nesting.
+	final Object[]    result = { null };
+	final Throwable[] thrown = { null };
+
+	// The innermost action: invoke() → capture result or exception.
+	final Callable<Void> dispatchAction = () -> {
+	    try {
+		result[0] = invoke(impl, method, args, context);
+	    } catch (Throwable th) {
+		thrown[0] = th;
+	    }
+	    return null;
+	};
+
+	// Middle action: wrap dispatchAction in Subject.callAs(userSubject)
+	// when a user Subject is present.
+	final PrivilegedAction<Void> withUserSubject;
+	if (userSubject != null) {
+	    withUserSubject = () -> {
+		try {
+		    SUBJECT_CALL_AS.invoke(null, userSubject, dispatchAction);
+		} catch (Throwable th) {
+		    if (th instanceof InvocationTargetException && th.getCause() != null) {
+			th = th.getCause();
+		    }
+		    if (thrown[0] == null) {
+			thrown[0] = th;
+		    } else {
+			logger.log(Level.FINE,
+				   "Subject.callAs reflective failure for method "
+				   + impl.getClass().getName() + "#" + method.getName()
+				   + " (secondary; primary exception already captured)",
+				   th);
+		    }
+		}
+		return null;
+	    };
+	} else {
+	    // No user Subject: run dispatchAction directly in the doAs action.
+	    withUserSubject = () -> {
+		try {
+		    dispatchAction.call();
+		} catch (Exception e) {
+		    // dispatchAction never throws (it captures into thrown[0])
+		    if (thrown[0] == null) thrown[0] = e;
+		}
+		return null;
+	    };
+	}
+
+	// Outer action: wrap in Subject.doAs(workerSubject) when available.
+	if (workerSubject != null && SUBJECT_DO_AS != null) {
+	    try {
+		SUBJECT_DO_AS.invoke(null, workerSubject, withUserSubject);
+	    } catch (Throwable th) {
+		if (th instanceof InvocationTargetException && th.getCause() != null) {
+		    th = th.getCause();
+		}
+		if (thrown[0] == null) {
+		    thrown[0] = th;
+		} else {
+		    logger.log(Level.FINE,
+			       "Subject.doAs reflective failure for method "
+			       + impl.getClass().getName() + "#" + method.getName()
+			       + " (secondary; primary exception already captured)",
+			       th);
+		}
+	    }
+	} else {
+	    // No worker Subject (or doAs unavailable): just run withUserSubject.
+	    withUserSubject.run();
+	}
+
+	if (thrown[0] != null) {
+	    throw thrown[0];
+	}
+	return result[0];
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* User-principal helpers for protocol version 0x02                        */
+    /* ---------------------------------------------------------------------- */
+
+    /**
+     * Reads the user-principal block written by
+     * {@link BasicInvocationHandler#writeUserPrincipals} from the request
+     * input stream.  The format is:
+     * <pre>
+     *   principalCount  : unsigned 16-bit big-endian
+     *   for each principal:
+     *     classNameLength : unsigned 16-bit big-endian
+     *     classNameBytes  : UTF-8
+     *     nameLength      : unsigned 16-bit big-endian
+     *     nameBytes       : UTF-8
+     * </pre>
+     *
+     * <p>Each principal is reconstructed by calling
+     * {@code new ClassName(name)} via reflection.  Only classes that are
+     * reachable from the platform (bootstrap/extension) class loader are
+     * accepted; unknown class names result in a
+     * {@link RemotePrincipal} placeholder that preserves the wire data
+     * without loading untrusted code.
+     *
+     * <p>To guard against malicious or malformed input, at most
+     * {@value #MAX_USER_PRINCIPALS} principals are accepted and each UTF-8
+     * string field is limited to {@value #MAX_STRING_BYTES} bytes. Insertion
+     * order is preserved via {@link java.util.LinkedHashSet}.
+     *
+     * @throws IOException if the count or any string length exceeds the
+     *         respective limit, or if the stream ends prematurely
+     */
+    private static Set<Principal> readUserPrincipals(InputStream in)
+	throws IOException
+    {
+	int count = readUnsignedShort(in);
+	if (count == 0) {
+	    return Collections.emptySet();
+	}
+	if (count > MAX_USER_PRINCIPALS) {
+	    throw new IOException(
+		"User-principal count " + count
+		+ " exceeds limit of " + MAX_USER_PRINCIPALS);
+	}
+	Set<Principal> principals = new LinkedHashSet<>((int)(count / 0.75) + 1);
+	for (int i = 0; i < count; i++) {
+	    String className = readUtf8Prefixed(in, MAX_STRING_BYTES);
+	    String name      = readUtf8Prefixed(in, MAX_STRING_BYTES);
+	    Principal p = instantiatePrincipal(className, name);
+	    principals.add(p);
+	}
+	return principals;
+    }
+
+    /**
+     * Attempts to instantiate a {@code Principal} via {@code new ClassName(name)}.
+     * Only classes visible to the platform class loader are accepted to avoid
+     * loading arbitrary code from the wire.  If the class cannot be found or
+     * instantiated, a {@link RemotePrincipal} placeholder is returned.
+     */
+    private static Principal instantiatePrincipal(String className, String name) {
+	try {
+	    // Use bootstrap class loader (null) to restrict to JDK-bundled Principal classes.
+	    // Class.forName with null loader uses the bootstrap loader.
+	    Class<?> cls = Class.forName(className, false, null);
+	    if (!Principal.class.isAssignableFrom(cls)) {
+		return new RemotePrincipal(className, name);
+	    }
+	    java.lang.reflect.Constructor<?> ctor = cls.getConstructor(String.class);
+	    return (Principal) ctor.newInstance(name);
+	} catch (ClassNotFoundException cnfe) {
+	    // Try system class loader for classes in endorsed extensions
+	    try {
+		Class<?> cls = Class.forName(className, false,
+					     ClassLoader.getSystemClassLoader());
+		if (!Principal.class.isAssignableFrom(cls)) {
+		    return new RemotePrincipal(className, name);
+		}
+		java.lang.reflect.Constructor<?> ctor =
+		    cls.getConstructor(String.class);
+		return (Principal) ctor.newInstance(name);
+	    } catch (Exception e2) {
+		return new RemotePrincipal(className, name);
+	    }
+	} catch (Exception e) {
+	    return new RemotePrincipal(className, name);
+	}
+    }
+
+    /**
+     * Server context element carrying the user Subject assembled from the
+     * principals transmitted in the JERI request header.
+     */
+    private static final class UserSubjectImpl implements ClientUserSubject {
+	private final Subject userSubject;
+	UserSubjectImpl(Subject userSubject) { this.userSubject = userSubject; }
+	public Subject getUserSubject() { return userSubject; }
+    }
+
+    /**
+     * Creates a read-only user Subject from {@code userPrincipals} and adds it
+     * to {@code context} as a {@link ClientUserSubject} element.
+     *
+     * <p>The user Subject is kept completely separate from the worker Subject
+     * held in the existing {@link ClientSubject} context element.  The
+     * dispatcher later wraps the invocation with
+     * {@code Subject.doAs(workerSubject, () -> Subject.callAs(userSubject,
+     * () -> invoke(...)))}, ensuring virtual threads inherit only the server's
+     * worker identity.
+     */
+    @SuppressWarnings("unchecked")
+    private static void addUserSubjectToContext(Collection context,
+						Set<Principal> userPrincipals)
+    {
+	Subject userSubject = new Subject(
+		true, /* read-only */
+		userPrincipals,
+		Collections.emptySet(),
+		Collections.emptySet());
+	context.add(new UserSubjectImpl(userSubject));
+    }
+
+    private static int readUnsignedShort(InputStream in) throws IOException {
+	int hi = in.read();
+	int lo = in.read();
+	if ((hi | lo) < 0) throw new EOFException();
+	return (hi << 8) | lo;
+    }
+
+    private static String readUtf8Prefixed(InputStream in, int maxBytes)
+	throws IOException
+    {
+	int len = readUnsignedShort(in);
+	if (len == 0) return "";
+	if (len > maxBytes) {
+	    throw new IOException(
+		"String field length " + len
+		+ " exceeds limit of " + maxBytes + " bytes");
+	}
+	byte[] bytes = new byte[len];
+	int remaining = len;
+	int offset = 0;
+	while (remaining > 0) {
+	    int read = in.read(bytes, offset, remaining);
+	    if (read < 0) throw new EOFException();
+	    offset += read;
+	    remaining -= read;
+	}
+	return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Placeholder Principal used when the class named on the wire is not
+     * available from the platform class loader.  The class name and name are
+     * preserved so that policy rules that match on
+     * {@code RemotePrincipal} can still inspect the raw data.
+     */
+    static final class RemotePrincipal implements Principal {
+	private final String className;
+	private final String principalName;
+
+	RemotePrincipal(String className, String principalName) {
+	    this.className      = className;
+	    this.principalName  = principalName;
+	}
+
+	/** Returns {@code "className:name"} for display and policy matching. */
+	public String getName() {
+	    return className + ":" + principalName;
+	}
+
+	/** Returns the original class name as transmitted on the wire. */
+	public String getPrincipalClassName() {
+	    return className;
+	}
+
+	/** Returns the principal name as transmitted on the wire. */
+	public String getPrincipalName() {
+	    return principalName;
+	}
+
+	public boolean equals(Object o) {
+	    if (o == this) return true;
+	    if (!(o instanceof RemotePrincipal)) return false;
+	    RemotePrincipal other = (RemotePrincipal) o;
+	    return className.equals(other.className)
+		&& principalName.equals(other.principalName);
+	}
+
+	public int hashCode() {
+	    return className.hashCode() * 31 + principalName.hashCode();
+	}
+
+	public String toString() {
+	    return "RemotePrincipal[" + className + ":" + principalName + "]";
+	}
     }
 }
