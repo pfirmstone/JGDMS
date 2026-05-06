@@ -194,6 +194,9 @@
 /JGDMS/services/verdict-registry/verdict-registry-dl/target/
 /JGDMS/services/verdict-registry/verdict-registry-service/target/
 /JGDMS/services/jgdms-service-support/target/
+/JGDMS/services/policy-service/target/
+/JGDMS/services/policy-service/policy-service-dl/target/
+/JGDMS/services/policy-service/policy-service-service/target/
 /qa/result/
 /qa/bouncyResult1.txt
 /qa/bouncyResult2.txt
