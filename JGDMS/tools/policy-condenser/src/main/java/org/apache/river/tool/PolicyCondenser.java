@@ -80,7 +80,7 @@ public class PolicyCondenser {
 
     private void condense(String arg) throws Exception {
 	File policy = policyFile(arg);
-	File condensedPolicy = new File(arg + ".con");
+	File condensedPolicy = new File(policy.getAbsolutePath() + ".con");
 	PolicyParser parser = new DefaultPolicyParser();
 	Collection<PermissionGrant> grantsCol = parser.parse(policy.toURI().toURL(), System.getProperties());
 	PermissionGrant [] grants = grantsCol.toArray(new PermissionGrant[0]);

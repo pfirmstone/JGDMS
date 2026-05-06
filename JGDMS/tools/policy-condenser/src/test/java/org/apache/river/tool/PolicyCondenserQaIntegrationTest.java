@@ -100,11 +100,9 @@ public class PolicyCondenserQaIntegrationTest {
         List<String> failures = new ArrayList<String>();
 
         PolicyParser parser = new DefaultPolicyParser();
-        // Use the same system properties that the condenser uses so that grant
-        // counts are comparable: properties like ${java.class.path} that resolve
-        // during condensation produce concrete (non-${...}) URLs in the condensed
-        // file, which then parse fine with the same properties.
-        Properties sysProps = System.getProperties();
+        // Use a defensive copy of system properties so the test is isolated from
+        // any modifications the condenser or parser may make to the live instance.
+        Properties sysProps = (Properties) System.getProperties().clone();
 
         for (File policyFile : policyFiles) {
             File copy = copyToTemp(policyFile, filesProcessed);
@@ -173,7 +171,7 @@ public class PolicyCondenserQaIntegrationTest {
         };
 
         PolicyParser parser = new DefaultPolicyParser();
-        Properties sysProps = System.getProperties();
+        Properties sysProps = (Properties) System.getProperties().clone();
         int index = 0;
 
         for (String relativePath : knownDuplicateFiles) {
