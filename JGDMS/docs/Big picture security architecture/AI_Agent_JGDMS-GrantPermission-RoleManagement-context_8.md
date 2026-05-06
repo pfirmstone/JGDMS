@@ -350,6 +350,225 @@ ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdic
 
 ---
 
+## 10. Two-Subject JERI Implementation — Worker and User Subjects
+
+This section documents the completed implementation of the two-Subject identity model
+across `BasicInvocationHandler`, `BasicInvocationDispatcher`, `ClientUserSubject`, and
+`SubjectDomainCombiner`.  All code listed here is **implemented and reviewed** as of v8.
+
+### 10.1 The Two Identities
+
+| Identity | Name | Established by | Carried to server | Lifetime |
+|---|---|---|---|---|
+| Workload/process identity | **worker Subject** | `Subject.doAs(subject, privilegedAction)` at service startup | TLS certificate chain (SPIFFE SVID X.509) | JVM / SVID rotation |
+| Human user identity | **user Subject** | `Subject.callAs(userSubject, callable)` per request | In-band in JERI wire header (protocol v`0x02`) | Duration of the `Callable` |
+
+The worker Subject is TLS-verified by mutual authentication. The user Subject is
+*asserted* by the authenticated client worker — trust is transitive: trust the worker →
+trust its user assertion.
+
+### 10.2 Client Side — `BasicInvocationHandler`
+
+**`getUserPrincipals()` (private static):**
+```java
+private static Set<Principal> getUserPrincipals() {
+    Subject subject = Subject.current();  // reads ScopedValue set by callAs
+    if (subject == null) return Collections.emptySet();
+    return Collections.unmodifiableSet(new HashSet<>(subject.getPrincipals()));
+}
+```
+- Reads `Subject.current()` directly (not via reflection) — requires `--release 21`.
+- The worker Subject's principals are **not** included here; they reach the server
+  through the TLS handshake.
+
+**Wire protocol version selection:**
+```
+if (!userPrincipals.isEmpty())  → write 0x02 + integrity + atomicValidation + user-principal block
+else if (atomicValidation)      → write 0x01 + integrity + atomicValidation
+else                            → write 0x00 + integrity   (legacy compatibility)
+```
+
+**`writeUserPrincipals()` (package-private static) — wire encoding:**
+```
+principalCount        : u16 big-endian  (max 65535, capped to actual size)
+for each principal:
+  classNameLength     : u16 big-endian
+  classNameBytes      : UTF-8
+  nameLength          : u16 big-endian
+  nameBytes           : UTF-8
+```
+Each principal serialises to `(p.getClass().getName(), p.getName())`.
+
+### 10.3 Server Side — `BasicInvocationDispatcher`
+
+**Security limits (constants):**
+- `MAX_USER_PRINCIPALS = 64` — rejects requests claiming more principals.
+- `MAX_STRING_BYTES = 8192` — rejects any single class-name or principal-name field
+  exceeding this byte length.
+
+**`readUserPrincipals()` — wire parsing:**
+- Reads count; throws `IOException` if `> MAX_USER_PRINCIPALS`.
+- For each principal: reads `className` + `name` (both length-prefixed, bounded by
+  `MAX_STRING_BYTES`).
+- Calls `instantiatePrincipal(className, name)`.
+- Collects into `LinkedHashSet` (insertion order preserved).
+
+**`instantiatePrincipal()` — classloading restriction:**
+- Step 1: `Class.forName(className, false, null)` — bootstrap classloader only.
+- Step 2 (if `ClassNotFoundException`): `Class.forName(className, false, ClassLoader.getSystemClassLoader())`.
+- Class must be assignable to `Principal` and have a public `(String)` constructor.
+- **On any failure:** returns `RemotePrincipal(className, name)` placeholder — unknown
+  principal class names from the wire **never** cause arbitrary code to be loaded.
+
+**`RemotePrincipal` (static final inner class):**
+```java
+static final class RemotePrincipal implements Principal {
+    final String className;
+    final String principalName;
+    // getName() returns principalName
+    // toString() returns "RemotePrincipal[className:principalName]"
+}
+```
+Preserves the wire data for logging / auditing without loading untrusted code.
+
+**`addUserSubjectToContext()` — context injection:**
+```java
+Subject userSubject = new Subject(
+    true,              // read-only
+    userPrincipals,    // from readUserPrincipals()
+    emptySet(),        // no public credentials
+    emptySet());       // no private credentials
+context.add(new UserSubjectImpl(userSubject));
+```
+The user Subject is read-only, contains no credentials, and is kept completely separate
+from the worker Subject in the existing `ClientSubject` context element.
+
+**`invokeWithClientSubject()` — dispatch nesting:**
+```
+workerSubject  = ClientSubject context element  (TLS-verified)
+userSubject    = ClientUserSubject context element  (wire-asserted)
+
+case: both present
+    Subject.doAs(workerSubject, () -> {           // ACC; virtual threads inherit
+        Subject.callAs(userSubject, () -> {        // ScopedValue; dispatch thread only
+            invoke(impl, method, args, context)
+        });
+    });
+
+case: worker only
+    Subject.doAs(workerSubject, () -> invoke(...));
+
+case: user only
+    Subject.callAs(userSubject, () -> invoke(...));
+
+case: neither
+    invoke(impl, method, args, context);
+```
+Throwable and return value are captured in `Object[1]` / `Throwable[1]` holders to
+escape the lambda boundary; the original `Throwable` is re-thrown unchanged.
+
+**Why `doAs` for the worker, not `callAs`:**
+`Subject.doAs` installs the Subject into the `AccessControlContext` via
+`SubjectDomainCombiner`.  Virtual threads spawned during `invoke()` inherit the ACC and
+therefore observe the server's worker identity.  `Subject.callAs` (ScopedValue-based)
+does NOT propagate to new threads.
+
+### 10.4 ServerContext API — Retrieving Both Subjects
+
+From within a JERI service method (server side):
+
+```java
+// Worker Subject — TLS-verified SPIFFE workload identity
+ClientSubject cs = (ClientSubject)
+    ServerContext.getServerContextElement(ClientSubject.class);
+Subject workerSubject = cs != null ? cs.getClientSubject() : null;
+
+// User Subject — wire-asserted human identity (v0x02 only, may be null)
+ClientUserSubject cus = (ClientUserSubject)
+    ServerContext.getServerContextElement(ClientUserSubject.class);
+Subject userSubject = cus != null ? cus.getUserSubject() : null;
+```
+
+### 10.5 `ClientUserSubject` Interface
+
+**Package:** `net.jini.io.context`  **Access:** public  **Since:** 3.1
+
+```java
+public interface ClientUserSubject {
+    /** Returns the user Subject (read-only, no credentials), or null. */
+    Subject getUserSubject();
+}
+```
+
+The implementing class `UserSubjectImpl` is a private static inner class of
+`BasicInvocationDispatcher` — not part of the public API.
+
+### 10.6 `MutableClientSubject` Status
+
+`MutableClientSubject` (extends `ClientSubject`) is **`@Deprecated`** and its
+`mergeUserPrincipals(Set)` method is **no longer called** by the dispatcher.
+`Util.ClientSubjectImpl` now implements `ClientSubject` directly (subject field final,
+no `mergeUserPrincipals`).  Kept for source compatibility only.
+
+### 10.7 `SubjectDomainCombiner` — Combined Policy View
+
+DirtyChai's `SubjectDomainCombiner.combine()` reads the `SCOPED_SUBJECT` ScopedValue on
+**every** `checkPermission` call:
+
+1. Reads ACC-bound principals from the worker Subject.
+2. Reads `SCOPED_SUBJECT` directly (no `AuthPermission` check — trusted `java.base`).
+3. Additively merges both sets; neither replaces the other.
+4. If `SCOPED_SUBJECT` is unbound (daemon thread, non-request context): no change.
+
+This enables policy grants that require **both** identities simultaneously:
+```
+grant principal SpiffePrincipal "spiffe://jgdms.example.org/svc/order-processor"
+      principal KerberosPrincipal "alice@EXAMPLE.ORG" {
+    permission ...;
+};
+```
+A grant requiring only the SPIFFE principal still fires in the absence of a user Subject.
+
+### 10.8 Structural Rules for Server Code
+
+1. **Virtual threads and user identity:** Virtual threads spawned inside `invoke()` see the
+   worker identity from the ACC.  If user-identity propagation across a thread boundary is
+   needed, capture `Subject.current()` before spawning and re-establish with a nested
+   `Subject.callAs` inside the spawned thread.
+
+2. **Daemon threads:** Long-lived daemon threads (sweeper, SPIRE watcher, log writer) must
+   NOT be created from within a `callAs` scope.  ScopedValue does not propagate to threads
+   started after the `callAs` returns.
+
+3. **Trust model:** User principals are not independently TLS-verified.  They should be
+   treated as being vouched for by the authenticated worker identity.  A server
+   may refuse requests whose worker SPIFFE identity is not trusted to assert user principals
+   (e.g., by requiring a specific SPIFFE workload principal alongside any human principal).
+
+### 10.9 `AbstractJiniService` — SPIFFE vs. Traditional JAAS
+
+| Path | What happens |
+|---|---|
+| `loginContext == null` (SPIFFE path) | `doStart()` called directly; SPIFFE Subject is already ambient via `SpiffeCredentialManager`; `Subject.callAs(spiffeSubject, callable)` used at remote-call boundaries |
+| `loginContext != null` (traditional path) | `loginContext.login()` called; `Subject.doAsPrivileged(subject, action, null)` used to run `doStart()` |
+
+JGDMS services use the SPIFFE path.  The traditional path is supported for legacy
+Jini services.
+
+### 10.10 Key Files (User/Worker Subject Implementation)
+
+| File | Role |
+|---|---|
+| `JGDMS/jgdms-jeri/.../BasicInvocationHandler.java` | Client: `getUserPrincipals()`, `writeUserPrincipals()`, wire version selection |
+| `JGDMS/jgdms-jeri/.../BasicInvocationDispatcher.java` | Server: `readUserPrincipals()`, `instantiatePrincipal()`, `addUserSubjectToContext()`, `invokeWithClientSubject()`, `RemotePrincipal`, `UserSubjectImpl` |
+| `JGDMS/jgdms-platform/.../net/jini/io/context/ClientUserSubject.java` | Public interface: `getUserSubject()` |
+| `JGDMS/jgdms-platform/.../net/jini/io/context/ClientSubject.java` | Public interface: `getClientSubject()` (worker Subject) |
+| `JGDMS/jgdms-platform/.../net/jini/io/context/MutableClientSubject.java` | `@Deprecated`, `mergeUserPrincipals()` no longer called |
+| `DirtyChai/.../SubjectDomainCombiner.java` | `getMergedPrincipals()` reads `SCOPED_SUBJECT` additively |
+| `DirtyChai/.../Subject.java` | Javadoc documents two-Subject model; ClassSet uses `LinkedHashSet` |
+
+---
+
 ## 12. Remaining Work Items (in order) — Updated v8
 
 1. **✅ `DynamicPolicyProvider.java` — single background sweeper for void eviction** *(completed)*
@@ -431,7 +650,11 @@ ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdic
 | **StandardCharsets.UTF_8 throughout SPIRE client** | ✅ **v7:** Eliminates platform charset dependency |
 | **Varint boundary `>= 35` (was `> 35`)** | ✅ **v7:** Correct rejection at 5-byte/32-bit limit |
 | **`nextStreamId` is `volatile`** | ✅ **v7:** Ensures visibility between constructor thread and watcher thread |
-| **`subjectBundle` is `private final`** | ✅ **v7:** Security-critical singleton field must not be package-accessible |
+| **`MAX_USER_PRINCIPALS = 64` + `MAX_STRING_BYTES = 8192`** | ✅ **v8:** Bounds wire-asserted user principal block; prevents memory exhaustion from malformed input |
+| **`RemotePrincipal` placeholder for unknown principal classes** | ✅ **v8:** Unknown class names from wire never cause arbitrary code to be loaded |
+| **`instantiatePrincipal()` restricted to bootstrap + system classloader** | ✅ **v8:** Only JDK-bundled or system Principal classes accepted from wire |
+| **`invokeWithClientSubject()` uses `Object[]/Throwable[]` holders** | ✅ **v8:** Throwable and return value escape lambda boundary without re-wrapping |
+| **User Subject is read-only, no credentials** | ✅ **v8:** Wire-reconstructed user Subject is immutable and credential-free |
 
 ---
 
@@ -459,3 +682,5 @@ continue without loss of context. This is version 8, updated to add:*
 - *§12 items 12 and 13 marked ✅ completed (v7 code review)*
 - *§13 cumulative decisions table extended with 7 new rows covering all v7 fixes*
 - *§8.1 updated to document empty SVID handling behaviour*
+- *§10 (new) — complete two-Subject JERI implementation: wire protocol v0x02, `getUserPrincipals()`, `writeUserPrincipals()`, `readUserPrincipals()`, `instantiatePrincipal()`, `RemotePrincipal`, `addUserSubjectToContext()`, `invokeWithClientSubject()` nesting, `ClientUserSubject` interface, `MutableClientSubject` deprecation, `SubjectDomainCombiner` additive merge, structural rules*
+- *§13 extended with 5 new rows covering v8 two-Subject implementation decisions*
