@@ -235,7 +235,7 @@ public class PolicyUpdatePostProcessorTest {
      * should condense only the non-excluded ones.
      */
     @Test
-    public void testMixedFilesOnlyCondendsNonExcluded() throws Exception {
+    public void testMixedFilesOnlyCondensesNonExcluded() throws Exception {
         writeExclusionsFile(policyDir, "noupdate.policy");
 
         File excluded = writePolicyFile(policyDir, "noupdate.policy", DUPLICATE_GRANTS);
