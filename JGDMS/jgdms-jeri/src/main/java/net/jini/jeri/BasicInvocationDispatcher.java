@@ -1642,7 +1642,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		// it is not silently discarded.
 		logger.log(Level.FINE,
 			   "Subject.callAs reflective failure for method "
-			   + method.getName()
+			   + impl.getClass().getName() + "#" + method.getName()
 			   + " (secondary; primary exception already captured)",
 			   th);
 	    }
