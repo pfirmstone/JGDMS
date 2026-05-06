@@ -28,7 +28,9 @@ import java.security.KeyStore;
 import java.security.Permission;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.TreeSet;
 import org.apache.river.api.security.DefaultPolicyParser;
 import org.apache.river.api.security.PermissionComparator;
@@ -78,12 +80,12 @@ public class PolicyCondenser {
 
     private void condense(String arg) throws Exception {
 	File policy = policyFile(arg);
-	File condensedPolicy = policyFile(arg + ".con");
+	File condensedPolicy = new File(policy.getAbsolutePath() + ".con");
 	PolicyParser parser = new DefaultPolicyParser();
 	Collection<PermissionGrant> grantsCol = parser.parse(policy.toURI().toURL(), System.getProperties());
-	PermissionGrant [] grants = grantsCol.toArray(new PermissionGrant[grantsCol.size()]);
+	PermissionGrant [] grants = grantsCol.toArray(new PermissionGrant[0]);
 	int length = grants.length;
-	Collection<PermissionGrantBuilder> builders = new ArrayList<PermissionGrantBuilder>(length);
+	List<PermissionGrant> condensed = new ArrayList<PermissionGrant>(length);
 	for (int i = 0; i < length; i++){
 	    if (grants[i] == null) continue;
 	    PermissionGrantBuilder builder = grants[i].getBuilderTemplate();
@@ -96,18 +98,25 @@ public class PolicyCondenser {
 		    grants[j] = null;
 		}
 	    }
-	    builder.permissions(permissions.toArray(new Permission[permissions.size()]));
-	    builders.add(builder);
+	    builder.permissions(permissions.toArray(new Permission[0]));
+	    PermissionGrant condensedGrant = builder.build();
+	    if (!condensedGrant.isVoid()) {
+		condensed.add(condensedGrant);
+	    }
 	    grants[i] = null;
 	}
-	PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(condensedPolicy, true)));
-	Iterator<PermissionGrantBuilder> builderIt = builders.iterator();
-	while(builderIt.hasNext()){
-	    pw.print("grant ");
-	    pw.print(builderIt.next().build().toString());
+	Collections.sort(condensed, new Comparator<PermissionGrant>() {
+	    @Override
+	    public int compare(PermissionGrant a, PermissionGrant b) {
+		return a.toString().compareTo(b.toString());
+	    }
+	});
+	try (PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(condensedPolicy, false)))) {
+	    for (PermissionGrant grant : condensed) {
+		pw.print("grant ");
+		pw.print(grant.toString());
+	    }
 	}
-	pw.flush();
-	pw.close();
     }
 
 }

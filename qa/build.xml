@@ -515,6 +515,47 @@
         <antcall target="run-categories"/>
     </target>
     
+    <!--
+      policy-update target
+      ====================
+      Runs the full QA test suite with SecurityPolicyWriter as the security
+      manager so that every test appends any permissions it actually needs to
+      its policy file.  After all tests have completed, PolicyUpdatePostProcessor
+      is invoked to:
+        1. Restore the protected policy files (those used by tests that require
+           a SecurityException) to their VCS-tracked state using git checkout,
+           undoing any writes made by SecurityPolicyWriter.
+        2. Condense all other policy files in-place using PolicyCondenser.
+
+      Usage:
+        ant -Dpolicy.update=true policy-update
+
+      The policy-condenser JAR location defaults to the Maven build output.
+      Override with -Dpolicy.condenser.jar=/path/to/policy-condenser.jar.
+    -->
+    <property name="policy.condenser.jar"
+              location="${root}/JGDMS/tools/policy-condenser/target/policy-condenser-${jgdms.version}.jar"/>
+
+    <target name="policy-update" depends="run"
+            description="Run all QA tests to update policy files, then condense non-protected policy files">
+        <java classname="org.apache.river.tool.PolicyUpdatePostProcessor"
+              fork="yes"
+              failonerror="true">
+            <arg value="--qa-dir"/>
+            <arg file="${basedir}"/>
+            <classpath>
+                <pathelement location="${policy.condenser.jar}"/>
+                <fileset dir="${lib-ext.dir}">
+                    <include name="jgdms-platform-${jgdms.version}.jar"/>
+                </fileset>
+                <fileset dir="${river.lib.dir}">
+                    <include name="jgdms-platform-${jgdms.version}.jar"/>
+                    <include name="jgdms-collections-${jgdms.version}.jar"/>
+                </fileset>
+            </classpath>
+        </java>
+    </target>
+
     <target name="run-arm" depends="river-runtime,jars-arm">
         <property name="run.categories"
                 value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
