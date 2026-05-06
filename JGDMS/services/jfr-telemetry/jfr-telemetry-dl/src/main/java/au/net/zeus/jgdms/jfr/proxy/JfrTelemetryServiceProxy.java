@@ -18,7 +18,6 @@
 package au.net.zeus.jgdms.jfr.proxy;
 
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import java.rmi.RemoteException;
 import java.util.Set;
 import net.jini.core.constraint.MethodConstraints;
@@ -40,8 +39,8 @@ import au.net.zeus.jgdms.proxy.AbstractSmartProxy;
  *
  * <p>Use the {@link #create(JfrTelemetryService, Uuid)} factory method rather
  * than constructing directly; the factory automatically returns a
- * {@link ConstrainableJfrTelemetryServiceProxy} when the server stub implements
- * {@link RemoteMethodControl}.
+ * {@link ConstrainableJfrTelemetryServiceProxy} when the server stub
+ * implements {@link RemoteMethodControl}.
  *
  * @see JfrTelemetryService
  * @see AbstractSmartProxy
@@ -86,10 +85,6 @@ public class JfrTelemetryServiceProxy
     /**
      * {@link AtomicSerial} deserialization constructor.
      *
-     * <p>{@link AbstractSmartProxy} validates that the deserialized
-     * {@code server} stub implements every interface declared on this concrete
-     * proxy class; no additional check is needed here.
-     *
      * @param arg the deserialization argument bag
      * @throws IOException            if deserialization validation fails
      * @throws ClassNotFoundException if a required class cannot be found
@@ -121,33 +116,30 @@ public class JfrTelemetryServiceProxy
     /**
      * Constrainable subclass of {@link JfrTelemetryServiceProxy}.
      *
-     * <p>This class additionally implements {@link RemoteMethodControl} so
-     * that the client can apply per-method JERI constraints (e.g.
-     * {@link net.jini.core.constraint.Integrity},
-     * {@link net.jini.core.constraint.ServerAuthentication}) to calls
-     * forwarded through this proxy.
+     * <p>Provides full {@link RemoteMethodControl} support.  Instances are
+     * produced by the {@link JfrTelemetryServiceProxy#create} factory when the
+     * server stub implements {@link RemoteMethodControl}.
      *
      * @since 3.1.1
      */
     @AtomicSerial
     public static final class ConstrainableJfrTelemetryServiceProxy
-            extends JfrTelemetryServiceProxy
-            implements RemoteMethodControl {
+            extends AbstractSmartProxy.ConstrainableSmartProxy
+            implements JfrTelemetryService {
 
         private static final long serialVersionUID = 1L;
 
         /**
          * Creates a constrainable proxy.
          *
-         * @param server      the remote server stub; must implement
-         *                    {@link RemoteMethodControl}
+         * @param server      the remote server stub
          * @param proxyID     the service's stable unique identifier
          * @param constraints per-method constraints, or {@code null}
          */
         public ConstrainableJfrTelemetryServiceProxy(JfrTelemetryService server,
                                                      Uuid proxyID,
                                                      MethodConstraints constraints) {
-            super(constrainServer(server, constraints), proxyID);
+            super(server, proxyID, constraints);
         }
 
         /**
@@ -160,27 +152,12 @@ public class JfrTelemetryServiceProxy
         public ConstrainableJfrTelemetryServiceProxy(GetArg arg)
                 throws IOException, ClassNotFoundException {
             super(arg);
-            if (!(server instanceof RemoteMethodControl))
-                throw new InvalidObjectException(
-                        "server does not implement RemoteMethodControl");
         }
 
         @Override
         public RemoteMethodControl setConstraints(MethodConstraints constraints) {
             return new ConstrainableJfrTelemetryServiceProxy(
-                    (JfrTelemetryService) server, proxyID, constraints);
-        }
-
-        @Override
-        public MethodConstraints getConstraints() {
-            return ((RemoteMethodControl) server).getConstraints();
-        }
-
-        private static JfrTelemetryService constrainServer(
-                JfrTelemetryService server, MethodConstraints constraints) {
-            if (constraints == null) return server;
-            return (JfrTelemetryService)
-                    ((RemoteMethodControl) server).setConstraints(constraints);
+                    (JfrTelemetryService) server, getReferentUuid(), constraints);
         }
 
         @Override
