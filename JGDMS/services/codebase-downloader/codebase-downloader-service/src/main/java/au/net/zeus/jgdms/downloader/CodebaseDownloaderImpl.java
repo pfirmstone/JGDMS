@@ -362,24 +362,24 @@ public class CodebaseDownloaderImpl {
      * Enqueues a single URI for processing if it has not been recently
      * processed.
      *
-     * <p>Uses a compare-and-put on {@link #lastProcessed} to prevent
-     * duplicate concurrent submissions of the same URI.
+     * <p>Uses {@link ConcurrentHashMap#compute} to atomically check the
+     * last-processed timestamp and, if stale, update it and schedule the
+     * download task.  This eliminates the TOCTOU window that would exist
+     * between a plain {@code get} and a subsequent {@code put}.
      */
     private void enqueue(Uri uri) {
-        long now = System.currentTimeMillis();
-        Long prev = lastProcessed.get(uri);
-        if (prev != null && (now - prev) < URL_RECHECK_INTERVAL_MS) {
-            return;
+        final long now = System.currentTimeMillis();
+        final boolean[] shouldSubmit = {false};
+        lastProcessed.compute(uri, (k, prev) -> {
+            if (prev != null && (now - prev) < URL_RECHECK_INTERVAL_MS) {
+                return prev;  // still within recheck interval; skip
+            }
+            shouldSubmit[0] = true;
+            return now;
+        });
+        if (shouldSubmit[0]) {
+            workerPool.submit(() -> processUri(uri, now));
         }
-        // Mark the URI as "in progress" before submitting to the pool.
-        // If putIfAbsent returns null the slot was free; if it returns
-        // a recent timestamp another thread already enqueued this URI.
-        Long existing = lastProcessed.putIfAbsent(uri, now);
-        if (existing != null && (now - existing) < URL_RECHECK_INTERVAL_MS) {
-            return;  // another thread beat us to it
-        }
-        lastProcessed.put(uri, now);  // update if entry existed but was stale
-        workerPool.submit(() -> processUri(uri, now));
     }
 
     /**

@@ -280,7 +280,8 @@ public class CodebaseDownloaderImplTest {
         String path = "/dedup.jar";
         serveBytes(path, MINIMAL_JAR);
 
-        CountDownLatch latch  = new CountDownLatch(2);  // two analyses expected if no dedup
+        // Latch of 1: only one analysis should occur.
+        CountDownLatch latch  = new CountDownLatch(1);
         StubEngine engine     = new StubEngine("e1", latch);
         CapturingVerdictRegistry vr = new CapturingVerdictRegistry();
 
@@ -291,16 +292,14 @@ public class CodebaseDownloaderImplTest {
         Uri uri = new Uri(baseUrl + path);
         Set<Uri> uris = Collections.singleton(uri);
 
-        // Submit twice from different URI aliases to force two downloads
-        // that yield the same content hash.
         impl.submitForAnalysis(uris);
 
-        // Wait for the first analysis to complete.
-        Thread.sleep(500);
+        // Wait for the analysis to complete.
+        Assert.assertTrue("analyzeJar should be called within 5s",
+                latch.await(5, TimeUnit.SECONDS));
 
-        // Manually add to submittedHashes so a re-submit of same hash is deduped.
-        // (We can't submit the same URI again due to URL_RECHECK_INTERVAL_MS
-        //  but we can verify submittedHashes contains the hash after first run.)
+        // Verify the hash is tracked so any future submission of the same
+        // content will be deduplicated.
         String expectedHash = CodebaseDownloaderImpl.computeSha256Hex(MINIMAL_JAR);
 
         impl.shutdown(5_000);

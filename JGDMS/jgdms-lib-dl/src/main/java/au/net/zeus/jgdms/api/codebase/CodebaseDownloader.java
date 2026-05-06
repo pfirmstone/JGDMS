@@ -82,10 +82,10 @@ public interface CodebaseDownloader extends Remote {
      * current JVM session are silently skipped (deduplicated by content
      * hash).  URIs that were processed longer than the configured
      * recheck-interval ago are re-fetched to detect updated JARs.
+     * Empty sets are silently ignored.
      *
      * @param codebaseUrls the set of RFC3986-normalised codebase URIs to
-     *        analyse; must be non-null and non-empty
-     * @throws IllegalArgumentException if {@code codebaseUrls} is empty
+     *        analyse; must be non-null
      * @throws NullPointerException     if {@code codebaseUrls} is
      *                                  {@code null}
      * @throws RemoteException          if a communication failure occurs
