@@ -57,7 +57,6 @@ import net.jini.io.context.ClientHost;
 import net.jini.io.context.ClientSubject;
 import net.jini.io.context.ContextPermission;
 import net.jini.io.context.IntegrityEnforcement;
-import net.jini.io.context.MutableClientSubject;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicObjectInput;
 
@@ -760,9 +759,9 @@ public class Util {
     }
 
     private static class ClientSubjectImpl
-    	implements MutableClientSubject
+    	implements ClientSubject
     {
-	private volatile Subject s;
+	private final Subject s;
 	private static final Permission getClientSubjectPerm =
 	    new ContextPermission("net.jini.io.context.ClientSubject.getClientSubject");
 
@@ -773,24 +772,6 @@ public class Util {
 		sm.checkPermission(getClientSubjectPerm);
 	    }
 	    return s;
-	}
-
-	public synchronized void mergeUserPrincipals(Set<? extends Principal> userPrincipals) {
-	    if (userPrincipals == null) throw new NullPointerException("userPrincipals");
-	    Subject workerSubject = s;
-	    Set<Principal> merged = new HashSet<>();
-	    if (workerSubject != null) {
-		merged.addAll(workerSubject.getPrincipals());
-	    }
-	    merged.addAll(userPrincipals);
-	    Set<Object> publicCreds = new HashSet<>();
-	    Set<Object> privateCreds = new HashSet<>();
-	    if (workerSubject != null) {
-		publicCreds.addAll(workerSubject.getPublicCredentials());
-		/* private credentials not exposed — service code cannot see
-		 * raw credentials from the client Subject */
-	    }
-	    s = new Subject(true, merged, publicCreds, privateCreds);
 	}
     }
 

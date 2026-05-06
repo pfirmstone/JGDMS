@@ -82,7 +82,6 @@ import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.io.context.ClientUserSubject;
-import net.jini.io.context.MutableClientSubject;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.concurrent.Callable;
