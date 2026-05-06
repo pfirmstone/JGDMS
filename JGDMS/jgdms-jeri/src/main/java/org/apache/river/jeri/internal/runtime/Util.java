@@ -40,11 +40,14 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Permission;
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 import javax.security.auth.Subject;
 import net.jini.activation.arg.ActivationID;
@@ -54,6 +57,7 @@ import net.jini.io.context.ClientHost;
 import net.jini.io.context.ClientSubject;
 import net.jini.io.context.ContextPermission;
 import net.jini.io.context.IntegrityEnforcement;
+import net.jini.io.context.MutableClientSubject;
 import net.jini.security.proxytrust.TrustEquivalence;
 import org.apache.river.api.io.AtomicObjectInput;
 
@@ -756,9 +760,9 @@ public class Util {
     }
 
     private static class ClientSubjectImpl
-    	implements ClientSubject
+    	implements MutableClientSubject
     {
-	private final Subject s;
+	private volatile Subject s;
 	private static final Permission getClientSubjectPerm =
 	    new ContextPermission("net.jini.io.context.ClientSubject.getClientSubject");
 
@@ -769,6 +773,24 @@ public class Util {
 		sm.checkPermission(getClientSubjectPerm);
 	    }
 	    return s;
+	}
+
+	public void mergeUserPrincipals(Set<? extends Principal> userPrincipals) {
+	    if (userPrincipals == null) throw new NullPointerException("userPrincipals");
+	    Subject workerSubject = s;
+	    Set<Principal> merged = new HashSet<Principal>();
+	    if (workerSubject != null) {
+		merged.addAll(workerSubject.getPrincipals());
+	    }
+	    merged.addAll(userPrincipals);
+	    Set publicCreds = new HashSet();
+	    Set privateCreds = new HashSet();
+	    if (workerSubject != null) {
+		publicCreds.addAll(workerSubject.getPublicCredentials());
+		/* private credentials not exposed — service code cannot see
+		 * raw credentials from the client Subject */
+	    }
+	    s = new Subject(true, merged, publicCreds, privateCreds);
 	}
     }
 

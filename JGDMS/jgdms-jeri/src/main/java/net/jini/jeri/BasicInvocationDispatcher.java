@@ -81,6 +81,9 @@ import net.jini.security.AccessPermission;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import net.jini.io.context.MutableClientSubject;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -163,6 +166,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     static final byte VERSION = 0x01;
     
     static final byte PREVIOUS_VERSION = 0x0;
+    
+    /** Marshal stream protocol version with user principals. */
+    static final byte VERSION_WITH_PRINCIPALS = 0x02;
     
     /** Marshal stream protocol version mismatch. */
     static final byte MISMATCH = 0x0;
@@ -599,9 +605,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean integrity;
 	boolean supportsAtomicValidation;
 	boolean atomicValidation = false;
+	boolean hasUserPrincipals = false;
 	try {
 	    rin = request.getRequestInputStream();
-	    switch (rin.read()) {
+	    int versionByte = rin.read();
+	    switch (versionByte) {
+		case VERSION_WITH_PRINCIPALS:
+		    supportsAtomicValidation = true;
+		    hasUserPrincipals = true;
+		    break;
 		case VERSION:
 		    supportsAtomicValidation = true;
 		    break;
@@ -638,6 +650,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    throw new EOFException();
 		default:
 		    atomicValidation = true;
+		}
+	    }
+	    if (hasUserPrincipals) {
+		Set<Principal> userPrincipals = readUserPrincipals(rin);
+		if (!userPrincipals.isEmpty()) {
+		    mergeUserPrincipalsIntoContext(context, userPrincipals);
 		}
 	    }
 	} catch (Throwable t) {
@@ -1496,5 +1514,180 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		}
 	    }
 	});
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* User-principal helpers for protocol version 0x02                        */
+    /* ---------------------------------------------------------------------- */
+
+    /**
+     * Reads the user-principal block written by
+     * {@link BasicInvocationHandler#writeUserPrincipals} from the request
+     * input stream.  The format is:
+     * <pre>
+     *   principalCount  : unsigned 16-bit big-endian
+     *   for each principal:
+     *     classNameLength : unsigned 16-bit big-endian
+     *     classNameBytes  : UTF-8
+     *     nameLength      : unsigned 16-bit big-endian
+     *     nameBytes       : UTF-8
+     * </pre>
+     *
+     * <p>Each principal is reconstructed by calling
+     * {@code new ClassName(name)} via reflection.  Only classes that are
+     * reachable from the platform (bootstrap/extension) class loader are
+     * accepted; unknown class names result in a
+     * {@link RemotePrincipal} placeholder that preserves the wire data
+     * without loading untrusted code.
+     */
+    private static Set<Principal> readUserPrincipals(InputStream in)
+	throws IOException
+    {
+	int count = readUnsignedShort(in);
+	if (count == 0) {
+	    return Collections.emptySet();
+	}
+	Set<Principal> principals = new HashSet<Principal>(count * 2);
+	for (int i = 0; i < count; i++) {
+	    String className = readUtf8Prefixed(in);
+	    String name      = readUtf8Prefixed(in);
+	    Principal p = instantiatePrincipal(className, name);
+	    principals.add(p);
+	}
+	return principals;
+    }
+
+    /**
+     * Attempts to instantiate a {@code Principal} via {@code new ClassName(name)}.
+     * Only classes visible to the platform class loader are accepted to avoid
+     * loading arbitrary code from the wire.  If the class cannot be found or
+     * instantiated, a {@link RemotePrincipal} placeholder is returned.
+     */
+    private static Principal instantiatePrincipal(String className, String name) {
+	try {
+	    // Use bootstrap class loader (null) to restrict to JDK-bundled Principal classes.
+	    // Class.forName with null loader uses the bootstrap loader.
+	    Class<?> cls = Class.forName(className, false, null);
+	    if (cls == null || !Principal.class.isAssignableFrom(cls)) {
+		return new RemotePrincipal(className, name);
+	    }
+	    java.lang.reflect.Constructor<?> ctor = cls.getConstructor(String.class);
+	    return (Principal) ctor.newInstance(name);
+	} catch (ClassNotFoundException cnfe) {
+	    // Try system class loader for classes in endorsed extensions
+	    try {
+		Class<?> cls = Class.forName(className, false,
+					     ClassLoader.getSystemClassLoader());
+		if (!Principal.class.isAssignableFrom(cls)) {
+		    return new RemotePrincipal(className, name);
+		}
+		java.lang.reflect.Constructor<?> ctor =
+		    cls.getConstructor(String.class);
+		return (Principal) ctor.newInstance(name);
+	    } catch (Exception e2) {
+		return new RemotePrincipal(className, name);
+	    }
+	} catch (Exception e) {
+	    return new RemotePrincipal(className, name);
+	}
+    }
+
+    /**
+     * Finds the {@link MutableClientSubject} element in {@code context} and
+     * calls {@link MutableClientSubject#mergeUserPrincipals} to fold the user
+     * principals into the merged read-only Subject that service code will see.
+     *
+     * <p>The context collection is the <em>same mutable</em> {@code ArrayList}
+     * that {@link org.apache.river.jeri.internal.runtime.Target} passed to
+     * {@code ServerContext.doWithServerContext}.  The
+     * {@code unmodifiableCollection} wrapper stored in the thread-local holds a
+     * view of this list, so updates to elements within the list (not adds or
+     * removes) are immediately visible to {@code ServerContext.getServerContextElement}.
+     */
+    private static void mergeUserPrincipalsIntoContext(Collection context,
+						       Set<Principal> userPrincipals)
+    {
+	for (Object elem : context) {
+	    if (elem instanceof MutableClientSubject) {
+		((MutableClientSubject) elem).mergeUserPrincipals(userPrincipals);
+		return;
+	    }
+	}
+	// No MutableClientSubject found — context was populated by a transport
+	// that does not support merging.  Log at FINE and continue.
+	if (logger.isLoggable(Level.FINE)) {
+	    logger.log(Level.FINE,
+		"readUserPrincipals: no MutableClientSubject in context; "
+		+ "user principals will not be available to service code");
+	}
+    }
+
+    private static int readUnsignedShort(InputStream in) throws IOException {
+	int hi = in.read();
+	int lo = in.read();
+	if ((hi | lo) < 0) throw new EOFException();
+	return (hi << 8) | lo;
+    }
+
+    private static String readUtf8Prefixed(InputStream in) throws IOException {
+	int len = readUnsignedShort(in);
+	if (len == 0) return "";
+	byte[] bytes = new byte[len];
+	int remaining = len;
+	int offset = 0;
+	while (remaining > 0) {
+	    int read = in.read(bytes, offset, remaining);
+	    if (read < 0) throw new EOFException();
+	    offset += read;
+	    remaining -= read;
+	}
+	return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Placeholder Principal used when the class named on the wire is not
+     * available from the platform class loader.  The class name and name are
+     * preserved so that policy rules that match on
+     * {@code RemotePrincipal} can still inspect the raw data.
+     */
+    static final class RemotePrincipal implements Principal {
+	private final String className;
+	private final String principalName;
+
+	RemotePrincipal(String className, String principalName) {
+	    this.className      = className;
+	    this.principalName  = principalName;
+	}
+
+	/** Returns {@code "className:name"} for display and policy matching. */
+	public String getName() {
+	    return className + ":" + principalName;
+	}
+
+	/** Returns the original class name as transmitted on the wire. */
+	public String getPrincipalClassName() {
+	    return className;
+	}
+
+	/** Returns the principal name as transmitted on the wire. */
+	public String getPrincipalName() {
+	    return principalName;
+	}
+
+	public boolean equals(Object o) {
+	    if (o == this) return true;
+	    if (!(o instanceof RemotePrincipal)) return false;
+	    RemotePrincipal other = (RemotePrincipal) o;
+	    return className.equals(other.className)
+		&& principalName.equals(other.principalName);
+	}
+
+	public int hashCode() {
+	    return className.hashCode() * 31 + principalName.hashCode();
+	}
+
+	public String toString() {
+	    return "RemotePrincipal[" + className + ":" + principalName + "]";
+	}
     }
 }
