@@ -84,6 +84,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.io.context.MutableClientSubject;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
+import java.util.concurrent.Callable;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -224,6 +225,28 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     /** dispatch logger */
     private static final Logger logger =
 	Logger.getLogger("net.jini.jeri.BasicInvocationDispatcher");
+
+    /**
+     * Reflective handle to {@code Subject.callAs(Subject, Callable)} introduced
+     * in JDK 18.  {@code null} on older JVMs.
+     *
+     * <p>Used on the server side to establish {@code Subject.current()} during
+     * dispatch so that server-side code running inside the invocation can
+     * observe the authenticated client Subject via the JDK 18+ ScopedValue
+     * mechanism, mirroring the client-side {@code Subject.callAs} established
+     * by {@code AbstractJiniService}.
+     */
+    private static final Method SUBJECT_CALL_AS;
+
+    static {
+	Method m = null;
+	try {
+	    m = Subject.class.getMethod("callAs", Subject.class, Callable.class);
+	} catch (Exception ignored) {
+	    // JDK < 18 — callAs not available
+	}
+	SUBJECT_CALL_AS = m;
+    }
 
     /**
      * Flag to remove server-side stack traces before marshalling
@@ -737,10 +760,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	
 	    /*
-	     * Invoke method on remote object.
+	     * Invoke method on remote object under the authenticated client
+	     * Subject so that both Subject.getSubject(acc) and (on JDK 18+)
+	     * Subject.current() return the client Subject to server code.
 	     */
 	    try {
-		returnValue = invoke(impl, method, args, context);
+		returnValue = invokeWithClientSubject(impl, method, args, context);
 		if (logger.isLoggable(Level.FINE)) {
 		    logReturn(impl, method, returnValue);
 		}
@@ -1529,6 +1554,79 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		}
 	    }
 	});
+    }
+
+    /**
+     * Invokes the specified method under the authenticated client Subject,
+     * establishing the Subject in both the legacy {@code AccessControlContext}
+     * (via {@code Subject.doAsPrivileged}) and the JDK 18+ ScopedValue (via
+     * {@code Subject.callAs}), so that server-side code running during the
+     * invocation can observe the client Subject through either mechanism.
+     *
+     * <p>When no client Subject is present (e.g. unauthenticated transport),
+     * this method falls back to calling {@link #invoke} directly.</p>
+     *
+     * <p>All exceptions thrown by {@link #invoke} are faithfully re-thrown;
+     * the Subject wrapping does not alter exception propagation.</p>
+     *
+     * @param impl the remote object
+     * @param method the method to invoke
+     * @param args the method arguments
+     * @param context the server context
+     * @return the result of the method invocation
+     * @throws Throwable any exception thrown by the method
+     */
+    private Object invokeWithClientSubject(final Remote impl,
+					   final Method method,
+					   final Object[] args,
+					   final Collection context)
+	throws Throwable
+    {
+	Subject cs = getClientSubject();
+	if (cs == null) {
+	    return invoke(impl, method, args, context);
+	}
+
+	// Use single-element arrays to capture the result / throwable from
+	// within the lambda — Callable.call() never throws so neither callAs
+	// nor doAsPrivileged wraps anything in checked-exception holders.
+	final Object[] result = { null };
+	final Throwable[] thrown = { null };
+
+	Subject.doAsPrivileged(cs, (PrivilegedAction<Void>) () -> {
+	    if (SUBJECT_CALL_AS != null) {
+		// JDK 18+: additionally establish Subject.current() via callAs.
+		try {
+		    SUBJECT_CALL_AS.invoke(null, cs, (Callable<Void>) () -> {
+			try {
+			    result[0] = invoke(impl, method, args, context);
+			} catch (Throwable th) {
+			    thrown[0] = th;
+			}
+			return null;
+		    });
+		} catch (Throwable th) {
+		    // Defensive: captures any unexpected reflective failure
+		    // (e.g. InvocationTargetException from callAs itself).
+		    if (thrown[0] == null) {
+			thrown[0] = th;
+		    }
+		}
+	    } else {
+		// JDK < 18: doAsPrivileged alone is sufficient.
+		try {
+		    result[0] = invoke(impl, method, args, context);
+		} catch (Throwable th) {
+		    thrown[0] = th;
+		}
+	    }
+	    return null;
+	}, null);
+
+	if (thrown[0] != null) {
+	    throw thrown[0];
+	}
+	return result[0];
     }
 
     /* ---------------------------------------------------------------------- */
