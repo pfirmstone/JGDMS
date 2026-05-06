@@ -1,4 +1,4 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v8)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v9)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
@@ -31,6 +31,18 @@ context. It supersedes and extends the previous context documents.
 | `SpiffeCredentialManager.java` | DirtyChai source | ✅ **Fixed (v7):** backoff race fixed; empty SVID no longer wipes valid Subject; subjectBundle private final |
 | `SpireConnection.java` | DirtyChai source | ✅ **Fixed (v7):** frame size cap; UTF-8 charset; nextStreamId volatile; blocking channel documented |
 | `SpireProtobuf.java` | DirtyChai source | ✅ **Fixed (v7):** varint boundary corrected; StandardCharsets.UTF_8 used |
+| `SpiffeCredentialManager.java` | JGDMS `jgdms-jeri` source | ✅ **v9 deep-dive:** 795-line JGDMS-side impl; `FileSvidSource`; `updateSubjectCredentials()` adds `X500Principal` + `SpiffePrincipal`; exponential backoff; unit tests at `SpiffeCredentialManagerTest` |
+| `RemotePolicyService.java` | JGDMS platform source | ✅ **v9 deep-dive:** Interface fully implemented — 5 methods: `replace()`, `getCurrentGrants()`, `registerForPolicyUpdates()`, `renewPolicyLease()`, `cancelPolicyLease()` |
+| `InMemoryPolicyServiceImpl.java` | JGDMS policy-service source | ✅ **v9 deep-dive:** 453-line core POJO; `PolicyUpdateEvent`, `PolicyEventLease`, `LandlordLease`, async event dispatch; no unit tests exist yet |
+| `ActivatableInMemoryPolicyServiceImpl.java` | JGDMS policy-service source | ✅ **v9 deep-dive:** Extends `AbstractJiniService`; delegates all `RemotePolicyService` calls to `InMemoryPolicyServiceImpl`; Phoenix-activatable + `NonActivatableServiceDescriptor` constructors |
+| `RemotePolicyServiceProxy.java` | JGDMS policy-service-dl source | ✅ **v9 deep-dive:** `@AtomicSerial` smart proxy; `ConstrainableRemotePolicyServiceProxy` inner class for full `RemoteMethodControl` |
+| `VerdictRegistryImpl.java` | JGDMS verdict-registry source | ✅ **v9 deep-dive:** 1488-line server impl; quorum policy; signature verification; persistence via `ReliableLog` |
+| `ActivatableVerdictRegistryImpl.java` | JGDMS verdict-registry source | ✅ **v9 deep-dive:** Extends `AbstractJiniService`; Phoenix-activatable and `NonActivatableServiceDescriptor` constructors |
+| `VerdictRegistryProxy.java` | JGDMS verdict-registry-dl source | ✅ **v9 deep-dive:** `@AtomicSerial` smart proxy with constrainable variant |
+| `BytecodeAnalysisEngineImpl.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** Full push-model `analyzeJar(AnalysisRequest)` implementation; signs `JarAnalysisReport` |
+| `ClinitBlockingVisitor.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** 511-line ASM visitor; BFS call-graph; `detectClinitCycles()` via Tarjan SCC (`TarjanScc` inner class — no separate `ClinitCycleVisitor` class) |
+| `AtomicSerialComplianceVisitor.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** 537-line ASM visitor; tests at `AtomicSerialComplianceVisitorTest` |
+| `JarAnalyzer.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** 469 lines; phases 1 (index), 2a (cycle detect), 2b (per-class analysis); `declaresPermissionClass()` handles `className#action` |
 
 ---
 
@@ -164,6 +176,8 @@ every 60 seconds (configurable) and iterates `dynamicPolicyGrants` once, calling
 
 ## 4. RemotePolicyService Wire Interface
 
+The interface is **fully implemented** in `jgdms-platform/.../RemotePolicyService.java`:
+
 ```java
 public interface RemotePolicyService extends Remote {
     void replace(String[] grants) throws RemoteException;
@@ -171,12 +185,16 @@ public interface RemotePolicyService extends Remote {
     EventRegistration registerForPolicyUpdates(RemoteEventListener listener,
                                                MarshalledInstance handback,
                                                long duration) throws IOException;
+    long renewPolicyLease(Uuid leaseId, long duration)
+            throws UnknownLeaseException, RemoteException;
+    void cancelPolicyLease(Uuid leaseId)
+            throws UnknownLeaseException, RemoteException;
 }
 ```
 
-**Server-side parsing:** Feed each string directly into `DefaultPolicyScanner.scanStream()`
+**Server-side parsing:** Each `String` element is fed directly into `DefaultPolicyScanner.scanStream()`
 via a `StringReader` wrapped in an `InputStream` adaptor — bypasses URL machinery.
-Requires `DefaultPolicyParser.scanner` to be made `protected` (currently `private final`).
+`DefaultPolicyParser.scanner` is already `protected final` in the current codebase — no visibility change required.
 
 **Validation is always server-side** after parsing.
 
@@ -350,13 +368,13 @@ ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdic
 
 ---
 
-## 12. Remaining Work Items (in order) — Updated v8
+## 12. Remaining Work Items (in order) — Updated v9
 
 1. **✅ `DynamicPolicyProvider.java` — single background sweeper for void eviction** *(completed)*
-2. **✅ `DefaultPolicyParser.scanner` — `private` → `protected`** *(completed)*
+2. **✅ `DefaultPolicyParser.scanner` — `private` → `protected`** *(completed — already `protected final` in codebase)*
 3. **✅ `HttpsClientAuthPolicyParser`** *(completed)*
 4. **✅ `SpiffePolicyFile`** *(completed)*
-5. **✅ `SpiffeCredentialManager`** *(completed)*
+5. **✅ `SpiffeCredentialManager` (DirtyChai)** *(completed)*
 6. **✅ `SubjectDomainCombiner` — inject `SCOPED_SUBJECT` principals** *(completed)*
 7. **✅ `Subject.java` class javadoc update** *(completed)*
 8. **✅ `SpiffeCredentialManager` — trust bundle support** *(completed)*
@@ -365,20 +383,36 @@ ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdic
 11. **✅ `FilterX509TrustManager` — design analysis and documentation** *(completed)*
 12. **✅ Code review v6 — 10 issues fixed** *(completed)*
 13. **✅ Code review v7 — 10 further issues fixed** *(completed)*
-14. **`RemotePolicyService` interface** — new JERI wire interface (Section 4).
-15. **`InMemoryPolicyService`** — JERI service skeleton:
-    - Extends `AbstractJiniService`
-    - Implements `RemotePolicyService`
-    - Server-side `String[]` → `PermissionGrant[]` parsing via `DefaultPolicyScanner.scanStream()`
-    - `replace()` permission validation after parsing
-    - `PolicyUpdateEvent extends RemoteEvent`
-    - Lease management via `LandlordLease`
-    - Async event dispatch via bounded queue + dispatcher thread
-    - SPIFFE SVID: `spiffe://jgdms.example.org/host/policy`
-    - Only hosts with admin SVID (`spiffe://jgdms.example.org/admin/policy`) may call `replace()`
-16. **DirtyChai smart proxy client for `RemotePolicyService`**
-17. **Client-side `RemoteEventListener`**
-18. **✅ `PERMISSIONS.LIST` BAE integration** *(completed)*
+14. **✅ `RemotePolicyService` interface** *(completed — 5 methods: `replace`, `getCurrentGrants`, `registerForPolicyUpdates`, `renewPolicyLease`, `cancelPolicyLease`; in `jgdms-platform/.../RemotePolicyService.java`)*
+15. **✅ `InMemoryPolicyService`** *(completed)*
+    - Implemented as two classes: `InMemoryPolicyServiceImpl` (453-line core POJO) + `ActivatableInMemoryPolicyServiceImpl` (extends `AbstractJiniService`, Jini lifecycle wrapper)
+    - `PolicyUpdateEvent extends RemoteEvent` — implemented
+    - `PolicyEventLease` — implemented
+    - Lease management via `LandlordLease` — implemented
+    - Async event dispatch via bounded queue + dispatcher thread — implemented
+    - SPIFFE SVID `spiffe://jgdms.example.org/host/policy` — documented in class Javadoc
+    - `PolicyPermission("Remote")` enforcement on `replace()` — implemented
+16. **✅ DirtyChai smart proxy client for `RemotePolicyService`** *(completed — `RemotePolicyServiceProxy` + `ConstrainableRemotePolicyServiceProxy` inner class in `policy-service-dl`)*
+17. **✅ `PERMISSIONS.LIST` BAE integration** *(completed)*
+18. **✅ VerdictRegistry service** *(completed — `VerdictRegistryImpl` 1488 lines, `ActivatableVerdictRegistryImpl` extends `AbstractJiniService`, `VerdictRegistryProxy` smart proxy, full test coverage)*
+19. **✅ BAE rewrite — `ClinitBlockingVisitor`, `AtomicSerialComplianceVisitor`, `JarAnalyzer`, `BytecodeAnalysisEngineImpl`** *(completed — push-model `analyzeJar(AnalysisRequest)` API; `<clinit>` cycle detection via Tarjan SCC embedded in `ClinitBlockingVisitor.detectClinitCycles()`)*
+20. **✅ `SpiffeCredentialManager` (JGDMS `jgdms-jeri`)** *(completed — 795-line implementation with `FileSvidSource`, `updateSubjectCredentials()`, `SpiffeSubjectHolder`, unit tests)*
+21. **Client-side `RemoteEventListener`** — pull-on-notification for policy updates *(still open)*
+    - Must subscribe via `RemotePolicyServiceProxy.registerForPolicyUpdates()`
+    - On event receipt: call `getCurrentGrants()`, parse `String[]` back to `PermissionGrant[]`, call `RemotePolicyProvider.replace()`
+    - Must track sequence numbers to detect gaps and re-pull
+    - Must renew lease before expiry
+22. **Unit tests for `policy-service`** — *(still open; no test directory exists under `policy-service-service/src/test/` or `policy-service-dl/src/test/`)*
+23. **Host 4 — Codebase Downloader Service** — *(not yet started; no Maven module exists)*
+    - Only host with outbound internet access
+    - Fetches JAR bytes for codebase URLs discovered from lookup service registrations
+    - Pushes `AnalysisRequest` (containing raw JAR bytes) to BAE pool via `BytecodeAnalysisEngine.analyzeJar()`
+    - SPIFFE SVID: `spiffe://jgdms.example.org/host/downloader`
+24. **`ProxyCodebaseSPI` integration with `VerdictRegistry`** — *(not yet started)*
+    - `PreferredProxyCodebaseProvider` must compute SHA-256 hash of each JAR before creating a `PreferredClassLoader`
+    - Must call `VerdictRegistry.getVerdictByHash(contentHash)` or `getVerdict(codebaseUrls)`
+    - Must refuse to unmarshal if verdict is `DANGEROUS` or absent (absent = not yet audited; policy decision on absent)
+25. **`DiscoveryCredentialProvider` interface** — *(not yet started; referenced in design docs only)*
 
 ---
 
@@ -432,6 +466,11 @@ ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdic
 | **Varint boundary `>= 35` (was `> 35`)** | ✅ **v7:** Correct rejection at 5-byte/32-bit limit |
 | **`nextStreamId` is `volatile`** | ✅ **v7:** Ensures visibility between constructor thread and watcher thread |
 | **`subjectBundle` is `private final`** | ✅ **v7:** Security-critical singleton field must not be package-accessible |
+| **`InMemoryPolicyServiceImpl` is a standalone POJO; `ActivatableInMemoryPolicyServiceImpl` extends `AbstractJiniService`** | ✅ **v9:** Clean separation: core logic unit-testable without Jini infrastructure; activatable wrapper adds export/join/lifecycle |
+| **`VerdictRegistryImpl` uses same two-class pattern** | ✅ **v9:** `VerdictRegistryImpl` (core) + `ActivatableVerdictRegistryImpl` (`AbstractJiniService`) |
+| **`ClinitCycleVisitor` is not a separate class** | ✅ **v9:** Cycle detection is `ClinitBlockingVisitor.detectClinitCycles()` static method + `TarjanScc` private inner class — better cohesion, no separate file needed |
+| **`DefaultPolicyParser.scanner` is already `protected final`** | ✅ **v9:** No change required; `HttpsClientAuthPolicyParser` can subclass directly |
+| **`SUBJECT_CALL_AS`, `SUBJECT_DO_AS` (Dispatcher) and `SUBJECT_CURRENT` (Handler) are still reflective `Method` fields** | ✅ **v9 verified:** Resolved at class-init via `Subject.class.getMethod(...)`; invoked via `Method.invoke()`; null on JDK < 18 |
 
 ---
 
@@ -454,8 +493,8 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 8, updated to add:*
-- *`SpiffeCredentialManager.java`, `SpireConnection.java`, `SpireProtobuf.java` to §1 documents read*
-- *§12 items 12 and 13 marked ✅ completed (v7 code review)*
-- *§13 cumulative decisions table extended with 7 new rows covering all v7 fixes*
-- *§8.1 updated to document empty SVID handling behaviour*
+continue without loss of context. This is version 9, updated to add:*
+- *§1 extended with 13 new source files reviewed in v9 deep-dive analysis*
+- *§4 updated to show actual 5-method `RemotePolicyService` interface; corrected note that `DefaultPolicyParser.scanner` is already `protected`*
+- *§12 items 14, 15, 16, 18, 19, 20 all marked ✅ completed; item 17 clarified as still open; items 21–25 added (client-side listener, policy-service tests, Host 4, ProxyCodebaseSPI integration, DiscoveryCredentialProvider)*
+- *§13 decisions table extended with 6 new rows covering v9 findings*
