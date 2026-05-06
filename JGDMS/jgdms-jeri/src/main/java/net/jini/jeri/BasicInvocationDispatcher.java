@@ -1588,8 +1588,10 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	}
 
 	// Use single-element arrays to capture the result / throwable from
-	// within the lambda — Callable.call() never throws so neither callAs
-	// nor doAsPrivileged wraps anything in checked-exception holders.
+	// within the lambdas.  The Callable lambda catches all Throwables from
+	// invoke() so it never propagates an exception to its caller (callAs);
+	// therefore neither callAs nor doAsPrivileged wraps anything in a
+	// checked-exception holder.
 	final Object[] result = { null };
 	final Throwable[] thrown = { null };
 
@@ -1607,19 +1609,24 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    });
 		} catch (Throwable th) {
 		    // Defensive: captures any unexpected reflective failure from
-		    // the callAs invocation itself (not from invoke()).
+		    // the Subject.callAs invocation itself (distinct from any
+		    // exception that invoke() may have thrown above).
 		    // Unwrap InvocationTargetException to get the root cause.
 		    if (th instanceof InvocationTargetException && th.getCause() != null) {
 			th = th.getCause();
 		    }
 		    if (thrown[0] == null) {
+			// invoke() succeeded (or was never reached); treat the
+			// reflective failure as the exception for this call.
 			thrown[0] = th;
 		    } else {
-			// invoke() already captured a throwable; log the
-			// infrastructure failure so it is not silently lost.
+			// thrown[0] was already set (by invoke() or an earlier
+			// capture); log this secondary infrastructure failure so
+			// it is not silently discarded.
 			logger.log(Level.FINE,
-				   "Subject.callAs reflective invocation failed"
-				   + " after invoke() already threw",
+				   "Subject.callAs reflective failure for method "
+				   + method.getName()
+				   + " (secondary; primary exception already captured)",
 				   th);
 		    }
 		}
