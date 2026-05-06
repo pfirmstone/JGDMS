@@ -174,6 +174,57 @@ public class DefaultPolicyParser implements PolicyParser {
     }
 
     /**
+     * Parses policy grants from the given {@link Reader}, without requiring a
+     * {@link URL} base location.
+     *
+     * <p>This is the entry point for in-memory / string-based policy parsing,
+     * used for example by {@code InMemoryPolicyService} when clients supply
+     * grant clauses as {@code String[]} over the wire.  The caller is
+     * responsible for closing the reader after this method returns.
+     *
+     * <p>Keystore clauses in the policy text are resolved relative to
+     * {@code null} (i.e. only absolute keystore URLs are supported when
+     * parsing from a Reader).
+     *
+     * @param reader the source of the policy text; must not be {@code null}
+     * @param system system properties used for property expansion; must not
+     *               be {@code null}
+     * @return a collection of resolved {@link PermissionGrant} objects;
+     *         never {@code null}; may be empty
+     * @throws Exception if an I/O or syntax error occurs while reading the
+     *                   policy text; a {@link SecurityException} is propagated
+     *                   unchanged so that grant-validation failures surface
+     *                   immediately
+     */
+    public Collection<PermissionGrant> parse(Reader reader, Properties system)
+            throws Exception {
+        log(Level.FINER, "\nDefaultPolicyParser::parse from Reader\n");
+        boolean resolve = PolicyUtils.canExpandProperties();
+
+        Collection<GrantEntry> grantEntries = new HashSet<GrantEntry>();
+        List<KeystoreEntry> keystores = new ArrayList<KeystoreEntry>();
+
+        scanner.scanStream(reader, grantEntries, keystores);
+
+        KeyStore ks = initKeyStore(keystores, null, system, resolve);
+
+        Collection<PermissionGrant> result = new HashSet<PermissionGrant>();
+        for (DefaultPolicyScanner.GrantEntry ge : grantEntries) {
+            try {
+                PermissionGrant pe = resolveGrant(ge, ks, system, resolve);
+                if (!pe.isVoid()) {
+                    result.add(pe);
+                }
+            } catch (Exception e) {
+                if (e instanceof SecurityException) throw (SecurityException) e;
+                log(Level.CONFIG, "security.1A9", new Object[]{ge}, e);
+            }
+        }
+        log(Level.FINEST, result.toString());
+        return result;
+    }
+
+    /**
      * Translates GrantEntry token to PermissionGrant object. It goes step by step, 
      * trying to resolve each component of the GrantEntry:
      * <ul>
