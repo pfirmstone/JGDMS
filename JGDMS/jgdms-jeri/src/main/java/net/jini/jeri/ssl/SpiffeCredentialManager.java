@@ -395,10 +395,9 @@ public final class SpiffeCredentialManager implements AutoCloseable {
                 // actionable message.
                 throw new GeneralSecurityException(
                         "Found legacy SEC1 EC private key (BEGIN EC PRIVATE KEY) in "
-                        + svidKeyPem + ".  Java's EC KeyFactory requires PKCS#8 "
-                        + "format (BEGIN PRIVATE KEY).  Regenerate or convert the "
-                        + "key with: openssl pkcs8 -topk8 -nocrypt -in svid_key.pem "
-                        + "-out svid_key_pkcs8.pem");
+                        + svidKeyPem + ". Java's EC KeyFactory requires PKCS#8 format"
+                        + " (BEGIN PRIVATE KEY). Convert with: openssl pkcs8 -topk8"
+                        + " -nocrypt -in svid_key.pem -out svid_key_pkcs8.pem");
 
             } else if (pem.contains(BEGIN_RSA_KEY)) {
                 // PKCS#1 RSA private key — re-wrap in PKCS#8 envelope

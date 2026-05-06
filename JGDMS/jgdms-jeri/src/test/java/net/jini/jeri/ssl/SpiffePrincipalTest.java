@@ -43,6 +43,9 @@ import static org.junit.Assert.fail;
  */
 public class SpiffePrincipalTest {
 
+    /** Java Object Serialization stream tag for a short UTF-8 string. */
+    private static final byte TC_STRING = 0x74;
+
     // -----------------------------------------------------------------------
     // Construction
     // -----------------------------------------------------------------------
@@ -201,9 +204,9 @@ public class SpiffePrincipalTest {
         //   TC_STRING (0x74) | 0x00 0x0a | "spiffe://x"
         // We replace this with:
         //   TC_STRING (0x74) | 0x00 0x09 | "spiffe://"
-        byte[] find    = concat(new byte[]{0x74, 0x00, 0x0a},
+        byte[] find    = concat(new byte[]{TC_STRING, 0x00, 0x0a},
                 "spiffe://x".getBytes("UTF-8"));
-        byte[] replace = concat(new byte[]{0x74, 0x00, 0x09},
+        byte[] replace = concat(new byte[]{TC_STRING, 0x00, 0x09},
                 "spiffe://".getBytes("UTF-8"));
         byte[] tampered = patchVariableLength(bytes, find, replace);
 
