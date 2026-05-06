@@ -1606,10 +1606,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 			return null;
 		    });
 		} catch (Throwable th) {
-		    // Defensive: captures any unexpected reflective failure
-		    // (e.g. InvocationTargetException from callAs itself).
+		    // Defensive: captures any unexpected reflective failure from
+		    // the callAs invocation itself (not from invoke()).
+		    // Unwrap InvocationTargetException to get the root cause.
+		    if (th instanceof InvocationTargetException && th.getCause() != null) {
+			th = th.getCause();
+		    }
 		    if (thrown[0] == null) {
 			thrown[0] = th;
+		    } else {
+			// invoke() already captured a throwable; log the
+			// infrastructure failure so it is not silently lost.
+			logger.log(Level.FINE,
+				   "Subject.callAs reflective invocation failed"
+				   + " after invoke() already threw",
+				   th);
 		    }
 		}
 	    } else {
