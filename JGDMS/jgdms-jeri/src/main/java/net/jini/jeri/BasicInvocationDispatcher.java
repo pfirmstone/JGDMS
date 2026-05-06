@@ -1622,8 +1622,21 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	};
 
 	if (workerSubject != null) {
-	    // Worker subject: Subject.doAs sets ACC so virtual threads inherit
-	    // the server's worker identity, not the client's.
+	    /*
+	     * Worker subject is present: Subject.doAs places the server's TLS
+	     * worker identity into the AccessControlContext so that any virtual
+	     * threads spawned during invoke() inherit it (not the client's).
+	     *
+	     * Note: Subject.doAs is deprecated for removal since JDK 17 and is
+	     * retained here specifically for its ACC-inheritance semantic, which
+	     * Subject.callAs (ScopedValue-based) does not provide.  It continues
+	     * to work correctly on DirtyChai — the target runtime for JGDMS.
+	     *
+	     * When a user subject is also present, wrap dispatchAction in an
+	     * additional Subject.callAs so that Subject.current() returns the
+	     * user Subject on the dispatch thread, while virtual threads still
+	     * inherit the worker identity from the ACC.
+	     */
 	    final Callable<Void> withUser = (userSubject != null)
 		? () -> Subject.callAs(userSubject, dispatchAction)
 		: dispatchAction;
