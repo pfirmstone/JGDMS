@@ -1608,7 +1608,7 @@ class Activation implements Serializable {
                  * with hs_err_pid<N>.log crash-dump files.
                  */
                 if (exitCode != 0) {
-                    long pid = processPid(groupProcess);
+                    long pid = groupPid;
                     if (pid >= 0L) {
                         logger.log(Level.SEVERE,
                             "Group {0} (pid {1}) incarnation {2} exited abnormally with code {3}",
