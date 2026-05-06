@@ -1743,7 +1743,7 @@ public class BasicInvocationHandler
 	    }
 	    // subject is javax.security.auth.Subject
 	    javax.security.auth.Subject s = (javax.security.auth.Subject) subject;
-	    Set<Principal> principals = new HashSet<Principal>(s.getPrincipals());
+	    Set<Principal> principals = new HashSet<>(s.getPrincipals());
 	    if (principals.isEmpty()) {
 		return Collections.emptySet();
 	    }

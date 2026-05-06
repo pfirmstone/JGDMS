@@ -778,13 +778,13 @@ public class Util {
 	public synchronized void mergeUserPrincipals(Set<? extends Principal> userPrincipals) {
 	    if (userPrincipals == null) throw new NullPointerException("userPrincipals");
 	    Subject workerSubject = s;
-	    Set<Principal> merged = new HashSet<Principal>();
+	    Set<Principal> merged = new HashSet<>();
 	    if (workerSubject != null) {
 		merged.addAll(workerSubject.getPrincipals());
 	    }
 	    merged.addAll(userPrincipals);
-	    Set<Object> publicCreds = new HashSet<Object>();
-	    Set<Object> privateCreds = new HashSet<Object>();
+	    Set<Object> publicCreds = new HashSet<>();
+	    Set<Object> privateCreds = new HashSet<>();
 	    if (workerSubject != null) {
 		publicCreds.addAll(workerSubject.getPublicCredentials());
 		/* private credentials not exposed — service code cannot see

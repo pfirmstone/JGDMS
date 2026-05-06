@@ -1547,7 +1547,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	if (count == 0) {
 	    return Collections.emptySet();
 	}
-	Set<Principal> principals = new HashSet<Principal>(count * 2);
+	Set<Principal> principals = new HashSet<>(count * 2);
 	for (int i = 0; i < count; i++) {
 	    String className = readUtf8Prefixed(in);
 	    String name      = readUtf8Prefixed(in);
