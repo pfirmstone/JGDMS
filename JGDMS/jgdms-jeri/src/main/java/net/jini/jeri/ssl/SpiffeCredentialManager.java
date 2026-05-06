@@ -378,8 +378,8 @@ public final class SpiffeCredentialManager implements AutoCloseable {
                                         .generatePrivate(new PKCS8EncodedKeySpec(der));
                             } catch (GeneralSecurityException e) {
                                 logger.log(Level.FINE,
-                                        "KeyFactory {0} rejected PKCS#8 key",
-                                        svc.getAlgorithm());
+                                        "KeyFactory {0} rejected PKCS#8 key: {1}",
+                                        new Object[]{svc.getAlgorithm(), e.getMessage()});
                             }
                         }
                     }
@@ -388,22 +388,17 @@ public final class SpiffeCredentialManager implements AutoCloseable {
                         "Cannot load PKCS#8 key from " + svidKeyPem);
 
             } else if (pem.contains(BEGIN_EC_KEY)) {
-                // SEC 1 EC private key — wrap in PKCS#8 envelope
-                byte[] sec1 = decodePemBlock(pem, BEGIN_EC_KEY, END_EC_KEY);
-                // SEC 1 DER → PKCS#8 wrapper using Java's ECKeyFactory
-                // Note: Java's EC KeyFactory accepts SEC1 DER directly via
-                // PKCS8EncodedKeySpec only in some JVMs.  Use a brute-force
-                // approach: try raw PKCS8EncodedKeySpec first, then fail with
-                // a helpful message.
-                try {
-                    return KeyFactory.getInstance(EC_KEY_ALGORITHM)
-                            .generatePrivate(new PKCS8EncodedKeySpec(sec1));
-                } catch (GeneralSecurityException e) {
-                    throw new GeneralSecurityException(
-                            "Cannot load EC private key from " + svidKeyPem
-                            + ": use PKCS#8 format (BEGIN PRIVATE KEY) for "
-                            + "maximum compatibility", e);
-                }
+                // SEC1 / "BEGIN EC PRIVATE KEY" format.  Java's KeyFactory
+                // for EC does not accept raw SEC1 DER via PKCS8EncodedKeySpec;
+                // it requires a PKCS#8 PrivateKeyInfo envelope.  Rather than
+                // silently producing a corrupt key, fail immediately with an
+                // actionable message.
+                throw new GeneralSecurityException(
+                        "Found legacy SEC1 EC private key (BEGIN EC PRIVATE KEY) in "
+                        + svidKeyPem + ".  Java's EC KeyFactory requires PKCS#8 "
+                        + "format (BEGIN PRIVATE KEY).  Regenerate or convert the "
+                        + "key with: openssl pkcs8 -topk8 -nocrypt -in svid_key.pem "
+                        + "-out svid_key_pkcs8.pem");
 
             } else if (pem.contains(BEGIN_RSA_KEY)) {
                 // PKCS#1 RSA private key — re-wrap in PKCS#8 envelope
@@ -434,6 +429,10 @@ public final class SpiffeCredentialManager implements AutoCloseable {
         /**
          * Strips the PEM header/footer from a single-block PEM string and
          * decodes the base64 content.
+         *
+         * <p>Only the <em>first</em> occurrence of {@code header} in
+         * {@code pem} is decoded.  If a file erroneously contains multiple
+         * blocks with the same header, only the first is used.
          */
         static byte[] decodePemBlock(String pem, String header, String footer) {
             int begin = pem.indexOf(header);
@@ -466,6 +465,12 @@ public final class SpiffeCredentialManager implements AutoCloseable {
          *   OCTET_STRING { &lt;pkcs1DER&gt; }
          * }
          * </pre>
+         *
+         * <p><b>Size limit:</b> {@link #encodeLength} encodes lengths up to
+         * 65535 bytes using the two-byte definite DER form.  RSA-4096 PKCS#1
+         * keys are approximately 2.3 KB in DER form, well within this limit.
+         * Keys larger than 65535 bytes are not produced by any standard JDK
+         * key-pair generator and are not expected in practice.
          *
          * @param pkcs1 PKCS#1 RSA private key DER bytes
          * @return PKCS#8 {@code PrivateKeyInfo} DER bytes ready for
@@ -590,6 +595,14 @@ public final class SpiffeCredentialManager implements AutoCloseable {
      *
      * <p>This method must be called once after construction.  It blocks until
      * the first successful SVID load.
+     *
+     * <p><b>Calling {@code start()} a second time</b> on an active (non-closed)
+     * manager is equivalent to {@link #refresh()} followed by re-registering
+     * the Subject in {@link SpiffeSubjectHolder}: credentials are atomically
+     * replaced and the renewal scheduler is restarted.  Calling {@code start()}
+     * concurrently with {@link #close()} is not safe; external synchronisation
+     * is required if these lifecycle methods may be invoked from different
+     * threads.
      *
      * @throws IOException              if the initial SVID load fails
      * @throws GeneralSecurityException if the initial SVID cannot be parsed

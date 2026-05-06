@@ -174,6 +174,9 @@ abstract class FilterX509TrustManager extends X509ExtendedKeyManager implements 
 	    if (principals.isEmpty()) return;
 	    if (principals.contains(x500)) return;
 	    // Check URI SANs against any SpiffePrincipal entries.
+	    // SpiffePrincipal.fromCertificate() calls X509Certificate
+	    // .getSubjectAlternativeNames(); OpenJDK 17+ caches the parsed
+	    // SAN extension internally, so this is inexpensive on the hot path.
 	    for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(chain[0])) {
 		if (principals.contains(sp)) return;
 	    }

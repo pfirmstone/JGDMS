@@ -18,6 +18,7 @@
 package net.jini.jeri.ssl;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 import javax.security.auth.Subject;
 
 /**
@@ -42,6 +43,9 @@ final class SpiffeSubjectHolder {
     private static final AtomicReference<Subject> PROCESS_SUBJECT =
             new AtomicReference<>();
 
+    private static final Logger logger =
+            Logger.getLogger(SpiffeSubjectHolder.class.getName());
+
     /** Not instantiable. */
     private SpiffeSubjectHolder() { }
 
@@ -49,10 +53,21 @@ final class SpiffeSubjectHolder {
      * Registers {@code subject} as the process-wide SPIFFE Subject.
      * Pass {@code null} to clear the registration.
      *
+     * <p>If a non-null Subject is already registered and {@code subject} is
+     * a different (non-null) instance, a WARNING is logged.  Only one
+     * {@link SpiffeCredentialManager} should be active per JVM.
+     *
      * @param subject the Subject to register, or {@code null} to deregister
      */
     static void set(Subject subject) {
-        PROCESS_SUBJECT.set(subject);
+        Subject previous = PROCESS_SUBJECT.getAndSet(subject);
+        if (subject != null && previous != null && previous != subject) {
+            logger.warning(
+                    "SpiffeSubjectHolder: overwriting an existing SPIFFE Subject "
+                    + "registration.  Only one SpiffeCredentialManager should be "
+                    + "active per JVM.  The previously registered Subject will no "
+                    + "longer be consulted by the SSL endpoint implementations.");
+        }
     }
 
     /**

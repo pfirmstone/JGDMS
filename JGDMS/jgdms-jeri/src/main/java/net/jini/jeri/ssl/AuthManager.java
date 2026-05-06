@@ -281,6 +281,13 @@ abstract class AuthManager extends FilterX509TrustManager
 		"Principal not found: " + head.getSubjectDN());
 	} else if (permittedLocalPrincipals != null
 		   && !permittedLocalPrincipals.contains(principal)
+		   // Note: permittedViaSan() is only reached once the
+		   // certificate's X500Principal has already been confirmed
+		   // to be present in the Subject (above).
+		   // SpiffeCredentialManager always adds both the X500Principal
+		   // and any SpiffePrincipal together, so this invariant is
+		   // satisfied when SVIDs are loaded through the standard
+		   // credential-manager machinery.
 		   && !permittedViaSan(permittedLocalPrincipals, head))
 	{
 	    throw new GeneralSecurityException(

@@ -699,6 +699,9 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		}
 		// Also index by SpiffePrincipal (URI SAN) so that constraints
 		// expressed as SpiffePrincipal can locate the certificate.
+		// SpiffePrincipal.fromCertificate() calls X509Certificate
+		// .getSubjectAlternativeNames(); OpenJDK 17+ caches the parsed
+		// SAN extension internally, so repeated calls are inexpensive.
 		for (SpiffePrincipal sp : SpiffePrincipal.fromCertificate(cert)) {
 		    Collection spiffeCerts = (Collection) publicCreds.get(sp);
 		    if (spiffeCerts == null) {

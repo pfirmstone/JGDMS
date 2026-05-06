@@ -306,4 +306,76 @@ public class SpiffeCredentialManagerTest {
         assertTrue("Pre-existing external principal should survive close()",
                 subject.getPrincipals().contains(external));
     }
+
+    // -----------------------------------------------------------------------
+    // FileSvidSource: SEC1 EC key (BEGIN EC PRIVATE KEY) must be rejected
+    // with a clear error rather than silently producing a corrupt key (#1)
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void sec1EcKeyFileIsRejectedWithHelpfulMessage() throws Exception {
+        // Write a fake PEM key file containing a SEC1 EC PRIVATE KEY header.
+        // The content bytes don't matter for this test — we just need the
+        // header/footer to be present so the branch is triggered.
+        java.nio.file.Path tmpDir = java.nio.file.Files.createTempDirectory("spiffe-test");
+        java.nio.file.Path fakeSvid = tmpDir.resolve("svid.pem");
+        java.nio.file.Path fakeKey  = tmpDir.resolve("svid_key.pem");
+
+        // Copy a real SVID cert so the cert-loading step succeeds.
+        java.nio.file.Files.copy(resourcePath("/spiffe/reggie/svid.pem"), fakeSvid);
+
+        // Write a synthetic SEC1-format key file.
+        String sec1Pem =
+                "-----BEGIN EC PRIVATE KEY-----\n"
+                + "MHQCAQEEIExampleFakeKeyBytesBase64Padding==\n"
+                + "-----END EC PRIVATE KEY-----\n";
+        java.nio.file.Files.write(fakeKey,
+                sec1Pem.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+
+        FileSvidSource source = new FileSvidSource(fakeSvid, fakeKey);
+        try {
+            source.fetch();
+            fail("Expected GeneralSecurityException for SEC1 EC private key");
+        } catch (GeneralSecurityException e) {
+            String msg = e.getMessage();
+            assertNotNull("Exception must have a message", msg);
+            assertTrue("Message should mention SEC1 or EC PRIVATE KEY: " + msg,
+                    msg.contains("SEC1") || msg.contains("EC PRIVATE KEY")
+                    || msg.contains("PKCS#8"));
+        } finally {
+            java.nio.file.Files.deleteIfExists(fakeKey);
+            java.nio.file.Files.deleteIfExists(fakeSvid);
+            java.nio.file.Files.deleteIfExists(tmpDir);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // SpiffeSubjectHolder: second start() on a different manager logs a
+    // WARNING about overwriting the process-wide Subject (#7)
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void secondManagerStartOverwritesSubjectHolderWithWarning() throws Exception {
+        Subject subject1 = mutableSubject();
+        Subject subject2 = mutableSubject();
+
+        SpiffeCredentialManager mgr1 =
+                new SpiffeCredentialManager(subject1, reggieSource(), 3600L);
+        SpiffeCredentialManager mgr2 =
+                new SpiffeCredentialManager(subject2, reggieSource(), 3600L);
+        try {
+            mgr1.start();
+            // After start, SpiffeSubjectHolder should hold subject1.
+            assertEquals(subject1, SpiffeSubjectHolder.get());
+
+            // Starting a second manager with a different Subject should
+            // overwrite the holder (and trigger the WARNING log).
+            mgr2.start();
+            assertEquals("SpiffeSubjectHolder should now hold subject2",
+                    subject2, SpiffeSubjectHolder.get());
+        } finally {
+            mgr1.close();
+            mgr2.close();
+        }
+    }
 }

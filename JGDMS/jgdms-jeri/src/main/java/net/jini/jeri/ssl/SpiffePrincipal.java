@@ -82,9 +82,11 @@ public final class SpiffePrincipal implements Principal, Serializable {
     public SpiffePrincipal(String spiffeId) {
         if (spiffeId == null)
             throw new NullPointerException("spiffeId must not be null");
-        if (!spiffeId.startsWith("spiffe://"))
+        if (!spiffeId.startsWith("spiffe://")
+                || spiffeId.length() <= "spiffe://".length())
             throw new IllegalArgumentException(
-                    "SPIFFE ID must start with 'spiffe://': " + spiffeId);
+                    "SPIFFE ID must start with 'spiffe://' and have a "
+                    + "non-empty trust domain: " + spiffeId);
         this.spiffeId = spiffeId;
     }
 
@@ -127,9 +129,11 @@ public final class SpiffePrincipal implements Principal, Serializable {
         in.defaultReadObject();
         if (spiffeId == null)
             throw new IOException("spiffeId must not be null");
-        if (!spiffeId.startsWith("spiffe://"))
+        if (!spiffeId.startsWith("spiffe://")
+                || spiffeId.length() <= "spiffe://".length())
             throw new IOException(
-                    "Invalid SPIFFE ID on deserialization: " + spiffeId);
+                    "Invalid SPIFFE ID on deserialization (must have a "
+                    + "non-empty trust domain): " + spiffeId);
     }
 
     /**

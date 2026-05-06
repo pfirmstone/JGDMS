@@ -201,20 +201,19 @@ public final class SpiffeLoginModule implements LoginModule {
         X500PrivateCredential xpc = new X500PrivateCredential(
                 leaf, svid.privateKey);
 
-        java.util.Set<Principal> principals = subject.getPrincipals();
-        synchronized (principals) {
-            principals.add(x500);
-            principals.addAll(spiffes);
+        // Synchronize the entire add on subject so that a concurrent JERI SSL
+        // handshake always observes a consistent state: either all three
+        // components (principals, public credential, private credential) are
+        // present or none of them are.
+        synchronized (subject) {
+            subject.getPrincipals().add(x500);
+            subject.getPrincipals().addAll(spiffes);
+            subject.getPublicCredentials().add(svid.certPath);
+            subject.getPrivateCredentials().add(xpc);
         }
         addedPrincipals.add(x500);
         addedPrincipals.addAll(spiffes);
-
-        // Public credentials
-        subject.getPublicCredentials().add(svid.certPath);
         addedCertPath = svid.certPath;
-
-        // Private credentials
-        subject.getPrivateCredentials().add(xpc);
         addedPrivateCredential = xpc;
 
         committed = true;
@@ -235,6 +234,7 @@ public final class SpiffeLoginModule implements LoginModule {
 
     @Override
     public boolean logout() throws LoginException {
+        svid = null;
         clearAdded();
         return true;
     }
@@ -245,12 +245,12 @@ public final class SpiffeLoginModule implements LoginModule {
 
     private void clearAdded() {
         if (!committed) return;
-        java.util.Set<Principal> principals = subject.getPrincipals();
-        synchronized (principals) {
-            principals.removeAll(addedPrincipals);
+        // Synchronize on subject to match the atomicity established in commit().
+        synchronized (subject) {
+            subject.getPrincipals().removeAll(addedPrincipals);
+            subject.getPublicCredentials().remove(addedCertPath);
+            subject.getPrivateCredentials().remove(addedPrivateCredential);
         }
-        subject.getPublicCredentials().remove(addedCertPath);
-        subject.getPrivateCredentials().remove(addedPrivateCredential);
         addedPrincipals.clear();
         addedCertPath = null;
         addedPrivateCredential = null;

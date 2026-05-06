@@ -295,4 +295,35 @@ public class SpiffeLoginModuleTest {
             // expected
         }
     }
+
+    // -----------------------------------------------------------------------
+    // logout() clears credentials atomically (#2, #4)
+    // -----------------------------------------------------------------------
+
+    @Test
+    public void logoutAfterCommitLeavesSubjectClean() throws Exception {
+        Map<String, String> opts = new HashMap<>();
+        opts.put("svidPem", resourceFilePath("/spiffe/reggie/svid.pem"));
+        opts.put("keyPem",  resourceFilePath("/spiffe/reggie/svid_key.pem"));
+
+        SpiffeLoginModule module = loginAndCommit(opts);
+        // Verify the subject is populated before logout.
+        assertFalse("Subject must have principals after commit",
+                subject.getPrincipals().isEmpty());
+        assertFalse("Subject must have public credentials after commit",
+                subject.getPublicCredentials().isEmpty());
+        assertFalse("Subject must have private credentials after commit",
+                subject.getPrivateCredentials().isEmpty());
+
+        module.logout();
+
+        // After logout all three sets must be empty (#2 — svid cleared, so
+        // no stale private-key reference).
+        assertTrue("Principals must be empty after logout",
+                subject.getPrincipals().isEmpty());
+        assertTrue("Public credentials must be empty after logout",
+                subject.getPublicCredentials().isEmpty());
+        assertTrue("Private credentials must be empty after logout",
+                subject.getPrivateCredentials().isEmpty());
+    }
 }
