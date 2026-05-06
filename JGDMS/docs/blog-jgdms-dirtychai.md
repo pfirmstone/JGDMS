@@ -223,7 +223,7 @@ thread carrier threads or hold the JVM class-loading lock, causing complete sche
 as few concurrent requests as `Runtime.availableProcessors()`.
 
 It's worth noting that code repositories assembled prior to runtime are also subject to 
-library vunlerabilities and transient dependency vulnerabilities.
+library vulnerabilities and transient dependency vulnerabilities.
 
 ### The Five Hosts
 

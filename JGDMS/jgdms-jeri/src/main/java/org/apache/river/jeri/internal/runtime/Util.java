@@ -775,7 +775,7 @@ public class Util {
 	    return s;
 	}
 
-	public void mergeUserPrincipals(Set<? extends Principal> userPrincipals) {
+	public synchronized void mergeUserPrincipals(Set<? extends Principal> userPrincipals) {
 	    if (userPrincipals == null) throw new NullPointerException("userPrincipals");
 	    Subject workerSubject = s;
 	    Set<Principal> merged = new HashSet<Principal>();
