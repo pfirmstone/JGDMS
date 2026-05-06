@@ -187,27 +187,13 @@ jobs:
           JAVA_HOME: ${{ env.JAVA_HOME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # -----------------------------------------------------------------------
-      # Stage 3 — SpiffeLoginModuleTest
-      # -----------------------------------------------------------------------
-      - name: "Stage 3: SpiffeLoginModuleTest"
-        if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
-        working-directory: JGDMS
-        run: |
-          PROFILE_FLAG=""
-          [ "${{ matrix.use-dirtychai }}" = "true" ] && PROFILE_FLAG="-Pdirtychai"
-          mvn test -pl jgdms-jeri \
-            -Dtest=SpiffeLoginModuleTest \
-            $PROFILE_FLAG \
-            --no-transfer-progress
-        env:
-          JAVA_HOME: ${{ env.JAVA_HOME }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Note: SpiffeLoginModuleTest moved to qa/jtreg/net/jini/jeri/ssl/SpiffeLoginModule/
+      # and is exercised via the qa integration test suite, not via Maven Surefire.
 
       # -----------------------------------------------------------------------
-      # Stage 4 — SpiffeCredentialManagerTest
+      # Stage 3 — SpiffeCredentialManagerTest
       # -----------------------------------------------------------------------
-      - name: "Stage 4: SpiffeCredentialManagerTest"
+      - name: "Stage 3: SpiffeCredentialManagerTest"
         if: ${{ !matrix.use-dirtychai || steps.check.outputs.skip == 'false' }}
         working-directory: JGDMS
         run: |
