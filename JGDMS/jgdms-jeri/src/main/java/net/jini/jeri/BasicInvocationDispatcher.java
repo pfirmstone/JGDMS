@@ -81,6 +81,7 @@ import net.jini.security.AccessPermission;
 import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ProxyTrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import net.jini.io.context.ClientUserSubject;
 import net.jini.io.context.MutableClientSubject;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
@@ -232,20 +233,41 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      *
      * <p>Used on the server side to establish {@code Subject.current()} during
      * dispatch so that server-side code running inside the invocation can
-     * observe the authenticated client Subject via the JDK 18+ ScopedValue
-     * mechanism, mirroring the client-side {@code Subject.callAs} established
-     * by {@code AbstractJiniService}.
+     * observe the authenticated user Subject via the JDK 18+ ScopedValue
+     * mechanism.  The ScopedValue is scoped to the dispatch thread only and
+     * does NOT propagate to virtual threads spawned during the invocation.
      */
     private static final Method SUBJECT_CALL_AS;
 
+    /**
+     * Reflective handle to {@code Subject.doAs(Subject, PrivilegedAction)}
+     * used to establish the server's worker Subject in the
+     * {@code AccessControlContext} for the duration of the dispatch.
+     * Virtual threads spawned inside the invocation inherit this ACC and
+     * therefore see the server's own worker identity, not the client's.
+     *
+     * <p>{@code Subject.doAs} is deprecated-for-removal since JDK 17 but
+     * still present in JDK 21; accessed via reflection to suppress the
+     * compile-time warning and to degrade gracefully on future JDKs where
+     * it may be removed.
+     */
+    private static final Method SUBJECT_DO_AS;
+
     static {
-	Method m = null;
+	Method callAs = null;
+	Method doAs = null;
 	try {
-	    m = Subject.class.getMethod("callAs", Subject.class, Callable.class);
+	    callAs = Subject.class.getMethod("callAs", Subject.class, Callable.class);
 	} catch (Exception ignored) {
 	    // JDK < 18 — callAs not available
 	}
-	SUBJECT_CALL_AS = m;
+	try {
+	    doAs = Subject.class.getMethod("doAs", Subject.class, PrivilegedAction.class);
+	} catch (Exception ignored) {
+	    // Should not happen on JDK 21; may be absent on a future JDK
+	}
+	SUBJECT_CALL_AS = callAs;
+	SUBJECT_DO_AS   = doAs;
     }
 
     /**
@@ -693,7 +715,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    if (hasUserPrincipals) {
 		Set<Principal> userPrincipals = readUserPrincipals(rin);
 		if (!userPrincipals.isEmpty()) {
-		    mergeUserPrincipalsIntoContext(context, userPrincipals);
+		    addUserSubjectToContext(context, userPrincipals);
 		}
 	    }
 	} catch (Throwable t) {
@@ -760,14 +782,18 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	
 	    /*
-	     * Invoke method on remote object.  On JDK 18+ the authenticated
-	     * client Subject is established via Subject.callAs so that
-	     * Subject.current() returns the client Subject for the duration of
-	     * this dispatch thread only.  The server's own worker Subject
-	     * (established at service startup via Subject.doAsPrivileged) is
-	     * intentionally left untouched in the AccessControlContext so that
-	     * any virtual threads spawned during the invocation inherit the
-	     * server's identity, not the client's.
+	     * Invoke method on remote object under both the server's worker
+	     * Subject and (where present) the client's user Subject.
+	     *
+	     * Subject.doAs(workerSubject, ...)  ← sets ACC; virtual threads inherit
+	     *   Subject.callAs(userSubject, ...)  ← ScopedValue; dispatch thread only
+	     *     invoke(...)
+	     *
+	     * Virtual threads spawned during the invocation therefore inherit the
+	     * SERVER's worker identity (from the ACC), not the client's user
+	     * identity.  Server code that needs to propagate the user Subject
+	     * across a thread boundary must capture Subject.current() and
+	     * re-establish it with a nested Subject.callAs in the new thread.
 	     */
 	    try {
 		returnValue = invokeWithClientSubject(impl, method, args, context);
@@ -1546,8 +1572,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Return the current client subject or <code>null</code> if not
-     * currently executing a remote call.
+     * Return the current worker (TLS-authenticated) client subject, or
+     * {@code null} if not currently executing a remote call.
      */
     private static Subject getClientSubject() {
 	return (Subject) AccessController.doPrivileged(new PrivilegedAction() {
@@ -1562,31 +1588,49 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Invokes the specified method under the authenticated client Subject,
-     * establishing the client identity exclusively via
-     * {@code Subject.callAs} (JDK 18+) so that {@code Subject.current()}
-     * returns the client Subject for the duration of this dispatch thread.
+     * Returns the user Subject assembled from the principals transmitted in
+     * the wire-protocol header, or {@code null} if no user principals were
+     * present in the request.
+     */
+    private static Subject getUserSubject() {
+	return AccessController.doPrivileged((PrivilegedAction<Subject>) () -> {
+	    try {
+		ClientUserSubject cus = (ClientUserSubject)
+		    ServerContext.getServerContextElement(ClientUserSubject.class);
+		return cus != null ? cus.getUserSubject() : null;
+	    } catch (ServerNotActiveException e) {
+		return null;
+	    }
+	});
+    }
+
+    /**
+     * Invokes the specified method under both the server's worker Subject and
+     * (where present) the client's user Subject, using the following nesting:
      *
-     * <p>The server's own worker Subject, established at service startup
-     * via {@code Subject.doAsPrivileged}, is intentionally left untouched
-     * in the {@code AccessControlContext}.  Virtual threads spawned during
-     * the invocation therefore inherit the <em>server's</em> worker Subject
-     * (not the client's) through the ACC.  If server code needs to make the
-     * client identity available across a thread boundary, it must capture
-     * {@code Subject.current()} and re-establish it with a nested
-     * {@code Subject.callAs} in the new thread.
+     * <pre>
+     *   Subject.doAs(workerSubject, () -&gt; {     // ACC; inherited by virtual threads
+     *       Subject.callAs(userSubject, () -&gt; { // ScopedValue; dispatch thread only
+     *           invoke(...)
+     *       });
+     *   });
+     * </pre>
      *
-     * <p>On JDK versions prior to 18, {@code Subject.callAs} is not
-     * available and this method calls {@link #invoke} directly without any
-     * Subject wrapping.  Server code that needs the client identity on
-     * those JVMs should use
-     * {@code ServerContext.getServerContextElement(ClientSubject.class)}.
+     * <p>The outer {@code Subject.doAs} places the server's TLS-verified
+     * worker identity into the {@code AccessControlContext}.  Any virtual
+     * threads spawned during {@link #invoke} inherit that ACC and therefore
+     * observe the <em>server's</em> worker identity, not the client's.
      *
-     * <p>When no client Subject is present (e.g. unauthenticated transport),
-     * {@link #invoke} is called directly.</p>
+     * <p>The inner {@code Subject.callAs} establishes {@code Subject.current()}
+     * for the dispatch thread only via a {@code ScopedValue}.  It does not
+     * propagate to new threads.  Server code that needs the user Subject
+     * across a thread boundary must capture {@code Subject.current()} and
+     * re-establish it with a nested {@code Subject.callAs} in the spawned thread.
      *
-     * <p>All exceptions thrown by {@link #invoke} are faithfully re-thrown;
-     * the Subject wrapping does not alter exception propagation.</p>
+     * <p>When no worker Subject is present (unauthenticated transport) and no
+     * user Subject was sent, {@link #invoke} is called directly.
+     *
+     * <p>All exceptions thrown by {@link #invoke} are faithfully re-thrown.</p>
      *
      * @param impl the remote object
      * @param method the method to invoke
@@ -1601,51 +1645,86 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 					   final Collection context)
 	throws Throwable
     {
-	Subject cs = getClientSubject();
-	if (cs == null || SUBJECT_CALL_AS == null) {
-	    // No client Subject, or JDK < 18 (callAs not available):
-	    // invoke directly.  The server's ACC is left intact in both cases.
+	final Subject workerSubject = getClientSubject();
+	final Subject userSubject   = getUserSubject();
+
+	if ((workerSubject == null && userSubject == null)
+		|| SUBJECT_CALL_AS == null) {
+	    // No subjects at all, or JDK < 18: invoke directly.
 	    return invoke(impl, method, args, context);
 	}
 
-	// JDK 18+: establish Subject.current() = clientSubject via callAs ONLY.
-	// The server's AccessControlContext (and therefore the server's worker
-	// Subject) is NOT replaced — virtual threads spawned during invoke()
-	// will inherit the server's ACC, not the client's Subject.
-	final Object[] result = { null };
+	// Capture throwable and return value from inside the lambda nesting.
+	final Object[]    result = { null };
 	final Throwable[] thrown = { null };
 
-	try {
-	    SUBJECT_CALL_AS.invoke(null, cs, (Callable<Void>) () -> {
+	// The innermost action: invoke() → capture result or exception.
+	final Callable<Void> dispatchAction = () -> {
+	    try {
+		result[0] = invoke(impl, method, args, context);
+	    } catch (Throwable th) {
+		thrown[0] = th;
+	    }
+	    return null;
+	};
+
+	// Middle action: wrap dispatchAction in Subject.callAs(userSubject)
+	// when a user Subject is present.
+	final PrivilegedAction<Void> withUserSubject;
+	if (userSubject != null) {
+	    withUserSubject = () -> {
 		try {
-		    result[0] = invoke(impl, method, args, context);
+		    SUBJECT_CALL_AS.invoke(null, userSubject, dispatchAction);
 		} catch (Throwable th) {
-		    thrown[0] = th;
+		    if (th instanceof InvocationTargetException && th.getCause() != null) {
+			th = th.getCause();
+		    }
+		    if (thrown[0] == null) {
+			thrown[0] = th;
+		    } else {
+			logger.log(Level.FINE,
+				   "Subject.callAs reflective failure for method "
+				   + impl.getClass().getName() + "#" + method.getName()
+				   + " (secondary; primary exception already captured)",
+				   th);
+		    }
 		}
 		return null;
-	    });
-	} catch (Throwable th) {
-	    // Defensive: captures any unexpected reflective failure from the
-	    // Subject.callAs invocation itself (distinct from any exception
-	    // that invoke() may have thrown above).
-	    // Unwrap InvocationTargetException to get the root cause.
-	    if (th instanceof InvocationTargetException && th.getCause() != null) {
-		th = th.getCause();
+	    };
+	} else {
+	    // No user Subject: run dispatchAction directly in the doAs action.
+	    withUserSubject = () -> {
+		try {
+		    dispatchAction.call();
+		} catch (Exception e) {
+		    // dispatchAction never throws (it captures into thrown[0])
+		    if (thrown[0] == null) thrown[0] = e;
+		}
+		return null;
+	    };
+	}
+
+	// Outer action: wrap in Subject.doAs(workerSubject) when available.
+	if (workerSubject != null && SUBJECT_DO_AS != null) {
+	    try {
+		SUBJECT_DO_AS.invoke(null, workerSubject, withUserSubject);
+	    } catch (Throwable th) {
+		if (th instanceof InvocationTargetException && th.getCause() != null) {
+		    th = th.getCause();
+		}
+		if (thrown[0] == null) {
+		    thrown[0] = th;
+		} else {
+		    logger.log(Level.FINE,
+			       "Subject.doAs reflective failure for method "
+			       + impl.getClass().getName() + "#" + method.getName()
+			       + " (secondary; primary exception already captured)",
+			       th);
+		}
 	    }
-	    if (thrown[0] == null) {
-		// invoke() succeeded (or was never reached); treat the
-		// reflective failure as the exception for this call.
-		thrown[0] = th;
-	    } else {
-		// thrown[0] was already set (by invoke() or an earlier
-		// capture); log this secondary infrastructure failure so
-		// it is not silently discarded.
-		logger.log(Level.FINE,
-			   "Subject.callAs reflective failure for method "
-			   + impl.getClass().getName() + "#" + method.getName()
-			   + " (secondary; primary exception already captured)",
-			   th);
-	    }
+	} else {
+	    // No worker Subject (or doAs unavailable): just run withUserSubject.
+	    withUserSubject.run();
 	}
 
 	if (thrown[0] != null) {
@@ -1744,33 +1823,36 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Finds the {@link MutableClientSubject} element in {@code context} and
-     * calls {@link MutableClientSubject#mergeUserPrincipals} to fold the user
-     * principals into the merged read-only Subject that service code will see.
-     *
-     * <p>The context collection is the <em>same mutable</em> {@code ArrayList}
-     * that {@link org.apache.river.jeri.internal.runtime.Target} passed to
-     * {@code ServerContext.doWithServerContext}.  The
-     * {@code unmodifiableCollection} wrapper stored in the thread-local holds a
-     * view of this list, so updates to elements within the list (not adds or
-     * removes) are immediately visible to {@code ServerContext.getServerContextElement}.
+     * Server context element carrying the user Subject assembled from the
+     * principals transmitted in the JERI request header.
      */
-    private static void mergeUserPrincipalsIntoContext(Collection context,
-						       Set<Principal> userPrincipals)
+    private static final class UserSubjectImpl implements ClientUserSubject {
+	private final Subject userSubject;
+	UserSubjectImpl(Subject s) { this.userSubject = s; }
+	public Subject getUserSubject() { return userSubject; }
+    }
+
+    /**
+     * Creates a read-only user Subject from {@code userPrincipals} and adds it
+     * to {@code context} as a {@link ClientUserSubject} element.
+     *
+     * <p>The user Subject is kept completely separate from the worker Subject
+     * held in the existing {@link ClientSubject} context element.  The
+     * dispatcher later wraps the invocation with
+     * {@code Subject.doAs(workerSubject, () -> Subject.callAs(userSubject,
+     * () -> invoke(...)))}, ensuring virtual threads inherit only the server's
+     * worker identity.
+     */
+    @SuppressWarnings("unchecked")
+    private static void addUserSubjectToContext(Collection context,
+						Set<Principal> userPrincipals)
     {
-	for (Object elem : context) {
-	    if (elem instanceof MutableClientSubject) {
-		((MutableClientSubject) elem).mergeUserPrincipals(userPrincipals);
-		return;
-	    }
-	}
-	// No MutableClientSubject found — context was populated by a transport
-	// that does not support merging.  Log at FINE and continue.
-	if (logger.isLoggable(Level.FINE)) {
-	    logger.log(Level.FINE,
-		"readUserPrincipals: no MutableClientSubject in context; "
-		+ "user principals will not be available to service code");
-	}
+	Subject userSubject = new Subject(
+		true,
+		userPrincipals,
+		Collections.emptySet(),
+		Collections.emptySet());
+	context.add(new UserSubjectImpl(userSubject));
     }
 
     private static int readUnsignedShort(InputStream in) throws IOException {

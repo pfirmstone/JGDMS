@@ -22,44 +22,48 @@ import java.security.Principal;
 import java.util.Set;
 
 /**
- * Extension of {@link ClientSubject} that allows the invocation dispatcher to
- * merge user principals (transmitted in-band in the JERI request body) into the
- * server-side client Subject.
+ * Extension of {@link ClientSubject} that formerly allowed the invocation
+ * dispatcher to merge user principals into the server-side client Subject.
  *
- * <p>When a client runs with both a <em>worker</em> Subject (established via
- * {@code Subject.doAsPrivileged} and used for TLS) and a <em>user</em> Subject
- * (established via {@code Subject.callAs} and carried in the request header),
- * the dispatcher calls {@link #mergeUserPrincipals} to produce a merged
- * read-only Subject that {@link #getClientSubject} subsequently returns.
+ * <p><b>Deprecated approach:</b> the old design merged the client's
+ * <em>user</em> principals (from {@code Subject.callAs} / wire protocol
+ * version {@code 0x02}) into the <em>worker</em> principals (from TLS),
+ * producing a single merged Subject.  This was wrong for virtual-thread
+ * architectures: the merged Subject would replace the server-process ACC,
+ * causing virtual threads to inherit the <em>client's</em> identity rather
+ * than the server's worker identity.</p>
  *
- * <p>The principals supplied to {@code mergeUserPrincipals} are
- * <em>asserted</em> by the authenticated client; they are not independently
- * verified by TLS.  Callers should therefore trust them only to the extent
- * they trust the authenticated worker identity.
+ * <p><b>Current approach:</b> the dispatcher now keeps the two Subjects
+ * completely separate:
+ * <ul>
+ *   <li>The TLS-authenticated <em>worker Subject</em> is placed in the
+ *       {@code AccessControlContext} via {@code Subject.doAs} so that virtual
+ *       threads inherit the server process identity.</li>
+ *   <li>The user-forwarded <em>user Subject</em> is established only for the
+ *       dispatch thread via {@code Subject.callAs} (ScopedValue) and is
+ *       accessible through {@link ClientUserSubject} in the server context.</li>
+ * </ul>
+ * {@link #mergeUserPrincipals} is no longer called by the dispatcher.
  *
  * @see ClientSubject
+ * @see ClientUserSubject
  * @see net.jini.export.ServerContext#getServerContextElement
  * @since 3.1
  */
 public interface MutableClientSubject extends ClientSubject {
 
     /**
-     * Merges the given user principals with the existing TLS-verified worker
-     * principals and replaces the Subject returned by
-     * {@link #getClientSubject} with a new, read-only merged Subject.
-     *
-     * <p>The merged Subject contains all principals from the original worker
-     * Subject together with every principal in {@code userPrincipals}.  Its
-     * credential sets are the union of both source Subjects' credentials.
-     * The result is read-only ({@code Subject.isReadOnly() == true}).
-     *
-     * <p>This method is called at most once per dispatched request, before
-     * any service code is invoked, so implementations are not required to be
-     * thread-safe with respect to concurrent updates.
+     * @deprecated The dispatcher no longer merges user principals into the
+     *     worker Subject.  User principals are now assembled into a separate
+     *     read-only Subject accessible via {@link ClientUserSubject} in the
+     *     server context.  This method is retained for API backward
+     *     compatibility but is no longer invoked by
+     *     {@code BasicInvocationDispatcher}.
      *
      * @param userPrincipals the user principals transmitted in the request
      *        header; must not be {@code null}
      * @throws NullPointerException if {@code userPrincipals} is {@code null}
      */
+    @Deprecated
     void mergeUserPrincipals(Set<? extends Principal> userPrincipals);
 }
