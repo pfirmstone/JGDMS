@@ -9,3 +9,4 @@ loader.requireDlPerm=true
 loader.expectSecurityException=true
 org.apache.river.qa.harness.runkitserver=false 
 org.apache.river.qa.harness.runjiniserver=false
+policy.no.update=true
