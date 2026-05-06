@@ -254,20 +254,20 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     private static final Method SUBJECT_DO_AS;
 
     static {
-	Method callAs = null;
-	Method doAs = null;
+	Method subjectCallAsMethod = null;
+	Method subjectDoAsMethod = null;
 	try {
-	    callAs = Subject.class.getMethod("callAs", Subject.class, Callable.class);
+	    subjectCallAsMethod = Subject.class.getMethod("callAs", Subject.class, Callable.class);
 	} catch (Exception ignored) {
 	    // JDK < 18 — callAs not available
 	}
 	try {
-	    doAs = Subject.class.getMethod("doAs", Subject.class, PrivilegedAction.class);
+	    subjectDoAsMethod = Subject.class.getMethod("doAs", Subject.class, PrivilegedAction.class);
 	} catch (Exception ignored) {
 	    // Should not happen on JDK 21; may be absent on a future JDK
 	}
-	SUBJECT_CALL_AS = callAs;
-	SUBJECT_DO_AS   = doAs;
+	SUBJECT_CALL_AS = subjectCallAsMethod;
+	SUBJECT_DO_AS   = subjectDoAsMethod;
     }
 
     /**
@@ -1828,7 +1828,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      */
     private static final class UserSubjectImpl implements ClientUserSubject {
 	private final Subject userSubject;
-	UserSubjectImpl(Subject s) { this.userSubject = s; }
+	UserSubjectImpl(Subject userSubject) { this.userSubject = userSubject; }
 	public Subject getUserSubject() { return userSubject; }
     }
 
@@ -1848,7 +1848,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 						Set<Principal> userPrincipals)
     {
 	Subject userSubject = new Subject(
-		true,
+		true, /* read-only */
 		userPrincipals,
 		Collections.emptySet(),
 		Collections.emptySet());
