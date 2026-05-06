@@ -227,49 +227,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	Logger.getLogger("net.jini.jeri.BasicInvocationDispatcher");
 
     /**
-     * Reflective handle to {@code Subject.callAs(Subject, Callable)} introduced
-     * in JDK 18.  {@code null} on older JVMs.
-     *
-     * <p>Used on the server side to establish {@code Subject.current()} during
-     * dispatch so that server-side code running inside the invocation can
-     * observe the authenticated user Subject via the JDK 18+ ScopedValue
-     * mechanism.  The ScopedValue is scoped to the dispatch thread only and
-     * does NOT propagate to virtual threads spawned during the invocation.
-     */
-    private static final Method SUBJECT_CALL_AS;
-
-    /**
-     * Reflective handle to {@code Subject.doAs(Subject, PrivilegedAction)}
-     * used to establish the server's worker Subject in the
-     * {@code AccessControlContext} for the duration of the dispatch.
-     * Virtual threads spawned inside the invocation inherit this ACC and
-     * therefore see the server's own worker identity, not the client's.
-     *
-     * <p>{@code Subject.doAs} is deprecated-for-removal since JDK 17 but
-     * still present in JDK 21; accessed via reflection to suppress the
-     * compile-time warning and to degrade gracefully on future JDKs where
-     * it may be removed.
-     */
-    private static final Method SUBJECT_DO_AS;
-
-    static {
-	Method subjectCallAsMethod = null;
-	Method subjectDoAsMethod = null;
-	try {
-	    subjectCallAsMethod = Subject.class.getMethod("callAs", Subject.class, Callable.class);
-	} catch (Exception ignored) {
-	    // JDK < 18 — callAs not available
-	}
-	try {
-	    subjectDoAsMethod = Subject.class.getMethod("doAs", Subject.class, PrivilegedAction.class);
-	} catch (Exception ignored) {
-	    // Should not happen on JDK 21; may be absent on a future JDK
-	}
-	SUBJECT_CALL_AS = subjectCallAsMethod;
-	SUBJECT_DO_AS   = subjectDoAsMethod;
-    }
-
-    /**
      * Flag to remove server-side stack traces before marshalling
      * exceptions thrown by remote invocations to this VM
      */
@@ -1626,8 +1583,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * across a thread boundary must capture {@code Subject.current()} and
      * re-establish it with a nested {@code Subject.callAs} in the spawned thread.
      *
-     * <p>When no worker Subject is present (unauthenticated transport) and no
-     * user Subject was sent, {@link #invoke} is called directly.
+     * <p>When no subjects are present, {@link #invoke} is called directly.
      *
      * <p>All exceptions thrown by {@link #invoke} are faithfully re-thrown.</p>
      *
@@ -1647,9 +1603,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	final Subject workerSubject = getClientSubject();
 	final Subject userSubject   = getUserSubject();
 
-	if ((workerSubject == null && userSubject == null)
-		|| SUBJECT_CALL_AS == null) {
-	    // No subjects at all, or JDK < 18: invoke directly.
+	if (workerSubject == null && userSubject == null) {
 	    return invoke(impl, method, args, context);
 	}
 
@@ -1667,63 +1621,28 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    return null;
 	};
 
-	// Middle action: wrap dispatchAction in Subject.callAs(userSubject)
-	// when a user Subject is present.
-	final PrivilegedAction<Void> withUserSubject;
-	if (userSubject != null) {
-	    withUserSubject = () -> {
+	if (workerSubject != null) {
+	    // Worker subject: Subject.doAs sets ACC so virtual threads inherit
+	    // the server's worker identity, not the client's.
+	    final Callable<Void> withUser = (userSubject != null)
+		? () -> Subject.callAs(userSubject, dispatchAction)
+		: dispatchAction;
+	    Subject.doAs(workerSubject, (PrivilegedAction<Void>) () -> {
 		try {
-		    SUBJECT_CALL_AS.invoke(null, userSubject, dispatchAction);
-		} catch (Throwable th) {
-		    if (th instanceof InvocationTargetException && th.getCause() != null) {
-			th = th.getCause();
-		    }
-		    if (thrown[0] == null) {
-			thrown[0] = th;
-		    } else {
-			logger.log(Level.FINE,
-				   "Subject.callAs reflective failure for method "
-				   + impl.getClass().getName() + "#" + method.getName()
-				   + " (secondary; primary exception already captured)",
-				   th);
-		    }
-		}
-		return null;
-	    };
-	} else {
-	    // No user Subject: run dispatchAction directly in the doAs action.
-	    withUserSubject = () -> {
-		try {
-		    dispatchAction.call();
+		    withUser.call();
 		} catch (Exception e) {
-		    // dispatchAction never throws (it captures into thrown[0])
 		    if (thrown[0] == null) thrown[0] = e;
 		}
 		return null;
-	    };
-	}
-
-	// Outer action: wrap in Subject.doAs(workerSubject) when available.
-	if (workerSubject != null && SUBJECT_DO_AS != null) {
-	    try {
-		SUBJECT_DO_AS.invoke(null, workerSubject, withUserSubject);
-	    } catch (Throwable th) {
-		if (th instanceof InvocationTargetException && th.getCause() != null) {
-		    th = th.getCause();
-		}
-		if (thrown[0] == null) {
-		    thrown[0] = th;
-		} else {
-		    logger.log(Level.FINE,
-			       "Subject.doAs reflective failure for method "
-			       + impl.getClass().getName() + "#" + method.getName()
-			       + " (secondary; primary exception already captured)",
-			       th);
-		}
-	    }
+	    });
 	} else {
-	    // No worker Subject (or doAs unavailable): just run withUserSubject.
-	    withUserSubject.run();
+	    // User subject only: Subject.callAs establishes Subject.current()
+	    // via ScopedValue for the dispatch thread.
+	    try {
+		Subject.callAs(userSubject, dispatchAction);
+	    } catch (Exception e) {
+		if (thrown[0] == null) thrown[0] = e;
+	    }
 	}
 
 	if (thrown[0] != null) {
