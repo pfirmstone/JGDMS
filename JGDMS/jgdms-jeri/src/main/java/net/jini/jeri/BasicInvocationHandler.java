@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.security.auth.Subject;
 import net.jini.core.constraint.AtomicInputValidation;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
@@ -1715,8 +1716,7 @@ public class BasicInvocationHandler
 	Method m = null;
 	try {
 	    // Subject.current() is static, no-arg, added in JDK 18
-	    m = Class.forName("javax.security.auth.Subject")
-		    .getMethod("current");
+	    m = Subject.class.getMethod("current");
 	} catch (Exception ignored) {
 	    // JDK < 18: fall through, SUBJECT_CURRENT remains null
 	}

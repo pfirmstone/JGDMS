@@ -1568,7 +1568,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    // Use bootstrap class loader (null) to restrict to JDK-bundled Principal classes.
 	    // Class.forName with null loader uses the bootstrap loader.
 	    Class<?> cls = Class.forName(className, false, null);
-	    if (cls == null || !Principal.class.isAssignableFrom(cls)) {
+	    if (!Principal.class.isAssignableFrom(cls)) {
 		return new RemotePrincipal(className, name);
 	    }
 	    java.lang.reflect.Constructor<?> ctor = cls.getConstructor(String.class);

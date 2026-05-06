@@ -783,8 +783,8 @@ public class Util {
 		merged.addAll(workerSubject.getPrincipals());
 	    }
 	    merged.addAll(userPrincipals);
-	    Set publicCreds = new HashSet();
-	    Set privateCreds = new HashSet();
+	    Set<Object> publicCreds = new HashSet<Object>();
+	    Set<Object> privateCreds = new HashSet<Object>();
 	    if (workerSubject != null) {
 		publicCreds.addAll(workerSubject.getPublicCredentials());
 		/* private credentials not exposed — service code cannot see
