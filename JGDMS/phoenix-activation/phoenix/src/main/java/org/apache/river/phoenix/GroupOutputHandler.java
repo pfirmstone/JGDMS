@@ -20,6 +20,8 @@ package org.apache.river.phoenix;
 import java.io.InputStream;
 import net.jini.activation.arg.ActivationGroupID;
 import net.jini.activation.arg.ActivationGroupDesc;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Defines the interface for handlers of the output of activation group
@@ -49,4 +51,35 @@ public interface GroupOutputHandler {
 		      String name,
 		      InputStream out,
 		      InputStream err);
+
+    /**
+     * Notifies the handler that an activation group process has exited.
+     * The default implementation logs abnormal exits at {@code SEVERE} level
+     * using the {@code org.apache.river.phoenix} logger.
+     *
+     * <p>Implementations may use this callback to send monitoring alerts,
+     * update metrics, or initiate a post-mortem analysis.  The method is
+     * called once per process exit, outside of any Phoenix internal lock,
+     * after {@link #handleOutput} streams have been closed by EOF.
+     *
+     * @param id the activation group identifier of the group
+     * @param desc the activation group descriptor of the group
+     * @param incarnation the incarnation number of the group that exited
+     * @param name the name of the group, in the form "Group-<i>n</i>"
+     * @param exitCode the OS exit code returned by the group JVM process;
+     *        zero indicates a normal exit, non-zero indicates an abnormal exit
+     */
+    default void handleExit(ActivationGroupID id,
+                            ActivationGroupDesc desc,
+                            long incarnation,
+                            String name,
+                            int exitCode)
+    {
+        if (exitCode != 0) {
+            Logger.getLogger("org.apache.river.phoenix").log(
+                Level.SEVERE,
+                "Group {0} incarnation {1} exited abnormally with code {2}",
+                new Object[]{name, incarnation, exitCode});
+        }
+    }
 }
