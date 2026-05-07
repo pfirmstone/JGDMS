@@ -34,6 +34,7 @@ import java.rmi.server.ExportException;
 import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
@@ -92,6 +93,15 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 
     private static final ConcurrentMap<Key,ClassLoader> CACHE;
     private static final ConcurrentMap<Key,ClassLoader> SERVICES_EXP;
+
+    /**
+     * Permission required to call {@link #setVerdictRegistry(VerdictRegistry)}.
+     * Callers that do not hold {@code RuntimePermission("setVerdictRegistry")}
+     * will receive a {@link SecurityException} when a security manager is
+     * installed.
+     */
+    private static final Permission SET_VERDICT_REGISTRY_PERMISSION =
+            new RuntimePermission("setVerdictRegistry");
     
     static {
 	ConcurrentMap<Referrer<Key>,Referrer<ClassLoader>> intern1 =
@@ -117,10 +127,23 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
      * <p>The field is {@code volatile} so this call is thread-safe without
      * additional synchronization.
      *
+     * <p>If a security manager is installed, this method demands
+     * {@code RuntimePermission("setVerdictRegistry")} from the caller. This
+     * prevents untrusted code from replacing or nullifying the registry
+     * (which would re-enable the boot-time permissive policy and bypass
+     * verdict enforcement).
+     *
      * @param registry the {@link VerdictRegistry} proxy to use; may be
      *                 {@code null} to disable verdict checking
+     * @throws SecurityException if a security manager is installed and the
+     *         caller does not hold
+     *         {@code RuntimePermission("setVerdictRegistry")}
      */
     public static void setVerdictRegistry(VerdictRegistry registry) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
         VerdictRegistryHolder.set(registry);
     }
 
