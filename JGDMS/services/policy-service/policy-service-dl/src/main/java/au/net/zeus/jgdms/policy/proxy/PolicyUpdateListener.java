@@ -25,6 +25,8 @@ import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.config.Configuration;
+import net.jini.config.ConfigurationException;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
@@ -83,10 +85,13 @@ import org.apache.river.api.security.RemotePolicyService;
  * re-subscribes from scratch via {@link #resubscribe()}.
  *
  * <h2>Export</h2>
- * The listener is exported as a JERI remote object via
- * {@link BasicJeriExporter} with {@link TcpServerEndpoint#getInstance(int)
- * TcpServerEndpoint.getInstance(0)} (OS-assigned port) so that the server can
- * call {@link #notify(RemoteEvent)} back across the wire.
+ * The listener is exported as a JERI remote object.  When constructed via
+ * {@link #PolicyUpdateListener(RemotePolicyService, RemotePolicyProvider, Configuration)}
+ * the exporter is read from the configuration entry
+ * {@code au.net.zeus.jgdms.policy / listenerExporter} so that administrators
+ * can substitute an SSL or Kerberos endpoint.  When the two-argument
+ * convenience constructor is used the default is a plain TCP
+ * {@link BasicJeriExporter} with an OS-assigned port.
  *
  * <h2>Thread safety</h2>
  * {@link #notify(RemoteEvent)} may be called from multiple JERI dispatch
@@ -111,6 +116,19 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
 
     /** Maximum backoff time in milliseconds during re-subscribe. */
     private static final long MAX_BACKOFF_MS = 60_000L;
+
+    /**
+     * Jini configuration component name shared with the policy service.
+     * Entries read from this component:
+     * <ul>
+     *   <li>{@code listenerExporter} ({@link Exporter}) — the exporter used to
+     *       make this listener callable by the server; defaults to a plain TCP
+     *       {@link BasicJeriExporter} on an OS-assigned port.</li>
+     *   <li>{@code leaseDuration} ({@code long}) — the requested lease
+     *       duration in milliseconds; defaults to {@link Lease#FOREVER}.</li>
+     * </ul>
+     */
+    public static final String COMPONENT = "au.net.zeus.jgdms.policy";
 
     private final RemotePolicyService service;
     private final RemotePolicyProvider localPolicy;
@@ -145,6 +163,65 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
                 new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
                         new BasicILFactory(), false, true),
                 Lease.FOREVER);
+    }
+
+    /**
+     * Creates a {@code PolicyUpdateListener} whose exporter and lease duration
+     * are read from the supplied Jini {@link Configuration}.
+     *
+     * <p>The following configuration entries are consulted under the component
+     * {@value #COMPONENT}:
+     * <ul>
+     *   <li><b>{@code listenerExporter}</b> ({@link Exporter}, optional) —
+     *       the exporter that makes this listener callable by the server.
+     *       Allows administrators to substitute an SSL or Kerberos endpoint.
+     *       Defaults to {@code BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+     *       new BasicILFactory(), false, true)}.</li>
+     *   <li><b>{@code leaseDuration}</b> ({@code long}, optional) —
+     *       the requested event-registration lease duration in milliseconds.
+     *       Defaults to {@link Lease#FOREVER}.</li>
+     * </ul>
+     *
+     * @param service     the remote policy service proxy; must not be
+     *                    {@code null}
+     * @param localPolicy the local policy provider to update; must not be
+     *                    {@code null}
+     * @param config      the Jini configuration to read exporter and lease
+     *                    duration from; must not be {@code null}
+     * @throws NullPointerException    if any argument is {@code null}
+     * @throws ConfigurationException  if the configuration contains an invalid
+     *                                 entry for {@code listenerExporter} or
+     *                                 {@code leaseDuration}
+     */
+    public PolicyUpdateListener(RemotePolicyService service,
+                                RemotePolicyProvider localPolicy,
+                                Configuration config)
+            throws ConfigurationException {
+        this(service, localPolicy,
+                readExporter(config),
+                readLeaseDuration(config));
+    }
+
+    /**
+     * Reads the {@code listenerExporter} entry from the configuration, falling
+     * back to a plain TCP BasicJeriExporter if the entry is absent.
+     */
+    private static Exporter readExporter(Configuration config)
+            throws ConfigurationException {
+        Exporter defaultExporter = new BasicJeriExporter(
+                TcpServerEndpoint.getInstance(0),
+                new BasicILFactory(), false, true);
+        return (Exporter) config.getEntry(
+                COMPONENT, "listenerExporter", Exporter.class, defaultExporter);
+    }
+
+    /**
+     * Reads the {@code leaseDuration} entry from the configuration, defaulting
+     * to {@link Lease#FOREVER}.
+     */
+    private static long readLeaseDuration(Configuration config)
+            throws ConfigurationException {
+        return config.getEntry(COMPONENT, "leaseDuration", long.class, Lease.FOREVER);
     }
 
     /**
