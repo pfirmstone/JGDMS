@@ -82,6 +82,9 @@ public interface CodebaseDownloader extends Remote {
      * current JVM session are silently skipped (deduplicated by content
      * hash).  URIs that were processed longer than the configured
      * recheck-interval ago are re-fetched to detect updated JARs.
+     * {@code httpmd} URIs are exempt from the time-based recheck: their
+     * embedded SHA-256 or SHA-512 digest makes the content immutable, so
+     * once such a URI has been processed it is never re-queued.
      * Empty sets are silently ignored.
      *
      * @param codebaseUrls the set of RFC3986-normalised codebase URIs to

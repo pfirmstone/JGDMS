@@ -77,7 +77,10 @@ import org.apache.river.api.net.Uri;
  *       within the same JVM session.</li>
  *   <li><strong>By URI:</strong> the same URI is not re-processed until
  *       {@link #URL_RECHECK_INTERVAL_MS} has elapsed, to detect JAR
- *       updates at a URL.</li>
+ *       updates at a URL.  {@code httpmd} URIs are exempt from this rule:
+ *       because the content hash is embedded in the URI itself the content
+ *       is immutable, so a time-based recheck is unnecessary — once an
+ *       {@code httpmd} URI has been processed it is never re-queued.</li>
  * </ul>
  *
  * <h2>Security</h2>
@@ -284,6 +287,9 @@ public class CodebaseDownloaderImpl {
      *
      * <p>URIs that were processed within the last
      * {@link #URL_RECHECK_INTERVAL_MS} milliseconds are silently ignored.
+     * {@code httpmd} URIs are exempt from the time-based recheck: because
+     * their content hash is part of the URI the content is immutable, so
+     * once processed they are never re-queued.
      * {@code null} elements in the set are also ignored.
      *
      * @param codebaseUrls set of RFC3986-normalised codebase URIs; must be
@@ -366,13 +372,23 @@ public class CodebaseDownloaderImpl {
      * last-processed timestamp and, if stale, update it and schedule the
      * download task.  This eliminates the TOCTOU window that would exist
      * between a plain {@code get} and a subsequent {@code put}.
+     *
+     * <p>{@code httpmd} URIs embed a SHA-256 or SHA-512 content digest in
+     * the URI itself, so their content is immutable.  Once such a URI has
+     * been processed it is never re-queued; the time-based recheck interval
+     * does not apply to them.
      */
     private void enqueue(Uri uri) {
         final long now = System.currentTimeMillis();
         final boolean[] shouldSubmit = {false};
         lastProcessed.compute(uri, (k, prev) -> {
-            if (prev != null && (now - prev) < URL_RECHECK_INTERVAL_MS) {
-                return prev;  // still within recheck interval; skip
+            if (prev != null) {
+                // httpmd URIs embed a content hash: content is immutable,
+                // so a time-based recheck is unnecessary.
+                if ("httpmd".equalsIgnoreCase(k.getScheme())) return prev;
+                if ((now - prev) < URL_RECHECK_INTERVAL_MS) {
+                    return prev;  // still within recheck interval; skip
+                }
             }
             shouldSubmit[0] = true;
             return now;
@@ -412,10 +428,14 @@ public class CodebaseDownloaderImpl {
      */
     private void processUri(Uri uri, long submittedAt) {
         try {
-            // Only HTTP and HTTPS are supported.  HTTPS is required in
-            // production; HTTP is accepted here to support testing.
+            // HTTP, HTTPS, and HTTPMD are supported.  HTTPS/HTTPMD are
+            // required in production; HTTP is accepted here to support
+            // testing.  HTTPMD connections verify a SHA-256 or SHA-512
+            // content digest embedded in the URI.
             String scheme = uri.getScheme();
-            if (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme)) {
+            if (!"https".equalsIgnoreCase(scheme)
+                    && !"http".equalsIgnoreCase(scheme)
+                    && !"httpmd".equalsIgnoreCase(scheme)) {
                 logger.warning("Unsupported URI scheme '" + scheme + "', skipping: " + uri);
                 clearLastProcessed(uri, submittedAt);
                 return;
