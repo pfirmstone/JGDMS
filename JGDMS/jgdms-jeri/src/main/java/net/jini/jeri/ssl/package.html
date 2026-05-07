@@ -440,5 +440,171 @@ only: <p>
     the first request).
 </ul>
 
+<a name="spiffe">
+<font size="+1"><b>SPIFFE</b></font>
+</a><p>
+<pre><code>
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║  STARTUP / LIFECYCLE                                                             ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+  Application bootstrap
+       │
+       ▼
+  SpiffeCredentialManager(subject, spireDir)
+       │  constructor stores subject reference
+       ▼
+  .start()
+       ├─► svidSource.fetch()          ← reads svid.pem / svid_key.pem (SPIRE files)
+       │        │
+       │        ▼
+       ├─► updateSubjectCredentials(svid)
+       │        ├─ subject.getPublicCredentials().add(certPath)
+       │        └─ subject.getPrivateCredentials().add(X500PrivateCredential)
+       │
+       ├─► SpiffeSubjectHolder.set(subject)  ◄── NEW: registers in AtomicReference
+       │
+       └─► scheduleRenewal(svid)
+                │
+                └─ ScheduledExecutorService fires renewalTask()
+                        before SVID expiry
+                              │
+                              ▼
+                         updateSubjectCredentials(newSvid)
+                              │  (mutates same Subject in-place)
+                              └─ AtomicReference still points to same Subject
+                                 ∴ no re-registration needed on rotation
+
+  .close()
+       ├─► scheduler.shutdownNow()
+       ├─► clearSubjectCredentials()
+       └─► SpiffeSubjectHolder.set(null)    ◄── NEW: deregisters
+
+
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║  OUTBOUND CALL (CLIENT SIDE) — SslEndpointImpl                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+  Application thread calls proxy method
+       │
+       ▼
+  SslEndpointImpl.newRequest(constraints)
+       │
+       ▼
+  getCallContext(constraints)
+       │
+       ├─► AccessController.getContext() → acc
+       │
+       ├─► Subject.getSubject(acc)         ← checks call-stack for Subject.doAs()
+       │        │
+       │        ├─ [not null] → clientSubject ──────────────────┐
+       │        │                                               │
+       │        └─ [null, no doAs() on stack]                   │
+       │                 │                                      │
+       │                 ▼                                      │
+       │        SpiffeSubjectHolder.get()   ◄── NEW fallback    │
+       │                 │                                      │
+       │                 ├─ [not null] → clientSubject ─────────┤
+       │                 │                                      │
+       │                 └─ [null] → throw                      │
+       │                    UnsupportedConstraintException       │
+       │                                                        ▼
+       ├─► getClientPrincipals(constraints)
+       │        └─ returns X500Principal / SpiffePrincipal set
+       │
+       ├─► getConnectionContexts(constraints, clientPrincipals)
+       │        └─ pairs client ↔ server principals
+       │
+       ├─► checkAuthenticationPermissions(contexts)
+       │        └─ DirtyChai AccessController checks
+       │           AuthenticationPermission("client","server","connect")
+       │
+       └─► createCallContext(contexts, ...)
+                │
+                ▼
+       SSL/TLS handshake using X500PrivateCredential from Subject
+
+
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║  SERVER SIDE — SslServerEndpointImpl.SslListenEndpoint                          ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+  SslServerEndpoint.enumerateListenEndpoints(ctx)
+       │
+       ▼
+  new SslListenEndpoint(serverSubject=null, ...)
+       │
+       ├─► serverSubject == null → useCurrentSubject = true
+       │
+       ├─► Subject.getSubject(acc)         ← checks call-stack doAs()
+       │        │
+       │        ├─ [not null] → serverSubject ─────────────────┐
+       │        │                                              │
+       │        └─ [null]                                      │
+       │                 │                                     │
+       │                 ▼                                     │
+       │        SpiffeSubjectHolder.get()   ◄── NEW fallback   │
+       │                 │                                     │
+       │                 └─ → serverSubject ──────────────────┘
+       │                                                       │
+       │                                                       ▼
+       ├─► computePrincipals(serverSubject)
+       │        └─ X500Principal / SpiffePrincipal set
+       │
+       ├─► build AuthenticationPermission[]{..."listen"}
+       │
+       ├─► hasListenPermissions(listenPerms, port)
+       │        └─ DirtyChai AccessController checks
+       │           AuthenticationPermission("server",null,"listen")
+       │
+       └─► store serverSubject → used during TLS handshake accept
+
+
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║  DIRTYCHAI AUTHORIZATION LAYER                                                   ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+  Both paths above call into DirtyChai's authorization infrastructure:
+
+  checkAuthenticationPermissions() / checkListenPermissions()
+       │
+       ▼
+  AccessController.checkPermission(AuthenticationPermission)
+       │
+       ▼
+  DirtyChai ConcurrentPolicyFile
+       │  (RFC 3986 URI matching, no DNS, <1% overhead)
+       ▼
+  ProtectionDomain grant lookup
+       │
+       ├─ [granted] → continue
+       └─ [denied]  → SecurityException
+                            │
+                            └─► UnsupportedConstraintException
+                                (or anonymous/dummy-principal fallback)
+
+
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║  TLS HANDSHAKE (both sides)                                                      ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+  ClientAuthManager / ServerAuthManager
+       │
+       ├─► picks X500PrivateCredential from Subject's private credentials
+       │        (Subject managed by SpiffeCredentialManager; rotated in-place)
+       │
+       ├─► picks CertPath from Subject's public credentials
+       │
+       └─► SSLContext configured → TLS mutual authentication
+
+  On rotation (renewal task fires before SVID expiry):
+       SpiffeCredentialManager.renewalTask()
+            └─► updateSubjectCredentials(newSvid)
+                     ├─ clears old CertPath + X500PrivateCredential
+                     └─ adds new ones
+                          (Subject is the same object; SpiffeSubjectHolder
+                           still points to it — no re-registration needed)
+</code></pre>
+
 </body>
 </html>
