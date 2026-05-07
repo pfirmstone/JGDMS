@@ -384,6 +384,11 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
         }
 
         long backoff = INITIAL_BACKOFF_MS;
+        // Retry indefinitely with exponential backoff until either:
+        // (a) start() succeeds and returns normally, or
+        // (b) the thread is interrupted (e.g. the JVM is shutting down).
+        // An infinite loop is acceptable here because without a live lease the
+        // local policy would silently become stale; aggressive retry is safer.
         while (true) {
             try {
                 start();

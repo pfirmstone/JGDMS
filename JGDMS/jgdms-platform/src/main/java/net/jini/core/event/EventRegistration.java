@@ -118,7 +118,7 @@ public final class EventRegistration implements java.io.Serializable {
 	if (source == null) throw new InvalidObjectException("source cannot be null");
 	Lease lease = arg.get("lease", null, Lease.class);
 	if (lease == null) throw new InvalidObjectException(
-		"lease cannot be null and must be an instance of Lease");
+		"lease must not be null");
 	long seqNum = arg.get("seqNum", 0L);
 	if (seqNum < 0) throw new InvalidObjectException("seqNum must be greater than zero, possible overflow");
 	return true;
