@@ -917,16 +917,21 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
     - On event receipt: calls `getCurrentGrants()`, parses `String[]` → `PermissionGrant[]` via `DefaultPolicyParser`, calls `RemotePolicyProvider.replace()`
     - Tracks sequence numbers to detect gaps and logs WARNING on gap
     - Uses `LeaseRenewalManager` for automatic lease renewal; re-subscribes on `UnknownLeaseException`
-22. **Unit tests for `policy-service`** — *(still open; no test directory exists under `policy-service-service/src/test/` or `policy-service-dl/src/test/`)*
+22. **✅ Unit tests for `policy-service`** — *(completed; test coverage added for `InMemoryPolicyServiceImpl`, `RemotePolicyServiceProxy`, `PolicyEventLease`, and `PolicyUpdateEvent`)*
 23. **Host 4 — Codebase Downloader Service** — *(not yet started; no Maven module exists)*
     - Only host with outbound internet access
     - Fetches JAR bytes for codebase URLs discovered from lookup service registrations
     - Pushes `AnalysisRequest` (containing raw JAR bytes) to BAE pool via `BytecodeAnalysisEngine.analyzeJar()`
     - SPIFFE SVID: `spiffe://jgdms.example.org/host/downloader`
-24. **`ProxyCodebaseSPI` integration with `VerdictRegistry`** — *(not yet started)*
-    - `PreferredProxyCodebaseProvider` must compute SHA-256 hash of each JAR before creating a `PreferredClassLoader`
-    - Must call `VerdictRegistry.getVerdictByHash(contentHash)` or `getVerdict(codebaseUrls)`
-    - Must refuse to unmarshal if verdict is `DANGEROUS` or absent (absent = not yet audited; policy decision on absent)
+24. **`ProxyCodebaseSPI` integration with `VerdictRegistry`** — ✅ *completed*
+    - `PreferredProxyCodebaseProvider` computes SHA-256 hash of each JAR via `computeJarHash()` before creating a `PreferredClassLoader`
+    - Calls `VerdictRegistry.getVerdictByHash(contentHash)` for each JAR (injected via `setVerdictRegistry()`)
+    - Refuses to create a ClassLoader (throws `IOException`) if verdict is `DANGEROUS` or absent (null = not yet audited)
+    - `INCONCLUSIVE` verdict proceeds with a `WARNING` log; `SAFE` proceeds silently at `FINEST`
+    - Registry unreachable → fail-secure `IOException`
+    - `VerdictRegistryHolder` package-private helper holds the volatile registry reference
+    - Boot-time permissive: when registry is not yet injected (`null`), check is skipped
+    - Unit tests in `jgdms-pref-class-loader/src/test/` cover all verdict outcomes and null-registry case
 25. **`DiscoveryCredentialProvider` interface** — *(not yet started; referenced in design docs only)*
 
 ---
