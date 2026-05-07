@@ -36,6 +36,7 @@ import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
 import org.apache.river.config.Config;
 import au.net.zeus.jgdms.service.support.AbstractJiniService;
@@ -232,6 +233,12 @@ public class ActivatableVerdictRegistryImpl
     public void reportCrash(CrashReport report) throws RemoteException {
         getReadyState().check();
         impl.reportCrash(report);
+    }
+
+    @Override
+    public void reportPinning(PinningReport report) throws RemoteException {
+        getReadyState().check();
+        impl.reportPinning(report);
     }
 
     @Override

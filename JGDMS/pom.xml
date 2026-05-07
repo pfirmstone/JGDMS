@@ -82,6 +82,7 @@
     <module>services/bytecode-analysis-engine</module>
     <module>services/verdict-registry</module>
     <module>services/policy-service</module>
+    <module>services/jfr-telemetry</module>
     <module>tools</module>
     <module>phoenix-activation</module>
     <!--<module>groovy-config</module>-->

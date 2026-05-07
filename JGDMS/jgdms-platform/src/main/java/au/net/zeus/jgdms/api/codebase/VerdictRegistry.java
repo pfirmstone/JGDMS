@@ -27,6 +27,7 @@ import net.jini.core.lease.UnknownLeaseException;
 import net.jini.id.Uuid;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.net.Uri;
+import au.net.zeus.jgdms.api.telemetry.PinningReport;
 
 /**
  * Remote service interface for the Verdict Registry (VR).
@@ -165,6 +166,27 @@ public interface VerdictRegistry extends Remote {
      * @throws RemoteException      if a communication failure occurs
      */
     void reportCrash(CrashReport report) throws RemoteException;
+
+    /**
+     * Submits a {@link PinningReport} from the JFR Telemetry Service (Host 5)
+     * directly to this registry.
+     *
+     * <p>The registry treats confirmed carrier-thread pinning as evidence of
+     * DoS-capable blocking behaviour and immediately publishes a
+     * {@link VerdictType#DANGEROUS} {@link RegistryVerdict} for the affected
+     * codebase URLs.
+     *
+     * <p>Authentication is handled entirely by the JERI mutual-authentication
+     * layer (SPIFFE/SPIRE SVIDs).  The registry accepts {@code reportPinning}
+     * calls only from the authorised telemetry SVID
+     * ({@code spiffe://…/host/telemetry}).  No application-level signature is
+     * required on the payload.
+     *
+     * @param report the pinning report; must be non-null
+     * @throws NullPointerException if {@code report} is {@code null}
+     * @throws RemoteException      if a communication failure occurs
+     */
+    void reportPinning(PinningReport report) throws RemoteException;
 
     /**
      * Registers a {@link RemoteEventListener} to receive a

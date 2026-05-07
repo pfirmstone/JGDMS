@@ -61,6 +61,7 @@ import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.codebase.VerdictType;
+import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.net.Uri;
 import org.apache.river.constants.ThrowableConstants;
 import org.apache.river.reliableLog.LogHandler;
@@ -694,6 +695,49 @@ public class VerdictRegistryImpl implements VerdictRegistry {
                 logger.log(Level.WARNING,
                         "Published DANGEROUS verdict (crash report) for key: {0}",
                         codebaseKey);
+                publishedRv = rv;
+            }
+        }
+
+        if (publishedRv != null) {
+            appendLogRecord(new PublishedVerdictRecord(codebaseKey, publishedRv, true));
+            notifyListeners(codebaseKey, publishedRv);
+        }
+    }
+
+    @Override
+    public void reportPinning(PinningReport report) throws RemoteException {
+        if (report == null) throw new NullPointerException("report");
+
+        // Authentication is handled by JERI mutual auth (SPIFFE SVID for Host 5).
+        // No application-level signature verification is needed here.
+
+        Set<Uri> codebaseUrls = report.getCodebaseUrls();
+        String   codebaseKey  = codebaseKey(codebaseUrls);
+        VerdictState state    = verdictStates.computeIfAbsent(
+                codebaseKey, k -> new VerdictState());
+
+        RegistryVerdict publishedRv = null;
+
+        synchronized (state) {
+            if (state.dangerous) {
+                return;
+            }
+            if (state.codebaseUrls == null) {
+                state.codebaseUrls = sortedUriArray(codebaseUrls);
+            }
+            RegistryVerdict rv = issueVerdict(state.codebaseUrls, VerdictType.DANGEROUS);
+            if (rv != null) {
+                state.dangerous = true;
+                publishedVerdicts.put(codebaseKey, rv);
+                logger.log(Level.WARNING,
+                        "Published DANGEROUS verdict (JFR pinning report: {0} events,"
+                                + " {1} ns pinned) for key: {2}",
+                        new Object[]{
+                            report.getEventCount(),
+                            report.getPinnedNanos(),
+                            codebaseKey
+                        });
                 publishedRv = rv;
             }
         }
