@@ -1,5 +1,6 @@
 au/net/zeus/jgdms/policy/proxy/RemotePolicyServiceProxy$ConstrainableRemotePolicyServiceProxy.class
 au/net/zeus/jgdms/policy/proxy/RemotePolicyServiceProxy.class
 au/net/zeus/jgdms/policy/proxy/PolicyEventLease$PolicyLeaseMap.class
+au/net/zeus/jgdms/policy/proxy/PolicyUpdateListener.class
 au/net/zeus/jgdms/policy/proxy/PolicyEventLease.class
 au/net/zeus/jgdms/policy/proxy/PolicyUpdateEvent.class

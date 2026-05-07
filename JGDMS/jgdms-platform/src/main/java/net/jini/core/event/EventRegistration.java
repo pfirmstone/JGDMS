@@ -112,22 +112,22 @@ public final class EventRegistration implements java.io.Serializable {
      */
     private final long seqNum;
 
-    private static boolean check(GetArg arg) throws IOException{
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	arg.get("eventID", 0L);
-	Object source = arg.get("source", null);
+	Object source = arg.get("source", null, Object.class);
 	if (source == null) throw new InvalidObjectException("source cannot be null");
-	Object lease = arg.get("lease", null);
-	if (!(lease instanceof Lease)) throw new InvalidObjectException(
+	Lease lease = arg.get("lease", null, Lease.class);
+	if (lease == null) throw new InvalidObjectException(
 		"lease cannot be null and must be an instance of Lease");
 	long seqNum = arg.get("seqNum", 0L);
 	if (seqNum < 0) throw new InvalidObjectException("seqNum must be greater than zero, possible overflow");
 	return true;
     }
     
-    private EventRegistration(boolean check, GetArg arg) throws IOException{
+    private EventRegistration(boolean check, GetArg arg) throws IOException, ClassNotFoundException {
 	eventID = arg.get("eventID", 0L);
-	source = arg.get("source", null);
-	lease = (Lease) arg.get("lease", null);
+	source = arg.get("source", null, Object.class);
+	lease = arg.get("lease", null, Lease.class);
 	seqNum = arg.get("seqNum", 0L);
     }
     
@@ -135,10 +135,11 @@ public final class EventRegistration implements java.io.Serializable {
      * Deserialization constructor.
      * @param arg
      * @throws IOException 
+     * @throws ClassNotFoundException
      * @since 3.1
      * @see AtomicSerial
      */
-    public EventRegistration(GetArg arg) throws IOException{
+    public EventRegistration(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg), arg);
     }
 

@@ -72,7 +72,6 @@
     <build>
         <plugins>
             <plugin>
-            <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>21</release>
