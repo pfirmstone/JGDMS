@@ -169,7 +169,7 @@ class Activation implements Serializable {
         if (PROCESS_PID != null) {
             try {
                 return (Long) PROCESS_PID.invoke(p);
-            } catch (Exception ignored) { }
+            } catch (ReflectiveOperationException ignored) { }
         }
         return -1L;
     }
@@ -324,7 +324,16 @@ class Activation implements Serializable {
             unexportWait = getInt(config, "unexportWait", 10);
             String groupWorkDir = (String) config.getEntry(
                     PHOENIX, "groupWorkingDirectory", String.class, null);
-            groupWorkingDirectory = (groupWorkDir != null) ? new File(groupWorkDir) : null;
+            if (groupWorkDir != null) {
+                File dir = new File(groupWorkDir);
+                if (!dir.isDirectory()) {
+                    throw new ConfigurationException(
+                        "groupWorkingDirectory is not an existing directory: " + groupWorkDir);
+                }
+                groupWorkingDirectory = dir;
+            } else {
+                groupWorkingDirectory = null;
+            }
             groupInheritEnvironment = (Boolean) config.getEntry(
                     PHOENIX, "groupInheritEnvironment", Boolean.class, Boolean.TRUE);
             @SuppressWarnings("unchecked")
@@ -1572,6 +1581,8 @@ class Activation implements Serializable {
 	private class Watchdog extends Thread {
 	    private final Process groupProcess = child;
 	    private final long groupIncarnation = incarnation;
+	    /** Snapshot of the OS PID for this specific child process. */
+	    private final long snapshotPid = groupPid;
 	    private volatile boolean canInterrupt = true;
 	    private volatile boolean shouldQuit = false;
 	    private volatile boolean shouldRestart = true;
@@ -1608,7 +1619,7 @@ class Activation implements Serializable {
                  * with hs_err_pid<N>.log crash-dump files.
                  */
                 if (exitCode != 0) {
-                    long pid = groupPid;
+                    long pid = snapshotPid;
                     if (pid >= 0L) {
                         logger.log(Level.SEVERE,
                             "Group {0} (pid {1}) incarnation {2} exited abnormally with code {3}",
@@ -1640,8 +1651,9 @@ class Activation implements Serializable {
                                 activation.addLogRecord(
                                     new LogGroupCrash(groupID, groupIncarnation, exitCode));
                             } catch (ActivationException e) {
-                                logger.log(Level.FINE,
-                                    "could not persist crash record for group {0}", groupName);
+                                logger.log(Level.WARNING,
+                                    "could not persist crash record for group {0}: {1}",
+                                    new Object[]{groupName, e.getMessage()});
                             }
                         }
 			restart = shouldRestart && !activation.shuttingDown;
@@ -1764,7 +1776,9 @@ class Activation implements Serializable {
 	// Optional environment isolation
 	if (!groupInheritEnvironment) {
 	    pb.environment().clear();
-	    pb.environment().putAll(groupEnvironment);
+	    if (groupEnvironment != null) {
+	        pb.environment().putAll(groupEnvironment);
+	    }
 	}
 
 	// stdout and stderr remain as PIPE (ProcessBuilder default),

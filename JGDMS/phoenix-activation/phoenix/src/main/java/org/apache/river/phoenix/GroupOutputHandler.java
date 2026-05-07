@@ -20,8 +20,6 @@ package org.apache.river.phoenix;
 import java.io.InputStream;
 import net.jini.activation.arg.ActivationGroupID;
 import net.jini.activation.arg.ActivationGroupDesc;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Defines the interface for handlers of the output of activation group
@@ -54,8 +52,8 @@ public interface GroupOutputHandler {
 
     /**
      * Notifies the handler that an activation group process has exited.
-     * The default implementation logs abnormal exits at {@code SEVERE} level
-     * using the {@code org.apache.river.phoenix} logger.
+     * The default implementation is a no-op; Phoenix's Watchdog thread already
+     * logs abnormal exits at {@code SEVERE} level before invoking this callback.
      *
      * <p>Implementations may use this callback to send monitoring alerts,
      * update metrics, or initiate a post-mortem analysis.  The method is
@@ -75,11 +73,10 @@ public interface GroupOutputHandler {
                             String name,
                             int exitCode)
     {
-        if (exitCode != 0) {
-            Logger.getLogger("org.apache.river.phoenix").log(
-                Level.SEVERE,
-                "Group {0} incarnation {1} exited abnormally with code {2}",
-                new Object[]{name, incarnation, exitCode});
-        }
+        // Default implementation is a no-op.
+        // Phoenix's Watchdog thread already logs abnormal exits at SEVERE level
+        // before invoking this callback.  Implementations may override this
+        // method to send monitoring alerts, update metrics, or trigger
+        // post-mortem analysis.
     }
 }
