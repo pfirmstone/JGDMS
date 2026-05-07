@@ -1116,10 +1116,21 @@ public final class Security {
      * subject's principals, determines which of those permissions the calling
      * context is authorized to grant, and dynamically grants that subset of
      * the permissions to the class loader of <code>toClass</code>, qualified
-     * with the current subject's principals.  The current subject is
-     * determined by calling {@link Subject#getSubject Subject.getSubject} on
-     * the context returned by {@link AccessController#getContext
-     * AccessController.getContext}; the permissions dynamically granted to
+     * with the current subject's principals.
+     *
+     * <p>The "current principals" are determined by
+     * {@code getCurrentPrincipals()}, which returns the <em>union</em> of the
+     * principals from both the user {@link Subject} (bound via
+     * {@link Subject#callAs Subject.callAs()}, visible as
+     * {@link Subject#current Subject.current()}) and the worker {@link Subject}
+     * on the {@link java.security.AccessControlContext}.  When both Subjects are
+     * present, the resulting grant is scoped to <em>all</em> of those
+     * principals simultaneously, enforcing the Principle of Least Privilege:
+     * the grant only activates when the calling context presents both the user
+     * and the workload identity together.  When only one Subject is present the
+     * behaviour is equivalent to the single-subject case.
+     *
+     * <p>The permissions dynamically granted to
      * <code>fromClass</code> are determined by calling the {@link
      * DynamicPolicy#getGrants getGrants} method of the currently installed
      * policy, and the permission grant to <code>toClass</code> is performed by
@@ -1222,33 +1233,47 @@ public final class Security {
     }
 
     /**
-     * Returns principals of the current subject, or {@code null} if there is
-     * no current subject.
+     * Returns the union of the principals from the current user and worker
+     * Subjects, or {@code null} if neither is present.
      *
      * <p>The user {@link Subject} bound via {@link Subject#callAs
-     * Subject.callAs()} (a ScopedValue, visible via {@link Subject#current()})
-     * is checked first.  If no user Subject is bound, the Subject associated
-     * with the current {@link java.security.AccessControlContext} is used as
-     * a fallback.
+     * Subject.callAs()} (a ScopedValue, visible via {@link Subject#current})
+     * and the worker {@link Subject} on the
+     * {@link java.security.AccessControlContext} are both consulted.
+     *
+     * <ul>
+     *   <li>If only one is present, its principals are returned.</li>
+     *   <li>If both are present, their principals are <em>unioned</em>.
+     *       The resulting grant then requires that the calling context presents
+     *       <em>all</em> principals from both Subjects simultaneously, enforcing
+     *       POLP: grants must be made to the specific user, the specific
+     *       workload, <em>and</em> the code; if any identity is absent the
+     *       grant does not apply.</li>
+     *   <li>If neither is present, {@code null} is returned (grant to any
+     *       principal).</li>
+     * </ul>
      */
     private static Principal[] getCurrentPrincipals() {
-	// Prefer the user Subject bound via Subject.callAs() (ScopedValue).
 	Subject user = Subject.current();
-	if (user != null) {
-	    Set<Principal> ps = user.getPrincipals();
-	    return ps.toArray(new Principal[ps.size()]);
-	}
-	// Fall back to the Subject on the AccessControlContext.
 	final AccessControlContext acc = AccessController.getContext();
-	Subject s = AccessController.doPrivileged(
+	Subject worker = AccessController.doPrivileged(
 	    new PrivilegedAction<Subject>() {
 		public Subject run() { return Subject.getSubject(acc); }
 	    });
-	if (s != null) {
-	    Set<Principal> ps = s.getPrincipals();
+	if (user == null && worker == null) return null;
+	if (user == null) {
+	    Set<Principal> ps = worker.getPrincipals();
 	    return ps.toArray(new Principal[ps.size()]);
 	}
-	return null;
+	if (worker == null) {
+	    Set<Principal> ps = user.getPrincipals();
+	    return ps.toArray(new Principal[ps.size()]);
+	}
+	// Both present: return union to enforce POLP across user AND worker.
+	LinkedHashSet<Principal> union = new LinkedHashSet<Principal>();
+	union.addAll(user.getPrincipals());
+	union.addAll(worker.getPrincipals());
+	return union.toArray(new Principal[union.size()]);
     }
 
     /**

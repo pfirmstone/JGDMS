@@ -1,4 +1,4 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v13)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v14)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
@@ -234,22 +234,36 @@ A caller can only grant permissions it itself holds a `GrantPermission` for.
 | `VerifyingProxyPreparer` constructor choice | Explicit permissions lock grant; null/empty defers to `PERMISSIONS.LIST` |
 | `principals` parameter in `VerifyingProxyPreparer` | null = current user Subject (via `Subject.current()`) or ACC Subject as fallback; non-null = explicit scope |
 
-### 5.4.1 `Security.getCurrentPrincipals()` — User-Subject-First Resolution
+### 5.4.1 `Security.getCurrentPrincipals()` — Union of User + Worker Principals
 
 When `principals == null` in `VerifyingProxyPreparer`, `Security.grant(Class, Permission[])` is
 called, which invokes the private `Security.getCurrentPrincipals()` helper.  As of this release,
-that helper resolves principals in the following priority order:
+that helper returns the **union** of principals from both active Subjects:
 
 1. **`Subject.current()`** — the user `Subject` bound via `Subject.callAs()` (a `ScopedValue`).
-   This is non-null when the grant occurs from inside a JERI dispatch thread (server-side) or
-   any other `callAs` scope.
+   Non-null when the grant occurs from inside a JERI dispatch thread or any other `callAs` scope.
 2. **`Subject.getSubject(AccessController.getContext())`** — the workload (SPIFFE) `Subject`
-   on the `AccessControlContext`.  Used as a fallback when no user Subject is bound.
+   on the `AccessControlContext`.
 
-**Consequence:** `VerifyingProxyPreparer` used from a JERI dispatch thread now automatically
-scopes grants to the authenticated remote *user's* principals (not the server's workload
-principals), with zero call-site changes.  Service code that calls `prepareProxy()` inside a
-`callAs(userSubject, ...)` scope inherits this behaviour transparently.
+| Subjects present | Principals returned |
+|---|---|
+| User only | User principals only |
+| Worker only | Worker principals only |
+| Both | **Union** of user + worker principals |
+| Neither | `null` (grant applies to any principal) |
+
+**POLP consequence (both present):** Because `PrincipalGrant.implies(Principal[])` requires that
+**all** principals named in a grant are present in the caller's principal array, using the union
+means a dynamic grant must be scoped to **both** the user identity (e.g. `KerberosPrincipal
+"alice@REALM"`) **and** the workload identity (e.g. `SpiffePrincipal
+"spiffe://…/svc/order-processor"`).  If either identity is absent, the grant does not match.
+This enforces POLP at all three layers simultaneously: user, code, and workload service.
+
+**Single-Subject fallback:** On daemon threads or pre-login contexts where only one Subject is
+present, behaviour is identical to the previous single-subject case.
+
+**Previous behaviour:** Earlier versions preferred the user Subject and fell back to the worker
+Subject (either/or, not union).  The union approach tightens this by requiring both.
 
 ### 5.4.2 `GrantPermission.checkGuard(Object)` — User-Subject-Aware Guard
 
@@ -977,7 +991,7 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | **`ClinitCycleVisitor` is not a separate class** | ✅ **v9:** Cycle detection is `ClinitBlockingVisitor.detectClinitCycles()` static method + `TarjanScc` private inner class — better cohesion, no separate file needed |
 | **`DefaultPolicyParser.scanner` is already `protected final`** | ✅ **v9:** No change required; `HttpsClientAuthPolicyParser` can subclass directly |
 | **`SUBJECT_CALL_AS`, `SUBJECT_DO_AS` (Dispatcher) and `SUBJECT_CURRENT` (Handler) are still reflective `Method` fields** | ✅ **v9 verified:** Resolved at class-init via `Subject.class.getMethod(...)`; invoked via `Method.invoke()`; null on JDK < 18 |
-| **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10:** `Security.grant(Class, Permission[])` now prefers the user Subject bound via `Subject.callAs()` (ScopedValue) over the ACC Subject. Grants from JERI dispatch threads are automatically scoped to the remote user's principals. Falls back to ACC Subject when no user Subject is bound. |
+| **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10 → revised in v14:** Originally preferred user Subject over ACC Subject. **Changed in v14** to return the **union** of both Subject's principals when both are present, enforcing POLP: a dynamic grant now requires both user and workload identity simultaneously. Single-subject fallback behaviour is unchanged. |
 | **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10 → simplified in v12:** Originally added a `Subject.doAs(user, ...)` wrapper so the user's principals were in the ACC for `checkPermission`. **Removed in v12** after DirtyChai commit `2d26e787` — `AccessController.getContext()` now captures `SCOPED_SUBJECT` automatically (via `Subject.NoCheck` / `AccessController.SubjectAccess`), making the wrapper redundant. `checkGuard()` now calls `sm.checkPermission(this)` directly. |
 | **`jgdms-platform` compiler release bumped to 21** | ✅ **v10:** Required to call `Subject.current()` and `Subject.doAs()` directly (not via reflection) in `jgdms-platform` source. |
 | **`SslEndpointImpl` checks ACC (`doAs`) first, `Subject.current()` last** | ✅ **v11:** TLS requires X.509/SPIFFE credentials in the workload Subject. A Kerberos-only `Subject.current()` is explicitly rejected. `Subject.current()` is only accepted as last resort when it carries X500Principal or SpiffePrincipal. |
@@ -1004,7 +1018,13 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 13, updated to add:*
+continue without loss of context. This is version 14, updated to add:*
+- *§5.4.1 revised — `Security.getCurrentPrincipals()` now returns the **union** of user and worker Subject principals when both are present; tightens POLP: dynamic grants must name both identities simultaneously; single-subject fallback unchanged*
+- *§13 updated — `Security.getCurrentPrincipals()` row revised to document v14 union semantics and POLP rationale*
+
+---
+
+*Previous version (v13) notes:*
 - *§1 DirtyChai `SubjectDomainCombiner.java` note corrected — SCOPED_SUBJECT capture now happens in `AccessController.getContext()` (`2d26e787`), not in `SubjectDomainCombiner.combine()`*
 - *§10.11 updated — both SSL and Kerberos endpoint ACC fallbacks are now explicitly principal-filtered after DirtyChai SCOPED_SUBJECT capture changes (SSL: X500/SPIFFE only; Kerberos: KerberosPrincipal only)*
 - *§11 transport audit rows updated for `SslEndpointImpl.getCallContext()` and `KerberosEndpoint.newRequest()` to reflect the new filtered fallback behavior*
