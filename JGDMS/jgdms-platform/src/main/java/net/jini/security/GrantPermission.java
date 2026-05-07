@@ -349,8 +349,8 @@ public final class GrantPermission extends Permission {
      *
      * <p><b>Requires DirtyChai.</b>  The JGDMS security model depends on the
      * DirtyChai JVM patch.  Since DirtyChai commit
-     * {@code 2d26e787ccd1868d061bc8ef86ff264ea64f8c8f}
-     * (pfirmstone/DirtyChai),
+     * {@code pfirmstone/DirtyChai@2d26e787ccd1868d061bc8ef86ff264ea64f8c8f}
+     * (https://github.com/pfirmstone/DirtyChai/commit/2d26e787ccd1868d061bc8ef86ff264ea64f8c8f),
      * {@link java.security.AccessController#getContext()} automatically
      * captures any user {@link javax.security.auth.Subject} bound via
      * {@link javax.security.auth.Subject#callAs Subject.callAs()} and wraps
