@@ -1,4 +1,4 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v10)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v11)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
@@ -615,6 +615,79 @@ Jini services.
 | `DirtyChai/.../SubjectDomainCombiner.java` | `getMergedPrincipals()` reads `SCOPED_SUBJECT` additively |
 | `DirtyChai/.../Subject.java` | Javadoc documents two-Subject model; ClassSet uses `LinkedHashSet` |
 
+### 10.11 SSL vs. Kerberos Endpoints — Subject Lookup Differences
+
+JERI's SSL and Kerberos transport endpoints each locate the client Subject in a
+**different order**, reflecting the different credential types each transport needs.
+
+#### `SslEndpointImpl.getCallContext()` — TLS/SPIFFE workload identity first
+
+```
+Priority 1: Subject.getSubject(acc)        — workload Subject from AccessControlContext
+            (installed by Subject.doAs() at service startup)
+Priority 2: SpiffeSubjectHolder.get()      — process-wide SPIFFE Subject registered by
+            SpiffeCredentialManager.start() (used when no doAs() wraps the call)
+Priority 3: Subject.current()             — ScopedValue, LAST RESORT ONLY
+            accepted only if it contains X500Principal or SpiffePrincipal;
+            a Kerberos-only Subject is REJECTED (cannot authenticate TLS)
+```
+
+**Rationale:** TLS requires an X.509 certificate (or SPIFFE SVID) in the Subject's
+private credential set.  A human user Subject placed in `Subject.current()` by
+`Subject.callAs()` during JERI dispatch carries no TLS credentials; using it for TLS
+would silently fail or open an unauthenticated connection.  The workload SPIFFE Subject
+on the ACC is always preferred, with `Subject.current()` accepted as a legacy fallback
+only when it carries X.500/SPIFFE principals.
+
+#### `KerberosEndpoint.newRequest()` — user/human identity first
+
+```
+Priority 1: Subject.current()             — user Subject from Subject.callAs() (ScopedValue)
+            accepted only if it contains KerberosPrincipal
+Priority 2: Subject.getSubject(acc)       — workload Subject from AccessControlContext
+            (used when no KerberosPrincipal found in Subject.current())
+```
+
+**Rationale:** Kerberos GSS-API requires that the Kerberos TGT and service ticket be
+acquired on behalf of a specific human user (`KerberosPrincipal`).  The dispatch layer
+installs the per-request user Subject via `Subject.callAs()` (ScopedValue), making it
+visible as `Subject.current()` on the dispatch thread.  Checking it first means that
+every outbound Kerberos call is automatically associated with the authenticated user,
+not the server's workload identity.
+
+**`CacheKey` is per-Subject:** The Kerberos connection cache key includes the `Subject`
+reference.  Different users never share Kerberos connections.  Workload connections
+(ACC Subject) form their own cache entry, isolated from all user connections.
+
+#### Side-by-side comparison
+
+| | SSL (`SslEndpointImpl`) | Kerberos (`KerberosEndpoint`) |
+|---|---|---|
+| **Credential needed** | X.509 certificate / SPIFFE SVID | Kerberos TGT (`KerberosPrincipal`) |
+| **Primary Subject source** | `Subject.getSubject(acc)` (workload, `doAs`) | `Subject.current()` (user, `callAs`) |
+| **Fallback Subject source** | `SpiffeSubjectHolder` → `Subject.current()` | `Subject.getSubject(acc)` (workload) |
+| **`Subject.current()` filter** | Must have `X500Principal` or `SpiffePrincipal`; Kerberos-only → rejected | Must have `KerberosPrincipal`; X500-only → rejected |
+| **Connection cache isolation** | Not per-user (workload identity is shared) | Per-Subject; different users never share a connection |
+| **Why** | TLS is a machine/workload concern; human Subject has no TLS credentials | Kerberos is a per-user concern; per-user credentials must not be mixed |
+
+#### Interaction with JERI Dispatch
+
+When `BasicInvocationDispatcher.invokeWithClientSubject()` runs inside a server:
+
+```
+Subject.doAs(workerSubject, () -> {          // worker on ACC — SSL/TLS uses this
+    Subject.callAs(userSubject, () -> {      // user on ScopedValue — Kerberos uses this
+        invoke(impl, method, args, context)
+    });
+});
+```
+
+An outbound TLS call made from inside `invoke()` will use `workerSubject` (from the ACC).
+An outbound Kerberos call made from inside `invoke()` will use `userSubject` (from
+`Subject.current()`), so the GSS context is established as the authenticated client user.
+This means the server naturally acts on behalf of the user for Kerberos connections but
+uses its own workload certificate for TLS connections — no impersonation occurs.
+
 ---
 
 ## 11. Remaining `doAs` / `doAsPrivileged` Call Sites — Migration Audit
@@ -873,6 +946,8 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10:** `Security.grant(Class, Permission[])` now prefers the user Subject bound via `Subject.callAs()` (ScopedValue) over the ACC Subject. Grants from JERI dispatch threads are automatically scoped to the remote user's principals. Falls back to ACC Subject when no user Subject is bound. |
 | **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10:** When `Subject.current()` is non-null, the guard check runs inside `Subject.doAs(user, ...)` so the user's principals are in the ACC for the duration of `checkPermission`. Daemon threads (no user Subject) use the direct path unchanged. |
 | **`jgdms-platform` compiler release bumped to 21** | ✅ **v10:** Required to call `Subject.current()` and `Subject.doAs()` directly (not via reflection) in `jgdms-platform` source. |
+| **`SslEndpointImpl` checks ACC (`doAs`) first, `Subject.current()` last** | ✅ **v11:** TLS requires X.509/SPIFFE credentials in the workload Subject. A Kerberos-only `Subject.current()` is explicitly rejected. `Subject.current()` is only accepted as last resort when it carries X500Principal or SpiffePrincipal. |
+| **`KerberosEndpoint` checks `Subject.current()` first, ACC second** | ✅ **v11:** Kerberos GSS-API requires per-user KerberosPrincipal. The dispatch-installed user Subject (ScopedValue) is checked first; only falls back to ACC Subject when no KerberosPrincipal is bound. Connection cache (`CacheKey`) is per-Subject, preventing cross-user session reuse. |
 
 ---
 
@@ -895,7 +970,7 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 10, updated to add:*
+continue without loss of context. This is version 11, updated to add:*
 - *`SpiffeCredentialManager.java`, `SpireConnection.java`, `SpireProtobuf.java` to §1 documents read*
 - *§1 extended with 13 new JGDMS source files reviewed in v9 deep-dive analysis*
 - *§4 updated to show actual 5-method `RemotePolicyService` interface; corrected note that `DefaultPolicyParser.scanner` is already `protected`*
@@ -903,8 +978,10 @@ continue without loss of context. This is version 10, updated to add:*
 - *§5.4.1 (new) — `Security.getCurrentPrincipals()` user-Subject-first resolution documented*
 - *§5.4.2 (new) — `GrantPermission.checkGuard()` user-Subject-aware guard documented with full implementation*
 - *§10 — complete two-Subject JERI implementation documented*
+- *§10.11 (new) — SSL vs. Kerberos Endpoint Subject lookup differences documented (SslEndpointImpl ACC-first; KerberosEndpoint ScopedValue-first; side-by-side comparison table; interaction with dispatch nesting)*
 - *§11 — `doAs`/`doAsPrivileged` call-site audit documented*
 - *§12 items 14, 15, 16, 18, 19, 20 all marked ✅ completed; items 21–25 added*
 - *§13 decisions table extended with v10 rows covering `Security.getCurrentPrincipals()`, `GrantPermission.checkGuard()`, and `jgdms-platform` release=21 bump*
+- *§13 extended with v11 rows covering `SslEndpointImpl` ACC-first and `KerberosEndpoint` ScopedValue-first Subject lookup*
 - *§8.1 updated to document empty SVID handling behaviour*
 
