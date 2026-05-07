@@ -18,7 +18,6 @@
 
 package net.jini.security;
 
-import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.security.Permission;
 import java.security.Principal;
@@ -53,14 +52,6 @@ import org.apache.river.api.security.AdvisoryDynamicPermissions;
  * time and forward them to
  * {@link Security#grant(Class, Principal[], Permission[])}.
  *
- * <p>The {@code GrantPermission} authorisation check performed inside
- * {@code Security.grant()} is still evaluated against the calling thread's
- * {@code AccessControlContext} (i.e. the worker/workload Subject), which is
- * the correct and safe behaviour: only SPIFFE-authorised code may issue
- * dynamic grants, and the resulting grant is scoped to the user's principals
- * so it takes effect only when the proxy is later invoked under that user's
- * {@code AccessControlContext}.
- *
  * <p>If no user Subject is bound at preparation time (e.g. on a daemon
  * thread), the grant is issued without principal scoping, identical to
  * passing {@code null}.
@@ -74,7 +65,7 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * Sentinel value for the {@code principals} parameter of constructors.
      * When this constant is passed as {@code principals}, {@link #prepareProxy}
      * captures the principals of the current user Subject (obtained via
-     * {@code Subject.current()}, JDK 18+) at proxy preparation time and uses
+     * {@code Subject.current()}) at proxy preparation time and uses
      * them to scope the dynamic permission grant, rather than using the
      * principals of the worker Subject on the {@code AccessControlContext}.
      *
@@ -93,26 +84,6 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * @since 3.2
      */
     public static final Principal[] CURRENT_USER_PRINCIPALS = new Principal[0];
-
-    /**
-     * Reflective handle for {@code Subject.current()} (JDK 18+).
-     * Null on older JDKs.
-     */
-    private static final Method SUBJECT_CURRENT;
-    static {
-	Method m = null;
-	try {
-	    m = Subject.class.getMethod("current");
-	} catch (NoSuchMethodException e) {
-	    // JDK < 18: Subject.current() not available; CURRENT_USER_PRINCIPALS
-	    // will fall back to no principal scoping when used.
-	    Logger.getLogger("net.jini.security").config(
-		"Subject.current() not available (JDK < 18); "
-		+ "VerifyingProxyPreparer.CURRENT_USER_PRINCIPALS "
-		+ "will grant without user principal scoping");
-	}
-	SUBJECT_CURRENT = m;
-    }
 
     /** Set constraints on proxy from context. */
     private static final int SET_CONSTRAINTS = 1;
@@ -293,9 +264,9 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * Returns the effective principals for the dynamic grant.
      *
      * <p>When {@link #captureUserSubjectPrincipals} is set, this method
-     * invokes {@code Subject.current()} reflectively (JDK 18+) and returns
-     * those principals.  Falls back to {@code null} (no principal scoping)
-     * if no user Subject is bound or the JDK is older than 18.
+     * calls {@code Subject.current()} and returns those principals.
+     * Falls back to {@code null} (no principal scoping) if no user Subject
+     * is bound.
      *
      * <p>When {@link #captureUserSubjectPrincipals} is not set, returns
      * {@link #principals} directly (explicit principals or {@code null} for
@@ -305,21 +276,12 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	if (!captureUserSubjectPrincipals) {
 	    return principals;
 	}
-	if (SUBJECT_CURRENT == null) {
-	    return null; // JDK < 18: no user subject support
-	}
-	try {
-	    Subject userSubject = (Subject) SUBJECT_CURRENT.invoke(null);
-	    if (userSubject == null) {
-		return null;
-	    }
-	    Set<? extends Principal> ps = userSubject.getPrincipals();
-	    return ps.isEmpty() ? null : ps.toArray(new Principal[0]);
-	} catch (Exception e) {
-	    Logger.getLogger("net.jini.security").warning(
-		"Failed to capture user Subject principals via Subject.current(): " + e);
+	Subject userSubject = Subject.current();
+	if (userSubject == null) {
 	    return null;
 	}
+	Set<? extends Principal> ps = userSubject.getPrincipals();
+	return ps.isEmpty() ? null : ps.toArray(new Principal[0]);
     }
 
     /**
