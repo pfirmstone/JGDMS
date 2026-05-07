@@ -711,6 +711,32 @@ clients to attach per-method security constraints to any proxy whose server stub
   invocation, enabling principal-based per-method access control (see §4.4).
 * Phoenix exports with `SystemAccessAtomicILFactory`, combining `AccessPermission` checks with
   `AtomicInputValidation`.
+* **`Security.getCurrentPrincipals()` — user-Subject-first principal resolution.**
+  `Security.grant(Class, Permission[])` calls this helper to scope dynamic grants.  It checks
+  `Subject.current()` first (the human user Subject bound via `Subject.callAs()`, a ScopedValue),
+  and falls back to the Subject on the `AccessControlContext` only when no user Subject is bound.
+  This means grants made from a JERI dispatch thread are automatically scoped to the remote user's
+  principals without any call-site changes.
+* **`GrantPermission.checkGuard(Object)` — user-Subject-aware permission guard.**
+  When `Subject.current()` returns a non-null user Subject, the `SecurityManager.checkPermission`
+  call is wrapped in `Subject.doAs(user, …)` so the user's principals are injected into the
+  `AccessControlContext` for the duration of the check.  Falls back to a direct
+  `checkPermission` call on daemon threads where no user Subject is bound.
+* **`KerberosEndpoint.newRequest()` — user-Subject-first credential selection.**
+  `KerberosEndpoint.newRequest()` now checks `Subject.current()` first (the human user Subject
+  bound via `Subject.callAs()`).  If that Subject carries a `KerberosPrincipal`, it is used for
+  GSS/Kerberos authentication so the user's own TGT is presented to the server.  It falls back
+  to the workload Subject on the `AccessControlContext` (keytab-derived credentials) only when no
+  such user Subject is bound.  `KerberosUtil.getGSSCredential()` already wraps credential
+  acquisition in `Subject.doAs(subj, …)`, so the correct TGT is presented regardless of which
+  Subject is selected.  The per-user cache key in `KerberosEndpoint` ensures different users never
+  share a Kerberos connection.  Example usage:
+  ```java
+  Subject.callAs(kerberosUserSubject, () -> {
+      myService.callSomething(); // uses kerberosUserSubject's TGT
+      return null;
+  });
+  ```
 
 ### 7.4 Proxy Trust
 
@@ -825,3 +851,5 @@ follows these steps:
 | **Dynamic permission grants** | `RemotePolicyProvider` during proxy preparation |
 | **Subject-based authorization** | JAAS login context in Phoenix, Reggie, and every activatable service |
 | **RFC3986 URI normalisation** | `Uri` class used in all codebase-related types |
+| **User-Subject-first principal resolution** | `Security.getCurrentPrincipals()` prefers `Subject.current()` (ScopedValue) over ACC Subject, enabling automatic user-scoped grants from JERI dispatch threads |
+| **User-Subject-aware `GrantPermission` guard** | `GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)` when `Subject.current()` is non-null, injecting user principals into the ACC for the check |

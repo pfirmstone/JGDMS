@@ -33,6 +33,7 @@ import au.net.zeus.jgdms.api.codebase.JarAnalysisReport;
 import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
 import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.net.Uri;
@@ -143,6 +144,11 @@ public class VerdictRegistryProxy
     @Override
     public void reportCrash(CrashReport report) throws RemoteException {
         ((VerdictRegistry) server).reportCrash(report);
+    }
+
+    @Override
+    public void reportPinning(PinningReport report) throws RemoteException {
+        ((VerdictRegistry) server).reportPinning(report);
     }
 
     @Override
@@ -263,6 +269,11 @@ public class VerdictRegistryProxy
         @Override
         public void reportCrash(CrashReport report) throws RemoteException {
             ((VerdictRegistry) server).reportCrash(report);
+        }
+
+        @Override
+        public void reportPinning(PinningReport report) throws RemoteException {
+            ((VerdictRegistry) server).reportPinning(report);
         }
 
         @Override

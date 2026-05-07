@@ -32,6 +32,7 @@ import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.security.auth.Subject;
@@ -274,16 +275,13 @@ public class SharedGroupImpl implements Remote,
     {
         loginContext.login();
         try {
-            return Subject.doAsPrivileged(
+            return Subject.callAs(
                 loginContext.getSubject(),
-                new PrivilegedExceptionAction<SharedGroupImplInit>() {
-                    public SharedGroupImplInit run() throws Exception {
-                        return doInit(config, id, loginContext);
-                    }
-                },
-                null);
-        } catch (PrivilegedActionException e) {
-            throw e.getException();
+                () -> doInit(config, id, loginContext));
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) throw (Exception) cause;
+            throw e;
         }
     }
     

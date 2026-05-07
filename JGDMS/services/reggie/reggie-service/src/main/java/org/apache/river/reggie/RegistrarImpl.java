@@ -68,6 +68,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -502,9 +503,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             if (loginContext != null) {
                 loginContext.login();
                 try {
-                    result = Subject.doAsPrivileged(
-                        loginContext.getSubject(), init, null);
-                } catch (PrivilegedActionException e) {
+                    result = Subject.callAs(loginContext.getSubject(), init::run);
+                } catch (CompletionException e) {
                     throw e.getCause();
                 }
             } else {

@@ -30,6 +30,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.CompletionException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -1837,17 +1838,10 @@ abstract class NormServerBaseImpl
 	    } else {
 		init.loginContext.login();
 		try {
-		    Subject.doAsPrivileged(
+		    Subject.callAs(
 			init.loginContext.getSubject(),
-			new PrivilegedExceptionAction() {
-			    @Override
-			    public Object run() throws Exception {
-				init.initAsSubject(config);
-				return null;
-			    }
-			},
-			null);
-		} catch (PrivilegedActionException e) {
+			() -> { init.initAsSubject(config); return null; });
+		} catch (CompletionException e) {
 		    throw e.getCause();
 		}
 	    }

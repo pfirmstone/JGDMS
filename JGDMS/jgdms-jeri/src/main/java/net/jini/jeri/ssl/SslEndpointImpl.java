@@ -278,6 +278,19 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
     private CallContext getCallContext(InvocationConstraints constraints)
 	throws UnsupportedConstraintException
     {
+	/*
+	 * For SSL endpoints, the SPIFFE workload Subject (from the ACC or the
+	 * process-wide SpiffeSubjectHolder) is preferred because it carries the
+	 * TLS client certificate credentials.  Other Subjects that may be
+	 * present in Subject.current() — e.g. a Kerberos user Subject placed
+	 * there by Subject.callAs() during dispatch — cannot be used to
+	 * establish SSL/TLS connections and must not take priority.
+	 *
+	 * Subject.current() is therefore checked last: it is used only when no
+	 * SPIFFE/X509 Subject is available via the traditional ACC path, to
+	 * support legacy applications whose LoginContext Subject flows solely
+	 * through Subject.callAs() rather than Subject.doAs().
+	 */
 	final AccessControlContext acc = AccessController.getContext();
 	Subject clientSubject = (Subject) AccessController.doPrivileged(
 	    new PrivilegedAction() {
@@ -295,6 +308,21 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	 */
 	if (clientSubject == null)
 	    clientSubject = SpiffeSubjectHolder.get();
+	/*
+	 * Last resort: fall back to Subject.current() (ScopedValue) for
+	 * legacy applications that set their Subject via Subject.callAs()
+	 * without Subject.doAs(). Only accepted if it has X500 or SPIFFE
+	 * principals; a Kerberos-only Subject is not useful for TLS.
+	 */
+	if (clientSubject == null) {
+	    Subject current = Subject.current();
+	    if (current != null
+		    && (!current.getPrincipals(X500Principal.class).isEmpty()
+			|| !current.getPrincipals(SpiffePrincipal.class).isEmpty()))
+	    {
+		clientSubject = current;
+	    }
+	}
 	if (clientSubject == null) 
 	    throw new UnsupportedConstraintException(
 			    "Client must be logged on and caller must do as");

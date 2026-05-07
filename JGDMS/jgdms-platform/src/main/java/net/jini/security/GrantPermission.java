@@ -33,7 +33,9 @@ import java.security.AllPermission;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
+import java.security.PrivilegedAction;
 import java.security.UnresolvedPermission;
+import javax.security.auth.Subject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -341,6 +343,40 @@ public final class GrantPermission extends Permission {
 	    }
 	}
 	return sum;
+    }
+
+    /**
+     * Checks that the calling context is authorized to grant the permissions
+     * held by this {@code GrantPermission}.
+     *
+     * <p>If a user {@link Subject} is bound to the current thread via
+     * {@link Subject#callAs Subject.callAs()} (i.e. {@link Subject#current()}
+     * returns non-{@code null}), the security-manager check is performed
+     * inside a {@link Subject#doAs Subject.doAs()} call with that Subject.
+     * This allows the {@code AccessControlContext} to include the user's
+     * principals, so that policy grants scoped to user principals are
+     * honoured when evaluating the {@code GrantPermission}.
+     *
+     * <p>Falls back to a direct {@link SecurityManager#checkPermission} call
+     * when no user Subject is bound (e.g. on daemon threads).
+     *
+     * @param object ignored (required by the {@link java.security.Guard}
+     *               contract)
+     * @throws SecurityException if the calling context is not authorized
+     */
+    @Override
+    public final void checkGuard(Object object) throws SecurityException {
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) return;
+	Subject user = Subject.current();
+	if (user != null) {
+	    Subject.doAs(user, (PrivilegedAction<Void>) () -> {
+		sm.checkPermission(this);
+		return null;
+	    });
+	} else {
+	    sm.checkPermission(this);
+	}
     }
 
     /**

@@ -456,3 +456,8 @@ qa/.activation-issues-class-cast-exception-in-tests.txt.un~
 /JGDMS/services/reggie/reggie-service-activatable-subsystem/target/
 # Compiled class files in source trees (from direct javac runs)
 *.class
+/.vs
+*.args
+JGDMS/services/jfr-telemetry/jfr-telemetry-dl/target/
+JGDMS/services/jfr-telemetry/jfr-telemetry-service/target/
+
