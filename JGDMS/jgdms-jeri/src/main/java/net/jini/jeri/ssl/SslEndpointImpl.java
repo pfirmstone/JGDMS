@@ -299,7 +299,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		}
 	    });
 	/*
-	 * DirtyChai may capture Subject.current() into AccessController.getContext().
+	 * DirtyChai now captures Subject.current() into AccessController.getContext().
 	 * For TLS, only accept ACC-derived Subjects that actually carry X500/SPIFFE
 	 * identity material.
 	 */
