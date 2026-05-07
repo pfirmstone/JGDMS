@@ -406,7 +406,7 @@ DirtyChai runs as a workload with `spiffe://.../admin/policy` SVID. Human authen
 ServiceUI runs inside `Subject.callAs(kerberosSubject, () -> ...)` which is itself inside the
 `Subject.doAs(spiffeSubject, ...)` workload context. `SubjectDomainCombiner` sees both
 Subjects and injects both principal sets into `checkPermission`. Policy can condition
-grants on both the workload identity (which ServiceUI JAR) and the human identity (which user).
+grants on both the workload identity (which process), codebase (which ServiceUI JAR) and the human identity (which user).
 
 ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdict`,
 `ProxyCodebaseSpi` gate, and ClassLoader.
@@ -597,15 +597,14 @@ A grant requiring only the SPIFFE principal still fires in the absence of a user
 ### 10.8 Structural Rules for Server Code
 
 1. **Virtual threads and user identity:** Virtual threads spawned inside `invoke()` see the
-   worker identity from the ACC.  If user-identity propagation across a thread boundary is
-   needed, capture `Subject.current()` before spawning and re-establish with a nested
-   `Subject.callAs` inside the spawned thread.
+   worker identity from the ACC.  User-identity also propagates across a thread boundary,
+   as a Scoped via Subject::callAs.  Note that executor tasks do not propagate Subject identity.
 
-2. **Daemon threads:** Long-lived daemon threads (sweeper, SPIRE watcher, log writer) must
+3. **Daemon threads:** Long-lived daemon threads (sweeper, SPIRE watcher, log writer) must
    NOT be created from within a `callAs` scope.  ScopedValue does not propagate to threads
    started after the `callAs` returns.
 
-3. **Trust model:** User principals are not independently TLS-verified.  They should be
+4. **Trust model:** User principals are not independently TLS-verified.  They should be
    treated as being vouched for by the authenticated worker identity.  A server
    may refuse requests whose worker SPIFFE identity is not trusted to assert user principals
    (e.g., by requiring a specific SPIFFE workload principal alongside any human principal).
