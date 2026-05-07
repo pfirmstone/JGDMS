@@ -1,4 +1,4 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v9)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v10)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
@@ -232,7 +232,54 @@ A caller can only grant permissions it itself holds a `GrantPermission` for.
 |---|---|
 | `GrantPermission` entries in `RemotePolicyProvider` | Ceiling on what `Security.grant()` will apply |
 | `VerifyingProxyPreparer` constructor choice | Explicit permissions lock grant; null/empty defers to `PERMISSIONS.LIST` |
-| `principals` parameter in `VerifyingProxyPreparer` | null = preparing thread's Subject; non-null = explicit scope |
+| `principals` parameter in `VerifyingProxyPreparer` | null = current user Subject (via `Subject.current()`) or ACC Subject as fallback; non-null = explicit scope |
+
+### 5.4.1 `Security.getCurrentPrincipals()` — User-Subject-First Resolution
+
+When `principals == null` in `VerifyingProxyPreparer`, `Security.grant(Class, Permission[])` is
+called, which invokes the private `Security.getCurrentPrincipals()` helper.  As of this release,
+that helper resolves principals in the following priority order:
+
+1. **`Subject.current()`** — the user `Subject` bound via `Subject.callAs()` (a `ScopedValue`).
+   This is non-null when the grant occurs from inside a JERI dispatch thread (server-side) or
+   any other `callAs` scope.
+2. **`Subject.getSubject(AccessController.getContext())`** — the workload (SPIFFE) `Subject`
+   on the `AccessControlContext`.  Used as a fallback when no user Subject is bound.
+
+**Consequence:** `VerifyingProxyPreparer` used from a JERI dispatch thread now automatically
+scopes grants to the authenticated remote *user's* principals (not the server's workload
+principals), with zero call-site changes.  Service code that calls `prepareProxy()` inside a
+`callAs(userSubject, ...)` scope inherits this behaviour transparently.
+
+### 5.4.2 `GrantPermission.checkGuard(Object)` — User-Subject-Aware Guard
+
+`GrantPermission` now overrides `Permission.checkGuard()` with a `final` method:
+
+```java
+@Override
+public final void checkGuard(Object object) throws SecurityException {
+    SecurityManager sm = System.getSecurityManager();
+    if (sm == null) return;
+    Subject user = Subject.current();
+    if (user != null) {
+        Subject.doAs(user, (PrivilegedAction<Void>) () -> {
+            sm.checkPermission(this);
+            return null;
+        });
+    } else {
+        sm.checkPermission(this);
+    }
+}
+```
+
+When a user Subject is bound (`Subject.current() != null`), the check is performed inside
+`Subject.doAs(user, …)` so the user's principals are injected into the `AccessControlContext`
+for the duration of `checkPermission`.  This allows `GrantPermission` checks to honour
+policy grants that are scoped to user principals (e.g., a grant scoped to both a SPIFFE
+principal and a `KerberosPrincipal`).
+
+Falls back to a direct `checkPermission` call when no user Subject is bound (daemon threads,
+non-request contexts).
 
 ### 5.5 Natural Role Structure
 
@@ -842,6 +889,9 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | **`ClinitCycleVisitor` is not a separate class** | ✅ **v9:** Cycle detection is `ClinitBlockingVisitor.detectClinitCycles()` static method + `TarjanScc` private inner class — better cohesion, no separate file needed |
 | **`DefaultPolicyParser.scanner` is already `protected final`** | ✅ **v9:** No change required; `HttpsClientAuthPolicyParser` can subclass directly |
 | **`SUBJECT_CALL_AS`, `SUBJECT_DO_AS` (Dispatcher) and `SUBJECT_CURRENT` (Handler) are still reflective `Method` fields** | ✅ **v9 verified:** Resolved at class-init via `Subject.class.getMethod(...)`; invoked via `Method.invoke()`; null on JDK < 18 |
+| **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10:** `Security.grant(Class, Permission[])` now prefers the user Subject bound via `Subject.callAs()` (ScopedValue) over the ACC Subject. Grants from JERI dispatch threads are automatically scoped to the remote user's principals. Falls back to ACC Subject when no user Subject is bound. |
+| **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10:** When `Subject.current()` is non-null, the guard check runs inside `Subject.doAs(user, ...)` so the user's principals are in the ACC for the duration of `checkPermission`. Daemon threads (no user Subject) use the direct path unchanged. |
+| **`jgdms-platform` compiler release bumped to 21** | ✅ **v10:** Required to call `Subject.current()` and `Subject.doAs()` directly (not via reflection) in `jgdms-platform` source. |
 
 ---
 
@@ -864,13 +914,16 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 9, updated to add:*
+continue without loss of context. This is version 10, updated to add:*
 - *`SpiffeCredentialManager.java`, `SpireConnection.java`, `SpireProtobuf.java` to §1 documents read*
 - *§1 extended with 13 new JGDMS source files reviewed in v9 deep-dive analysis*
 - *§4 updated to show actual 5-method `RemotePolicyService` interface; corrected note that `DefaultPolicyParser.scanner` is already `protected`*
-- *§10 (new) — complete two-Subject JERI implementation: wire protocol v0x02, `getUserPrincipals()`, `writeUserPrincipals()`, `readUserPrincipals()`, `instantiatePrincipal()`, `RemotePrincipal`, `addUserSubjectToContext()`, `invokeWithClientSubject()` nesting, `ClientUserSubject` interface, `MutableClientSubject` deprecation, `SubjectDomainCombiner` additive merge, structural rules*
-- *§11 (new) — `doAs`/`doAsPrivileged` call-site audit across all JGDMS modules; classification table, thread-crossing analysis, executor propagation pattern, migration decision matrix*
-- *§12 items 14, 15, 16, 18, 19, 20 all marked ✅ completed; item 17 clarified as still open; items 21–25 added (client-side listener, policy-service tests, Host 4, ProxyCodebaseSPI integration, DiscoveryCredentialProvider)*
-- *§13 decisions table extended with 11 new rows covering v8 two-Subject implementation and v9 deep-dive findings*
+- *§5.4 updated — `principals == null` now resolves via `Subject.current()` first, then ACC Subject*
+- *§5.4.1 (new) — `Security.getCurrentPrincipals()` user-Subject-first resolution documented*
+- *§5.4.2 (new) — `GrantPermission.checkGuard()` user-Subject-aware guard documented with full implementation*
+- *§10 — complete two-Subject JERI implementation documented*
+- *§11 — `doAs`/`doAsPrivileged` call-site audit documented*
+- *§12 items 14, 15, 16, 18, 19, 20 all marked ✅ completed; items 21–25 added*
+- *§13 decisions table extended with v10 rows covering `Security.getCurrentPrincipals()`, `GrantPermission.checkGuard()`, and `jgdms-platform` release=21 bump*
 - *§8.1 updated to document empty SVID handling behaviour*
 

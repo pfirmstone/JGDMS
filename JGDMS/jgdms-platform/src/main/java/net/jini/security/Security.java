@@ -1000,13 +1000,19 @@ public final class Security {
      * loader of the given class and possess at least the principals of the
      * current subject (if any).  If the given class is <code>null</code>, then
      * the grant applies across all protection domains that possess at least
-     * the current subject's principals.  The current subject is determined by
-     * calling {@link Subject#getSubject Subject.getSubject} on the context
-     * returned by {@link AccessController#getContext
-     * AccessController.getContext}.  If the current subject is
-     * <code>null</code> or has no principals, then principals are effectively
-     * ignored in determining the protection domains to which the grant
-     * applies.  
+     * the current subject's principals.
+     * <p>
+     * The current subject is resolved by first checking the user
+     * {@link Subject} bound via {@link Subject#callAs Subject.callAs()}
+     * (readable via {@link Subject#current Subject.current()}).  If a user
+     * Subject is bound (e.g. a human identity established per-request), its
+     * principals are used to scope the grant.  If no user Subject is bound,
+     * the Subject associated with the current
+     * {@link java.security.AccessControlContext AccessControlContext}
+     * (obtainable via {@link Subject#getSubject Subject.getSubject}) is used
+     * as a fallback.  If the resolved subject is <code>null</code> or has no
+     * principals, then principals are effectively ignored in determining the
+     * protection domains to which the grant applies.  
      * <p>
      * The given class, if non-<code>null</code>, must belong to either the
      * system domain or a protection domain whose associated class loader is
