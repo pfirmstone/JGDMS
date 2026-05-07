@@ -99,14 +99,10 @@ public class JfrPinningIntegrationTest {
     @Enabled(false)
     static final class SimulatedPinningEvent extends Event {}
 
-    // Stable name used when enabling / listening for the event in RecordingStream.
-    static final String SIM_EVENT = "au.net.zeus.jgdms.test.SimulatedPinningEvent";
-
-    static {
-        // Touch the inner class so JFR registers the event type before any
-        // RecordingStream is opened.
-        new SimulatedPinningEvent();
-    }
+    // Stable name derived from the @Name annotation; also initializes the class
+    // so JFR registers the event type before any RecordingStream is opened.
+    static final String SIM_EVENT = SimulatedPinningEvent.class
+            .getAnnotation(Name.class).value();
 
     // -------------------------------------------------------------------------
     // Stub Verdict Registry
@@ -142,7 +138,7 @@ public class JfrPinningIntegrationTest {
     // elapsed time, analogous to what jdk.VirtualThreadPinned reports.
     // -------------------------------------------------------------------------
 
-    private static void emitOnePinningEvent(long durationMillis)
+    private static void emitOneSimulatedEvent(long durationMillis)
             throws InterruptedException {
         SimulatedPinningEvent evt = new SimulatedPinningEvent();
         evt.begin();
@@ -176,7 +172,7 @@ public class JfrPinningIntegrationTest {
             });
             rs.startAsync();
 
-            emitOnePinningEvent(50);
+            emitOneSimulatedEvent(50);
 
             boolean arrived = eventDetected.await(5, TimeUnit.SECONDS);
             assertTrue("RecordingStream must deliver the SimulatedPinningEvent", arrived);
@@ -232,7 +228,7 @@ public class JfrPinningIntegrationTest {
             });
             rs.startAsync();
 
-            emitOnePinningEvent(50);
+            emitOneSimulatedEvent(50);
 
             boolean arrived = eventDetected.await(5, TimeUnit.SECONDS);
             assertTrue("RecordingStream must deliver the SimulatedPinningEvent", arrived);
@@ -292,7 +288,7 @@ public class JfrPinningIntegrationTest {
             rs.startAsync();
 
             for (int i = 0; i < TARGET_EVENTS; i++) {
-                emitOnePinningEvent(20);
+                emitOneSimulatedEvent(20);
             }
 
             boolean arrived = allDetected.await(10, TimeUnit.SECONDS);
