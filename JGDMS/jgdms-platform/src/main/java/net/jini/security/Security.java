@@ -1254,12 +1254,17 @@ public final class Security {
      * </ul>
      */
     private static Principal[] getCurrentPrincipals() {
-	Subject user = Subject.current();
 	final AccessControlContext acc = AccessController.getContext();
-	Subject worker = AccessController.doPrivileged(
-	    new PrivilegedAction<Subject>() {
-		public Subject run() { return Subject.getSubject(acc); }
+	// Both Subject.current() and Subject.getSubject() trigger permission
+	// checks and must run inside a privileged action.
+	Subject[] subjects = AccessController.doPrivileged(
+	    new PrivilegedAction<Subject[]>() {
+		public Subject[] run() {
+		    return new Subject[]{ Subject.current(), Subject.getSubject(acc) };
+		}
 	    });
+	Subject user   = subjects[0];
+	Subject worker = subjects[1];
 	if (user == null && worker == null) return null;
 	if (user == null) {
 	    Set<Principal> ps = worker.getPrincipals();
