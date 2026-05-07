@@ -330,7 +330,7 @@ Recursion guard limit: 7. Three-layer policy stack uses 3. Headroom of 4.
 
 | Carrier | Identity type | Established by | Lifetime |
 |---|---|---|---|
-| `AccessControlContext` + `SubjectDomainCombiner` | SPIFFE workload identity | `doAsPrivileged` at service start | JVM / SVID rotation |
+| `AccessControlContext` + `SubjectDomainCombiner` | SPIFFE workload identity | `Subject.doAs(workerSubject, …)` per-request in `BasicInvocationDispatcher`; or `Subject.doAs` at call site for traditional patterns | Duration of the `doAs` action (per-request on server side) |
 | `ScopedValue` (`SCOPED_SUBJECT`) | Human user identity (Kerberos, etc.) | `callAs` at request boundary | Duration of `Callable` |
 
 **Public API surface:**
@@ -598,7 +598,7 @@ A grant requiring only the SPIFFE principal still fires in the absence of a user
 
 | Path | What happens |
 |---|---|
-| `loginContext == null` (SPIFFE path) | `doStart()` called directly; SPIFFE Subject is already ambient via `SpiffeCredentialManager`; `Subject.callAs(spiffeSubject, callable)` used at remote-call boundaries |
+| `loginContext == null` (SPIFFE path) | `doStart()` called directly; SPIFFE Subject registered by `SpiffeCredentialManager.start()` via `SpiffeSubjectHolder` — outbound TLS calls use `SpiffeSubjectHolder` automatically (no explicit `callAs` or `doAs` needed); server-side dispatch establishes workload Subject on ACC per-request via `Subject.doAs(workerSubject, …)` in `BasicInvocationDispatcher` |
 | `loginContext != null` (traditional path) | `loginContext.login()` called; `Subject.callAs(loginSubject, callable)` used to run `doStart()` |
 
 JGDMS services use the SPIFFE path.  The traditional path is supported for legacy
@@ -1016,4 +1016,9 @@ continue without loss of context. This is version 11, updated to add:*
 - *§13 decisions table extended with v10 rows covering `Security.getCurrentPrincipals()`, `GrantPermission.checkGuard()`, and `jgdms-platform` release=21 bump*
 - *§13 extended with v11 rows covering `SslEndpointImpl` ACC-first and `KerberosEndpoint` ScopedValue-first Subject lookup*
 - *§8.1 updated to document empty SVID handling behaviour*
+- *§6.4 corrected: Row 1 "Established by" updated from `doAsPrivileged at service start` to `Subject.doAs(workerSubject, …) per-request in BasicInvocationDispatcher` — SPIFFE workload Subject is registered via `SpiffeSubjectHolder` at startup; ACC Subject is established per-request by the dispatcher, not at service start*
+- *§8.3 corrected: `Subject.doAsPrivileged` → `Subject.callAs(loginSubject, callable)`*
+- *§9 corrected: `doAsPrivileged(spiffeSubject, ...)` → `Subject.doAs(spiffeSubject, ...)`*
+- *§10.9 corrected: SPIFFE path description updated — `SpiffeSubjectHolder` provides the workload Subject for outbound TLS automatically; no explicit `callAs(spiffeSubject, …)` at remote-call boundaries is needed*
+- *§10.11 corrected: outbound TLS sentence updated to reflect that `SslEndpointImpl` checks ACC first, then `SpiffeSubjectHolder`, then `Subject.current()` (X500/SPIFFE only)*
 
