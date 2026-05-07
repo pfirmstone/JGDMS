@@ -22,6 +22,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -79,13 +80,18 @@ public class InMemoryPolicyServiceImplTest {
     public void testRegisterAndCancelLease() throws Exception {
         final AtomicInteger deliveries = new AtomicInteger();
         final CountDownLatch first = new CountDownLatch(1);
+        final CountDownLatch extra = new CountDownLatch(1);
 
         EventRegistration registration = impl.registerForPolicyUpdates(new RemoteEventListener() {
             @Override
             public void notify(RemoteEvent theEvent)
                     throws UnknownEventException, RemoteException {
-                deliveries.incrementAndGet();
-                first.countDown();
+                int current = deliveries.incrementAndGet();
+                if (current == 1) {
+                    first.countDown();
+                } else {
+                    extra.countDown();
+                }
             }
         }, null, 60_000L);
 
@@ -96,7 +102,7 @@ public class InMemoryPolicyServiceImplTest {
         impl.cancelPolicyLease(leaseId);
 
         impl.replace(SAMPLE_GRANTS);
-        Thread.sleep(200L);
+        assertFalse("no additional events after cancel", extra.await(500L, TimeUnit.MILLISECONDS));
         assertEquals("no additional events after cancel", 1, deliveries.get());
     }
 
@@ -131,40 +137,46 @@ public class InMemoryPolicyServiceImplTest {
 
     @Test
     public void testListenerRemovedOnLeaseExpiry() throws Exception {
-        final AtomicInteger deliveries = new AtomicInteger();
+        final CountDownLatch delivered = new CountDownLatch(1);
 
         impl.registerForPolicyUpdates(new RemoteEventListener() {
             @Override
             public void notify(RemoteEvent theEvent)
                     throws UnknownEventException, RemoteException {
-                deliveries.incrementAndGet();
+                delivered.countDown();
             }
         }, null, 1L);
 
         Thread.sleep(50L);
         impl.replace(SAMPLE_GRANTS);
-        Thread.sleep(200L);
 
-        assertEquals("expired listener must not receive event", 0, deliveries.get());
+        assertFalse("expired listener must not receive event", delivered.await(500L, TimeUnit.MILLISECONDS));
     }
 
     @Test
     public void testListenerRemovedOnDefiniteFailure() throws Exception {
         final AtomicInteger attempts = new AtomicInteger();
+        final CountDownLatch firstAttempt = new CountDownLatch(1);
+        final CountDownLatch secondAttempt = new CountDownLatch(1);
 
         impl.registerForPolicyUpdates(new RemoteEventListener() {
             @Override
             public void notify(RemoteEvent theEvent)
                     throws UnknownEventException, RemoteException {
-                attempts.incrementAndGet();
+                int current = attempts.incrementAndGet();
+                if (current == 1) {
+                    firstAttempt.countDown();
+                } else {
+                    secondAttempt.countDown();
+                }
                 throw new NoSuchObjectException("listener gone");
             }
         }, null, 60_000L);
 
         impl.replace(SAMPLE_GRANTS);
-        Thread.sleep(200L);
+        assertTrue(firstAttempt.await(2, TimeUnit.SECONDS));
         impl.replace(SAMPLE_GRANTS);
-        Thread.sleep(200L);
+        assertFalse(secondAttempt.await(500L, TimeUnit.MILLISECONDS));
 
         assertEquals("listener should be removed after definite failure", 1, attempts.get());
     }
@@ -205,21 +217,21 @@ public class InMemoryPolicyServiceImplTest {
 
     @Test
     public void testShutdownPreventsEventDelivery() throws Exception {
-        final AtomicInteger deliveries = new AtomicInteger();
+        final CountDownLatch delivered = new CountDownLatch(1);
 
         impl.registerForPolicyUpdates(new RemoteEventListener() {
             @Override
             public void notify(RemoteEvent theEvent)
                     throws UnknownEventException, RemoteException {
-                deliveries.incrementAndGet();
+                delivered.countDown();
             }
         }, null, 60_000L);
 
         impl.shutdown();
         impl.replace(SAMPLE_GRANTS);
-        Thread.sleep(200L);
 
-        assertEquals("shutdown executor should reject event delivery tasks", 0, deliveries.get());
+        assertFalse("shutdown executor should reject event delivery tasks",
+                delivered.await(500L, TimeUnit.MILLISECONDS));
     }
 
     private static Uuid extractLeaseId(PolicyEventLease lease) throws Exception {

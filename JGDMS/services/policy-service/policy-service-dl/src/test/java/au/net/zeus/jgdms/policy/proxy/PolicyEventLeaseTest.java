@@ -162,8 +162,8 @@ public class PolicyEventLeaseTest {
         long renewResult;
         int renewCalls;
         int cancelCalls;
-        Set<Uuid> failRenewFor = new HashSet<Uuid>();
-        Set<Long> renewDurations = new HashSet<Long>();
+        Set<Uuid> failRenewFor = new HashSet<>();
+        Set<Long> renewDurations = new HashSet<>();
 
         @Override
         public void replace(String[] grants) {
