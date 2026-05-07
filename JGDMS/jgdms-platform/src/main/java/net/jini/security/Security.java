@@ -1000,13 +1000,19 @@ public final class Security {
      * loader of the given class and possess at least the principals of the
      * current subject (if any).  If the given class is <code>null</code>, then
      * the grant applies across all protection domains that possess at least
-     * the current subject's principals.  The current subject is determined by
-     * calling {@link Subject#getSubject Subject.getSubject} on the context
-     * returned by {@link AccessController#getContext
-     * AccessController.getContext}.  If the current subject is
-     * <code>null</code> or has no principals, then principals are effectively
-     * ignored in determining the protection domains to which the grant
-     * applies.  
+     * the current subject's principals.
+     * <p>
+     * The current subject is resolved by first checking the user
+     * {@link Subject} bound via {@link Subject#callAs Subject.callAs()}
+     * (readable via {@link Subject#current Subject.current()}).  If a user
+     * Subject is bound (e.g. a human identity established per-request), its
+     * principals are used to scope the grant.  If no user Subject is bound,
+     * the Subject associated with the current
+     * {@link java.security.AccessControlContext AccessControlContext}
+     * (obtainable via {@link Subject#getSubject Subject.getSubject}) is used
+     * as a fallback.  If the resolved subject is <code>null</code> or has no
+     * principals, then principals are effectively ignored in determining the
+     * protection domains to which the grant applies.  
      * <p>
      * The given class, if non-<code>null</code>, must belong to either the
      * system domain or a protection domain whose associated class loader is
@@ -1216,21 +1222,33 @@ public final class Security {
     }
 
     /**
-     * Returns principals of current subject, or null if no current subject.
+     * Returns principals of the current subject, or {@code null} if there is
+     * no current subject.
+     *
+     * <p>The user {@link Subject} bound via {@link Subject#callAs
+     * Subject.callAs()} (a ScopedValue, visible via {@link Subject#current()})
+     * is checked first.  If no user Subject is bound, the Subject associated
+     * with the current {@link java.security.AccessControlContext} is used as
+     * a fallback.
      */
     private static Principal[] getCurrentPrincipals() {
+	// Prefer the user Subject bound via Subject.callAs() (ScopedValue).
+	Subject user = Subject.current();
+	if (user != null) {
+	    Set<Principal> ps = user.getPrincipals();
+	    return ps.toArray(new Principal[ps.size()]);
+	}
+	// Fall back to the Subject on the AccessControlContext.
 	final AccessControlContext acc = AccessController.getContext();
 	Subject s = AccessController.doPrivileged(
 	    new PrivilegedAction<Subject>() {
-            
 		public Subject run() { return Subject.getSubject(acc); }
 	    });
 	if (s != null) {
 	    Set<Principal> ps = s.getPrincipals();
 	    return ps.toArray(new Principal[ps.size()]);
-	} else {
-	    return null;
 	}
+	return null;
     }
 
     /**

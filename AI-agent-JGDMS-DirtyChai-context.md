@@ -16,6 +16,8 @@
 
 DirtyChai is a community fork of OpenJDK that retains and actively improves Java's `SecurityManager` and `AccessController`/`ProtectionDomain` authorization infrastructure, which was deprecated in Java 17 and removed in Java 24.
 
+**Important: DirtyChai is a full JDK binary distribution, not a Java library.** It is a C/C++ OpenJDK fork built from source and distributed as a pre-built `tar.gz` archive (`jdk-linux-x64.tar.gz`). Because it is a native binary JDK, it cannot be uploaded to Maven Central or any Maven repository. See **Section 11** for the CI/build mechanism used to install it.
+
 **Key design goals (from project documents):**
 - Prevent loading of untrusted code
 - Break gadget attack chains
@@ -382,7 +384,79 @@ class SpiffeCredentialManager {
 
 ---
 
-## 11. Suggested Next Actions for AI Agent
+## 11. DirtyChai & Pack200 Binary Distribution — CI/Build Mechanism
+
+### Why not Maven?
+
+DirtyChai is a full JDK binary (C/C++ sources, produces native executables + JVM). It cannot be installed as a Maven artifact. The same applies to **Pack200-ex-openjdk**, which is a standalone JAR published as a GitHub Release binary rather than via Maven Central (it is a fork of a removed JDK tool).
+
+### How DirtyChai is obtained in CI
+
+DirtyChai is distributed via GitHub Releases on the rolling tag `dirty-chai-latest` at `pfirmstone/DirtyChai`. The release contains two assets:
+
+| Asset | Purpose |
+|---|---|
+| `jdk-linux-x64.tar.gz` | Pre-built JDK binary (linux/x64) |
+| `jdk-linux-x64.tar.gz.sha256` | SHA-256 checksum file |
+
+The CI step downloads both assets using `gh release download`, verifies the checksum, extracts the tarball to `/opt/dirtychai`, then locates the real `JAVA_HOME` by searching for `javac` inside the extracted directory tree (the tarball expands into a versioned subdirectory such as `jdk-24.0.1+7`).
+
+```sh
+gh release download dirty-chai-latest \
+  --repo pfirmstone/DirtyChai \
+  --pattern 'jdk-linux-x64.tar.gz' \
+  --pattern 'jdk-linux-x64.tar.gz.sha256' \
+  --dir "$DL_DIR"
+
+(cd "$DL_DIR" && sha256sum -c jdk-linux-x64.tar.gz.sha256)
+sudo tar -xzf "$DL_DIR/jdk-linux-x64.tar.gz" -C /opt/dirtychai
+
+JDK_DIR="$(dirname "$(find /opt/dirtychai -name 'javac' -type f | head -1)")"
+JDK_DIR="${JDK_DIR%/bin}"
+echo "JAVA_HOME=$JDK_DIR" >> "$GITHUB_ENV"
+echo "$JDK_DIR/bin"       >> "$GITHUB_PATH"
+```
+
+**Graceful degradation:** If the `dirty-chai-latest` release does not exist yet, `gh release download` exits non-zero and the step sets `installed=false`. Downstream steps gate on this output, so the workflow continues using the runner's system JDK (Temurin 17). This means CI always passes; the DirtyChai matrix leg is **opportunistic**.
+
+### Where the mechanism lives
+
+| File | Purpose |
+|---|---|
+| `.github/workflows/copilot-setup-steps.yml` | Agent pre-setup — installs DirtyChai once before all agent tasks |
+| `.github/workflows/spiffe-unit-tests.yml` | SPIFFE unit test matrix — Temurin-17 leg + DirtyChai leg |
+
+### Maven profile for DirtyChai builds
+
+`JGDMS/jgdms-jeri/pom.xml` contains a profile `dirtychai` (activated with `-Pdirtychai`) that enables SecurityManager-related test configuration when compiling/testing against DirtyChai. Pass this flag on the Maven command line when DirtyChai is the active JDK:
+
+```sh
+mvn test -pl jgdms-jeri -Dtest=SpiffeCredentialManagerTest -Pdirtychai
+```
+
+### Pack200-ex-openjdk — same pattern, installed into Maven local repo
+
+`Pack200-ex-openjdk` is also distributed via GitHub Releases (not Maven Central). Its version is read from `<pack200.version>` in the root `pom.xml`. The CI step downloads the JAR and installs it into the local Maven repository using `mvn install:install-file`:
+
+```sh
+PACK_VER=$(grep -m1 '<pack200.version>' pom.xml | sed 's|.*<pack200.version>\(.*\)</pack200.version>.*|\1|')
+gh release download "${PACK_VER}" \
+  --repo pfirmstone/Pack200-ex-openjdk \
+  --pattern "Pack200-ex-openjdk-${PACK_VER}.jar" \
+  --dir /tmp/pack200-dl
+mvn install:install-file \
+  -Dfile="/tmp/pack200-dl/Pack200-ex-openjdk-${PACK_VER}.jar" \
+  -DgroupId=au.net.zeus.pack200-ex-openjdk \
+  -DartifactId=Pack200-ex-openjdk \
+  -Dversion="${PACK_VER}" \
+  -Dpackaging=jar
+```
+
+Unlike DirtyChai (which is a JDK toolchain), Pack200-ex-openjdk is a plain JAR so `mvn install:install-file` installs it into `~/.m2/repository` and Maven resolves it normally from there.
+
+---
+
+## 12. Suggested Next Actions for AI Agent
 
 When continuing this conversation, the agent should:
 
