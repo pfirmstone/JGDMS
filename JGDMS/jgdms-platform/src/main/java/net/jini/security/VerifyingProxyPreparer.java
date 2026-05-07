@@ -23,9 +23,7 @@ import java.security.Permission;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Set;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import org.apache.river.api.security.AdvisoryDynamicPermissions;
@@ -35,55 +33,14 @@ import org.apache.river.api.security.AdvisoryDynamicPermissions;
  * dynamically granting permissions to trusted proxies, and optionally
  * setting the client constraints on trusted proxies.
  *
- * <p>Determining permissions granted to verified and trusted proxies may be
+ * Determining permissions granted to verified and trusted proxies may be 
  * either passed explicitly via a constructor or if null may be advised by the
- * proxy using {@link AdvisoryDynamicPermissions}.
- *
- * <h3>User-Subject principal scoping</h3>
- *
- * <p>When a smart proxy or ServiceUI is prepared inside a
- * {@code Subject.callAs(userSubject, ...)} block, it is often desirable to
- * scope the dynamic permission grant to the <em>user</em> (human) identity
- * rather than to the service workload identity (the SPIFFE/TLS worker
- * Subject on the {@code AccessControlContext}).  Pass the sentinel constant
- * {@link #CURRENT_USER_PRINCIPALS} as the {@code principals} argument to
- * the four-argument or five-argument constructor; {@link #prepareProxy} will
- * then capture the principals of the current user Subject at preparation
- * time and forward them to
- * {@link Security#grant(Class, Principal[], Permission[])}.
- *
- * <p>If no user Subject is bound at preparation time (e.g. on a daemon
- * thread), the grant is issued without principal scoping, identical to
- * passing {@code null}.
+ * proxy using {@link AdvisoryDynamicPermissions}
  *
  * @author Sun Microsystems, Inc.
  * @since 2.1
  */
 public final class VerifyingProxyPreparer implements ProxyPreparer {
-
-    /**
-     * Sentinel value for the {@code principals} parameter of constructors.
-     * When this constant is passed as {@code principals}, {@link #prepareProxy}
-     * captures the principals of the current user Subject (obtained via
-     * {@code Subject.current()}) at proxy preparation time and uses
-     * them to scope the dynamic permission grant, rather than using the
-     * principals of the worker Subject on the {@code AccessControlContext}.
-     *
-     * <p>Typical usage in a Jini configuration file:
-     * <pre>
-     *   proxyPreparer = new VerifyingProxyPreparer(
-     *       loader, contextElements,
-     *       VerifyingProxyPreparer.CURRENT_USER_PRINCIPALS,
-     *       new Permission[]{ ... });
-     * </pre>
-     *
-     * <p>If no user Subject is bound when {@code prepareProxy} is called, the
-     * grant falls back to no principal scoping (equivalent to passing
-     * {@code null}).
-     *
-     * @since 3.2
-     */
-    public static final Principal[] CURRENT_USER_PRINCIPALS = new Principal[0];
 
     /** Set constraints on proxy from context. */
     private static final int SET_CONSTRAINTS = 1;
@@ -98,19 +55,8 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
     private final ClassLoader loader;
     /** Trust verifier context elements. */
     private final Object[] contextElements;
-    /**
-     * Principals to scope the permission grant, or {@code null} to use the
-     * current ACC subject's principals.  Never {@link #CURRENT_USER_PRINCIPALS};
-     * that sentinel is detected at construction time and stored as
-     * {@code captureUserSubjectPrincipals=true, principals=null}.
-     */
+    /** Principals to scope the permission grant, if any. */
     private final Principal[] principals;
-    /**
-     * When {@code true}, {@link #prepareProxy} calls {@code Subject.current()}
-     * to obtain user principals for the dynamic grant instead of using the ACC
-     * subject (principals is {@code null} in this case).
-     */
-    private final boolean captureUserSubjectPrincipals;
     /** Permissions to dynamically grant. */
     private final Permission[] permissions;
 
@@ -149,18 +95,12 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * retained; subsequent changes to the arrays have no effect on the
      * instance created.
      *
-     * <p>Pass {@link #CURRENT_USER_PRINCIPALS} as {@code principals} to
-     * capture the current user Subject's principals (via
-     * {@code Subject.current()}) at proxy preparation time, scoping the
-     * dynamic grant to the user identity rather than the worker Subject.
-     *
      * @param loader the class loader for finding trust verifiers, or
      * <code>null</code> to use the context class loader
      * @param contextElements the trust verifier context elements
-     * @param principals minimum set of principals to which grants apply,
-     * {@link #CURRENT_USER_PRINCIPALS} to use the current user Subject's
-     * principals, or <code>null</code> to use the principals of the
-     * preparing thread's subject
+     * @param principals minimum set of principals to which grants apply, or
+     * <code>null</code> to use the principals of the preparing thread's
+     * subject
      * @param permissions the permissions to dynamically grant, or
      * <code>null</code> if no permissions should be granted
      * @throws NullPointerException if <code>contextElements</code> is
@@ -177,8 +117,7 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	type = SET_CONSTRAINTS;
 	this.loader = loader;
 	this.contextElements = (Object[]) contextElements.clone();
-	this.captureUserSubjectPrincipals = (principals == CURRENT_USER_PRINCIPALS);
-	this.principals = this.captureUserSubjectPrincipals ? null : checkPrincipals(principals);
+	this.principals = checkPrincipals(principals);
 	this.permissions = checkPermissions(permissions);
 	for (int i = this.contextElements.length; --i >= 0; ) {
 	    if (this.contextElements[i] instanceof MethodConstraints) {
@@ -198,11 +137,6 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * neither modified nor retained; subsequent changes to the arrays have no
      * effect on the instance created.
      *
-     * <p>Pass {@link #CURRENT_USER_PRINCIPALS} as {@code principals} to
-     * capture the current user Subject's principals (via
-     * {@code Subject.current()}) at proxy preparation time, scoping the
-     * dynamic grant to the user identity rather than the worker Subject.
-     *
      * @param addProxyConstraints <code>true</code> if the proxy's client
      * constraints should be included as a trust verifier context element,
      * <code>false</code> otherwise
@@ -210,10 +144,9 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * <code>null</code> to use the context class loader
      * @param contextElements the trust verifier context elements, or
      * <code>null</code> if no elements need to be supplied
-     * @param principals minimum set of principals to which grants apply,
-     * {@link #CURRENT_USER_PRINCIPALS} to use the current user Subject's
-     * principals, or <code>null</code> to use the principals of the
-     * preparing thread's subject
+     * @param principals minimum set of principals to which grants apply, or
+     * <code>null</code> to use the principals of the preparing thread's
+     * subject
      * @param permissions the permissions to dynamically grant, or
      * <code>null</code> if no permissions should be granted
      * @throws NullPointerException if any element of <code>principals</code>
@@ -229,8 +162,7 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	this.loader = loader;
 	this.contextElements = contextElements == null ?
 	    new Object[0] : (Object[]) contextElements.clone();
-	this.captureUserSubjectPrincipals = (principals == CURRENT_USER_PRINCIPALS);
-	this.principals = this.captureUserSubjectPrincipals ? null : checkPrincipals(principals);
+	this.principals = checkPrincipals(principals);
 	this.permissions = checkPermissions(permissions);
     }
 
@@ -258,30 +190,6 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	    }
 	}
 	return principals;
-    }
-
-    /**
-     * Returns the effective principals for the dynamic grant.
-     *
-     * <p>When {@link #captureUserSubjectPrincipals} is set, this method
-     * calls {@code Subject.current()} and returns those principals.
-     * Falls back to {@code null} (no principal scoping) if no user Subject
-     * is bound.
-     *
-     * <p>When {@link #captureUserSubjectPrincipals} is not set, returns
-     * {@link #principals} directly (explicit principals or {@code null} for
-     * the current ACC subject).
-     */
-    private Principal[] getEffectivePrincipals() {
-	if (!captureUserSubjectPrincipals) {
-	    return principals;
-	}
-	Subject userSubject = Subject.current();
-	if (userSubject == null) {
-	    return null;
-	}
-	Set<? extends Principal> ps = userSubject.getPrincipals();
-	return ps.isEmpty() ? null : ps.toArray(new Principal[0]);
     }
 
     /**
@@ -347,12 +255,11 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 				   Collections.unmodifiableCollection(
 							Arrays.asList(elts)));
 	if (permissions.length > 0) {
-	    Principal[] effectivePrincipals = getEffectivePrincipals();
 	    try {
-		if (effectivePrincipals == null) {
+		if (principals == null) {
 		    Security.grant(proxy.getClass(), permissions);
 		} else {
-		    Security.grant(proxy.getClass(), effectivePrincipals, permissions);
+		    Security.grant(proxy.getClass(), principals, permissions);
 		}
 	    } catch (UnsupportedOperationException e) {
 		SecurityException se = new SecurityException(
@@ -367,13 +274,12 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	    if (ldr instanceof AdvisoryDynamicPermissions) {
 		perms = ((AdvisoryDynamicPermissions) ldr).getPermissions();
 		if (perms.length > 0){
-		    Principal[] effectivePrincipals = getEffectivePrincipals();
 		    try {
-			if (effectivePrincipals == null) {
+			if (principals == null) {
 			    Security.grant(klass, perms);
 			} else {
-			    Security.grant(klass, effectivePrincipals, perms);
-			}
+			    Security.grant(klass, principals, perms);
+	}
 		    } catch (UnsupportedOperationException e) {
 			Logger.getLogger("net.jini.security")
 			    .config("Local configuration doesn't allow advisory dynamic permission grants, consider using a DynamicPolicy provider");
@@ -407,9 +313,7 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	    }
 	    sb.append(contextElements[i]);
 	}
-	if (captureUserSubjectPrincipals) {
-	    sb.append("}, CURRENT_USER_PRINCIPALS, {");
-	} else if (principals == null) {
+	if (principals == null) {
 	    sb.append("}, null, {");
 	} else {
 	    sb.append("}, {");
@@ -447,7 +351,6 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	VerifyingProxyPreparer other = (VerifyingProxyPreparer) obj;
 	if (type != other.type ||
 	    loader != other.loader ||
-	    captureUserSubjectPrincipals != other.captureUserSubjectPrincipals ||
 	    contextElements.length != other.contextElements.length ||
 	    (principals == null) != (other.principals == null) ||
 	    (principals != null &&
@@ -500,9 +403,6 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
     /** Returns a hash code value for this object. */
     public int hashCode() {
 	int hash = type;
-	if (captureUserSubjectPrincipals) {
-	    hash += 31;
-	}
 	if (loader != null) {
 	    hash += loader.hashCode();
 	}

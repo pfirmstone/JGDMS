@@ -1216,21 +1216,33 @@ public final class Security {
     }
 
     /**
-     * Returns principals of current subject, or null if no current subject.
+     * Returns principals of the current subject, or {@code null} if there is
+     * no current subject.
+     *
+     * <p>The user {@link Subject} bound via {@link Subject#callAs
+     * Subject.callAs()} (a ScopedValue, visible via {@link Subject#current()})
+     * is checked first.  If no user Subject is bound, the Subject associated
+     * with the current {@link java.security.AccessControlContext} is used as
+     * a fallback.
      */
     private static Principal[] getCurrentPrincipals() {
+	// Prefer the user Subject bound via Subject.callAs() (ScopedValue).
+	Subject user = Subject.current();
+	if (user != null) {
+	    Set<Principal> ps = user.getPrincipals();
+	    return ps.toArray(new Principal[ps.size()]);
+	}
+	// Fall back to the Subject on the AccessControlContext.
 	final AccessControlContext acc = AccessController.getContext();
 	Subject s = AccessController.doPrivileged(
 	    new PrivilegedAction<Subject>() {
-            
 		public Subject run() { return Subject.getSubject(acc); }
 	    });
 	if (s != null) {
 	    Set<Principal> ps = s.getPrincipals();
 	    return ps.toArray(new Principal[ps.size()]);
-	} else {
-	    return null;
 	}
+	return null;
     }
 
     /**
