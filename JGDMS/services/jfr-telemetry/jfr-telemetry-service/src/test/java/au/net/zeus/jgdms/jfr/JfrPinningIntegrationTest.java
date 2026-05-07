@@ -20,7 +20,6 @@ package au.net.zeus.jgdms.jfr;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -44,11 +43,9 @@ import au.net.zeus.jgdms.api.codebase.SignedVerdict;
 import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
 import au.net.zeus.jgdms.api.telemetry.PinningReport;
 import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -89,7 +86,7 @@ public class JfrPinningIntegrationTest {
 
     private static class StubVerdictRegistry implements VerdictRegistry {
 
-        final List<PinningReport> pinningReports = new ArrayList<PinningReport>();
+        final List<PinningReport> pinningReports = new ArrayList<>();
 
         public synchronized void reportPinning(PinningReport report) {
             pinningReports.add(report);
@@ -241,8 +238,6 @@ public class JfrPinningIntegrationTest {
                 nanoThreshold, 1000L, 60, stub);
 
         Uri testUri = new Uri("https://test.example.com/lib.jar");
-        Set<Uri> codebaseUrls = new LinkedHashSet<Uri>();
-        codebaseUrls.add(testUri);
         Uri[] uriArray = new Uri[]{testUri};
 
         // Accumulators (populated by the JFR stream callback)
