@@ -917,7 +917,7 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
     - On event receipt: call `getCurrentGrants()`, parse `String[]` back to `PermissionGrant[]`, call `RemotePolicyProvider.replace()`
     - Must track sequence numbers to detect gaps and re-pull
     - Must renew lease before expiry
-22. **Unit tests for `policy-service`** — *(still open; no test directory exists under `policy-service-service/src/test/` or `policy-service-dl/src/test/`)*
+22. **✅ Unit tests for `policy-service`** — *(completed; test coverage added for `InMemoryPolicyServiceImpl`, `RemotePolicyServiceProxy`, `PolicyEventLease`, and `PolicyUpdateEvent`)*
 23. **Host 4 — Codebase Downloader Service** — *(not yet started; no Maven module exists)*
     - Only host with outbound internet access
     - Fetches JAR bytes for codebase URLs discovered from lookup service registrations
