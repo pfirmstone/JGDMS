@@ -912,11 +912,11 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 18. **✅ VerdictRegistry service** *(completed — `VerdictRegistryImpl` 1488 lines, `ActivatableVerdictRegistryImpl` extends `AbstractJiniService`, `VerdictRegistryProxy` smart proxy, full test coverage)*
 19. **✅ BAE rewrite — `ClinitBlockingVisitor`, `AtomicSerialComplianceVisitor`, `JarAnalyzer`, `BytecodeAnalysisEngineImpl`** *(completed — push-model `analyzeJar(AnalysisRequest)` API; `<clinit>` cycle detection via Tarjan SCC embedded in `ClinitBlockingVisitor.detectClinitCycles()`)*
 20. **✅ `SpiffeCredentialManager` (JGDMS `jgdms-jeri`)** *(completed — 795-line implementation with `FileSvidSource`, `updateSubjectCredentials()`, `SpiffeSubjectHolder`, unit tests)*
-21. **Client-side `RemoteEventListener`** — pull-on-notification for policy updates *(still open)*
-    - Must subscribe via `RemotePolicyServiceProxy.registerForPolicyUpdates()`
-    - On event receipt: call `getCurrentGrants()`, parse `String[]` back to `PermissionGrant[]`, call `RemotePolicyProvider.replace()`
-    - Must track sequence numbers to detect gaps and re-pull
-    - Must renew lease before expiry
+21. **✅ Client-side `RemoteEventListener`** — pull-on-notification for policy updates *(completed — `PolicyUpdateListener` in `policy-service-dl` module, `au.net.zeus.jgdms.policy.proxy`, with full unit test coverage: 9 tests covering happy path, gap detection, re-subscribe on lease loss, stop/unexport)*
+    - Subscribes via `RemotePolicyServiceProxy.registerForPolicyUpdates()`
+    - On event receipt: calls `getCurrentGrants()`, parses `String[]` → `PermissionGrant[]` via `DefaultPolicyParser`, calls `RemotePolicyProvider.replace()`
+    - Tracks sequence numbers to detect gaps and logs WARNING on gap
+    - Uses `LeaseRenewalManager` for automatic lease renewal; re-subscribes on `UnknownLeaseException`
 22. **✅ Unit tests for `policy-service`** — *(completed; test coverage added for `InMemoryPolicyServiceImpl`, `RemotePolicyServiceProxy`, `PolicyEventLease`, and `PolicyUpdateEvent`)*
 23. **Host 4 — Codebase Downloader Service** — *(not yet started; no Maven module exists)*
     - Only host with outbound internet access

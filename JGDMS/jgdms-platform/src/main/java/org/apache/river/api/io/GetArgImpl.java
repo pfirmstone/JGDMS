@@ -119,7 +119,7 @@ class GetArgImpl extends AtomicSerial.GetArg {
     }
 
     @Override
-    public Object get(String name, Object val) throws IOException {
+    public Object get(String name, Object val) throws IOException, ClassNotFoundException {
 	ObjectInputStream.GetField fields = classFields.get(CONTEXT.caller());
 	return fields != null ? fields.get(name, val) : val;
     }
@@ -203,7 +203,15 @@ class GetArgImpl extends AtomicSerial.GetArg {
 		if (types[i] == double.class) classFields.get(caller).get(fields[i],(double)0);
 		if (types[i] == float.class) classFields.get(caller).get(fields[i], 0.0F);
 	    } else {
-		Object o = classFields.get(caller).get(fields[i], null);
+		Object o;
+		try {
+		    o = classFields.get(caller).get(fields[i], null);
+		} catch (ClassNotFoundException e) {
+		    InvalidObjectException ex = new InvalidObjectException(
+			    "Failed to resolve class for field: " + fields[i]);
+		    ex.initCause(e);
+		    throw ex;
+		}
 		if (nonNull[i] && o == null) {
 		    throw new InvalidObjectException(fields[i] 
 			    + " cannot be null");

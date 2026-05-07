@@ -86,8 +86,8 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      */
     protected final int transition;
 
-    private static GetArg check(GetArg arg) throws IOException {
-	Object serviceID = arg.get(SERVICE_ID, null); // Type check
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
+	Object serviceID = arg.get(SERVICE_ID, null, Object.class); // Type check
 	if ( serviceID != null && !(serviceID instanceof ServiceID)) throw new ClassCastException();
 	int transition = arg.get(TRANSITION, 0);
 	switch (transition){
@@ -104,7 +104,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
     
     public ServiceEvent(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
-	serviceID = (ServiceID) arg.get(SERVICE_ID, null);
+	serviceID = arg.get(SERVICE_ID, null, ServiceID.class);
 	transition = arg.get(TRANSITION, 0);
     }
 
