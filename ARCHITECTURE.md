@@ -722,6 +722,21 @@ clients to attach per-method security constraints to any proxy whose server stub
   call is wrapped in `Subject.doAs(user, …)` so the user's principals are injected into the
   `AccessControlContext` for the duration of the check.  Falls back to a direct
   `checkPermission` call on daemon threads where no user Subject is bound.
+* **`KerberosEndpoint.newRequest()` — user-Subject-first credential selection.**
+  `KerberosEndpoint.newRequest()` now checks `Subject.current()` first (the human user Subject
+  bound via `Subject.callAs()`).  If that Subject carries a `KerberosPrincipal`, it is used for
+  GSS/Kerberos authentication so the user's own TGT is presented to the server.  It falls back
+  to the workload Subject on the `AccessControlContext` (keytab-derived credentials) only when no
+  such user Subject is bound.  `KerberosUtil.getGSSCredential()` already wraps credential
+  acquisition in `Subject.doAs(subj, …)`, so the correct TGT is presented regardless of which
+  Subject is selected.  The per-user cache key in `KerberosEndpoint` ensures different users never
+  share a Kerberos connection.  Example usage:
+  ```java
+  Subject.callAs(kerberosUserSubject, () -> {
+      myService.callSomething(); // uses kerberosUserSubject's TGT
+      return null;
+  });
+  ```
 
 ### 7.4 Proxy Trust
 
