@@ -254,6 +254,35 @@ public class JfrTelemetryServiceImplTest {
     }
 
     @Test
+    public void testRetryAfterNullRegistryBecomesAvailable() throws Exception {
+        // Service starts with no VerdictRegistry.
+        JfrTelemetryServiceImpl svc = new JfrTelemetryServiceImpl(
+                LOW_PINNED_NANOS_THRESHOLD,
+                LOW_EVENT_COUNT_THRESHOLD,
+                SWEEP_INTERVAL_MINUTES,
+                null);
+        Uri[] uris = new Uri[]{uri1};
+        long now = System.currentTimeMillis();
+
+        // First report crosses threshold but VR is null — submitted flag must
+        // be reset so that the next report can retry.
+        PinningReport r1 = new PinningReport(uris, LOW_PINNED_NANOS_THRESHOLD + 1,
+                1L, now - 2000L, now - 1000L);
+        svc.reportPinning(r1);
+
+        // Now inject a real registry and send another report that also exceeds
+        // the (already-accumulated) threshold.
+        StubVerdictRegistry registry = new StubVerdictRegistry();
+        svc.setVerdictRegistry(registry);
+
+        PinningReport r2 = new PinningReport(uris, 1L, 1L, now - 1000L, now);
+        svc.reportPinning(r2);
+
+        assertEquals("Registry must receive the report after becoming available",
+                1, registry.pinningReports.size());
+    }
+
+    @Test
     public void testCanonicalKeyIsOrderIndependent() {
         Set<Uri> a = makeUriSet(uri1, uri2);
         Set<Uri> b = makeUriSet(uri2, uri1);

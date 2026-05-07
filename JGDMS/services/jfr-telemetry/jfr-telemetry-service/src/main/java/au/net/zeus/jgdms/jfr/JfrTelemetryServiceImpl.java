@@ -59,9 +59,11 @@ import au.net.zeus.jgdms.api.telemetry.PinningReport;
  *   <li>{@link #aggregates} is a {@link ConcurrentHashMap}; entries are
  *       created lock-free via {@code computeIfAbsent}.</li>
  *   <li>Per-codebase state ({@link PinningState}) uses {@code AtomicLong}
- *       for all counters.  The {@code submitted} flag uses
- *       {@code compareAndSet} to guarantee exactly-once submission to the
- *       Verdict Registry.</li>
+ *       for all counters.  The {@code submitted} flag is guarded by
+ *       {@code synchronized(state)} to guarantee exactly-once submission to the
+ *       Verdict Registry per sweep window.  The flag is reset if the
+ *       VerdictRegistry is unavailable or the remote call fails, so that a
+ *       future threshold crossing will retry.</li>
  *   <li>The periodic sweep runs in a single-threaded daemon executor; it
  *       replaces each {@link PinningState} entry atomically using
  *       {@link ConcurrentHashMap#replace}.</li>
@@ -110,9 +112,9 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
     /**
      * Holds aggregated pinning statistics for a single codebase URL set.
-     * All mutable fields use atomic types; the {@code submitted} flag uses
-     * {@code compareAndSet} to ensure the Verdict Registry is notified at most
-     * once per sweep window.
+     * All mutable fields use atomic types; the {@code submitted} flag is
+     * guarded by {@code synchronized(this)} to ensure the Verdict Registry
+     * is notified at most once per successful submission per sweep window.
      */
     static final class PinningState {
 
@@ -133,14 +135,22 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
         /**
          * Last-seen wall-clock time (epoch ms), updated atomically on each
-         * {@code reportPinning} call.
+         * {@code reportPinning} call.  Initialised to {@code windowStartMs}
+         * so that a sweeper run that races with the very first
+         * {@code reportPinning} call does not purge a brand-new state whose
+         * counter has not yet been updated.
+         * <p>Unlike the other {@code AtomicLong} fields, this is not
+         * initialised inline because it must be set to {@code windowStartMs}
+         * rather than {@code 0L} — see the constructor.
          */
-        final AtomicLong lastSeenMs  = new AtomicLong(0L);
+        final AtomicLong lastSeenMs;
 
         /**
          * Set to {@code true} exactly once when the threshold is crossed and
-         * the aggregate report is submitted to the Verdict Registry.
-         * Uses {@code compareAndSet} to prevent duplicate submissions.
+         * the aggregate report has been successfully submitted to the Verdict
+         * Registry.  Guarded by {@code synchronized(this)}.  Reset to
+         * {@code false} if the registry is unavailable or the remote call
+         * fails, allowing the next threshold crossing to retry.
          */
         volatile boolean submitted = false;
 
@@ -148,6 +158,7 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
             this.codebaseKey   = codebaseKey;
             this.codebaseUrls  = codebaseUrls;
             this.windowStartMs = windowStartMs;
+            this.lastSeenMs    = new AtomicLong(windowStartMs);
         }
     }
 
@@ -351,8 +362,11 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
 
     /**
      * Attempts to submit the aggregate pinning data to the Verdict Registry.
-     * Uses a compare-and-set on {@link PinningState#submitted} to guarantee
-     * that at most one submission is made per sweep window per codebase.
+     * The {@link PinningState#submitted} flag is set to {@code true} exactly
+     * once, and only after both the report has been built and the registry
+     * reference is confirmed to be non-null.  This guarantees that a
+     * transiently-unavailable registry does not permanently suppress future
+     * submission attempts within the same sweep window.
      */
     private void submitToRegistry(PinningState state,
                                   long totalPinnedNanos,
@@ -375,6 +389,7 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
             logger.log(Level.WARNING,
                     "Failed to build PinningReport for VerdictRegistry; key={0}",
                     state.codebaseKey);
+            resetSubmitted(state);
             return;
         }
 
@@ -385,12 +400,13 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
                             + " key={0}, pinnedNanos={1}, events={2}",
                     new Object[]{state.codebaseKey, totalPinnedNanos,
                         totalEventCount});
+            resetSubmitted(state);
             return;
         }
 
         try {
             vr.reportPinning(aggregate);
-            logger.log(Level.WARNING,
+            logger.log(Level.INFO,
                     "Submitted PinningReport to VerdictRegistry: key={0},"
                             + " pinnedNanos={1}, events={2}",
                     new Object[]{state.codebaseKey, totalPinnedNanos,
@@ -400,7 +416,18 @@ public class JfrTelemetryServiceImpl implements JfrTelemetryService {
                     "Failed to submit PinningReport to VerdictRegistry;"
                             + " key=" + state.codebaseKey,
                     e);
+            resetSubmitted(state);
         }
+    }
+
+    /**
+     * Resets the {@link PinningState#submitted} flag so that the next
+     * threshold crossing will attempt another submission.  Called whenever a
+     * submission attempt fails (registry unavailable, build error, or
+     * {@link RemoteException}).
+     */
+    private static void resetSubmitted(PinningState state) {
+        synchronized (state) { state.submitted = false; }
     }
 
     /**
