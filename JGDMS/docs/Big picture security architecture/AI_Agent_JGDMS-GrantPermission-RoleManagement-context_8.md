@@ -376,7 +376,8 @@ Human users authenticate via traditional JAAS mechanisms. The resulting Subject 
 
 `AbstractJiniService` supports traditional Jini pattern: if a `LoginContext` is
 configured, `start()` calls `loginContext.login()` and runs `doStart()` inside
-`Subject.doAsPrivileged`. For SPIFFE-authenticated services, `loginContext` is `null`.
+`Subject.callAs(loginSubject, callable)`. For SPIFFE-authenticated services,
+`loginContext` is `null`.
 
 ### 8.4 DirtyChai Administrator
 
@@ -386,8 +387,8 @@ DirtyChai runs as a workload with `spiffe://.../admin/policy` SVID. Human authen
 
 ## 9. ServiceUI — Design Now Resolved
 
-ServiceUI runs inside `callAs(kerberosSubject, () -> ...)` which is itself inside the
-`doAsPrivileged(spiffeSubject, ...)` workload context. `SubjectDomainCombiner` sees both
+ServiceUI runs inside `Subject.callAs(kerberosSubject, () -> ...)` which is itself inside the
+`Subject.doAs(spiffeSubject, ...)` workload context. `SubjectDomainCombiner` sees both
 Subjects and injects both principal sets into `checkPermission`. Policy can condition
 grants on both the workload identity (which ServiceUI JAR) and the human identity (which user).
 
@@ -598,7 +599,7 @@ A grant requiring only the SPIFFE principal still fires in the absence of a user
 | Path | What happens |
 |---|---|
 | `loginContext == null` (SPIFFE path) | `doStart()` called directly; SPIFFE Subject is already ambient via `SpiffeCredentialManager`; `Subject.callAs(spiffeSubject, callable)` used at remote-call boundaries |
-| `loginContext != null` (traditional path) | `loginContext.login()` called; `Subject.doAsPrivileged(subject, action, null)` used to run `doStart()` |
+| `loginContext != null` (traditional path) | `loginContext.login()` called; `Subject.callAs(loginSubject, callable)` used to run `doStart()` |
 
 JGDMS services use the SPIFFE path.  The traditional path is supported for legacy
 Jini services.
@@ -682,7 +683,10 @@ Subject.doAs(workerSubject, () -> {          // worker on ACC — SSL/TLS uses t
 });
 ```
 
-An outbound TLS call made from inside `invoke()` will use `workerSubject` (from the ACC).
+An outbound TLS call made from inside `invoke()` will use `workerSubject` (from the ACC),
+and may also use `userSubject` (from `Subject.current()`) when `userSubject` carries an
+`X500Principal` or `SpiffePrincipal` and the ACC subject is absent — `SslEndpointImpl`
+checks ACC first, then `SpiffeSubjectHolder`, then `Subject.current()` (X500/SPIFFE only).
 An outbound Kerberos call made from inside `invoke()` will use `userSubject` (from
 `Subject.current()`), so the GSS context is established as the authenticated client user.
 This means the server naturally acts on behalf of the user for Kerberos connections but
