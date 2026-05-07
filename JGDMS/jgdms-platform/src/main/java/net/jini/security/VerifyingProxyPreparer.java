@@ -104,7 +104,12 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	try {
 	    m = Subject.class.getMethod("current");
 	} catch (NoSuchMethodException e) {
-	    // JDK < 18: Subject.current() not available
+	    // JDK < 18: Subject.current() not available; CURRENT_USER_PRINCIPALS
+	    // will fall back to no principal scoping when used.
+	    Logger.getLogger("net.jini.security").config(
+		"Subject.current() not available (JDK < 18); "
+		+ "VerifyingProxyPreparer.CURRENT_USER_PRINCIPALS "
+		+ "will grant without user principal scoping");
 	}
 	SUBJECT_CURRENT = m;
     }
@@ -311,6 +316,8 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
 	    Set<? extends Principal> ps = userSubject.getPrincipals();
 	    return ps.isEmpty() ? null : ps.toArray(new Principal[0]);
 	} catch (Exception e) {
+	    Logger.getLogger("net.jini.security").warning(
+		"Failed to capture user Subject principals via Subject.current(): " + e);
 	    return null;
 	}
     }
