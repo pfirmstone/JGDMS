@@ -89,6 +89,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -544,26 +545,9 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
             }
             loginContext.login();
             try {
-                init = Subject.doAsPrivileged(loginContext.getSubject(),
-                    new PrivilegedExceptionAction<MailboxImplInit>() {
-                        public MailboxImplInit run() 
-                                throws 
-                                ConfigurationException, 
-                                RemoteException, 
-                                ActivationException, 
-                                IOException 
-                        {
-//                                doInit(config);
-                            // Thread need to inherit the
-                            // current context.
-                            return new MailboxImplInit(config,
-                                    persistant, 
-                                    activID, 
-                                    BASE_LOOKUP_ATTRS);
-                        }
-                    },
-                    null);
-            } catch (PrivilegedActionException e) {
+                init = Subject.callAs(loginContext.getSubject(),
+                    () -> new MailboxImplInit(config, persistant, activID, BASE_LOOKUP_ATTRS));
+            } catch (CompletionException e) {
                 try {
                     loginContext.logout();
                 } catch (LoginException le) {
@@ -572,7 +556,10 @@ public class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         INIT_LOGGER.log(Levels.HANDLED, "Trouble logging out", le);
                     }
                 }
-                throw e.getException(); 
+                Throwable cause = e.getCause();
+                if (cause instanceof Exception) throw (Exception) cause;
+                throw e;
+            }
             }
             if (OPERATIONS_LOGGER.isLoggable(Level.FINER)) {
                 OPERATIONS_LOGGER.exiting(MAILBOX_SOURCE_CLASS, 

@@ -278,23 +278,40 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
     private CallContext getCallContext(InvocationConstraints constraints)
 	throws UnsupportedConstraintException
     {
-	final AccessControlContext acc = AccessController.getContext();
-	Subject clientSubject = (Subject) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
-		    return Subject.getSubject(acc);
-		}
-	    });
 	/*
-	 * Fail early, not a security risk, as it doesn't provide any information
-	 * about the logged in Subject, as there isn't one.
-	 *
-	 * Fall back to the process-wide SPIFFE Subject registered by
-	 * SpiffeCredentialManager.start() when no Subject.doAs() wraps the
-	 * current call stack.
+	 * Check Subject.current() first: if a service method is executing
+	 * inside Subject.callAs(userSubject, ...) and userSubject has
+	 * X500/SPIFFE principals, use that Subject for outbound TLS so that
+	 * the call is authenticated as the user rather than the workload
+	 * identity.  Falls back to the ACC Subject (SPIFFE workload) or the
+	 * process-wide SpiffeSubjectHolder when no user Subject is current.
 	 */
-	if (clientSubject == null)
-	    clientSubject = SpiffeSubjectHolder.get();
+	Subject currentSubject = Subject.current();
+	Subject clientSubject;
+	if (currentSubject != null
+		&& (!currentSubject.getPrincipals(X500Principal.class).isEmpty()
+		    || !currentSubject.getPrincipals(SpiffePrincipal.class).isEmpty()))
+	{
+	    clientSubject = currentSubject;
+	} else {
+	    final AccessControlContext acc = AccessController.getContext();
+	    clientSubject = (Subject) AccessController.doPrivileged(
+		new PrivilegedAction() {
+		    public Object run() {
+			return Subject.getSubject(acc);
+		    }
+		});
+	    /*
+	     * Fail early, not a security risk, as it doesn't provide any information
+	     * about the logged in Subject, as there isn't one.
+	     *
+	     * Fall back to the process-wide SPIFFE Subject registered by
+	     * SpiffeCredentialManager.start() when no Subject.doAs() wraps the
+	     * current call stack.
+	     */
+	    if (clientSubject == null)
+		clientSubject = SpiffeSubjectHolder.get();
+	}
 	if (clientSubject == null) 
 	    throw new UnsupportedConstraintException(
 			    "Client must be logged on and caller must do as");
