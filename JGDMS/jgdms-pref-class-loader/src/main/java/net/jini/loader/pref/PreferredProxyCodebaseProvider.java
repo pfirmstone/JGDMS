@@ -140,15 +140,12 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         } catch (NoSuchAlgorithmException e) {
             throw new IOException("SHA-256 MessageDigest not available", e);
         }
-        InputStream in = jarUrl.openStream();
-        try {
+        try (InputStream in = jarUrl.openStream()) {
             byte[] buf = new byte[8192];
             int n;
             while ((n = in.read(buf)) > 0) {
                 digest.update(buf, 0, n);
             }
-        } finally {
-            in.close();
         }
         return bytesToHex(digest.digest());
     }
