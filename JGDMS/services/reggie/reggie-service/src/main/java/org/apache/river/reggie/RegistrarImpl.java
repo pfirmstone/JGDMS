@@ -809,14 +809,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 *  
 	 */
 	transient boolean newNotify;
-	/**
-	 * The user Subject captured when this event registration was created.
-	 * Set from {@link Subject#current()} at registration time so that event
-	 * notifications dispatched to the listener can be sent under the
-	 * registering user's identity (e.g. for outbound Kerberos/TLS calls).
-	 * Transient because event registrations are not persisted across restarts.
-	 */
-	transient Subject userSubject;
 	
 	public EventReg(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg.get("eventID", 0L),
@@ -880,9 +872,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    this.handback = handback;
 	    this.leaseExpiration = leaseExpiration;
 	    this.newNotify = newNotify;
-	    // Capture the user Subject so event notifications are sent under
-	    // the registering client's identity rather than the service's own.
-	    this.userSubject = Subject.current();
 	}
         
         long incrementAndGetSeqNo(){
@@ -6238,20 +6227,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	if (item != null)
 	    item = copyItem(item);
         // Should never be null.
-	Callable<Boolean> task = Security.withContext(
-	    new EventTask(reg, sid, item, transition, proxy, this, now),
-	    context
+	eventTaskMap.get(reg).submit(
+	    Security.withContext(
+		new EventTask(reg, sid, item, transition, proxy, this, now),
+		context
+	    )
 	);
-	// If the registering client had an authenticated user Subject, wrap
-	// the notification in Subject.callAs so that Subject.current() is
-	// set correctly on the executor thread.  This enables user-scoped
-	// outbound authentication (e.g. Kerberos/TLS) for listener.notify().
-	final Subject userSubject = reg.userSubject;
-	if (userSubject != null) {
-	    final Callable<Boolean> inner = task;
-	    task = () -> Subject.callAs(userSubject, inner);
-	}
-	eventTaskMap.get(reg).submit(task);
     }
 
     /** Generate a new service ID */
