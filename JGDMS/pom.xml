@@ -83,6 +83,7 @@
     <module>services/verdict-registry</module>
     <module>services/policy-service</module>
     <module>services/jfr-telemetry</module>
+    <module>services/codebase-downloader</module>
     <module>tools</module>
     <module>phoenix-activation</module>
     <!--<module>groovy-config</module>-->
