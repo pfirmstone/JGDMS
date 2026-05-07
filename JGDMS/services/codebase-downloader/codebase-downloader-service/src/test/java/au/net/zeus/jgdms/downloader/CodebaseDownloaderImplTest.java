@@ -441,4 +441,47 @@ public class CodebaseDownloaderImplTest {
                 called);
         Assert.assertTrue(vr.reports.isEmpty());
     }
+
+    /**
+     * Verifies that an HTTP redirect response (3xx) is treated as a failure
+     * rather than being followed.  This prevents SSRF attacks where a
+     * malicious server could redirect the downloader to an internal address.
+     */
+    @Test
+    public void testRedirectIsNotFollowed() throws Exception {
+        String targetPath   = "/redirect-target.jar";
+        String redirectPath = "/redirect-source.jar";
+
+        // Serve the real JAR at the target path.
+        serveBytes(targetPath, MINIMAL_JAR);
+
+        // Serve a 302 redirect at the source path.
+        httpServer.createContext(redirectPath, exchange -> {
+            exchange.getResponseHeaders().add("Location",
+                    baseUrl + targetPath);
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+
+        CountDownLatch latch  = new CountDownLatch(1);
+        StubEngine engine     = new StubEngine("e1", latch);
+        CapturingVerdictRegistry vr = new CapturingVerdictRegistry();
+
+        CodebaseDownloaderImpl impl = new CodebaseDownloaderImpl(
+                Collections.singletonList(new EngineEntry("e1", engine)),
+                vr, DEFAULT_MAX, 5_000, 5_000, 1);
+
+        Uri uri = new Uri(baseUrl + redirectPath);
+        impl.submitForAnalysis(Collections.singleton(uri));
+
+        boolean called = latch.await(2, TimeUnit.SECONDS);
+        impl.shutdown(5_000);
+
+        Assert.assertFalse(
+                "analyzeJar must NOT be called when server returns a redirect",
+                called);
+        Assert.assertTrue(
+                "No report should be submitted for a redirected URI",
+                vr.reports.isEmpty());
+    }
 }

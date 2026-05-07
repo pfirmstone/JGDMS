@@ -36,9 +36,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -118,6 +119,21 @@ public class CodebaseDownloaderImpl {
      */
     static final long URL_RECHECK_INTERVAL_MS = 60L * 60 * 1000;
 
+    /**
+     * Maximum number of distinct URIs tracked in {@link #lastProcessed}.
+     * Once the map reaches this size, newly seen URIs are discarded until
+     * existing entries age out, preventing OOM from a flood of unique URIs.
+     */
+    static final int MAX_TRACKED_URIS = 100_000;
+
+    /**
+     * Maximum number of download tasks that may wait in the worker-pool
+     * queue.  Once the queue is full, newly enqueued URIs are discarded
+     * (and their {@link #lastProcessed} entries cleared so they will be
+     * retried on the next discovery event), preventing unbounded heap growth.
+     */
+    static final int MAX_PENDING_DOWNLOADS = 1_000;
+
     // -------------------------------------------------------------------------
     // Inner type
     // -------------------------------------------------------------------------
@@ -187,7 +203,7 @@ public class CodebaseDownloaderImpl {
     private final ConcurrentHashMap<Uri, Long> lastProcessed;
 
     /** Thread pool that runs download-analyse-submit tasks. */
-    private final ExecutorService workerPool;
+    private final ThreadPoolExecutor workerPool;
 
     /** Upper bound on downloaded JAR size. */
     private final int maxJarSizeBytes;
@@ -249,12 +265,15 @@ public class CodebaseDownloaderImpl {
         this.maxJarSizeBytes  = maxJarSizeBytes;
         this.connectTimeoutMs = connectTimeoutMs;
         this.readTimeoutMs    = readTimeoutMs;
-        this.workerPool       = Executors.newFixedThreadPool(workerThreads,
+        this.workerPool       = new ThreadPoolExecutor(
+                workerThreads, workerThreads, 0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(MAX_PENDING_DOWNLOADS),
                 r -> {
                     Thread t = new Thread(r, "codebase-downloader-worker");
                     t.setDaemon(true);
                     return t;
                 });
+        // AbortPolicy is the default; we catch RejectedExecutionException in enqueue().
     }
 
     /**
@@ -360,6 +379,16 @@ public class CodebaseDownloaderImpl {
         return Collections.unmodifiableSet(submittedHashes);
     }
 
+    /**
+     * Returns the current number of URIs being tracked in the
+     * last-processed map.
+     *
+     * <p>Exposed for unit testing.
+     */
+    int getTrackedUriCount() {
+        return lastProcessed.size();
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -379,6 +408,15 @@ public class CodebaseDownloaderImpl {
      * does not apply to them.
      */
     private void enqueue(Uri uri) {
+        // Safety valve: prevent unbounded map growth caused by a flood of
+        // unique URIs.  URIs that are already tracked are always let through
+        // (they would simply be skipped or updated below).
+        if (!lastProcessed.containsKey(uri) && lastProcessed.size() >= MAX_TRACKED_URIS) {
+            logger.warning("URI tracking map at capacity (" + MAX_TRACKED_URIS
+                    + "); discarding URI: " + uri);
+            return;
+        }
+
         final long now = System.currentTimeMillis();
         final boolean[] shouldSubmit = {false};
         lastProcessed.compute(uri, (k, prev) -> {
@@ -394,7 +432,16 @@ public class CodebaseDownloaderImpl {
             return now;
         });
         if (shouldSubmit[0]) {
-            workerPool.submit(() -> processUri(uri, now));
+            try {
+                workerPool.execute(() -> processUri(uri, now));
+            } catch (RejectedExecutionException e) {
+                // Bounded queue is full or pool is shut down.  Clear the
+                // timestamp so the URI will be retried on the next discovery
+                // event rather than being silently suppressed for one hour.
+                clearLastProcessed(uri, now);
+                logger.warning("Worker queue is full; will retry URI on next "
+                        + "discovery event: " + uri);
+            }
         }
     }
 
@@ -512,7 +559,11 @@ public class CodebaseDownloaderImpl {
      * {@link #connectTimeoutMs} and {@link #readTimeoutMs} guard against
      * slow or hanging servers.
      *
-     * @param uri the URI to fetch; must use HTTP or HTTPS
+     * <p>HTTP redirects are <strong>not</strong> followed automatically to
+     * prevent Server-Side Request Forgery (SSRF): a malicious server could
+     * redirect the downloader to an internal network address.
+     *
+     * @param uri the URI to fetch; must use HTTP, HTTPS, or HTTPMD
      * @return the raw content bytes; never null, never empty
      * @throws IOException if the download fails, the content is empty, or
      *                     the size limit is exceeded
@@ -531,7 +582,10 @@ public class CodebaseDownloaderImpl {
         conn.setRequestProperty("Accept",
                 "application/java-archive, application/octet-stream, */*");
         conn.setRequestProperty("User-Agent", "JGDMS-CodebaseDownloader/3.1.1");
-        conn.setInstanceFollowRedirects(true);
+        // Do NOT follow redirects automatically: an attacker-controlled server
+        // could redirect to an internal address (SSRF).  If a redirect is
+        // needed the caller must supply the final URL directly.
+        conn.setInstanceFollowRedirects(false);
 
         int responseCode;
         try {
@@ -545,7 +599,6 @@ public class CodebaseDownloaderImpl {
             conn.disconnect();
             throw new IOException("HTTP " + responseCode + " for " + uri);
         }
-
         // Reject oversized content before reading if Content-Length is present.
         int contentLength = conn.getContentLength();
         if (contentLength > maxJarSizeBytes) {
@@ -557,7 +610,8 @@ public class CodebaseDownloaderImpl {
         int initCapacity = (contentLength > 0) ? contentLength : 65_536;
         ByteArrayOutputStream baos = new ByteArrayOutputStream(initCapacity);
         byte[] buf = new byte[65_536];
-        int totalRead = 0;
+        // Use long to prevent integer overflow when maxJarSizeBytes is large.
+        long totalRead = 0;
 
         try (InputStream in = conn.getInputStream()) {
             int n;
