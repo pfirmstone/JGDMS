@@ -637,21 +637,28 @@ public final class KerberosEndpoint
 
 	// Prefer the user Subject from Subject.callAs() (ScopedValue),
 	// which carries the human/Kerberos user identity per request.
-	// Fall back to the Subject on the AccessControlContext (workload
-	// identity) when no user Subject with a KerberosPrincipal is bound.
+	// Fall back to Subject.getSubject(AccessController.getContext()),
+	// but only if that Subject has a KerberosPrincipal.
 	Subject userSubject = Subject.current();
 	Subject clientSubject;
 	if (userSubject != null &&
 	    !userSubject.getPrincipals(KerberosPrincipal.class).isEmpty()) {
 	    clientSubject = userSubject;
 	} else {
-	    clientSubject = (Subject) Security.doPrivileged(
+	    Subject accSubject = (Subject) Security.doPrivileged(
 		new PrivilegedAction() {
 			public Object run() {
 			    return Subject.getSubject(
 				AccessController.getContext());
 			}
 		    });
+	    if (accSubject != null &&
+		!accSubject.getPrincipals(KerberosPrincipal.class).isEmpty())
+	    {
+		clientSubject = accSubject;
+	    } else {
+		clientSubject = null;
+	    }
 	}
 
 	CacheKey key = new CacheKey(clientSubject, constraints);
