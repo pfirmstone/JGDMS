@@ -49,4 +49,34 @@ public interface GroupOutputHandler {
 		      String name,
 		      InputStream out,
 		      InputStream err);
+
+    /**
+     * Notifies the handler that an activation group process has exited.
+     * The default implementation is a no-op; Phoenix's Watchdog thread already
+     * logs abnormal exits at {@code SEVERE} level before invoking this callback.
+     *
+     * <p>Implementations may use this callback to send monitoring alerts,
+     * update metrics, or initiate a post-mortem analysis.  The method is
+     * called once per process exit, outside of any Phoenix internal lock,
+     * after {@link #handleOutput} streams have been closed by EOF.
+     *
+     * @param id the activation group identifier of the group
+     * @param desc the activation group descriptor of the group
+     * @param incarnation the incarnation number of the group that exited
+     * @param name the name of the group, in the form "Group-<i>n</i>"
+     * @param exitCode the OS exit code returned by the group JVM process;
+     *        zero indicates a normal exit, non-zero indicates an abnormal exit
+     */
+    default void handleExit(ActivationGroupID id,
+                            ActivationGroupDesc desc,
+                            long incarnation,
+                            String name,
+                            int exitCode)
+    {
+        // Default implementation is a no-op.
+        // Phoenix's Watchdog thread already logs abnormal exits at SEVERE level
+        // before invoking this callback.  Implementations may override this
+        // method to send monitoring alerts, update metrics, or trigger
+        // post-mortem analysis.
+    }
 }

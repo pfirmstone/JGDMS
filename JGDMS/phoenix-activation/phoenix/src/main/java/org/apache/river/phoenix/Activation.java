@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.rmi.ConnectException;
 import java.rmi.ConnectIOException;
@@ -147,6 +148,32 @@ class Activation implements Serializable {
         resources = res;
     }
 
+    /**
+     * JDK 9+ {@code Process.pid()} method, or {@code null} when running
+     * on JDK 8.  Used to obtain the OS process ID for crash-log correlation.
+     */
+    private static final Method PROCESS_PID;
+    static {
+        Method m = null;
+        try {
+            m = Process.class.getMethod("pid");
+        } catch (NoSuchMethodException ignored) { }
+        PROCESS_PID = m;
+    }
+
+    /**
+     * Returns the OS process ID of the given {@link Process}, or {@code -1}
+     * if the runtime does not support {@code Process.pid()} (JDK &lt; 9).
+     */
+    private static long processPid(Process p) {
+        if (PROCESS_PID != null) {
+            try {
+                return (Long) PROCESS_PID.invoke(p);
+            } catch (ReflectiveOperationException ignored) { }
+        }
+        return -1L;
+    }
+
     /** maps activation id uid to its respective group id */
     private final Map<UID,ActivationGroupID> idTable;
     /** maps group id to its GroupEntry groups */
@@ -209,6 +236,19 @@ class Activation implements Serializable {
     private transient String certFactoryType;
     private transient String certPathEncoding;
     private transient byte[] encodedCerts;
+    /** Working directory for spawned group processes, or null to inherit. */
+    private transient File groupWorkingDirectory;
+    /**
+     * When {@code true} (default) the group process inherits Phoenix's
+     * environment variables; when {@code false} only entries in
+     * {@code groupEnvironment} are placed in the subprocess environment.
+     */
+    private transient boolean groupInheritEnvironment;
+    /**
+     * Explicit environment map used when {@code groupInheritEnvironment}
+     * is {@code false}.
+     */
+    private transient Map<String,String> groupEnvironment;
     
     
 
@@ -282,6 +322,24 @@ class Activation implements Serializable {
             groupTimeout = getInt(config, "groupTimeout", 60000);
             unexportTimeout = getInt(config, "unexportTimeout", 60000);
             unexportWait = getInt(config, "unexportWait", 10);
+            String groupWorkDir = (String) config.getEntry(
+                    PHOENIX, "groupWorkingDirectory", String.class, null);
+            if (groupWorkDir != null) {
+                File dir = new File(groupWorkDir);
+                if (!dir.isDirectory()) {
+                    throw new ConfigurationException(
+                        "groupWorkingDirectory is not an existing directory: " + groupWorkDir);
+                }
+                groupWorkingDirectory = dir;
+            } else {
+                groupWorkingDirectory = null;
+            }
+            groupInheritEnvironment = (Boolean) config.getEntry(
+                    PHOENIX, "groupInheritEnvironment", Boolean.class, Boolean.TRUE);
+            @SuppressWarnings("unchecked")
+            Map<String,String> groupEnv = (Map<String,String>) config.getEntry(
+                    PHOENIX, "groupEnvironment", Map.class, Collections.<String,String>emptyMap());
+            groupEnvironment = groupEnv;
 	    	    /* CodebaseAccessor configuration */
 	    
 	    codebase = Config.getNonNullEntry(config, PHOENIX,
@@ -1028,6 +1086,8 @@ class Activation implements Serializable {
 	transient long waitTime;
 	transient String groupName;
 	transient volatile Process child;
+	/** OS process ID of the current child, or -1 if unavailable (JDK < 9). */
+	transient volatile long groupPid = -1L;
 	transient volatile boolean removed;
 	transient Watchdog watchdog;
 	
@@ -1316,6 +1376,7 @@ class Activation implements Serializable {
 			}
 			logger.log(Level.WARNING,
 				   "group did not terminate: {0}", groupName);
+		    child.destroyForcibly();
 		    }
 		    childGone();
 		    return;
@@ -1333,7 +1394,7 @@ class Activation implements Serializable {
 	void shutdownFast() {
 	    Process p = child;
 	    if (p != null) {
-		p.destroy();
+		p.destroyForcibly();
 	    }
 	}
 
@@ -1438,13 +1499,14 @@ class Activation implements Serializable {
 	    try {
 		groupName = activation.Pstartgroup();
 		acquired = true;
-		String[] argv = activation.activationArgs(desc);
+		ProcessBuilder pb = activation.buildGroupProcess(desc);
 		if (logger.isLoggable(Level.FINE)) {
 		    logger.log(Level.FINE, "{0} exec {1}",
-			       new Object[]{groupName, Arrays.asList(argv)});
+			       new Object[]{groupName, pb.command()});
 		}
 		try {
-		    child = Runtime.getRuntime().exec(argv);
+		    child = pb.start();
+		    groupPid = processPid(child);
 		    status = CREATING;
 		    ++incarnation;
 		    watchdog = new Watchdog();
@@ -1519,6 +1581,8 @@ class Activation implements Serializable {
 	private class Watchdog extends Thread {
 	    private final Process groupProcess = child;
 	    private final long groupIncarnation = incarnation;
+	    /** Snapshot of the OS PID for this specific child process. */
+	    private final long snapshotPid = groupPid;
 	    private volatile boolean canInterrupt = true;
 	    private volatile boolean shouldQuit = false;
 	    private volatile boolean shouldRestart = true;
@@ -1541,12 +1605,35 @@ class Activation implements Serializable {
 		/*
 		 * Wait for the group to crash or exit.
 		 */
+		int exitCode = 0;
 		try {
-		    groupProcess.waitFor();
+		    exitCode = groupProcess.waitFor();
 		} catch (InterruptedException exit) {
                     Thread.currentThread().interrupt();
 		    return;
 		}
+                /*
+                 * Log the process exit.  Non-zero exit codes indicate an
+                 * abnormal termination (crash, OOM, uncaught exception, etc.).
+                 * Include the OS PID when available so operators can correlate
+                 * with hs_err_pid<N>.log crash-dump files.
+                 */
+                if (exitCode != 0) {
+                    long pid = snapshotPid;
+                    if (pid >= 0L) {
+                        logger.log(Level.SEVERE,
+                            "Group {0} (pid {1}) incarnation {2} exited abnormally with code {3}",
+                            new Object[]{groupName, pid, groupIncarnation, exitCode});
+                    } else {
+                        logger.log(Level.SEVERE,
+                            "Group {0} incarnation {1} exited abnormally with code {2}",
+                            new Object[]{groupName, groupIncarnation, exitCode});
+                    }
+                } else {
+                    logger.log(Level.FINE,
+                        "Group {0} incarnation {1} exited normally",
+                        new Object[]{groupName, groupIncarnation});
+                }
                 boolean interrupted;
 		boolean restart = false;
                 activation.writeLock.lock();
@@ -1559,6 +1646,16 @@ class Activation implements Serializable {
 		     * reset the entry before activating objects
 		     */
 		    if (groupIncarnation == incarnation) {
+                        if (exitCode != 0) {
+                            try {
+                                activation.addLogRecord(
+                                    new LogGroupCrash(groupID, groupIncarnation, exitCode));
+                            } catch (ActivationException e) {
+                                logger.log(Level.WARNING,
+                                    "could not persist crash record for group {0}: {1}",
+                                    new Object[]{groupName, e.getMessage()});
+                            }
+                        }
 			restart = shouldRestart && !activation.shuttingDown;
 			reset();
 			childGone();
@@ -1566,6 +1663,12 @@ class Activation implements Serializable {
                 } finally {
                     activation.writeLock.unlock();
                 }
+                /*
+                 * Notify the output handler about the process exit.
+                 * Called outside the lock because it may do arbitrary work.
+                 */
+                activation.outputHandler.handleExit(
+                    groupID, desc, groupIncarnation, groupName, exitCode);
                 /*
                  * Activate those objects that require restarting
                  * after a crash.
@@ -1594,7 +1697,23 @@ class Activation implements Serializable {
 	}
     }
 	
-    private String[] activationArgs(ActivationGroupDesc desc) {
+    /**
+     * Builds a configured {@link ProcessBuilder} for spawning a new
+     * activation group JVM.  The command-line arguments are assembled using
+     * the same logic as the former {@code activationArgs()} method; the
+     * additional {@link ProcessBuilder} configuration provides:
+     * <ul>
+     *   <li>An optional working directory ({@code groupWorkingDirectory}
+     *       config entry, defaults to inheriting Phoenix's CWD).</li>
+     *   <li>Optional environment isolation: when {@code groupInheritEnvironment}
+     *       is {@code false} the subprocess starts with only the entries
+     *       supplied in {@code groupEnvironment}.</li>
+     *   <li>stdout and stderr remain as {@link ProcessBuilder.Redirect#PIPE}
+     *       (the default) so {@link PipeWriter} continues to work
+     *       without change.</li>
+     * </ul>
+     */
+    private ProcessBuilder buildGroupProcess(ActivationGroupDesc desc) {
 	ActivationGroupDesc.CommandEnvironment cmdenv;
 	cmdenv = desc.getCommandEnvironment();
 
@@ -1606,7 +1725,7 @@ class Activation implements Serializable {
 		    ? cmdenv.getCommandPath()
 		    : command[0]);
 	
-	// Group-specific command options
+	// Group-specific command options (flags only, not -cp entries)
 	if (cmdenv != null && cmdenv.getCommandOptions() != null) {
 	    String [] options = cmdenv.getCommandOptions();
 	    for (int i=0,l=options.length; i<l; i++){
@@ -1622,11 +1741,6 @@ class Activation implements Serializable {
 	    for (Enumeration p = props.propertyNames(); p.hasMoreElements(); )
 	    {
 		String name = (String) p.nextElement();
-		/* Note on quoting: it would be wrong
-		 * here, since argv will be passed to
-		 * Runtime.exec, which should not parse
-		 * arguments or split on whitespace.
-		 */
 		argv.add("-D" + name + "=" + props.getProperty(name));
 	    }
 	}
@@ -1652,11 +1766,24 @@ class Activation implements Serializable {
 	    argv.add(command[i]);
 	}
 
-	String[] realArgv = new String[argv.size()];
-	System.arraycopy(argv.toArray(), 0, realArgv, 0,
-			 realArgv.length);
+	ProcessBuilder pb = new ProcessBuilder(argv);
 
-	return (realArgv);
+	// Optional working directory override
+	if (groupWorkingDirectory != null) {
+	    pb.directory(groupWorkingDirectory);
+	}
+
+	// Optional environment isolation
+	if (!groupInheritEnvironment) {
+	    pb.environment().clear();
+	    if (groupEnvironment != null) {
+	        pb.environment().putAll(groupEnvironment);
+	    }
+	}
+
+	// stdout and stderr remain as PIPE (ProcessBuilder default),
+	// so PipeWriter.plugTogetherPair() continues to work unchanged.
+	return pb;
     }
 
     @AtomicSerial
@@ -2031,6 +2158,37 @@ class Activation implements Serializable {
 	    } finally {
                 act.writeLock.unlock();
             }
+	    return state;
+	}
+    }
+
+    /**
+     * Log record written when a group JVM exits with a non-zero exit code
+     * (crash, OOM, uncaught exception, etc.).  Applied as a no-op during
+     * log recovery — the record exists purely for audit / post-mortem
+     * purposes and does not mutate activation state.
+     */
+    private static class LogGroupCrash extends LogRecord {
+
+	private static final long serialVersionUID = -2476558804839252327L;
+	private final ActivationGroupID id;
+	private final long inc;
+	private final int exitCode;
+	private final long timestamp;
+
+	LogGroupCrash(ActivationGroupID id, long inc, int exitCode) {
+	    this.id = id;
+	    this.inc = inc;
+	    this.exitCode = exitCode;
+	    this.timestamp = System.currentTimeMillis();
+	}
+
+        @Override
+	Object apply(Object state) {
+	    // Informational only — log during recovery but do not mutate state.
+	    logger.log(Level.INFO,
+		"Recovered crash record: group {0} incarnation {1} exited with code {2} at {3}",
+		new Object[]{id, inc, exitCode, new java.util.Date(timestamp)});
 	    return state;
 	}
     }
