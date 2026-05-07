@@ -22,6 +22,7 @@ import java.io.StringReader;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.event.EventRegistration;
@@ -118,7 +119,7 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
     private final long leaseDuration;
 
     /** Last received sequence number per registration; -1 means none received. */
-    private volatile long lastSeqNum = -1L;
+    private final AtomicLong lastSeqNum = new AtomicLong(-1L);
 
     private volatile EventRegistration registration;
     private volatile Remote stub;
@@ -222,7 +223,7 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
         registration = service.registerForPolicyUpdates(
                 (RemoteEventListener) stub, null, leaseDuration);
 
-        leaseManager.renewUntil(registration.getLease(), leaseDuration, this);
+        leaseManager.renewFor(registration.getLease(), leaseDuration, this);
 
         logger.fine("PolicyUpdateListener registered; performing initial grant pull.");
         syncGrants();
@@ -285,7 +286,7 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
         }
 
         long seqNum = event.getSequenceNumber();
-        long prev = lastSeqNum;
+        long prev = lastSeqNum.getAndSet(seqNum);
 
         if (prev >= 0 && seqNum > prev + 1) {
             logger.warning("PolicyUpdateListener: sequence gap detected — expected "
@@ -295,7 +296,6 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
             logger.fine("PolicyUpdateListener: received PolicyUpdateEvent seqNum=" + seqNum);
         }
 
-        lastSeqNum = seqNum;
         syncGrants();
     }
 
@@ -318,7 +318,12 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
         Throwable cause = e.getException();
         if (cause instanceof UnknownLeaseException) {
             logger.warning("Policy event lease lost (UnknownLeaseException); attempting re-subscribe.");
-            resubscribe();
+            // IMPORTANT: resubscribe() contains an infinite sleep/retry loop.
+            // It must NOT run on the LeaseRenewalManager's internal thread,
+            // or it will block all other lease renewals managed by that LRM.
+            Thread t = new Thread(this::resubscribe, "policy-resubscribe");
+            t.setDaemon(true);
+            t.start();
         } else {
             logger.log(Level.SEVERE,
                     "PolicyUpdateListener: lease renewal failed with non-recoverable exception; "
@@ -341,6 +346,10 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
     void syncGrants() {
         try {
             String[] grants = service.getCurrentGrants();
+            if (grants == null) {
+                logger.warning("PolicyUpdateListener: getCurrentGrants() returned null; skipping sync.");
+                return;
+            }
             String policyText = String.join("\n", grants);
             DefaultPolicyParser parser = new DefaultPolicyParser();
             Collection<PermissionGrant> parsed =
@@ -371,6 +380,7 @@ public class PolicyUpdateListener implements RemoteEventListener, LeaseListener 
         // Clear old state under lock.
         synchronized (this) {
             registration = null;
+            lastSeqNum.set(-1L); // reset so gap detection is fresh after re-registration
             // Unexport and clear stub so start() can re-export.
             if (stub != null) {
                 try {

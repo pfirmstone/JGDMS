@@ -382,7 +382,7 @@ public class PolicyUpdateListenerTest {
      * {@link UnknownLeaseException} should trigger a re-subscribe attempt.
      */
     @Test
-    public void testUnknownLeaseExceptionTriggersResubscribe() throws IOException {
+    public void testUnknownLeaseExceptionTriggersResubscribe() throws IOException, InterruptedException {
         service.grantsToReturn = new String[0];
         PolicyUpdateListener listener = createListener();
         listener.start();
@@ -395,9 +395,31 @@ public class PolicyUpdateListenerTest {
                 new UnknownLeaseException("simulated"));
         listener.notify(event);
 
+        // resubscribe() now runs on a daemon thread; wait up to 2 s for it.
+        long deadline = System.currentTimeMillis() + 2_000L;
+        while (service.registered.size() <= registeredBeforeResubscribe
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20);
+        }
+
         // After re-subscribe, there should be one more registration.
         assertTrue("Service should have been re-registered after UnknownLeaseException",
                 service.registered.size() > registeredBeforeResubscribe);
+        listener.stop();
+    }
+
+    /**
+     * {@link PolicyUpdateListener#syncGrants()} should not throw when the
+     * remote service returns {@code null} for {@code getCurrentGrants()}.
+     */
+    @Test
+    public void testNullCurrentGrantsDoesNotThrow() throws IOException {
+        service.grantsToReturn = null; // simulate null return
+        PolicyUpdateListener listener = createListener();
+        // start() calls syncGrants() internally; should not throw
+        listener.start();
+        // notify() also calls syncGrants(); should not throw
+        listener.notify(makeEvent(0L));
         listener.stop();
     }
 
