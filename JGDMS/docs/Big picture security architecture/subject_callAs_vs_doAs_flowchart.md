@@ -9,19 +9,20 @@ how they are consumed together by the security infrastructure.
 
 ```mermaid
 flowchart TB
-    subgraph USER["👤 User Subject  —  Subject.callAs()  (JDK 21 ScopedValue)"]
+    subgraph USER["👤 User Subject  —  LoginContext → Subject.callAs()  (JDK 21 ScopedValue)"]
         direction TB
-        U1["Client / dispatcher calls\nSubject.callAs(userSubject, action)"]
-        U2["JDK 21 ScopedValue bound to\ncalling thread's scope\n(Subject.CURRENT scoped var)"]
-        U3["Action and any nested calls see\nSubject.current() → userSubject"]
-        U4["Scope exits (return / exception)\n→ ScopedValue automatically cleared\n(no manual cleanup needed)"]
-        U1 --> U2 --> U3 --> U4
+        U1["User authenticates via LoginContext\n→ userSubject obtained\n(KerberosPrincipal / X500Principal)"]
+        U2["Client / dispatcher calls\nSubject.callAs(userSubject, action)"]
+        U3["JDK 21 ScopedValue bound to\ncalling thread's scope\n(Subject.CURRENT scoped var)"]
+        U4["Action and any nested calls see\nSubject.current() → userSubject"]
+        U5["Scope exits (return / exception)\n→ ScopedValue automatically cleared\n(no manual cleanup needed)"]
+        U1 --> U2 --> U3 --> U4 --> U5
     end
 
-    subgraph WORKER["⚙️ Worker Process Subject  —  Subject.doAs() / getSubject(acc)\n(AccessControlContext)"]
+    subgraph WORKER["⚙️ Worker Process Subject  —  Global SPIFFE Subject / Subject.getSubject(acc)\n(AccessControlContext)"]
         direction TB
-        W1["Service starts with LoginContext\n(AbstractJiniService / RegistrarImpl init)"]
-        W2["Subject.callAs / doAsPrivileged wraps\nservice bootstrap — embeds Subject\ninto the AccessControlContext (ACC)"]
+        W1["SPIFFE infrastructure provisions\nglobal process worker Subject\n(SpiffePrincipal / X.509 SVID)\nat process start — not LoginContext"]
+        W2["Subject.doAsPrivileged / callAs wraps\nservice bootstrap — embeds SPIFFE Subject\ninto the AccessControlContext (ACC)"]
         W3["Worker / executor threads inherit\nthe ACC from their parent context"]
         W4["Subject.getSubject(\n  AccessController.getContext()\n) → workerSubject"]
         W1 --> W2 --> W3 --> W4
@@ -48,7 +49,7 @@ flowchart TB
     subgraph SSL["🔒 SslEndpointImpl.getCallContext()\n(outbound TLS — X.509 / SPIFFE)"]
         direction TB
         S1{{"Subject.getSubject(acc)\nhas X500Principal\nor SpiffePrincipal?"}}
-        S2["Use ACC Subject\n(workload / service identity)"]
+        S2["Use ACC Subject\n(SPIFFE workload / service identity)"]
         S3{{"SpiffeSubjectHolder.get()\nnon-null?"}}
         S4["Use SPIFFE holder Subject"]
         S5{{"Subject.current()\nhas X500Principal\nor SpiffePrincipal?"}}
@@ -91,14 +92,14 @@ flowchart TB
 | **Storage mechanism** | JDK 21 `ScopedValue` (thread-local, lexically scoped) | `AccessControlContext` (inherited by child threads) |
 | **Propagates to child threads?** | No — scope is strictly per-calling-thread | Yes — child threads inherit the parent ACC |
 | **Lifetime** | Lexical scope of the `callAs` lambda | Lifetime of any thread that holds the parent ACC |
-| **Who sets it** | Per-request (e.g. `BasicInvocationDispatcher` on dispatch; event tasks in `RegistrarImpl.pendingEvent`) | Service start-up (`LoginContext` + `Subject.callAs` / `doAsPrivileged` in `AbstractJiniService`) |
+| **Who sets it** | `LoginContext` authenticates the user; `Subject.callAs` binds per-request (e.g. `BasicInvocationDispatcher` on dispatch; event tasks in `RegistrarImpl.pendingEvent`) | **SPIFFE infrastructure** provisions a global process SVID (`SpiffePrincipal` / X.509) at process start — `Subject.doAsPrivileged` embeds it into the ACC |
 | **Read API** | `Subject.current()` | `Subject.getSubject(AccessController.getContext())` |
 | **Must be inside `doPrivileged`?** | Yes — triggers a permission check | Yes — triggers a permission check |
-| **Typical principal types** | `KerberosPrincipal`, `X500Principal` (human user) | `X500Principal`, `SpiffePrincipal`, `KerberosPrincipal` (service / workload) |
+| **Typical principal types** | `KerberosPrincipal`, `X500Principal` (human user) | `SpiffePrincipal`, `X500Principal` (SPIFFE workload SVID) |
 | **TLS credential priority (SSL)** | Checked last (legacy fallback only if has X500/SPIFFE) | Checked first |
 | **Kerberos credential priority** | Checked first (user wins) | Checked second |
 | **`Security.grant` behaviour** | Principals consulted by `Security.getCurrentPrincipals()` | Principals consulted by `Security.getCurrentPrincipals()` |
-| **When both present** | Principal sets are **unioned** — grant fires only when the caller simultaneously holds *both* the user identity and the workload identity, enforcing Principle of Least Privilege |
+| **When both present** | Principal sets are **unioned** — grant fires only when the caller simultaneously holds *both* the user identity and the workload identity, enforcing Principle of Least Privilege (POLP) |
 
 ---
 
@@ -108,8 +109,8 @@ flowchart TB
 |---|---|
 | `jgdms-jeri/.../BasicInvocationDispatcher.java` | Calls `Subject.callAs(clientSubject, action)` on every inbound RPC dispatch (`invokeWithClientSubject`) |
 | `jgdms-jeri/.../BasicInvocationHandler.java` | Reads `Subject.current()` (`getUserPrincipals`) for outbound calls |
-| `jgdms-service-support/.../AbstractJiniService.java` | Calls `Subject.callAs(serviceSubject, ...)` at service start to embed the worker Subject into the ACC |
+| `jgdms-service-support/.../AbstractJiniService.java` | Wraps service bootstrap with `Subject.doAsPrivileged` to embed the SPIFFE worker Subject into the ACC |
 | `jgdms-platform/.../Security.java:1233–1277` | `getCurrentPrincipals()` — unions user + worker principals inside a single `doPrivileged` |
-| `jgdms-jeri/.../SslEndpointImpl.java:278–325` | ACC Subject → SPIFFE holder → `Subject.current()` priority chain for TLS |
+| `jgdms-jeri/.../SslEndpointImpl.java:278–325` | ACC Subject (SPIFFE) → SPIFFE holder → `Subject.current()` priority chain for TLS |
 | `jgdms-jeri/.../KerberosEndpoint.java:638–655` | `Subject.current()` → ACC Subject priority chain for Kerberos GSS |
 | `services/reggie/.../RegistrarImpl.java` | `EventReg` captures `Subject.current()` in constructor; `pendingEvent()` re-applies it via `Subject.callAs` |
