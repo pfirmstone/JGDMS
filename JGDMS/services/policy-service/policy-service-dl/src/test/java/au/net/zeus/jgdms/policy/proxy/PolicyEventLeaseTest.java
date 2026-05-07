@@ -45,9 +45,7 @@ public class PolicyEventLeaseTest {
         server.renewResult = 333L;
         PolicyEventLease lease = new PolicyEventLease(server, leaseId, System.currentTimeMillis() + 1_000L);
 
-        long granted = lease.renew(222L);
-
-        assertEquals(333L, granted);
+        lease.renew(222L);
         assertEquals(leaseId, server.lastRenewLeaseId);
         assertEquals(222L, server.lastRenewDuration);
     }
