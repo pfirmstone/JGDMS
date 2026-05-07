@@ -1,7 +1,7 @@
 # JGDMS Security Architecture — Feature Reference Table
 
-**Last updated:** 2026-05-05  
-**Sources:** `AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md` (v8) and
+**Last updated:** 2026-05-07  
+**Sources:** `AI_Agent_JGDMS-GrantPermission-RoleManagement-context_8.md` (v10) and
 `AI_Agent_JGDMS-SpiffePolicyFile-context_6.md` (v6)  
 **Diagram:** `diagram5_full_security_architecture.svg`
 
@@ -83,6 +83,8 @@
 | `AdvisoryDynamicPermissions` interface | `DynamicPolicyProvider`, `PreferredClassLoader` | Implemented by the `ClassLoader` (not the proxy class). Declares the permissions a codebase intends to use at runtime via `META-INF/PERMISSIONS.LIST`. Advisory path uses these in `VerifyingProxyPreparer`. | ✅ Complete |
 | `VerifyingProxyPreparer` | JGDMS | The primary grant site. Explicit path: hard `SecurityException` on failure. Advisory path: `getPermissions()` + `Security.grant()` with logged-only failure. Multiple constructors cover explicit ClassLoader, fixed principals, and constraint modes. | ✅ Complete |
 | Three-way intersection enforcement | `DynamicPolicyProvider.grant()` | Effective grant = `AdvisoryDynamicPermissions` ∩ `GrantPermission` ceiling ∩ SPIFFE principal scope. No single party controls the outcome unilaterally. | ✅ Complete |
+| `Security.getCurrentPrincipals()` — user-Subject-first | `Security.grant(Class, Permission[])` | Checks `Subject.current()` (ScopedValue) first; falls back to ACC Subject. Grants from JERI dispatch threads are automatically scoped to the remote user's principals with no call-site changes. | ✅ Complete |
+| `GrantPermission.checkGuard(Object)` — user-Subject-aware | `GrantPermission` | Final override. When `Subject.current()` is non-null, wraps `checkPermission` in `Subject.doAs(user)` to inject user principals into the ACC for the check. Falls back to direct `checkPermission` on daemon threads. | ✅ Complete |
 | `RemotePolicyService` wire interface | JGDMS (interface defined) | `replace(String[] grants)`, `getCurrentGrants()`, `registerForPolicyUpdates()`. `String[]` wire format avoids `@AtomicSerial` on DirtyChai side. Validation is always server-side. | ⚠️ Pending (interface defined; service not yet implemented) |
 | `InMemoryPolicyService` | JGDMS service | JERI service extending `AbstractJiniService`. Implements `RemotePolicyService`. Parses `String[]` via `DefaultPolicyScanner.scanStream()`. Manages leases (`LandlordLease`), dispatches `PolicyUpdateEvent`, gates `replace()` on admin SPIFFE SVID. | 🔲 Not started |
 | DirtyChai smart proxy client for `RemotePolicyService` | `DirtyChai` | Client smart proxy that `RemotePolicyProvider` uses to call `InMemoryPolicyService`. Subscribes to `PolicyUpdateEvent` and calls `getCurrentGrants()` on notification (pull-on-notify). | 🔲 Not started |
@@ -165,12 +167,12 @@
 
 | Status | Count |
 |--------|-------|
-| ✅ Complete | 46 |
+| ✅ Complete | 48 |
 | ⚠️ Pending / In-progress | 8 |
 | 🔲 Not started | 4 |
-| **Total features** | **58** |
+| **Total features** | **60** |
 
-**Overall completion: ~79% (46 / 58 features fully implemented)**
+**Overall completion: ~80% (48 / 60 features fully implemented)**
 
 The major incomplete areas are:
 1. **`InMemoryPolicyService` and its DirtyChai smart proxy client** (the remote policy administration service) — the most significant remaining implementation work.

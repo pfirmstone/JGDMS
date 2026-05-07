@@ -99,8 +99,12 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * <code>null</code> to use the context class loader
      * @param contextElements the trust verifier context elements
      * @param principals minimum set of principals to which grants apply, or
-     * <code>null</code> to use the principals of the preparing thread's
-     * subject
+     * <code>null</code> to delegate principal resolution to
+     * {@link Security#grant(Class,Permission[]) Security.grant(Class,Permission[])},
+     * which resolves the current subject via
+     * {@link Subject#current Subject.current()} first (user Subject bound via
+     * {@link Subject#callAs Subject.callAs()}), falling back to the Subject on
+     * the {@link java.security.AccessControlContext}.
      * @param permissions the permissions to dynamically grant, or
      * <code>null</code> if no permissions should be granted
      * @throws NullPointerException if <code>contextElements</code> is
@@ -145,8 +149,12 @@ public final class VerifyingProxyPreparer implements ProxyPreparer {
      * @param contextElements the trust verifier context elements, or
      * <code>null</code> if no elements need to be supplied
      * @param principals minimum set of principals to which grants apply, or
-     * <code>null</code> to use the principals of the preparing thread's
-     * subject
+     * <code>null</code> to delegate principal resolution to
+     * {@link Security#grant(Class,Permission[]) Security.grant(Class,Permission[])},
+     * which resolves the current subject via
+     * {@link Subject#current Subject.current()} first (user Subject bound via
+     * {@link Subject#callAs Subject.callAs()}), falling back to the Subject on
+     * the {@link java.security.AccessControlContext}.
      * @param permissions the permissions to dynamically grant, or
      * <code>null</code> if no permissions should be granted
      * @throws NullPointerException if any element of <code>principals</code>

@@ -389,49 +389,6 @@ Both `getSubject(ACC)` and `current()` are guarded by `AuthPermission("getSubjec
 retrieving either form of identity is a privileged operation. DirtyChai retains
 `getSubject(ACC)` (deprecated in standard OpenJDK) intentionally.
 
-#### SubjectDomainCombiner — combined view on every checkPermission
-
-On every `checkPermission` call the combiner:
-1. Reads the ACC-bound SPIFFE principals (as today)
-2. Reads `SCOPED_SUBJECT` directly from the `ScopedValue` — **no `AuthPermission` check**
-   (combiner is trusted `java.base` infrastructure; the permission guard lives at the
-   public `current()` API boundary, not inside the combiner)
-3. If `SCOPED_SUBJECT` is non-null, **additively injects** the human user's principals
-   into the combined domain set alongside the SPIFFE principals — neither replaces the
-   other; both must be satisfied for a grant conditioned on both
-4. If `SCOPED_SUBJECT` is null (daemon threads, sweeper, SPIRE watcher, etc.) — no
-   change; `ScopedValue.orElse(null)` read is cheap on the hot path and does not
-   trigger recursion
-
-#### What this enables at the policy layer
-
-Principal-scoped grants in `DynamicPolicyProvider` can now condition on both identities
-simultaneously:
-
-```
-grant principal SpiffePrincipal "spiffe://.../svc/order-processor"
-      principal KerberosPrincipal "alice@EXAMPLE.ORG" {
-    permission ...;
-};
-```
-
-Both must be present. A grant requiring only SPIFFE still fires without a user present.
-A grant requiring only Kerberos requires the SPIFFE workload context to also be active
-(since all service code runs inside `doAsPrivileged`).
-
-#### Structural discipline for infrastructure threads
-
-Daemon threads (sweeper, SPIRE watcher, log writer, metric emitter) must **not** be
-spawned from within a `callAs` scope. If they were, human principals would affect their
-security decisions unintentionally. `ScopedValue` structured scoping enforces this
-naturally — the binding closes when the `Callable` returns — as long as no
-`Thread.ofPlatform().start()` or executor submission escapes the `callAs` boundary.
-
-#### Interaction with the recursion guard
-
-The combiner's direct `ScopedValue` field read inside `java.base` does not itself
-trigger `checkPermission` and therefore does not consume the recursion budget (§6.3).
-
 ---
 
 ## 7. VerifyingProxyPreparer — Constructor Detail

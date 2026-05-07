@@ -53,6 +53,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
@@ -280,32 +281,28 @@ class TxnManagerImpl /*extends RemoteServer*/
                 loginContext.login();
 
                 try {
-                    init = Subject.doAsPrivileged(
+                    init = Subject.callAs(
                         loginContext.getSubject(),
-                        new PrivilegedExceptionAction<TxnManagerImplInitializer>() {
-                            public TxnManagerImplInitializer run() throws Exception {
-                                return new TxnManagerImplInitializer(
-                                    config, 
-                                    persistant, 
-                                    activID, 
-                                    new InterruptedStatusThread("settleThread") {
-                                        public void run() {
-                                            try {
-                                                settleTxns();
-                                            } catch (InterruptedException ie) {
-                                                if (transactionsLogger.isLoggable(Level.FINEST)) {
-                                                    transactionsLogger.log(Level.FINEST,
-                                                        "settleThread interrupted -- exiting");
-                                                }
-                                                return;
-                                            }
-                                        };
+                        () -> new TxnManagerImplInitializer(
+                            config, 
+                            persistant, 
+                            activID, 
+                            new InterruptedStatusThread("settleThread") {
+                                public void run() {
+                                    try {
+                                        settleTxns();
+                                    } catch (InterruptedException ie) {
+                                        if (transactionsLogger.isLoggable(Level.FINEST)) {
+                                            transactionsLogger.log(Level.FINEST,
+                                                "settleThread interrupted -- exiting");
+                                        }
+                                        return;
                                     }
-                                );
+                                };
                             }
-                        },
-                        null);
-                } catch (PrivilegedActionException e) {
+                        )
+                    );
+                } catch (CompletionException e) {
                     //TODO - move to end of initFailed() so that shutdown still occurs under login 	
                     try {
                         loginContext.logout();
@@ -314,7 +311,7 @@ class TxnManagerImpl /*extends RemoteServer*/
                             initLogger.log(Levels.HANDLED, "Trouble logging out", le);
                         }
                     }
-                    throw e.getException();
+                    throw e.getCause();
                 }
                 if (operationsLogger.isLoggable(Level.FINER)) {
                     operationsLogger.exiting(TxnManagerImpl.class.getName(), 

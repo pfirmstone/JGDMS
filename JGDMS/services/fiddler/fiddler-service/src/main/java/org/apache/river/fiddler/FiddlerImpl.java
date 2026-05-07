@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -5118,15 +5119,10 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
     {
         loginContext.login();
         try {
-            return Subject.doAsPrivileged( loginContext.getSubject(),
-                                    new PrivilegedExceptionAction<FiddlerInit>() {
-                                        public FiddlerInit run() throws Exception {
-                                            return new FiddlerInit(config, persistent, activeID, loginContext);
-                                        }//end run
-                                    },
-                                    null );//end doAsPrivileged
+            return Subject.callAs(loginContext.getSubject(),
+                () -> new FiddlerInit(config, persistent, activeID, loginContext));
         } catch (Throwable e) {
-            if(e instanceof PrivilegedExceptionAction)  e = e.getCause();
+            if (e instanceof CompletionException) e = e.getCause();
             if(e instanceof IOException)  throw (IOException)e;
             if(e instanceof ConfigurationException) 
                                           throw (ConfigurationException)e;

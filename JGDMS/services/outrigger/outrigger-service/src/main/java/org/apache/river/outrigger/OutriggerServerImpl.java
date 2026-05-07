@@ -94,6 +94,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -575,15 +576,10 @@ public class OutriggerServerImpl
 	    } else {
 		loginContext.login();
 		try {
-		    h = Subject.doAsPrivileged(
+		    h = Subject.callAs(
 			loginContext.getSubject(),
-			new PrivilegedExceptionAction<InitHolder>() {
-			    public InitHolder run() throws Exception {
-				return init(config, persistent, activationID);
-			    }
-			},
-			null);
-		} catch (PrivilegedActionException e) {
+			() -> init(config, persistent, activationID));
+		} catch (CompletionException e) {
 		    throw e.getCause();
 		}
 	    }

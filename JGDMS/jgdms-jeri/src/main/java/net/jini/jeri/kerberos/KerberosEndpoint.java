@@ -635,13 +635,24 @@ public final class KerberosEndpoint
 	logger.log(Level.FINE, "newRequest requested with constraints:\n" +
 		   "{0}", constraints);
 
-	Subject clientSubject = (Subject) Security.doPrivileged(
-	    new PrivilegedAction() {
-		    public Object run() {
-			return Subject.getSubject(
-			    AccessController.getContext());
-		    }
-		});
+	// Prefer the user Subject from Subject.callAs() (ScopedValue),
+	// which carries the human/Kerberos user identity per request.
+	// Fall back to the Subject on the AccessControlContext (workload
+	// identity) when no user Subject with a KerberosPrincipal is bound.
+	Subject userSubject = Subject.current();
+	Subject clientSubject;
+	if (userSubject != null &&
+	    !userSubject.getPrincipals(KerberosPrincipal.class).isEmpty()) {
+	    clientSubject = userSubject;
+	} else {
+	    clientSubject = (Subject) Security.doPrivileged(
+		new PrivilegedAction() {
+			public Object run() {
+			    return Subject.getSubject(
+				AccessController.getContext());
+			}
+		    });
+	}
 
 	CacheKey key = new CacheKey(clientSubject, constraints);
 	RequestHandleImpl handle = (RequestHandleImpl) softCache.get(key);
@@ -1007,8 +1018,9 @@ public final class KerberosEndpoint
 	    if (clientSubject == null) {
 		errorCode = NULL_SUBJECT;
 		detailedExceptionMsg = "JAAS login has not been done " +
-		    "properly, the subject associated with the current " +
-		    "AccessControlContext is null.";
+		    "properly, no Kerberos Subject is available (neither " +
+		    "Subject.current() nor the AccessControlContext subject " +
+		    "is set).";
 		return;
 	    }
 
@@ -1021,8 +1033,9 @@ public final class KerberosEndpoint
 	    if (subjectClientPrincipals.isEmpty()) {
 		errorCode = NO_CLIENT_PRINCIPAL;
 		detailedExceptionMsg = "JAAS login has not been done " +
-		    "properly, the subject associated with the current " +
-		    "AccessControlContext contains no KerberosPrincipal.";
+		    "properly, the Kerberos Subject (from Subject.current() " +
+		    "or the AccessControlContext) contains no " +
+		    "KerberosPrincipal.";
 		return;
 	    }
 
