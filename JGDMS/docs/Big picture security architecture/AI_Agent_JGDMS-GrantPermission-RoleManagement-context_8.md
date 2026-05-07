@@ -343,25 +343,6 @@ Recursion guard limit: 7. Three-layer policy stack uses 3. Headroom of 4.
 | `Subject.callAs(Subject, Callable)` | none | Binds Subject to `SCOPED_SUBJECT` for duration of Callable |
 | `Subject.current()` | `AuthPermission("getSubject")` | Retrieves human Subject from `SCOPED_SUBJECT` |
 
-**SubjectDomainCombiner — combined view on every checkPermission:**
-1. Reads ACC-bound SPIFFE principals
-2. Reads `SCOPED_SUBJECT` directly — no `AuthPermission` check (trusted `java.base`)
-3. Additively injects human user principals alongside SPIFFE principals
-4. If `SCOPED_SUBJECT` unbound — no change; daemon threads are unaffected
-
-**What this enables:**
-
-```
-grant principal SpiffePrincipal "spiffe://.../svc/order-processor"
-      principal KerberosPrincipal "alice@EXAMPLE.ORG" {
-    permission ...;
-};
-```
-
-Both must be present. A grant requiring only SPIFFE still fires without a user present.
-
-**Structural discipline:** Daemon threads (sweeper, SPIRE watcher, log writer) must not be spawned from within a `callAs` scope.
-
 ---
 
 ## 7. VerifyingProxyPreparer — Constructor Detail
