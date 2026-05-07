@@ -299,6 +299,15 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		}
 	    });
 	/*
+	 * DirtyChai now captures Subject.current() into AccessController.getContext()
+	 * (pfirmstone/DirtyChai@2d26e787ccd1868d061bc8ef86ff264ea64f8c8f).
+	 * For TLS, only accept ACC-derived Subjects that actually carry X500/SPIFFE
+	 * identity material.
+	 */
+	if (clientSubject != null && !hasTlsIdentity(clientSubject)) {
+	    clientSubject = null;
+	}
+	/*
 	 * Fail early, not a security risk, as it doesn't provide any information
 	 * about the logged in Subject, as there isn't one.
 	 *
@@ -316,9 +325,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	 */
 	if (clientSubject == null) {
 	    Subject current = Subject.current();
-	    if (current != null
-		    && (!current.getPrincipals(X500Principal.class).isEmpty()
-			|| !current.getPrincipals(SpiffePrincipal.class).isEmpty()))
+	    if (current != null && hasTlsIdentity(current))
 	    {
 		clientSubject = current;
 	    }
@@ -554,7 +561,16 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    clientAuthPermitted ? clientSubject : null,
 	    clientAuthRequired, clientPrincipals, serverPrincipals, suites,
 	    integrityRequired, integrityPreferred, atomicityRequired, 
-		atomicityPreferred, connectionTimeout);
+	    atomicityPreferred, connectionTimeout);
+    }
+
+    /**
+     * Returns true if the Subject has principals that can be used for TLS
+     * client identity selection in this endpoint.
+     */
+    private static boolean hasTlsIdentity(Subject subject) {
+	return !subject.getPrincipals(X500Principal.class).isEmpty()
+	    || !subject.getPrincipals(SpiffePrincipal.class).isEmpty();
     }
 
     /**

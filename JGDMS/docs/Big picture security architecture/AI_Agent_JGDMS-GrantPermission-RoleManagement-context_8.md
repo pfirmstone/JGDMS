@@ -1,4 +1,4 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v11)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v14)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
@@ -27,7 +27,7 @@ context. It supersedes and extends the previous context documents.
 | `JarAnalyzer.java` | JGDMS source | Phase 1 JAR scan now detects `META-INF/PERMISSIONS.LIST`; `parsePermissionsList()` helper strips blank and `#`-comment lines; sorted permissions fed into engine signature |
 | `AbstractJiniService.java` | JGDMS source | Abstract base for all Jini services: export, JoinManager, ServiceID, ReliableLog, LoginContext integration, ReadyState, template methods |
 | `Subject.java` | DirtyChai source | ✅ **Updated:** Class javadoc now documents two-Subject identity model (workload on ACC, user on ScopedValue); additive principal merging by SubjectDomainCombiner; ServiceUI use case example; structural discipline for daemon threads; **ClassSet uses LinkedHashSet for certificate chain ordering** |
-| `SubjectDomainCombiner.java` | DirtyChai source | ✅ **Implemented:** `getMergedPrincipals()` reads SCOPED_SUBJECT on every `combine()` call; additively merges ACC Subject principals + human user principals; no AuthPermission check (trusted java.base); null-safe via `ScopedValue.isBound()` |
+| `SubjectDomainCombiner.java` | DirtyChai source | ✅ **Updated:** `getMergedPrincipals()` now merges ACC Subject principals only; SCOPED_SUBJECT is captured earlier in `AccessController.getContext()` (via `Subject.NoCheck` / `AccessController.SubjectAccess`) and installed as a combiner-bound Subject in the returned ACC |
 | `SpiffeCredentialManager.java` | DirtyChai source | ✅ **Fixed (v7):** backoff race fixed; empty SVID no longer wipes valid Subject; subjectBundle private final |
 | `SpireConnection.java` | DirtyChai source | ✅ **Fixed (v7):** frame size cap; UTF-8 charset; nextStreamId volatile; blocking channel documented |
 | `SpireProtobuf.java` | DirtyChai source | ✅ **Fixed (v7):** varint boundary corrected; StandardCharsets.UTF_8 used |
@@ -234,52 +234,68 @@ A caller can only grant permissions it itself holds a `GrantPermission` for.
 | `VerifyingProxyPreparer` constructor choice | Explicit permissions lock grant; null/empty defers to `PERMISSIONS.LIST` |
 | `principals` parameter in `VerifyingProxyPreparer` | null = current user Subject (via `Subject.current()`) or ACC Subject as fallback; non-null = explicit scope |
 
-### 5.4.1 `Security.getCurrentPrincipals()` — User-Subject-First Resolution
+### 5.4.1 `Security.getCurrentPrincipals()` — Union of User + Worker Principals
 
 When `principals == null` in `VerifyingProxyPreparer`, `Security.grant(Class, Permission[])` is
 called, which invokes the private `Security.getCurrentPrincipals()` helper.  As of this release,
-that helper resolves principals in the following priority order:
+that helper returns the **union** of principals from both active Subjects:
 
 1. **`Subject.current()`** — the user `Subject` bound via `Subject.callAs()` (a `ScopedValue`).
-   This is non-null when the grant occurs from inside a JERI dispatch thread (server-side) or
-   any other `callAs` scope.
+   Non-null when the grant occurs from inside a JERI dispatch thread or any other `callAs` scope.
 2. **`Subject.getSubject(AccessController.getContext())`** — the workload (SPIFFE) `Subject`
-   on the `AccessControlContext`.  Used as a fallback when no user Subject is bound.
+   on the `AccessControlContext`.
 
-**Consequence:** `VerifyingProxyPreparer` used from a JERI dispatch thread now automatically
-scopes grants to the authenticated remote *user's* principals (not the server's workload
-principals), with zero call-site changes.  Service code that calls `prepareProxy()` inside a
-`callAs(userSubject, ...)` scope inherits this behaviour transparently.
+| Subjects present | Principals returned |
+|---|---|
+| User only | User principals only |
+| Worker only | Worker principals only |
+| Both | **Union** of user + worker principals |
+| Neither | `null` (grant applies to any principal) |
+
+**POLP consequence (both present):** Because `PrincipalGrant.implies(Principal[])` requires that
+**all** principals named in a grant are present in the caller's principal array, using the union
+means a dynamic grant must be scoped to **both** the user identity (e.g. `KerberosPrincipal
+"alice@REALM"`) **and** the workload identity (e.g. `SpiffePrincipal
+"spiffe://…/svc/order-processor"`).  If either identity is absent, the grant does not match.
+This enforces POLP at all three layers simultaneously: user, code, and workload service.
+
+**Single-Subject fallback:** On daemon threads or pre-login contexts where only one Subject is
+present, behaviour is identical to the previous single-subject case.
+
+**Previous behaviour:** Earlier versions preferred the user Subject and fell back to the worker
+Subject (either/or, not union).  The union approach tightens this by requiring both.
 
 ### 5.4.2 `GrantPermission.checkGuard(Object)` — User-Subject-Aware Guard
 
-`GrantPermission` now overrides `Permission.checkGuard()` with a `final` method:
+`GrantPermission` overrides `Permission.checkGuard()` with a `final` method.  The
+implementation is intentionally simple:
 
 ```java
 @Override
 public final void checkGuard(Object object) throws SecurityException {
     SecurityManager sm = System.getSecurityManager();
     if (sm == null) return;
-    Subject user = Subject.current();
-    if (user != null) {
-        Subject.doAs(user, (PrivilegedAction<Void>) () -> {
-            sm.checkPermission(this);
-            return null;
-        });
-    } else {
-        sm.checkPermission(this);
-    }
+    sm.checkPermission(this);
 }
 ```
 
-When a user Subject is bound (`Subject.current() != null`), the check is performed inside
-`Subject.doAs(user, …)` so the user's principals are injected into the `AccessControlContext`
-for the duration of `checkPermission`.  This allows `GrantPermission` checks to honour
-policy grants that are scoped to user principals (e.g., a grant scoped to both a SPIFFE
-principal and a `KerberosPrincipal`).
+**Why no explicit `Subject.doAs` wrapper?**  DirtyChai commit `2d26e787`
+("Support Post Java 24 User Subject Behaviour") promotes `SCOPED_SUBJECT` to a
+first-class participant in permission checks.  `AccessController.getContext()` now
+reads `SCOPED_SUBJECT` directly (without an `AuthPermission` guard — it is trusted
+`java.base` infrastructure exposed via `Subject.NoCheck` / `AccessController.SubjectAccess`)
+and, when a read-only user `Subject` is bound, wraps the returned `AccessControlContext`
+with a `SubjectDomainCombiner` for that `Subject`.
 
-Falls back to a direct `checkPermission` call when no user Subject is bound (daemon threads,
-non-request contexts).
+Consequence: when `sm.checkPermission(this)` is called, the internal
+`AccessController.getContext()` call automatically incorporates the user Subject (set
+by `Subject.callAs(userSubject, …)` in `BasicInvocationDispatcher`).  Policy grants
+scoped to user principals (e.g. a grant requiring both a SPIFFE workload principal
+**and** a `KerberosPrincipal`) are therefore honoured transparently, whether the check
+occurs on the dispatch thread or on a virtual thread that inherited the enriched ACC.
+
+The previous explicit `Subject.doAs(user, …)` workaround is no longer required and
+has been removed.
 
 ### 5.5 Natural Role Structure
 
@@ -624,8 +640,8 @@ JERI's SSL and Kerberos transport endpoints each locate the client Subject in a
 #### `SslEndpointImpl.getCallContext()` — TLS/SPIFFE workload identity first
 
 ```
-Priority 1: Subject.getSubject(acc)        — workload Subject from AccessControlContext
-            (installed by Subject.doAs() at service startup)
+Priority 1: Subject.getSubject(acc)        — ACC Subject, accepted only if it has
+            X500Principal or SpiffePrincipal (TLS-usable identity)
 Priority 2: SpiffeSubjectHolder.get()      — process-wide SPIFFE Subject registered by
             SpiffeCredentialManager.start() (used when no doAs() wraps the call)
 Priority 3: Subject.current()             — ScopedValue, LAST RESORT ONLY
@@ -634,10 +650,10 @@ Priority 3: Subject.current()             — ScopedValue, LAST RESORT ONLY
 ```
 
 **Rationale:** TLS requires an X.509 certificate (or SPIFFE SVID) in the Subject's
-private credential set.  A human user Subject placed in `Subject.current()` by
-`Subject.callAs()` during JERI dispatch carries no TLS credentials; using it for TLS
-would silently fail or open an unauthenticated connection.  The workload SPIFFE Subject
-on the ACC is always preferred, with `Subject.current()` accepted as a legacy fallback
+private credential set.  After DirtyChai `2d26e787`, `AccessController.getContext()`
+can capture `Subject.current()` into the ACC.  Therefore `SslEndpointImpl` must filter
+the ACC-derived Subject too: Kerberos-only/non-TLS user Subjects are ignored so they do
+not displace workload/SPIFFE TLS identity.  `Subject.current()` remains a legacy fallback
 only when it carries X.500/SPIFFE principals.
 
 #### `KerberosEndpoint.newRequest()` — user/human identity first
@@ -645,8 +661,8 @@ only when it carries X.500/SPIFFE principals.
 ```
 Priority 1: Subject.current()             — user Subject from Subject.callAs() (ScopedValue)
             accepted only if it contains KerberosPrincipal
-Priority 2: Subject.getSubject(acc)       — workload Subject from AccessControlContext
-            (used when no KerberosPrincipal found in Subject.current())
+Priority 2: Subject.getSubject(acc)       — ACC Subject fallback, accepted only if it
+            contains KerberosPrincipal
 ```
 
 **Rationale:** Kerberos GSS-API requires that the Kerberos TGT and service ticket be
@@ -665,8 +681,8 @@ reference.  Different users never share Kerberos connections.  Workload connecti
 | | SSL (`SslEndpointImpl`) | Kerberos (`KerberosEndpoint`) |
 |---|---|---|
 | **Credential needed** | X.509 certificate / SPIFFE SVID | Kerberos TGT (`KerberosPrincipal`) |
-| **Primary Subject source** | `Subject.getSubject(acc)` (workload, `doAs`) | `Subject.current()` (user, `callAs`) |
-| **Fallback Subject source** | `SpiffeSubjectHolder` → `Subject.current()` | `Subject.getSubject(acc)` (workload) |
+| **Primary Subject source** | `Subject.getSubject(acc)` (filtered to TLS principals) | `Subject.current()` (user, `callAs`) |
+| **Fallback Subject source** | `SpiffeSubjectHolder` → `Subject.current()` | `Subject.getSubject(acc)` (KerberosPrincipal filter) |
 | **`Subject.current()` filter** | Must have `X500Principal` or `SpiffePrincipal`; Kerberos-only → rejected | Must have `KerberosPrincipal`; X500-only → rejected |
 | **Connection cache isolation** | Not per-user (workload identity is shared) | Per-Subject; different users never share a connection |
 | **Why** | TLS is a machine/workload concern; human Subject has no TLS credentials | Kerberos is a per-user concern; per-user credentials must not be mixed |
@@ -753,7 +769,7 @@ executor.submit(() -> Subject.callAs(userSubject, () -> { ... }));
 
 | File | Line(s) | Current API | Subject source | Purpose | Status |
 |---|---|---|---|---|---|
-| `KerberosEndpoint.newRequest()` | 642–654 | `Subject.current()` → `Subject.getSubject(acc)` fallback | `Subject.current()` (user, ScopedValue) then ACC (workload) | Locate Kerberos Subject for outbound request; prefer per-user Subject from `callAs` scope, fall back to workload Subject from ACC | **✅ Correct** — user Subject checked first (KerberosPrincipal filter); workload Subject used when no user Subject is bound |
+| `KerberosEndpoint.newRequest()` | 642–662 | `Subject.current()` → filtered `Subject.getSubject(acc)` fallback | `Subject.current()` (user, ScopedValue) then ACC (only if it has KerberosPrincipal) | Locate Kerberos Subject for outbound request; prefer per-user Subject from `callAs` scope, ignore non-Kerberos ACC Subjects | **✅ Revised for DirtyChai `2d26e787`** — prevents ACC-captured non-Kerberos user Subjects from being selected |
 | `KerberosUtil.getGSSCredential()` | 493 | `Subject.doAs(subj, ...)` | explicitly passed `Subject` | Acquire Kerberos GSS credential from Subject's private credential set | **Keep as `doAs`** — GSS-API requires Subject in ACC; workload identity, not user identity |
 | `KerberosServerEndpoint` connection thread | 1794 | `Subject.doAs(serverSubject, ...)` | `serverSubject` field | Establish Kerberos GSSContext during TLS handshake | **Keep as `doAs`** — GSS context establishment requires Subject in ACC; workload (server) identity |
 
@@ -761,7 +777,7 @@ executor.submit(() -> Subject.callAs(userSubject, () -> { ... }));
 
 | File | Line(s) | Current API | Subject source | Purpose | Status |
 |---|---|---|---|---|---|
-| `SslEndpointImpl.getCallContext()` | 298–325 | (1) `Subject.getSubject(acc)` → (2) `SpiffeSubjectHolder.get()` → (3) `Subject.current()` (X500/SPIFFE filter) | ACC (workload), then process SPIFFE holder, then ScopedValue last-resort | Retrieve worker Subject for outbound TLS call; Kerberos-only `Subject.current()` is explicitly rejected | **✅ Correct** — workload identity first; `Subject.current()` only accepted if it carries X500Principal or SpiffePrincipal |
+| `SslEndpointImpl.getCallContext()` | 298–332 | (1) filtered `Subject.getSubject(acc)` → (2) `SpiffeSubjectHolder.get()` → (3) `Subject.current()` (X500/SPIFFE filter) | ACC subject accepted only when TLS-usable; then process SPIFFE holder; then ScopedValue last-resort | Retrieve worker Subject for outbound TLS call; reject Kerberos-only/non-TLS Subjects regardless of source | **✅ Revised for DirtyChai `2d26e787`** — avoids ACC-captured user Subject from displacing TLS identity |
 | `SslServerEndpointImpl.SslListenEndpoint` | 587 | `Subject.getSubject(acc)` | ACC | Retrieve worker Subject for inbound TLS listen | **Keep** — workload identity from ACC |
 | `X500Provider` | 191 | `Subject.getSubject(acc)` | ACC | Retrieve Subject for X.500 principal matching | **Keep** — workload identity |
 | `TlsRMIClientSocketFactory` | 46 | `Subject.getSubject(acc)` | ACC | Retrieve Subject for TLS RMI client socket | **Keep** — workload identity |
@@ -975,8 +991,8 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | **`ClinitCycleVisitor` is not a separate class** | ✅ **v9:** Cycle detection is `ClinitBlockingVisitor.detectClinitCycles()` static method + `TarjanScc` private inner class — better cohesion, no separate file needed |
 | **`DefaultPolicyParser.scanner` is already `protected final`** | ✅ **v9:** No change required; `HttpsClientAuthPolicyParser` can subclass directly |
 | **`SUBJECT_CALL_AS`, `SUBJECT_DO_AS` (Dispatcher) and `SUBJECT_CURRENT` (Handler) are still reflective `Method` fields** | ✅ **v9 verified:** Resolved at class-init via `Subject.class.getMethod(...)`; invoked via `Method.invoke()`; null on JDK < 18 |
-| **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10:** `Security.grant(Class, Permission[])` now prefers the user Subject bound via `Subject.callAs()` (ScopedValue) over the ACC Subject. Grants from JERI dispatch threads are automatically scoped to the remote user's principals. Falls back to ACC Subject when no user Subject is bound. |
-| **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10:** When `Subject.current()` is non-null, the guard check runs inside `Subject.doAs(user, ...)` so the user's principals are in the ACC for the duration of `checkPermission`. Daemon threads (no user Subject) use the direct path unchanged. |
+| **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10 → revised in v14:** Originally preferred user Subject over ACC Subject. **Changed in v14** to return the **union** of both Subject's principals when both are present, enforcing POLP: a dynamic grant now requires both user and workload identity simultaneously. Single-subject fallback behaviour is unchanged. |
+| **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10 → simplified in v12:** Originally added a `Subject.doAs(user, ...)` wrapper so the user's principals were in the ACC for `checkPermission`. **Removed in v12** after DirtyChai commit `2d26e787` — `AccessController.getContext()` now captures `SCOPED_SUBJECT` automatically (via `Subject.NoCheck` / `AccessController.SubjectAccess`), making the wrapper redundant. `checkGuard()` now calls `sm.checkPermission(this)` directly. |
 | **`jgdms-platform` compiler release bumped to 21** | ✅ **v10:** Required to call `Subject.current()` and `Subject.doAs()` directly (not via reflection) in `jgdms-platform` source. |
 | **`SslEndpointImpl` checks ACC (`doAs`) first, `Subject.current()` last** | ✅ **v11:** TLS requires X.509/SPIFFE credentials in the workload Subject. A Kerberos-only `Subject.current()` is explicitly rejected. `Subject.current()` is only accepted as last resort when it carries X500Principal or SpiffePrincipal. |
 | **`KerberosEndpoint` checks `Subject.current()` first, ACC second** | ✅ **v11:** Kerberos GSS-API requires per-user KerberosPrincipal. The dispatch-installed user Subject (ScopedValue) is checked first; only falls back to ACC Subject when no KerberosPrincipal is bound. Connection cache (`CacheKey`) is per-Subject, preventing cross-user session reuse. |
@@ -1002,7 +1018,26 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 11, updated to add:*
+continue without loss of context. This is version 14, updated to add:*
+- *§5.4.1 revised — `Security.getCurrentPrincipals()` now returns the **union** of user and worker Subject principals when both are present; tightens POLP: dynamic grants must name both identities simultaneously; single-subject fallback unchanged*
+- *§13 updated — `Security.getCurrentPrincipals()` row revised to document v14 union semantics and POLP rationale*
+
+---
+
+*Previous version (v13) notes:*
+- *§1 DirtyChai `SubjectDomainCombiner.java` note corrected — SCOPED_SUBJECT capture now happens in `AccessController.getContext()` (`2d26e787`), not in `SubjectDomainCombiner.combine()`*
+- *§10.11 updated — both SSL and Kerberos endpoint ACC fallbacks are now explicitly principal-filtered after DirtyChai SCOPED_SUBJECT capture changes (SSL: X500/SPIFFE only; Kerberos: KerberosPrincipal only)*
+- *§11 transport audit rows updated for `SslEndpointImpl.getCallContext()` and `KerberosEndpoint.newRequest()` to reflect the new filtered fallback behavior*
+
+---
+
+*Previous version (v12) notes:*
+- *§5.4.2 updated — `GrantPermission.checkGuard()` simplified: explicit `Subject.doAs(user, …)` wrapper removed; DirtyChai commit `2d26e787` makes `AccessController.getContext()` capture `SCOPED_SUBJECT` automatically via `Subject.NoCheck` / `AccessController.SubjectAccess`; new implementation is a single `sm.checkPermission(this)` call*
+- *§13 updated — `GrantPermission.checkGuard()` row updated to document v12 simplification and its rationale*
+
+---
+
+*Earlier version (v11) notes:*
 - *`SpiffeCredentialManager.java`, `SpireConnection.java`, `SpireProtobuf.java` to §1 documents read*
 - *§1 extended with 13 new JGDMS source files reviewed in v9 deep-dive analysis*
 - *§4 updated to show actual 5-method `RemotePolicyService` interface; corrected note that `DefaultPolicyParser.scanner` is already `protected`*
@@ -1021,4 +1056,3 @@ continue without loss of context. This is version 11, updated to add:*
 - *§9 corrected: `doAsPrivileged(spiffeSubject, ...)` → `Subject.doAs(spiffeSubject, ...)`*
 - *§10.9 corrected: SPIFFE path description updated — `SpiffeSubjectHolder` provides the workload Subject for outbound TLS automatically; no explicit `callAs(spiffeSubject, …)` at remote-call boundaries is needed*
 - *§10.11 corrected: outbound TLS sentence updated to reflect that `SslEndpointImpl` checks ACC first, then `SpiffeSubjectHolder`, then `Subject.current()` (X500/SPIFFE only)*
-
