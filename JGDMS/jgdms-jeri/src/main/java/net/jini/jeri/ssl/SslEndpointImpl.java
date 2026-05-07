@@ -561,7 +561,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	    clientAuthPermitted ? clientSubject : null,
 	    clientAuthRequired, clientPrincipals, serverPrincipals, suites,
 	    integrityRequired, integrityPreferred, atomicityRequired, 
-		atomicityPreferred, connectionTimeout);
+	    atomicityPreferred, connectionTimeout);
     }
 
     /**

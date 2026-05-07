@@ -641,8 +641,7 @@ public final class KerberosEndpoint
 	// but only if that Subject has a KerberosPrincipal.
 	Subject userSubject = Subject.current();
 	Subject clientSubject;
-	if (userSubject != null &&
-	    !userSubject.getPrincipals(KerberosPrincipal.class).isEmpty()) {
+	if (userSubject != null && hasKerberosIdentity(userSubject)) {
 	    clientSubject = userSubject;
 	} else {
 	    Subject accSubject = (Subject) Security.doPrivileged(
@@ -652,8 +651,7 @@ public final class KerberosEndpoint
 				AccessController.getContext());
 			}
 		    });
-	    if (accSubject != null &&
-		!accSubject.getPrincipals(KerberosPrincipal.class).isEmpty())
+	    if (accSubject != null && hasKerberosIdentity(accSubject))
 	    {
 		clientSubject = accSubject;
 	    } else {
@@ -676,6 +674,13 @@ public final class KerberosEndpoint
 	}
 
 	return connManager.newRequest(handle);
+    }
+
+    /**
+     * Returns true if the Subject has at least one Kerberos principal.
+     */
+    private static boolean hasKerberosIdentity(Subject subject) {
+	return !subject.getPrincipals(KerberosPrincipal.class).isEmpty();
     }
 
     /**
