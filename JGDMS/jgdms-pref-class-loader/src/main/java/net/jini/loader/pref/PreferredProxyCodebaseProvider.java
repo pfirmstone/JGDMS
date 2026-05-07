@@ -15,6 +15,9 @@
  */
 package net.jini.loader.pref;
 
+import au.net.zeus.jgdms.api.codebase.RegistryVerdict;
+import au.net.zeus.jgdms.api.codebase.VerdictRegistry;
+import au.net.zeus.jgdms.api.codebase.VerdictType;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -26,8 +29,12 @@ import java.lang.reflect.Proxy;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.AccessController;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.Permission;
 import java.security.PrivilegedAction;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
@@ -81,8 +88,20 @@ import org.apache.river.concurrent.Referrer;
  */
 public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
 
+    private static final Logger logger =
+            Logger.getLogger(PreferredProxyCodebaseProvider.class.getName());
+
     private static final ConcurrentMap<Key,ClassLoader> CACHE;
     private static final ConcurrentMap<Key,ClassLoader> SERVICES_EXP;
+
+    /**
+     * Permission required to call {@link #setVerdictRegistry(VerdictRegistry)}.
+     * Callers that do not hold {@code RuntimePermission("setVerdictRegistry")}
+     * will receive a {@link SecurityException} when a security manager is
+     * installed.
+     */
+    private static final Permission SET_VERDICT_REGISTRY_PERMISSION =
+            new RuntimePermission("setVerdictRegistry");
     
     static {
 	ConcurrentMap<Referrer<Key>,Referrer<ClassLoader>> intern1 =
@@ -93,7 +112,142 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
     }
     
     public PreferredProxyCodebaseProvider(){}
-    
+
+    /**
+     * Injects the {@link VerdictRegistry} proxy to be consulted before any
+     * new {@link PreferredClassLoader} is created.
+     *
+     * <p>This method should be called once at node startup, after the
+     * {@code VerdictRegistry} service has been discovered in the Jini lookup
+     * service.  Until it is called the verdict check is <em>skipped</em>
+     * (boot-time permissive policy) so that the node can come up before the
+     * registry is reachable.  Once set, all subsequent cache-miss codebase
+     * loads are guarded by the registry.
+     *
+     * <p>The field is {@code volatile} so this call is thread-safe without
+     * additional synchronization.
+     *
+     * <p>If a security manager is installed, this method demands
+     * {@code RuntimePermission("setVerdictRegistry")} from the caller. This
+     * prevents untrusted code from replacing or nullifying the registry
+     * (which would re-enable the boot-time permissive policy and bypass
+     * verdict enforcement).
+     *
+     * @param registry the {@link VerdictRegistry} proxy to use; may be
+     *                 {@code null} to disable verdict checking
+     * @throws SecurityException if a security manager is installed and the
+     *         caller does not hold
+     *         {@code RuntimePermission("setVerdictRegistry")}
+     */
+    public static void setVerdictRegistry(VerdictRegistry registry) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_VERDICT_REGISTRY_PERMISSION);
+        }
+        VerdictRegistryHolder.set(registry);
+    }
+
+    /**
+     * Computes the SHA-256 hex digest of the JAR accessible at the given URL.
+     *
+     * <p>The URL must point directly to a JAR file (not a directory).
+     *
+     * @param jarUrl the URL of the JAR to hash
+     * @return lowercase hexadecimal SHA-256 digest (64 characters)
+     * @throws IOException if the JAR cannot be read or SHA-256 is unavailable
+     */
+    static String computeJarHash(URL jarUrl) throws IOException {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 MessageDigest not available", e);
+        }
+        try (InputStream in = jarUrl.openStream()) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                digest.update(buf, 0, n);
+            }
+        }
+        return bytesToHex(digest.digest());
+    }
+
+    /**
+     * Converts a byte array to a lowercase hexadecimal string.
+     */
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(Character.forDigit((b >> 4) & 0xF, 16));
+            sb.append(Character.forDigit(b & 0xF, 16));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Checks the verdict for a single JAR against the given
+     * {@link VerdictRegistry}.
+     *
+     * <p>Verdict semantics:
+     * <ul>
+     *   <li>{@link VerdictType#SAFE} — proceed; logged at {@code FINEST}.</li>
+     *   <li>{@link VerdictType#INCONCLUSIVE} — proceed with caution; logged
+     *       at {@code WARNING}.</li>
+     *   <li>{@link VerdictType#DANGEROUS} — throw {@link IOException}; logged
+     *       at {@code SEVERE}.</li>
+     *   <li>{@code null} return (no verdict yet) — throw {@link IOException};
+     *       logged at {@code WARNING}.</li>
+     *   <li>{@link RemoteException} — registry unreachable; throw
+     *       {@link IOException}; logged at {@code SEVERE}.</li>
+     * </ul>
+     *
+     * @param vr          the registry to query; must be non-null
+     * @param contentHash lowercase SHA-256 hex digest of the JAR
+     * @param path        the codebase annotation string (used in messages)
+     * @throws IOException if the verdict is absent, DANGEROUS, or the
+     *                     registry is unreachable
+     */
+    static void checkVerdictForJar(VerdictRegistry vr,
+                                    String contentHash,
+                                    String path) throws IOException {
+        RegistryVerdict verdict;
+        try {
+            verdict = vr.getVerdictByHash(contentHash);
+        } catch (RemoteException e) {
+            logger.log(Level.SEVERE,
+                    "VerdictRegistry unreachable for codebase: {0}", path);
+            throw new IOException(
+                    "VerdictRegistry unavailable; refusing to load codebase: "
+                    + path, e);
+        }
+        if (verdict == null) {
+            logger.log(Level.WARNING,
+                    "No verdict for JAR (SHA-256: {0}); codebase refused: {1}",
+                    new Object[]{contentHash, path});
+            throw new IOException(
+                    "No verdict available for JAR (SHA-256: " + contentHash
+                    + "); codebase refused: " + path);
+        }
+        VerdictType type = verdict.getVerdict();
+        if (type == VerdictType.DANGEROUS) {
+            logger.log(Level.SEVERE,
+                    "JAR verdict is DANGEROUS (SHA-256: {0}); codebase refused: {1}",
+                    new Object[]{contentHash, path});
+            throw new IOException(
+                    "JAR verdict is DANGEROUS (SHA-256: " + contentHash
+                    + "); codebase refused: " + path);
+        } else if (type == VerdictType.INCONCLUSIVE) {
+            logger.log(Level.WARNING,
+                    "JAR verdict is INCONCLUSIVE (SHA-256: {0}); proceeding with caution",
+                    contentHash);
+        } else {
+            // SAFE
+            logger.log(Level.FINEST,
+                    "JAR verdict is SAFE (SHA-256: {0})", contentHash);
+        }
+    }
+
     /**
      * Determines if the URL is pointing to a directory.
      */
@@ -218,6 +372,28 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
                 } 
             }
 
+            // ----------------------------------------------------------------
+            // Verdict check — query VerdictRegistry before creating a new
+            // ClassLoader.  When verdictRegistry is null (boot-time permissive
+            // policy) the check is skipped so the node can start up before
+            // the registry is reachable.
+            // ----------------------------------------------------------------
+            VerdictRegistry vr = VerdictRegistryHolder.get();
+            if (vr != null) {
+                for (int vi = 0, vl = codebase.length; vi < vl; vi++) {
+                    URL jarUrl = codebase[vi];
+                    if (!isDirectory(jarUrl)) {
+                        String contentHash = computeJarHash(jarUrl);
+                        checkVerdictForJar(vr, contentHash, path);
+                    }
+                }
+            } else {
+                logger.log(Level.FINE,
+                        "VerdictRegistry not yet set; skipping verdict check"
+                        + " (boot-time permissive policy) for codebase: {0}",
+                        path);
+            }
+
             /**
              * The next section of code previously 
              * called ClassLoading.getClassLoader(path).
@@ -324,7 +500,7 @@ public class PreferredProxyCodebaseProvider implements ProxyCodebaseSpi {
         try {
             path = service.getClassAnnotation();
         } catch (IOException ex) {
-            Logger.getLogger(PreferredProxyCodebaseProvider.class.getName()).log(Level.SEVERE, null, ex);
+            logger.log(Level.SEVERE, null, ex);
         }
         if (path != null){
             Uri [] codebases;
