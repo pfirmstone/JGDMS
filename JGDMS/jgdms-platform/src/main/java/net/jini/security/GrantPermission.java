@@ -33,9 +33,7 @@ import java.security.AllPermission;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
-import java.security.PrivilegedAction;
 import java.security.UnresolvedPermission;
-import javax.security.auth.Subject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -349,34 +347,30 @@ public final class GrantPermission extends Permission {
      * Checks that the calling context is authorized to grant the permissions
      * held by this {@code GrantPermission}.
      *
-     * <p>If a user {@link Subject} is bound to the current thread via
-     * {@link Subject#callAs Subject.callAs()} (i.e. {@link Subject#current()}
-     * returns non-{@code null}), the security-manager check is performed
-     * inside a {@link Subject#doAs Subject.doAs()} call with that Subject.
-     * This allows the {@code AccessControlContext} to include the user's
-     * principals, so that policy grants scoped to user principals are
-     * honoured when evaluating the {@code GrantPermission}.
+     * <p><b>Requires DirtyChai.</b>  The JGDMS security model depends on the
+     * DirtyChai JVM patch.  Since DirtyChai commit {@code 2d26e787},
+     * {@link java.security.AccessController#getContext()} automatically
+     * captures any user {@link javax.security.auth.Subject} bound via
+     * {@link javax.security.auth.Subject#callAs Subject.callAs()} and wraps
+     * the returned {@link java.security.AccessControlContext} with a
+     * {@link javax.security.auth.SubjectDomainCombiner} for that Subject.
+     * Policy grants scoped to user principals are therefore honoured
+     * transparently inside
+     * {@link SecurityManager#checkPermission checkPermission} without any
+     * additional {@code Subject.doAs} wrapping.
      *
-     * <p>Falls back to a direct {@link SecurityManager#checkPermission} call
-     * when no user Subject is bound (e.g. on daemon threads).
+     * <p>On a standard (non-DirtyChai) JVM, user-principal-scoped
+     * {@code GrantPermission} checks will not include the bound user Subject,
+     * as the entire user-principal policy model requires DirtyChai to function.
      *
-     * @param object ignored (required by the {@link java.security.Guard}
-     *               contract)
+     * @param object ignored (required by the {@link java.security.Guard} contract)
      * @throws SecurityException if the calling context is not authorized
      */
     @Override
     public final void checkGuard(Object object) throws SecurityException {
 	SecurityManager sm = System.getSecurityManager();
 	if (sm == null) return;
-	Subject user = Subject.current();
-	if (user != null) {
-	    Subject.doAs(user, (PrivilegedAction<Void>) () -> {
-		sm.checkPermission(this);
-		return null;
-	    });
-	} else {
-	    sm.checkPermission(this);
-	}
+	sm.checkPermission(this);
     }
 
     /**

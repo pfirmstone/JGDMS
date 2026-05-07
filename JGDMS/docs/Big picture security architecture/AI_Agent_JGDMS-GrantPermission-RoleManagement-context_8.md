@@ -1,4 +1,4 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v11)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v12)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
@@ -253,33 +253,35 @@ principals), with zero call-site changes.  Service code that calls `prepareProxy
 
 ### 5.4.2 `GrantPermission.checkGuard(Object)` — User-Subject-Aware Guard
 
-`GrantPermission` now overrides `Permission.checkGuard()` with a `final` method:
+`GrantPermission` overrides `Permission.checkGuard()` with a `final` method.  The
+implementation is intentionally simple:
 
 ```java
 @Override
 public final void checkGuard(Object object) throws SecurityException {
     SecurityManager sm = System.getSecurityManager();
     if (sm == null) return;
-    Subject user = Subject.current();
-    if (user != null) {
-        Subject.doAs(user, (PrivilegedAction<Void>) () -> {
-            sm.checkPermission(this);
-            return null;
-        });
-    } else {
-        sm.checkPermission(this);
-    }
+    sm.checkPermission(this);
 }
 ```
 
-When a user Subject is bound (`Subject.current() != null`), the check is performed inside
-`Subject.doAs(user, …)` so the user's principals are injected into the `AccessControlContext`
-for the duration of `checkPermission`.  This allows `GrantPermission` checks to honour
-policy grants that are scoped to user principals (e.g., a grant scoped to both a SPIFFE
-principal and a `KerberosPrincipal`).
+**Why no explicit `Subject.doAs` wrapper?**  DirtyChai commit `2d26e787`
+("Support Post Java 24 User Subject Behaviour") promotes `SCOPED_SUBJECT` to a
+first-class participant in permission checks.  `AccessController.getContext()` now
+reads `SCOPED_SUBJECT` directly (without an `AuthPermission` guard — it is trusted
+`java.base` infrastructure exposed via `Subject.NoCheck` / `AccessController.SubjectAccess`)
+and, when a read-only user `Subject` is bound, wraps the returned `AccessControlContext`
+with a `SubjectDomainCombiner` for that `Subject`.
 
-Falls back to a direct `checkPermission` call when no user Subject is bound (daemon threads,
-non-request contexts).
+Consequence: when `sm.checkPermission(this)` is called, the internal
+`AccessController.getContext()` call automatically incorporates the user Subject (set
+by `Subject.callAs(userSubject, …)` in `BasicInvocationDispatcher`).  Policy grants
+scoped to user principals (e.g. a grant requiring both a SPIFFE workload principal
+**and** a `KerberosPrincipal`) are therefore honoured transparently, whether the check
+occurs on the dispatch thread or on a virtual thread that inherited the enriched ACC.
+
+The previous explicit `Subject.doAs(user, …)` workaround is no longer required and
+has been removed.
 
 ### 5.5 Natural Role Structure
 
@@ -976,7 +978,7 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | **`DefaultPolicyParser.scanner` is already `protected final`** | ✅ **v9:** No change required; `HttpsClientAuthPolicyParser` can subclass directly |
 | **`SUBJECT_CALL_AS`, `SUBJECT_DO_AS` (Dispatcher) and `SUBJECT_CURRENT` (Handler) are still reflective `Method` fields** | ✅ **v9 verified:** Resolved at class-init via `Subject.class.getMethod(...)`; invoked via `Method.invoke()`; null on JDK < 18 |
 | **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10:** `Security.grant(Class, Permission[])` now prefers the user Subject bound via `Subject.callAs()` (ScopedValue) over the ACC Subject. Grants from JERI dispatch threads are automatically scoped to the remote user's principals. Falls back to ACC Subject when no user Subject is bound. |
-| **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10:** When `Subject.current()` is non-null, the guard check runs inside `Subject.doAs(user, ...)` so the user's principals are in the ACC for the duration of `checkPermission`. Daemon threads (no user Subject) use the direct path unchanged. |
+| **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10 → simplified in v12:** Originally added a `Subject.doAs(user, ...)` wrapper so the user's principals were in the ACC for `checkPermission`. **Removed in v12** after DirtyChai commit `2d26e787` — `AccessController.getContext()` now captures `SCOPED_SUBJECT` automatically (via `Subject.NoCheck` / `AccessController.SubjectAccess`), making the wrapper redundant. `checkGuard()` now calls `sm.checkPermission(this)` directly. |
 | **`jgdms-platform` compiler release bumped to 21** | ✅ **v10:** Required to call `Subject.current()` and `Subject.doAs()` directly (not via reflection) in `jgdms-platform` source. |
 | **`SslEndpointImpl` checks ACC (`doAs`) first, `Subject.current()` last** | ✅ **v11:** TLS requires X.509/SPIFFE credentials in the workload Subject. A Kerberos-only `Subject.current()` is explicitly rejected. `Subject.current()` is only accepted as last resort when it carries X500Principal or SpiffePrincipal. |
 | **`KerberosEndpoint` checks `Subject.current()` first, ACC second** | ✅ **v11:** Kerberos GSS-API requires per-user KerberosPrincipal. The dispatch-installed user Subject (ScopedValue) is checked first; only falls back to ACC Subject when no KerberosPrincipal is bound. Connection cache (`CacheKey`) is per-Subject, preventing cross-user session reuse. |
@@ -1002,7 +1004,13 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 11, updated to add:*
+continue without loss of context. This is version 12, updated to add:*
+- *§5.4.2 updated — `GrantPermission.checkGuard()` simplified: explicit `Subject.doAs(user, …)` wrapper removed; DirtyChai commit `2d26e787` makes `AccessController.getContext()` capture `SCOPED_SUBJECT` automatically via `Subject.NoCheck` / `AccessController.SubjectAccess`; new implementation is a single `sm.checkPermission(this)` call*
+- *§13 updated — `GrantPermission.checkGuard()` row updated to document v12 simplification and its rationale*
+
+---
+
+*Previous version (v11) notes:*
 - *`SpiffeCredentialManager.java`, `SpireConnection.java`, `SpireProtobuf.java` to §1 documents read*
 - *§1 extended with 13 new JGDMS source files reviewed in v9 deep-dive analysis*
 - *§4 updated to show actual 5-method `RemotePolicyService` interface; corrected note that `DefaultPolicyParser.scanner` is already `protected`*
