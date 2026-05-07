@@ -279,38 +279,49 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	throws UnsupportedConstraintException
     {
 	/*
-	 * Check Subject.current() first: if a service method is executing
-	 * inside Subject.callAs(userSubject, ...) and userSubject has
-	 * X500/SPIFFE principals, use that Subject for outbound TLS so that
-	 * the call is authenticated as the user rather than the workload
-	 * identity.  Falls back to the ACC Subject (SPIFFE workload) or the
-	 * process-wide SpiffeSubjectHolder when no user Subject is current.
+	 * For SSL endpoints, the SPIFFE workload Subject (from the ACC or the
+	 * process-wide SpiffeSubjectHolder) is preferred because it carries the
+	 * TLS client certificate credentials.  Other Subjects that may be
+	 * present in Subject.current() — e.g. a Kerberos user Subject placed
+	 * there by Subject.callAs() during dispatch — cannot be used to
+	 * establish SSL/TLS connections and must not take priority.
+	 *
+	 * Subject.current() is therefore checked last: it is used only when no
+	 * SPIFFE/X509 Subject is available via the traditional ACC path, to
+	 * support legacy applications whose LoginContext Subject flows solely
+	 * through Subject.callAs() rather than Subject.doAs().
 	 */
-	Subject currentSubject = Subject.current();
-	Subject clientSubject;
-	if (currentSubject != null
-		&& (!currentSubject.getPrincipals(X500Principal.class).isEmpty()
-		    || !currentSubject.getPrincipals(SpiffePrincipal.class).isEmpty()))
-	{
-	    clientSubject = currentSubject;
-	} else {
-	    final AccessControlContext acc = AccessController.getContext();
-	    clientSubject = (Subject) AccessController.doPrivileged(
-		new PrivilegedAction() {
-		    public Object run() {
-			return Subject.getSubject(acc);
-		    }
-		});
-	    /*
-	     * Fail early, not a security risk, as it doesn't provide any information
-	     * about the logged in Subject, as there isn't one.
-	     *
-	     * Fall back to the process-wide SPIFFE Subject registered by
-	     * SpiffeCredentialManager.start() when no Subject.doAs() wraps the
-	     * current call stack.
-	     */
-	    if (clientSubject == null)
-		clientSubject = SpiffeSubjectHolder.get();
+	final AccessControlContext acc = AccessController.getContext();
+	Subject clientSubject = (Subject) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    return Subject.getSubject(acc);
+		}
+	    });
+	/*
+	 * Fail early, not a security risk, as it doesn't provide any information
+	 * about the logged in Subject, as there isn't one.
+	 *
+	 * Fall back to the process-wide SPIFFE Subject registered by
+	 * SpiffeCredentialManager.start() when no Subject.doAs() wraps the
+	 * current call stack.
+	 */
+	if (clientSubject == null)
+	    clientSubject = SpiffeSubjectHolder.get();
+	/*
+	 * Last resort: fall back to Subject.current() (ScopedValue) for
+	 * legacy applications that set their Subject via Subject.callAs()
+	 * without Subject.doAs(). Only accepted if it has X500 or SPIFFE
+	 * principals; a Kerberos-only Subject is not useful for TLS.
+	 */
+	if (clientSubject == null) {
+	    Subject current = Subject.current();
+	    if (current != null
+		    && (!current.getPrincipals(X500Principal.class).isEmpty()
+			|| !current.getPrincipals(SpiffePrincipal.class).isEmpty()))
+	    {
+		clientSubject = current;
+	    }
 	}
 	if (clientSubject == null) 
 	    throw new UnsupportedConstraintException(
