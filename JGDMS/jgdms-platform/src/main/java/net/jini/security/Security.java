@@ -1123,12 +1123,24 @@ public final class Security {
      * principals from both the user {@link Subject} (bound via
      * {@link Subject#callAs Subject.callAs()}, visible as
      * {@link Subject#current Subject.current()}) and the worker {@link Subject}
-     * on the {@link java.security.AccessControlContext}.  When both Subjects are
-     * present, the resulting grant is scoped to <em>all</em> of those
-     * principals simultaneously, enforcing the Principle of Least Privilege:
-     * the grant only activates when the calling context presents both the user
-     * and the workload identity together.  When only one Subject is present the
-     * behaviour is equivalent to the single-subject case.
+     * on the {@link java.security.AccessControlContext}.  This union is
+     * mandatory for POLP:
+     * <ol>
+     *   <li>{@code SpiffePolicyFile} cannot pre-assign permissions to unknown
+     *       proxy ClassLoaders created at runtime; dynamic grants are the
+     *       mechanism that scopes permissions to a specific proxy protection
+     *       domain at preparation time.</li>
+     *   <li>Policy files can only relax permissions (deny-all baseline); they
+     *       cannot deny an already granted permission, so all required
+     *       principals must be named in the grant for restrictive scope.</li>
+     *   <li>POLP requires user + workload + code together; union-scoped
+     *       grants apply only when both user and worker identities are present
+     *       with the target code domain.</li>
+     * </ol>
+     * An impersonating worker with a different SPIFFE principal therefore does
+     * not satisfy a union-scoped grant intended for the legitimate workload.
+     * When only one Subject is present the behaviour is equivalent to the
+     * single-subject case.
      *
      * <p>The permissions dynamically granted to
      * <code>fromClass</code> are determined by calling the {@link
@@ -1244,10 +1256,15 @@ public final class Security {
      * <ul>
      *   <li>If only one is present, its principals are returned.</li>
      *   <li>If both are present, their principals are <em>unioned</em>.
-     *       The resulting grant then requires that the calling context presents
-     *       <em>all</em> principals from both Subjects simultaneously, enforcing
-     *       POLP: grants must be made to the specific user, the specific
-     *       workload, <em>and</em> the code; if any identity is absent the
+     *       This is mandatory because: (1) {@code SpiffePolicyFile} cannot
+     *       pre-assign permissions to unknown proxy ClassLoaders; dynamic
+     *       grants scope to runtime-created proxy protection domains; (2)
+     *       policy files can only relax permissions (deny-all baseline), so
+     *       restrictive scope requires naming all principals; (3) POLP requires
+     *       user + workload + code simultaneously.  The resulting grant then
+     *       requires that the calling context presents <em>all</em> principals
+     *       from both Subjects together; if any identity is absent, or if an
+     *       impersonating worker presents a different SPIFFE principal, the
      *       grant does not apply.</li>
      *   <li>If neither is present, {@code null} is returned (grant to any
      *       principal).</li>
