@@ -813,11 +813,14 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
     - Tracks sequence numbers to detect gaps and logs WARNING on gap
     - Uses `LeaseRenewalManager` for automatic lease renewal; re-subscribes on `UnknownLeaseException`
 22. **✅ Unit tests for `policy-service`** — *(completed; test coverage added for `InMemoryPolicyServiceImpl`, `RemotePolicyServiceProxy`, `PolicyEventLease`, and `PolicyUpdateEvent`)*
-23. **Host 4 — Codebase Downloader Service** — *(not yet started; no Maven module exists)*
-    - Only host with outbound internet access
-    - Fetches JAR bytes for codebase URLs discovered from lookup service registrations
-    - Pushes `AnalysisRequest` (containing raw JAR bytes) to BAE pool via `BytecodeAnalysisEngine.analyzeJar()`
-    - SPIFFE SVID: `spiffe://jgdms.example.org/host/downloader`
+23. **✅ Host 4 — Codebase Downloader Service`** — COMPLETED
+    - Maven module: codebase-downloader / codebase-downloader-service
+    - Core POJO: CodebaseDownloaderImpl (worker pool, SHA-256 dedup, HTTP fetch,
+      BAE pool dispatch, VerdictRegistry submission)
+    - Jini wrapper: ActivatableCodebaseDownloaderImpl (AbstractJiniService,
+      activatable + non-activatable constructors, ServiceDiscoveryManager)
+    - Unit tests: CodebaseDownloaderImplTest (loopback HTTP server, stub BAE/VR)
+    - SPIFFE SVID: spiffe://jgdms.example.org/host/downloader
 24. **`ProxyCodebaseSPI` integration with `VerdictRegistry`** — ✅ *completed*
     - `PreferredProxyCodebaseProvider` computes SHA-256 hash of each JAR via `computeJarHash()` before creating a `PreferredClassLoader`
     - Calls `VerdictRegistry.getVerdictByHash(contentHash)` for each JAR (injected via `setVerdictRegistry()`)
