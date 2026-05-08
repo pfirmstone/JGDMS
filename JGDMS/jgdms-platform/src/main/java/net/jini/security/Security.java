@@ -1025,7 +1025,7 @@ public final class Security {
      * </ol>
      * An impersonating worker with a different SPIFFE principal therefore does
      * not satisfy a union-scoped grant intended for the legitimate workload.
-     * When only one Subject is present the behaviour is equivalent to the
+     * When only one Subject is present the behavior is equivalent to the
      * single-subject case.
      * If neither Subject is present, principals are effectively ignored and
      * the grant applies to all protection domains of the given class loader.
@@ -1155,7 +1155,7 @@ public final class Security {
      * </ol>
      * An impersonating worker with a different SPIFFE principal therefore does
      * not satisfy a union-scoped grant intended for the legitimate workload.
-     * When only one Subject is present the behaviour is equivalent to the
+     * When only one Subject is present the behavior is equivalent to the
      * single-subject case.
      *
      * <p>The permissions dynamically granted to
