@@ -364,14 +364,14 @@ It is `final` and cannot be subclassed further.
 
 | Type | Constructor access | Rationale |
 |---|---|---|
-| `Subject` | Public | Backwards compatibility; JAAS LoginContext |
-| `WorkerSubject` | `protected` (`javax.security.auth`) | Only `SpiffeSubject` (sealed permit) may be constructed |
+| `Subject` | Public sealed | Backwards compatibility; JAAS LoginContext |
+| `WorkerSubject` | `Public` (`javax.security.auth`) sealed | Only `SpiffeSubject` (sealed permit) may be constructed |
 | `SpiffeCredentialManager.SpiffeSubject` | Package-private (`au.zeus.jdk.authorization.spire`) | Only SPIRE infrastructure constructs local worker identity |
-| `UserSubject` | Public | JERI dispatcher constructs from wire header |
+| `UserSubject` | Public final | JERI dispatcher constructs from wire header |
 
 ### 4.3 No Further Subclassing
 
-`UserSubject` and `WorkerSubject` are `final`. `WorkerSubject`
+`UserSubject` is `final`. `WorkerSubject`
 is sealed with only `SpiffeSubject` permitted. No further subclassing is permitted
 unless a concrete need is identified.
 
