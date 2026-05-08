@@ -1002,17 +1002,33 @@ public final class Security {
      * the grant applies across all protection domains that possess at least
      * the current subject's principals.
      * <p>
-     * The current subject is resolved by first checking the user
-     * {@link Subject} bound via {@link Subject#callAs Subject.callAs()}
-     * (readable via {@link Subject#current Subject.current()}).  If a user
-     * Subject is bound (e.g. a human identity established per-request), its
-     * principals are used to scope the grant.  If no user Subject is bound,
-     * the Subject associated with the current
+     * <p>The "current principals" are determined by {@code
+     * getCurrentPrincipals()}, which returns the <em>union</em> of principals
+     * from both the user {@link Subject} bound via
+     * {@link Subject#callAs Subject.callAs()} (readable via
+     * {@link Subject#current Subject.current()}) and the worker
+     * {@link Subject} on the current
      * {@link java.security.AccessControlContext AccessControlContext}
-     * (obtainable via {@link Subject#getSubject Subject.getSubject}) is used
-     * as a fallback.  If the resolved subject is <code>null</code> or has no
-     * principals, then principals are effectively ignored in determining the
-     * protection domains to which the grant applies.  
+     * (obtainable via {@link Subject#getSubject Subject.getSubject}).  This
+     * union is mandatory for POLP:
+     * <ol>
+     *   <li>{@code SpiffePolicyFile} cannot pre-assign permissions to unknown
+     *       proxy ClassLoaders created at runtime; dynamic grants are the
+     *       mechanism that scopes permissions to a specific proxy protection
+     *       domain at preparation time.</li>
+     *   <li>Policy files can only relax permissions (deny-all baseline); they
+     *       cannot deny an already-granted permission, so all required
+     *       principals must be named in the grant for restrictive scope.</li>
+     *   <li>POLP requires user + workload + code together; union-scoped grants
+     *       apply only when both user and worker identities are present
+     *       alongside the target code domain.</li>
+     * </ol>
+     * An impersonating worker with a different SPIFFE principal therefore does
+     * not satisfy a union-scoped grant intended for the legitimate workload.
+     * When only one Subject is present the behaviour is equivalent to the
+     * single-subject case.
+     * If neither Subject is present, principals are effectively ignored and
+     * the grant applies to all protection domains of the given class loader.
      * <p>
      * The given class, if non-<code>null</code>, must belong to either the
      * system domain or a protection domain whose associated class loader is
