@@ -368,7 +368,6 @@ It is `final` and cannot be subclassed further.
 | `WorkerSubject` | `protected` (`javax.security.auth`) | Only `SpiffeSubject` (sealed permit) may be constructed |
 | `SpiffeCredentialManager.SpiffeSubject` | Package-private (`au.zeus.jdk.authorization.spire`) | Only SPIRE infrastructure constructs local worker identity |
 | `UserSubject` | Public | JERI dispatcher constructs from wire header |
-| `WorkerSubject` | Public | JERI dispatcher constructs for ACC domain baking |
 
 ### 4.3 No Further Subclassing
 
