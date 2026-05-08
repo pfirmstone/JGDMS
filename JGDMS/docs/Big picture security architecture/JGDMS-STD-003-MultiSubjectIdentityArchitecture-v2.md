@@ -11,46 +11,46 @@
 
 ### v2.0 changes from v1.0
 
-- **`RemoteUserSubject` renamed to `DistributedUserSubject`** — reflects that the user
+- **`RemoteUserSubject` renamed to `UserSubject`** — reflects that the user
   may be local (SSH admin) or remote; the distinction is that it is a principals-only
   identity assertion that travels with a distributed transaction, not a JAAS session
   with credentials. Multiple instances may be present simultaneously in a transaction.
 
-- **`doPrivileged` semantics for user identity revised** — `DistributedUserSubject`
-  principals now survive `doPrivileged` boundaries alongside `LocalWorkerSubject`.
+- **`doPrivileged` semantics for user identity revised** — `UserSubject`
+  principals now survive `doPrivileged` boundaries alongside `WorkerSubject`.
   The correct split is environmental+operational identity (survives) vs network
   topology identity (shed). Allowing `doPrivileged` to shed user identity would
   permit buggy privileged code to bypass user-principal grants accidentally, which
-  is a security weakness. Only `RemoteWorkerSubject` (process/platform of the
+  is a security weakness. Only `WorkerSubject` (process/platform of the
   caller's peer) is shed at `doPrivileged` boundaries.
 
-- **`RemoteWorkerSubject` travels via reconstructed ACC, not `SCOPED_SUBJECTS`** —
+- **`WorkerSubject` travels via reconstructed ACC, not `SCOPED_SUBJECTS`** —
   Remote process identity belongs on the call stack as `ProtectionDomain`s, not
-  injected into local domain arrays. `RemoteWorkerSubject` principals are baked into
+  injected into local domain arrays. `WorkerSubject` principals are baked into
   remote `ProtectionDomain`s at class load time on the remote JVM and transmitted
   via serialized `AccessControlContext` over JERI endpoints. This prevents
   cross-contamination between local code grants and remote process identity.
 
-- **`LocalWorkerSubject` principals baked into `ProtectionDomain` at class load time**
+- **`WorkerSubject` principals baked into `ProtectionDomain` at class load time**
   via `SecureClassLoader` — not injected by `getContext()`. This enables
   `LoadClassPermission` checking at class load time, restricting which classes may
   be loaded into a given process based on SPIFFE identity.
 
-- **`getContext()` injection simplified** — only `DistributedUserSubject` principals
-  are injected, into both stack domains and `privilegedContext`. `RemoteWorkerSubject`
-  is never in `SCOPED_SUBJECTS`. `LocalWorkerSubject` is already in every
+- **`getContext()` injection simplified** — only `UserSubject` principals
+  are injected, into both stack domains and `privilegedContext`. `WorkerSubject`
+  is never in `SCOPED_SUBJECTS`. `WorkerSubject` is already in every
   `ProtectionDomain` from class load time.
 
 - **`Subject.callAs()` varargs overload added** — new overload
   `callAs(Callable<T> action, Subject... subjects)` supports multi-party
   transactions. The existing OpenJDK-compatible `callAs(Subject, Callable)` is
   retained unchanged and delegates to the new overload. `null` elements throw
-  `NullPointerException`. `LocalWorkerSubject` elements throw
+  `NullPointerException`. `WorkerSubject` elements throw
   `IllegalArgumentException`.
 
 - **`@AtomicSerial` ACC serialization** — `AccessControlContext` serialization
   added to transmit remote call stack identity over JERI endpoints, enabling
-  `RemotePolicy` grants against `httpmd:` URIs and `RemoteWorkerSubject` principals.
+  `RemotePolicy` grants against `httpmd:` URIs and `WorkerSubject` principals.
 
 - **`URIGrant` / `ScalableNestedPolicy` unchanged** — existing grant hierarchy
   handles SPIFFE principals correctly. `SpiffePrincipal` URI stability (guaranteed
@@ -136,11 +136,11 @@ principals permanently, breaking policy stability as remote workers change.
    concern, not an authorisation concern.
 
 4. **Remote process identity travels as call stack domains.** Remote `ProtectionDomain`s
-   with `RemoteWorkerSubject` principals baked in at class load time on the remote JVM
+   with `WorkerSubject` principals baked in at class load time on the remote JVM
    are transmitted via serialized ACC and participate in local permission checks as
    stack domains. This avoids contaminating local domain construction.
 
-5. **Class loading gated by SPIFFE identity.** `SecureClassLoader` bakes `LocalWorkerSubject`
+5. **Class loading gated by SPIFFE identity.** `SecureClassLoader` bakes `WorkerSubject`
    principals into every `ProtectionDomain` at class load time, enabling
    `LoadClassPermission` checks that restrict which classes may load into a given process.
 
@@ -163,9 +163,9 @@ principals permanently, breaking policy stability as remote workers change.
 
 | Layer | Type | Carrier | Survives `doPrivileged` | Lifetime | Constructed by |
 |---|---|---|---|---|---|
-| Local process worker | `LocalWorkerSubject` | Baked into `ProtectionDomain` at class load time | **Yes** — in every domain | JVM lifetime | SPIRE only (sealed) |
-| Remote process worker | `RemoteWorkerSubject` | Serialized ACC domains over JERI | **No** — not in `privilegedContext` | Per-connection | JERI dispatcher |
-| Distributed user | `DistributedUserSubject` | `SCOPED_SUBJECTS` ScopedValue | **Yes** — injected into `privilegedContext` | Per-request / transaction | JERI dispatcher |
+| Local process worker | `WorkerSubject` | Baked into `ProtectionDomain` at class load time | **Yes** — in every domain | JVM lifetime | SPIRE only (sealed) |
+| Remote process worker | `WorkerSubject` | Serialized ACC domains over JERI | **No** — not in `privilegedContext` | Per-connection | JERI dispatcher |
+| Distributed user | `UserSubject` | `SCOPED_SUBJECTS` ScopedValue | **Yes** — injected into `privilegedContext` | Per-request / transaction | JERI dispatcher |
 | Local user (legacy) | `Subject` (vanilla) | `SCOPED_SUBJECTS` ScopedValue or ACC | **Yes** (ScopedValue path) | Per-session | JAAS `LoginContext` |
 
 ### 3.2 The `doPrivileged` Boundary Rule
@@ -248,7 +248,7 @@ The remote thread's `AccessControlContext` is serialized using `@AtomicSerial` a
 transmitted over the JERI endpoint. The receiving JVM reconstitutes the ACC with
 remote `ProtectionDomain`s containing:
 - `httpmd:` `CodeSource` URLs with SHA-256 signatures (verifiable without loading)
-- `RemoteWorkerSubject` principals baked in at remote class load time
+- `WorkerSubject` principals baked in at remote class load time
 
 A `DomainCombiner` on the receiving side strips any domain it cannot verify before
 placing the remote ACC on the local call stack. The reconstituted domains participate
@@ -276,7 +276,7 @@ the distributed transaction semantics rather than network topology.
 - Read-only, no credentials (principals only)
 - May be absent (service-to-service calls with no user context)
 - Multiple instances may be present simultaneously (transaction context)
-- `Subject.current()` returns the first `DistributedUserSubject` in the array
+- `Subject.current()` returns the first `UserSubject` in the array
 - `Subject.callAs(Callable, Subject...)` varargs overload supports multiple instances
 
 **Why it survives `doPrivileged`:**
@@ -294,7 +294,7 @@ compatibility.
 
 **Key properties:**
 - `Subject.doAs()` routes to this type — unchanged legacy semantics
-- `Subject.current()` returns this type if no `DistributedUserSubject` present
+- `Subject.current()` returns this type if no `UserSubject` present
 - Used by `KerberosEndpoint` for GSS credential acquisition
 - Survives `doPrivileged` (carried on `SCOPED_SUBJECTS` ScopedValue path)
 
@@ -310,7 +310,7 @@ compatibility.
  * (Kerberos, JAAS). Sealed to permit only the defined identity subtypes.
  */
 public sealed class Subject
-    permits LocalWorkerSubject, DistributedUserSubject {
+    permits WorkerSubject, UserSubject {
     // existing Subject implementation
 }
 
@@ -320,9 +320,9 @@ public sealed class Subject
  * Survives doPrivileged — present in every domain. Never passed to callAs().
  * Cannot be constructed by application code.
  */
-public sealed class LocalWorkerSubject extends Subject
+public sealed class WorkerSubject extends Subject
     permits SpiffeCredentialManager.SpiffeSubject {
-    protected LocalWorkerSubject(boolean readOnly,
+    protected WorkerSubject(boolean readOnly,
                                   Set<? extends Principal> principals,
                                   Set<?> pubCredentials,
                                   Set<?> privCredentials) {
@@ -336,8 +336,8 @@ public sealed class LocalWorkerSubject extends Subject
  * simultaneously. Carried as a ScopedValue. Survives doPrivileged boundaries.
  * Read-only, no credentials.
  */
-public final class DistributedUserSubject extends Subject {
-    public DistributedUserSubject(Set<Principal> principals) {
+public final class UserSubject extends Subject {
+    public UserSubject(Set<Principal> principals) {
         super(true, principals, emptySet(), emptySet());
     }
 }
@@ -348,14 +348,14 @@ public final class DistributedUserSubject extends Subject {
  * in a serialized AccessControlContext over JERI endpoints.
  * Shed at doPrivileged boundaries.
  */
-public final class RemoteWorkerSubject extends Subject {
-    public RemoteWorkerSubject(Set<Principal> principals) {
+public final class WorkerSubject extends Subject {
+    public WorkerSubject(Set<Principal> principals) {
         super(true, principals, emptySet(), emptySet());
     }
 }
 ```
 
-**Note on `RemoteWorkerSubject`:** Although `RemoteWorkerSubject` extends `Subject`
+**Note on `WorkerSubject`:** Although `WorkerSubject` extends `Subject`
 for type hierarchy purposes, it is never placed in `SCOPED_SUBJECTS` and is never
 passed to `callAs()`. Its principals travel exclusively via serialized ACC domains.
 It is `final` and cannot be subclassed further.
@@ -365,14 +365,14 @@ It is `final` and cannot be subclassed further.
 | Type | Constructor access | Rationale |
 |---|---|---|
 | `Subject` | Public | Backwards compatibility; JAAS LoginContext |
-| `LocalWorkerSubject` | `protected` (`javax.security.auth`) | Only `SpiffeSubject` (sealed permit) may be constructed |
+| `WorkerSubject` | `protected` (`javax.security.auth`) | Only `SpiffeSubject` (sealed permit) may be constructed |
 | `SpiffeCredentialManager.SpiffeSubject` | Package-private (`au.zeus.jdk.authorization.spire`) | Only SPIRE infrastructure constructs local worker identity |
-| `DistributedUserSubject` | Public | JERI dispatcher constructs from wire header |
-| `RemoteWorkerSubject` | Public | JERI dispatcher constructs for ACC domain baking |
+| `UserSubject` | Public | JERI dispatcher constructs from wire header |
+| `WorkerSubject` | Public | JERI dispatcher constructs for ACC domain baking |
 
 ### 4.3 No Further Subclassing
 
-`DistributedUserSubject` and `RemoteWorkerSubject` are `final`. `LocalWorkerSubject`
+`UserSubject` and `WorkerSubject` are `final`. `WorkerSubject`
 is sealed with only `SpiffeSubject` permitted. No further subclassing is permitted
 unless a concrete need is identified.
 
@@ -387,7 +387,7 @@ unless a concrete need is identified.
  * Executes a Callable with subject as the current scoped identity.
  * OpenJDK-compatible signature. Delegates to the varargs overload.
  *
- * @param subject the Subject to bind; must not be null or LocalWorkerSubject
+ * @param subject the Subject to bind; must not be null or WorkerSubject
  * @param action  the code to execute; must not be null
  */
 public static <T> T callAs(Subject subject, Callable<T> action)
@@ -405,15 +405,15 @@ public static <T> T callAs(Subject subject, Callable<T> action)
  * identity for the duration of the call on the current thread.
  *
  * <p> Subjects are bound to SCOPED_SUBJECTS for the duration of action.
- * DistributedUserSubject principals are injected into the
+ * UserSubject principals are injected into the
  * AccessControlContext's ProtectionDomain array at getContext() time,
  * including into privilegedContext, ensuring user identity survives
  * doPrivileged boundaries.
  *
- * <p> LocalWorkerSubject must not be passed — the local process identity
+ * <p> WorkerSubject must not be passed — the local process identity
  * is always ambient, baked into ProtectionDomains at class load time.
  *
- * <p> RemoteWorkerSubject must not be passed — remote process identity
+ * <p> WorkerSubject must not be passed — remote process identity
  * travels via serialized AccessControlContext domains, not ScopedValue.
  *
  * <p> Calls may be nested; each nested call shadows the previous bindings
@@ -422,13 +422,13 @@ public static <T> T callAs(Subject subject, Callable<T> action)
  *
  * @param action   the code to execute; must not be null
  * @param subjects zero or more Subject instances; must not be null;
- *                 no element may be null; LocalWorkerSubject and
- *                 RemoteWorkerSubject elements are rejected
+ *                 no element may be null; WorkerSubject and
+ *                 WorkerSubject elements are rejected
  *
  * @throws NullPointerException     if action is null, subjects is null,
  *                                  or any element of subjects is null
- * @throws IllegalArgumentException if any element is a LocalWorkerSubject
- *                                  or RemoteWorkerSubject
+ * @throws IllegalArgumentException if any element is a WorkerSubject
+ *                                  or WorkerSubject
  */
 public static <T> T callAs(Callable<T> action, Subject... subjects)
     throws CompletionException {
@@ -436,13 +436,13 @@ public static <T> T callAs(Callable<T> action, Subject... subjects)
     Objects.requireNonNull(subjects, "subjects");
     for (int i = 0; i < subjects.length; i++) {
         Objects.requireNonNull(subjects[i], "subjects[" + i + "] must not be null");
-        if (subjects[i] instanceof LocalWorkerSubject)
+        if (subjects[i] instanceof WorkerSubject)
             throw new IllegalArgumentException(
-                "LocalWorkerSubject must not be passed to callAs() — " +
+                "WorkerSubject must not be passed to callAs() — " +
                 "local process identity is ambient");
-        if (subjects[i] instanceof RemoteWorkerSubject)
+        if (subjects[i] instanceof WorkerSubject)
             throw new IllegalArgumentException(
-                "RemoteWorkerSubject must not be passed to callAs() — " +
+                "WorkerSubject must not be passed to callAs() — " +
                 "remote process identity travels via serialized ACC domains");
     }
     // ScopedValue.where(SCOPED_SUBJECTS, subjects).call(action)
@@ -468,7 +468,7 @@ Subject.callAs(action, partyA, partyB, partyC);
 
 ### 5.4 `Subject.current()` Semantics
 
-Returns the first `DistributedUserSubject` or vanilla `Subject` found in
+Returns the first `UserSubject` or vanilla `Subject` found in
 `SCOPED_SUBJECTS`, or `null`. Backwards-compatible — existing callers expecting
 a single user Subject get the primary user identity.
 
@@ -477,7 +477,7 @@ public static Subject current() {
     if (!SCOPED_SUBJECTS.isBound()) return null;
     Subject[] all = SCOPED_SUBJECTS.get();
     for (int i = 0; i < all.length; i++) {
-        if (all[i] instanceof DistributedUserSubject
+        if (all[i] instanceof UserSubject
                 || all[i].getClass() == Subject.class)
             return all[i];
     }
@@ -488,7 +488,7 @@ public static Subject current() {
 ### 5.5 `Subject.currentAll()`
 
 Returns all Subjects currently bound in `SCOPED_SUBJECTS`, or empty array.
-Never includes `LocalWorkerSubject` or `RemoteWorkerSubject`.
+Never includes `WorkerSubject` or `WorkerSubject`.
 
 ---
 
@@ -498,14 +498,14 @@ Never includes `LocalWorkerSubject` or `RemoteWorkerSubject`.
 
 ```java
 public static <T> T doAs(Subject subject, PrivilegedAction<T> action) {
-    if (subject instanceof DistributedUserSubject
-            || subject instanceof RemoteWorkerSubject) {
+    if (subject instanceof UserSubject
+            || subject instanceof WorkerSubject) {
         throw new IllegalArgumentException(
-            "DistributedUserSubject and RemoteWorkerSubject must use Subject.callAs()");
+            "UserSubject and WorkerSubject must use Subject.callAs()");
     }
-    if (subject instanceof LocalWorkerSubject) {
+    if (subject instanceof WorkerSubject) {
         throw new IllegalArgumentException(
-            "LocalWorkerSubject is established by SPIRE infrastructure");
+            "WorkerSubject is established by SPIRE infrastructure");
     }
     // existing doAs implementation — vanilla Subject and null only
 }
@@ -523,16 +523,16 @@ public static <T> T doAs(Subject subject, PrivilegedAction<T> action) {
 
 ### 7.1 `Subject.current()` — primary user, backwards-compatible
 ### 7.2 `Subject.currentAll()` — full Subject array for transaction context
-### 7.3 `Subject.getLocalWorker()` — retrieves `LocalWorkerSubject` from ACC
+### 7.3 `Subject.getLocalWorker()` — retrieves `WorkerSubject` from ACC - Maybe can just get the global scope instead?
 
 ```java
-public static LocalWorkerSubject getLocalWorker() {
+public static WorkerSubject getLocalWorker() {
     Subject s = Subject.getSubject(AccessController.getContext());
-    return s instanceof LocalWorkerSubject lws ? lws : null;
+    return s instanceof WorkerSubject lws ? lws : null;
 }
 ```
 
-Note: `Subject.getSubject(acc)` also returns the `LocalWorkerSubject` naturally
+Note: `Subject.getSubject(acc)` also returns the `WorkerSubject` naturally
 when no `DomainCombiner` is present (e.g. inside a `doPrivileged` block), since
 the local worker principals are in `privilegedContext`.
 
@@ -543,8 +543,8 @@ the local worker principals are in `privilegedContext`.
 ### 8.1 Overview
 
 After `optimize()`, `getContext()` reads `SCOPED_SUBJECTS` and injects
-`DistributedUserSubject` principals into the ACC's `ProtectionDomain` array.
-`LocalWorkerSubject` and `RemoteWorkerSubject` are never in `SCOPED_SUBJECTS`
+`UserSubject` principals into the ACC's `ProtectionDomain` array.
+`WorkerSubject` and `WorkerSubject` are never in `SCOPED_SUBJECTS`
 and are never injected here.
 
 ```java
@@ -552,15 +552,15 @@ Subject[] scoped = SCOPED_SUBJECTS.isBound() ? SCOPED_SUBJECTS.get() : null;
 if (scoped != null && scoped.length > 0) {
     Set<Principal> userPrincipals = new LinkedHashSet<>();
     for (int i = 0; i < scoped.length; i++) {
-        // Only DistributedUserSubject and vanilla Subject are injected
-        if (scoped[i] instanceof DistributedUserSubject
+        // Only UserSubject and vanilla Subject are injected
+        if (scoped[i] instanceof UserSubject
                 || scoped[i].getClass() == Subject.class) {
             userPrincipals.addAll(scoped[i].getPrincipals());
         }
-        // RemoteWorkerSubject: never in SCOPED_SUBJECTS — assertion only
-        assert !(scoped[i] instanceof RemoteWorkerSubject);
-        // LocalWorkerSubject: never in SCOPED_SUBJECTS — assertion only
-        assert !(scoped[i] instanceof LocalWorkerSubject);
+        // WorkerSubject: never in SCOPED_SUBJECTS — assertion only
+        assert !(scoped[i] instanceof WorkerSubject);
+        // WorkerSubject: never in SCOPED_SUBJECTS — assertion only
+        assert !(scoped[i] instanceof WorkerSubject);
     }
 
     if (!userPrincipals.isEmpty()) {
@@ -599,10 +599,10 @@ return acc;
 
 | Subject type | Stack domains | `privilegedContext` | Rationale |
 |---|---|---|---|
-| `LocalWorkerSubject` | Already in every domain from class load | Already in every domain | Environmental — baked at load time |
-| `RemoteWorkerSubject` | Not injected — travels via ACC domains | Not injected | Network topology — shed at `doPrivileged` |
-| `DistributedUserSubject` | Injected | **Injected** | Operational authority — survives `doPrivileged` |
-| Vanilla `Subject` | Injected | **Injected** | Legacy user — same semantics as `DistributedUserSubject` |
+| `WorkerSubject` | Already in every domain from class load | Already in every domain | Environmental — baked at load time |
+| `WorkerSubject` | Not injected — travels via ACC domains | Not injected | Network topology — shed at `doPrivileged` |
+| `UserSubject` | Injected | **Injected** | Operational authority — survives `doPrivileged` |
+| Vanilla `Subject` | Injected | **Injected** | Legacy user — same semantics as `UserSubject` |
 
 ### 8.3 Bootstrap Safety
 
@@ -614,7 +614,7 @@ return acc;
 
 `SecureClassLoader.getProtectionDomain()` calls
 `SpiffeCredentialManager.getInstance().getSubject()` and bakes the
-`LocalWorkerSubject` principals into every constructed `ProtectionDomain`.
+`WorkerSubject` principals into every constructed `ProtectionDomain`.
 
 **Fail-secure behaviour:** If `getSubject()` returns `null` (SPIRE not yet connected
 at bootstrap), `pals` is `null` and the `ProtectionDomain` has no principals. The
@@ -647,16 +647,15 @@ without contaminating local domain construction.
 
 ### 10.2 Remote Domain Construction
 
-On the remote JVM, `SecureClassLoader` bakes `RemoteWorkerSubject` principals
-(alongside `LocalWorkerSubject` principals) into each `ProtectionDomain` at class
+On the remote JVM, `SecureClassLoader` bakes `WorkerSubject` principals
+ into each `ProtectionDomain` at class
 load time. The remote ACC therefore contains domains of the form:
 
 ```
 ProtectionDomain(
     codeSource = httpmd://repo.example.org/client-stub.jar#SHA256:abc123,
     principals = [
-        SpiffePrincipal("spiffe://.../host/selinux/client-svc"),  // LocalWorkerSubject
-        SpiffePrincipal("spiffe://.../svc/trusted-client")         // RemoteWorkerSubject
+        SpiffePrincipal("spiffe://.../host/selinux/client-svc"),  // Local WorkerSubject
     ]
 )
 ```
@@ -684,19 +683,19 @@ domains are placed on the call stack ACC and participate in `RemotePolicy` check
 ### 10.5 `RemotePolicy` Grant Model
 
 ```
-// Local code grant — SpiffePrincipal from LocalWorkerSubject in local ProtectionDomain
+// Local code grant — SpiffePrincipal from WorkerSubject in local ProtectionDomain
 grant codeBase "file:/opt/jgdms/order-processor/-"
       principal SpiffePrincipal "spiffe://.../host/selinux/order-processor" {
     permission OrderPermission "read";
 };
 
-// Remote code grant — verified by httpmd: SHA-256 + RemoteWorkerSubject principal
+// Remote code grant — verified by httpmd: SHA-256 + WorkerSubject principal
 grant codeBase "httpmd://repo.example.org/client-stub.jar#SHA256:abc123"
       principal SpiffePrincipal "spiffe://.../svc/trusted-client" {
     permission OrderPermission "submit";
 };
 
-// User elevation — DistributedUserSubject injected into privilegedContext
+// User elevation — UserSubject injected into privilegedContext
 grant codeBase "file:/opt/jgdms/order-processor/-"
       principal SpiffePrincipal "spiffe://.../host/selinux/order-processor"
       principal KerberosPrincipal "admin@EXAMPLE.ORG" {
@@ -712,7 +711,7 @@ grant codeBase "file:/opt/jgdms/order-processor/-"
 
 When a thread is constructed inside a `callAs` scope:
 
-1. `AccessController.getContext()` produces an ACC with `DistributedUserSubject`
+1. `AccessController.getContext()` produces an ACC with `UserSubject`
    principals baked into the domain array (including `privilegedContext`).
 2. This enriched ACC is stored as `inheritedAccessControlContext`.
 3. `Subject[]` is captured into `Thread.scopedSubjects` at construction time
@@ -755,18 +754,18 @@ Daemon threads must be constructed outside any `callAs` scope, or must use
 ### 12.1 `SslEndpointImpl` — TLS/SPIFFE
 
 ```
-Priority 1: LocalWorkerSubject from ACC  — definitive; type-checked
+Priority 1: WorkerSubject from ACC  — definitive; type-checked
 Priority 2: SpiffeSubjectHolder.get()    — process-wide fallback
 Priority 3: Subject.current() filtered   — last resort; SpiffePrincipal required;
-                                           DistributedUserSubject always rejected
+                                           UserSubject always rejected
 ```
 
 ### 12.2 `KerberosEndpoint` — Kerberos GSS
 
 ```
-Priority 1: Subject.current() — DistributedUserSubject or vanilla Subject;
+Priority 1: Subject.current() — UserSubject or vanilla Subject;
                                  KerberosPrincipal required
-Priority 2: Subject.getSubject(acc) — fallback; LocalWorkerSubject rejected
+Priority 2: Subject.getSubject(acc) — fallback; WorkerSubject rejected
 ```
 
 ---
@@ -783,8 +782,8 @@ grant codeBase "file:/opt/jgdms/order-processor/-"
 };
 ```
 
-The `SpiffePrincipal` is satisfied by `LocalWorkerSubject` baked into the domain at
-class load time. The `KerberosPrincipal` is satisfied by `DistributedUserSubject`
+The `SpiffePrincipal` is satisfied by `WorkerSubject` baked into the domain at
+class load time. The `KerberosPrincipal` is satisfied by `UserSubject`
 injected by `getContext()`. Both survive `doPrivileged` — buggy privileged code
 cannot bypass either constraint.
 
@@ -830,7 +829,7 @@ grant codeBase "file:/opt/jgdms/txn-svc/-"
 
 The remote workers travel via ACC domains and are checked by `RemotePolicy` against
 their respective `httpmd:` codebase grants separately. The user principals are checked
-by the local policy after `DistributedUserSubject` injection.
+by the local policy after `UserSubject` injection.
 
 ### 13.5 Class Load Gate
 
@@ -848,12 +847,11 @@ grant codeBase "httpmd://repo.example.org/asm.jar#SHA256:def456"
 
 ### 14.1 Phase 1 — Current State
 
-- Sealed Subject hierarchy: `LocalWorkerSubject`, `DistributedUserSubject`,
-  `RemoteWorkerSubject`
-- `SecureClassLoader` bakes `LocalWorkerSubject` principals into every `ProtectionDomain`
-- `Subject.callAs(Callable, Subject...)` varargs overload implemented
+- Sealed Subject hierarchy: `WorkerSubject`, `UserSubject`
+- `SecureClassLoader` bakes `WorkerSubject` principals into every `ProtectionDomain`
+- `Subject.callAs(Callable, UserSubject...)` varargs overload implemented
 - `SCOPED_SUBJECTS` ScopedValue carries `Subject[]`
-- `getContext()` injects `DistributedUserSubject` principals into stack domains
+- `getContext()` injects `UserSubject` principals into stack domains
   and `privilegedContext`
 - `@AtomicSerial` ACC serialization for JERI remote identity transmission
 - `Thread.runWith()` re-establishes `SCOPED_SUBJECTS` for spawned threads
@@ -886,10 +884,10 @@ reads `SCOPED_SUBJECTS` without combiner invocation:
 
 | Property | Guarantee |
 |---|---|
-| Local worker is mandatory and unforgeable | Baked into every `ProtectionDomain` at class load time by `SecureClassLoader`. Only `SpiffeCredentialManager.SpiffeSubject` (sealed, package-private) can construct a `LocalWorkerSubject`. SPIRE platform attestation prevents forgery. |
+| Local worker is mandatory and unforgeable | Baked into every `ProtectionDomain` at class load time by `SecureClassLoader`. Only `SpiffeCredentialManager.SpiffeSubject` (sealed, package-private) can construct a `WorkerSubject`. SPIRE platform attestation prevents forgery. |
 | Local worker survives `doPrivileged` | It is in the domain itself — not the combiner. Plain `doPrivileged` cannot shed it. |
-| User identity survives `doPrivileged` | `DistributedUserSubject` principals are injected into `privilegedContext` at `getContext()` time. Buggy privileged code cannot accidentally bypass user-principal grants. |
-| Remote identity cannot escalate to local trust | `RemoteWorkerSubject` travels via serialized ACC domains only. It never appears in `privilegedContext` on the local JVM. A compromised remote peer cannot elevate to local worker trust. |
+| User identity survives `doPrivileged` | `UserSubject` principals are injected into `privilegedContext` at `getContext()` time. Buggy privileged code cannot accidentally bypass user-principal grants. |
+| Remote identity cannot escalate to local trust | Remote `WorkerSubject` travels via serialized ACC domains only. It never appears in `privilegedContext` on the local JVM. A compromised remote peer cannot elevate to local worker trust. |
 | Trust tier is machine-attested | SPIRE provisions SVID based on platform attestation. A Windows host cannot claim an SELinux SVID. Application code cannot influence it. |
 | Class loading is SPIFFE-gated | `LoadClassPermission` check at class load time. If SPIRE is unavailable, `pals` is null, grant fails, class is rejected. Fail-secure. |
 | Multi-party grants are atomic | All principals from all `SCOPED_SUBJECTS` entries are merged additively. A grant requiring multiple parties is only satisfied when all are simultaneously present. |
@@ -901,7 +899,7 @@ reads `SCOPED_SUBJECTS` without combiner invocation:
 1. Local worker identity at every permission check
 2. Trust tier ceiling on `doPrivileged` grants
 3. User identity requirement through `doPrivileged` boundaries
-4. `LocalWorkerSubject` construction (sealed, SPIRE only)
+4. `WorkerSubject` construction (sealed, SPIRE only)
 5. `neverPrivileged` domain barrier on daemon threads
 6. Multi-party transaction atomicity
 7. Class load gate via `LoadClassPermission`
@@ -914,15 +912,15 @@ reads `SCOPED_SUBJECTS` without combiner invocation:
 |---|---|
 | JGDMS-STD-001 (@AtomicSerial) | `AccessControlContext` serialization uses `@AtomicSerial` format defined here |
 | JGDMS-STD-002 (SCAP Pipeline) | SCAP verifies code safety; this standard verifies runtime identity authority. Complementary — SCAP-approved code + SPIFFE identity together constitute full trust |
-| OpenJDK `Subject.callAs()` (JEP 411) | JGDMS diverges deliberately — thread propagation extended; varargs multi-Subject; sealed hierarchy; `DistributedUserSubject` survives `doPrivileged` |
+| OpenJDK `Subject.callAs()` (JEP 411) | JGDMS diverges deliberately — thread propagation extended; varargs multi-Subject; sealed hierarchy; `UserSubject` survives `doPrivileged` |
 
 ## Appendix B: Glossary
 
 | Term | Definition |
 |---|---|
-| Local worker | `LocalWorkerSubject` — this JVM's SPIFFE identity, provisioned by SPIRE, baked into every `ProtectionDomain` at class load time |
-| Remote worker | `RemoteWorkerSubject` — peer process SPIFFE identity, travels via serialized ACC domains |
-| Distributed user | `DistributedUserSubject` — authenticated user in a distributed transaction; may be local or remote; survives `doPrivileged` |
+| Local worker | `WorkerSubject` — this JVM's SPIFFE identity, provisioned by SPIRE, baked into every `ProtectionDomain` at class load time |
+| Remote worker | `WorkerSubject` — peer process SPIFFE identity, travels via serialized ACC domains |
+| Distributed user | `UserSubject` — authenticated user in a distributed transaction; may be local or remote; survives `doPrivileged` |
 | Environmental identity | Local worker — what machine/OS/security posture; cannot be shed |
 | Operational authority | Distributed user — who authorised this operation; cannot be shed |
 | Network topology identity | Remote worker — where this call came from; shed at `doPrivileged` |
