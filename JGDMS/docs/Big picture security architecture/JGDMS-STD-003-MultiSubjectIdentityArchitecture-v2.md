@@ -1,7 +1,7 @@
 # JGDMS-STD-003: Multi-Subject Identity Architecture
 
 **Status:** Draft  
-**Version:** 2.0  
+**Version:** 2.1  
 **Applies to:** DirtyChai (JDK fork), JGDMS  
 **Supersedes:** JGDMS-STD-003 v1.0  
 
