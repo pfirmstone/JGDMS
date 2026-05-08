@@ -1127,7 +1127,7 @@ public final class Security {
      * mandatory for POLP:
      * <ol>
      *   <li>{@code SpiffePolicyFile} cannot pre-assign permissions to unknown
-     *       proxy class loaders created at runtime; dynamic grants are the
+     *       proxy ClassLoaders created at runtime; dynamic grants are the
      *       mechanism that scopes permissions to a specific proxy protection
      *       domain at preparation time.</li>
      *   <li>Policy files can only relax permissions (deny-all baseline); they
@@ -1257,7 +1257,7 @@ public final class Security {
      *   <li>If only one is present, its principals are returned.</li>
      *   <li>If both are present, their principals are <em>unioned</em>.
      *       This is mandatory because: (1) {@code SpiffePolicyFile} cannot
-     *       pre-assign permissions to unknown proxy class loaders; dynamic
+     *       pre-assign permissions to unknown proxy ClassLoaders; dynamic
      *       grants scope to runtime-created proxy protection domains; (2)
      *       policy files can only relax permissions (deny-all baseline), so
      *       restrictive scope requires naming all principals; (3) POLP requires
