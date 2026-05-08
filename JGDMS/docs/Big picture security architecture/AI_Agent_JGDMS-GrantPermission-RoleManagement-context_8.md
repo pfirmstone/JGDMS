@@ -1,4 +1,4 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v14)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v15)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
@@ -252,12 +252,29 @@ that helper returns the **union** of principals from both active Subjects:
 | Both | **Union** of user + worker principals |
 | Neither | `null` (grant applies to any principal) |
 
-**POLP consequence (both present):** Because `PrincipalGrant.implies(Principal[])` requires that
-**all** principals named in a grant are present in the caller's principal array, using the union
-means a dynamic grant must be scoped to **both** the user identity (e.g. `KerberosPrincipal
-"alice@REALM"`) **and** the workload identity (e.g. `SpiffePrincipal
-"spiffe://…/svc/order-processor"`).  If either identity is absent, the grant does not match.
-This enforces POLP at all three layers simultaneously: user, code, and workload service.
+#### Security foundation — why the union is mandatory
+
+1. **`SpiffePolicyFile` cannot pre-assign permissions to unknown proxy classes.**  Bootstrap policy
+   knows which workload principals are expected at startup, but it does not know which proxy
+   `ClassLoader` instances will be created later at runtime.  Dynamic grants via
+   `Security.grant()` at proxy-preparation time are therefore the only mechanism that can scope a
+   permission to a specific proxy `ProtectionDomain` / `ClassLoader`.
+
+2. **Policy files can only relax permissions; they cannot deny them.**  Java security starts from a
+   deny-all baseline.  There is no policy-level "deny once granted".  Restricting a grant to a
+   specific identity combination requires naming all required principals in that grant, so the grant
+   simply does not apply when any named principal is absent.
+
+3. **POLP requires user + workload + code simultaneously.**  If a dynamic grant names only user
+   principals (user-first / worker-fallback), then a grant intended for "alice using
+   order-processor" can also apply to "alice using some other process".  With the union, grants are
+   constrained across all three axes at once: authenticated user principal, authenticated worker
+   SPIFFE principal, and the proxy code's `ProtectionDomain` / `ClassLoader`.
+
+**Impersonation prevention:** If a worker process impersonates a legitimate service (for example,
+running outside the hardened SELinux environment and presenting a different SPIFFE SVID), the
+union-scoped dynamic grant does not match.  Without the union, a user-only dynamic grant would
+still apply regardless of which process is acting for that user.
 
 **Single-Subject fallback:** On daemon threads or pre-login contexts where only one Subject is
 present, behaviour is identical to the previous single-subject case.
@@ -407,6 +424,12 @@ ServiceUI runs inside `Subject.callAs(kerberosSubject, () -> ...)` which is itse
 `Subject.doAs(spiffeSubject, ...)` workload context. `SubjectDomainCombiner` sees both
 Subjects and injects both principal sets into `checkPermission`. Policy can condition
 grants on both the workload identity (which process), codebase (which ServiceUI JAR) and the human identity (which user).
+
+**Clarifying note — checks vs dynamic grant scoping:** `SubjectDomainCombiner.combine()` is the
+additive merge used for `checkPermission` calls (static policy grants), while
+`Security.getCurrentPrincipals()` returns the union used for `Security.grant()` calls (dynamic
+grants during proxy preparation).  Both paths use additive/union semantics, so static policy checks
+and dynamic grant scoping stay aligned.
 
 ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdict`,
 `ProxyCodebaseSpi` gate, and ClassLoader.
@@ -593,6 +616,11 @@ grant principal SpiffePrincipal "spiffe://jgdms.example.org/svc/order-processor"
 };
 ```
 A grant requiring only the SPIFFE principal still fires in the absence of a user Subject.
+
+This is consistent with `Security.getCurrentPrincipals()` which also returns the union for dynamic
+grant scoping. Both the `checkPermission` path (static policy via combiner) and the
+`Security.grant()` path (dynamic policy) therefore require all named principals to be present
+simultaneously.
 
 ### 10.8 Structural Rules for Server Code
 
@@ -995,7 +1023,7 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | **`ClinitCycleVisitor` is not a separate class** | ✅ **v9:** Cycle detection is `ClinitBlockingVisitor.detectClinitCycles()` static method + `TarjanScc` private inner class — better cohesion, no separate file needed |
 | **`DefaultPolicyParser.scanner` is already `protected final`** | ✅ **v9:** No change required; `HttpsClientAuthPolicyParser` can subclass directly |
 | **`SUBJECT_CALL_AS`, `SUBJECT_DO_AS` (Dispatcher) and `SUBJECT_CURRENT` (Handler) are still reflective `Method` fields** | ✅ **v9 verified:** Resolved at class-init via `Subject.class.getMethod(...)`; invoked via `Method.invoke()`; null on JDK < 18 |
-| **`Security.getCurrentPrincipals()` checks `Subject.current()` first** | ✅ **v10 → revised in v14:** Originally preferred user Subject over ACC Subject. **Changed in v14** to return the **union** of both Subject's principals when both are present, enforcing POLP: a dynamic grant now requires both user and workload identity simultaneously. Single-subject fallback behaviour is unchanged. |
+| **`Security.getCurrentPrincipals()` union confirmed as mandatory for POLP** | ✅ **v15 confirmed:** The v14 union is the correct and mandatory design. Three security premises require it: (1) `SpiffePolicyFile` cannot pre-assign to unknown proxy ClassLoaders; (2) policy files can only relax permissions — deny-all baseline; (3) POLP requires user + workload + code simultaneously. Impersonation scenario: a worker running on an insecure environment (e.g. Windows without SELinux) has a different SPIFFE principal — the union-scoped grant will not apply. |
 | **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10 → simplified in v12:** Originally added a `Subject.doAs(user, ...)` wrapper so the user's principals were in the ACC for `checkPermission`. **Removed in v12** after DirtyChai commit `2d26e787` — `AccessController.getContext()` now captures `SCOPED_SUBJECT` automatically (via `Subject.NoCheck` / `AccessController.SubjectAccess`), making the wrapper redundant. `checkGuard()` now calls `sm.checkPermission(this)` directly. |
 | **`jgdms-platform` compiler release bumped to 21** | ✅ **v10:** Required to call `Subject.current()` and `Subject.doAs()` directly (not via reflection) in `jgdms-platform` source. |
 | **`SslEndpointImpl` checks ACC (`doAs`) first, `Subject.current()` last** | ✅ **v11:** TLS requires X.509/SPIFFE credentials in the workload Subject. A Kerberos-only `Subject.current()` is explicitly rejected. `Subject.current()` is only accepted as last resort when it carries X500Principal or SpiffePrincipal. |
@@ -1022,7 +1050,14 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 14, updated to add:*
+continue without loss of context. This is version 15, updated to add:*
+- *§5.4.1 security rationale substantially expanded — three security premises documented: (1) SpiffePolicyFile cannot pre-assign permissions to unknown proxy ClassLoaders; (2) policy files can only relax permissions (deny-all baseline); (3) POLP requires user + workload + code simultaneously. Impersonation prevention scenario documented.*
+- *§13 updated — `Security.getCurrentPrincipals()` union confirmed as mandatory; v15 rationale row added.*
+- *§9 and §10.7 clarified — both `checkPermission` (SubjectDomainCombiner) and `Security.grant()` (getCurrentPrincipals) use union/additive semantics consistently.*
+
+---
+
+*Previous version (v14) notes:*
 - *§5.4.1 revised — `Security.getCurrentPrincipals()` now returns the **union** of user and worker Subject principals when both are present; tightens POLP: dynamic grants must name both identities simultaneously; single-subject fallback unchanged*
 - *§13 updated — `Security.getCurrentPrincipals()` row revised to document v14 union semantics and POLP rationale*
 
