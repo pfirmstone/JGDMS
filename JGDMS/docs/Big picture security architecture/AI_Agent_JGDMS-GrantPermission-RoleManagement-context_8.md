@@ -1,8 +1,8 @@
-# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v18)
+# JGDMS — GrantPermission, Role Management & Full Architecture — AI Agent Context (v19)
 
 **Purpose:** This document captures the full conversation context for an AI agent to
 continue work on JGDMS role management and `GrantPermission` design without loss of
-context. It supersedes and extends v17.
+context. It supersedes and extends v18.
 
 **GitHub repositories:**
 - JGDMS: https://github.com/pfirmstone/JGDMS
@@ -10,30 +10,72 @@ context. It supersedes and extends v17.
 
 ---
 
+## v19 Change Summary
+
+This version documents the **two-implementation model** for `SpiffeCredentialManager`,
+the `Subject[]` field change in `Thread`, and the finalised
+`AccessController.getContext()` multi-subject injection loop.
+
+**New/changed in v19:**
+
+- **Two `SpiffeCredentialManager` implementations** — JGDMS (`net.jini.jeri.ssl`) uses
+  standard Java APIs and constructs a vanilla `Subject` with `X500Principal` +
+  `SpiffePrincipal`; DirtyChai (`au.zeus.jdk.authorization.spire`) constructs a sealed
+  `SpiffeSubject extends WorkerSubject` for JDK bootstrap use.  `Subject.processWorker()`
+  bridges both via `SpiffeSubjectHolder`.
+- **`Thread.scopedSubject` field is now `Subject[]`** — mirrors
+  `SCOPED_SUBJECT ScopedValue<Subject[]>`; the full array is captured at thread
+  construction time and passed to `SubjectAccess.callNoCheck()` in `runWith()`.
+- **`AccessController.getContext()` multi-subject loop finalised** — iterates over all
+  subjects in `SCOPED_SUBJECT`, skips `WorkerSubject` instances, creates a new
+  `SubjectDomainCombiner` per `UserSubject`, accumulates principals progressively
+  (last iteration produces ACC with all principals merged), enriches both stack domains
+  and immediate `privilegedContext` per subject.
+- **`AccessController.SubjectAccess.get()` returns `Subject[]`** — not a single
+  `Subject`; the loop processes the full array.
+- **§1 document table** updated with latest files reviewed.
+- **§6.4 and §10.7** updated to reflect the multi-subject loop and `Subject[]` array.
+- **§13** new decisions added for two-implementation model and `Subject[]` thread field.
+
+---
+
 ## v18 Change Summary
 
-This version promotes **JWT/OIDC** (`JwtPrincipal` / `JwtLoginModule` in the new
-`jgdms-security-jwt` module) as the **primary** human-user authentication mechanism.
-Kerberos is retained for **legacy support only**.
+*(unchanged — JWT/OIDC primary user identity; Kerberos legacy; `jgdms-security-jwt`
+module with `JwtPrincipal`, `JwtLoginModule`, etc.)*
 
-**New/changed in v18:**
+- **Sealed Subject hierarchy formalised** — `WorkerSubject` (sealed, `SpiffeSubject`
+  only), `UserSubject` (final, public), vanilla `Subject` (legacy).  Removed stale
+  references to `LocalWorkerSubject`/`RemoteWorkerSubject`/`DistributedUserSubject`.
+- **`WorkerSubject` is ambient, not per-request** — baked into every `ProtectionDomain`
+  by `SecureClassLoader` at class load time.  `Subject.doAs(workerSubject, ...)` is NOT
+  the modern JERI dispatch path and is explicitly rejected.
+- **Remote process identity via serialized ACC** — remote worker identity travels as
+  `WorkerSubject` principals in serialized ACC `ProtectionDomain`s, filtered on receipt
+  by a `DomainCombiner`.  Not a separate Subject subtype.
+- **`UserSubject` varargs `callAs`** — preferred multi-user path is
+  `Subject.callAs(Callable, UserSubject...)`.  `WorkerSubject` cannot be passed at
+  compile time.  OpenJDK-compatible `callAs(Subject, Callable)` retains a runtime guard.
+- **`doAs` routing stricter** — accepts only vanilla `Subject` and `null`.  `UserSubject`
+  must use `callAs`.  `WorkerSubject` must be rejected with `IllegalArgumentException`.
+- **SSL/TLS endpoint Subject selection updated** — `SslEndpointImpl` priority is now
+  (1) direct `SpiffeCredentialManager.getInstance().getSubject()`, (2)
+  `Subject.getWorker()`, (3) reject — `UserSubject` and vanilla `Subject` are never TLS
+  identities.  `Subject.current()` is no longer a fallback for TLS.
+- **`DomainCombiner` retention rationale clarified** — retained as API compatibility
+  layer for ACC serializer receiving-side domain verification.
+  `SubjectDomainCombiner` deprecated.
+- **§6.4 table** revised from "Two Carriers" to the three-layer identity model
+  (process worker, remote process, user/legacy).
+- **§9 ServiceUI** revised — worker identity is ambient; no outer `doAs(spiffeSubject)`
+  wrapper is needed or correct.
+- **§10 / §10.11** dispatch example rewritten — removed the
+  `Subject.doAs(workerSubject, ...)` outer wrapper; updated dispatch pattern and SSL
+  priority table.
+- **Remote ACC serialization discussion added** — §10 now cross-references STD-003 §10
+  on `@AtomicSerial` ACC serialization and receiving-side domain verification.
 
-- **§8.2** — Section renamed to "Human User Identity — JWT/OIDC (Kerberos is Legacy)".
-  JWT/OIDC is now the preferred mechanism; `JwtPrincipal` replaces `KerberosPrincipal`
-  in all primary examples.
-- **§9 ServiceUI** — `callAs(kerberosSubject, ...)` example replaced with
-  `callAs(jwtUserSubject, ...)`.
-- **§10.11 dispatch example** — comment updated: JWT/OIDC is the primary user identity
-  in the ScopedValue; Kerberos noted as legacy fallback.
-- **§10.11 KerberosEndpoint section** — marked as legacy; JWT flow described first.
-- **§10.11 side-by-side table** — JWT/OIDC column added alongside Kerberos (legacy).
-- **§10.11 post-dispatch narrative** — outbound transport description updated.
-- **§13 key decisions** — JWT-primary design decision added.
-- **§14 SPIFFE identity scheme** — unchanged (SPIFFE is workload, not user).
-- **New module `jgdms-security-jwt`** — `JwtPrincipal`, `JwtExpiryClaim`,
-  `JwtValidationException`, `JwksKeyCache`, `JwtValidator`, `ParsedJwt`,
-  `JwtLoginModule`.  Zero third-party dependencies.  DoS-hardened: HTTP body limits,
-  token length cap, JSON string length cap, JWKS key count cap, RSA modulus cap.
+---
 
 ## v17 Change Summary
 
@@ -75,6 +117,8 @@ selection have all been revised to reflect the current standard.
 - **Remote ACC serialization discussion added** — §10 now cross-references STD-003 §10
   on `@AtomicSerial` ACC serialization and receiving-side domain verification.
 
+---
+
 ## v16 Change Summary
 
 This version documents a significant architectural refinement to how the scoped user
@@ -115,6 +159,35 @@ re-establishment for `Subject.current()` in spawned threads.
 
 | Document | Location | Key contribution |
 |---|---|---|
+| `AI_Agent_JGDMS-RemotePolicyService-context.md` | uploaded | Remote policy service design, three-layer policy stack, bootstrap trust chain |
+| `AI_Agent_JGDMS-DynamicPolicyProvider-context_1.md` | uploaded | DynamicPolicyProvider void-grant eviction, ACC/PD reachability, no ReferenceQueue needed, String[] wire format |
+| `standard-atomic-serial-compliance.md` | JGDMS repo | JGDMS-STD-001: @AtomicSerial rules, BAE verdicts, compliant patterns |
+| `standard-safe-codebase-audit-pipeline.md` | JGDMS repo | JGDMS-STD-002: five-host SCAP architecture, BAE pool, VerdictRegistry |
+| `SERVICE_AND_PROXY_LIFE_CYCLES.md` | JGDMS repo | Three interlocking lifecycles: service start/runtime/shutdown, service discovery, ProxyCodebaseSpi |
+| `SECURITY_MODEL_ANALYSIS.md` | DirtyChai repo | DirtyChai security model: CombinerSecurityManager, guard inventory, virtual thread pinning, process isolation boundaries |
+| `AdvisoryDynamicPermissions.java` | JGDMS source | Interface: ClassLoader-implemented; META-INF/PERMISSIONS.LIST; advisory permission declaration |
+| `VerifyingProxyPreparer.java` | JGDMS source | ProxyPreparer implementation: explicit vs advisory grant paths, Security.grant() call site |
+| `PreferredProxyCodebaseProvider.java` | JGDMS source | ProxyCodebaseSpi implementation: ClassLoader cache keyed by (InvocationHandler, codebase[], parent) |
+| `JarAnalysisReport.java` | JGDMS source | `serialVersionUID=2L`; new `String[] declaredPermissions` field from `META-INF/PERMISSIONS.LIST`; backward-compat 3-arg constructor delegates to 4-arg; `getDeclaredPermissions()` returns defensive copy; declared permissions included in canonical signing bytes |
+| `JarAnalyzer.java` | JGDMS source | Phase 1 JAR scan now detects `META-INF/PERMISSIONS.LIST`; `parsePermissionsList()` helper strips blank and `#`-comment lines; sorted permissions fed into engine signature |
+| `AbstractJiniService.java` | JGDMS source | Abstract base for all Jini services: export, JoinManager, ServiceID, ReliableLog, LoginContext integration, ReadyState, template methods |
+| `Subject.java` | DirtyChai source | ✅ **Updated:** Class javadoc now documents two-Subject identity model (workload on ACC, user on ScopedValue); additive principal merging by SubjectDomainCombiner; ServiceUI use case example; structural discipline for daemon threads; **ClassSet uses LinkedHashSet for certificate chain ordering** |
+| `SubjectDomainCombiner.java` | DirtyChai source | ✅ **Updated:** `getMergedPrincipals()` now merges ACC Subject principals only; SCOPED_SUBJECT is captured earlier in `AccessController.getContext()` (via `Subject.NoCheck` / `AccessController.SubjectAccess`) and installed as a combiner-bound Subject in the returned ACC |
+| `SpiffeCredentialManager.java` | DirtyChai source | ✅ **Fixed (v7):** backoff race fixed; empty SVID no longer wipes valid Subject; subjectBundle private final |
+| `SpireConnection.java` | DirtyChai source | ✅ **Fixed (v7):** frame size cap; UTF-8 charset; nextStreamId volatile; blocking channel documented |
+| `SpireProtobuf.java` | DirtyChai source | ✅ **Fixed (v7):** varint boundary corrected; StandardCharsets.UTF_8 used |
+| `SpiffeCredentialManager.java` | JGDMS `jgdms-jeri` source | ✅ **v9 deep-dive:** 795-line JGDMS-side impl; `FileSvidSource`; `updateSubjectCredentials()` adds `X500Principal` + `SpiffePrincipal`; exponential backoff; unit tests at `SpiffeCredentialManagerTest` |
+| `RemotePolicyService.java` | JGDMS platform source | ✅ **v9 deep-dive:** Interface fully implemented — 5 methods: `replace()`, `getCurrentGrants()`, `registerForPolicyUpdates()`, `renewPolicyLease()`, `cancelPolicyLease()` |
+| `InMemoryPolicyServiceImpl.java` | JGDMS policy-service source | ✅ **v9 deep-dive:** 453-line core POJO; `PolicyUpdateEvent`, `PolicyEventLease`, `LandlordLease`, async event dispatch; no unit tests exist yet |
+| `ActivatableInMemoryPolicyServiceImpl.java` | JGDMS policy-service source | ✅ **v9 deep-dive:** Extends `AbstractJiniService`; delegates all `RemotePolicyService` calls to `InMemoryPolicyServiceImpl`; Phoenix-activatable + `NonActivatableServiceDescriptor` constructors |
+| `RemotePolicyServiceProxy.java` | JGDMS policy-service-dl source | ✅ **v9 deep-dive:** `@AtomicSerial` smart proxy; `ConstrainableRemotePolicyServiceProxy` inner class for full `RemoteMethodControl` |
+| `VerdictRegistryImpl.java` | JGDMS verdict-registry source | ✅ **v9 deep-dive:** 1488-line server impl; quorum policy; signature verification; persistence via `ReliableLog` |
+| `ActivatableVerdictRegistryImpl.java` | JGDMS verdict-registry source | ✅ **v9 deep-dive:** Extends `AbstractJiniService`; Phoenix-activatable and `NonActivatableServiceDescriptor` constructors |
+| `VerdictRegistryProxy.java` | JGDMS verdict-registry-dl source | ✅ **v9 deep-dive:** `@AtomicSerial` smart proxy with constrainable variant |
+| `BytecodeAnalysisEngineImpl.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** Full push-model `analyzeJar(AnalysisRequest)` implementation; signs `JarAnalysisReport` |
+| `ClinitBlockingVisitor.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** 511-line ASM visitor; BFS call-graph; `detectClinitCycles()` via Tarjan SCC (`TarjanScc` inner class — no separate `ClinitCycleVisitor` class) |
+| `AtomicSerialComplianceVisitor.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** 537-line ASM visitor; tests at `AtomicSerialComplianceVisitorTest` |
+| `JarAnalyzer.java` | JGDMS BAE service source | ✅ **v9 deep-dive:** 469 lines; phases 1 (index), 2a (cycle detect), 2b (per-class analysis); `declaresPermissionClass()` handles `className#action` |
 | `AccessController.java` | DirtyChai source | ✅ **Updated (v16):** `getContext()` now injects scoped user Subject principals directly into domain array via `SubjectDomainCombiner.combine()` rather than placing a `Scoped` combiner on the ACC; immediate `privilegedContext` enriched too; uses `create(acc, combiner, true)` to avoid re-entrant `checkAuthorized()`; `SubjectAccess` inner class bridges `Subject.NoCheck` sealed trust chain |
 | `AccessControlContext.java` | DirtyChai source | ✅ **Updated (v16):** `ContextKey.equals()` inverted `!` bug fixed; `ContextKey` includes `DomainCombiner` in equality/hash so cache correctly differentiates ACCs by user Subject; `ContextCache` uses `Ref.WEAK` + 2000ms cycle |
 | `Subject.java` | DirtyChai source | ✅ **Updated (v16):** `hashCode()` cached for read-only Subjects (`volatile int hashCode` field); `computeHashCode()` extracted; `setReadOnly()` computes and caches hash under `synchronized`; `readObject()` restores cached hash after deserialisation; `callAs()`, `doAs()`, `doAsPrivileged()` javadoc fully rewritten |
@@ -124,10 +197,50 @@ re-establishment for `Subject.current()` in spawned threads.
 | `ScopedValue.java` | DirtyChai source | ✅ **Reviewed (v16):** `Snapshot` / `Carrier` immutable linked-list binding chain confirmed; `NEW_THREAD_BINDINGS` sentinel set unconditionally at end of `Thread` constructor — pre-seeding `scopedValueBindings` in constructor is not possible; `scopedSubject` field approach confirmed correct |
 | `CombinerSecurityManager.java` | DirtyChai source | ✅ **Reviewed (v16):** `Action.run()` calls `AccessController.getContext()` for ACC optimisation; with domain-enrichment approach (no `Scoped` combiner on ACC) this no longer risks baking a user Subject into a shared `contextCache` entry |
 | `ContextCache.java` | DirtyChai source | ✅ **Reviewed (v16):** Weak-valued `ConcurrentSkipListMap`; `ContextKey` equality includes combiner — ACCs with different user Subject principals produce different `ProtectionDomain` sets and therefore different `ContextKey` entries |
-
+| `AccessController.java` | DirtyChai source | ✅ **Updated (v19):** `getContext()` iterates `Subject[]` from `SubjectAccess.SCOPED.get()`; skips `WorkerSubject`; per-UserSubject `SubjectDomainCombiner.combine()` loop accumulates all principals; `SubjectAccess.get()` returns `Subject[]` not `Subject` |
+| `Subject.java` | DirtyChai source | ✅ **Updated (v19):** `sealed permits WorkerSubject, UserSubject`; `callAs(Subject, Callable)` runtime guard rejects `WorkerSubject`; `callAs(Callable, UserSubject...)` compile-time type-safe varargs; `SCOPED_SUBJECT` is `ScopedValue<Subject[]>`; `NoCheck.current()` returns `Subject[]`; `currentAll()` clones array; `processWorker()` delegates to `SpiffeCredentialManager.getInstance().getSubject()` |
+| `Thread.java` | DirtyChai source | ✅ **Updated (v19):** `scopedSubject` field is now `Subject[]` (was single `Subject`); captured at construction via `SubjectAccess.SCOPED.get()`; `runWith()` passes full array to `SubjectAccess.callNoCheck(scopedSubjects, action)` |
+| `WorkerSubject.java` | DirtyChai source (`javax.security.auth`) | ✅ **Reviewed (v19):** `sealed class WorkerSubject extends Subject permits SpiffeCredentialManager.SpiffeSubject`; public constructor (sealed enforcement, not constructor visibility); used only by DirtyChai bootstrap `SpiffeCredentialManager` |
+| `UserSubject.java` | DirtyChai source (`javax.security.auth`) | ✅ **Reviewed (v19):** `final class UserSubject extends Subject`; public constructor; used by JERI dispatcher and application transaction code |
+| `SpiffeCredentialManager.java` (JGDMS) | `net.jini.jeri.ssl` | ✅ **Reviewed (v19):** JGDMS implementation; uses standard Java APIs; constructs vanilla `Subject` with `X500Principal` + `SpiffePrincipal`; `updateSubjectCredentials()` atomically rotates principals + credentials under `synchronized (subject)`; `SpiffeSubjectHolder.set(subject)` on start; `ScheduledExecutorService` for renewal; `AutoCloseable` |
+| `SpiffeCredentialManager.java` (DirtyChai) | `au.zeus.jdk.authorization.spire` | ✅ **Reviewed (v19):** JDK bootstrap implementation; constructs sealed `SpiffeSubject extends WorkerSubject`; bootstrap-safe (no lambdas, `sun.security.util.Debug`); module-private `SpiffeSubject` constructor; `Subject.processWorker()` delegates here |
+| `LocalWorkerSubject.java` → `WorkerSubject.java` | DirtyChai source | ✅ **Renamed (v19):** Class renamed from `LocalWorkerSubject` to `WorkerSubject` throughout |
 ---
 
 ## 2. Full Architecture Summary
+
+### 2.1 The Five-Host SCAP Pipeline (JGDMS-STD-002)
+
+```
+Host 1 — Jini Lookup Service       (passive registry; stores opaque marshalled items)
+Host 2 — BAE Pool                  (SELinux-isolated; stateless; analyses bytecode)
+Host 3 — Verdict Registry          (holds client-trusted signing key; no bytecode parsing)
+Host 4 — Codebase Downloader       (proactive; only host with outbound internet)
+Host 5 — JFR Telemetry Service     (reactive; receives VirtualThreadPinned events)
+```
+
+**Key isolation invariants:**
+- Host 2 → Host 3: NO direct connection. Compromised BAE cannot write verdicts directly.
+- Host 4 ↔ Host 5: NO connection. JFR flood cannot DoS the proactive pipeline.
+- Clients never interact with Host 2 or Host 4.
+
+**Before any proxy is unmarshalled:** `ProxyCodebaseSpi` hashes the JAR and queries
+Host 3 for a `RegistryVerdict`. A single `DANGEROUS` verdict from any BAE instance
+immediately condemns the codebase. A quorum of `SAFE` verdicts is required to proceed.
+
+**BAE analyses per JAR:**
+- `ClinitBlockingVisitor` — BFS from `<clinit>` to blocking sinks; produces `BLOCKING`, `BLOCKING_GUARDED`, `BLOCKING_DECLARED`, `NATIVE_OPACITY`, `CLEAN`, or `CYCLE`
+- `AtomicSerialComplianceVisitor` — @AtomicSerial protocol adherence
+- Cycle detector — circular `<clinit>` dependencies
+- `JarAnalyzer` post-processing — upgrades `BLOCKING_GUARDED` → `BLOCKING_DECLARED` (`DANGEROUS`) when the guarding permission class is declared in `PERMISSIONS.LIST`
+- `JarAnalyzer` reads `META-INF/PERMISSIONS.LIST` — non-blank, non-comment lines stored in `JarAnalysisReport.getDeclaredPermissions()` and included in the engine signature
+
+**`SINK_TO_PERMISSION_CLASS` and the `className#action` syntax:** The upgrade from
+`BLOCKING_GUARDED` to `BLOCKING_DECLARED` is driven by
+`BlockingSinkRegistry.SINK_TO_PERMISSION_CLASS`, which maps each blocking sink to the
+permission class (or `className#action`-qualified permission) that guards it. The
+`#action` suffix restricts matching to a specific permission action, preventing false
+positives for broad permission classes.
 
 ### 2.2 @AtomicSerial Compliance (JGDMS-STD-001)
 
@@ -347,7 +460,7 @@ on a spawned thread that inherited the enriched ACC.
 The explicit `Subject.doAs(user, …)` workaround is not required and has not been used
 since v12.
 
-### 5.5–5.6
+### 5.5 Natural Role Structure
 
 | Layer | Role surface | Who controls |
 |---|---|---|
@@ -366,9 +479,9 @@ since v12.
 
 ---
 
-## 6. DirtyChai Security Model — Relevant Constraints
+## 6. DirtyChai Security Model
 
-### 6.1–6.3
+### 6.1 Guard Inventory (relevant to policy design)
 
 | Permission | Guard site |
 |---|---|
@@ -380,18 +493,29 @@ since v12.
 | `RuntimePermission("createPlatformThread")` | `ThreadBuilders` + all `Thread` constructors |
 | `RuntimePermission("createVirtualThread")` | `ThreadBuilders` |
 
+### 6.2 Virtual Thread Blocking in `<clinit>` — Process Isolation Boundary
+
+**JDK 21–23:** Carrier pinned when virtual thread blocked inside `synchronized`. Exhausting carriers with blocked class-loads was a realistic DoS.
+
+**JDK 24+ (JEP 491):** Carrier pinning from `synchronized` eliminated. However, a blocking `<clinit>` still holds the class-loading lock — class-loading starvation risk remains.
+
+**Layered defence:** Prevention (policy) → Containment (bounded ForkJoinPool with deadline) → Acceptance (accept residual risk with monitoring).
+
+### 6.3 CombinerSecurityManager — Recursion Depth
+
+Recursion guard limit: 7. Three-layer policy stack uses 3. Headroom of 4.
+
 ### 6.4 Subject API — Three Identity Layers
 
 JGDMS formalises three distinct identity layers, each with its own carrier and lifetime.
-This replaces the older "two-carrier" model. See **JGDMS-STD-003 v3 §3.1** for the
-normative table.
+See **JGDMS-STD-003 v3.1 §3.1** for the normative table.
 
 | Layer | Type | Carrier | Survives `doPrivileged` | Lifetime | Established by |
 |---|---|---|---|---|---|
-| Process worker | `WorkerSubject` (sealed, `SpiffeSubject` only) | Baked into `ProtectionDomain` at class load time by `SecureClassLoader` | **Yes** — in every domain | JVM lifetime | SPIRE only (`SpiffeSubject`) |
+| Process worker | `WorkerSubject` (sealed, `SpiffeSubject` only) | Baked into `ProtectionDomain` at class load time by `SecureClassLoader` | **Yes** — in every domain | JVM lifetime | DirtyChai `SpiffeCredentialManager` only |
 | Remote process | `WorkerSubject` principals in remote PDs | Serialized ACC domains over JERI | **No** — not in `privilegedContext` | Per-connection | JERI dispatcher (receiving side) |
-| User | `UserSubject` (final, public) | `SCOPED_SUBJECT` ScopedValue | **Yes** — injected into `privilegedContext` | Per-request / transaction | JERI dispatcher / application |
-| Local user (legacy) | `Subject` (vanilla) | `SCOPED_SUBJECT` ScopedValue or ACC | **Yes** (ScopedValue path) | Per-session | JAAS `LoginContext` |
+| User | `UserSubject` (final, public) | `SCOPED_SUBJECT ScopedValue<Subject[]>` | **Yes** — injected into `privilegedContext` | Per-request / transaction | JERI dispatcher / application |
+| Local user (legacy) | `Subject` (vanilla) | `SCOPED_SUBJECT ScopedValue<Subject[]>` or ACC | **Yes** (ScopedValue path) | Per-session | JAAS `LoginContext` |
 
 **`doPrivileged` boundary rule:**
 ```
@@ -402,42 +526,56 @@ Shed at doPrivileged:   where you came from (remote WorkerSubject domains)
 **How each layer reaches permission checks:**
 
 1. **Process worker (`WorkerSubject`)** — baked into every `ProtectionDomain` by
-   `SecureClassLoader` at class load time.  Always present at every `checkPermission`
-   regardless of `doPrivileged` nesting.  Never passed to `callAs` or `doAs`.
+   `SecureClassLoader` at class load time. Always present at every `checkPermission`
+   regardless of `doPrivileged` nesting. Never passed to `callAs` or `doAs`.
+   Provided by the **DirtyChai** `SpiffeCredentialManager` as a sealed `SpiffeSubject`.
 
-2. **Remote process identity** — not a separate Subject subtype.  Travels as
+2. **Remote process identity** — not a separate Subject subtype. Travels as
    `WorkerSubject` principals in `ProtectionDomain`s inside a serialized
-   `AccessControlContext` over JERI.  A `DomainCombiner` on the receiving JVM strips
-   unverifiable domains before the ACC is placed on the call stack.  Shed at
+   `AccessControlContext` over JERI. A `DomainCombiner` on the receiving JVM strips
+   unverifiable domains before the ACC is placed on the call stack. Shed at
    `doPrivileged` boundaries on the receiving JVM.
 
 3. **User (`UserSubject`)** — bound via `callAs` → `AccessController.getContext()` reads
-   `SCOPED_SUBJECT` and bakes user principals directly into the `ProtectionDomain` array
-   (and into the immediate `privilegedContext`) → survives `doPrivileged` boundaries.
+   `SCOPED_SUBJECT` (`Subject[]`) and iterates over all non-`WorkerSubject` entries,
+   baking each subject's principals directly into the `ProtectionDomain` array
+   (and into the immediate `privilegedContext`) via `SubjectDomainCombiner.combine()` →
+   survives `doPrivileged` boundaries. Multiple users may be present simultaneously
+   in a transaction context.
+
+**Two `SpiffeCredentialManager` implementations:**
+
+| Implementation | Package | Subject type constructed | Purpose |
+|---|---|---|---|
+| JGDMS `SpiffeCredentialManager` | `net.jini.jeri.ssl` | Vanilla `Subject` with `X500Principal` + `SpiffePrincipal` | TLS credential management for JERI transport; standard Java APIs; `AutoCloseable` |
+| DirtyChai `SpiffeCredentialManager` | `au.zeus.jdk.authorization.spire` | `SpiffeSubject extends WorkerSubject` (sealed) | JDK bootstrap; baked into `ProtectionDomain`s by `SecureClassLoader`; `sun.security.util.Debug`; bootstrap-safe |
+
+`Subject.processWorker()` bridges both via `SpiffeSubjectHolder`:
+```java
+public Subject processWorker() {
+    // AuthPermission("getSubject") check
+    return SpiffeCredentialManager.getInstance().getSubject();
+}
+```
 
 **`Subject.current()` in spawned threads:**
 
-`Thread` captures `SCOPED_SUBJECT` at construction time into a `scopedSubject` field
-(guarded by `VM.isBooted()`). `Thread.runWith()` (`final`, called for both platform
-and virtual threads) re-establishes this as a `callAs` scope via
-`SubjectAccess.callNoCheck()` before invoking the task. This ensures `Subject.current()`
-returns the correct user Subject in spawned threads without the permanent baking into the
-ACC that the earlier `Scoped` combiner approach produced.
-
-**Executor-submitted tasks:** Do not inherit either the enriched ACC or the `ScopedValue`
-binding. Callers must explicitly capture and re-establish user identity.
+`Thread` captures `SCOPED_SUBJECT` at construction time into a `Subject[] scopedSubjects`
+field (guarded by `VM.isBooted()`). `Thread.runWith()` (`final`, platform and virtual)
+re-establishes this as a `callAs` scope via `SubjectAccess.callNoCheck(scopedSubjects, action)`
+before invoking the task. The full `Subject[]` array is re-established — all transaction
+participants are available via `Subject.currentAll()` in spawned threads.
 
 **Public API surface (sealed hierarchy):**
 
 | Method | Guard | Effect | Routing rule |
 |---|---|---|---|
-| `Subject.doAs(Subject, PrivilegedAction)` | `AuthPermission("doAs")` | Installs vanilla `Subject` onto ACC via `SubjectDomainCombiner`; establishes privileged boundary | Vanilla `Subject` and `null` only; **`UserSubject` must use `callAs`**; **`WorkerSubject` is rejected** (`IllegalArgumentException`) |
-| `Subject.doAsPrivileged(Subject, PrivilegedAction, AccessControlContext)` | `AuthPermission("doAsPrivileged")` | As above with explicit ACC; `null` ACC discards all caller stack context | Same routing rule as `doAs` |
-| `Subject.callAs(Subject, Callable)` | `AuthPermission("doAs")` | OpenJDK-compatible overload; binds Subject to `SCOPED_SUBJECT`; runtime guard rejects `WorkerSubject` | `WorkerSubject` rejected at runtime; `UserSubject` and vanilla `Subject` accepted |
-| `Subject.callAs(Callable, UserSubject...)` | `AuthPermission("doAs")` | **Preferred multi-user path**; `UserSubject` varargs — `WorkerSubject` excluded at compile time; supports multi-party transactions | Type system enforces correctness; no runtime check needed |
-| `Subject.current()` | `AuthPermission("getSubject")` | Returns `SCOPED_SUBJECT[0]` — the primary user Subject; `null` if none | Never returns `WorkerSubject` |
-| `Subject.currentAll()` | `AuthPermission("getSubject")` | Returns defensive copy of full `SCOPED_SUBJECT` array | Never includes `WorkerSubject` |
-| `Subject.getWorker()` | `AuthPermission("getSubject")` | Retrieves `WorkerSubject` from ACC via `Subject.getSubject(acc)` | For infrastructure code; prefer direct `SpiffeCredentialManager.getInstance().getSubject()` |
+| `Subject.doAs(Subject, PrivilegedAction)` | `AuthPermission("doAs")` | Vanilla `Subject` onto ACC via `SubjectDomainCombiner`; privileged boundary | Vanilla `Subject` and `null` only; **`UserSubject` → `callAs`**; **`WorkerSubject` → `IllegalArgumentException`** |
+| `Subject.callAs(Subject, Callable)` | `AuthPermission("doAs")` | OpenJDK-compatible; binds single Subject to `SCOPED_SUBJECT` as `Subject[1]`; runtime guard rejects `WorkerSubject` | `WorkerSubject` rejected at runtime; `UserSubject` and vanilla `Subject` accepted |
+| `Subject.callAs(Callable, UserSubject...)` | `AuthPermission("doAs")` | **Preferred multi-user path**; binds `UserSubject[]` to `SCOPED_SUBJECT`; compile-time exclusion of `WorkerSubject` | Type system enforces correctness; supports multi-party transactions |
+| `Subject.current()` | `AuthPermission("getSubject")` | Returns `SCOPED_SUBJECT[0]`; `null` if empty | Never returns `WorkerSubject` |
+| `Subject.currentAll()` | `AuthPermission("getSubject")` | Returns defensive copy of full `SCOPED_SUBJECT Subject[]` | Never includes `WorkerSubject` |
+| `Subject.processWorker()` | `AuthPermission("getSubject")` | Returns current `WorkerSubject` from `SpiffeCredentialManager` | Bridges DirtyChai and JGDMS implementations via `SpiffeSubjectHolder` |
 | `Subject.getSubject(AccessControlContext)` | `AuthPermission("getSubject")` | Retrieves Subject from ACC combiner (legacy path) | Workload Subject from ACC |
 
 ### 6.5 Thread Propagation — Divergence from OpenJDK
@@ -445,13 +583,10 @@ binding. Callers must explicitly capture and re-establish user identity.
 In OpenJDK, `Subject.callAs` user identity does **not** propagate to threads started
 with `new Thread(...).start()` outside a `StructuredTaskScope`. In DirtyChai:
 
-1. **Principals in domains** — `getContext()` bakes user Subject principals into the
-   ACC's `ProtectionDomain` array. That ACC is captured as `inheritedAccessControlContext`
-   at thread construction time and inherited by child threads automatically.
-
-2. **`Subject.current()`** — `Thread` captures `SCOPED_SUBJECT` at construction time
-   into `Thread.scopedSubject`. `Thread.runWith()` re-establishes it via `callNoCheck()`
-   for the duration of the task.
+`Thread` captures `Subject[] scopedSubjects = SubjectAccess.SCOPED.get()` at construction
+(guarded by `VM.isBooted()`). `Thread.runWith()` calls
+`SubjectAccess.callNoCheck(scopedSubjects, action)` — the full array is re-established,
+preserving all transaction participants for `Subject.currentAll()` in spawned threads.
 
 Both mechanisms are active for all spawned threads (platform and virtual), regardless of
 whether `StructuredTaskScope` is used. This is intentional: in JGDMS, code that spawns
@@ -463,7 +598,21 @@ the `callAs` javadoc.
 
 ---
 
-## 7–9
+## 7. VerifyingProxyPreparer — Constructor Detail
+
+**Two-argument** `(Object[] contextElements, Permission[] permissions)` — most common. Always `SET_CONSTRAINTS` mode. Pass `null` for advisory path.
+
+**Four-argument** `(ClassLoader loader, Object[] contextElements, Principal[] principals, Permission[] permissions)` — explicit ClassLoader and fixed Principal[].
+
+**Five-argument** `(boolean addProxyConstraints, ...)` — `ADD_CONSTRAINTS` or `AS_IS`; only constructor accepting `null` contextElements.
+
+**Failure asymmetry:**
+- Explicit path failure → hard `SecurityException`
+- Advisory path failure → logged and swallowed
+
+---
+
+## 8. Authentication Model
 
 ### 8.1 SPIFFE/SPIRE — Workload Identity
 
@@ -533,11 +682,7 @@ ServiceUI JAR is a separate codebase with independent BAE audit, `RegistryVerdic
 
 ---
 
----
-
-## 10. Three-Layer JERI Implementation — Worker, Remote, and User Subjects
-
-### 10.1–10.6
+## 10. Three-Layer JERI Implementation
 
 ### 10.1 The Three Identity Layers
 
@@ -574,6 +719,149 @@ grant codeBase "httpmd://repo.example.org/client-stub.jar#SHA256:abc123"
     permission OrderPermission "submit";
 };
 ```
+### 10.3 Invocation Layer Handling and Dispatch
+#### 10.3.1 Client Side — `BasicInvocationHandler`
+
+**`getUserPrincipals()` (private static):**
+```java
+private static Set<Principal> getUserPrincipals() {
+    Subject subject = Subject.current();  // reads ScopedValue set by callAs
+    if (subject == null) return Collections.emptySet();
+    return Collections.unmodifiableSet(new HashSet<>(subject.getPrincipals()));
+}
+```
+- Reads `Subject.current()` directly (not via reflection) — requires `--release 21`.
+- The worker Subject's principals are **not** included here; they reach the server
+  through the TLS handshake.
+
+**Wire protocol version selection:**
+```
+if (!userPrincipals.isEmpty())  → write 0x02 + integrity + atomicValidation + user-principal block
+else if (atomicValidation)      → write 0x01 + integrity + atomicValidation
+else                            → write 0x00 + integrity   (legacy compatibility)
+```
+
+**`writeUserPrincipals()` (package-private static) — wire encoding:**
+```
+principalCount        : u16 big-endian  (max 65535, capped to actual size)
+for each principal:
+  classNameLength     : u16 big-endian
+  classNameBytes      : UTF-8
+  nameLength          : u16 big-endian
+  nameBytes           : UTF-8
+```
+Each principal serialises to `(p.getClass().getName(), p.getName())`.
+
+#### 10.3.2 Server Side — `BasicInvocationDispatcher`
+
+**Security limits (constants):**
+- `MAX_USER_PRINCIPALS = 64` — rejects requests claiming more principals.
+- `MAX_STRING_BYTES = 8192` — rejects any single class-name or principal-name field
+  exceeding this byte length.
+
+**`readUserPrincipals()` — wire parsing:**
+- Reads count; throws `IOException` if `> MAX_USER_PRINCIPALS`.
+- For each principal: reads `className` + `name` (both length-prefixed, bounded by
+  `MAX_STRING_BYTES`).
+- Calls `instantiatePrincipal(className, name)`.
+- Collects into `LinkedHashSet` (insertion order preserved).
+
+**`instantiatePrincipal()` — classloading restriction:**
+- Step 1: `Class.forName(className, false, null)` — bootstrap classloader only.
+- Step 2 (if `ClassNotFoundException`): `Class.forName(className, false, ClassLoader.getSystemClassLoader())`.
+- Class must be assignable to `Principal` and have a public `(String)` constructor.
+- **On any failure:** returns `RemotePrincipal(className, name)` placeholder — unknown
+  principal class names from the wire **never** cause arbitrary code to be loaded.
+
+**`RemotePrincipal` (static final inner class):**
+```java
+static final class RemotePrincipal implements Principal {
+    final String className;
+    final String principalName;
+    // getName() returns principalName
+    // toString() returns "RemotePrincipal[className:principalName]"
+}
+```
+Preserves the wire data for logging / auditing without loading untrusted code.
+
+**`addUserSubjectToContext()` — context injection:**
+```java
+Subject userSubject = new Subject(
+    true,              // read-only
+    userPrincipals,    // from readUserPrincipals()
+    emptySet(),        // no public credentials
+    emptySet());       // no private credentials
+context.add(new UserSubjectImpl(userSubject));
+```
+The user Subject is read-only, contains no credentials, and is kept completely separate
+from the worker Subject in the existing `ClientSubject` context element.
+
+**`invokeWithClientSubject()` — dispatch nesting:**
+```
+workerSubject  = ClientSubject context element  (TLS-verified)
+userSubject    = ClientUserSubject context element  (wire-asserted)
+
+case: both present
+    Subject.doAs(workerSubject, () -> {           // ACC; virtual threads inherit
+        Subject.callAs(userSubject, () -> {        // ScopedValue; dispatch thread only
+            invoke(impl, method, args, context)
+        });
+    });
+
+case: worker only
+    Subject.doAs(workerSubject, () -> invoke(...));
+
+case: user only
+    Subject.callAs(userSubject, () -> invoke(...));
+
+case: neither
+    invoke(impl, method, args, context);
+```
+Throwable and return value are captured in `Object[1]` / `Throwable[1]` holders to
+escape the lambda boundary; the original `Throwable` is re-thrown unchanged.
+
+**Why `doAs` for the worker, not `callAs`:**
+`Subject.doAs` installs the Subject into the `AccessControlContext` via
+`SubjectDomainCombiner`.  Virtual threads spawned during `invoke()` inherit the ACC and
+therefore observe the server's worker identity.  `Subject.callAs` (ScopedValue-based)
+does NOT propagate to new threads.
+
+### 10.4 ServerContext API — Retrieving Both Subjects
+
+From within a JERI service method (server side):
+
+```java
+// Worker Subject — TLS-verified SPIFFE workload identity
+ClientSubject cs = (ClientSubject)
+    ServerContext.getServerContextElement(ClientSubject.class);
+Subject workerSubject = cs != null ? cs.getClientSubject() : null;
+
+// User Subject — wire-asserted human identity (v0x02 only, may be null)
+ClientUserSubject cus = (ClientUserSubject)
+    ServerContext.getServerContextElement(ClientUserSubject.class);
+Subject userSubject = cus != null ? cus.getUserSubject() : null;
+```
+
+### 10.5 `ClientUserSubject` Interface
+
+**Package:** `net.jini.io.context`  **Access:** public  **Since:** 3.1
+
+```java
+public interface ClientUserSubject {
+    /** Returns the user Subject (read-only, no credentials), or null. */
+    Subject getUserSubject();
+}
+```
+
+The implementing class `UserSubjectImpl` is a private static inner class of
+`BasicInvocationDispatcher` — not part of the public API.
+
+### 10.6 `MutableClientSubject` Status
+
+`MutableClientSubject` (extends `ClientSubject`) is **`@Deprecated`** and its
+`mergeUserPrincipals(Set)` method is **no longer called** by the dispatcher.
+`Util.ClientSubjectImpl` now implements `ClientSubject` directly (subject field final,
+no `mergeUserPrincipals`).  Kept for source compatibility only.
 
 ### 10.7 `AccessController.getContext()` — Scoped User Subject Injection
 
@@ -659,7 +947,12 @@ concerns.
    SPIFFE identity is not trusted to assert user principals by requiring a specific SPIFFE
    workload principal alongside any human principal.
 
-### 10.9–10.11
+### 10.9 `AbstractJiniService` — SPIFFE vs. Traditional JAAS
+
+| Path | What happens |
+|---|---|
+| `loginContext == null` (SPIFFE path) | `doStart()` called directly; SPIFFE Subject registered by `SpiffeCredentialManager.start()` via `SpiffeSubjectHolder` — outbound TLS calls use `SpiffeSubjectHolder` automatically (no explicit `callAs` or `doAs` needed); server-side dispatch establishes workload Subject on ACC per-request via `Subject.doAs(workerSubject, …)` in `BasicInvocationDispatcher` |
+| `loginContext != null` (traditional path) | `loginContext.login()` called; `Subject.callAs(loginSubject, callable)` used to run `doStart()` |
 
 JGDMS services use the SPIFFE path.  The traditional path is supported for legacy
 Jini services.
@@ -674,67 +967,39 @@ Jini services.
 | `JGDMS/jgdms-platform/.../net/jini/io/context/ClientSubject.java` | Public interface: `getClientSubject()` (worker Subject) |
 | `JGDMS/jgdms-platform/.../net/jini/io/context/MutableClientSubject.java` | `@Deprecated`, `mergeUserPrincipals()` no longer called |
 | `DirtyChai/.../SubjectDomainCombiner.java` | `getMergedPrincipals()` reads `SCOPED_SUBJECT` additively |
-| `DirtyChai/.../Subject.java` | Javadoc documents three-layer identity model; `callAs(Callable, UserSubject...)` varargs; sealed hierarchy |
-| **`JGDMS/jgdms-security-jwt/.../JwtPrincipal.java`** | **Primary user principal (`"claim:value"` format); `instantiatePrincipal` compatible** |
-| **`JGDMS/jgdms-security-jwt/.../JwtLoginModule.java`** | **JAAS `LoginModule`; populates Subject with `JwtPrincipal` + `JwtExpiryClaim`; background refresh** |
-| **`JGDMS/jgdms-security-jwt/.../JwksKeyCache.java`** | **HTTPS-only JWKS endpoint client; thread-safe; TTL-based expiry; DoS-hardened** |
-| **`JGDMS/jgdms-security-jwt/.../JwtValidator.java`** | **Compact JWT validator; RS/ES/PS algorithms; rejects HS*/none** |
+| `DirtyChai/.../Subject.java` | Javadoc documents two-Subject model; ClassSet uses `LinkedHashSet` |
 
 ### 10.11 SSL vs. Kerberos Endpoints — Subject Lookup Differences
 
 JERI's SSL and Kerberos transport endpoints each locate the client Subject in a
 **different order**, reflecting the different credential types each transport needs.
-See **JGDMS-STD-003 v3 §12** for the normative specification.
 
-#### `SslEndpointImpl.getCallContext()` — SPIFFE workload identity (direct access first)
-
-Per STD-003 v3 §12.1, the lookup priority for SSL/TLS is:
+#### `SslEndpointImpl.getCallContext()` — TLS/SPIFFE workload identity first
 
 ```
-Priority 1: SpiffeCredentialManager.getInstance().getSubject()
-            — direct access; instanceof WorkerSubject check; definitive
-Priority 2: Subject.getWorker()
-            — ACC combiner lookup fallback
-Priority 3: (reject) — UserSubject and vanilla Subject are NEVER used for TLS
+Priority 1: Subject.getSubject(acc)        — ACC Subject, accepted only if it has
+            X500Principal or SpiffePrincipal (TLS-usable identity)
+Priority 2: SpiffeSubjectHolder.get()      — process-wide SPIFFE Subject registered by
+            SpiffeCredentialManager.start() (used when no doAs() wraps the call)
+Priority 3: Subject.current()             — ScopedValue, LAST RESORT ONLY
+            accepted only if it contains X500Principal or SpiffePrincipal;
+            a Kerberos-only Subject is REJECTED (cannot authenticate TLS)
 ```
 
-`Subject.current()` is **not** a fallback for TLS.  `UserSubject` and vanilla `Subject`
-are rejected regardless of whether they carry `X500Principal` or `SpiffePrincipal`.
-TLS identity is a machine/workload concern exclusively.
+**Rationale:** TLS requires an X.509 certificate (or SPIFFE SVID) in the Subject's
+private credential set.  After DirtyChai `2d26e787`, `AccessController.getContext()`
+can capture `Subject.current()` into the ACC.  Therefore `SslEndpointImpl` must filter
+the ACC-derived Subject too: Kerberos-only/non-TLS user Subjects are ignored so they do
+not displace workload/SPIFFE TLS identity.  `Subject.current()` remains a legacy fallback
+only when it carries X.500/SPIFFE principals.
 
-**Rationale:** After DirtyChai `2d26e787`, `AccessController.getContext()` can capture
-`Subject.current()` into the ACC domain array.  If `SslEndpointImpl` accepted an
-ACC-derived user Subject for TLS, a `callAs(userSubject, ...)` scope could accidentally
-displace the SPIFFE workload identity.  Direct `SpiffeCredentialManager` access avoids
-this risk entirely.
-
-#### JWT/OIDC `JwtLoginModule` — primary user identity path
-
-JWT/OIDC is the **preferred** human-user authentication mechanism.  After a successful
-`JwtLoginModule` login, the `UserSubject` carries `JwtPrincipal` instances and is
-placed on `SCOPED_SUBJECT` via `Subject.callAs()`.  From that point it is available as
-`Subject.current()` on the dispatch thread and any threads spawned from it.  Policy
-grants reference `JwtPrincipal` by claim name:
+#### `KerberosEndpoint.newRequest()` — user/human identity first
 
 ```
-grant principal net.jini.security.jwt.JwtPrincipal "group:admins" {
-    permission net.jini.security.AccessPermission "*";
-};
-```
-
-The `JwtPrincipal` format is `"claim:value"`, supporting `sub`, `email`, `groups`, and
-arbitrary additional claims extracted via `JwtValidator`.
-
-#### `KerberosEndpoint.newRequest()` — legacy user/human identity
-
-> **Legacy only.** New deployments should use JWT/OIDC (above).  The Kerberos path is
-> retained for backward compatibility.
-
-```
-Priority 1: Subject.current()             — UserSubject or vanilla Subject from callAs() (ScopedValue)
+Priority 1: Subject.current()             — user Subject from Subject.callAs() (ScopedValue)
             accepted only if it contains KerberosPrincipal
 Priority 2: Subject.getSubject(acc)       — ACC Subject fallback, accepted only if it
-            contains KerberosPrincipal; WorkerSubject always rejected for Kerberos
+            contains KerberosPrincipal
 ```
 
 **Rationale:** Kerberos GSS-API requires that the Kerberos TGT and service ticket be
@@ -750,44 +1015,35 @@ reference.  Different users never share Kerberos connections.  Workload connecti
 
 #### Side-by-side comparison
 
-| | SSL (`SslEndpointImpl`) | JWT/OIDC (`JwtLoginModule`) | Kerberos (`KerberosEndpoint`) — legacy |
-|---|---|---|---|
-| **Credential needed** | X.509 certificate / SPIFFE SVID | JWT access token (`JwtPrincipal`) | Kerberos TGT (`KerberosPrincipal`) |
-| **Primary Subject source** | `SpiffeCredentialManager.getInstance().getSubject()` (direct) | `Subject.current()` (`JwtPrincipal` filter) | `Subject.current()` (user, `callAs`) |
-| **Fallback Subject source** | `Subject.getWorker()` (ACC combiner path) | — | `Subject.getSubject(acc)` (`KerberosPrincipal` filter) |
-| **`Subject.current()` used?** | **No** — never; `UserSubject`/vanilla always rejected for TLS | **Yes** — JWT principals visible for policy checks | Yes — must have `KerberosPrincipal` |
-| **Connection cache isolation** | Not per-user (workload identity is shared) | Not applicable (JWT is stateless; token in `JwtPrincipal`) | Per-Subject; different users never share a connection |
-| **Why** | TLS is a machine/workload concern; only `WorkerSubject` has TLS credentials | JWT/OIDC is the standard modern user identity mechanism | Kerberos is a per-user concern; legacy deployments only |
+| | SSL (`SslEndpointImpl`) | Kerberos (`KerberosEndpoint`) |
+|---|---|---|
+| **Credential needed** | X.509 certificate / SPIFFE SVID | Kerberos TGT (`KerberosPrincipal`) |
+| **Primary Subject source** | `Subject.getSubject(acc)` (filtered to TLS principals) | `Subject.current()` (user, `callAs`) |
+| **Fallback Subject source** | `SpiffeSubjectHolder` → `Subject.current()` | `Subject.getSubject(acc)` (KerberosPrincipal filter) |
+| **`Subject.current()` filter** | Must have `X500Principal` or `SpiffePrincipal`; Kerberos-only → rejected | Must have `KerberosPrincipal`; X500-only → rejected |
+| **Connection cache isolation** | Not per-user (workload identity is shared) | Per-Subject; different users never share a connection |
+| **Why** | TLS is a machine/workload concern; human Subject has no TLS credentials | Kerberos is a per-user concern; per-user credentials must not be mixed |
 
-#### Interaction with JERI Dispatch (STD-003 v3 pattern)
+#### Interaction with JERI Dispatch
 
-When `BasicInvocationDispatcher.invokeWithClientSubject()` runs inside a server,
-the modern dispatch pattern is:
+When `BasicInvocationDispatcher.invokeWithClientSubject()` runs inside a server:
 
-```java
-// WorkerSubject is ambient — baked into every ProtectionDomain at class load time.
-// Subject.doAs(workerSubject, ...) is NOT used and would be rejected.
-Subject.callAs(() -> {                        // zero subjects = no user context (service-to-service)
-    invoke(impl, method, args, context);
-    return null;
+```
+Subject.doAs(workerSubject, () -> {          // worker on ACC — SSL/TLS uses this
+    Subject.callAs(userSubject, () -> {      // user on ScopedValue — Kerberos uses this
+        invoke(impl, method, args, context)
+    });
 });
-
-// --- OR when a user Subject is available: ---
-Subject.callAs(() -> {                        // preferred multi-user varargs overload
-    invoke(impl, method, args, context);
-    return null;
-}, userSubject);                              // user on SCOPED_SUBJECT — JWT/OIDC (or Kerberos legacy)
 ```
 
-An outbound TLS call made from inside `invoke()` will use the SPIFFE `WorkerSubject`
-retrieved directly from `SpiffeCredentialManager` (or `Subject.getWorker()` fallback).
-An outbound call that needs the authenticated user identity will use `userSubject` (from
-`Subject.current()`).  For JWT/OIDC users this means `JwtPrincipal` claims are visible
-for policy checks throughout the dispatch stack.  For legacy Kerberos deployments, the
-same `Subject.current()` lookup provides the `KerberosPrincipal` so the GSS context is
-established as the authenticated client user.
-The server naturally acts on behalf of the user for user-identity-sensitive operations
-but uses its own workload certificate for TLS connections — no impersonation occurs.
+An outbound TLS call made from inside `invoke()` will use `workerSubject` (from the ACC),
+and may also use `userSubject` (from `Subject.current()`) when `userSubject` carries an
+`X500Principal` or `SpiffePrincipal` and the ACC subject is absent — `SslEndpointImpl`
+checks ACC first, then `SpiffeSubjectHolder`, then `Subject.current()` (X500/SPIFFE only).
+An outbound Kerberos call made from inside `invoke()` will use `userSubject` (from
+`Subject.current()`), so the GSS context is established as the authenticated client user.
+This means the server naturally acts on behalf of the user for Kerberos connections but
+uses its own workload certificate for TLS connections — no impersonation occurs.
 
 ---
 
@@ -974,6 +1230,23 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 
 ---
 
+**v19 update:** `Thread.scopedSubject` is now `Subject[]`. The migration pattern for
+executor tasks captures and re-establishes the full array:
+
+```java
+// Capture full Subject array before submitting to executor
+Subject[] subjects = Subject.currentAll();
+executor.submit(() -> {
+    if (subjects.length > 0) {
+        Subject.callAs(() -> { task.run(); return null; }, (UserSubject[]) subjects);
+    } else {
+        task.run();
+    }
+});
+```
+
+---
+
 ## 12. Remaining Work Items
 
 1. **✅ `DynamicPolicyProvider.java` — single background sweeper for void eviction** *(completed)*
@@ -1032,10 +1305,71 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 
 ## 13. Key Design Decisions — Cumulative
 
-*(All rows from v15 §13 are retained. New/updated rows below.)*
+*(All rows from v18 §13 are retained. New rows below.)*
 
 | Decision | Rationale |
 |---|---|
+| No `ReferenceQueue` in `DynamicPolicyProvider` | ACC self-evicts; `clearCache()` would be a no-op |
+| Single background sweeper for void grant eviction | Keeps hot path read-only; one write source |
+| `RemotePolicy` wire format is `String[]` | DirtyChai cannot implement `@AtomicSerial`; `String[]` needs no `@AtomicSerial` |
+| Policy file syntax as wire format | `PermissionGrant.toString()` already emits it; `DefaultPolicyScanner` already parses it |
+| Validation is server-side after parsing | Client smart proxy cannot be trusted |
+| `getCurrentGrants()` returns `String[]` | Symmetric with `replace()`; client parses back without `@AtomicSerial` |
+| `MarshalledInstance` not `MarshalledObject` | Carries codebase annotations, AtomicSerial-aware |
+| Bootstrap policy fetched via HTTPS, no local cache | Fail-secure: node does not start if server unreachable |
+| CA pinning on HTTPS fetch | Compromised system CA cannot serve malicious bootstrap policy |
+| Pull-on-notification for policy events | `getCurrentGrants()` is always source of truth |
+| Three-layer decoration stack | Clean separation of grant lifetimes; each layer revokes independently |
+| `AdvisoryDynamicPermissions` on ClassLoader, not proxy class | ClassLoader is natural owner of codebase-wide permission declarations |
+| ClassLoader keyed by `(InvocationHandler, codebase[], parent)` | Endpoint identity determines ClassLoader |
+| Intersection enforced in `DynamicPolicyProvider.grant()` | `Security.grant()` enforces `GrantPermission` ceiling |
+| Advisory grants are best-effort | `UnsupportedOperationException` in advisory path → logged, not rethrown |
+| `createVirtualThread` in `GrantPermission` requires care | Grants make blocking `<clinit>` paths reachable — DoS risk |
+| `PolicyPermission("Remote")` and `GrantPermission` itself must never be delegatable | Would allow proxies to participate in policy machinery |
+| SCAP validates code safety; policy validates runtime authority | Complementary controls at different phases |
+| `JarAnalysisReport` carries `String[] declaredPermissions` (`serialVersionUID=2L`) | Enables cross-referencing declared needs against `GrantPermission` ceiling |
+| Authentication is SPIFFE/SPIRE workload identity; no traditional login | Identity is ambient — provisioned by SPIRE at workload startup |
+| `AbstractJiniService` `loginContext` is null for SPIFFE services | SPIFFE identity is ambient; no JAAS login step |
+| `BLOCKING_GUARDED` is `INCONCLUSIVE`, not `DANGEROUS` | Blocking path only reachable if guarding permission is granted |
+| `BLOCKING_DECLARED` is `DANGEROUS` | JAR's own `PERMISSIONS.LIST` declares the guarding permission — DoS risk |
+| SPIFFE workload identity on ACC (`doAs`); human identity on ScopedValue (`callAs`) | Clean namespace separation |
+| `getSubject(ACC)` and `current()` both guarded by `AuthPermission("getSubject")` | Unified guard keeps policy simple |
+| `SubjectDomainCombiner` reads `SCOPED_SUBJECT` in `combine()`, not constructor | SCOPED_SUBJECT changes per request; combiner is constructed once |
+| `getMergedPrincipals()` additively merges principals from both Subjects | Neither replaces the other; grants conditioned on both require both |
+| No `AuthPermission` check in `getMergedPrincipals()` | Combiner is trusted `java.base` infrastructure |
+| `ScopedValue.isBound()` check before `get()` | Null-safe; cheap hot-path check |
+| `FilterX509TrustManager` extends `X509ExtendedKeyManager` intentionally | Dual-role pattern for `AuthManager`; predates Java 7 `X509ExtendedTrustManager` |
+| Trust bundle stored separately from SVID credentials | Rotates independently; defensive copying prevents external modification |
+| Trust bundle parsed from `X509SVID.bundle` field | Per SPIRE Workload API spec; enables federated trust |
+| Exponential backoff for SPIRE watcher reconnection | Production resilience; 1s → 2s → 4s → ... → 5min max |
+| Raw `Thread` + `Thread.sleep` for reconnection scheduling | Bootstrap-safe; `ScheduledExecutorService` not audited for invokedynamic |
+| `AtomicReference<R>` instead of three volatile fields | Single atomic swap eliminates read-tear window |
+| Upfront overflow cap (62) instead of inline | Prevents misconfiguration at initialization |
+| `createCallback()` factory method | Eliminates duplicate code; single source of truth |
+| Trust domain enforcement enabled by default | Secure default; cross-trust requires explicit modification |
+| `UriCodeSource` serialization explicitly forbidden | Prevents accidental serialization of DNS-avoiding identity |
+| **`incrementAndGet()` before backoff computation** | ✅ **v7:** Eliminates get/increment race; correct 1x/2x/4x progression |
+| **Empty SVID response does not overwrite valid Subject** | ✅ **v7:** Transient SPIRE outages cannot destroy valid unexpired credentials |
+| **MAX_FRAME_SIZE = 1 MB cap in SpireConnection** | ✅ **v7:** Bounds memory allocation against malformed agent response |
+| **StandardCharsets.UTF_8 throughout SPIRE client** | ✅ **v7:** Eliminates platform charset dependency |
+| **Varint boundary `>= 35` (was `> 35`)** | ✅ **v7:** Correct rejection at 5-byte/32-bit limit |
+| **`nextStreamId` is `volatile`** | ✅ **v7:** Ensures visibility between constructor thread and watcher thread |
+| **`subjectBundle` is `private final`** | ✅ **v7:** Security-critical singleton field must not be package-accessible |
+| **`MAX_USER_PRINCIPALS = 64` + `MAX_STRING_BYTES = 8192`** | ✅ **v8:** Bounds wire-asserted user principal block; prevents memory exhaustion from malformed input |
+| **`RemotePrincipal` placeholder for unknown principal classes** | ✅ **v8:** Unknown class names from wire never cause arbitrary code to be loaded |
+| **`instantiatePrincipal()` restricted to bootstrap + system classloader** | ✅ **v8:** Only JDK-bundled or system Principal classes accepted from wire |
+| **`invokeWithClientSubject()` uses `Object[]/Throwable[]` holders** | ✅ **v8:** Throwable and return value escape lambda boundary without re-wrapping |
+| **User Subject is read-only, no credentials** | ✅ **v8:** Wire-reconstructed user Subject is immutable and credential-free |
+| **`InMemoryPolicyServiceImpl` is a standalone POJO; `ActivatableInMemoryPolicyServiceImpl` extends `AbstractJiniService`** | ✅ **v9:** Clean separation: core logic unit-testable without Jini infrastructure; activatable wrapper adds export/join/lifecycle |
+| **`VerdictRegistryImpl` uses same two-class pattern** | ✅ **v9:** `VerdictRegistryImpl` (core) + `ActivatableVerdictRegistryImpl` (`AbstractJiniService`) |
+| **`ClinitCycleVisitor` is not a separate class** | ✅ **v9:** Cycle detection is `ClinitBlockingVisitor.detectClinitCycles()` static method + `TarjanScc` private inner class — better cohesion, no separate file needed |
+| **`DefaultPolicyParser.scanner` is already `protected final`** | ✅ **v9:** No change required; `HttpsClientAuthPolicyParser` can subclass directly |
+| **`SUBJECT_CALL_AS`, `SUBJECT_DO_AS` (Dispatcher) and `SUBJECT_CURRENT` (Handler) are still reflective `Method` fields** | ✅ **v9 verified:** Resolved at class-init via `Subject.class.getMethod(...)`; invoked via `Method.invoke()`; null on JDK < 18 |
+| **`Security.getCurrentPrincipals()` union confirmed as mandatory for POLP** | ✅ **v15 confirmed:** The v14 union is the correct and mandatory design. Three security premises require it: (1) `SpiffePolicyFile` cannot pre-assign to unknown proxy ClassLoaders; (2) policy files can only relax permissions — deny-all baseline; (3) POLP requires user + workload + code simultaneously. Impersonation scenario: a worker running on an insecure environment (e.g. Windows without SELinux) has a different SPIFFE principal — the union-scoped grant will not apply. |
+| **`GrantPermission.checkGuard()` wraps `checkPermission` in `Subject.doAs(user)`** | ✅ **v10 → simplified in v12:** Originally added a `Subject.doAs(user, ...)` wrapper so the user's principals were in the ACC for `checkPermission`. **Removed in v12** after DirtyChai commit `2d26e787` — `AccessController.getContext()` now captures `SCOPED_SUBJECT` automatically (via `Subject.NoCheck` / `AccessController.SubjectAccess`), making the wrapper redundant. `checkGuard()` now calls `sm.checkPermission(this)` directly. |
+| **`jgdms-platform` compiler release bumped to 21** | ✅ **v10:** Required to call `Subject.current()` and `Subject.doAs()` directly (not via reflection) in `jgdms-platform` source. |
+| **`SslEndpointImpl` checks ACC (`doAs`) first, `Subject.current()` last** | ✅ **v11:** TLS requires X.509/SPIFFE credentials in the workload Subject. A Kerberos-only `Subject.current()` is explicitly rejected. `Subject.current()` is only accepted as last resort when it carries X500Principal or SpiffePrincipal. |
+| **`KerberosEndpoint` checks `Subject.current()` first, ACC second** | ✅ **v11:** Kerberos GSS-API requires per-user KerberosPrincipal. The dispatch-installed user Subject (ScopedValue) is checked first; only falls back to ACC Subject when no KerberosPrincipal is bound. Connection cache (`CacheKey`) is per-Subject, preventing cross-user session reuse. |
 | **JWT/OIDC (`JwtPrincipal`) is the primary user identity; Kerberos is legacy** | ✅ **v18:** JWT/OIDC is the modern standard for federated identity; stateless; no Kerberos KDC infrastructure required; `JwtPrincipal` integrates directly into the existing `writeUserPrincipals`/`instantiatePrincipal` JERI wire protocol via a single `(String)` constructor |
 | **`ContextKey.equals()` — `!` removed from final return** | ✅ **v16:** Inverted logic was security-critical bug — caused cache collisions between ACCs with different `privilegedContext` and cache misses for identical ones |
 | **`Subject.hashCode()` cached for read-only Subjects** | ✅ **v16:** Read-only Subjects are immutable; `synchronized` on every `hashCode()` call was unnecessary; `volatile` field + lazy init in `setReadOnly()` + restore in `readObject()` |
@@ -1049,6 +1383,10 @@ identity, not user (human JAAS login) identity, and should remain unchanged:
 | **`SubjectDomainCombiner` (workload) and domain enrichment (user) are independent** | ✅ **v16:** The two mechanisms do not interact; workload combiner fires at `checkPermission` time via `goCombiner()`; user principals are already in the domain array before the combiner fires |
 | **`doAs` javadoc documents `doPrivilegedWithCombiner` requirement** | ✅ **v16:** `SubjectDomainCombiner` is dropped at plain `doPrivileged` boundaries; `doPrivilegedWithCombiner` explicitly carries it forward; documented in all `doAs`/`doAsPrivileged` overloads |
 | **`callAs` javadoc documents OpenJDK divergence explicitly** | ✅ **v16:** Future maintainers must not treat thread propagation behaviour as a bug to be "fixed" back to OpenJDK semantics |
+| **Two `SpiffeCredentialManager` implementations** | ✅ **v19:** DirtyChai bootstrap implementation (`au.zeus.jdk.authorization.spire`) creates sealed `SpiffeSubject extends WorkerSubject` for `SecureClassLoader` domain baking; JGDMS implementation (`net.jini.jeri.ssl`) creates vanilla `Subject` with `X500Principal` + `SpiffePrincipal` for TLS credential management using standard Java APIs. `Subject.processWorker()` bridges both via `SpiffeSubjectHolder`. Separation of concerns: bootstrap identity vs TLS transport credentials |
+| **`Thread.scopedSubjects` is `Subject[]` not single `Subject`** | ✅ **v19:** Mirrors `SCOPED_SUBJECT ScopedValue<Subject[]>`; full transaction array captured at construction; `runWith()` re-establishes all subjects via `callNoCheck(scopedSubjects, action)`; `Subject.currentAll()` works correctly in spawned threads for multi-party transactions |
+| **`getContext()` multi-subject loop with per-iteration `SubjectDomainCombiner`** | ✅ **v19:** Each `UserSubject` in the array gets its own `combine()` pass; principals accumulate progressively; final ACC contains all merged; `WorkerSubject` skipped; `existing` combiner preserved across all iterations; `privilegedContext` enriched per subject |
+| **`SubjectAccess.get()` returns `Subject[]`** | ✅ **v19:** `NoCheck.current()` returns `Subject[]`; `SubjectAccess.get()` delegates to `current()`; consistent with `SCOPED_SUBJECT` type; no single-subject extraction at this level |
 
 ---
 
@@ -1071,47 +1409,35 @@ Only hosts with the admin SVID (`admin/policy`) may call `InMemoryPolicyService.
 ---
 
 *Hand this document (along with source files as needed) to a future AI agent to
-continue without loss of context. This is version 18, updated to document:*
+continue without loss of context. This is version 19, updated to document:*
 
-- *JWT/OIDC (`JwtPrincipal` / `JwtLoginModule` in `jgdms-security-jwt`) is the
-  **primary** human-user authentication mechanism*
-- *Kerberos retained for **legacy support only***
-- *All UserSubject examples updated to use `JwtPrincipal` / `JwtLoginModule`*
-- *§8.2, §9, §10.10, §10.11, §11.6, §13 revised*
-- *New module `jgdms-security-jwt` documented in §10.10*
+- *Two `SpiffeCredentialManager` implementations (JGDMS standard API vs DirtyChai
+  bootstrap sealed `SpiffeSubject`)*
+- *`Thread.scopedSubjects` field changed from `Subject` to `Subject[]`*
+- *`AccessController.getContext()` multi-subject injection loop finalised*
+- *`SubjectAccess.get()` returns `Subject[]`*
+- *`Subject.processWorker()` bridges both implementations via `SpiffeSubjectHolder`*
+
+---
+
+*Previous version (v18) notes:*
+- *JWT/OIDC (`JwtPrincipal` / `JwtLoginModule`) primary user identity; Kerberos legacy*
+- *New module `jgdms-security-jwt`*
 
 ---
 
 *Previous version (v17) notes:*
-
-- *Alignment with **JGDMS-STD-003 v3** (Multi-Subject Identity Architecture)*
-- *Sealed Subject hierarchy formalised: `WorkerSubject` (sealed), `UserSubject` (final),
-  vanilla `Subject` (legacy)*
-- *`WorkerSubject` is ambient — baked into every `ProtectionDomain` at class load time;
-  NOT installed per-request via `Subject.doAs`*
-- *Remote process identity travels via serialized ACC `ProtectionDomain`s over JERI;
-  filtered by `DomainCombiner` on receiving side*
-- *`Subject.callAs(Callable, UserSubject...)` varargs overload — preferred multi-user path*
-- *`doAs` routing stricter — vanilla `Subject` and `null` only;
-  `UserSubject` uses `callAs`; `WorkerSubject` rejected*
-- *SSL/TLS endpoint Subject selection updated: `SpiffeCredentialManager` direct access
-  first; `Subject.getWorker()` fallback; `Subject.current()` never used for TLS*
-- *`DomainCombiner` retained as API compatibility layer for ACC serializer;
-  `SubjectDomainCombiner` deprecated*
-- *§6.4, §9, §10, §10.10, §10.11, §11.1, §11.3, §11.6 all revised*
+- *Alignment with JGDMS-STD-003 v3*
+- *Sealed Subject hierarchy: `WorkerSubject`, `UserSubject`, vanilla `Subject`*
+- *`WorkerSubject` ambient — baked into `ProtectionDomain`s at class load time*
 
 ---
 
 *Previous version (v16) notes:*
-- *The domain-enrichment approach replacing the `Scoped` combiner approach for user
-  Subject injection in `AccessController.getContext()`*
+- *Domain-enrichment approach replacing `Scoped` combiner*
 - *`ContextKey.equals()` security bug fix*
-- *`Subject.hashCode()` read-only caching with `readObject()` restoration*
-- *`SubjectDomainCombiner.equals()/hashCode()` completion*
-- *`Thread.scopedSubject` field and `runWith()` re-establishment for `Subject.current()`
-  in spawned threads*
-- *Thread propagation divergence from OpenJDK, documented in `callAs` javadoc and §6.5*
-- *Full rewrite of `doAs`, `doAsPrivileged`, and `callAs` javadoc*
+- *`Subject.hashCode()` read-only caching*
+- *Thread propagation divergence from OpenJDK*
 
 ---
 
