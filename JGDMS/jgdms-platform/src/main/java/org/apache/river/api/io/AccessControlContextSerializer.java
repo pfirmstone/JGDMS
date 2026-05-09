@@ -322,7 +322,6 @@ public final class AccessControlContextSerializer implements Serializable {
 
         static DomainIdentityRecord readFrom(ByteArrayInputStream in) throws IOException {
             int locLen = readShort(in);
-            if (locLen > 0xFFFF) throw new InvalidObjectException("invalid location length");
             byte[] locationBytes = new byte[locLen];
             if (in.read(locationBytes) != locLen) throw new InvalidObjectException("unexpected EOF");
             String location = new String(locationBytes, "UTF-8");

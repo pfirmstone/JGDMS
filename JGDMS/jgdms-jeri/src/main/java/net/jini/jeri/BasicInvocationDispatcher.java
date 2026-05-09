@@ -182,6 +182,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * forcing unbounded allocation.
      */
     private static final int MAX_USER_PRINCIPALS = 64;
+    private static final int MAX_ACC_BLOCK_BYTES = 1024 * 1024;
 
     /**
      * Maximum byte length of a single UTF-8–encoded string field (class name
@@ -1862,7 +1863,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                 | ((b2 & 0xFF) << 16)
                 | ((b3 & 0xFF) << 8)
                 | (b4 & 0xFF);
-        if (len < 0 || len > 1024 * 1024) {
+        if (len < 0 || len > MAX_ACC_BLOCK_BYTES) {
             throw new IOException("invalid ACC block length " + len);
         }
         if (len == 0) return new byte[0];
