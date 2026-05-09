@@ -41,6 +41,7 @@ import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.nio.charset.StandardCharsets;
 import javax.security.auth.Subject;
 import net.jini.security.Security;
@@ -58,6 +59,14 @@ public final class AccessControlContextSerializer implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final String DOMAINS = "domains";
     private static final int HTTPMD_PREFIX_LENGTH = 7;
+    /** Maximum number of ProtectionDomain records accepted during unmarshal. */
+    private static final int MAX_DOMAIN_COUNT = 4096;
+    /** Maximum UTF-8 byte length accepted for a location URL field. */
+    private static final int MAX_LOCATION_BYTES = 4096;
+    /** Maximum number of principals accepted per ProtectionDomain record. */
+    private static final int MAX_PRINCIPALS_PER_DOMAIN = 256;
+    /** Maximum UTF-8 byte length accepted for a principal type or name field. */
+    private static final int MAX_PRINCIPAL_FIELD_BYTES = 4096;
     private static final ObjectStreamField[] serialPersistentFields = serialForm();
 
     public static SerialForm[] serialForm() {
@@ -89,7 +98,7 @@ public final class AccessControlContextSerializer implements Serializable {
         }
         ByteArrayInputStream in = new ByteArrayInputStream(data);
         int count = readInt(in);
-        if (count < 0 || count > 4096) {
+        if (count < 0 || count > MAX_DOMAIN_COUNT) {
             throw new InvalidObjectException("invalid domain count: " + count);
         }
         DomainIdentityRecord[] records = new DomainIdentityRecord[count];
@@ -201,7 +210,8 @@ public final class AccessControlContextSerializer implements Serializable {
 
     private static Principal[] principalsFor(ProtectionDomain pd, Subject authenticatedSubject) {
         if (authenticatedSubject != null) {
-            return authenticatedSubject.getPrincipals().toArray(new Principal[authenticatedSubject.getPrincipals().size()]);
+            Set<Principal> ps = authenticatedSubject.getPrincipals();
+            return ps.toArray(new Principal[0]);
         }
         Principal[] principals = pd.getPrincipals();
         return principals != null ? principals : new Principal[0];
@@ -326,18 +336,30 @@ public final class AccessControlContextSerializer implements Serializable {
 
         static DomainIdentityRecord readFrom(ByteArrayInputStream in) throws IOException {
             int locLen = readShort(in);
+            if (locLen > MAX_LOCATION_BYTES) {
+                throw new InvalidObjectException("location length exceeds maximum: " + locLen);
+            }
             byte[] locationBytes = new byte[locLen];
             if (in.read(locationBytes) != locLen) throw new InvalidObjectException("Unexpected EOF reading location bytes");
             String location = new String(locationBytes, StandardCharsets.UTF_8);
             int principalCount = readShort(in);
+            if (principalCount > MAX_PRINCIPALS_PER_DOMAIN) {
+                throw new InvalidObjectException("principal count exceeds maximum: " + principalCount);
+            }
             String[] types = new String[principalCount];
             String[] names = new String[principalCount];
             for (int i = 0; i < principalCount; i++) {
                 int typeLen = readShort(in);
+                if (typeLen > MAX_PRINCIPAL_FIELD_BYTES) {
+                    throw new InvalidObjectException("principal type length exceeds maximum: " + typeLen);
+                }
                 byte[] typeBytes = new byte[typeLen];
                 if (in.read(typeBytes) != typeLen) throw new InvalidObjectException("Unexpected EOF reading principal type");
                 types[i] = new String(typeBytes, StandardCharsets.UTF_8);
                 int nameLen = readShort(in);
+                if (nameLen > MAX_PRINCIPAL_FIELD_BYTES) {
+                    throw new InvalidObjectException("principal name length exceeds maximum: " + nameLen);
+                }
                 byte[] nameBytes = new byte[nameLen];
                 if (in.read(nameBytes) != nameLen) throw new InvalidObjectException("Unexpected EOF reading principal name");
                 names[i] = new String(nameBytes, StandardCharsets.UTF_8);
@@ -365,16 +387,28 @@ public final class AccessControlContextSerializer implements Serializable {
 
         private void writeTo(ByteArrayOutputStream out) throws IOException {
             byte[] loc = location.getBytes(StandardCharsets.UTF_8);
+            if (loc.length > MAX_LOCATION_BYTES) {
+                throw new InvalidObjectException("location too long to encode: " + loc.length);
+            }
             writeShort(out, loc.length);
             out.write(loc);
             if (principalTypes.length != principalNames.length) {
                 throw new InvalidObjectException("principal type/name length mismatch");
             }
             int count = principalTypes.length;
+            if (count > MAX_PRINCIPALS_PER_DOMAIN) {
+                throw new InvalidObjectException("principal count exceeds maximum: " + count);
+            }
             writeShort(out, count);
             for (int i = 0; i < count; i++) {
                 byte[] type = principalTypes[i].getBytes(StandardCharsets.UTF_8);
                 byte[] name = principalNames[i].getBytes(StandardCharsets.UTF_8);
+                if (type.length > MAX_PRINCIPAL_FIELD_BYTES) {
+                    throw new InvalidObjectException("principal type too long to encode: " + type.length);
+                }
+                if (name.length > MAX_PRINCIPAL_FIELD_BYTES) {
+                    throw new InvalidObjectException("principal name too long to encode: " + name.length);
+                }
                 writeShort(out, type.length);
                 out.write(type);
                 writeShort(out, name.length);
@@ -387,7 +421,8 @@ public final class AccessControlContextSerializer implements Serializable {
             URL url = parseHttpmd(location);
             Principal[] principals;
             if (authenticatedSubject != null) {
-                principals = authenticatedSubject.getPrincipals().toArray(new Principal[authenticatedSubject.getPrincipals().size()]);
+                Set<Principal> ps = authenticatedSubject.getPrincipals();
+                principals = ps.toArray(new Principal[0]);
             } else {
                 if (principalTypes.length != principalNames.length) {
                     throw new InvalidObjectException("principal type/name length mismatch");
@@ -399,10 +434,19 @@ public final class AccessControlContextSerializer implements Serializable {
             }
             return new DomainIdentity(new CodeSource(url, (java.security.cert.Certificate[]) null), principals);
         }
+
+        private void writeObject(ObjectOutputStream out) throws IOException {
+            throw new NotSerializableException(
+                "DomainIdentityRecord must be serialized using @AtomicSerial transport records only");
+        }
+
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            throw new NotSerializableException(
+                "DomainIdentityRecord must be deserialized using @AtomicSerial transport records only");
+        }
     }
 
     static final class DomainIdentity extends ProtectionDomain {
-        private static final long serialVersionUID = 1L;
 
         DomainIdentity(CodeSource cs, Principal[] principals) {
             super(cs, null, null, principals);
@@ -427,6 +471,16 @@ public final class AccessControlContextSerializer implements Serializable {
 
         public String getName() {
             return name;
+        }
+
+        private void writeObject(ObjectOutputStream out) throws IOException {
+            throw new NotSerializableException(
+                "NamedPrincipal must not be serialized outside of AccessControlContextSerializer");
+        }
+
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            throw new NotSerializableException(
+                "NamedPrincipal must not be deserialized outside of AccessControlContextSerializer");
         }
     }
 

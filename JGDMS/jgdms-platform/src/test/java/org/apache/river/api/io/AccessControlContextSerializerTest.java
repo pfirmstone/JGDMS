@@ -118,6 +118,88 @@ public class AccessControlContextSerializerTest {
         }
     }
 
+    @Test
+    public void testUnmarshalRejectsOversizedLocationLength() throws Exception {
+        // Craft a payload: count=1, locLen=5000 (> MAX_LOCATION_BYTES=4096)
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        // 4-byte count = 1
+        baos.write(0); baos.write(0); baos.write(0); baos.write(1);
+        // 2-byte locLen = 5000
+        int locLen = 5000;
+        baos.write((locLen >>> 8) & 0xFF);
+        baos.write(locLen & 0xFF);
+        // location bytes (5000 zero bytes)
+        baos.write(new byte[locLen]);
+        // 2-byte principalCount = 0
+        baos.write(0); baos.write(0);
+        try {
+            AccessControlContextSerializer.unmarshalForTransport(baos.toByteArray(), null);
+            Assert.fail("Expected InvalidObjectException for oversized location length");
+        } catch (java.io.InvalidObjectException expected) {
+            Assert.assertTrue(expected.getMessage().contains("location length exceeds maximum"));
+        }
+    }
+
+    @Test
+    public void testUnmarshalRejectsOversizedPrincipalCount() throws Exception {
+        // Craft a payload: count=1, locLen=0, principalCount=300 (> MAX_PRINCIPALS_PER_DOMAIN=256)
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        // 4-byte count = 1
+        baos.write(0); baos.write(0); baos.write(0); baos.write(1);
+        // 2-byte locLen = 0 (empty location)
+        baos.write(0); baos.write(0);
+        // 2-byte principalCount = 300
+        int principalCount = 300;
+        baos.write((principalCount >>> 8) & 0xFF);
+        baos.write(principalCount & 0xFF);
+        try {
+            AccessControlContextSerializer.unmarshalForTransport(baos.toByteArray(), null);
+            Assert.fail("Expected InvalidObjectException for oversized principal count");
+        } catch (java.io.InvalidObjectException expected) {
+            Assert.assertTrue(expected.getMessage().contains("principal count exceeds maximum"));
+        }
+    }
+
+    @Test
+    public void testUnmarshalRejectsOversizedPrincipalTypeLength() throws Exception {
+        // Craft a payload: count=1, locLen=0, principalCount=1, typeLen=5000
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        baos.write(0); baos.write(0); baos.write(0); baos.write(1); // count=1
+        baos.write(0); baos.write(0);                               // locLen=0
+        baos.write(0); baos.write(1);                               // principalCount=1
+        int typeLen = 5000;
+        baos.write((typeLen >>> 8) & 0xFF);
+        baos.write(typeLen & 0xFF);                                  // typeLen=5000
+        baos.write(new byte[typeLen]);                              // type bytes
+        try {
+            AccessControlContextSerializer.unmarshalForTransport(baos.toByteArray(), null);
+            Assert.fail("Expected InvalidObjectException for oversized principal type length");
+        } catch (java.io.InvalidObjectException expected) {
+            Assert.assertTrue(expected.getMessage().contains("principal type length exceeds maximum"));
+        }
+    }
+
+    @Test
+    public void testDomainIdentityRecordRejectsStandardSerialization() throws Exception {
+        // Obtain a DomainIdentityRecord via its private constructor through reflection.
+        java.lang.reflect.Constructor<?> ctor =
+            AccessControlContextSerializer.DomainIdentityRecord.class.getDeclaredConstructor(
+                String.class, String[].class, String[].class);
+        ctor.setAccessible(true);
+        Object record = ctor.newInstance(
+            "httpmd://example.com/stub.jar;sha=abc", new String[0], new String[0]);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(baos);
+        try {
+            out.writeObject(record);
+            Assert.fail("Expected NotSerializableException");
+        } catch (java.io.NotSerializableException expected) {
+            // expected
+        } finally {
+            out.close();
+        }
+    }
+
     private static int readInt(byte[] bytes) {
         return ((bytes[0] & 0xFF) << 24)
                 | ((bytes[1] & 0xFF) << 16)
