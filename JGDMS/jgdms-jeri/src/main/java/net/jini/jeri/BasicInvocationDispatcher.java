@@ -85,6 +85,7 @@ import net.jini.io.context.ClientUserSubject;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.concurrent.Callable;
+import org.apache.river.api.io.AccessControlContextSerializer;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -170,6 +171,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     
     /** Marshal stream protocol version with user principals. */
     static final byte VERSION_WITH_PRINCIPALS = 0x02;
+    
+    /** Marshal stream protocol version with user principals and remote ACC. */
+    static final byte VERSION_WITH_PRINCIPALS_AND_ACC = 0x03;
 
     /**
      * Maximum number of user principals accepted from the wire in a single
@@ -622,10 +626,17 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean supportsAtomicValidation;
 	boolean atomicValidation = false;
 	boolean hasUserPrincipals = false;
+        boolean hasSerializedAcc = false;
+        AccessControlContext remoteIdentityContext = null;
 	try {
 	    rin = request.getRequestInputStream();
 	    int versionByte = rin.read();
 	    switch (versionByte) {
+		case VERSION_WITH_PRINCIPALS_AND_ACC:
+		    supportsAtomicValidation = true;
+		    hasUserPrincipals = true;
+                    hasSerializedAcc = true;
+		    break;
 		case VERSION_WITH_PRINCIPALS:
 		    supportsAtomicValidation = true;
 		    hasUserPrincipals = true;
@@ -674,6 +685,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    addUserSubjectToContext(context, userPrincipals);
 		}
 	    }
+            if (hasSerializedAcc) {
+                byte[] accBytes = readByteArrayBlock(rin);
+                if (accBytes.length > 0) {
+                    remoteIdentityContext =
+                        AccessControlContextSerializer.unmarshalForTransport(
+                            accBytes, getClientSubject());
+                }
+            }
 	} catch (Throwable t) {
 	    if (logger.isLoggable(Levels.FAILED)) {
 		logLocalThrow(impl, null, t);
@@ -752,7 +771,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * re-establish it with a nested Subject.callAs in the new thread.
 	     */
 	    try {
-		returnValue = invokeWithClientSubject(impl, method, args, context);
+		returnValue = invokeWithClientSubject(impl, method, args, context, remoteIdentityContext);
 		if (logger.isLoggable(Level.FINE)) {
 		    logReturn(impl, method, returnValue);
 		}
@@ -1597,7 +1616,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     private Object invokeWithClientSubject(final Remote impl,
 					   final Method method,
 					   final Object[] args,
-					   final Collection context)
+					   final Collection context,
+                                           final AccessControlContext remoteIdentityContext)
 	throws Throwable
     {
 	final Subject workerSubject = getClientSubject();
@@ -1620,6 +1640,23 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	    return null;
 	};
+        
+        final Callable<Void> dispatchWithContext;
+        if (remoteIdentityContext != null) {
+            dispatchWithContext = () -> {
+                AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                    try {
+                        dispatchAction.call();
+                    } catch (Exception e) {
+                        if (thrown[0] == null) thrown[0] = e;
+                    }
+                    return null;
+                }, remoteIdentityContext);
+                return null;
+            };
+        } else {
+            dispatchWithContext = dispatchAction;
+        }
 
 	if (workerSubject != null) {
 	    /*
@@ -1635,8 +1672,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * inherit the worker identity from the ACC.
 	     */
 	    final Callable<Void> withUser = (userSubject != null)
-		? () -> Subject.callAs(userSubject, dispatchAction)
-		: dispatchAction;
+		? () -> Subject.callAs(userSubject, dispatchWithContext)
+		: dispatchWithContext;
 	    Subject.doAs(workerSubject, (PrivilegedAction<Void>) () -> {
 		try {
 		    withUser.call();
@@ -1649,7 +1686,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    // User subject only: Subject.callAs establishes Subject.current()
 	    // via ScopedValue for the dispatch thread.
 	    try {
-		Subject.callAs(userSubject, dispatchAction);
+		Subject.callAs(userSubject, dispatchWithContext);
 	    } catch (Exception e) {
 		if (thrown[0] == null) thrown[0] = e;
 	    }
@@ -1810,6 +1847,32 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    remaining -= read;
 	}
 	return new String(bytes, StandardCharsets.UTF_8);
+    }
+    
+    private static byte[] readByteArrayBlock(InputStream in) throws IOException {
+        int b1 = in.read();
+        int b2 = in.read();
+        int b3 = in.read();
+        int b4 = in.read();
+        if ((b1 | b2 | b3 | b4) < 0) throw new EOFException();
+        int len = ((b1 & 0xFF) << 24)
+                | ((b2 & 0xFF) << 16)
+                | ((b3 & 0xFF) << 8)
+                | (b4 & 0xFF);
+        if (len < 0 || len > 1024 * 1024) {
+            throw new IOException("invalid ACC block length " + len);
+        }
+        if (len == 0) return new byte[0];
+        byte[] out = new byte[len];
+        int remaining = len;
+        int offset = 0;
+        while (remaining > 0) {
+            int read = in.read(out, offset, remaining);
+            if (read < 0) throw new EOFException();
+            offset += read;
+            remaining -= read;
+        }
+        return out;
     }
 
     /**

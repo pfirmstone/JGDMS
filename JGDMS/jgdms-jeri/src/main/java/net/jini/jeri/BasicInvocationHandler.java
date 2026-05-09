@@ -40,6 +40,7 @@ import java.rmi.MarshalException;
 import java.rmi.RemoteException;
 import java.rmi.UnexpectedException;
 import java.rmi.UnmarshalException;
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.Principal;
 import java.security.PrivilegedAction;
@@ -73,6 +74,7 @@ import org.apache.river.api.io.AtomicSerial;
 import org.apache.river.api.io.AtomicSerial.GetArg;
 import org.apache.river.api.io.AtomicSerial.PutArg;
 import org.apache.river.api.io.AtomicSerial.SerialForm;
+import org.apache.river.api.io.AccessControlContextSerializer;
 import org.apache.river.jeri.internal.runtime.Util;
 import org.apache.river.logging.Levels;
 
@@ -842,10 +844,19 @@ public class BasicInvocationHandler
 	    // These are sent separately from the TLS-authenticated worker Subject.
 	    Set<Principal> userPrincipals = getUserPrincipals();
 	    // Select marshalling protocol version.
+	    // 0x03 = with serialized remote ACC + user principals
 	    // 0x02 = with user principals (implies atomicValidation support)
 	    // 0x01 = atomicValidation, no user principals
 	    // 0x00 = legacy, no atomicValidation, no user principals
-	    if (!userPrincipals.isEmpty()) {
+            final AccessControlContext currentAcc = AccessController.getContext();
+            byte[] serializedAcc = AccessControlContextSerializer.marshalForTransport(currentAcc);
+	    if (serializedAcc.length > 0) {
+		ros.write(0x03);			// marshalling protocol version
+		ros.write(integrity ? 0x01 : 0x00);	// integrity
+		ros.write(atomicValidation ? 0x01 : 0x00); // atomicValidation
+		writeUserPrincipals(ros, userPrincipals);
+                writeByteArrayBlock(ros, serializedAcc);
+	    } else if (!userPrincipals.isEmpty()) {
 		ros.write(0x02);			// marshalling protocol version
 		ros.write(integrity ? 0x01 : 0x00);	// integrity
 		ros.write(atomicValidation ? 0x01 : 0x00); // atomicValidation
@@ -1766,5 +1777,14 @@ public class BasicInvocationHandler
 	out.write((len >>> 8) & 0xFF);
 	out.write(len & 0xFF);
 	out.write(bytes, 0, len);
+    }
+
+    private static void writeByteArrayBlock(OutputStream out, byte[] bytes) throws IOException {
+        int len = bytes != null ? bytes.length : 0;
+        out.write((len >>> 24) & 0xFF);
+        out.write((len >>> 16) & 0xFF);
+        out.write((len >>> 8) & 0xFF);
+        out.write(len & 0xFF);
+        if (len > 0) out.write(bytes);
     }
 }
