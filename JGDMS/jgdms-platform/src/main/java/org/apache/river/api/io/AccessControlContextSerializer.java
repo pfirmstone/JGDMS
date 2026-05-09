@@ -322,7 +322,7 @@ public final class AccessControlContextSerializer implements Serializable {
 
         static DomainIdentityRecord readFrom(ByteArrayInputStream in) throws IOException {
             int locLen = readShort(in);
-            if (locLen == 0 || locLen > 0xFFFF) throw new InvalidObjectException("invalid location length");
+            if (locLen > 0xFFFF) throw new InvalidObjectException("invalid location length");
             byte[] locationBytes = new byte[locLen];
             if (in.read(locationBytes) != locLen) throw new InvalidObjectException("unexpected EOF");
             String location = new String(locationBytes, "UTF-8");
@@ -385,7 +385,7 @@ public final class AccessControlContextSerializer implements Serializable {
             } else {
                 principals = new Principal[Math.min(principalTypes.length, principalNames.length)];
                 for (int i = 0; i < principals.length; i++) {
-                    principals[i] = new NamedPrincipal(principalTypes[i], principalNames[i]);
+                    principals[i] = new NamedPrincipal(principalNames[i]);
                 }
             }
             return new DomainIdentity(new CodeSource(url, (java.security.cert.Certificate[]) null), principals);
@@ -404,7 +404,7 @@ public final class AccessControlContextSerializer implements Serializable {
         private static final long serialVersionUID = 1L;
         private final String name;
 
-        private NamedPrincipal(String className, String name) {
+        private NamedPrincipal(String name) {
             this.name = name;
         }
 

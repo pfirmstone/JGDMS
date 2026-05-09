@@ -36,7 +36,7 @@ public class AccessControlContextSerializerTest {
         System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
         try {
             URL httpmd = new URL(null,
-                    "httpmd://repo.example.org/client-stub.jar;sha-256=abcdef",
+                    "httpmd://repo.example.org/client-stub.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                     new PassThroughHandler());
             URL plain = new URL("http://repo.example.org/client-stub.jar");
             ProtectionDomain httpmdPd = new ProtectionDomain(
@@ -72,7 +72,7 @@ public class AccessControlContextSerializerTest {
         System.setProperty("java.protocol.handler.pkgs", "net.jini.url");
         try {
             URL httpmd = new URL(null,
-                    "httpmd://repo.example.org/client-stub.jar;sha-256=abcdef",
+                    "httpmd://repo.example.org/client-stub.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                     new PassThroughHandler());
             ProtectionDomain pd = new ProtectionDomain(
                     new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
