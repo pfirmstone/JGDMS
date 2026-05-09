@@ -1,0 +1,3 @@
+-exportcontents: \
+    net.jini.security.jwt
+-sources: true
