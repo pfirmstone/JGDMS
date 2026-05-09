@@ -85,6 +85,7 @@ import net.jini.io.context.ClientUserSubject;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.concurrent.Callable;
+import org.apache.river.api.io.AccessControlContextSerializer;
 
 /**
  * A basic implementation of the {@link InvocationDispatcher} interface,
@@ -168,8 +169,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     
     static final byte PREVIOUS_VERSION = 0x0;
     
-    /** Marshal stream protocol version with user principals. */
-    static final byte VERSION_WITH_PRINCIPALS = 0x02;
+    /** Marshal stream protocol version with user principals and remote ACC. */
+    static final byte VERSION_WITH_PRINCIPALS_AND_ACC = 0x02;
 
     /**
      * Maximum number of user principals accepted from the wire in a single
@@ -178,6 +179,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * forcing unbounded allocation.
      */
     private static final int MAX_USER_PRINCIPALS = 64;
+    private static final int MAX_ACC_BLOCK_BYTES = 1024 * 1024;
 
     /**
      * Maximum byte length of a single UTF-8–encoded string field (class name
@@ -489,7 +491,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * from the request input stream of the inbound request. If any
      * exception is thrown when reading this byte, the inbound request is
      * aborted and this method returns. If the byte is not
-     * <code>0x00</code>, or <code>0x01</code>, two byte values of <code>0x00</code> (indicating
+     * <code>0x00</code>, <code>0x01</code>, or <code>0x02</code>, two byte values of <code>0x00</code> (indicating
      * a marshal stream protocol version mismatch) are written to the
      * response output stream of the inbound request, the output stream is
      * closed, and this method returns.
@@ -518,6 +520,12 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
      * value is <code>0x00</code>.  An {@link AtomicInputValidation} element is
      * then added to the server context, reflecting whether or not input validation
      * is being enforced.
+     *
+     * <li>If the version byte is <code>0x02</code>, integrity, atomicValidation,
+     * user principals, and a serialized {@link java.security.AccessControlContext}
+     * are read in addition to the above. The user principals are reconstructed
+     * into a read-only {@link javax.security.auth.Subject} stored in the server
+     * context as a {@link net.jini.jeri.ClientUserSubject}.
      *
      * <li>The {@link #createMarshalInputStream createMarshalInputStream}
      * method of this invocation dispatcher is called, passing the remote
@@ -622,13 +630,16 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	boolean supportsAtomicValidation;
 	boolean atomicValidation = false;
 	boolean hasUserPrincipals = false;
+        boolean hasSerializedAcc = false;
+        AccessControlContext remoteIdentityContext = null;
 	try {
 	    rin = request.getRequestInputStream();
 	    int versionByte = rin.read();
 	    switch (versionByte) {
-		case VERSION_WITH_PRINCIPALS:
+		case VERSION_WITH_PRINCIPALS_AND_ACC:
 		    supportsAtomicValidation = true;
 		    hasUserPrincipals = true;
+                    hasSerializedAcc = true;
 		    break;
 		case VERSION:
 		    supportsAtomicValidation = true;
@@ -674,6 +685,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    addUserSubjectToContext(context, userPrincipals);
 		}
 	    }
+            if (hasSerializedAcc) {
+                byte[] accBytes = readByteArrayBlock(rin);
+                if (accBytes.length > 0) {
+                    remoteIdentityContext =
+                        AccessControlContextSerializer.unmarshalForTransport(
+                            accBytes, getClientSubject());
+                }
+            }
 	} catch (Throwable t) {
 	    if (logger.isLoggable(Levels.FAILED)) {
 		logLocalThrow(impl, null, t);
@@ -752,7 +771,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * re-establish it with a nested Subject.callAs in the new thread.
 	     */
 	    try {
-		returnValue = invokeWithClientSubject(impl, method, args, context);
+		returnValue = invokeWithClientSubject(impl, method, args, context, remoteIdentityContext);
 		if (logger.isLoggable(Level.FINE)) {
 		    logReturn(impl, method, returnValue);
 		}
@@ -1597,7 +1616,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     private Object invokeWithClientSubject(final Remote impl,
 					   final Method method,
 					   final Object[] args,
-					   final Collection context)
+					   final Collection context,
+                                           final AccessControlContext remoteIdentityContext)
 	throws Throwable
     {
 	final Subject workerSubject = getClientSubject();
@@ -1620,6 +1640,26 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	    return null;
 	};
+        
+        final Callable<Void> dispatchWithContext;
+        if (remoteIdentityContext != null) {
+            dispatchWithContext = () -> {
+                AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                    try {
+                        dispatchAction.call();
+                    } catch (Exception e) {
+                        if (logger.isLoggable(Level.FINE)) {
+                            logger.log(Level.FINE, "Exception dispatching with reconstructed remote ACC", e);
+                        }
+                        if (thrown[0] == null) thrown[0] = e;
+                    }
+                    return null;
+                }, remoteIdentityContext);
+                return null;
+            };
+        } else {
+            dispatchWithContext = dispatchAction;
+        }
 
 	if (workerSubject != null) {
 	    /*
@@ -1635,8 +1675,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	     * inherit the worker identity from the ACC.
 	     */
 	    final Callable<Void> withUser = (userSubject != null)
-		? () -> Subject.callAs(userSubject, dispatchAction)
-		: dispatchAction;
+		? () -> Subject.callAs(userSubject, dispatchWithContext)
+		: dispatchWithContext;
 	    Subject.doAs(workerSubject, (PrivilegedAction<Void>) () -> {
 		try {
 		    withUser.call();
@@ -1649,7 +1689,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    // User subject only: Subject.callAs establishes Subject.current()
 	    // via ScopedValue for the dispatch thread.
 	    try {
-		Subject.callAs(userSubject, dispatchAction);
+		Subject.callAs(userSubject, dispatchWithContext);
 	    } catch (Exception e) {
 		if (thrown[0] == null) thrown[0] = e;
 	    }
@@ -1810,6 +1850,33 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    remaining -= read;
 	}
 	return new String(bytes, StandardCharsets.UTF_8);
+    }
+    
+    private static byte[] readByteArrayBlock(InputStream in) throws IOException {
+        int b1 = in.read();
+        int b2 = in.read();
+        int b3 = in.read();
+        int b4 = in.read();
+        if ((b1 | b2 | b3 | b4) < 0) throw new EOFException();
+        int len = ((b1 & 0xFF) << 24)
+                | ((b2 & 0xFF) << 16)
+                | ((b3 & 0xFF) << 8)
+                | (b4 & 0xFF);
+        if (len < 0 || len > MAX_ACC_BLOCK_BYTES) {
+            throw new IOException("invalid ACC block length " + len
+                    + "; maximum allowed is " + MAX_ACC_BLOCK_BYTES);
+        }
+        if (len == 0) return new byte[0];
+        byte[] out = new byte[len];
+        int remaining = len;
+        int offset = 0;
+        while (remaining > 0) {
+            int read = in.read(out, offset, remaining);
+            if (read < 0) throw new EOFException();
+            offset += read;
+            remaining -= read;
+        }
+        return out;
     }
 
     /**
