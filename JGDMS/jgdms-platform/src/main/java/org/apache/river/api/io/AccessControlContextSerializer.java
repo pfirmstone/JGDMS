@@ -471,8 +471,9 @@ public final class AccessControlContextSerializer implements Serializable {
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;
-            if (!(obj instanceof Principal)) return false;
-            return name != null && name.equals(((Principal) obj).getName());
+            if (!(obj instanceof NamedPrincipal)) return false;
+            NamedPrincipal other = (NamedPrincipal) obj;
+            return name != null ? name.equals(other.name) : other.name == null;
         }
 
         @Override
