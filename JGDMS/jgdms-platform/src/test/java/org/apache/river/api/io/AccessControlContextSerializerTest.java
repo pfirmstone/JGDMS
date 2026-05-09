@@ -97,6 +97,26 @@ public class AccessControlContextSerializerTest {
             }
         }
     }
+    
+    @Test
+    public void testDomainIdentityRejectsStandardSerialization() throws Exception {
+        URL httpmd = new URL(null,
+                "httpmd://repo.example.org/client-stub.jar;sha-256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                new PassThroughHandler());
+        AccessControlContextSerializer.DomainIdentity domain = new AccessControlContextSerializer.DomainIdentity(
+                new CodeSource(httpmd, (java.security.cert.Certificate[]) null),
+                new java.security.Principal[0]);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        java.io.ObjectOutputStream out = new java.io.ObjectOutputStream(baos);
+        try {
+            out.writeObject(domain);
+            Assert.fail("Expected NotSerializableException");
+        } catch (java.io.NotSerializableException expected) {
+            // expected
+        } finally {
+            out.close();
+        }
+    }
 
     private static int readInt(byte[] bytes) {
         return ((bytes[0] & 0xFF) << 24)

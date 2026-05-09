@@ -22,6 +22,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.NotSerializableException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.ObjectStreamField;
@@ -404,6 +406,14 @@ public final class AccessControlContextSerializer implements Serializable {
 
         DomainIdentity(CodeSource cs, Principal[] principals) {
             super(cs, null, null, principals);
+        }
+        
+        private void writeObject(ObjectOutputStream out) throws IOException {
+            throw new NotSerializableException("DomainIdentity must be serialized using @AtomicSerial transport records only");
+        }
+        
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            throw new NotSerializableException("DomainIdentity must be deserialized using @AtomicSerial transport records only");
         }
     }
 
