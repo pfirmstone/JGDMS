@@ -1648,6 +1648,9 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
                     try {
                         dispatchAction.call();
                     } catch (Exception e) {
+                        if (logger.isLoggable(Level.FINEST)) {
+                            logger.log(Level.FINEST, "Exception dispatching with reconstructed remote ACC", e);
+                        }
                         if (thrown[0] == null) thrown[0] = e;
                     }
                     return null;
