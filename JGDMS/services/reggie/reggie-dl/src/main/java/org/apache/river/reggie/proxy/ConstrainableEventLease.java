@@ -99,7 +99,7 @@ public final class ConstrainableEventLease
      * @return
      * @throws IOException 
      */
-    private static MethodConstraints check(GetArg arg) throws IOException{
+    private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException{
 	MethodConstraints constraints = (MethodConstraints) arg.get(CONSTRAINTS, null);
 	EventLease el = new EventLease(arg);
 	MethodConstraints proxyCon = null;
@@ -112,7 +112,7 @@ public final class ConstrainableEventLease
 	return constraints;
     }
     
-    ConstrainableEventLease(GetArg arg) throws IOException{
+    ConstrainableEventLease(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg, check(arg));
     }
     

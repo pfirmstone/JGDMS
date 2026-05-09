@@ -61,8 +61,8 @@ public class RemoteEventData implements Serializable {
         this(convert(re), cookie);
     }
     
-    RemoteEventData(GetArg arg) throws IOException {
-	this(check(arg), arg.get("cookie", null));
+    RemoteEventData(GetArg arg) throws IOException, ClassNotFoundException {
+	this(check(arg), arg.get("cookie", null, Object.class));
 	// get value for integrity flag
 	integrity = MarshalledWrapper.integrityEnforced(arg);
     }
@@ -82,9 +82,9 @@ public class RemoteEventData implements Serializable {
 	return mi;
     }
     
-    private static MarshalledInstance check(GetArg arg) throws IOException {
-	MarshalledInstance mi = (MarshalledInstance) arg.get("mi", null);
-	Object cookie = arg.get("cookie", null);
+    private static MarshalledInstance check(GetArg arg) throws IOException, ClassNotFoundException {
+	MarshalledInstance mi = arg.get("mi", null, MarshalledInstance.class);
+	Object cookie = arg.get("cookie", null, Object.class);
 	if (cookie == null) 
 	    throw new InvalidObjectException("null cookie");
 	return mi;

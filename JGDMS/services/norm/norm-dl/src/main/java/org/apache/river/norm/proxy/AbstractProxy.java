@@ -64,7 +64,7 @@ abstract class AbstractProxy implements ReferentUuid, Serializable, ProxyAccesso
 	this.uuid = uuid;
     }
     
-    AbstractProxy(GetArg arg) throws IOException {
+    AbstractProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	this((NormServer) arg.get("server", null),
 	    (Uuid) arg.get("uuid", null),
 	    check(arg));
@@ -79,7 +79,7 @@ abstract class AbstractProxy implements ReferentUuid, Serializable, ProxyAccesso
 	return true;
     }
 
-    private static boolean check(GetArg arg) throws IOException {
+    private static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
 	NormServer server = (NormServer) arg.get("server", null);
 	Uuid uuid = (Uuid) arg.get("uuid", null);
 	if (server == null || uuid == null) {

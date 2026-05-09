@@ -89,7 +89,7 @@ public abstract class RegistrarLease extends AbstractLease implements ReferentUu
 	return new RO();
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	Registrar server = (Registrar) arg.get("server", null);
 	Uuid leaseID = (Uuid) arg.get("leaseID", null);
 	RO r = (RO) arg.getReader();
@@ -101,7 +101,7 @@ public abstract class RegistrarLease extends AbstractLease implements ReferentUu
 	return arg;
     }
     
-    RegistrarLease(GetArg arg) throws IOException{
+    RegistrarLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	server = (Registrar) arg.get("server", null);
 	leaseID = (Uuid) arg.get("leaseID", null);

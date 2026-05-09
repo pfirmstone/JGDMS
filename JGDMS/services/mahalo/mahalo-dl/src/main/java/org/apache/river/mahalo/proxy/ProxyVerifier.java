@@ -70,7 +70,7 @@ public final class ProxyVerifier implements TrustVerifier, Serializable {
 	this(check(serverProxy, proxyID), serverProxy, proxyID);
     }
     
-    ProxyVerifier(GetArg arg) throws IOException{
+    ProxyVerifier(GetArg arg) throws IOException, ClassNotFoundException{
 	this((TxnManager) arg.get("serverProxy", null),
 		(Uuid) arg.get("proxyID", null));
     }

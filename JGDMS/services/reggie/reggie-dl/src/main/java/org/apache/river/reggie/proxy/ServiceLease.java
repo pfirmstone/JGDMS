@@ -90,7 +90,7 @@ public class ServiceLease extends RegistrarLease {
 	return arg;
     }
     
-    ServiceLease(GetArg arg) throws IOException{
+    ServiceLease(GetArg arg) throws IOException, ClassNotFoundException{
 	super(check(arg));
 	serviceID = ((RO) arg.getReader()).serviceID;
     }

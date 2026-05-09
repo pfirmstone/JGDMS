@@ -80,7 +80,7 @@ public final class MulticastMaxPacketSize
 	this(size, check(size));
     }
     
-    MulticastMaxPacketSize(GetArg arg) throws IOException {
+    MulticastMaxPacketSize(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg.get("size",0));
     }
     

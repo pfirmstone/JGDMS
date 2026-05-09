@@ -65,7 +65,7 @@ public class NormProxy extends AbstractProxy
 	super(server, serverUuid);
     }
 
-    NormProxy(GetArg arg) throws IOException {
+    NormProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
     }
 
@@ -107,11 +107,11 @@ public class NormProxy extends AbstractProxy
 	    }
 	}
 
-	ConstrainableNormProxy(GetArg arg) throws IOException {
+	ConstrainableNormProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException {
+	private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	    NormProxy np = new NormProxy(arg);
 	    if (!(np.server instanceof RemoteMethodControl)) {
 		throw new InvalidObjectException(

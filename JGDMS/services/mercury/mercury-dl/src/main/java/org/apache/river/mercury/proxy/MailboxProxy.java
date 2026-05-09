@@ -95,13 +95,13 @@ public class MailboxProxy implements PullEventMailbox,
 	this.proxyID = proxyID;
     }
 
-    MailboxProxy(GetArg arg) throws IOException {
-	this(check(arg),(Uuid) arg.get("proxyID", null));
+    MailboxProxy(GetArg arg) throws IOException, ClassNotFoundException {
+	this(check(arg),(Uuid) arg.get("proxyID", null, Uuid.class));
     }
     
-    private static MailboxBackEnd check(GetArg arg) throws IOException {
-	MailboxBackEnd mailbox = (MailboxBackEnd) arg.get("mailbox", null);
-	Uuid proxyID = (Uuid) arg.get("proxyID", null);
+    private static MailboxBackEnd check(GetArg arg) throws IOException, ClassNotFoundException {
+	MailboxBackEnd mailbox = arg.get("mailbox", null, MailboxBackEnd.class);
+	Uuid proxyID = arg.get("proxyID", null, Uuid.class);
 	/* Verify server */
         if(mailbox == null) {
             throw new InvalidObjectException("MailboxProxy.readObject "
@@ -233,11 +233,11 @@ public class MailboxProxy implements PullEventMailbox,
                   uuid);
         }
 
-	ConstrainableMailboxProxy(GetArg arg) throws IOException {
+	ConstrainableMailboxProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException{
+	private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	    MailboxProxy mp = new MailboxProxy(arg);
 	    // Verify that the server implements RemoteMethodControl
             if( !(mp.mailbox instanceof RemoteMethodControl) ) {

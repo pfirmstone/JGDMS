@@ -58,11 +58,11 @@ public class StorableObject implements java.io.Serializable {
 	this(obj, toMO(obj));
     }
     
-    private static MarshalledObject check(GetArg arg) throws IOException {
-	return (MarshalledObject) arg.get("bytes", null);
+    private static MarshalledObject check(GetArg arg) throws IOException, ClassNotFoundException {
+	return arg.get("bytes", null, MarshalledObject.class);
     }
     // TODO: static check
-    StorableObject(GetArg arg) throws IOException {
+    StorableObject(GetArg arg) throws IOException, ClassNotFoundException {
 	this(null, check(arg));
     }
     

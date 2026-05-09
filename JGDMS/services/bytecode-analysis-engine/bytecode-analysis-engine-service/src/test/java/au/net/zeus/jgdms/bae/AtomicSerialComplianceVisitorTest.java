@@ -667,7 +667,7 @@ public class AtomicSerialComplianceVisitorTest {
     private static byte[] buildUntypedGetClass(String simpleName) {
         ClassWriter cw = newAtomicSerialClass(simpleName);
 
-        // static boolean check(GetArg arg) throws IOException {
+        // static boolean check(GetArg arg) throws IOException, ClassNotFoundException {
         //   if (arg.get("f", null) == null)      // 2-arg + IFNULL, NO cast
         //     throw new IllegalArgumentException();
         //   return true;

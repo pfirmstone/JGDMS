@@ -162,7 +162,7 @@ public class SpaceProxy2 implements TupleSpace, Administrable, ReferentUuid,
 	this.maxServerQueryTimeout = maxServerQueryTimeout;
     }
 
-    SpaceProxy2(GetArg arg) throws IOException {
+    SpaceProxy2(GetArg arg) throws IOException, ClassNotFoundException {
 	this((OutriggerServer) arg.get("space", null),
 		(Uuid) arg.get("spaceUuid", null),
 		arg.get("serverMaxServerQueryTimeout", -1L));

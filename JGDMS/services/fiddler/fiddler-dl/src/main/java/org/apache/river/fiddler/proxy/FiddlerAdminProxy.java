@@ -114,7 +114,7 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
      * @param arg
      * @throws IOException 
      */
-    FiddlerAdminProxy(GetArg arg) throws IOException {
+    FiddlerAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	this((Fiddler)arg.get("server", null), (Uuid) arg.get("proxyID", null));
     }
     
@@ -838,7 +838,7 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
 	    this.methodConstraints = methodConstraints;
         }//end constructor
 
-	private static MethodConstraints check(GetArg arg) throws IOException {
+	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	    FiddlerAdminProxy fap = new FiddlerAdminProxy(arg);
 	    MethodConstraints methodConstraints = (MethodConstraints) 
 		    arg.get("methodConstraints", null);
@@ -857,7 +857,7 @@ public class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializab
 	    return methodConstraints;
 	}	
 	
-	ConstrainableFiddlerAdminProxy(GetArg arg) throws IOException {
+	ConstrainableFiddlerAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg, check(arg));
 	}
 	

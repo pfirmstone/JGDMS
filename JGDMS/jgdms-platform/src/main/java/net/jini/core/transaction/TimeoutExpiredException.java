@@ -100,7 +100,7 @@ public class TimeoutExpiredException extends TransactionException {
 	committed = arg.get("committed", false);
     }
     
-    private static GetArg check(GetArg arg) throws IOException{
+    private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException{
 	arg.get("committed", false); // Check committed field exists
 	return arg;
     }

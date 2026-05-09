@@ -701,36 +701,37 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
          */
          public transient RemoteEventListener listener;
          
-	 private static RemoteEventListener check(GetArg arg) throws IOException {
-	    Object registrationID = arg.get("registrationID", null);
+	 @SuppressWarnings("unchecked")
+	 private static RemoteEventListener check(GetArg arg) throws IOException, ClassNotFoundException {
+	    Object registrationID = arg.get("registrationID", null, Object.class);
 	    if (!(registrationID instanceof Uuid)) 
 		throw new InvalidObjectException(
 		    "registrationID must be instanceof Uuid and non null");
 	    Map<ServiceRegistrar, MarshalledObject> discoveredRegsMap 
 		= (Map<ServiceRegistrar, MarshalledObject>)
-		    arg.get("discoveredRegsMap", null);
+		    arg.get("discoveredRegsMap", null, Map.class);
 	    Map<ServiceRegistrar, MarshalledObject> checkedRegsMap =
 		Collections.checkedMap(
 		    new HashMap(discoveredRegsMap.size()),
 			ServiceRegistrar.class, MarshalledObject.class);
 	    checkedRegsMap.putAll(discoveredRegsMap);
-	    Set<String> groups = (Set<String>) arg.get("groups", null);
+	    Set<String> groups = (Set<String>) arg.get("groups", null, Set.class);
 	    Set<String> checkedGroups = 
 		    Collections.checkedSet(new TreeSet<String>(), String.class);
 	    checkedGroups.addAll(groups);
-	    Set<LookupLocator> locators = (Set<LookupLocator>) arg.get("locators", null);
+	    Set<LookupLocator> locators = (Set<LookupLocator>) arg.get("locators", null, Set.class);
 	    Set<LookupLocator> checkedLocators = 
 		    Collections.checkedSet(
 			    new HashSet(locators.size()), LookupLocator.class);
 	    checkedLocators.addAll(locators);
-	    Object leaseID = arg.get("leaseID", null);
+	    Object leaseID = arg.get("leaseID", null, Object.class);
 	    if (!(leaseID instanceof Uuid)) 
 		throw new InvalidObjectException(
 		    "leaseID must be instanceof Uuid and non null");
 	    arg.get("leaseExpiration", 0L); // Checks existance
 	    arg.get("eventID", 0L); // Checks existance
 	    arg.get("seqNum", 0L); // Checks existance
-	    Object handback = arg.get("handback", null);
+	    Object handback = arg.get("handback", null, Object.class);
 	    if (handback != null && !(handback instanceof MarshalledObject))
 		throw new InvalidObjectException(
 		    "handback, if non null, must be an instance of MarshalledObject");
@@ -738,24 +739,25 @@ public class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler,
 	    return ((RO)arg.getReader()).listener;
 	 }
 	 
-	 RegistrationInfo(GetArg arg) throws IOException {
+	 RegistrationInfo(GetArg arg) throws IOException, ClassNotFoundException {
 	     this(arg, check(arg));
 	 }
 	 
-	private RegistrationInfo(GetArg arg, RemoteEventListener listener) throws IOException {
+	@SuppressWarnings("unchecked")
+	private RegistrationInfo(GetArg arg, RemoteEventListener listener) throws IOException, ClassNotFoundException {
 	    this.listener = listener;
-	    registrationID = (Uuid) arg.get("registrationID", null);
+	    registrationID = (Uuid) arg.get("registrationID", null, Object.class);
 	    discoveredRegsMap = new HashMap<ServiceRegistrar, MarshalledObject>(
 		    (Map<ServiceRegistrar, MarshalledObject>)
-		arg.get("discoveredRegsMap", null));
-	    groups = new HashSet<String>((Set<String>) arg.get("groups", null));
+		arg.get("discoveredRegsMap", null, Map.class));
+	    groups = new HashSet<String>((Set<String>) arg.get("groups", null, Set.class));
 	    locators = new HashSet<LookupLocator>(
-		    (Set<LookupLocator>) arg.get("locators", null));
-	    leaseID = (Uuid) arg.get("leaseID", null);
+		    (Set<LookupLocator>) arg.get("locators", null, Set.class));
+	    leaseID = (Uuid) arg.get("leaseID", null, Object.class);
 	    leaseExpiration = arg.get("leaseExpiration", 0L);
 	    eventID = arg.get("eventID", 0L);
 	    seqNum = arg.get("seqNum", 0L);
-	    handback = (MarshalledObject) arg.get("handback", null);
+	    handback = (MarshalledObject) arg.get("handback", null, Object.class);
 	    discardFlag = arg.get("discardFlag", false);
 	}
          

@@ -178,7 +178,7 @@ class ClientLeaseWrapper implements Lease, Serializable {
 	membershipExpiration = calcMembershipExpiration(membershipDuration, now);
     }
 
-    ClientLeaseWrapper(GetArg arg) throws IOException {
+    ClientLeaseWrapper(GetArg arg) throws IOException, ClassNotFoundException {
 	this((Throwable) arg.get("lastFailure", null),
 	    (MarshalledInstance) arg.get("marshalledClientLease", null),
 	    arg.get("clientLeaseExpiration", 0L),

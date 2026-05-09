@@ -251,7 +251,7 @@ public final class UuidFactory {
 	    super(bits0, bits1);
 	}
 	
-	Impl(GetArg arg) throws IOException{
+	Impl(GetArg arg) throws IOException, ClassNotFoundException{
 	    super(arg);
     }
 }

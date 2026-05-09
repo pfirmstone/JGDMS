@@ -60,7 +60,7 @@ public class MatchSetData implements java.io.Serializable {
 	this.intialLeaseDuration = intialLeaseDuration;
     }
     
-    MatchSetData(GetArg arg) throws IOException {
+    MatchSetData(GetArg arg) throws IOException, ClassNotFoundException {
 	this((Uuid) arg.get("uuid", null),
 		((EntryRep[]) arg.get("reps", null)).clone(), // Throws NPE, should it?
 		arg.get("intialLeaseDuration", 0L) );

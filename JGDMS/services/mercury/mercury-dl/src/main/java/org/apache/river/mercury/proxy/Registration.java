@@ -100,19 +100,19 @@ public class Registration implements MailboxPullRegistration,
         lease = l;
     }
 
-    Registration(GetArg arg) throws IOException {
+    Registration(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg),
-		(MailboxBackEnd) arg.get("mailbox", null),
-		(ListenerProxy) arg.get("listener", null),
-		(Lease) arg.get("lease", null)
+		arg.get("mailbox", null, MailboxBackEnd.class),
+		arg.get("listener", null, ListenerProxy.class),
+		arg.get("lease", null, Lease.class)
 		);
     }
     
-    private static Uuid check(GetArg arg) throws IOException {
-	Uuid registrationID = (Uuid) arg.get("registrationID", null);
-	MailboxBackEnd mailbox = (MailboxBackEnd) arg.get("mailbox", null);
-	ListenerProxy listener = (ListenerProxy) arg.get("listener", null);
-	Lease lease = (Lease) arg.get("lease", null);
+    private static Uuid check(GetArg arg) throws IOException, ClassNotFoundException {
+	Uuid registrationID = arg.get("registrationID", null, Uuid.class);
+	MailboxBackEnd mailbox = arg.get("mailbox", null, MailboxBackEnd.class);
+	ListenerProxy listener = arg.get("listener", null, ListenerProxy.class);
+	Lease lease = arg.get("lease", null, Lease.class);
 	/* Verify server */
         if(mailbox == null) {
             throw new InvalidObjectException("Registration.readObject "
@@ -337,19 +337,19 @@ public class Registration implements MailboxPullRegistration,
 	    this.methodConstraints = methodConstraints;
 	}
 	
-	ConstrainableRegistration(GetArg arg) throws IOException {
+	ConstrainableRegistration(GetArg arg) throws IOException, ClassNotFoundException {
 	    this(arg, check(arg));
 	}
 	
-	ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException{
+	ConstrainableRegistration(GetArg arg, MethodConstraints constraints) throws IOException, ClassNotFoundException {
 	    super(arg);
 	    methodConstraints = constraints;
 	}
 	
-	private static MethodConstraints check(GetArg arg) throws IOException {
+	private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	    Registration r = new Registration(arg);
 	    MethodConstraints methodConstraints = (MethodConstraints) 
-		    arg.get("methodConstraints", null);
+		    arg.get("methodConstraints", null, MethodConstraints.class);
 	    MethodConstraints proxyCon = null;
 	    if (r.mailbox instanceof RemoteMethodControl && 
 		(proxyCon = ((RemoteMethodControl)r.mailbox).getConstraints()) != null) {

@@ -96,7 +96,7 @@ public final class ServerAuthentication
      */
     private final boolean val;
     
-    public ServerAuthentication(GetArg arg) throws IOException{
+    public ServerAuthentication(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("val", true));
     }
 

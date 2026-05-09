@@ -329,7 +329,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
     public EntryRep(Entry entry) throws MarshalException {
 	this(entry, true);
     }
-    private static boolean checkIntegrity(GetArg arg) throws IOException {
+    private static boolean checkIntegrity(GetArg arg) throws IOException, ClassNotFoundException {
 	MarshalledInstance[] values = (MarshalledInstance[]) arg.get("values", null);
 	if (values == null) throw new InvalidObjectException("null values");
 	String[] superclasses = (String[]) arg.get("superclasses", null); // class names of the superclasses
@@ -363,7 +363,7 @@ public class EntryRep implements StorableResource<EntryRep>, LeasedResource, Ser
 	this.integrity = integrity;
     }
     
-    EntryRep(GetArg arg) throws IOException {
+    EntryRep(GetArg arg) throws IOException, ClassNotFoundException {
 	this(arg, checkIntegrity(arg));
     }
 

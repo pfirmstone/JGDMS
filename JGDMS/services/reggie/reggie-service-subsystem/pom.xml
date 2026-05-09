@@ -75,11 +75,11 @@
             <artifactId>jgdms-collections</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!--<dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>groovy-config</artifactId>
             <version>${project.version}</version>
-        </dependency>
+        </dependency>-->
         <dependency>
             <groupId>au.net.zeus.jgdms</groupId>
             <artifactId>jgdms-resources</artifactId>

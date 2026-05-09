@@ -64,12 +64,12 @@ public final class GetLeasesResult implements Serializable {
 		marshalledLeases.clone() : new MarshalledInstance[0];
     }
 
-    GetLeasesResult(GetArg arg) throws IOException {
+    GetLeasesResult(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check(arg));
 	verifyCodebaseIntegrity = MarshalledWrapper.integrityEnforced(arg);
     }
     
-    private static MarshalledInstance[] check(GetArg arg) throws IOException {
+    private static MarshalledInstance[] check(GetArg arg) throws IOException, ClassNotFoundException {
 	MarshalledInstance []  marshalledLeases = (MarshalledInstance[]) 
 		arg.get("marshalledLeases", null);
 	return marshalledLeases == null ? new MarshalledInstance [0] 

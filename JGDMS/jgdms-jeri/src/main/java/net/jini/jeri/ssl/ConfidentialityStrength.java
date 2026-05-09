@@ -141,7 +141,7 @@ public final class ConfidentialityStrength
 
     /* -- Methods -- */
     
-    public ConfidentialityStrength(GetArg arg) throws IOException{
+    public ConfidentialityStrength(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("value", true));
     }
 

@@ -183,7 +183,7 @@ public final class ConstrainableAdminProxy extends AdminProxy
 	methodConstraints = constraints;
     }
     
-    private static MethodConstraints check(GetArg arg) throws IOException {
+    private static MethodConstraints check(GetArg arg) throws IOException, ClassNotFoundException {
 	AdminProxy ap = new AdminProxy(arg);
 	MethodConstraints methodConstraints = (MethodConstraints) 
 		arg.get("methodConstraints", null);

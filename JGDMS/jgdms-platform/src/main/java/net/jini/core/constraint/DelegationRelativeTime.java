@@ -165,7 +165,7 @@ public final class DelegationRelativeTime
     
     
     
-    public DelegationRelativeTime(GetArg arg) throws IOException{
+    public DelegationRelativeTime(GetArg arg) throws IOException, ClassNotFoundException{
 	this(arg.get("minStart", 0L),
 	     arg.get("maxStart", 0L),
 	     arg.get("minStop", 0L),

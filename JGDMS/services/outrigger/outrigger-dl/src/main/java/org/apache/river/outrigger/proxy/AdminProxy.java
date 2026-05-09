@@ -66,7 +66,7 @@ public class AdminProxy implements JavaSpaceAdmin, ReferentUuid, Serializable {
 	this(check(admin,spaceUuid), admin, spaceUuid);
     }
     
-    AdminProxy(GetArg arg) throws IOException {
+    AdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	this(serialCheck((OutriggerAdmin) arg.get("admin", null),
 			(Uuid) arg.get("spaceUuid", null)),
 		(OutriggerAdmin) arg.get("admin", null),

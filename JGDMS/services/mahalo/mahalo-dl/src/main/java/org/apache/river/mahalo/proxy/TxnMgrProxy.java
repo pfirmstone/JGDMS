@@ -109,7 +109,7 @@ public class TxnMgrProxy implements TransactionManager, Administrable, Serializa
 	 return txnMgr;
     }
     
-    private static TxnManager check(GetArg arg) throws IOException {
+    private static TxnManager check(GetArg arg) throws IOException, ClassNotFoundException {
 	try {
 	    return check((TxnManager) arg.get("backend", null),
 		    (Uuid) arg.get("proxyID", null));

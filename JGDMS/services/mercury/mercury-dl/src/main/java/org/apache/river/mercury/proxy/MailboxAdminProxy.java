@@ -80,18 +80,18 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable,
         }
     }
 
-    MailboxAdminProxy(GetArg arg) throws IOException {
-	this(check(arg),(Uuid) arg.get("proxyID", null));
+    MailboxAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
+	this(check(arg),(Uuid) arg.get("proxyID", null, Uuid.class));
     }
     
-    private static MailboxBackEnd check(GetArg arg) throws IOException {
-	MailboxBackEnd server = (MailboxBackEnd) arg.get("server", null);
+    private static MailboxBackEnd check(GetArg arg) throws IOException, ClassNotFoundException {
+	MailboxBackEnd server = arg.get("server", null, MailboxBackEnd.class);
 	/* Verify server */
         if(server == null)
             throw new InvalidObjectException("MailboxProxy.readObject "
                                              +"failure - server "
                                              +"field is null");
-	Uuid proxyID = (Uuid) arg.get("proxyID", null);
+	Uuid proxyID = arg.get("proxyID", null, Uuid.class);
 	 /* Verify proxyID */
         if(proxyID == null)
             throw new InvalidObjectException("MailboxProxy.proxyID "
@@ -267,11 +267,11 @@ public class MailboxAdminProxy implements MailboxAdmin, Serializable,
             super( constrainServer(server, methodConstraints), proxyID);
         }//end constructor
 
-	ConstrainableMailboxAdminProxy(GetArg arg) throws IOException {
+	ConstrainableMailboxAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException {
+	private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	    MailboxAdminProxy map = new MailboxAdminProxy(arg);
 	    // Verify that the server implements RemoteMethodControl
             if( !(map.server instanceof RemoteMethodControl) ) 

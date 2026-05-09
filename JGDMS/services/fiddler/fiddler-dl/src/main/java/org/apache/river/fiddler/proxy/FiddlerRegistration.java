@@ -171,7 +171,7 @@ public class FiddlerRegistration implements LookupDiscoveryRegistration,
 	this.eventReg       = eventReg;
     }//end constructor
 
-    FiddlerRegistration(GetArg arg) throws IOException {
+    FiddlerRegistration(GetArg arg) throws IOException, ClassNotFoundException {
 	this(check((Fiddler) arg.get("server", null),
 		   (Uuid) arg.get("registrationID", null),
 		   (EventRegistration) arg.get("eventReg", null)),

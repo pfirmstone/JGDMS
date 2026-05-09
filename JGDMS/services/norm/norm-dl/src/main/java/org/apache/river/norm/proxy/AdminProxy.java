@@ -60,7 +60,7 @@ public class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin
 	super(server, serverUuid);
     }
 
-    AdminProxy(GetArg arg) throws IOException {
+    AdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
     }
 
@@ -159,11 +159,11 @@ public class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin
 	    }
 	}
 
-	ConstrainableAdminProxy(GetArg arg) throws IOException {
+	ConstrainableAdminProxy(GetArg arg) throws IOException, ClassNotFoundException {
 	    super(check(arg));
 	}
 	
-	private static GetArg check(GetArg arg) throws IOException {
+	private static GetArg check(GetArg arg) throws IOException, ClassNotFoundException {
 	    AbstractProxy ap = new AbstractProxy(arg){};
 	    if (!(ap.server instanceof RemoteMethodControl)) {
 		    throw new InvalidObjectException(

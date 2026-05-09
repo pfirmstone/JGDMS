@@ -82,7 +82,7 @@ public class ConsistentMap<K,V> extends AbstractMap<K,V> implements Serializable
 	this(entrySet(init));
     }
 
-    public ConsistentMap(GetArg arg) throws IOException {
+    public ConsistentMap(GetArg arg) throws IOException, ClassNotFoundException {
 	this(entrySet((Map<K, V>) arg.get("entrySet", null)));
     }
     

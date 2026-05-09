@@ -37,7 +37,7 @@ class PrepareRecord extends ParticipantModRecord {
 	super(part, result);
     }
     
-    PrepareRecord(GetArg arg) throws IOException {
+    PrepareRecord(GetArg arg) throws IOException, ClassNotFoundException {
 	super(arg);
 }
 }

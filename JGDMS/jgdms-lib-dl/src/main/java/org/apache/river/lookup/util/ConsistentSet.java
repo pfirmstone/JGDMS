@@ -85,7 +85,7 @@ public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
 	this(elements(init));
     }
 
-    public ConsistentSet(GetArg arg) throws IOException {
+    public ConsistentSet(GetArg arg) throws IOException, ClassNotFoundException {
 	this(elements(Arrays.asList((T[])arg.get("elements", null))));
     }
     
