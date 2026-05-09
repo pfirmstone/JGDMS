@@ -100,22 +100,46 @@ public class SpiffeEndpointTest {
      *     tester/svid.pem, svid_key.pem
      *     client/svid.pem, svid_key.pem
      * </pre>
+     *
+     * <p>Resolution order:
+     * <ol>
+     *   <li>System property {@code net.jini.jeri.ssl.spiffe.dir} (set by the
+     *       QA harness at runtime).</li>
+     *   <li>Relative to {@code test.src}: the path
+     *       {@code ../../../../../../harness/trust/spiffe} relative to this
+     *       test's source directory, covering the canonical layout:
+     *       {@code qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/} →
+     *       {@code qa/harness/trust/spiffe/}.</li>
+     *   <li>Current working directory (last resort).</li>
+     * </ol>
      */
     private static final String SPIFFE_DIR = resolveSpiffeDir();
 
     private static String resolveSpiffeDir() {
-        // Allow override via system property (set by the QA harness)
+        // 1. Allow override via system property (set by the QA harness)
         String prop = System.getProperty(SpiffeLoginModule.SPIFFE_DIR_PROPERTY);
-        if (prop != null) return prop;
+        if (prop != null && !prop.isBlank()) {
+            Path p = Paths.get(prop);
+            if (p.toFile().isDirectory()) return p.toString();
+            System.err.println("WARNING: spiffe.dir system property points to non-directory: " + prop);
+        }
 
-        // When running from qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/
-        // the trust directory is at qa/harness/trust/spiffe
+        // 2. Derive from jtreg's test.src property.
+        //    test.src is set to the directory containing the test source file:
+        //      qa/jtreg/net/jini/jeri/ssl/SpiffeEndpointTest/
+        //    We walk 7 segments up to reach the repository root, then descend to
+        //      qa/harness/trust/spiffe/
+        //    Path: SpiffeEndpointTest/ -> ssl/ -> jeri/ -> jini/ -> net/ -> jtreg/ -> qa/ -> harness/trust/spiffe/
         String testSrc = System.getProperty("test.src", ".");
-        // Walk up 7 levels from SpiffeEndpointTest/ to qa/ and then down
-        Path trustPath = Paths.get(testSrc)
-                .resolve("../../../../../../harness/trust/spiffe")
+        Path candidate = Paths.get(testSrc)
+                .resolve("../../../../../../../harness/trust/spiffe")
                 .normalize();
-        return trustPath.toString();
+        if (candidate.toFile().isDirectory()) return candidate.toString();
+
+        // 3. Last resort: current working directory
+        System.err.println("WARNING: Could not resolve SPIFFE_DIR from test.src='" + testSrc
+                + "'; falling back to current directory.");
+        return ".";
     }
 
     // -----------------------------------------------------------------------

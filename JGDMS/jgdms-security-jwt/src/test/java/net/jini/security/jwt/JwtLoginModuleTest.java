@@ -646,7 +646,7 @@ public class JwtLoginModuleTest {
                     "keytool", "-genkeypair",
                     "-keyalg",  "RSA",
                     "-keysize", "2048",
-                    "-validity", "1",  // 1 day — minimise footprint
+                    "-validity", "1",  // 1 day — minimize footprint
                     "-dname", "CN=localhost",
                     "-alias", "server",
                     "-keystore", p12Path.toString(),

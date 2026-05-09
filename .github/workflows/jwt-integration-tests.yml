@@ -29,6 +29,9 @@ on:
       - 'JGDMS/jgdms-platform/**'
       - '.github/workflows/jwt-integration-tests.yml'
 
+permissions:
+  contents: read
+
 jobs:
   jwt-tests:
     name: "JWT tests (${{ matrix.jdk-label }})"
