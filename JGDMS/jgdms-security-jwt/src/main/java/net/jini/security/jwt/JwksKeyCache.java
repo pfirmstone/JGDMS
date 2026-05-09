@@ -89,6 +89,9 @@ final class JwksKeyCache {
      */
     static final int MAX_RSA_MODULUS_BYTES = 1024;
 
+    /** Maximum RSA key modulus size in bits, derived from {@link #MAX_RSA_MODULUS_BYTES}. */
+    private static final int MAX_RSA_MODULUS_BITS = MAX_RSA_MODULUS_BYTES * 8;
+
     private final URI jwksUri;
     private final HttpClient httpClient;
     private final Duration ttl;
@@ -263,9 +266,8 @@ final class JwksKeyCache {
                 }
                 byte[] nBytes = Base64.getUrlDecoder().decode(nB64);
                 if (nBytes.length > MAX_RSA_MODULUS_BYTES) {
-                    LOG.warning("RSA JWK modulus exceeds maximum size of "
-                            + MAX_RSA_MODULUS_BYTES + " bytes (" + (MAX_RSA_MODULUS_BYTES * 8)
-                            + "-bit); skipping");
+                    LOG.warning("RSA JWK modulus exceeds maximum of " + MAX_RSA_MODULUS_BYTES
+                            + " bytes (" + MAX_RSA_MODULUS_BITS + " bits); skipping");
                     return null;
                 }
                 byte[] eBytes = Base64.getUrlDecoder().decode(eB64);
@@ -379,12 +381,20 @@ final class JwksKeyCache {
                                     if (result.size() >= MAX_JWKS_KEYS) {
                                         LOG.warning("JWKS contains more than " + MAX_JWKS_KEYS
                                                 + " keys; ignoring remaining keys");
-                                        // Skip to end of array
-                                        while (pos[0] < json.length()) {
+                                        // Skip to the closing ']' of the keys array.
+                                        // Track depth so nested '[' or '{' within any
+                                        // remaining key objects do not confuse the scan.
+                                        int depth = 1; // we are inside the '['
+                                        while (pos[0] < json.length() && depth > 0) {
                                             char s = json.charAt(pos[0]);
-                                            if (s == ']') { pos[0]++; break; }
-                                            if (s == '"') readString(json, pos);
-                                            else pos[0]++;
+                                            if (s == '"') {
+                                                readString(json, pos); // skip quoted value
+                                            } else {
+                                                pos[0]++;
+                                                if (s == '[' || s == '{') depth++;
+                                                else if (s == ']') { if (--depth == 0) break; }
+                                                else if (s == '}') depth--;
+                                            }
                                         }
                                         break;
                                     }

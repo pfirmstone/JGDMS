@@ -372,13 +372,20 @@ final class JwtValidator {
             if (c == ']') { pos[0]++; break; }
             if (c == ',') { pos[0]++; continue; }
             if (count >= MAX_GROUPS) {
-                // Limit reached — skip remaining elements, then close the array.
-                // Advance past items until the closing ']', respecting quoted strings.
-                while (pos[0] < json.length()) {
+                // Limit reached — skip remaining elements to the closing ']'.
+                // Track depth so nested '[' or '{' inside any remaining element
+                // values do not cause premature termination.
+                int depth = 1; // we are inside the outer '['
+                while (pos[0] < json.length() && depth > 0) {
                     char s = json.charAt(pos[0]);
-                    if (s == ']') { pos[0]++; break; }
-                    if (s == '"') JwksKeyCache.readString(json, pos); // consume quoted value
-                    else pos[0]++;
+                    if (s == '"') {
+                        JwksKeyCache.readString(json, pos); // skip quoted value
+                    } else {
+                        pos[0]++;
+                        if (s == '[' || s == '{') depth++;
+                        else if (s == ']') { if (--depth == 0) break; }
+                        else if (s == '}') depth--;
+                    }
                 }
                 LOG.warning("JWT array claim exceeds maximum of " + MAX_GROUPS
                         + " elements; truncating");
