@@ -32,7 +32,7 @@ Supporting JavaFX in ServiceUI requires new factory interfaces and careful atten
 * JavaFX's **single dedicated UI thread** (the JavaFX Application Thread, JAT)
 * JavaFX's **non-serialisability** of scene-graph objects
 * JavaFX's **named JPMS modules** and strict encapsulation
-* JGDMS's dynamic **class-loading** model (marshalled objects, TCCL manipulation)
+* JGDMS's dynamic **class-loading** model (marshalled objects, provisioned ClassLoaders)
 * The **SecurityManager / doPrivileged** context that JGDMS relies on
 
 ---
@@ -53,6 +53,12 @@ net.jini.lookup.entry.UIDescriptor extends AbstractEntry
 ClassLoader** (TCCL) to `parentLoader`, then calls `new MarshalledInstance(factory).get(false)`
 to deserialise the factory.  The factory itself is a small, serialisable gateway object — not
 the heavy UI component.
+
+> ⚠️ **TCCL limitation for JavaFX:** The TCCL set during `getUIFactory()` is a legacy
+> mechanism inherited from RMI-era serialisation.  It must **not** be propagated further into
+> JavaFX or FXML loading — see §3.5 and §3.6 for the explicit-ClassLoader approach that must
+> be used instead.  A future improvement (§11.6) would eliminate TCCL even from the
+> deserialisation step.
 
 ### 2.2 Factory interfaces
 
@@ -136,12 +142,153 @@ permissions.  Without these reversions:
 **Summary:** Integration with JGDMS requires `pfirmstone/jfx` or an equivalent build that
 restores `doPrivileged` and SecurityManager support.
 
-### 3.5 Class-loading under JavaFX
+### 3.5 Class-loading — No TCCL; Explicit Provisioned ClassLoader Required
 
-`FXMLLoader` and CSS loading use the TCCL or an explicit ClassLoader passed to the loader.
-JGDMS's `UIDescriptor.getUIFactory()` already sets the TCCL to `parentLoader` during
-deserialisation.  Service developers should propagate this TCCL into `FXMLLoader` factory
-method bodies explicitly.
+**TCCL must not be used for JavaFX or FXML class loading.**  The Thread Context ClassLoader
+is a mutable thread-local that can be changed by any code at any time and is invisible in
+method signatures, making bugs timing-dependent and hard to reproduce.  On the JavaFX
+Application Thread specifically, the TCCL is managed by the JavaFX runtime itself; code
+dispatched via `Platform.runLater` has no control over what the TCCL will be at execution
+time.
+
+Instead, every JavaFX resource- and class-loading API must receive an **explicit, provisioned
+ClassLoader**:
+
+| JavaFX loading point | Explicit ClassLoader API |
+|----------------------|--------------------------|
+| FXML document | `fxmlLoader.setClassLoader(cl)` |
+| FXML controller instantiation | `fxmlLoader.setControllerFactory(clazz -> cl.loadClass(clazz.getName())…)` |
+| CSS stylesheet URL | `cl.getResource("style.css").toExternalForm()` → `scene.getStylesheets().add(…)` |
+| Image / resource URL | `cl.getResource(path)` → `new Image(url.toExternalForm())` |
+| Programmatic class lookup | `cl.loadClass(name)` — never `Class.forName(name)` without the explicit loader |
+
+**Provisioning the ClassLoader:**
+
+The factory object's class is loaded by a `PreferredClassLoader` whose URLs come from the
+codebase annotation embedded in the `MarshalledObject`.  After the factory is deserialised,
+`this.getClass().getClassLoader()` is already this provisioned loader — it knows the service's
+HTTP class-server URLs and does **not** need any TCCL gymnastics.
+
+Dynamic permissions are granted to this loader's ProtectionDomain via JGDMS's
+`Security.grant(Class, Permission[])` or `DynamicPolicy.grant(Class, Principal[], Permission[])`,
+targeting the factory class (or any class in the same codebase URL).  This grant must occur
+before any security-checked operation runs inside the factory method.
+
+**Rule of thumb for factory implementations:**
+
+```java
+// Always derive the loader from the factory's own class — never read or set TCCL.
+ClassLoader cl = this.getClass().getClassLoader();
+```
+
+This single line gives the correct, provisioned, permission-bearing loader for all subsequent
+resource and class resolution inside the factory method body.
+
+### 3.6 FXML Integration with ServiceUI
+
+FXML (FX Markup Language) is JavaFX's XML-based declarative UI format, edited visually with
+Scene Builder.  It is a strong fit for ServiceUI:
+
+* The FXML resource path (a `String`) is serialisable — exactly what a factory stored in a
+  `MarshalledObject` needs to carry.
+* FXML cleanly separates layout/styling from the service proxy logic, matching ServiceUI's
+  separation-of-concerns principle.
+* Controllers declared in FXML can receive the `roleObject` (service proxy) via a controller
+  factory, keeping all service interaction behind the proxy interface.
+* `pfirmstone/jfx` (`authorization` branch) retains the `doPrivileged` wrappers inside
+  `FXMLLoader`'s XML parsing and reflection paths (commit `8342912` reverted), so internal
+  FXML operations execute with FXMLLoader's own permissions, not the factory's restricted
+  protection domain.
+
+**Correct FXML factory pattern:**
+
+```java
+public class MyFxmlNodeFactory implements NodeFactory {
+    private static final long serialVersionUID = /* generated */L;
+
+    /** Serialisable configuration: path to FXML resource within the UI JAR. */
+    private final String fxmlResource;   // e.g. "/ui/MyServiceUI.fxml"
+
+    public MyFxmlNodeFactory(String fxmlResource) {
+        this.fxmlResource = fxmlResource;
+    }
+
+    @Override
+    public Node getNode(Object roleObject) {
+        // Use the provisioned loader — never TCCL.
+        ClassLoader cl = this.getClass().getClassLoader();
+
+        URL fxmlUrl = cl.getResource(fxmlResource);
+        if (fxmlUrl == null) {
+            throw new IllegalStateException("FXML resource not found: " + fxmlResource);
+        }
+
+        FXMLLoader loader = new FXMLLoader(fxmlUrl);
+        loader.setClassLoader(cl);          // explicit — no TCCL dependency
+
+        // Inject the service proxy into the controller.
+        loader.setControllerFactory(controllerClass -> {
+            try {
+                Object ctrl = controllerClass.getDeclaredConstructor().newInstance();
+                if (ctrl instanceof ServiceAware) {
+                    ((ServiceAware) ctrl).setService(roleObject);
+                }
+                return ctrl;
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException("Controller instantiation failed", e);
+            }
+        });
+
+        try {
+            return loader.load();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load FXML: " + fxmlResource, e);
+        }
+    }
+}
+```
+
+**`ServiceAware` marker interface** (placed in the factory module so both UI JARs and
+browsing clients can reference it without a heavy dependency):
+
+```java
+public interface ServiceAware {
+    void setService(Object serviceProxy);
+}
+```
+
+**CSS loading:**  Stylesheets referenced from FXML via `@` syntax are resolved by
+`FXMLLoader` relative to the FXML document URL, which is already rooted in the provisioned
+loader's codebase — so CSS finds files correctly without any TCCL involvement.  For
+programmatic stylesheet addition:
+
+```java
+// Resolve via the provisioned loader — not from the classpath TCCL sees.
+String css = cl.getResource("/ui/style.css").toExternalForm();
+scene.getStylesheets().add(css);
+```
+
+**Images and other resources** inside FXML (e.g. `<ImageView image="@logo.png"/>`) are
+resolved by `FXMLLoader` relative to the FXML document URL, which is already correct.
+For programmatic image loading:
+
+```java
+URL imgUrl = cl.getResource("/ui/logo.png");
+Image logo = new Image(imgUrl.toExternalForm());
+```
+
+**FXML content stored inline:** As an alternative to resource paths, the FXML XML text itself
+can be stored as a `String` field in the factory object.  This eliminates any URL-resolution
+step at runtime and ensures the UI description travels with the factory through the lookup
+service.  `FXMLLoader` can load from a `StringReader` / `InputStream` while still using
+an explicit base URL for relative resource references:
+
+```java
+FXMLLoader loader = new FXMLLoader();
+loader.setClassLoader(cl);
+loader.setLocation(cl.getResource("/ui/"));   // base for relative refs inside FXML
+Parent root = loader.load(new java.io.StringReader(this.inlineFxml));
+```
 
 ---
 
@@ -306,7 +453,8 @@ JGDMS/jgdms-ui-factory-javafx/
     ParentFactory.java
     StageFactory.java
     FxDialogFactory.java
-    ServiceUIHelper.java         (Platform.runLater wrapper utilities)
+    ServiceAware.java            (marker interface for controller service injection)
+    ServiceUIHelper.java         (Platform.runLater + Subject.callAs wrapper utilities)
 ```
 
 `jgdms-ui-factory-javafx` would have an **optional** Maven dependency on `jgdms-ui-factory`
@@ -339,22 +487,33 @@ A Jini service browser that wants to display JavaFX UIs must:
 
 ## 6. SecurityManager / doPrivileged Integration Details
 
-### 6.1 Factory deserialisation
+### 6.1 Factory deserialisation and ClassLoader provisioning
 
 `UIDescriptor.getUIFactory(parentLoader)` temporarily sets TCCL and calls
-`MarshalledInstance.get(false)`.  The `false` flag means class verification is skipped
-(no codebase URL integrity check at this point).  The factory's class must already be
-loadable from `parentLoader`.
+`MarshalledInstance.get(false)` to deserialise the factory object.  The `false` flag means
+class-integrity verification is skipped (no codebase URL signature check at this point).
+
+> **Note on TCCL in deserialisation:** This TCCL usage is a legacy RMI-era mechanism required
+> by the current `MarshalledInstance` API.  It is distinct from, and must not be confused with,
+> the class loading inside factory method bodies.  §11.6 records an open question about
+> eliminating TCCL here via a new `MarshalledInstance` API that accepts an explicit
+> ClassLoader for resolution.
+
+After deserialisation, the factory object's class has been loaded by a `PreferredClassLoader`
+whose URLs come from the codebase annotation in the `MarshalledObject`.  This loader is
+already provisioned with the correct URLs.  Dynamic permissions are granted by JGDMS's
+`DynamicPolicy` to the factory class's ProtectionDomain (keyed on the codebase URL) **before**
+any security-checked operation within the factory method.
 
 Under JGDMS's `DynamicPolicy`, the factory object arrives in a `MarshalledObject` whose
-codebase annotation points to the service's HTTP class server.  The class loader created by
-`PreferredClassProvider` (or `BasicJeriExporter`'s internal mechanism) will be that factory's
-defining loader.  **All JavaFX code that runs inside the factory method runs as that loader's
-protection domain.**
+codebase annotation points to the service's HTTP class server.  **All JavaFX and FXML code
+that runs inside the factory method runs as that loader's protection domain** — not under the
+client's broader permissions.
 
 If `pfirmstone/jfx` retains `doPrivileged` wrappers, internal JavaFX operations (font loading,
-native peer allocation, CSS parsing) execute with JavaFX's **own** permissions, not the
-factory's restricted permissions.  This is the correct isolation model.
+native peer allocation, CSS parsing, FXML XML parsing) execute with JavaFX's **own**
+permissions rather than the factory's restricted permissions.  This is the correct isolation
+model.
 
 ### 6.2 Subject / GrantPermission
 
@@ -391,21 +550,51 @@ This ensures that any permission checks inside the factory method body (e.g.
 ### 7.1 Factory objects must be serialisable
 
 All JavaFX factory implementations must implement `java.io.Serializable` (as required by the
-ServiceUI spec).  Typical pattern:
+ServiceUI spec).  Only serialisable data (Strings, primitives, etc.) is stored in fields;
+the scene-graph objects are created fresh each time the factory method is called.
+
+Correct pattern using FXML (see also §3.6 for the full FXML treatment):
 
 ```java
 public class MyNodeFactory implements NodeFactory {
     private static final long serialVersionUID = /* generated */L;
-    private final String fxmlResourcePath;  // serialisable configuration
 
-    // transient fields for JAT-local state — not serialised
-    transient Node cachedNode;
+    /** Serialisable: resource path to the FXML file inside the service UI JAR. */
+    private final String fxmlResource;
+
+    public MyNodeFactory(String fxmlResource) {
+        this.fxmlResource = fxmlResource;
+    }
 
     @Override
     public Node getNode(Object roleObject) {
-        FXMLLoader loader = new FXMLLoader(
-            getClass().getResource(fxmlResourcePath));
-        try { return loader.load(); } catch (IOException e) { throw new RuntimeException(e); }
+        // Derive the provisioned loader from THIS class — never read or set TCCL.
+        ClassLoader cl = this.getClass().getClassLoader();
+
+        URL fxmlUrl = cl.getResource(fxmlResource);
+        if (fxmlUrl == null) {
+            throw new IllegalStateException("FXML resource not found: " + fxmlResource);
+        }
+
+        FXMLLoader loader = new FXMLLoader(fxmlUrl);
+        loader.setClassLoader(cl);  // explicit — no TCCL dependency
+        loader.setControllerFactory(clazz -> {
+            try {
+                Object ctrl = clazz.getDeclaredConstructor().newInstance();
+                if (ctrl instanceof ServiceAware) {
+                    ((ServiceAware) ctrl).setService(roleObject);
+                }
+                return ctrl;
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        try {
+            return loader.load();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load FXML: " + fxmlResource, e);
+        }
     }
 }
 ```
@@ -413,8 +602,12 @@ public class MyNodeFactory implements NodeFactory {
 ### 7.2 FXML vs programmatic scene graphs
 
 FXML-based factories are simpler to serialise: only the resource path (a String) or the FXML
-content itself (a String) needs to be stored.  Programmatic scene-graph builders are also fine
-as long as all fields are serialisable primitives / Strings.
+XML text itself (a String) needs to be stored.  Programmatic scene-graph builders are also
+fine as long as all fields are serialisable primitives or Strings.
+
+In both cases, any class or resource resolution inside the factory method body must use
+`this.getClass().getClassLoader()` explicitly — never TCCL, and never `Class.forName(name)`
+without a ClassLoader argument.
 
 ### 7.3 AtomicSerial compatibility
 
@@ -464,6 +657,8 @@ module net.jini.lookup.ui.factory.javafx {
 | No new factory interfaces            | ❌ New interfaces needed  | ✅ Reuses JComponentFactory  | ❌ New interfaces needed   |
 | SecurityManager compatibility        | ✅ With pfirmstone/jfx    | ✅ With pfirmstone/jfx      | ✅ With pfirmstone/jfx     |
 | Subject propagation on JAT           | ✅ With ServiceUIHelper   | ⚠️ Needs explicit wrapping  | ✅ With ServiceUIHelper    |
+| No TCCL in factory method bodies     | ✅ Explicit cl enforced   | ✅ Explicit cl enforced     | ✅ Explicit cl enforced    |
+| FXML with explicit ClassLoader       | ✅ FXMLLoader.setClassLoader | ✅ FXMLLoader.setClassLoader | ✅ FXMLLoader.setClassLoader |
 | GPU-accelerated rendering            | ✅ Full FX pipeline       | ⚠️ FX inside Swing overhead | ✅ Full FX pipeline        |
 | FXML / CSS / animations              | ✅ Full                   | ✅ Full (inside JFXPanel)    | ✅ Full                    |
 | Service provider effort              | Medium                    | Low                        | High                       |
@@ -494,7 +689,11 @@ module net.jini.lookup.ui.factory.javafx {
    JVMs without the `jgdms-ui-factory-javafx` module can load them dynamically via
    `PreferredClassProvider`, consistent with the JGDMS class-loading model.
 
-6. **Update `RequiredPackages` usage guidance**: service providers should always include
+7. **Mandate explicit ClassLoader in all factory method bodies**: document (and enforce via code
+   review) that factory implementations must derive their ClassLoader from
+   `this.getClass().getClassLoader()` and pass it explicitly to every JavaFX loading API
+   (`FXMLLoader.setClassLoader`, `cl.getResource()`, `cl.loadClass()`).  TCCL must never be
+   read or set inside a factory method.
    `javafx.graphics`, `javafx.controls` (and any other JavaFX modules used) in the
    `RequiredPackages` attribute so that clients can fail-fast before deserialising a factory
    that requires an unavailable toolkit.
@@ -519,7 +718,14 @@ module net.jini.lookup.ui.factory.javafx {
    `MarshalledObject` as a byte array (rather than a resource path), AtomicSerial can validate
    the FXML bytes before deserialisation.  This would allow policy-based FXML content control.
 
-5. **pfirmstone/jfx Maven publishing** — The `authorization` branch currently has no Maven
+6. **Eliminating TCCL from `UIDescriptor.getUIFactory()` deserialisation** — The current
+   `getUIFactory(ClassLoader parentLoader)` sets TCCL during `MarshalledInstance.get()` because
+   the standard Java serialisation mechanism uses TCCL for class resolution.  A cleaner design
+   would provide a new overload that passes the ClassLoader directly to the deserialisation
+   machinery (e.g. via a custom `ObjectInputStream` that overrides `resolveClass` to use the
+   provided loader rather than TCCL).  This would eliminate TCCL entirely from the ServiceUI
+   class-loading path.  Since `UIDescriptor` is part of the JGDMS-maintained `jgdms-lib-dl`
+   module (not locked to the original Sun spec byte-for-byte), this improvement is feasible.
    artifact published to Maven Central or a public repo.  For JGDMS to depend on it in CI,
    either a JGDMS-local Maven repository or a GitHub Packages publication of `pfirmstone/jfx`
    artifacts is needed.
